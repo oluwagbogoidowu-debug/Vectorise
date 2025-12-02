@@ -1,150 +1,217 @@
 
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/Button';
 import { MOCK_PARTICIPANT_SPRINTS, MOCK_SPRINTS, MOCK_USERS } from '../../services/mockData';
-import { Participant } from '../../types';
+import { Participant, UserRole } from '../../types';
+import { auth } from '../../services/firebase';
+import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification, signOut } from 'firebase/auth';
+import { userService } from '../../services/userService';
 
 const SignUpPage: React.FC = () => {
-  const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Retrieve the sprint ID and profile data selected during onboarding
-  const { sprintId: selectedSprintId, persona, answers } = location.state || {};
-  const sprintDetails = MOCK_SPRINTS.find(s => s.id === selectedSprintId);
+  const { sprintId: selectedSprintId, persona, answers, recommendedPlan, occupation, incomeRange } = location.state || {};
+  
+  const sprintDetails = selectedSprintId ? MOCK_SPRINTS.find(s => s.id === selectedSprintId) : null;
 
-  const updateUserProfile = (userId: string) => {
-      // In a real app, we would send this data to the backend API.
-      // Here, we update the mock user object in memory for the session.
-      const user = MOCK_USERS.find(u => u.id === userId) as Participant;
-      if (user) {
-          if (persona) user.persona = persona;
-          if (answers) user.onboardingAnswers = answers;
-          // Also update name if provided
-          if (name) user.name = name;
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          setPhoto(file);
+          setPhotoPreview(URL.createObjectURL(file));
       }
   };
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!email || !name) {
+    if (!email || !firstName || !lastName || !password || !confirmPassword) {
         setError('Please fill in all fields.');
         return;
     }
 
-    // Simulate Account Creation: Use a static ID for "New User" from mock data
-    const newUserId = 'participant_new'; 
-    
-    // Store quiz data
-    updateUserProfile(newUserId);
-
-    login(newUserId);
-
-    if (selectedSprintId && sprintDetails) {
-        // Simulate Enrollment
-        const newEnrollmentId = `enrollment_${Date.now()}`;
-        const newEnrollment = {
-            id: newEnrollmentId,
-            sprintId: selectedSprintId,
-            participantId: newUserId,
-            startDate: new Date().toISOString(),
-            progress: Array.from({ length: sprintDetails.duration }, (_, i) => ({
-                day: i + 1,
-                completed: false
-            }))
-        };
-        
-        // Push to mock data (in-memory only)
-        MOCK_PARTICIPANT_SPRINTS.push(newEnrollment);
-
-        // Direct redirect to the Sprint View (Day 1)
-        navigate(`/participant/sprint/${newEnrollmentId}`);
-    } else {
-        // Fallback if no sprint was selected, go to Home (Dashboard)
-        navigate('/dashboard');
+    if (password !== confirmPassword) {
+        setError('Passwords do not match.');
+        return;
     }
-  };
 
-  const handleGoogleSignUp = () => {
-      // Simulate Google Auth
-      const newUserId = 'participant_new';
-      
-      // Store quiz data (name might be missing here, but we store what we have)
-      updateUserProfile(newUserId);
+    if (password.length < 6) {
+        setError('Password must be at least 6 characters.');
+        return;
+    }
 
-      login(newUserId);
+    // Check against existing mock users to prevent duplicates with predefined accounts
+    if (MOCK_USERS.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+        setError('User already exists. Sign in instead.');
+        return;
+    }
 
-      if (selectedSprintId && sprintDetails) {
-        const newEnrollmentId = `enrollment_g_${Date.now()}`;
-        const newEnrollment = {
-            id: newEnrollmentId,
-            sprintId: selectedSprintId,
-            participantId: newUserId,
-            startDate: new Date().toISOString(),
-            progress: Array.from({ length: sprintDetails.duration }, (_, i) => ({
-                day: i + 1,
-                completed: false
-            }))
+    setIsLoading(true);
+
+    try {
+        // 1. Create User in Firebase Auth
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        const fullName = `${firstName} ${lastName}`.trim();
+        const photoURL = photoPreview || `https://ui-avatars.com/api/?name=${fullName}&background=0E7850&color=fff`;
+
+        // 2. Update Profile in Firebase Auth
+        await updateProfile(user, {
+            displayName: fullName,
+            photoURL: photoURL
+        });
+
+        // 3. Create rich Participant object for Firestore
+        const newUser: Participant = {
+            id: user.uid, // Use Firebase UID
+            name: fullName,
+            email: email,
+            role: UserRole.PARTICIPANT,
+            profileImageUrl: photoURL,
+            bio: "I'm ready to grow!",
+            followers: 0,
+            following: 0,
+            savedSprintIds: [],
+            enrolledSprintIds: [], // New Field
+            shinePostIds: [], // New Field
+            shineCommentIds: [], // New Field
+            hasCoachProfile: false,
+            walletBalance: 30, // Default 30 coins for new accounts
+            impactStats: { peopleHelped: 0, streak: 0 },
+            // Map onboarding data
+            persona: persona || 'User',
+            onboardingAnswers: answers || {},
+            occupation: occupation as any,
+            incomeBracket: incomeRange === 'Under ₦50,000' ? 'low' : incomeRange?.includes('150,000') ? 'mid' : 'high',
+            subscription: recommendedPlan ? {
+                planId: recommendedPlan,
+                active: false,
+                renewsAt: new Date().toISOString()
+            } : undefined
         };
-        MOCK_PARTICIPANT_SPRINTS.push(newEnrollment);
-        navigate(`/participant/sprint/${newEnrollmentId}`);
-      } else {
-          navigate('/dashboard');
-      }
+
+        // SAVE TO FIRESTORE
+        await userService.createUserDocument(user.uid, newUser);
+
+        // Also Update MOCK_USERS for legacy components that rely on it immediately
+        MOCK_USERS.push(newUser);
+
+        // 4. Handle Sprint Enrollment if selected (Mock DB Update - Future: Move to Firestore subcollection)
+        if (selectedSprintId && sprintDetails) {
+            const newEnrollmentId = `enrollment_${Date.now()}`;
+            const newEnrollment = {
+                id: newEnrollmentId,
+                sprintId: selectedSprintId,
+                participantId: user.uid,
+                startDate: new Date().toISOString(),
+                progress: Array.from({ length: sprintDetails.duration }, (_, i) => ({
+                    day: i + 1,
+                    completed: false
+                }))
+            };
+            MOCK_PARTICIPANT_SPRINTS.push(newEnrollment);
+        }
+
+        // 5. Send Verification Email
+        await sendEmailVerification(user);
+
+        // 6. Sign out immediately to enforce verification flow
+        await signOut(auth);
+
+        // 7. Navigate to Verification Screen
+        navigate('/verify-email', { state: { email } });
+
+    } catch (err: any) {
+        console.error("Signup error:", err);
+        if (err.code === 'auth/email-already-in-use') {
+            setError('User already exists. Sign in instead.');
+        } else if (err.code === 'auth/weak-password') {
+            setError('Password should be at least 6 characters.');
+        } else {
+            setError('Failed to create account. Please try again.');
+        }
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl">
         <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">Sign up to access your sprint</h2>
-            {sprintDetails && (
-                <p className="mt-2 text-primary font-medium">You are joining: {sprintDetails.title}</p>
+            <h2 className="text-3xl font-bold text-gray-900">Create Account</h2>
+            {sprintDetails ? (
+                <p className="mt-2 text-primary font-medium">To join: {sprintDetails.title}</p>
+            ) : (
+                <p className="mt-2 text-gray-500">Start your growth journey</p>
             )}
         </div>
         
-        <button 
-            type="button"
-            onClick={handleGoogleSignUp}
-            className="w-full flex items-center justify-center gap-3 bg-white border border-gray-200 text-gray-700 font-semibold py-3.5 px-4 rounded-xl hover:bg-gray-50 transition-all hover:shadow-md mb-6 group"
-        >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-            </svg>
-            <span className="group-hover:text-gray-900">Sign up with Google</span>
-        </button>
+        <form onSubmit={handleSignUp} className="space-y-4">
+            {/* Profile Photo Upload */}
+            <div className="flex flex-col items-center mb-6">
+                <div className="w-24 h-24 rounded-full bg-gray-100 mb-3 overflow-hidden border-2 border-dashed border-gray-300 flex items-center justify-center relative">
+                    {photoPreview ? (
+                        <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    )}
+                    <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                </div>
+                <span className="text-xs text-gray-500">Upload Profile Photo</span>
+            </div>
 
-        <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200"></div>
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                    <input 
+                        type="text" 
+                        id="firstName"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white"
+                        placeholder="First Name"
+                    />
+                </div>
+                <div>
+                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                    <input 
+                        type="text" 
+                        id="lastName"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white"
+                        placeholder="Last Name"
+                    />
+                </div>
             </div>
-            <div className="relative flex justify-center text-sm">
-            <span className="px-4 bg-white text-gray-500">Or sign up with email</span>
-            </div>
-        </div>
 
-        <form onSubmit={handleSignUp} className="mb-8 space-y-4">
-            <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input 
-                    type="text" 
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white"
-                    placeholder="Enter your name"
-                />
-            </div>
             <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                 <input 
@@ -155,13 +222,81 @@ const SignUpPage: React.FC = () => {
                         setEmail(e.target.value);
                         setError('');
                     }}
-                    className={`w-full px-4 py-3 border rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white ${error ? 'border-red-500' : 'border-gray-200'}`}
+                    className={`w-full px-4 py-3 border rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white ${error && error.includes('User') ? 'border-red-500' : 'border-gray-200'}`}
                     placeholder="Enter your email"
                 />
-                {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
             </div>
-            <Button type="submit" className="w-full justify-center py-3.5 rounded-xl shadow-lg text-lg">Sign Up & Start Sprint</Button>
+            <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <div className="relative">
+                    <input 
+                        type={showPassword ? "text" : "password"} 
+                        id="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white pr-10"
+                        placeholder="Create a password (min 6 chars)"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                    >
+                        {showPassword ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                            </svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        )}
+                    </button>
+                </div>
+            </div>
+            <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Repeat Password</label>
+                <div className="relative">
+                    <input 
+                        type={showConfirmPassword ? "text" : "password"} 
+                        id="confirmPassword"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className={`w-full px-4 py-3 border rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white pr-10 ${error && error.includes('match') ? 'border-red-500' : 'border-gray-200'}`}
+                        placeholder="Repeat password"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                    >
+                        {showConfirmPassword ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                            </svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        )}
+                    </button>
+                </div>
+            </div>
+
+            {error && <p className={`mt-1 text-sm text-center ${error.includes('User') ? 'text-red-600 font-bold' : 'text-red-600'}`}>{error}</p>}
+            
+            <Button type="submit" isLoading={isLoading} className="w-full justify-center py-3.5 rounded-xl shadow-lg text-lg mt-4">
+                Sign Up {selectedSprintId ? '& Start Sprint' : ''}
+            </Button>
         </form>
+
+        <div className="text-center mt-6">
+            <p className="text-sm text-gray-600">
+                Already have an account? <Link to="/login" className="text-primary font-bold hover:underline">Sign In</Link>
+            </p>
+        </div>
       </div>
     </div>
   );

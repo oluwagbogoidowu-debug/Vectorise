@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Sprint, Coach, UserRole, Participant } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { userService } from '../services/userService';
 
 interface SprintCardProps {
     sprint: Sprint;
@@ -10,8 +11,9 @@ interface SprintCardProps {
 }
 
 const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach }) => {
-    const { user } = useAuth();
+    const { user, updateProfile } = useAuth(); // Assuming updateProfile refreshes context
     const [isSaved, setIsSaved] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         if (user && user.role === UserRole.PARTICIPANT) {
@@ -22,25 +24,38 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach }) => {
         }
     }, [user, sprint.id]);
 
-    const handleSave = (e: React.MouseEvent) => {
+    const handleSave = async (e: React.MouseEvent) => {
         e.preventDefault(); // Prevent Link navigation
         e.stopPropagation();
 
-        if (!user) {
-            // Optional: Alert or redirect could go here
-            return; 
-        }
-        if (user.role !== UserRole.PARTICIPANT) return;
+        if (!user || user.role !== UserRole.PARTICIPANT) return;
+        if (isLoading) return;
 
         const p = user as Participant;
-        // Toggle logic (mutating mock user in memory for interaction feel)
-        if (isSaved) {
-             p.savedSprintIds = p.savedSprintIds?.filter(id => id !== sprint.id) || [];
-             setIsSaved(false);
-        } else {
-             if (!p.savedSprintIds) p.savedSprintIds = [];
-             p.savedSprintIds.push(sprint.id);
-             setIsSaved(true);
+        const newSavedState = !isSaved;
+        
+        setIsLoading(true);
+        setIsSaved(newSavedState); // Optimistic Update
+
+        try {
+            await userService.toggleSavedSprint(user.id, sprint.id, newSavedState);
+            
+            // Update local context to reflect change globally (optional but good)
+            let updatedIds = p.savedSprintIds ? [...p.savedSprintIds] : [];
+            if (newSavedState) {
+                updatedIds.push(sprint.id);
+            } else {
+                updatedIds = updatedIds.filter(id => id !== sprint.id);
+            }
+            // We call updateProfile just to sync the context state if needed, 
+            // though standard AuthContext might re-fetch or we manually mutate local object
+            p.savedSprintIds = updatedIds; 
+            
+        } catch (error) {
+            console.error("Failed to save sprint", error);
+            setIsSaved(!newSavedState); // Revert
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -101,6 +116,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach }) => {
 
                         <button 
                             onClick={handleSave}
+                            disabled={isLoading}
                             className={`p-3 rounded-lg border transition-colors flex items-center justify-center flex-shrink-0 ${
                                 isSaved 
                                 ? 'bg-red-50 border-red-200 text-red-500' 
@@ -108,7 +124,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach }) => {
                             }`}
                             title={isSaved ? "Remove from Saved" : "Save Sprint"}
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill={isSaved ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                            <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${isSaved ? 'fill-current' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                             </svg>
                         </button>

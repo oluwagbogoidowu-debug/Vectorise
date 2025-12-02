@@ -87,6 +87,12 @@ export interface Participant extends User {
   followers?: number;
   following?: number;
   savedSprintIds?: string[];
+  
+  // New Activity Tracking Fields
+  enrolledSprintIds?: string[];
+  shinePostIds?: string[];
+  shineCommentIds?: string[];
+
   // New fields for Account Switching
   hasCoachProfile?: boolean;
   coachBio?: string;

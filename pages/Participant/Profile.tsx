@@ -33,7 +33,7 @@ const Modal = ({ title, onClose, children }: { title: string, onClose: () => voi
 );
 
 const Profile: React.FC = () => {
-  const { user, logout, activeRole, switchRole, completeCoachOnboarding } = useAuth();
+  const { user, logout, activeRole, switchRole, completeCoachOnboarding, updateProfile, deleteAccount } = useAuth();
   const navigate = useNavigate();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -52,6 +52,7 @@ const Profile: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showCoachOnboarding, setShowCoachOnboarding] = useState(false);
   const [showPendingModal, setShowPendingModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   // Coach Onboarding State
   const [coachNiche, setCoachNiche] = useState('');
@@ -73,11 +74,11 @@ const Profile: React.FC = () => {
               setBio((user as Participant).bio || '');
           }
           
-          // Initialize extended fields (mock values if undefined on user object)
+          // Initialize extended fields
           const p = user as Participant;
           setOccupation(p.occupation || '');
-          setLocation('Lagos, Nigeria'); // Mock default
-          setWebsite(''); 
+          setLocation('Lagos, Nigeria'); // Future: Add location to User type
+          setWebsite(''); // Future: Add website to User type
 
           // Deterministic banner based on name
           setBannerUrl(BANNER_IMAGES[user.name.length % BANNER_IMAGES.length]);
@@ -117,13 +118,25 @@ const Profile: React.FC = () => {
     navigate('/login');
   };
 
-  const handleEditToggle = () => {
+  const handleEditToggle = async () => {
       if (!isEditing) {
           setIsEditing(true);
           setShowBasicInfo(true); // Auto-open info when editing
       } else {
+          // SAVE CHANGES
           setIsEditing(false);
-          // API Call would go here to save name, bio, location, website, occupation
+          try {
+              const updates: Partial<Participant> = {
+                  name,
+                  bio,
+                  occupation: occupation as any, // Type cast for now
+                  // location, website - would go here if in type
+              };
+              await updateProfile(updates);
+          } catch (error) {
+              alert("Failed to update profile. Please try again.");
+              console.error(error);
+          }
       }
   };
 
@@ -134,40 +147,21 @@ const Profile: React.FC = () => {
       setShowBannerMenu(false);
   };
 
-  const handleSwitchAccount = () => {
-      if (activeRole === UserRole.PARTICIPANT) {
-          // Switching to Coach Mode
-          if (user.role === UserRole.COACH) {
-              // Native Coach
-              switchRole(UserRole.COACH);
-              navigate('/coach/dashboard');
-          } else if (participant.hasCoachProfile) {
-              // Participant with Coach Profile
-              if (participant.coachApproved) {
-                  // Approved -> Switch
-                  switchRole(UserRole.COACH);
-                  navigate('/coach/dashboard');
-              } else {
-                  // Not Approved -> Show Pending Modal
-                  setShowPendingModal(true);
-              }
-          } else {
-              // No Profile -> Trigger onboarding
-              setShowCoachOnboarding(true);
-          }
-      } else {
-          // Switching back to Member
-          switchRole(UserRole.PARTICIPANT);
-          navigate('/dashboard');
-      }
-  };
-
   const submitCoachOnboarding = (e: React.FormEvent) => {
       e.preventDefault();
       completeCoachOnboarding(coachBio, coachNiche);
       setShowCoachOnboarding(false);
       // Instead of switching, show the pending modal
       setShowPendingModal(true);
+  };
+
+  const handleDeleteAccount = async () => {
+      try {
+          await deleteAccount();
+          navigate('/login');
+      } catch (error) {
+          alert("Could not delete account. You may need to log in again.");
+      }
   };
 
   return (
@@ -226,6 +220,25 @@ const Profile: React.FC = () => {
             </Modal>
         )}
 
+       {/* Delete Confirmation Modal */}
+       {showDeleteConfirm && (
+           <Modal title="Delete Account?" onClose={() => setShowDeleteConfirm(false)}>
+               <div className="text-center py-2">
+                   <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                   </div>
+                   <p className="text-gray-700 mb-2 font-medium">Are you sure you want to delete your account?</p>
+                   <p className="text-gray-500 text-sm mb-6">This action cannot be undone. All your progress, sprints, and data will be permanently removed.</p>
+                   <div className="flex gap-3">
+                       <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)} className="flex-1 bg-gray-100">Cancel</Button>
+                       <Button variant="danger" onClick={handleDeleteAccount} className="flex-1">Delete Forever</Button>
+                   </div>
+               </div>
+           </Modal>
+       )}
+
        {/* Settings Modal */}
        {showSettings && (
            <Modal title="Account Settings" onClose={() => setShowSettings(false)}>
@@ -246,10 +259,13 @@ const Profile: React.FC = () => {
                             </span>
                         </button>
                     ))}
-                    <div className="pt-4 mt-4 border-t border-gray-100">
-                        <Button variant="danger" onClick={handleLogout} className="w-full">
+                    <div className="pt-4 mt-4 border-t border-gray-100 space-y-3">
+                        <Button variant="secondary" onClick={handleLogout} className="w-full bg-white border border-gray-200 text-gray-700 hover:bg-gray-50">
                             Sign Out
                         </Button>
+                        <button onClick={() => { setShowSettings(false); setShowDeleteConfirm(true); }} className="w-full text-center text-xs text-red-500 hover:text-red-700 font-semibold py-2">
+                            Delete Account
+                        </button>
                     </div>
                 </div>
            </Modal>

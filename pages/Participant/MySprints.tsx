@@ -2,10 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { MOCK_PARTICIPANT_SPRINTS, MOCK_SPRINTS } from '../../services/mockData';
+import { MOCK_SPRINTS } from '../../services/mockData';
 import { ParticipantSprint, Sprint, Participant } from '../../types';
 import ProgressBar from '../../components/ProgressBar';
 import Button from '../../components/Button';
+import { sprintService } from '../../services/sprintService';
 
 const MySprints: React.FC = () => {
     const { user } = useAuth();
@@ -14,35 +15,39 @@ const MySprints: React.FC = () => {
     const [savedSprints, setSavedSprints] = useState<Sprint[]>([]);
 
     useEffect(() => {
-        if (user) {
-            // Filter Enrollments
-            const myEnrollments = MOCK_PARTICIPANT_SPRINTS.filter(ps => ps.participantId === user.id);
-            const now = new Date();
+        const loadSprints = async () => {
+            if (user) {
+                // Filter Enrollments from Firestore
+                const myEnrollments = await sprintService.getUserEnrollments(user.id);
+                const now = new Date();
 
-            const active: { enrollment: ParticipantSprint; sprint: Sprint }[] = [];
-            const upcoming: { enrollment: ParticipantSprint; sprint: Sprint }[] = [];
+                const active: { enrollment: ParticipantSprint; sprint: Sprint }[] = [];
+                const upcoming: { enrollment: ParticipantSprint; sprint: Sprint }[] = [];
 
-            myEnrollments.forEach(enrollment => {
-                const sprint = MOCK_SPRINTS.find(s => s.id === enrollment.sprintId);
-                if (!sprint) return;
+                myEnrollments.forEach(enrollment => {
+                    const sprint = MOCK_SPRINTS.find(s => s.id === enrollment.sprintId);
+                    if (!sprint) return;
 
-                const startDate = new Date(enrollment.startDate);
-                // Logic: Upcoming if start date is in future. Active if start date is past.
-                if (startDate > now) {
-                    upcoming.push({ enrollment, sprint });
-                } else {
-                    active.push({ enrollment, sprint });
-                }
-            });
+                    const startDate = new Date(enrollment.startDate);
+                    // Logic: Upcoming if start date is in future. Active if start date is past.
+                    if (startDate > now) {
+                        upcoming.push({ enrollment, sprint });
+                    } else {
+                        active.push({ enrollment, sprint });
+                    }
+                });
 
-            setActiveSprints(active);
-            setUpcomingSprints(upcoming);
+                setActiveSprints(active);
+                setUpcomingSprints(upcoming);
 
-            // Filter Saved Sprints
-            const savedIds = (user as Participant).savedSprintIds || [];
-            const saved = MOCK_SPRINTS.filter(s => savedIds.includes(s.id));
-            setSavedSprints(saved);
-        }
+                // Filter Saved Sprints
+                const savedIds = (user as Participant).savedSprintIds || [];
+                const saved = MOCK_SPRINTS.filter(s => savedIds.includes(s.id));
+                setSavedSprints(saved);
+            }
+        };
+        
+        loadSprints();
     }, [user]);
 
     const calculateProgress = (enrollment: ParticipantSprint) => {

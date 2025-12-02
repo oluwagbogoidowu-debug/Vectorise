@@ -3,8 +3,9 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ParticipantSprint, Sprint, Participant, Notification } from '../../types';
-import { MOCK_PARTICIPANT_SPRINTS, MOCK_SPRINTS, MOCK_NOTIFICATIONS } from '../../services/mockData';
+import { MOCK_SPRINTS, MOCK_NOTIFICATIONS } from '../../services/mockData';
 import Button from '../../components/Button';
+import { sprintService } from '../../services/sprintService';
 
 const QUOTES = [
     "Your big opportunity may be right where you are now.",
@@ -76,19 +77,24 @@ const ParticipantDashboard: React.FC = () => {
   const notificationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (user) {
-      // Get enrolled sprints
-      const enrollments = MOCK_PARTICIPANT_SPRINTS.filter(ps => ps.participantId === user.id);
-      const enrichedSprints = enrollments.map(enrollment => {
-        const sprint = MOCK_SPRINTS.find(s => s.id === enrollment.sprintId);
-        return { enrollment, sprint: sprint! };
-      }).filter(item => item.sprint);
-      setMySprints(enrichedSprints);
+    const fetchData = async () => {
+        if (user) {
+            // Get enrolled sprints from Firestore
+            const enrollments = await sprintService.getUserEnrollments(user.id);
+            
+            const enrichedSprints = enrollments.map(enrollment => {
+                const sprint = MOCK_SPRINTS.find(s => s.id === enrollment.sprintId);
+                return { enrollment, sprint: sprint! };
+            }).filter(item => item.sprint);
+            
+            setMySprints(enrichedSprints);
 
-      // Set a random quote
-      const randomQuote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-      setQuote(randomQuote);
-    }
+            // Set a random quote
+            const randomQuote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+            setQuote(randomQuote);
+        }
+    };
+    fetchData();
     
     // Click outside listener for closing notifications
     const handleClickOutside = (event: MouseEvent) => {
@@ -163,7 +169,6 @@ const ParticipantDashboard: React.FC = () => {
 
   // --- Slideshow Logic for Action Card ---
   const slideIndex = Math.floor(now / 5000) % 3; // Simple cyclical index based on time
-  // We can use state for smoother control if needed, but this works for the example
   
   // Determine visible slides based on state
   let activeSlide = 'discover';

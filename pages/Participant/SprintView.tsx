@@ -6,6 +6,8 @@ import { MOCK_PARTICIPANT_SPRINTS, MOCK_SPRINTS, MOCK_COACHING_COMMENTS, MOCK_RE
 import Button from '../../components/Button';
 import ProgressBar from '../../components/ProgressBar';
 import { useAuth } from '../../contexts/AuthContext';
+import { chatService } from '../../services/chatService';
+import { sprintService } from '../../services/sprintService';
 
 // Helper duplicated from Landing Page for consistent data simulation
 const getSprintOutcomes = (category: string) => {
@@ -58,17 +60,28 @@ const SprintView: React.FC = () => {
         return () => clearInterval(timer);
     }, []);
 
+    // Load Enrollment from DB or Mock
     useEffect(() => {
-        const foundEnrollment = MOCK_PARTICIPANT_SPRINTS.find(e => e.id === enrollmentId);
-        if (foundEnrollment) {
-            setEnrollment(foundEnrollment);
-            const foundSprint = MOCK_SPRINTS.find(s => s.id === foundEnrollment.sprintId);
-            setSprint(foundSprint || null);
+        const loadSprintData = async () => {
+            if (!enrollmentId) return;
+
+            // Use service to fetch from DB first, then fallback to mock
+            const foundEnrollment = await sprintService.getEnrollmentById(enrollmentId);
             
-            // Initial load: Find first incomplete day or default to 1
-            const firstIncomplete = foundEnrollment.progress.find(p => !p.completed);
-            setViewingDay(firstIncomplete ? firstIncomplete.day : 1);
-        }
+            if (foundEnrollment) {
+                setEnrollment(foundEnrollment);
+                const foundSprint = MOCK_SPRINTS.find(s => s.id === foundEnrollment.sprintId);
+                setSprint(foundSprint || null);
+                
+                // Initial load: Find first incomplete day or default to 1
+                const firstIncomplete = foundEnrollment.progress.find(p => !p.completed);
+                setViewingDay(firstIncomplete ? firstIncomplete.day : 1);
+            } else {
+                console.error("Enrollment not found");
+                // Optional: navigate back if not found
+            }
+        };
+        loadSprintData();
     }, [enrollmentId]);
 
     // Reset submission states when day changes
@@ -83,28 +96,26 @@ const SprintView: React.FC = () => {
         }
     }, [viewingDay, enrollment]);
 
-    // Load Comments for the viewing day with Real-Time Polling
+    // Load Comments for the viewing day from DB
     useEffect(() => {
         if (!user || !sprint) return;
 
-        const fetchComments = () => {
-            const comments = MOCK_COACHING_COMMENTS.filter(c => 
-                c.sprintId === sprint.id && 
-                c.day === viewingDay &&
-                (c.participantId === user.id || user.role === UserRole.COACH) // Security check mock
-            ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+        const fetchComments = async () => {
+            // Fetch entire conversation from DB for this sprint/user
+            const allMessages = await chatService.getConversation(sprint.id, user.id);
+            
+            // Filter locally for the specific day view
+            const daySpecific = allMessages.filter(c => c.day === viewingDay);
             
             setDayComments(prev => {
-                // Simple diff to avoid state update if no change (prevents flicker in some cases)
-                if (prev.length !== comments.length) return comments;
-                // Deep check for content change if lengths equal
-                const isDifferent = comments.some((c, i) => c.id !== prev[i].id);
-                return isDifferent ? comments : prev;
+                if (prev.length !== daySpecific.length) return daySpecific;
+                return daySpecific;
             });
         };
 
         fetchComments();
-        const interval = setInterval(fetchComments, 1000); // Poll every 1s for real-time effect
+        // Poll for new messages
+        const interval = setInterval(fetchComments, 3000);
 
         return () => clearInterval(interval);
     }, [sprint, viewingDay, user]);
@@ -151,7 +162,10 @@ const SprintView: React.FC = () => {
         const updatedEnrollment = { ...enrollment, progress: updatedProgress };
         setEnrollment(updatedEnrollment);
 
-        // 2. Update mock data reference (simulation)
+        // 2. Persist to Firestore
+        sprintService.updateProgress(enrollment.id, updatedProgress);
+
+        // 3. Update mock data reference (simulation fallback)
         const idx = MOCK_PARTICIPANT_SPRINTS.findIndex(e => e.id === enrollment.id);
         if (idx !== -1) {
             MOCK_PARTICIPANT_SPRINTS[idx] = updatedEnrollment;
@@ -179,12 +193,11 @@ const SprintView: React.FC = () => {
         }
     };
 
-    const handleSendComment = (e: React.FormEvent) => {
+    const handleSendComment = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!chatMessage.trim() || !user || !sprint) return;
 
-        const newComment: CoachingComment = {
-            id: `cc_${Date.now()}`,
+        const newMessage: Omit<CoachingComment, 'id'> = {
             sprintId: sprint.id,
             day: viewingDay,
             participantId: user.id,
@@ -194,9 +207,17 @@ const SprintView: React.FC = () => {
             read: false
         };
 
-        MOCK_COACHING_COMMENTS.push(newComment);
-        setDayComments([...dayComments, newComment]);
+        // Optimistic update
+        const tempMsg = { ...newMessage, id: `temp_${Date.now()}` };
+        setDayComments(prev => [...prev, tempMsg]);
         setChatMessage('');
+
+        // Save to DB
+        try {
+            await chatService.sendMessage(newMessage);
+        } catch (error) {
+            console.error("Failed to send message");
+        }
     };
 
     const handleSubmitReview = (e: React.FormEvent) => {

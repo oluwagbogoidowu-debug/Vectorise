@@ -5,6 +5,7 @@ import { MOCK_SPRINTS, MOCK_USERS, SUBSCRIPTION_PLANS, MOCK_PARTICIPANT_SPRINTS,
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/Button';
 import { Coach, UserRole, Participant } from '../../types';
+import { sprintService } from '../../services/sprintService';
 
 // Helper to generate outcomes based on category (simulated data)
 const getSprintOutcomes = (category: string) => {
@@ -24,8 +25,9 @@ const SprintLandingPage: React.FC = () => {
     const { sprintId } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
-    const { user } = useAuth();
+    const { user, updateProfile } = useAuth();
     const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [isEnrolling, setIsEnrolling] = useState(false);
     
     // Retrieve 'from' state to handle back navigation correctly
     const { from } = location.state || {};
@@ -33,7 +35,9 @@ const SprintLandingPage: React.FC = () => {
     const sprint = MOCK_SPRINTS.find(s => s.id === sprintId);
     const coach = MOCK_USERS.find(u => u.id === sprint?.coachId);
 
-    // Check enrollment status
+    // Check enrollment status (Simplistic check against mock data + context needed if using DB)
+    // For now, we rely on the MOCK array check which is populated by previous sessions or mock file.
+    // In a real full app, we'd fetch this user's enrollments on mount.
     const existingEnrollment = user ? MOCK_PARTICIPANT_SPRINTS.find(
         ps => ps.participantId === user.id && ps.sprintId === sprint?.id
     ) : null;
@@ -75,36 +79,35 @@ const SprintLandingPage: React.FC = () => {
     // Check if user is the Owner (Coach) or Admin
     const isOwner = user && (user.id === sprint.coachId || user.role === UserRole.ADMIN);
 
-    const enrollAndNavigate = () => {
+    const enrollAndNavigate = async () => {
         if (!user || !sprint) return;
+        setIsEnrolling(true);
 
-        // Double check mock data in case it was updated since render
-        const currentEnrollment = MOCK_PARTICIPANT_SPRINTS.find(
-            ps => ps.participantId === user.id && ps.sprintId === sprint.id
-        );
+        try {
+            // 1. Check Mock Data just in case
+            const currentEnrollment = MOCK_PARTICIPANT_SPRINTS.find(
+                ps => ps.participantId === user.id && ps.sprintId === sprint.id
+            );
 
-        if (currentEnrollment) {
-            // Pass 'from' state so SprintView knows where to go back to
-            navigate(`/participant/sprint/${currentEnrollment.id}`, { state: { from } });
-            return;
+            if (currentEnrollment) {
+                navigate(`/participant/sprint/${currentEnrollment.id}`, { state: { from } });
+                return;
+            }
+
+            // 2. Perform DB Enrollment
+            const newEnrollment = await sprintService.enrollUser(user.id, sprint.id, sprint.duration);
+            
+            // 3. Update Mock Data for immediate local consistency
+            MOCK_PARTICIPANT_SPRINTS.push(newEnrollment);
+
+            // Navigate
+            navigate(`/participant/sprint/${newEnrollment.id}`, { state: { from } });
+        } catch (error) {
+            alert("Failed to enroll. Please try again.");
+            console.error(error);
+        } finally {
+            setIsEnrolling(false);
         }
-
-        // Create new mock enrollment
-        const newEnrollmentId = `enrollment_${Date.now()}`;
-        const newEnrollment = {
-            id: newEnrollmentId,
-            sprintId: sprint.id,
-            participantId: user.id,
-            startDate: new Date().toISOString(),
-            progress: Array.from({ length: sprint.duration }, (_, i) => ({
-                day: i + 1,
-                completed: false
-            }))
-        };
-        
-        MOCK_PARTICIPANT_SPRINTS.push(newEnrollment);
-        // Pass 'from' state so SprintView knows where to go back to
-        navigate(`/participant/sprint/${newEnrollmentId}`, { state: { from } });
     };
 
     const handleJoinClick = () => {
@@ -129,46 +132,54 @@ const SprintLandingPage: React.FC = () => {
         }
     };
 
-    const handleConfirmPayment = (method: 'cash' | 'points' | 'hybrid' | 'upgrade') => {
+    const handleConfirmPayment = async (method: 'cash' | 'points' | 'hybrid' | 'upgrade') => {
         if (!user) return;
         
-        const currentUser = MOCK_USERS.find(u => u.id === user.id) as Participant;
-        if (!currentUser) return;
-
-        let message = '';
+        const currentUser = user as Participant;
+        const currentBalance = currentUser.walletBalance || 0;
         const sprintCost = sprint.pointCost || 5;
 
         if (method === 'cash') {
-            message = `Payment of ₦${sprint.price.toLocaleString()} successful!`;
+            alert(`Payment of ₦${sprint.price.toLocaleString()} successful!`);
+            setShowPaymentModal(false);
+            await enrollAndNavigate();
         } else if (method === 'points') {
             // DEDUCT POINTS LOGIC
-            if ((currentUser.walletBalance || 0) >= sprintCost) {
-                 currentUser.walletBalance = (currentUser.walletBalance || 0) - sprintCost;
-                 message = `Redeemed ${sprintCost} Credits! Remaining: ${currentUser.walletBalance}`;
+            if (currentBalance >= sprintCost) {
+                 try {
+                     const newBalance = currentBalance - sprintCost;
+                     await updateProfile({ walletBalance: newBalance });
+                     alert(`Redeemed ${sprintCost} Credits! Remaining: ${newBalance}`);
+                     setShowPaymentModal(false);
+                     await enrollAndNavigate();
+                 } catch (error) {
+                     console.error("Payment failed", error);
+                     alert("Failed to process point payment. Please try again.");
+                 }
             } else {
                 alert("Insufficient points.");
-                return;
             }
         } else if (method === 'hybrid') {
              // DEDUCT 3 POINTS
-             if ((currentUser.walletBalance || 0) >= 3) {
-                 currentUser.walletBalance = (currentUser.walletBalance || 0) - 3;
-                 const discountedPrice = sprint.price * 0.1;
-                 message = `Redeemed 3 Credits + Paid ₦${discountedPrice.toLocaleString()}! Sprint Unlocked.`;
+             if (currentBalance >= 3) {
+                 try {
+                     const newBalance = currentBalance - 3;
+                     const discountedPrice = sprint.price * 0.1;
+                     await updateProfile({ walletBalance: newBalance });
+                     alert(`Redeemed 3 Credits + Paid ₦${discountedPrice.toLocaleString()}! Sprint Unlocked.`);
+                     setShowPaymentModal(false);
+                     await enrollAndNavigate();
+                 } catch (error) {
+                     console.error("Payment failed", error);
+                     alert("Failed to process payment. Please try again.");
+                 }
              } else {
                  alert("Insufficient points for hybrid deal.");
-                 return;
              }
         } else if (method === 'upgrade') {
             // Pass state so GrowthRewards knows to show a "Back to Sprint" button
             navigate('/impact/rewards', { state: { fromSprintId: sprint.id } }); 
-            return;
         }
-        
-        alert(message);
-        setShowPaymentModal(false);
-        // Navigate to sprint view directly
-        enrollAndNavigate();
     };
 
     const handleBack = () => {
@@ -225,7 +236,11 @@ const SprintLandingPage: React.FC = () => {
                     </div>
 
                     <div className="text-center">
-                        <Button onClick={handleJoinClick} className="text-xl px-12 py-4 shadow-lg hover:shadow-xl hover:scale-105 transform transition-all w-full md:w-auto">
+                        <Button 
+                            onClick={handleJoinClick} 
+                            isLoading={isEnrolling}
+                            className="text-xl px-12 py-4 shadow-lg hover:shadow-xl hover:scale-105 transform transition-all w-full md:w-auto"
+                        >
                             {isOwner 
                                 ? 'Preview Sprint' 
                                 : existingEnrollment 
@@ -239,7 +254,7 @@ const SprintLandingPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Public Reviews Section */}
+            {/* Public Reviews Section (Existing code...) */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Student Reviews ({sprintReviews.length})</h2>
                 
@@ -317,7 +332,7 @@ const SprintLandingPage: React.FC = () => {
                 </div>
             )}
 
-            {/* Payment Modal */}
+            {/* Payment Modal (Existing code...) */}
             {showPaymentModal && user && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] overflow-y-auto">

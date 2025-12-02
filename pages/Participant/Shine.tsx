@@ -2,8 +2,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { MOCK_SHINE_POSTS } from '../../services/mockData';
 import { ShinePost, ShineComment } from '../../types';
+import { shineService } from '../../services/shineService';
 
 // Simple helper to format relative time
 const formatTimeAgo = (dateString: string) => {
@@ -164,7 +164,7 @@ interface ShineProps {
 
 const Shine: React.FC<ShineProps> = ({ viewMode = 'participant' }) => {
   const { user } = useAuth();
-  const [posts, setPosts] = useState<ShinePost[]>(MOCK_SHINE_POSTS);
+  const [posts, setPosts] = useState<ShinePost[]>([]);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
   const [isPosting, setIsPosting] = useState(false);
@@ -175,22 +175,29 @@ const Shine: React.FC<ShineProps> = ({ viewMode = 'participant' }) => {
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // REAL-TIME SUBSCRIPTION
+  useEffect(() => {
+      // Subscribe to posts from Firestore 'ShinePost' collection
+      const unsubscribe = shineService.subscribeToPosts((fetchedPosts) => {
+          setPosts(fetchedPosts);
+      });
+      
+      // Cleanup listener on unmount
+      return () => unsubscribe();
+  }, []);
+
   // Focus input when opened
   useEffect(() => {
       if (isComposeOpen && inputRef.current) {
           setTimeout(() => {
             inputRef.current?.focus();
-          }, 100); // Slight delay to allow animation to start smoothly
+          }, 100); 
       }
   }, [isComposeOpen]);
 
   const sortedPosts = useMemo(() => {
-      // In coach mode, we might filter for only participants (for now, showing all as example)
       let visiblePosts = posts;
-      if (viewMode === 'coach') {
-          // Optional: filter posts logic for coaches
-      }
-
+      // Sorting
       return [...visiblePosts].sort((a, b) => {
           if (sortOrder === 'recent') {
               return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
@@ -200,16 +207,13 @@ const Shine: React.FC<ShineProps> = ({ viewMode = 'participant' }) => {
       });
   }, [posts, sortOrder, viewMode]);
 
-  const handlePost = (e: React.FormEvent) => {
+  const handlePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPostContent.trim() || !user) return;
 
     setIsPosting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const newPost: ShinePost = {
-        id: `post_${Date.now()}`,
+    const postData: Omit<ShinePost, 'id'> = {
         userId: user.id,
         userName: user.name,
         userAvatar: user.profileImageUrl,
@@ -220,13 +224,24 @@ const Shine: React.FC<ShineProps> = ({ viewMode = 'participant' }) => {
         isLiked: false,
         isSaved: false,
         commentData: []
-      };
+    };
 
-      setPosts([newPost, ...posts]);
-      setNewPostContent('');
-      setIsComposeOpen(false);
-      setIsPosting(false);
-    }, 600);
+    try {
+        const newPost = await shineService.createPost(postData);
+        // We optimistically add it to the list locally, though the subscription might also catch it
+        // Check if it's already there (by ID) to avoid duplicates
+        setPosts(prev => {
+            if (prev.some(p => p.id === newPost.id)) return prev;
+            return [newPost, ...prev];
+        });
+        
+        setNewPostContent('');
+        setIsComposeOpen(false);
+    } catch (error) {
+        console.error("Failed to post:", error);
+    } finally {
+        setIsPosting(false);
+    }
   };
 
   const toggleLike = (postId: string) => {
@@ -254,7 +269,7 @@ const Shine: React.FC<ShineProps> = ({ viewMode = 'participant' }) => {
       }));
   }
 
-  const handleAddComment = (postId: string, text: string) => {
+  const handleAddComment = async (postId: string, text: string) => {
       if (!user) return;
 
       const newComment: ShineComment = {
@@ -266,6 +281,7 @@ const Shine: React.FC<ShineProps> = ({ viewMode = 'participant' }) => {
           timestamp: new Date().toISOString()
       };
 
+      // Optimistic Update
       setPosts(posts.map(post => {
           if (post.id === postId) {
               return {
@@ -276,6 +292,9 @@ const Shine: React.FC<ShineProps> = ({ viewMode = 'participant' }) => {
           }
           return post;
       }));
+
+      // Persist to DB
+      await shineService.addComment(postId, newComment);
   };
 
   const activePost = activeCommentPostId ? posts.find(p => p.id === activeCommentPostId) || null : null;
@@ -320,7 +339,7 @@ const Shine: React.FC<ShineProps> = ({ viewMode = 'participant' }) => {
 
       {/* Feed */}
       <div className="px-4 py-4 space-y-4">
-        {sortedPosts.map((post, index) => (
+        {sortedPosts.length > 0 ? sortedPosts.map((post, index) => (
           <React.Fragment key={post.id}>
             <div className={`bg-white rounded-2xl p-5 shadow-sm border border-gray-100 ${viewMode === 'coach' ? 'border-l-4 border-l-primary' : ''}`}>
                 <div className="flex items-start justify-between mb-3">
@@ -379,7 +398,9 @@ const Shine: React.FC<ShineProps> = ({ viewMode = 'participant' }) => {
             {/* Nudge Card inserted after the 2nd post (index 1) */}
             {index === 1 && viewMode === 'participant' && <NudgeCard />}
           </React.Fragment>
-        ))}
+        )) : (
+            <div className="text-center py-10 text-gray-400">Loading posts...</div>
+        )}
       </div>
 
       {/* Floating Compose Action */}

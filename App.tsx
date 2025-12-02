@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/Header';
 import LoginPage from './pages/Auth/LoginPage';
 import SignUpPage from './pages/Auth/SignUpPage';
+import VerifyEmailPage from './pages/Auth/VerifyEmailPage';
 import HomePage from './pages/HomePage';
 import CreateSprint from './pages/Coach/CreateSprint';
 import EditSprint from './pages/Coach/EditSprint';
@@ -47,7 +48,15 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
-  const { user, activeRole } = useAuth();
+  const { user, activeRole, loading } = useAuth();
+
+  if (loading) {
+      return (
+          <div className="min-h-screen flex items-center justify-center">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          </div>
+      );
+  }
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -109,7 +118,8 @@ const AppRoutes: React.FC = () => {
     !location.pathname.startsWith('/coach') &&
     !location.pathname.startsWith('/admin') &&
     !location.pathname.startsWith('/login') &&
-    !location.pathname.startsWith('/signup');
+    !location.pathname.startsWith('/signup') &&
+    !location.pathname.startsWith('/verify-email');
 
   return (
     <div className={`min-h-screen font-sans ${isOnboarding ? 'bg-primary text-white' : 'bg-light text-dark'}`}>
@@ -118,6 +128,7 @@ const AppRoutes: React.FC = () => {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/" element={user ? <Navigate to="/dashboard" /> : <HomePage />} />
           <Route path="/recommended" element={<RecommendedSprints />} />
           

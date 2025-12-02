@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { MOCK_PARTICIPANT_SPRINTS, MOCK_USERS, MOCK_SPRINTS, MOCK_COACHING_COMMENTS } from '../../services/mockData';
 import { Participant, Sprint, CoachingComment } from '../../types';
 import Button from '../../components/Button';
+import { chatService } from '../../services/chatService';
 
 interface Thread {
     participant: Participant;
@@ -21,23 +22,28 @@ const CoachParticipants: React.FC = () => {
   const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [allMessages, setAllMessages] = useState<CoachingComment[]>([]);
   
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
-  // Polling key to trigger re-renders based on Mock Data changes
+  // Polling key to trigger re-renders based on DB changes
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Real-time Polling Effect (Simulated)
+  // Fetch ALL messages periodically (Simulating real-time updates for inbox view)
   useEffect(() => {
-      const interval = setInterval(() => {
-          setRefreshKey(prev => prev + 1);
-      }, 2000);
+      const fetchMessages = async () => {
+          const msgs = await chatService.getAllMessages();
+          setAllMessages(msgs);
+      };
+      
+      fetchMessages();
+      const interval = setInterval(fetchMessages, 3000);
       return () => clearInterval(interval);
-  }, []);
+  }, [refreshKey]);
 
-  // Build Thread List
+  // Build Thread List based on fetched messages and Enrollments
   useEffect(() => {
-      if (user) {
+      if (user && allMessages.length >= 0) {
           const mySprints = MOCK_SPRINTS.filter(s => s.coachId === user.id);
           const mySprintIds = mySprints.map(s => s.id);
           
@@ -48,8 +54,8 @@ const CoachParticipants: React.FC = () => {
               const student = MOCK_USERS.find(u => u.id === enrollment.participantId) as Participant;
               const sprint = mySprints.find(s => s.id === enrollment.sprintId) as Sprint;
               
-              // Get conversation history for this specific pair
-              const history = MOCK_COACHING_COMMENTS.filter(c => 
+              // Get conversation history for this specific pair from ALL fetched messages
+              const history = allMessages.filter(c => 
                   c.participantId === student.id && c.sprintId === sprint.id
               ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
@@ -75,14 +81,14 @@ const CoachParticipants: React.FC = () => {
 
           setThreads(threadList);
       }
-  }, [user, refreshKey]);
+  }, [user, allMessages]);
 
   // Scroll to bottom of chat
   useEffect(() => {
       if (chatContainerRef.current) {
           chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
       }
-  }, [selectedStudentId, refreshKey]);
+  }, [selectedStudentId, allMessages]);
 
   // Filter threads
   const filteredThreads = threads.filter(t => 
@@ -93,12 +99,12 @@ const CoachParticipants: React.FC = () => {
   // Get Active Conversation
   const activeConversation = useMemo(() => {
       if (!selectedStudentId || !selectedSprintId) return [];
-      return MOCK_COACHING_COMMENTS
+      return allMessages
         .filter(c => c.participantId === selectedStudentId && c.sprintId === selectedSprintId)
         .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-  }, [selectedStudentId, selectedSprintId, refreshKey]);
+  }, [selectedStudentId, selectedSprintId, allMessages]);
 
-  const handleReply = (e: React.FormEvent) => {
+  const handleReply = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!replyText.trim() || !user || !selectedStudentId || !selectedSprintId) return;
 
@@ -106,8 +112,7 @@ const CoachParticipants: React.FC = () => {
       const lastMsg = activeConversation[activeConversation.length - 1];
       const dayContext = lastMsg ? lastMsg.day : 1;
 
-      const newComment: CoachingComment = {
-          id: `cc_${Date.now()}`,
+      const newMessage: Omit<CoachingComment, 'id'> = {
           sprintId: selectedSprintId,
           day: dayContext,
           participantId: selectedStudentId,
@@ -117,17 +122,17 @@ const CoachParticipants: React.FC = () => {
           read: false
       };
 
-      MOCK_COACHING_COMMENTS.push(newComment);
-      
-      // Mark student messages as read
-      MOCK_COACHING_COMMENTS.forEach(c => {
-          if (c.participantId === selectedStudentId && c.sprintId === selectedSprintId && c.authorId === selectedStudentId) {
-              c.read = true;
-          }
-      });
-
+      // Optimistic Update
+      const tempMsg = { ...newMessage, id: `temp_${Date.now()}` };
+      setAllMessages(prev => [...prev, tempMsg]);
       setReplyText('');
-      setRefreshKey(prev => prev + 1);
+
+      try {
+          await chatService.sendMessage(newMessage);
+          setRefreshKey(prev => prev + 1); // Trigger fetch to get real ID
+      } catch (error) {
+          console.error("Failed to send reply");
+      }
   };
 
   const selectedThread = threads.find(t => t.participant.id === selectedStudentId && t.sprint.id === selectedSprintId);
