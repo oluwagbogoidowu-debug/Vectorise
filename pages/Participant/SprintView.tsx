@@ -2,26 +2,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ParticipantSprint, Sprint, UserRole, CoachingComment, Review } from '../../types';
-import { MOCK_PARTICIPANT_SPRINTS, MOCK_SPRINTS, MOCK_COACHING_COMMENTS, MOCK_REVIEWS } from '../../services/mockData';
+import { MOCK_PARTICIPANT_SPRINTS, MOCK_SPRINTS, MOCK_REVIEWS } from '../../services/mockData';
 import Button from '../../components/Button';
 import ProgressBar from '../../components/ProgressBar';
 import { useAuth } from '../../contexts/AuthContext';
 import { chatService } from '../../services/chatService';
 import { sprintService } from '../../services/sprintService';
-
-// Helper duplicated from Landing Page for consistent data simulation
-const getSprintOutcomes = (category: string) => {
-    const outcomes: Record<string, string[]> = {
-        'Productivity': ['Master your daily schedule', 'Eliminate procrastination', 'Achieve deep focus states'],
-        'Personal Fitness': ['Boost daily energy levels', 'Build sustainable physical habits', 'Improve overall vitality'],
-        'Leadership': ['Communicate with authority', 'Inspire and motivate teams', 'Make decisions with confidence'],
-        'Personal Branding': ['Define your unique voice', 'Grow your audience organically', 'Monetize your expertise'],
-        'Interpersonal Relationship': ['Deepen meaningful connections', 'Resolve conflicts gracefully', 'Build a strong support network'],
-        'Skill Acquisition': ['Accelerate learning speed', 'Apply new skills immediately', 'Overcome the learning curve'],
-        'default': ['Gain clarity on your goals', 'Build consistent daily habits', 'See visible progress in days']
-    };
-    return outcomes[category] || outcomes['default'];
-};
+import { getSprintOutcomes } from '../../utils/sprintUtils';
 
 const SprintView: React.FC = () => {
     const { user } = useAuth();

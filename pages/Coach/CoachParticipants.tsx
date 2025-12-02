@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { MOCK_PARTICIPANT_SPRINTS, MOCK_USERS, MOCK_SPRINTS, MOCK_COACHING_COMMENTS } from '../../services/mockData';
+import { MOCK_PARTICIPANT_SPRINTS, MOCK_USERS, MOCK_SPRINTS } from '../../services/mockData';
 import { Participant, Sprint, CoachingComment } from '../../types';
 import Button from '../../components/Button';
 import { chatService } from '../../services/chatService';
