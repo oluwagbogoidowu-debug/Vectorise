@@ -18,7 +18,7 @@ const HomePage: React.FC = () => {
         </Link>
       </div>
        <div className="mt-16 max-w-4xl mx-auto">
-        <img src="https://picsum.photos/seed/homepage/1200/600" alt="Inspirational dashboard" className="rounded-lg shadow-2xl"/>
+        <img src="https://picsum.photos/800/600" alt="Inspirational dashboard" className="rounded-lg shadow-2xl"/>
       </div>
     </div>
   );
