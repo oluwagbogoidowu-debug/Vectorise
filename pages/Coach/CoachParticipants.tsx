@@ -1,15 +1,16 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { MOCK_CONVERSATIONS, MOCK_MESSAGES } from '../../services/mockChatData';
-import { Conversation, Message, User } from '../../types';
+import { MOCK_PARTICIPANT_SPRINTS, MOCK_USERS, MOCK_SPRINTS, MOCK_COACHING_COMMENTS } from '../../services/mockData';
+import { Participant, Sprint, CoachingComment } from '../../types';
+import Button from '../../components/Button';
+import { chatService } from '../../services/chatService';
 
-interface EnrichedConversation extends Conversation {
-    participant: {
-        userId: string;
-        name: string;
-        avatar: string;
-    };
+interface Thread {
+    participant: Participant;
+    sprint: Sprint;
+    lastMessage?: CoachingComment;
+    unreadCount: number;
 }
 
 const CoachParticipants: React.FC = () => {

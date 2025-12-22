@@ -7,7 +7,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/Button';
 import { Coach, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
-import { chatService } from '../../services/chatService';
 
 // Helper to generate outcomes based on category (simulated data)
 const getSprintOutcomes = (category: string) => {

@@ -16,7 +16,6 @@ export const shineService = {
         try {
             const postsRef = collection(db, COLLECTION_NAME);
             const docRef = await addDoc(postsRef, post);
-            console.log("Post created in DB with ID:", docRef.id);
             
             // Update user document
             await userService.addUserPost(post.userId, docRef.id);
@@ -86,7 +85,6 @@ export const shineService = {
             const isMockPost = postId.startsWith('post') || postId.startsWith('local_');
             
             if (isMockPost) {
-                console.log("Skipping DB update for mock/local post:", postId);
                 return;
             }
 
