@@ -129,7 +129,7 @@ export const MOCK_USERS: (Coach | Participant | Admin)[] = [
     profileImageUrl: 'https://picsum.photos/seed/coach2/200',
     bio: 'PhD in Psychology, focused on mindfulness and stress reduction techniques.',
     niche: 'Mindfulness',
-    approved: false,
+    approved: true, // Approved so she can create sprints
   },
   {
     id: 'coach3',
@@ -143,6 +143,17 @@ export const MOCK_USERS: (Coach | Participant | Admin)[] = [
     approved: true,
   },
   {
+      id: "coach-tom",
+      name: "Coach Tom",
+      email: "tom.roberts@vectorise.com",
+      role: UserRole.COACH,
+      roleDefinitionId: "role_head_coach",
+      profileImageUrl: "https://randomuser.me/api/portraits/men/46.jpg",
+      bio: "Productivity expert and author. I help you get more done in less time.",
+      niche: "Productivity",
+      approved: true,
+  },
+  {
     id: 'participant1',
     name: 'Jamie Lee',
     email: 'jamie.lee@example.com',
@@ -152,6 +163,7 @@ export const MOCK_USERS: (Coach | Participant | Admin)[] = [
     followers: 142,
     following: 89,
     savedSprintIds: ['sprint2', 'sprint4'],
+    enrolledSprintIds: ['sprint1', 'sprint4', 'sprint9'],
     hasCoachProfile: false,
     referralCode: 'JAMIEGROWTH',
     walletBalance: 500,
@@ -177,6 +189,7 @@ export const MOCK_USERS: (Coach | Participant | Admin)[] = [
     followers: 12,
     following: 5,
     savedSprintIds: [],
+    enrolledSprintIds: [],
     hasCoachProfile: false,
     referralCode: 'NEWUSER24',
     walletBalance: 0,
@@ -359,6 +372,66 @@ export const MOCK_SPRINTS: Sprint[] = [
     published: true,
     approvalStatus: 'approved',
     dailyContent: generateDailyContent(14, 'LinkedIn Growth')
+  },
+  {
+    id: 'sprint6',
+    coachId: 'coach2',
+    title: 'The Art of Storytelling',
+    description: 'Learn how to captivate your audience by telling compelling stories. Perfect for leaders, marketers, and creators.',
+    category: 'Personal Branding',
+    difficulty: 'Intermediate',
+    duration: 10,
+    price: 8000,
+    pointCost: 16,
+    coverImageUrl: 'https://picsum.photos/seed/story1/800/400',
+    published: false,
+    approvalStatus: 'pending_approval',
+    dailyContent: generateDailyContent(10, 'Storytelling')
+  },
+  {
+    id: 'sprint7',
+    coachId: 'coach3',
+    title: 'Scaling Your Sales Funnel',
+    description: 'A deep dive into building and optimizing sales funnels that convert. For advanced business owners.',
+    category: 'Skill Acquisition',
+    difficulty: 'Advanced',
+    duration: 30,
+    price: 25000,
+    pointCost: 50,
+    coverImageUrl: 'https://picsum.photos/seed/sales1/800/400',
+    published: false,
+    approvalStatus: 'pending_approval',
+    dailyContent: generateDailyContent(30, 'Sales Funnels')
+  },
+    {
+    id: 'sprint8',
+    coachId: 'coach2',
+    title: 'Financial Habits for Creatives',
+    description: 'Manage your finances like a pro without sacrificing your creative freedom. For freelancers and artists.',
+    category: 'Productivity',
+    difficulty: 'Beginner',
+    duration: 14,
+    price: 5000,
+    pointCost: 10,
+    coverImageUrl: 'https://picsum.photos/seed/finance1/800/400',
+    published: false,
+    approvalStatus: 'pending_approval',
+    dailyContent: generateDailyContent(14, 'Financial Habits')
+  },
+  {
+    id: 'sprint9',
+    coachId: 'coach-tom',
+    title: 'Productivity Power-Up',
+    description: 'A 5-day sprint to help you build a productivity system that works for you.',
+    category: 'Productivity',
+    difficulty: 'Beginner',
+    duration: 5,
+    price: 5000,
+    pointCost: 10,
+    coverImageUrl: 'https://picsum.photos/seed/sprint9/800/400',
+    published: true,
+    approvalStatus: 'approved',
+    dailyContent: generateDailyContent(5, 'Productivity')
   }
 ];
 
@@ -384,6 +457,13 @@ export let MOCK_PARTICIPANT_SPRINTS: ParticipantSprint[] = [
         participantId: 'participant1',
         startDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
         progress: Array.from({ length: 7 }, (_, i) => ({ day: i + 1, completed: false }))
+    },
+    {
+        id: 'enrollment4',
+        sprintId: 'sprint9',
+        participantId: 'participant1',
+        startDate: new Date().toISOString(),
+        progress: Array.from({ length: 5 }, (_, i) => ({ day: i + 1, completed: false }))
     }
 ];
 

@@ -8,6 +8,7 @@ import { Participant, UserRole } from '../../types';
 import { auth } from '../../services/firebase';
 import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification, signOut } from 'firebase/auth';
 import { userService } from '../../services/userService';
+import { chatService } from '../../services/chatService';
 
 const SignUpPage: React.FC = () => {
   const navigate = useNavigate();
@@ -114,7 +115,7 @@ const SignUpPage: React.FC = () => {
         // Also Update MOCK_USERS for legacy components that rely on it immediately
         MOCK_USERS.push(newUser);
 
-        // 4. Handle Sprint Enrollment if selected (Mock DB Update - Future: Move to Firestore subcollection)
+        // 4. Handle Sprint Enrollment and create initial conversation
         if (selectedSprintId && sprintDetails) {
             const newEnrollmentId = `enrollment_${Date.now()}`;
             const newEnrollment = {
@@ -128,6 +129,9 @@ const SignUpPage: React.FC = () => {
                 }))
             };
             MOCK_PARTICIPANT_SPRINTS.push(newEnrollment);
+
+            // CRITICAL: Create the initial welcome conversation
+            await chatService.createInitialWelcomeConversation(selectedSprintId, newUser);
         }
 
         // 5. Send Verification Email

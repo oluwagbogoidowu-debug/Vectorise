@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
+import whiteLogo from '../../assets/images/logo-white.png';
 
 export const Welcome: React.FC = () => {
   return (
@@ -12,7 +13,7 @@ export const Welcome: React.FC = () => {
 
       <main className="flex flex-col flex-grow justify-between">
         <div className="pt-16 text-center">
-          <h2 className="text-2xl font-bold tracking-wide">vectorise</h2>
+          <Link to="/"><img src={whiteLogo} alt="Vectorise Logo" className="h-16 w-auto object-contain mx-auto" /></Link>
         </div>
 
         <div className="flex-grow flex items-center justify-center -mt-16">

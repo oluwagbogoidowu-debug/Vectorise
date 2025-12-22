@@ -1,9 +1,13 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import Button from '../components/Button';
+import Button from '../../components/Button';
+import useWindowSize from '../../hooks/useWindowSize';
 
 const HomePage: React.FC = () => {
+  const { width } = useWindowSize();
+  const isDesktop = width >= 768;
+
   return (
     <div className="text-center py-16 px-4">
       <h1 className="text-4xl md:text-6xl font-extrabold text-dark tracking-tight mb-4">
@@ -13,7 +17,7 @@ const HomePage: React.FC = () => {
         Vectorise is a personal growth sprint platform. Join short, high-impact programs designed by expert coaches to bring you clarity and results in 7-21 days.
       </p>
       <div className="flex justify-center gap-4">
-        <Link to="/onboarding/welcome">
+        <Link to={isDesktop ? '/onboarding/desktop-welcome' : '/onboarding/welcome'}>
             <Button variant="primary" className="text-lg px-8 py-3">Get Started</Button>
         </Link>
       </div>

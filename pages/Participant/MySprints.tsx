@@ -110,9 +110,11 @@ const MySprints: React.FC = () => {
                 ) : (
                     <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-300">
                         <p className="text-gray-500 mb-4">No active sprints currently.</p>
-                        <Link to="/discover">
-                            <Button>Find a Sprint</Button>
-                        </Link>
+                        <div className="flex justify-center">
+                            <Link to="/discover">
+                                <Button>Find a Sprint</Button>
+                            </Link>
+                        </div>
                     </div>
                 )}
             </section>

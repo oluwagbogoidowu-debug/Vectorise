@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { MOCK_USERS, MOCK_SPRINTS, MOCK_PAYOUTS, MOCK_ROLES, MOCK_NOTIFICATIONS } from '../../services/mockData';
 import { UserRole, Coach, Sprint, Payout, RoleDefinition, Permission, Participant } from '../../types';
 import Button from '../../components/Button';
@@ -19,7 +20,7 @@ const AVAILABLE_PERMISSIONS: { id: Permission; label: string }[] = [
 ];
 
 export default function AdminDashboard() {
-    const [activeTab, setActiveTab] = useState<Tab>('roles');
+    const [activeTab, setActiveTab] = useState<Tab>('sprints');
     const [roles, setRoles] = useState<RoleDefinition[]>(MOCK_ROLES);
     const [refreshKey, setRefreshKey] = useState(0); 
     
@@ -30,7 +31,6 @@ export default function AdminDashboard() {
     const [newRoleBase, setNewRoleBase] = useState<UserRole>(UserRole.COACH);
     const [newRolePermissions, setNewRolePermissions] = useState<Permission[]>([]);
 
-    // Filter coaches: Includes Users with ROLE=COACH AND Participants with hasCoachProfile=true
     const [allCoaches, setAllCoaches] = useState<(Coach | Participant)[]>([]);
 
     useEffect(() => {
@@ -46,49 +46,24 @@ export default function AdminDashboard() {
         if (userIndex !== -1) {
             const user = MOCK_USERS[userIndex];
             
-            // 1. Update Status
             if (user.role === UserRole.COACH) {
                 (user as Coach).approved = shouldApprove;
             } else if (user.role === UserRole.PARTICIPANT) {
                 (user as Participant).coachApproved = shouldApprove;
             }
 
-            // 2. Send Notification
-            const notificationText = shouldApprove 
-                ? "🎉 Congratulations! Your coach profile has been approved. You can now create and publish sprints."
-                : "⚠️ Your coach approval has been revoked. Please contact support for details.";
-            
             MOCK_NOTIFICATIONS.unshift({
                 id: `notif_admin_${Date.now()}`,
                 type: 'announcement',
-                text: notificationText,
+                text: shouldApprove 
+                    ? "🎉 Congratulations! Your coach profile has been approved. You can now create and publish sprints."
+                    : "⚠️ Your coach approval has been revoked. Please contact support for details.",
                 timestamp: new Date().toISOString(),
                 read: false
             });
             
             setRefreshKey(prev => prev + 1);
             alert(`Coach ${user.name} ${shouldApprove ? 'approved' : 'revoked'}!`);
-        }
-    };
-
-    const handleSprintApproval = (sprintId: string, approved: boolean) => {
-        const idx = MOCK_SPRINTS.findIndex(s => s.id === sprintId);
-        if (idx !== -1) {
-            MOCK_SPRINTS[idx].approvalStatus = approved ? 'approved' : 'rejected';
-            MOCK_SPRINTS[idx].published = approved; // Only live if approved
-
-            // Notify Coach
-            MOCK_NOTIFICATIONS.unshift({
-                id: `notif_admin_sprint_${Date.now()}`,
-                type: 'sprint_update',
-                text: approved 
-                    ? `✅ Your sprint "${MOCK_SPRINTS[idx].title}" has been approved and is now live!` 
-                    : `❌ Your sprint "${MOCK_SPRINTS[idx].title}" was not approved. Please review feedback.`,
-                timestamp: new Date().toISOString(),
-                read: false
-            });
-
-            setRefreshKey(prev => prev + 1);
         }
     };
 
@@ -126,7 +101,26 @@ export default function AdminDashboard() {
                     {/* Tabs */}
                     <div className="border-b border-gray-200 bg-gray-50/50 px-6">
                         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                             <button 
+                                onClick={() => setActiveTab('sprints')} 
+                                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'sprints' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                            >
+                                Sprints for Review
+                            </button>
                             <button 
+                                onClick={() => setActiveTab('coaches')} 
+                                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'coaches' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                            >
+                                Coaches & Applicants
+                            </button>
+                           
+                            <button 
+                                onClick={() => setActiveTab('payouts')} 
+                                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'payouts' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                            >
+                                Payouts
+                            </button>
+                             <button 
                                 onClick={() => setActiveTab('roles')} 
                                 className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${activeTab === 'roles' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
                             >
@@ -135,31 +129,113 @@ export default function AdminDashboard() {
                                 </svg>
                                 Roles & Permissions
                             </button>
-                            <button 
-                                onClick={() => setActiveTab('coaches')} 
-                                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'coaches' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
-                            >
-                                Coaches & Applicants
-                            </button>
-                            <button 
-                                onClick={() => setActiveTab('sprints')} 
-                                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'sprints' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
-                            >
-                                Sprints
-                            </button>
-                            <button 
-                                onClick={() => setActiveTab('payouts')} 
-                                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'payouts' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
-                            >
-                                Payouts
-                            </button>
                         </nav>
                     </div>
                     
-                    {/* Tab Content */}
                     <div className="p-6">
-                        
-                        {/* ROLES TAB */}
+                         {activeTab === 'sprints' && (
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Title</th>
+                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Coach</th>
+                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Price</th>
+                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 bg-white">
+                                        {MOCK_SPRINTS.filter(s => s.approvalStatus === 'pending_approval').length > 0 ? MOCK_SPRINTS.filter(s => s.approvalStatus === 'pending_approval').map((sprint: Sprint) => {
+                                            const coach = MOCK_USERS.find(u => u.id === sprint.coachId);
+                                            
+                                            return (
+                                                <tr key={sprint.id} className="hover:bg-gray-50 transition-colors">
+                                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{sprint.title}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{coach?.name || 'Unknown'}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">₦{sprint.price.toLocaleString()}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-bold rounded-full uppercase tracking-wide bg-blue-100 text-blue-700'}`}>
+                                                            Pending Approval
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <Link to={`/admin/sprint/review/${sprint.id}`}>
+                                                            <Button variant="secondary" className="text-xs px-3 py-1.5 shadow-sm border-gray-300">Review</Button>
+                                                        </Link>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        }) : (
+                                            <tr>
+                                                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No sprints are currently pending review.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {activeTab === 'coaches' && (
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
+                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Role</th>
+                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 bg-white">
+                                        {allCoaches.length > 0 ? allCoaches.map(coach => {
+                                            const customRole = MOCK_ROLES.find(r => r.id === coach.roleDefinitionId);
+                                            const isApproved = coach.role === UserRole.COACH 
+                                                ? (coach as Coach).approved 
+                                                : (coach as Participant).coachApproved;
+
+                                            const displayRole = coach.role === UserRole.PARTICIPANT ? 'Participant (Applicant)' : (customRole ? customRole.name : 'Standard Coach');
+
+                                            return (
+                                                <tr key={coach.id} className="hover:bg-gray-50 transition-colors">
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center">
+                                                            <div className="h-10 w-10 rounded-full bg-gray-200 mr-3 overflow-hidden border border-gray-200">
+                                                                <img src={coach.profileImageUrl} alt="" className="h-full w-full object-cover" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-sm font-bold text-gray-900">{coach.name}</div>
+                                                                <div className="text-xs text-gray-500">{coach.email}</div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className="text-sm text-gray-700 bg-gray-100 px-2 py-1 rounded">{displayRole}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-bold rounded-full uppercase tracking-wide ${isApproved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                            {isApproved ? 'Approved' : 'Pending'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        {isApproved ? (
+                                                            <Button variant="danger" onClick={() => handleCoachStatusChange(coach.id, false)} className="text-xs px-3 py-1.5 bg-red-50 text-red-600 border-red-100 hover:bg-red-100">Revoke</Button>
+                                                        ) : (
+                                                            <Button onClick={() => handleCoachStatusChange(coach.id, true)} className="text-xs px-3 py-1.5 shadow-sm">Approve</Button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        }) : (
+                                            <tr>
+                                                <td colSpan={4} className="px-6 py-8 text-center text-gray-500">No coaches found.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
                         {activeTab === 'roles' && (
                             <div>
                                 <div className="flex justify-between items-center mb-6">
@@ -266,135 +342,7 @@ export default function AdminDashboard() {
                             </div>
                         )}
 
-                        {/* COACHES TAB */}
-                        {activeTab === 'coaches' && (
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
-                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Role</th>
-                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100 bg-white">
-                                        {allCoaches.length > 0 ? allCoaches.map(coach => {
-                                            const customRole = MOCK_ROLES.find(r => r.id === coach.roleDefinitionId);
-                                            // Check approval status based on user type
-                                            const isApproved = coach.role === UserRole.COACH 
-                                                ? (coach as Coach).approved 
-                                                : (coach as Participant).coachApproved;
 
-                                            const displayRole = coach.role === UserRole.PARTICIPANT ? 'Participant (Applicant)' : (customRole ? customRole.name : 'Standard Coach');
-
-                                            return (
-                                                <tr key={coach.id} className="hover:bg-gray-50 transition-colors">
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="flex items-center">
-                                                            <div className="h-10 w-10 rounded-full bg-gray-200 mr-3 overflow-hidden border border-gray-200">
-                                                                <img src={coach.profileImageUrl} alt="" className="h-full w-full object-cover" />
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-sm font-bold text-gray-900">{coach.name}</div>
-                                                                <div className="text-xs text-gray-500">{coach.email}</div>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className="text-sm text-gray-700 bg-gray-100 px-2 py-1 rounded">{displayRole}</span>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-bold rounded-full uppercase tracking-wide ${isApproved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                                            {isApproved ? 'Approved' : 'Pending'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        {isApproved ? (
-                                                            <Button variant="danger" onClick={() => handleCoachStatusChange(coach.id, false)} className="text-xs px-3 py-1.5 bg-red-50 text-red-600 border-red-100 hover:bg-red-100">Revoke</Button>
-                                                        ) : (
-                                                            <Button onClick={() => handleCoachStatusChange(coach.id, true)} className="text-xs px-3 py-1.5 shadow-sm">Approve</Button>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        }) : (
-                                            <tr>
-                                                <td colSpan={4} className="px-6 py-8 text-center text-gray-500">No coaches found.</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-
-                        {/* SPRINTS TAB */}
-                        {activeTab === 'sprints' && (
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Title</th>
-                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Coach</th>
-                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Price</th>
-                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Review</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100 bg-white">
-                                        {MOCK_SPRINTS.length > 0 ? MOCK_SPRINTS.map((sprint: Sprint) => {
-                                            const coach = MOCK_USERS.find(u => u.id === sprint.coachId);
-                                            const isPending = sprint.approvalStatus === 'pending_approval';
-                                            
-                                            return (
-                                                <tr key={sprint.id} className="hover:bg-gray-50 transition-colors">
-                                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{sprint.title}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{coach?.name || 'Unknown'}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">₦{sprint.price.toLocaleString()}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-bold rounded-full uppercase tracking-wide ${
-                                                            sprint.approvalStatus === 'approved' ? 'bg-green-100 text-green-700' :
-                                                            sprint.approvalStatus === 'pending_approval' ? 'bg-blue-100 text-blue-700' :
-                                                            sprint.approvalStatus === 'rejected' ? 'bg-red-100 text-red-700' :
-                                                            'bg-gray-100 text-gray-700'
-                                                        }`}>
-                                                            {sprint.approvalStatus?.replace('_', ' ') || (sprint.published ? 'Published' : 'Draft')}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        {isPending && (
-                                                            <div className="flex gap-2">
-                                                                <button 
-                                                                    onClick={() => handleSprintApproval(sprint.id, true)}
-                                                                    className="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600 shadow-sm transition-colors font-medium"
-                                                                >
-                                                                    Approve
-                                                                </button>
-                                                                <button 
-                                                                    onClick={() => handleSprintApproval(sprint.id, false)}
-                                                                    className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 shadow-sm transition-colors font-medium"
-                                                                >
-                                                                    Reject
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                        {!isPending && sprint.approvalStatus !== 'draft' && (
-                                                            <span className="text-xs text-gray-400 italic">Reviewed</span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        }) : (
-                                            <tr>
-                                                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No sprints found.</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-
-                        {/* PAYOUTS TAB */}
                         {activeTab === 'payouts' && (
                             <div className="overflow-x-auto">
                                 <table className="min-w-full">

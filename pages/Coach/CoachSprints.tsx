@@ -14,6 +14,7 @@ const CoachSprints: React.FC = () => {
 
   useEffect(() => {
     if (user) {
+      console.log(user);
       // MOCK_SPRINTS might have been updated in memory by other components
       const coachSprints = MOCK_SPRINTS.filter(s => s.coachId === user.id);
       setSprints(coachSprints);

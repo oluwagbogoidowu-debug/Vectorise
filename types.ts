@@ -32,6 +32,7 @@ export interface User {
   role: UserRole;
   roleDefinitionId?: string; // Link to custom role definition
   profileImageUrl: string;
+  enrolledSprintIds?: string[];
 }
 
 export interface Coach extends User {
@@ -222,4 +223,29 @@ export interface CoachingComment {
     content: string;
     timestamp: string;
     read: boolean;
+}
+
+// New Types for General Chat
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string;
+  content: string;
+  timestamp: string; // ISO string
+}
+
+export interface Conversation {
+  id: string;
+  type: 'direct' | 'group';
+  participants: {
+    userId: string;
+    name: string;
+    avatar: string;
+  }[];
+  groupName?: string;
+  groupAvatar?: string;
+  lastMessage: Message;
+  unreadCount: number;
 }

@@ -1,23 +1,25 @@
-
-import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import Header from './components/Header';
 import LoginPage from './pages/Auth/LoginPage';
 import SignUpPage from './pages/Auth/SignUpPage';
 import VerifyEmailPage from './pages/Auth/VerifyEmailPage';
-import HomePage from './pages/HomePage';
+import HomePage from './pages/Admin/HomePage';
 import CreateSprint from './pages/Coach/CreateSprint';
 import EditSprint from './pages/Coach/EditSprint';
 import SprintLandingPage from './pages/Participant/SprintLandingPage';
 import ParticipantDashboard from './pages/Participant/ParticipantDashboard';
 import SprintView from './pages/Participant/SprintView';
 import AdminDashboard from './pages/Admin/AdminDashboard';
+import SprintReviewPage from './pages/Admin/SprintReviewPage';
+import React from 'react';
 import { UserRole } from './types';
 import DiscoverSprints from './pages/Participant/DiscoverSprints';
 import { Welcome } from './pages/Onboarding/Welcome';
+import { DesktopWelcome } from './pages/Onboarding/DesktopWelcome';
 import QuizIntro from './pages/Onboarding/QuizIntro';
+import DesktopQuizIntro from './pages/Onboarding/DesktopQuizIntro';
 import Quiz from './pages/Onboarding/Quiz';
+import DesktopQuiz from './pages/Onboarding/DesktopQuiz';
 import RecommendedSprints from './pages/Participant/RecommendedSprints';
 import ParticipantLayout from './components/ParticipantLayout';
 import Tribe from './pages/Participant/Tribe';
@@ -41,6 +43,7 @@ import CoachDashboard from './pages/Coach/CoachDashboard';
 import CoachSprints from './pages/Coach/CoachSprints';
 import CoachParticipants from './pages/Coach/CoachParticipants';
 import CoachEarnings from './pages/Coach/CoachEarnings';
+import MessagesPage from './pages/Participant/MessagesPage';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -62,16 +65,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Check against the currently active role (view mode) or the user's base role
-  // This allows a Participant who has switched to Coach mode to access Coach routes
   const roleMatches = roles.includes(activeRole) || roles.includes(user.role);
 
   if (!roleMatches) {
-      // If trying to access coach routes but in participant mode, redirect to dashboard
       if (roles.includes(UserRole.COACH) && activeRole === UserRole.PARTICIPANT) {
           return <Navigate to="/dashboard" replace />;
       }
-      // If trying to access participant routes but in coach mode, redirect to coach dashboard
       if (roles.includes(UserRole.PARTICIPANT) && activeRole === UserRole.COACH) {
            return <Navigate to="/coach/dashboard" replace />;
       }
@@ -85,47 +84,27 @@ const AppRoutes: React.FC = () => {
   const { user, activeRole } = useAuth();
   const location = useLocation();
   
-  // Onboarding paths
   const isOnboarding = location.pathname.startsWith('/onboarding');
-  
-  // Paths that use the bottom navigation layout (Participant) - Logic updated to be Global
-  const isParticipantAppLayout = 
-    location.pathname === '/dashboard' || 
-    location.pathname === '/discover' || 
-    location.pathname === '/my-sprints' ||
-    location.pathname === '/tribe' || 
-    location.pathname === '/shine' ||
-    location.pathname === '/profile' ||
-    location.pathname === '/growth' ||
-    location.pathname === '/impact' ||
-    location.pathname === '/impact/share' ||
-    location.pathname === '/impact/ripple' ||
-    location.pathname === '/impact/rewards' ||
-    location.pathname === '/impact/badges' ||
+  const isParticipantAppRoute = 
+    location.pathname.startsWith('/dashboard') ||
+    location.pathname.startsWith('/discover') ||
+    location.pathname.startsWith('/my-sprints') ||
+    location.pathname.startsWith('/tribe') ||
+    location.pathname.startsWith('/shine') ||
+    location.pathname.startsWith('/profile') ||
+    location.pathname.startsWith('/growth') ||
+    location.pathname.startsWith('/messages') ||
+    location.pathname.startsWith('/impact') ||
     location.pathname.startsWith('/participant/sprint/');
 
-  // Paths that use the bottom navigation layout (Coach)
-  const isCoachAppLayout = location.pathname.startsWith('/coach/');
-
-  // Only show the global marketing header if NOT onboarding AND NOT in any app layout
-  const showGlobalHeader = !isOnboarding && !isParticipantAppLayout && !isCoachAppLayout;
-
-  // Show Participant Bottom Navigation globally if active role is PARTICIPANT and not on excluded pages
   const showParticipantNav = 
     user && 
     activeRole === UserRole.PARTICIPANT && 
-    !isOnboarding &&
-    !location.pathname.startsWith('/coach') &&
-    !location.pathname.startsWith('/admin') &&
-    !location.pathname.startsWith('/login') &&
-    !location.pathname.startsWith('/signup') &&
-    !location.pathname.startsWith('/verify-email');
+    isParticipantAppRoute;
 
   return (
     <div className={`min-h-screen font-sans ${isOnboarding ? 'bg-primary text-white' : 'bg-light text-dark'}`}>
-      {showGlobalHeader && <Header />}
-      <main className={showGlobalHeader ? "container mx-auto p-4 md:p-6 lg:p-8" : ""}>
-        <Routes>
+      <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
@@ -136,6 +115,11 @@ const AppRoutes: React.FC = () => {
           <Route path="/onboarding/welcome" element={<Welcome />} />
           <Route path="/onboarding/intro" element={<QuizIntro />} />
           <Route path="/onboarding/quiz" element={<Quiz />} />
+
+          {/* Desktop Onboarding Routes */}
+          <Route path="/onboarding/desktop-welcome" element={<DesktopWelcome />} />
+          <Route path="/onboarding/desktop-intro" element={<DesktopQuizIntro />} />
+          <Route path="/onboarding/desktop-quiz" element={<DesktopQuiz />} />
           
           {/* Dashboard Redirect based on Active Role */}
           <Route path="/dashboard" element={
@@ -153,7 +137,6 @@ const AppRoutes: React.FC = () => {
              <Route path="/coach/participants" element={<CoachParticipants />} />
              <Route path="/coach/shine" element={<Shine viewMode="coach" />} />
              <Route path="/coach/earnings" element={<CoachEarnings />} />
-             {/* Reuse Profile component but will render in Coach context */}
              <Route path="/coach/profile" element={<Profile />} />
           </Route>
 
@@ -174,6 +157,7 @@ const AppRoutes: React.FC = () => {
              <Route path="/impact/ripple" element={<RippleEffect />} />
              <Route path="/impact/rewards" element={<GrowthRewards />} />
              <Route path="/impact/badges" element={<Badges />} />
+             <Route path="/messages" element={<MessagesPage />} />
           </Route>
           
           {/* Shared Sprint View - Accessible by Participant, Coach, and Admin */}
@@ -187,20 +171,19 @@ const AppRoutes: React.FC = () => {
           
           <Route path="/impact/success" element={<ReferralSuccess />} />
 
-          {/* Public view of sprint (landing page) - keeps global header */}
+          {/* Public view of sprint (landing page) */}
           <Route path="/sprint/:sprintId" element={<SprintLandingPage />} />
           
           {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<ProtectedRoute roles={[UserRole.ADMIN]}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/sprint/review/:sprintId" element={<ProtectedRoute roles={[UserRole.ADMIN]}><SprintReviewPage /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
-      </main>
       {showParticipantNav && <BottomNavigation />}
     </div>
   );
 };
-
 
 const App: React.FC = () => {
   return (

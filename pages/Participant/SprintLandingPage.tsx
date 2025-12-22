@@ -2,10 +2,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { MOCK_SPRINTS, MOCK_USERS, SUBSCRIPTION_PLANS, MOCK_PARTICIPANT_SPRINTS, MOCK_REVIEWS } from '../../services/mockData';
+import { MOCK_CONVERSATIONS, MOCK_MESSAGES } from '../../services/mockChatData';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/Button';
 import { Coach, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
+import { chatService } from '../../services/chatService';
 
 // Helper to generate outcomes based on category (simulated data)
 const getSprintOutcomes = (category: string) => {
@@ -35,14 +37,10 @@ const SprintLandingPage: React.FC = () => {
     const sprint = MOCK_SPRINTS.find(s => s.id === sprintId);
     const coach = MOCK_USERS.find(u => u.id === sprint?.coachId);
 
-    // Check enrollment status (Simplistic check against mock data + context needed if using DB)
-    // For now, we rely on the MOCK array check which is populated by previous sessions or mock file.
-    // In a real full app, we'd fetch this user's enrollments on mount.
     const existingEnrollment = user ? MOCK_PARTICIPANT_SPRINTS.find(
         ps => ps.participantId === user.id && ps.sprintId === sprint?.id
     ) : null;
 
-    // Show preview modal only if NOT enrolled
     const [showPreview, setShowPreview] = useState(false);
 
     useEffect(() => {
@@ -68,15 +66,12 @@ const SprintLandingPage: React.FC = () => {
     const sprintCoach = coach as Coach;
     const outcomes = getSprintOutcomes(sprint.category);
 
-    // Check Subscription Access
     const participant = user as Participant;
     const activePlanId = participant?.subscription?.active ? participant.subscription.planId : null;
     const activePlan = SUBSCRIPTION_PLANS.find(p => p.id === activePlanId);
     
-    // Check if the sprint difficulty is included in the user's active plan
     const isIncludedInPlan = activePlan && activePlan.includedDifficulties.includes(sprint.difficulty);
 
-    // Check if user is the Owner (Coach) or Admin
     const isOwner = user && (user.id === sprint.coachId || user.role === UserRole.ADMIN);
 
     const enrollAndNavigate = async () => {
@@ -84,7 +79,6 @@ const SprintLandingPage: React.FC = () => {
         setIsEnrolling(true);
 
         try {
-            // 1. Check Mock Data just in case
             const currentEnrollment = MOCK_PARTICIPANT_SPRINTS.find(
                 ps => ps.participantId === user.id && ps.sprintId === sprint.id
             );
@@ -94,13 +88,26 @@ const SprintLandingPage: React.FC = () => {
                 return;
             }
 
-            // 2. Perform DB Enrollment
             const newEnrollment = await sprintService.enrollUser(user.id, sprint.id, sprint.duration);
-            
-            // 3. Update Mock Data for immediate local consistency
             MOCK_PARTICIPANT_SPRINTS.push(newEnrollment);
 
-            // Navigate
+            const coachId = sprint.coachId;
+            const existingConversation = MOCK_CONVERSATIONS.find(c => 
+                c.type === 'direct' &&
+                c.participants.some(p => p.userId === user.id) &&
+                c.participants.some(p => p.userId === coachId)
+            );
+
+            if (!existingConversation) {
+                const { newConversation, newMessage } = await chatService.createConversation(
+                    user.id,
+                    coachId,
+                    `Welcome to ${sprint.title}! I'm here to help.`
+                );
+                MOCK_CONVERSATIONS.push(newConversation);
+                MOCK_MESSAGES[newConversation.id] = [newMessage];
+            }
+
             navigate(`/participant/sprint/${newEnrollment.id}`, { state: { from } });
         } catch (error) {
             alert("Failed to enroll. Please try again.");
@@ -111,7 +118,7 @@ const SprintLandingPage: React.FC = () => {
     };
 
     const handleJoinClick = () => {
-        setShowPreview(false); // Close preview if open
+        setShowPreview(false);
         if (!user) {
             navigate('/login');
             return;
@@ -123,11 +130,9 @@ const SprintLandingPage: React.FC = () => {
         }
 
         if (isIncludedInPlan || isOwner) {
-            // Direct Join (Simulate) or Owner Entry
             if (!isOwner) alert(`Access Granted via your ${activePlan.name} Plan!`);
             enrollAndNavigate();
         } else {
-            // Show Payment Options (One-Off or Upgrade)
             setShowPaymentModal(true);
         }
     };
@@ -144,7 +149,6 @@ const SprintLandingPage: React.FC = () => {
             setShowPaymentModal(false);
             await enrollAndNavigate();
         } else if (method === 'points') {
-            // DEDUCT POINTS LOGIC
             if (currentBalance >= sprintCost) {
                  try {
                      const newBalance = currentBalance - sprintCost;
@@ -160,7 +164,6 @@ const SprintLandingPage: React.FC = () => {
                 alert("Insufficient points.");
             }
         } else if (method === 'hybrid') {
-             // DEDUCT 3 POINTS
              if (currentBalance >= 3) {
                  try {
                      const newBalance = currentBalance - 3;
@@ -177,7 +180,6 @@ const SprintLandingPage: React.FC = () => {
                  alert("Insufficient points for hybrid deal.");
              }
         } else if (method === 'upgrade') {
-            // Pass state so GrowthRewards knows to show a "Back to Sprint" button
             navigate('/impact/rewards', { state: { fromSprintId: sprint.id } }); 
         }
     };
@@ -254,7 +256,7 @@ const SprintLandingPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Public Reviews Section (Existing code...) */}
+            {/* Public Reviews Section */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Student Reviews ({sprintReviews.length})</h2>
                 
@@ -282,7 +284,7 @@ const SprintLandingPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* OUTCOME PREVIEW POPUP (Automatic) */}
+            {/* OUTCOME PREVIEW POPUP */}
             {showPreview && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden relative animate-slide-up">
@@ -332,7 +334,7 @@ const SprintLandingPage: React.FC = () => {
                 </div>
             )}
 
-            {/* Payment Modal (Existing code...) */}
+            {/* Payment Modal */}
             {showPaymentModal && user && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
@@ -349,7 +351,6 @@ const SprintLandingPage: React.FC = () => {
                         </div>
                         
                         <div className="p-6">
-                            {/* Subscription Upsell - Primary Option if relevant */}
                             <div className="mb-6 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 rounded-xl p-5 relative overflow-hidden">
                                 <div className="flex justify-between items-center relative z-10">
                                     <div>
@@ -365,7 +366,6 @@ const SprintLandingPage: React.FC = () => {
                             <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">One-Time Purchase Options</p>
                             
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {/* Option 1: Cash */}
                                 <div className="border border-gray-200 rounded-xl p-5 hover:border-primary cursor-pointer hover:shadow-md transition-all flex flex-col justify-between" onClick={() => handleConfirmPayment('cash')}>
                                     <div>
                                         <span className="text-2xl mb-2 block">💳</span>
@@ -378,7 +378,6 @@ const SprintLandingPage: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* Option 2: Points */}
                                 <div className={`border rounded-xl p-5 transition-all flex flex-col justify-between ${
                                     (user as Participant).walletBalance && (user as Participant).walletBalance! >= (sprint.pointCost || 5)
                                     ? 'border-yellow-300 bg-yellow-50/50 hover:bg-yellow-50 cursor-pointer hover:shadow-md'
@@ -405,7 +404,6 @@ const SprintLandingPage: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* Option 3: Hybrid (3 Refs + 10%) */}
                                 <div className={`border rounded-xl p-5 transition-all flex flex-col justify-between relative overflow-hidden ${
                                     (user as Participant).walletBalance && (user as Participant).walletBalance! >= 3
                                     ? 'border-primary bg-green-50/50 hover:bg-green-50 cursor-pointer hover:shadow-md'
@@ -445,20 +443,10 @@ const SprintLandingPage: React.FC = () => {
             )}
 
             <style>{`
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-                @keyframes slideUp {
-                    from { transform: translateY(20px); opacity: 0; }
-                    to { transform: translateY(0); opacity: 1; }
-                }
-                .animate-fade-in {
-                    animation: fadeIn 0.2s ease-out forwards;
-                }
-                .animate-slide-up {
-                    animation: slideUp 0.3s ease-out forwards;
-                }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+                .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+                .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
             `}</style>
         </div>
     );
