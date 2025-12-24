@@ -31,6 +31,13 @@ const CreateSprint: React.FC = () => {
         e.preventDefault();
         if (!user) return;
 
+        const existingSprint = MOCK_SPRINTS.find(sprint => sprint.title.toLowerCase() === formData.title.toLowerCase());
+
+        if (existingSprint) {
+            alert("A sprint with this title already exists. Please choose a different title.");
+            return;
+        }
+
         setIsSubmitting(true);
 
         // Simulate API Delay

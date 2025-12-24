@@ -9,6 +9,7 @@ import { auth } from '../../services/firebase';
 import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification, signOut } from 'firebase/auth';
 import { userService } from '../../services/userService';
 import { chatService } from '../../services/chatService';
+import { sprintService } from '../../services/sprintService';
 
 const SignUpPage: React.FC = () => {
   const navigate = useNavigate();
@@ -117,21 +118,13 @@ const SignUpPage: React.FC = () => {
 
         // 4. Handle Sprint Enrollment and create initial conversation
         if (selectedSprintId && sprintDetails) {
-            const newEnrollmentId = `enrollment_${Date.now()}`;
-            const newEnrollment = {
-                id: newEnrollmentId,
-                sprintId: selectedSprintId,
-                participantId: user.uid,
-                startDate: new Date().toISOString(),
-                progress: Array.from({ length: sprintDetails.duration }, (_, i) => ({
-                    day: i + 1,
-                    completed: false
-                }))
-            };
-            MOCK_PARTICIPANT_SPRINTS.push(newEnrollment);
-
-            // CRITICAL: Create the initial welcome conversation
-            await chatService.createInitialWelcomeConversation(selectedSprintId, newUser);
+            const newEnrollment = await sprintService.enrollUser(user.uid, selectedSprintId, sprintDetails.duration);
+            if (newEnrollment) {
+                // Also update mock data for legacy components
+                MOCK_PARTICIPANT_SPRINTS.push(newEnrollment);
+                // CRITICAL: Create the initial welcome conversation
+                await chatService.createInitialWelcomeConversation(selectedSprintId, newUser);
+            }
         }
 
         // 5. Send Verification Email

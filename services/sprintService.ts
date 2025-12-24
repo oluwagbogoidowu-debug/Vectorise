@@ -1,16 +1,64 @@
 
 import { db } from './firebase';
-import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, limit } from 'firebase/firestore';
 import { ParticipantSprint, Sprint } from '../types';
 import { MOCK_SPRINTS, MOCK_PARTICIPANT_SPRINTS } from './mockData';
 import { userService } from './userService';
 
 export const sprintService = {
     /**
+     * Checks if a user is already enrolled in a specific sprint.
+     */
+    isUserEnrolled: async (userId: string, sprintId: string): Promise<boolean> => {
+        try {
+            const q = query(collection(db, 'enrollments'), where("participantId", "==", userId), where("sprintId", "==", sprintId));
+            const querySnapshot = await getDocs(q);
+            return !querySnapshot.empty;
+        } catch (error) {
+            console.error("Error checking enrollment:", error);
+            // Fallback for safety, assuming not enrolled if DB check fails
+            return false;
+        }
+    },
+    
+    /**
+     * Fetches a single enrollment document for a user in a specific sprint.
+     */
+    getEnrollmentByUserAndSprint: async (userId: string, sprintId: string): Promise<ParticipantSprint | null> => {
+        try {
+            const q = query(
+                collection(db, 'enrollments'), 
+                where("participantId", "==", userId), 
+                where("sprintId", "==", sprintId),
+                limit(1)
+            );
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                return querySnapshot.docs[0].data() as ParticipantSprint;
+            }
+            
+            // Fallback to mock search
+            return MOCK_PARTICIPANT_SPRINTS.find(e => e.participantId === userId && e.sprintId === sprintId) || null;
+
+        } catch (error) {
+            console.warn("Error fetching enrollment by user and sprint:", error);
+            // Fallback to mock search on error
+            return MOCK_PARTICIPANT_SPRINTS.find(e => e.participantId === userId && e.sprintId === sprintId) || null;
+        }
+    },
+
+    /**
      * Enrolls a user in a sprint by creating a document in the 'enrollments' collection.
      */
     enrollUser: async (userId: string, sprintId: string, duration: number) => {
         try {
+            const isEnrolled = await sprintService.isUserEnrolled(userId, sprintId);
+            if (isEnrolled) {
+                console.warn(`User ${userId} is already enrolled in sprint ${sprintId}.`);
+                return null; // Or throw an error, depending on desired behavior
+            }
+
             const enrollmentId = `enrollment_${userId}_${sprintId}_${Date.now()}`;
             const enrollmentRef = doc(db, 'enrollments', enrollmentId);
             
@@ -74,6 +122,7 @@ export const sprintService = {
             if (error.code === 'permission-denied') {
                  console.warn("Firestore permission denied (check security rules). Falling back to mock enrollments.");
             } else {
+
                  console.error("Error fetching enrollments:", error);
             }
             // Return mock data on error so dashboard doesn't break
