@@ -205,6 +205,17 @@ export const MOCK_USERS: (Coach | Participant | Admin)[] = [
     role: UserRole.ADMIN,
     roleDefinitionId: 'role_super_admin',
     profileImageUrl: 'https://picsum.photos/seed/admin1/200',
+  },
+  {
+    id: '3OAhjywfNyeW1AOOOzcYJw1DPpd2',
+    name: 'New Coach',
+    email: 'new.coach@vectorise.com',
+    role: UserRole.COACH,
+    roleDefinitionId: 'role_head_coach',
+    profileImageUrl: 'https://picsum.photos/seed/newcoach/200',
+    bio: 'A new coach, ready to inspire.',
+    niche: 'General',
+    approved: true,
   }
 ];
 
@@ -289,7 +300,7 @@ export const MOCK_REWARDS: ImpactReward[] = [
 export const MOCK_SPRINTS: Sprint[] = [
   {
     id: 'sprint1',
-    coachId: 'coach1',
+    coachId: '3OAhjywfNyeW1AOOOzcYJw1DPpd2',
     title: '7-Day Clarity Challenge',
     description: 'A high-impact sprint to cut through the noise and define your most important goals for the next 90 days.',
     category: 'Productivity',
@@ -301,8 +312,8 @@ export const MOCK_SPRINTS: Sprint[] = [
     published: true,
     approvalStatus: 'approved',
     dailyContent: [
-      { day: 1, lessonText: 'Welcome! Today is about understanding your "Why".', taskPrompt: 'Write down your top 3 values.', audioUrl: '/mock-audio.mp3', submissionType: 'text' },
-      { day: 2, lessonText: 'Let\'s identify your energy drains.', taskPrompt: 'List 5 things that drained your energy this week.', audioUrl: '/mock-audio.mp3', submissionType: 'text' },
+      { day: 1, lessonText: `Welcome! Today is about understanding your "Why".`, taskPrompt: 'Write down your top 3 values.', audioUrl: '/mock-audio.mp3', submissionType: 'text' },
+      { day: 2, lessonText: `Let's identify your energy drains.`, taskPrompt: 'List 5 things that drained your energy this week.', audioUrl: '/mock-audio.mp3', submissionType: 'text' },
       { day: 3, lessonText: 'Visualize your ideal future.', taskPrompt: 'Describe your perfect day in detail.', audioUrl: '/mock-audio.mp3', submissionType: 'text' },
       { day: 4, lessonText: 'Breaking down big goals.', taskPrompt: 'Choose one big goal. Upload a PDF or Image of your breakdown strategy.', audioUrl: '/mock-audio.mp3', submissionType: 'file' },
       { day: 5, lessonText: 'The power of "No".', taskPrompt: 'Identify one thing you will say "no" to this week.', audioUrl: '/mock-audio.mp3', submissionType: 'text' },
@@ -327,7 +338,7 @@ export const MOCK_SPRINTS: Sprint[] = [
   },
   {
     id: 'sprint3',
-    coachId: 'coach1',
+    coachId: '3OAhjywfNyeW1AOOOzcYJw1DPpd2',
     title: 'Launch Your Side Hustle',
     description: 'From idea to first dollar in 14 days. A practical guide for aspiring entrepreneurs.',
     category: 'Skill Acquisition',
@@ -345,7 +356,7 @@ export const MOCK_SPRINTS: Sprint[] = [
   },
   {
     id: 'sprint4',
-    coachId: 'coach2',
+    coachId: '3OAhjywfNyeW1AOOOzcYJw1DPpd2',
     title: 'Digital Detox',
     description: 'Reclaim your time and attention span with this 7-day digital detox program.',
     category: 'Personal Fitness',
@@ -478,7 +489,7 @@ export const MOCK_SHINE_POSTS: ShinePost[] = [
     userId: 'participant1',
     userName: 'Jamie Lee',
     userAvatar: 'https://picsum.photos/seed/participant1/200',
-    content: 'Just finished Day 3 of the Clarity Challenge! Realized that my biggest energy drain is actually perfectionism, not my workload. Feeling lighter already. ✨',
+    content: `Just finished Day 3 of the Clarity Challenge! Realized that my biggest energy drain is actually perfectionism, not my workload. Feeling lighter already. ✨`,
     sprintTitle: '7-Day Clarity Challenge',
     timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     likes: 12,
@@ -553,7 +564,7 @@ export const MOCK_COACHING_COMMENTS: CoachingComment[] = [
         day: 1,
         participantId: 'participant1',
         authorId: 'coach1',
-        content: 'Hi Jamie! Absolutely. The number isn\'t as important as the clarity. If 5 feels right, go with 5. You can always narrow it down later if you feel the need for more focus.',
+        content: `Hi Jamie! Absolutely. The number isn't as important as the clarity. If 5 feels right, go with 5. You can always narrow it down later if you feel the need for more focus.`,
         timestamp: new Date(Date.now() - 3.9 * 24 * 60 * 60 * 1000).toISOString(),
         read: true
     },

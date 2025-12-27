@@ -119,11 +119,20 @@ export interface Admin extends User {
   role: UserRole.ADMIN;
 }
 
+export interface ActionTask {
+  id: string;
+  title: string;
+  description: string;
+  sprintId: string;
+  completed: boolean;
+}
+
 export interface DailyContent {
   day: number;
   lessonText: string;
   audioUrl?: string;
   taskPrompt: string;
+  action?: ActionTask;
   resourceUrl?: string;
   submissionType?: 'text' | 'file' | 'both' | 'none';
 }
@@ -158,6 +167,7 @@ export interface ParticipantSprint {
         submission?: string;
         submissionFileUrl?: string;
         completedAt?: string; // Timestamp of completion
+        action?: ActionTask;
     }[];
 }
 
