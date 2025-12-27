@@ -5,8 +5,9 @@ import { MOCK_SPRINTS, MOCK_USERS, SUBSCRIPTION_PLANS, MOCK_PARTICIPANT_SPRINTS,
 import { MOCK_CONVERSATIONS, MOCK_MESSAGES } from '../../services/mockChatData';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/Button';
-import { Coach, UserRole, Participant } from '../../types';
+import { Coach, UserRole, Participant, ParticipantSprint } from '../../types';
 import { sprintService } from '../../services/sprintService';
+import { chatService } from '../../services/chatService';
 
 // Helper to generate outcomes based on category (simulated data)
 const getSprintOutcomes = (category: string) => {
@@ -29,6 +30,8 @@ const SprintLandingPage: React.FC = () => {
     const { user, updateProfile } = useAuth();
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [isEnrolling, setIsEnrolling] = useState(false);
+    const [existingEnrollment, setExistingEnrollment] = useState<ParticipantSprint | null>(null);
+    const [isLoadingEnrollment, setIsLoadingEnrollment] = useState(true);
     
     // Retrieve 'from' state to handle back navigation correctly
     const { from } = location.state || {};
@@ -36,17 +39,27 @@ const SprintLandingPage: React.FC = () => {
     const sprint = MOCK_SPRINTS.find(s => s.id === sprintId);
     const coach = MOCK_USERS.find(u => u.id === sprint?.coachId);
 
-    const existingEnrollment = user ? MOCK_PARTICIPANT_SPRINTS.find(
-        ps => ps.participantId === user.id && ps.sprintId === sprint?.id
-    ) : null;
+    useEffect(() => {
+        const checkEnrollment = async () => {
+            if (user && sprint) {
+                setIsLoadingEnrollment(true);
+                const enrollment = await sprintService.getEnrollmentByUserAndSprint(user.id, sprint.id);
+                setExistingEnrollment(enrollment);
+                setIsLoadingEnrollment(false);
+            } else {
+                setIsLoadingEnrollment(false);
+            }
+        };
+        checkEnrollment();
+    }, [user, sprint]);
 
     const [showPreview, setShowPreview] = useState(false);
 
     useEffect(() => {
-        if (sprint && !existingEnrollment) {
+        if (sprint && !existingEnrollment && !isLoadingEnrollment) {
             setShowPreview(true);
         }
-    }, [sprint, existingEnrollment]);
+    }, [sprint, existingEnrollment, isLoadingEnrollment]);
 
     const sprintReviews = useMemo(() => {
         if (!sprint) return [];
@@ -78,36 +91,35 @@ const SprintLandingPage: React.FC = () => {
         setIsEnrolling(true);
 
         try {
-            const currentEnrollment = MOCK_PARTICIPANT_SPRINTS.find(
-                ps => ps.participantId === user.id && ps.sprintId === sprint.id
-            );
-
-            if (currentEnrollment) {
-                navigate(`/participant/sprint/${currentEnrollment.id}`, { state: { from } });
+            if (existingEnrollment) {
+                navigate(`/participant/sprint/${existingEnrollment.id}`, { state: { from } });
                 return;
             }
 
             const newEnrollment = await sprintService.enrollUser(user.id, sprint.id, sprint.duration);
-            MOCK_PARTICIPANT_SPRINTS.push(newEnrollment);
+            if (newEnrollment) {
+                // Also update local mock if needed for consistency during session
+                MOCK_PARTICIPANT_SPRINTS.push(newEnrollment);
 
-            const coachId = sprint.coachId;
-            const existingConversation = MOCK_CONVERSATIONS.find(c => 
-                c.type === 'direct' &&
-                c.participants.some(p => p.userId === user.id) &&
-                c.participants.some(p => p.userId === coachId)
-            );
-
-            if (!existingConversation) {
-                const { newConversation, newMessage } = await chatService.createConversation(
-                    user.id,
-                    coachId,
-                    `Welcome to ${sprint.title}! I'm here to help.`
+                const coachId = sprint.coachId;
+                const existingConversation = MOCK_CONVERSATIONS.find(c => 
+                    c.type === 'direct' &&
+                    c.participants.some(p => p.userId === user.id) &&
+                    c.participants.some(p => p.userId === coachId)
                 );
-                MOCK_CONVERSATIONS.push(newConversation);
-                MOCK_MESSAGES[newConversation.id] = [newMessage];
-            }
 
-            navigate(`/participant/sprint/${newEnrollment.id}`, { state: { from } });
+                if (!existingConversation) {
+                    const { newConversation, newMessage } = await chatService.createConversation(
+                        user.id,
+                        coachId,
+                        `Welcome to ${sprint.title}! I'm here to help.`
+                    );
+                    MOCK_CONVERSATIONS.push(newConversation);
+                    MOCK_MESSAGES[newConversation.id] = [newMessage];
+                }
+
+                navigate(`/participant/sprint/${newEnrollment.id}`, { state: { from } });
+            }
         } catch (error) {
             alert("Failed to enroll. Please try again.");
             console.error(error);
@@ -129,7 +141,7 @@ const SprintLandingPage: React.FC = () => {
         }
 
         if (isIncludedInPlan || isOwner) {
-            if (!isOwner) alert(`Access Granted via your ${activePlan.name} Plan!`);
+            if (!isOwner && activePlan) alert(`Access Granted via your ${activePlan.name} Plan!`);
             enrollAndNavigate();
         } else {
             setShowPaymentModal(true);
@@ -239,7 +251,7 @@ const SprintLandingPage: React.FC = () => {
                     <div className="text-center">
                         <Button 
                             onClick={handleJoinClick} 
-                            isLoading={isEnrolling}
+                            isLoading={isEnrolling || isLoadingEnrollment}
                             className="text-xl px-12 py-4 shadow-lg hover:shadow-xl hover:scale-105 transform transition-all w-full md:w-auto"
                         >
                             {isOwner 
@@ -250,7 +262,7 @@ const SprintLandingPage: React.FC = () => {
                                         ? 'Start Sprint Now' 
                                         : `Unlock Sprint`}
                         </Button>
-                        {!existingEnrollment && !isIncludedInPlan && !isOwner && <p className="text-sm text-gray-400 mt-2">Starts at ₦{sprint.price.toLocaleString()} or Included in Subscriptions</p>}
+                        {!existingEnrollment && !isIncludedInPlan && !isOwner && !isLoadingEnrollment && <p className="text-sm text-gray-400 mt-2">Starts at ₦{sprint.price.toLocaleString()} or Included in Subscriptions</p>}
                     </div>
                 </div>
             </div>

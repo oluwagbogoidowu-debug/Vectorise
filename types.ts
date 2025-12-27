@@ -131,8 +131,7 @@ export interface DailyContent {
   day: number;
   lessonText: string;
   audioUrl?: string;
-  taskPrompt: string;
-  action?: ActionTask;
+  action: ActionTask;
   resourceUrl?: string;
   submissionType?: 'text' | 'file' | 'both' | 'none';
 }

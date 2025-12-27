@@ -16,7 +16,6 @@ export const sprintService = {
             return !querySnapshot.empty;
         } catch (error) {
             console.error("Error checking enrollment:", error);
-            // Fallback for safety, assuming not enrolled if DB check fails
             return false;
         }
     },
@@ -43,7 +42,6 @@ export const sprintService = {
 
         } catch (error) {
             console.warn("Error fetching enrollment by user and sprint:", error);
-            // Fallback to mock search on error
             return MOCK_PARTICIPANT_SPRINTS.find(e => e.participantId === userId && e.sprintId === sprintId) || null;
         }
     },
@@ -53,10 +51,10 @@ export const sprintService = {
      */
     enrollUser: async (userId: string, sprintId: string, duration: number) => {
         try {
-            const isEnrolled = await sprintService.isUserEnrolled(userId, sprintId);
-            if (isEnrolled) {
+            const existing = await sprintService.getEnrollmentByUserAndSprint(userId, sprintId);
+            if (existing && !existing.id.startsWith('enrollment_fallback')) {
                 console.warn(`User ${userId} is already enrolled in sprint ${sprintId}.`);
-                return null; // Or throw an error, depending on desired behavior
+                return existing;
             }
 
             const enrollmentId = `enrollment_${userId}_${sprintId}_${Date.now()}`;
@@ -81,7 +79,6 @@ export const sprintService = {
             return newEnrollment;
         } catch (error) {
             console.warn("Error enrolling user in DB (falling back to local):", error);
-            // Fallback: Return the object so the UI updates optimistically even if DB fails
             const fallbackEnrollment: ParticipantSprint = {
                 id: `enrollment_fallback_${Date.now()}`,
                 sprintId: sprintId,
@@ -98,7 +95,6 @@ export const sprintService = {
 
     /**
      * Fetches all sprint enrollments for a specific user.
-     * Merges with Mock Data for demo purposes if needed, or replaces it.
      */
     getUserEnrollments: async (userId: string) => {
         try {
@@ -113,19 +109,20 @@ export const sprintService = {
             // Combine with Mock Data that belongs to this user (for hybrid demo state)
             const mockEnrollments = MOCK_PARTICIPANT_SPRINTS.filter(p => p.participantId === userId);
             
-            // Deduplicate based on ID
+            // Deduplicate based on ID, prioritizing DB enrollments
             const allEnrollments = [...dbEnrollments, ...mockEnrollments];
-            const uniqueEnrollments = Array.from(new Map(allEnrollments.map(item => [item.id, item])).values());
+            const uniqueEnrollmentsMap = new Map();
+            allEnrollments.forEach(item => {
+                // If we already have this sprint enrollment from DB, don't overwrite with mock
+                const key = `${item.participantId}_${item.sprintId}`;
+                if (!uniqueEnrollmentsMap.has(key) || !item.id.startsWith('enrollment_fallback')) {
+                    uniqueEnrollmentsMap.set(key, item);
+                }
+            });
 
-            return uniqueEnrollments;
+            return Array.from(uniqueEnrollmentsMap.values());
         } catch (error: any) {
-            if (error.code === 'permission-denied') {
-                 console.warn("Firestore permission denied (check security rules). Falling back to mock enrollments.");
-            } else {
-
-                 console.error("Error fetching enrollments:", error);
-            }
-            // Return mock data on error so dashboard doesn't break
+            console.error("Error fetching enrollments:", error);
             return MOCK_PARTICIPANT_SPRINTS.filter(p => p.participantId === userId);
         }
     },
@@ -155,12 +152,19 @@ export const sprintService = {
      */
     updateProgress: async (enrollmentId: string, progress: ParticipantSprint['progress']) => {
         try {
-            // Basic heuristic: If it looks like our DB ID format or we just try.
-            const enrollmentRef = doc(db, 'enrollments', enrollmentId);
-            await updateDoc(enrollmentRef, { progress });
-        } catch (error) {
-            // Quiet fail for mock data updates or permission issues to prevent console noise
-            // console.warn("Could not update enrollment in DB:", error);
+            // Update local mock for immediate UI consistency
+            const idx = MOCK_PARTICIPANT_SPRINTS.findIndex(e => e.id === enrollmentId);
+            if (idx !== -1) {
+                MOCK_PARTICIPANT_SPRINTS[idx].progress = progress;
+            }
+
+            // Only try to update DB if it's not a fallback ID
+            if (!enrollmentId.startsWith('enrollment_fallback')) {
+                const enrollmentRef = doc(db, 'enrollments', enrollmentId);
+                await updateDoc(enrollmentRef, { progress });
+            }
+        } catch (error: any) {
+            console.warn("Could not update enrollment in DB:", error?.message || error);
         }
     }
 };
