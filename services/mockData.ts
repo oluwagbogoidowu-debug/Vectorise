@@ -323,7 +323,7 @@ export const MOCK_SPRINTS: Sprint[] = [
   },
   {
     id: 'sprint2',
-    coachId: 'coach1',
+    coachId: '3OAhjywfNyeW1AOOOzcYJw1DPpd2',
     title: '21-Day Mindfulness Habit',
     description: 'Build a sustainable mindfulness practice in just 21 days. Designed for busy professionals.',
     category: 'Personal Fitness',
@@ -371,7 +371,7 @@ export const MOCK_SPRINTS: Sprint[] = [
   },
   {
     id: 'sprint5',
-    coachId: 'coach3',
+    coachId: '3OAhjywfNyeW1AOOOzcYJw1DPpd2',
     title: 'LinkedIn Authority',
     description: 'Optimize your profile and start creating content that attracts high-ticket opportunities.',
     category: 'Personal Branding',
@@ -386,7 +386,7 @@ export const MOCK_SPRINTS: Sprint[] = [
   },
   {
     id: 'sprint6',
-    coachId: 'coach2',
+    coachId: '3OAhjywfNyeW1AOOOzcYJw1DPpd2',
     title: 'The Art of Storytelling',
     description: 'Learn how to captivate your audience by telling compelling stories. Perfect for leaders, marketers, and creators.',
     category: 'Personal Branding',
@@ -401,7 +401,7 @@ export const MOCK_SPRINTS: Sprint[] = [
   },
   {
     id: 'sprint7',
-    coachId: 'coach3',
+    coachId: '3OAhjywfNyeW1AOOOzcYJw1DPpd2',
     title: 'Scaling Your Sales Funnel',
     description: 'A deep dive into building and optimizing sales funnels that convert. For advanced business owners.',
     category: 'Skill Acquisition',
@@ -416,7 +416,7 @@ export const MOCK_SPRINTS: Sprint[] = [
   },
     {
     id: 'sprint8',
-    coachId: 'coach2',
+    coachId: '3OAhjywfNyeW1AOOOzcYJw1DPpd2',
     title: 'Financial Habits for Creatives',
     description: 'Manage your finances like a pro without sacrificing your creative freedom. For freelancers and artists.',
     category: 'Productivity',
@@ -431,7 +431,7 @@ export const MOCK_SPRINTS: Sprint[] = [
   },
   {
     id: 'sprint9',
-    coachId: 'coach-tom',
+    coachId: '3OAhjywfNyeW1AOOOzcYJw1DPpd2',
     title: 'Productivity Power-Up',
     description: 'A 5-day sprint to help you build a productivity system that works for you.',
     category: 'Productivity',

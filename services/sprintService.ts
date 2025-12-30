@@ -158,8 +158,16 @@ export const sprintService = {
                 MOCK_PARTICIPANT_SPRINTS[idx].progress = progress;
             }
 
+            // Sanitize progress data to remove undefined values
+            const cleanedProgress = progress.map(p => ({
+                ...p,
+                completedAt: p.completedAt ?? null,
+                submission: p.submission ?? null,
+                submissionFileUrl: p.submissionFileUrl ?? null,
+            }));
+
             const enrollmentRef = doc(db, 'enrollments', enrollmentId);
-            await updateDoc(enrollmentRef, { progress });
+            await updateDoc(enrollmentRef, { progress: cleanedProgress });
             console.log("Task submitted to the database successfully");
 
         } catch (error: any) {
