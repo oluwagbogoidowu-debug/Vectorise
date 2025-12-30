@@ -158,11 +158,10 @@ export const sprintService = {
                 MOCK_PARTICIPANT_SPRINTS[idx].progress = progress;
             }
 
-            // Only try to update DB if it's not a fallback ID
-            if (!enrollmentId.startsWith('enrollment_fallback')) {
-                const enrollmentRef = doc(db, 'enrollments', enrollmentId);
-                await updateDoc(enrollmentRef, { progress });
-            }
+            const enrollmentRef = doc(db, 'enrollments', enrollmentId);
+            await updateDoc(enrollmentRef, { progress });
+            console.log("Task submitted to the database successfully");
+
         } catch (error: any) {
             console.warn("Could not update enrollment in DB:", error?.message || error);
         }
