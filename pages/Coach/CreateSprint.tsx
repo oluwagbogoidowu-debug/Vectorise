@@ -66,7 +66,7 @@ const CreateSprint: React.FC = () => {
                 pointCost: Math.ceil(price / 500),
                 coverImageUrl: `https://picsum.photos/seed/${sprintId}/800/400`,
                 published: false, // Default to unpublished
-                approvalStatus: 'draft', // Default to draft
+                approvalStatus: 'pending_approval', // Default to draft
                 dailyContent: dailyContent
             };
 
@@ -93,7 +93,7 @@ const CreateSprint: React.FC = () => {
         pointCost: Math.ceil((Number(formData.price) || 0) / 500),
         coverImageUrl: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
         published: false,
-        approvalStatus: 'draft',
+        approvalStatus: 'pending_approval',
         dailyContent: []
     };
 

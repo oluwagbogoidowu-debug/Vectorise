@@ -198,17 +198,7 @@ const EditSprint: React.FC = () => {
                 <Button variant="secondary" onClick={handleSaveDraft} disabled={saveStatus === 'saving'} className="bg-white border border-gray-200 text-gray-700">
                     {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save Draft'}
                 </Button>
-                
-                {sprint.approvalStatus !== 'approved' && sprint.approvalStatus !== 'pending_approval' && (
-                    <Button 
-                        onClick={handleSubmitForApproval} 
-                        disabled={!canSubmit}
-                        className={!canSubmit ? 'opacity-50 cursor-not-allowed' : ''}
-                        title={!canSubmit ? 'Complete all days to submit' : 'Submit for Review'}
-                    >
-                        Submit for Approval
-                    </Button>
-                )}
+
             </div>
         </div>
         

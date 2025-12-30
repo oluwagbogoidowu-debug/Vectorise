@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { MOCK_USERS, MOCK_SPRINTS, MOCK_PAYOUTS, MOCK_ROLES, MOCK_NOTIFICATIONS } from '../../services/mockData';
 import { UserRole, Coach, Sprint, Payout, RoleDefinition, Permission, Participant } from '../../types';
 import Button from '../../components/Button';
+import { useAuth } from '../../contexts/AuthContext';
 
 type Tab = 'coaches' | 'sprints' | 'payouts' | 'roles';
 
@@ -23,6 +24,8 @@ export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState<Tab>('sprints');
     const [roles, setRoles] = useState<RoleDefinition[]>(MOCK_ROLES);
     const [refreshKey, setRefreshKey] = useState(0); 
+    const navigate = useNavigate();
+    const { logout } = useAuth(); // Destructure logout from useAuth
     
     // Create Role State
     const [isCreatingRole, setIsCreatingRole] = useState(false);
@@ -92,10 +95,23 @@ export default function AdminDashboard() {
         setNewRolePermissions([]);
     };
 
+    const handleLogout = () => {
+        logout();
+        navigate('/auth/login');
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-7xl mx-auto">
-                <h1 className="text-3xl font-bold text-gray-900 mb-6">Admin Dashboard</h1>
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+                    <Button onClick={handleLogout} variant="secondary" className="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Log Out
+                    </Button>
+                </div>
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                     {/* Tabs */}

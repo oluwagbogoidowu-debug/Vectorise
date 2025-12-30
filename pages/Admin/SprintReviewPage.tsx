@@ -89,6 +89,9 @@ const SprintReviewPage: React.FC = () => {
                         </div>
                     ))}
                 </div>
+                 <Link to={`/coach/sprint/edit/${sprint.id}`}>
+                    <Button variant="secondary" className="text-xs px-3 py-1.5 shadow-sm border-gray-300">Complete Sprint</Button>
+                </Link>
             </div>
           </div>
 
