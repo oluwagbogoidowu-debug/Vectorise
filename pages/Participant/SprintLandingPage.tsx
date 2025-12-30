@@ -8,6 +8,7 @@ import Button from '../../components/Button';
 import { Coach, UserRole, Participant, ParticipantSprint } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { chatService } from '../../services/chatService';
+import { notificationService } from '../../services/notificationService';
 
 // Helper to generate outcomes based on category (simulated data)
 const getSprintOutcomes = (category: string) => {
@@ -100,6 +101,8 @@ const SprintLandingPage: React.FC = () => {
             if (newEnrollment) {
                 // Also update local mock if needed for consistency during session
                 MOCK_PARTICIPANT_SPRINTS.push(newEnrollment);
+
+                notificationService.addNotification(`Welcome to ${sprint.title}! Your sprint starts now.`);
 
                 const coachId = sprint.coachId;
                 const existingConversation = MOCK_CONVERSATIONS.find(c => 

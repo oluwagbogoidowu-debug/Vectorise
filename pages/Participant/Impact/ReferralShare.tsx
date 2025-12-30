@@ -13,16 +13,15 @@ const ReferralShare: React.FC = () => {
     const participant = user as Participant;
     const referralCode = participant.referralCode || 'GROWTH';
     const referralLink = `https://vectorise.com/join/${referralCode}`;
-    const defaultMessage = `I found a platform that helps me stay consistent with my growth. Join me on this sprint — let’s grow together. ${referralLink}`;
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(defaultMessage);
+        navigator.clipboard.writeText(referralLink);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
 
     const handleShare = (platform: string) => {
-        const encodedMsg = encodeURIComponent(defaultMessage);
+        const encodedMsg = encodeURIComponent(referralLink);
         let url = '';
 
         switch (platform) {
@@ -63,11 +62,6 @@ const ReferralShare: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
-                <p className="text-xs font-bold text-gray-400 uppercase mb-3">Your Message</p>
-                <div className="bg-gray-50 rounded-xl p-4 text-gray-700 italic border border-gray-200 mb-6">
-                    "{defaultMessage}"
-                </div>
-
                 <div className="grid grid-cols-2 gap-4">
                     <button 
                         onClick={() => handleShare('whatsapp')}

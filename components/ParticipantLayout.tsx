@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/images/logo-black.png';
 import { Notification } from '../types';
-import { MOCK_NOTIFICATIONS } from '../services/mockData';
+import { notificationService } from '../services/notificationService';
 
 interface ParticipantLayoutProps {
   children?: React.ReactNode;
@@ -11,7 +11,7 @@ interface ParticipantLayoutProps {
 const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>(notificationService.getNotifications());
   const unreadCount = notifications.filter(n => !n.read).length;
   const notificationRef = useRef<HTMLDivElement>(null);
 
@@ -23,14 +23,28 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
     };
     document.addEventListener('mousedown', handleClickOutside);
     
+    const handleStorageChange = (event: StorageEvent) => {
+        if (event.key === 'shine-notifications') {
+            setNotifications(notificationService.getNotifications());
+        }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
     return () => {
         document.removeEventListener('mousedown', handleClickOutside);
+        window.removeEventListener('storage', handleStorageChange);
     };
 
   }, []);
 
   const handleNotificationClick = (id: string) => {
-      setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
+      const updatedNotifications = notificationService.markAsRead(id);
+      setNotifications(updatedNotifications);
+  };
+  
+  const handleMarkAllRead = () => {
+      const updatedNotifications = notificationService.markAllAsRead();
+      setNotifications(updatedNotifications);
   };
 
   return (
@@ -57,23 +71,6 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                 </button>
-                
-                <button
-                    onClick={() => navigate('/messages')}
-                    className="p-3 bg-white rounded-full shadow-sm text-gray-500 hover:text-primary hover:bg-gray-50 transition-all relative border border-gray-100"
-                    title="Messages"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                    </svg>
-                    {/* This is a placeholder for the unread messages badge */}
-                    {true && (
-                        <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
-                        </span>
-                    )}
-                </button>
 
                 <div className="relative" ref={notificationRef}>
                     <button 
@@ -91,12 +88,16 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                         )}
                     </button>
                     {showNotifications && (
-                        <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-30 animate-fade-in origin-top-right">
-                           <div className="px-4 py-3 border-b border-gray-50 bg-gray-50 flex justify-between items-center">
+                        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-30 animate-fade-in origin-top-right">
+                           <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
                                 <h3 className="font-bold text-xs text-gray-900 uppercase">Notifications</h3>
-                                <span className="text-xs text-gray-500">{unreadCount} new</span>
+                                {unreadCount > 0 && 
+                                    <button onClick={handleMarkAllRead} className="text-xs text-primary font-semibold hover:underline">
+                                        Mark all as read
+                                    </button>
+                                }
                             </div>
-                            <div className="max-h-60 overflow-y-auto">
+                            <div className="max-h-80 overflow-y-auto">
                                 {notifications.length > 0 ? (
                                     notifications.map(notification => (
                                         <div 
@@ -104,21 +105,24 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                                             onClick={() => handleNotificationClick(notification.id)}
                                             className={`px-4 py-3 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors ${!notification.read ? 'bg-blue-50/50' : ''}`}
                                         >
-                                            <div className="flex gap-2">
-                                                <div className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${!notification.read ? 'bg-primary' : 'bg-gray-300'}`}></div>
-                                                <div>
-                                                    <p className={`text-xs ${!notification.read ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                                            <div className="flex gap-3">
+                                                <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${!notification.read ? 'bg-primary' : 'bg-gray-300'}`}></div>
+                                                <div className='w-full'>
+                                                    <p className={`text-sm ${!notification.read ? 'font-semibold text-gray-800' : 'text-gray-600'}`}>
                                                         {notification.text}
                                                     </p>
-                                                    <p className="text-[10px] text-gray-400 mt-0.5">
-                                                        {new Date(notification.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    <p className="text-xs text-gray-400 mt-1">
+                                                        {new Date(notification.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                                                     </p>
                                                 </div>
                                             </div>
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="p-4 text-center text-gray-400 text-xs">No notifications</div>
+                                    <div className="p-8 text-center text-gray-400 text-sm">
+                                        <span className="text-3xl mb-2 block">🎉</span>
+                                        You're all caught up!
+                                    </div>
                                 )}
                             </div>
                         </div>
