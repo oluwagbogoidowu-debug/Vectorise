@@ -1,11 +1,72 @@
 
 import { db } from './firebase';
-import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, limit, orderBy } from 'firebase/firestore';
 import { ParticipantSprint, Sprint } from '../types';
 import { MOCK_SPRINTS, MOCK_PARTICIPANT_SPRINTS } from './mockData';
 import { userService } from './userService';
 
 export const sprintService = {
+    /**
+     * Get all sprints from the database.
+     * Sprints are ordered by their creation date in descending order.
+     * It simulates a delay to show a loading state.
+     * @returns {Promise<Sprint[]>} A promise that resolves to an array of sprints.
+     */
+    getSprints: async (): Promise<Sprint[]> => {
+        try {
+            const q = query(collection(db, 'sprints')); // Removed orderBy for now
+            const querySnapshot = await getDocs(q);
+            const sprints = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Sprint));
+            
+            // Perform client-side sorting
+            sprints.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+            // DEV ONLY: Simulate delay
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            return sprints;
+        } catch (error) {
+            console.error("Error fetching sprints:", error);
+            // Fallback to mock data on error
+            return MOCK_SPRINTS;
+        }
+    },
+
+    /**
+     * Creates a new sprint in the database.
+     * @param sprintData - The data for the new sprint.
+     * @returns The ID of the newly created sprint.
+     */
+    createSprint: async (sprintData: Omit<Sprint, 'id' | 'createdAt'>): Promise<string> => {
+        try {
+            const sprintId = `sprint_${Date.now()}`;
+            const sprintRef = doc(db, 'sprints', sprintId);
+
+            // Inject the generated sprintId into the dailyContent actions
+            const updatedDailyContent = sprintData.dailyContent.map((content) => ({
+                ...content,
+                action: {
+                    ...content.action,
+                    id: `action_${sprintId}_${content.day}`,
+                    sprintId: sprintId,
+                }
+            }));
+
+            const newSprint: Sprint = {
+                ...sprintData,
+                id: sprintId,
+                createdAt: new Date().toISOString(),
+                dailyContent: updatedDailyContent,
+            };
+
+            await setDoc(sprintRef, newSprint);
+            return sprintId;
+        } catch (error) {
+            console.error("Error creating sprint:", error);
+            throw new Error('Failed to create sprint in database.');
+        }
+    },
+    
     /**
      * Checks if a user is already enrolled in a specific sprint.
      */
@@ -172,6 +233,20 @@ export const sprintService = {
 
         } catch (error: any) {
             console.warn("Could not update enrollment in DB:", error?.message || error);
+        }
+    },
+
+    /**
+     * Fetches the number of enrollments for a specific sprint.
+     */
+    getEnrollmentCountForSprint: async (sprintId: string): Promise<number> => {
+        try {
+            const q = query(collection(db, 'enrollments'), where('sprintId', '==', sprintId));
+            const querySnapshot = await getDocs(q);
+            return querySnapshot.size;
+        } catch (error) {
+            console.error(`Error fetching enrollment count for sprint ${sprintId}:`, error);
+            return 0;
         }
     }
 };

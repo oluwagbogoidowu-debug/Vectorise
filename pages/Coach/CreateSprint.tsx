@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/Button';
 import { useAuth } from '../../contexts/AuthContext';
-import { MOCK_SPRINTS } from '../../services/mockData';
-import { Sprint, SprintDifficulty, DailyContent, Coach, UserRole } from '../../types';
+import { sprintService } from '../../services/sprintService';
+import { Sprint, SprintDifficulty, DailyContent, Coach, UserRole, ActionTask } from '../../types';
 import SprintCard from '../../components/SprintCard';
 
 const CreateSprint: React.FC = () => {
@@ -19,20 +19,42 @@ const CreateSprint: React.FC = () => {
         duration: 7,
         price: '',
     });
-
+    
+    const [sprints, setSprints] = useState<Sprint[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        const fetchSprints = async () => {
+            if (user) {
+                const sprintsData = await sprintService.getSprints();
+                setSprints(sprintsData);
+            }
+        };
+        fetchSprints();
+    }, [user]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) return;
 
-        const existingSprint = MOCK_SPRINTS.find(sprint => sprint.title.toLowerCase() === formData.title.toLowerCase());
+        // --- Data Validation ---
+        if (!formData.title || !formData.description || !formData.category || formData.price === '') {
+            alert("Please ensure all fields are filled, including the price.");
+            return;
+        }
 
+        const price = Number(formData.price);
+        if (isNaN(price) || price < 0) {
+            alert("Please enter a valid, non-negative price.");
+            return;
+        }
+
+        const existingSprint = sprints.find(sprint => sprint.title.toLowerCase() === formData.title.toLowerCase());
         if (existingSprint) {
             alert("A sprint with this title already exists. Please choose a different title.");
             return;
@@ -40,47 +62,49 @@ const CreateSprint: React.FC = () => {
 
         setIsSubmitting(true);
 
-        // Simulate API Delay
-        setTimeout(() => {
-            const sprintId = `sprint_${Date.now()}`;
+        try {
             const duration = Number(formData.duration);
-            const price = Number(formData.price);
 
-            // Initialize empty daily content structure
             const dailyContent: DailyContent[] = Array.from({ length: duration }, (_, i) => ({
                 day: i + 1,
                 lessonText: '',
-                taskPrompt: '',
-                audioUrl: ''
+                audioUrl: '',
+                action: {
+                    id: 'placeholder',
+                    title: 'Daily Action',
+                    description: 'Complete this task to move forward.',
+                    sprintId: 'placeholder',
+                    completed: false
+                } as ActionTask,
             }));
 
-            const newSprint: Sprint = {
-                id: sprintId,
+            const newSprintData: Omit<Sprint, 'id' | 'createdAt'> = {
                 coachId: user.id,
                 title: formData.title,
                 description: formData.description,
                 category: formData.category,
                 difficulty: formData.difficulty,
                 duration: duration,
-                price: price,
+                price: price, // Use the validated and converted price
                 pointCost: Math.ceil(price / 500),
-                coverImageUrl: `https://picsum.photos/seed/${sprintId}/800/400`,
-                published: false, // Default to unpublished
-                approvalStatus: 'pending_approval', // Default to draft
-                dailyContent: dailyContent
+                coverImageUrl: `https://picsum.photos/seed/${Date.now()}/800/400`,
+                published: false,
+                approvalStatus: 'pending_approval',
+                dailyContent: dailyContent,
             };
 
-            // UPDATE MOCK DATA
-            MOCK_SPRINTS.unshift(newSprint);
-
-            setIsSubmitting(false);
+            const newSprintId = await sprintService.createSprint(newSprintData);
             
-            // Redirect to Edit Sprint to add content
-            navigate(`/coach/sprint/edit/${sprintId}`);
-        }, 800);
-    };
+            navigate(`/coach/sprint/edit/${newSprintId}`);
 
-    // Construct preview object for the card
+        } catch (error) {
+            console.error("Error creating sprint:", error);
+            alert("Failed to create sprint. Please try again.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+    
     const previewSprint: Sprint = {
         id: 'preview-sprint',
         coachId: user?.id || 'temp',
@@ -94,10 +118,10 @@ const CreateSprint: React.FC = () => {
         coverImageUrl: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
         published: false,
         approvalStatus: 'pending_approval',
-        dailyContent: []
+        dailyContent: [],
+        createdAt: new Date().toISOString(),
     };
 
-    // Coach object for preview
     const previewCoach: Coach = (user && user.role === UserRole.COACH) ? (user as Coach) : {
         id: 'temp',
         name: user?.name || 'Coach Name',
@@ -112,7 +136,6 @@ const CreateSprint: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 pb-32">
             <div className="max-w-7xl mx-auto">
-                {/* Header Actions */}
                 <div className="flex items-center justify-between mb-8">
                     <button 
                         onClick={() => navigate('/coach/dashboard')} 
@@ -127,14 +150,10 @@ const CreateSprint: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                    
-                    {/* LEFT COLUMN: Form */}
                     <div className="lg:col-span-2 space-y-6">
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                             <div className="p-6 sm:p-8">
                                 <form onSubmit={handleSubmit} className="space-y-8">
-                                    
-                                    {/* Section 1: Basics */}
                                     <div>
                                         <h3 className="text-lg font-bold text-gray-900 mb-1">Basic Info</h3>
                                         <p className="text-sm text-gray-500 mb-6">What is this sprint about?</p>
@@ -172,7 +191,6 @@ const CreateSprint: React.FC = () => {
 
                                     <hr className="border-gray-100" />
 
-                                    {/* Section 2: Details */}
                                     <div>
                                         <h3 className="text-lg font-bold text-gray-900 mb-1">Sprint Details</h3>
                                         <p className="text-sm text-gray-500 mb-6">Categorize and price your program.</p>
@@ -266,7 +284,6 @@ const CreateSprint: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* RIGHT COLUMN: Preview */}
                     <div className="hidden lg:block lg:col-span-1 sticky top-6">
                         <div className="mb-4 flex items-center gap-2">
                             <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider">Live Preview</span>

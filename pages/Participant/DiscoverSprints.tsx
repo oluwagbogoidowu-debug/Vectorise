@@ -1,7 +1,8 @@
 
-import React, { useState, useMemo } from 'react';
-import { MOCK_SPRINTS, MOCK_USERS } from '../../services/mockData';
-import { Coach } from '../../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { sprintService } from '../../services/sprintService';
+import { userService } from '../../services/userService';
+import { Sprint, Coach, UserRole } from '../../types';
 import SprintCard from '../../components/SprintCard';
 
 const SearchIcon = () => (
@@ -12,14 +13,45 @@ const SearchIcon = () => (
 
 const DiscoverSprints: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
+    const [sprints, setSprints] = useState<Sprint[]>([]);
+    const [coaches, setCoaches] = useState<Record<string, Coach>>({});
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchSprintsAndCoaches = async () => {
+            setIsLoading(true);
+            try {
+                const fetchedSprints = await sprintService.getSprints();
+                const publishedSprints = fetchedSprints.filter(s => s.published);
+                setSprints(publishedSprints);
+
+                const coachIds = [...new Set(publishedSprints.map(s => s.coachId))];
+                const coachPromises = coachIds.map(id => userService.getUserDocument(id));
+                const fetchedCoaches = await Promise.all(coachPromises);
+
+                const coachesMap: Record<string, Coach> = {};
+                fetchedCoaches.forEach(coach => {
+                    if (coach && coach.role === UserRole.COACH) {
+                        coachesMap[coach.id] = coach as Coach;
+                    }
+                });
+                setCoaches(coachesMap);
+
+            } catch (error) {
+                console.error("Failed to fetch sprints or coaches:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchSprintsAndCoaches();
+    }, []);
 
     const availableSprints = useMemo(() => {
-        const publishedSprints = MOCK_SPRINTS.filter(s => s.published);
-        
-        const sprintsWithCoaches = publishedSprints.map(sprint => {
-            const coach = MOCK_USERS.find(u => u.id === sprint.coachId) as Coach;
-            return { sprint, coach };
-        }).filter(item => item.coach); // Ensure coach exists
+        const sprintsWithCoaches = sprints.map(sprint => ({
+            sprint,
+            coach: coaches[sprint.coachId]
+        })).filter(item => item.coach); // Ensure coach exists
 
         if (!searchQuery) {
             return sprintsWithCoaches;
@@ -32,8 +64,16 @@ const DiscoverSprints: React.FC = () => {
             sprint.difficulty.toLowerCase().includes(lowercasedQuery) ||
             coach.name.toLowerCase().includes(lowercasedQuery)
         );
+    }, [searchQuery, sprints, coaches]);
 
-    }, [searchQuery]);
+    if (isLoading) {
+        return (
+            <div className="text-center py-16">
+                <h3 className="text-xl font-semibold">Loading Sprints...</h3>
+                <p className="text-gray-500 mt-2">Connecting to the database.</p>
+            </div>
+        )
+    }
 
     return (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">

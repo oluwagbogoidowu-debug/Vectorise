@@ -2,22 +2,43 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Sprint, Participant } from '../../types';
-import { MOCK_SPRINTS, MOCK_PARTICIPANT_SPRINTS } from '../../services/mockData';
+import { sprintService } from '../../services/sprintService';
+import { Sprint } from '../../types';
 import Button from '../../components/Button';
+
+interface SprintWithCount extends Sprint {
+  participantCount: number;
+}
 
 const CoachSprints: React.FC = () => {
   const { user, hasPermission } = useAuth();
   const location = useLocation();
-  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [sprints, setSprints] = useState<SprintWithCount[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'published' | 'pending' | 'draft' | 'rejected'>('all');
 
   useEffect(() => {
     if (user) {
-      console.log(user);
-      // MOCK_SPRINTS might have been updated in memory by other components
-      const coachSprints = MOCK_SPRINTS.filter(s => s.coachId === user.id);
-      setSprints(coachSprints);
+      setIsLoading(true);
+      sprintService.getSprints()
+        .then(async allSprints => {
+          const coachSprints = allSprints.filter(s => s.coachId === user.id);
+          
+          const sprintsWithCounts = await Promise.all(
+            coachSprints.map(async sprint => {
+              const count = await sprintService.getEnrollmentCountForSprint(sprint.id);
+              return { ...sprint, participantCount: count };
+            })
+          );
+
+          setSprints(sprintsWithCounts);
+        })
+        .catch(error => {
+          console.error("Failed to fetch sprints for coach:", error);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
     }
   }, [user, location.key]); 
 
@@ -30,14 +51,14 @@ const CoachSprints: React.FC = () => {
       return sprints;
   }, [sprints, filter]);
 
-  if (!user) return null;
-
-  const getTotalSignups = (sprintId: string) => {
-    return MOCK_PARTICIPANT_SPRINTS.filter(ps => ps.sprintId === sprintId).length;
-  };
-
   const canCreateSprint = hasPermission('sprint:create');
   const canEditSprint = hasPermission('sprint:edit');
+
+  if (isLoading) {
+    return <div className="text-center p-8">Loading your sprints...</div>;
+  }
+
+  if (!user) return null;
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
@@ -50,7 +71,6 @@ const CoachSprints: React.FC = () => {
         )}
       </div>
 
-      {/* Filters */}
       <div className="flex overflow-x-auto gap-2 mb-6 pb-2 hide-scrollbar">
           {['all', 'published', 'pending', 'draft', 'rejected'].map(f => (
               <button
@@ -92,7 +112,7 @@ const CoachSprints: React.FC = () => {
                         <span>{sprint.difficulty}</span>
                     </div>
                     <div className="text-sm text-gray-600">
-                        <strong>{getTotalSignups(sprint.id)}</strong> Active Participants
+                        <strong>{sprint.participantCount}</strong> Active Participants
                     </div>
                   </div>
               </div>
