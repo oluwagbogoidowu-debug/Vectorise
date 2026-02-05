@@ -59,14 +59,14 @@ const HomePage: React.FC = () => {
 
       {/* SCROLL 1: THE REAL PROBLEM */}
       <section className="py-32 md:py-48 bg-gray-50 border-y border-gray-100 px-6">
-        <div className="max-w-4xl mx-auto text-center md:text-left">
+        <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tight leading-none mb-16">
             The <span className="text-primary italic">Real</span> Problem.
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-20">
+          <div className="space-y-12">
             <div className="space-y-8 text-xl text-gray-600 font-medium leading-relaxed">
               <p>Most people don’t fail because they’re lazy. They fail because effort is scattered.</p>
-              <div className="flex flex-wrap gap-3 pt-4">
+              <div className="flex flex-wrap justify-center gap-3 pt-4">
                 {[
                   { text: "Big goals.", color: "bg-emerald-50 text-emerald-800 border-emerald-100" },
                   { text: "Too many options.", color: "bg-indigo-50 text-indigo-800 border-indigo-100" },
@@ -79,7 +79,7 @@ const HomePage: React.FC = () => {
                 ))}
               </div>
             </div>
-            <div className="flex flex-col justify-center">
+            <div className="flex flex-col justify-center max-w-2xl mx-auto">
               <p className="text-2xl md:text-3xl text-gray-900 font-bold italic leading-snug">
                 "You want to move forward, but you’re unsure which direction is worth committing to. <br className="hidden md:block"/>
                 <span className="text-primary not-italic font-black">That uncertainty quietly wastes years."</span>
@@ -92,7 +92,7 @@ const HomePage: React.FC = () => {
       {/* SCROLL 2: THE INSIGHT */}
       <section className="py-32 md:py-48 bg-white px-6">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-20">
+          <div className="mb-20 text-center md:text-left">
             <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-4">The Insight</p>
             <h2 className="text-4xl md:text-6xl font-black text-gray-900 tracking-tight leading-none">
                 Clarity doesn’t come from <br className="hidden md:block"/> more planning.
@@ -102,15 +102,12 @@ const HomePage: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 items-start mb-20">
             <div className="md:col-span-7 space-y-10 text-lg md:text-xl text-gray-500 font-medium leading-relaxed">
               <p>I learned this the hard way.</p>
               <p>I had vision. I had ambition. But no clear starting point. I kept moving, yet nothing compounded.</p>
               <p className="text-gray-900 font-bold">
                 Once clarity entered the picture, everything changed. My actions became intentional. My progress stopped being random.
-              </p>
-              <p className="italic text-primary/80 border-t border-gray-100 pt-10">
-                Vectorise exists so others don’t have to learn this late.
               </p>
             </div>
             <div className="md:col-span-5 relative group">
@@ -121,8 +118,19 @@ const HomePage: React.FC = () => {
                       alt="Personal Growth Insight" 
                     />
                 </div>
+                <p className="mt-4 text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] text-center rotate-2 opacity-60 group-hover:opacity-100 transition-opacity duration-500 px-4 leading-relaxed">
+                  Built by someone who’s walked the path from confusion to clarity.
+                </p>
                 <div className="absolute inset-0 bg-primary/10 rounded-[3rem] -rotate-3 scale-105 blur-2xl -z-10"></div>
             </div>
+          </div>
+
+          {/* CENTERED INSIGHT CALLOUT */}
+          <div className="bg-gray-50 p-10 md:p-16 rounded-[3rem] text-center border border-gray-100 shadow-sm relative overflow-hidden animate-fade-in group">
+             <p className="text-2xl md:text-3xl font-black text-gray-900 italic relative z-10 leading-tight">
+                "Vectorise exists so others don’t have to <br className="hidden md:block"/> <span className="text-primary underline decoration-primary/20 underline-offset-8">learn this late.</span>"
+             </p>
+             <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors duration-1000"></div>
           </div>
         </div>
       </section>
@@ -242,10 +250,6 @@ const HomePage: React.FC = () => {
               </div>
             ))}
           </div>
-
-          <div className="inline-block px-12 py-1.5 bg-gray-900 text-white rounded-full text-[11px] font-black uppercase tracking-[0.4em]">
-            Direction beats inspiration. Always.
-          </div>
         </div>
       </section>
 
@@ -262,7 +266,7 @@ const HomePage: React.FC = () => {
           
           <Link to="/onboarding/welcome">
             <button className="px-16 py-8 bg-white text-primary font-black uppercase tracking-[0.4em] text-sm rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all">
-                Start your clarity sprint &rarr;
+                Start your clarity sprint
             </button>
           </Link>
         </div>
