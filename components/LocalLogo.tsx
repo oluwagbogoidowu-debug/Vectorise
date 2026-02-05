@@ -17,8 +17,8 @@ const LocalLogo: React.FC<LocalLogoProps> = ({ type, className = "", alt = "Vect
       const key = type === 'green' ? assetService.KEYS.LOGO_GREEN : assetService.KEYS.LOGO_WHITE;
       const url = type === 'green' ? assetService.URLS.LOGO_GREEN : assetService.URLS.LOGO_WHITE;
       
-      // Check if we have a cached version (v2 to force refresh)
-      const cached = localStorage.getItem(`asset_v2_${key}`);
+      // Standardize on v3 to match assetService implementation
+      const cached = localStorage.getItem(`asset_v3_${key}`);
       if (cached) {
         setSrc(cached);
       } else {

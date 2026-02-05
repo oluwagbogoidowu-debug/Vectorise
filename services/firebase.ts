@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDEijT9QTC6wTyv_u2BN_UTC3NeOmADkI8",
@@ -17,10 +17,16 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 export const auth = getAuth(app);
+export const db = getFirestore(app);
 
-// Use robust cache initialization to prevent "Failed to fetch" on document reads during network instability
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+// Enable persistence with a check to prevent errors in environments that don't support it
+// (e.g., SSR, specific private modes, or multiple tabs if not handled)
+enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+        console.warn("Persistence failed: Multiple tabs open.");
+    } else if (err.code === 'unimplemented') {
+        console.warn("Persistence failed: Browser doesn't support indexedDB.");
+    }
 });
 
 export default app;
