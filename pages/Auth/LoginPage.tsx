@@ -16,10 +16,6 @@ const LoginPage: React.FC = () => {
   const [emailError, setEmailError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // PWA Install Prompt State
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstallBtn, setShowInstallBtn] = useState(false);
-
   // Verification Modal State
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [unverifiedUser, setUnverifiedUser] = useState<any>(null);
@@ -37,29 +33,6 @@ const LoginPage: React.FC = () => {
       }
   }, [user, navigate]);
 
-  useEffect(() => {
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      setShowInstallBtn(true);
-    });
-
-    window.addEventListener('appinstalled', () => {
-      setDeferredPrompt(null);
-      setShowInstallBtn(false);
-    });
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-      setShowInstallBtn(false);
-    }
-  };
-
   const validateEmail = (email: string) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
@@ -71,12 +44,12 @@ const LoginPage: React.FC = () => {
     const cleanEmail = email.trim();
 
     if (!cleanEmail || !password) {
-        setEmailError('Enter credentials.');
+        setEmailError('Required fields empty.');
         return;
     }
 
     if (!validateEmail(cleanEmail)) {
-      setEmailError('Invalid email.');
+      setEmailError('Invalid email format.');
       return;
     }
 
@@ -91,10 +64,10 @@ const LoginPage: React.FC = () => {
                 login(mockUser.id);
                 navigate('/dashboard');
                 setIsLoading(false);
-            }, 800);
+            }, 600);
             return;
         } else {
-            setEmailError('Credentials mismatch.');
+            setEmailError('Auth mismatch.');
             setIsLoading(false);
             return;
         }
@@ -141,7 +114,7 @@ const LoginPage: React.FC = () => {
   const handleSendResetLink = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!resetEmail) {
-          setResetMessage('Enter email.');
+          setResetMessage('Required.');
           setResetStatus('error');
           return;
       }
@@ -157,28 +130,18 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="h-[100dvh] w-screen bg-[#FAFAFA] flex flex-col items-center justify-center px-6 overflow-hidden selection:bg-primary/10">
+    <div className="h-[100dvh] w-screen bg-[#FAFAFA] flex items-center justify-center px-6 overflow-hidden selection:bg-primary/10 font-sans">
       
       <div className="w-full max-w-sm flex flex-col items-center animate-fade-in">
-        
-        {showInstallBtn && (
-          <button 
-            onClick={handleInstallClick}
-            className="mb-4 flex items-center gap-2 px-3 py-1.5 bg-white border border-primary/20 text-primary rounded-xl shadow-sm text-[9px] font-black uppercase tracking-widest active:scale-95 animate-bounce-subtle"
-          >
-            Install Web App
-          </button>
-        )}
-
-        <div className="w-full bg-white p-7 md:p-8 rounded-[2rem] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] border border-gray-50 relative overflow-hidden">
+        <div className="w-full bg-white p-7 md:p-8 rounded-[2rem] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] border border-gray-100 relative overflow-hidden">
             {!showForgotPassword ? (
                 <>
                     <div className="text-center mb-6">
                         <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">Continue your rise</h2>
-                        <p className="text-gray-400 font-medium text-[10px] uppercase tracking-widest">Registry Access</p>
+                        <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest">Growth Registry Access</p>
                     </div>
                     
-                    <form onSubmit={handleLogin} className="space-y-3">
+                    <form onSubmit={handleLogin} className="space-y-3.5">
                         <div>
                             <label className="block text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1 ml-1">Account Email</label>
                             <input 
@@ -186,7 +149,7 @@ const LoginPage: React.FC = () => {
                                 value={email}
                                 onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(''); }}
                                 className={`w-full px-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-all font-bold text-gray-900 text-sm placeholder-gray-300 ${emailError ? 'border-red-100 bg-red-50/20' : 'border-gray-50'}`}
-                                placeholder="jamie@example.com"
+                                placeholder="name@email.com"
                             />
                         </div>
                         <div>
@@ -224,7 +187,7 @@ const LoginPage: React.FC = () => {
                             isLoading={isLoading} 
                             className="w-full py-3.5 bg-primary text-white rounded-full shadow-md text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:scale-[1.01] active:scale-95"
                         >
-                            Continue
+                            Log In
                         </Button>
                     </form>
                 </>
@@ -232,11 +195,11 @@ const LoginPage: React.FC = () => {
                 <div className="animate-fade-in">
                     <button onClick={() => setShowForgotPassword(false)} className="flex items-center gap-1.5 text-gray-400 hover:text-primary transition-colors mb-4 text-[8px] font-black uppercase tracking-widest">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
-                        Back
+                        Back to Login
                     </button>
                     <div className="text-center mb-6">
                         <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1.5">Reset access</h2>
-                        <p className="text-gray-400 font-medium text-[10px] uppercase tracking-widest leading-relaxed">Registry Recovery</p>
+                        <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest leading-relaxed">Registry Recovery</p>
                     </div>
                     <form onSubmit={handleSendResetLink} className="space-y-4">
                         <div>
@@ -264,20 +227,18 @@ const LoginPage: React.FC = () => {
                     </form>
                 </div>
             )}
-        </div>
-
-        <div className="mt-6 flex flex-col items-center gap-4 w-full">
-            <div className="flex items-center gap-2">
-                <span className="text-[10px] text-gray-400 font-medium tracking-tight">New to Vectorise?</span>
-                <Link to="/onboarding/intro" className="text-primary font-black text-[9px] uppercase tracking-widest hover:underline">Start your rise</Link>
+            
+            <div className="mt-6 flex flex-col items-center gap-4">
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-gray-300 font-bold tracking-tight">New to Vectorise?</span>
+                    <Link to="/onboarding/welcome" className="text-primary font-black text-[9px] uppercase tracking-widest hover:underline">Start your rise</Link>
+                </div>
+                <div className="w-full h-px bg-gray-50"></div>
+                <Link to="/onboarding/coach/welcome" className="group flex items-center gap-2 text-gray-300 hover:text-primary transition-colors">
+                    <span className="text-[8px] font-black uppercase tracking-[0.2em]">Coach Access</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
+                </Link>
             </div>
-
-            <div className="w-full h-px bg-gray-100 max-w-[120px]"></div>
-
-            <Link to="/onboarding/coach/welcome" className="group flex items-center gap-2 text-gray-400 hover:text-primary transition-colors">
-                <span className="text-[8px] font-black uppercase tracking-[0.2em]">Coach Access</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
-            </Link>
         </div>
 
         {showVerifyModal && (
@@ -311,10 +272,8 @@ const LoginPage: React.FC = () => {
       </div>
 
       <style>{`
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes bounceSubtle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-        .animate-bounce-subtle { animation: bounceSubtle 3s ease-in-out infinite; }
       `}</style>
     </div>
   );

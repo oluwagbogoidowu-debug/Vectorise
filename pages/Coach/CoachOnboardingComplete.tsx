@@ -11,7 +11,7 @@ import LocalLogo from '../../components/LocalLogo';
 const CoachOnboardingComplete: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { answers, niche, applicationDetails } = location.state || {};
+  const { niche, applicationDetails } = location.state || {};
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -23,7 +23,7 @@ const CoachOnboardingComplete: React.FC = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstName || !lastName || !email || !password) {
-      setRegError("All fields are required.");
+      setRegError("Registry fields required.");
       return;
     }
     setRegError('');
@@ -38,7 +38,7 @@ const CoachOnboardingComplete: React.FC = () => {
         email: email.trim().toLowerCase(),
         role: UserRole.COACH,
         profileImageUrl: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=0E7850&color=fff`,
-        bio: `Expert in ${niche}. Focused on visible progress.`,
+        bio: `Specialized in ${niche}.`,
         niche: niche,
         approved: false, 
         applicationDetails: applicationDetails
@@ -49,72 +49,63 @@ const CoachOnboardingComplete: React.FC = () => {
       navigate('/verify-email', { state: { email: email.trim(), isCoach: true } });
     } catch (error: any) {
       console.error("Signup error:", error);
-      if (error.code === 'auth/email-already-in-use') setRegError("This email is already registered.");
-      else if (error.code === 'auth/weak-password') setRegError("Weak password. Try at least 6 chars.");
-      else setRegError("Registration failed. Please try again.");
+      if (error.code === 'auth/email-already-in-use') setRegError("Email taken.");
+      else if (error.code === 'auth/weak-password') setRegError("Short password.");
+      else setRegError("Registry failed.");
     } finally { setIsSubmitting(false); }
   };
 
   return (
-    <div className="min-h-screen bg-primary text-white py-12 px-6 flex flex-col items-center justify-center relative overflow-hidden">
-      {/* Back Button */}
-      <button 
-        onClick={() => navigate(-1)} 
-        className="absolute top-8 left-8 z-20 flex items-center gap-2 text-white/60 hover:text-white transition-colors group"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-        </svg>
-        <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
-      </button>
-
-      <div className="max-w-md w-full relative z-10">
-        <div className="text-center mb-12 animate-fade-in">
-            <LocalLogo type="white" className="h-14 w-auto mx-auto mb-8 opacity-90 drop-shadow-xl" />
-            <h1 className="text-4xl font-black mb-4 tracking-tight leading-none">Registry access</h1>
-            <p className="text-white/60 text-lg font-medium leading-relaxed">Finalize your profile to start delivering high-impact sprints.</p>
+    <div className="h-[100dvh] w-screen bg-primary text-white flex flex-col items-center justify-center px-6 overflow-hidden relative">
+      <div className="max-w-sm w-full relative z-10 flex flex-col items-center">
+        
+        <div className="text-center mb-6 animate-fade-in flex-shrink-0">
+            <h1 className="text-3xl font-black mb-1 tracking-tight leading-none">Registry access</h1>
+            <p className="text-white/60 text-xs font-medium uppercase tracking-widest">Secure your coach profile</p>
         </div>
 
-        <div className="bg-white rounded-[3rem] p-10 md:p-12 shadow-2xl text-dark relative overflow-hidden animate-slide-up">
+        <div className="w-full bg-white rounded-[2.5rem] p-8 shadow-2xl text-dark relative overflow-hidden animate-slide-up">
           <div className="relative z-10">
-            <h2 className="text-[8px] font-black text-center mb-10 tracking-[0.5em] text-primary border-b border-primary/5 pb-6 uppercase">FINAL STEP: SECURE REGISTRY</h2>
-            <form onSubmit={handleSignUp} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+            <h2 className="text-[8px] font-black text-center mb-6 tracking-[0.4em] text-primary border-b border-primary/5 pb-4 uppercase">Final Securement</h2>
+            <form onSubmit={handleSignUp} className="space-y-3.5">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black text-gray-300 mb-2.5">First name</label>
-                  <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-primary/5 outline-none font-bold" placeholder="Jane" />
+                  <label className="block text-[8px] font-black text-gray-300 uppercase mb-1.5 ml-1">First</label>
+                  <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl focus:ring-4 focus:ring-primary/5 outline-none font-bold text-sm" placeholder="Jane" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-gray-300 mb-2.5">Last name</label>
-                  <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-primary/5 outline-none font-bold" placeholder="Doe" />
+                  <label className="block text-[8px] font-black text-gray-300 uppercase mb-1.5 ml-1">Last</label>
+                  <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl focus:ring-4 focus:ring-primary/5 outline-none font-bold text-sm" placeholder="Doe" />
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-black text-gray-300 mb-2.5">Registry email</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-primary/5 outline-none font-bold" placeholder="email@coach.com" />
+                <label className="block text-[8px] font-black text-gray-300 uppercase mb-1.5 ml-1">Email</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl focus:ring-4 focus:ring-primary/5 outline-none font-bold text-sm" placeholder="coach@email.com" />
               </div>
               <div>
-                <label className="block text-[10px] font-black text-gray-300 mb-2.5">Registry password</label>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-primary/5 outline-none font-bold" placeholder="••••••••" />
+                <label className="block text-[8px] font-black text-gray-300 uppercase mb-1.5 ml-1">Password</label>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl focus:ring-4 focus:ring-primary/5 outline-none font-bold text-sm" placeholder="••••••••" />
               </div>
 
-              {regError && <p className="text-red-500 text-[10px] font-black text-center bg-red-50 p-4 rounded-2xl border border-red-100 animate-pulse">{regError}</p>}
+              {regError && <p className="text-red-500 text-[9px] font-black text-center bg-red-50 p-2.5 rounded-xl border border-red-100">{regError}</p>}
 
-              <Button type="submit" isLoading={isSubmitting} className="w-full py-6 text-lg font-black uppercase tracking-[0.25em] rounded-full shadow-2xl shadow-primary/30 transition-transform active:scale-95">
-                Unlock Registry
+              <Button type="submit" isLoading={isSubmitting} className="w-full py-4 text-xs font-black uppercase tracking-[0.2em] rounded-full shadow-lg transition-transform active:scale-95 mt-2">
+                Join Registry
               </Button>
             </form>
-            <p className="text-center text-[10px] font-black text-gray-300 mt-10">Already registered? <Link to="/login" className="text-primary hover:underline">Log in here</Link></p>
+            <p className="text-center text-[9px] font-black text-gray-300 mt-6 uppercase tracking-widest">Registered? <Link to="/login" className="text-primary hover:underline">Log in</Link></p>
           </div>
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-[100px] -mr-16 -mt-16"></div>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl -mr-12 -mt-12 pointer-events-none"></div>
         </div>
       </div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-white/5 rounded-full blur-[120px]"></div>
+
+      <div className="absolute bottom-[-10%] right-[-10%] w-80 h-80 bg-white/5 rounded-full blur-[100px] pointer-events-none"></div>
+      
       <style>{`
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 1s ease-out forwards; }
-        .animate-slide-up { animation: slideUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
+        .animate-slide-up { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}</style>
     </div>
   );
