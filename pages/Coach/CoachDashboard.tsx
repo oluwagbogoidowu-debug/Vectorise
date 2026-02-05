@@ -1,113 +1,219 @@
-
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { MOCK_SPRINTS, MOCK_PARTICIPANT_SPRINTS, MOCK_NOTIFICATIONS } from '../../services/mockData';
+import { sprintService } from '../../services/sprintService';
+import { notificationService } from '../../services/notificationService';
+import { Sprint, Notification, Review } from '../../types';
 
 const CoachDashboard: React.FC = () => {
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const navigate = useNavigate();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [mySprints, setMySprints] = useState<Sprint[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdatesExpanded, setIsUpdatesExpanded] = useState(false);
+  const [totalStudentsCount, setTotalStudentsCount] = useState(0);
 
-  // Simulate polling for new notifications (e.g. approval from admin)
   useEffect(() => {
-      const interval = setInterval(() => {
-          // In a real app, this would filter by userId. For mock, we show all relevant types.
-          const relevantNotifs = MOCK_NOTIFICATIONS.filter(n => 
-              n.type === 'sprint_update' || n.type === 'announcement' || n.type === 'referral_update'
-          ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-          setNotifications(relevantNotifs);
-      }, 2000);
-      return () => clearInterval(interval);
-  }, []);
+      let unsubscribeNotifs = () => {};
+      let unsubscribeReviews = () => {};
+
+      const fetchData = async () => {
+          if (!user) return;
+          setIsLoading(true);
+          try {
+              const fetched = await sprintService.getCoachSprints(user.id);
+              setMySprints(fetched);
+              
+              const sprintIds = fetched.map(s => s.id).filter(id => !!id);
+              
+              if (sprintIds.length > 0) {
+                  // 1. Get student counts
+                  const enrollments = await sprintService.getEnrollmentsForSprints(sprintIds);
+                  setTotalStudentsCount(new Set(enrollments.map(e => e.participantId)).size);
+
+                  // 2. Subscribe to real-time reviews for impact score
+                  unsubscribeReviews = sprintService.subscribeToReviewsForSprints(sprintIds, (updatedReviews) => {
+                      setReviews(updatedReviews);
+                  });
+              }
+
+              // 3. Subscribe to real-time notifications
+              unsubscribeNotifs = notificationService.subscribeToNotifications(user.id, (newNotifs) => {
+                  setNotifications(newNotifs);
+              });
+
+          } catch (err) {
+              console.error(err);
+          } finally {
+              setIsLoading(false);
+          }
+      };
+      
+      fetchData();
+      
+      return () => {
+          unsubscribeNotifs();
+          unsubscribeReviews();
+      };
+  }, [user]);
+
+  // Real-time Impact Score calculation
+  const impactScore = useMemo(() => {
+      if (reviews.length === 0) return "5.0";
+      const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
+      return (sum / reviews.length).toFixed(1);
+  }, [reviews]);
+
+  const handleNotificationClick = async (notif: Notification) => {
+      await notificationService.markAsRead(notif.id);
+      if (notif.link) {
+          navigate(notif.link);
+      }
+  };
 
   if (!user) return null;
 
-  const mySprints = MOCK_SPRINTS.filter(s => s.coachId === user.id);
   const activeSprints = mySprints.filter(s => s.published);
-  const totalStudents = new Set(MOCK_PARTICIPANT_SPRINTS
-    .filter(ps => mySprints.some(s => s.id === ps.sprintId))
-    .map(ps => ps.participantId)).size;
+
+  const NotificationItem: React.FC<{ notif: Notification }> = ({ notif }) => {
+      const text = notif.text.toLowerCase();
+      const isTask = text.includes('task') || text.includes('submitted');
+      const isMessage = text.includes('message') || text.includes('chat') || text.includes('question');
+      const isEnrollment = text.includes('enrolled') || text.includes('joined');
+      const isReview = text.includes('review') || text.includes('star');
+      const isApproval = text.includes('approved') || text.includes('approval');
+      
+      return (
+          <div 
+              onClick={() => handleNotificationClick(notif)}
+              className={`flex gap-3 items-start p-3 sm:p-4 rounded-2xl border cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] ${
+                  !notif.read ? 'bg-white border-primary/30 shadow-md ring-1 ring-primary/5' : 'bg-white border-primary/10'
+              }`}
+          >
+              <span className="mt-0.5 text-lg sm:text-xl flex-shrink-0">
+                  {isReview ? '⭐' : isApproval ? '✅' : isEnrollment ? '👋' : isTask ? '📝' : isMessage ? '💬' : '🔔'}
+              </span>
+              <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start gap-2">
+                      <p className={`text-xs sm:text-sm leading-snug mb-1 ${!notif.read ? 'font-bold text-gray-900' : 'text-gray-600'}`}>
+                          {notif.text}
+                      </p>
+                      {!notif.read && <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1.5 animate-pulse"></span>}
+                  </div>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">
+                      {new Date(notif.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  </p>
+              </div>
+          </div>
+      );
+  };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="max-w-5xl mx-auto px-4 py-6 pb-32 bg-white">
       <div className="flex justify-between items-center mb-8">
          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Coach Dashboard</h1>
-            <p className="text-gray-500">Overview of your coaching impact.</p>
+            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">Dashboard</h1>
+            <p className="text-gray-500 font-medium text-xs sm:text-sm">Empowering growth through focused sprints.</p>
          </div>
-         <Link to="/coach/sprint/new" className="bg-primary text-white px-4 py-2 rounded-lg font-semibold shadow-sm hover:bg-primary-hover transition-colors">
+         <Link to="/coach/sprint/new" className="bg-primary text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all active:scale-95">
             + New Sprint
          </Link>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-gray-500 text-xs font-bold uppercase">Active Sprints</p>
-              <p className="text-2xl font-bold text-gray-900">{activeSprints.length}</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-gray-500 text-xs font-bold uppercase">Total Students</p>
-              <p className="text-2xl font-bold text-gray-900">{totalStudents}</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-gray-500 text-xs font-bold uppercase">This Week</p>
-              <p className="text-2xl font-bold text-green-600">+₦120,000</p>
-          </div>
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-gray-500 text-xs font-bold uppercase">Rating</p>
-              <p className="text-2xl font-bold text-gray-900">4.9</p>
-          </div>
+      {/* Quick Stats Row */}
+      <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-6">
+          <Link to="/coach/sprints" className="bg-white p-2 sm:p-4 rounded-2xl shadow-sm border border-primary/10 flex flex-col justify-center min-w-0 hover:border-primary/40 hover:shadow-md transition-all group">
+              <p className="text-gray-400 text-[8px] sm:text-[9px] font-black uppercase tracking-widest mb-1 leading-tight truncate group-hover:text-primary transition-colors">Active<br/>Sprints</p>
+              <p className="text-lg sm:text-2xl font-black text-gray-900 leading-none">{isLoading ? '...' : activeSprints.length}</p>
+          </Link>
+          <Link to="/coach/participants" className="bg-white p-2 sm:p-4 rounded-2xl shadow-sm border border-primary/10 flex flex-col justify-center min-w-0 hover:border-primary/40 hover:shadow-md transition-all group">
+              <p className="text-gray-400 text-[8px] sm:text-[9px] font-black uppercase tracking-widest mb-1 leading-tight truncate group-hover:text-primary transition-colors">Total<br/>Students</p>
+              <p className="text-lg sm:text-2xl font-black text-gray-900 leading-none">{isLoading ? '...' : totalStudentsCount}</p>
+          </Link>
+          <Link to="/coach/earnings" className="bg-white p-2 sm:p-4 rounded-2xl shadow-sm border border-primary/10 flex flex-col justify-center min-w-0 hover:border-primary/40 hover:shadow-md transition-all group">
+              <p className="text-gray-400 text-[8px] sm:text-[9px] font-black uppercase tracking-widest mb-1 leading-tight truncate group-hover:text-primary transition-colors">Total<br/>Earned</p>
+              <p className="text-lg sm:text-2xl font-black text-green-600 leading-none truncate">₦0</p>
+          </Link>
+          <Link to="/coach/impact" className="bg-white p-2 sm:p-4 rounded-2xl shadow-sm border border-primary/10 flex flex-col justify-center min-w-0 hover:border-primary/40 hover:shadow-md transition-all group">
+              <p className="text-gray-400 text-[8px] sm:text-[9px] font-black uppercase tracking-widest mb-1 leading-tight truncate group-hover:text-primary transition-colors">Impact<br/>Score</p>
+              <p className="text-lg sm:text-2xl font-black text-gray-900 leading-none truncate">
+                {isLoading ? '...' : impactScore} ⭐
+              </p>
+          </Link>
       </div>
 
-      {/* Recent Activity / Notifications */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
-          <h2 className="font-bold text-lg mb-4">Important Updates</h2>
-          <div className="space-y-4 max-h-64 overflow-y-auto">
+      {/* Real-time Updates Section */}
+      <div className={`bg-white rounded-[2rem] shadow-lg border border-primary/10 p-6 mb-6 transition-all duration-500 overflow-hidden flex flex-col ${isUpdatesExpanded ? 'fixed inset-4 z-[60] mb-0' : 'h-[320px]'}`}>
+          <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(14,120,80,0.4)]"></div>
+                  <h2 className="font-black text-gray-900 text-sm uppercase tracking-tight">Updates</h2>
+                  {notifications.filter(n => !n.read).length > 0 && (
+                      <span className="bg-primary text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm">
+                          {notifications.filter(n => !n.read).length} NEW
+                      </span>
+                  )}
+              </div>
+              <button 
+                onClick={() => setIsUpdatesExpanded(!isUpdatesExpanded)}
+                className="p-1.5 text-gray-400 hover:text-primary hover:bg-white border border-transparent hover:border-primary/10 rounded-lg transition-all cursor-pointer group"
+              >
+                  {isUpdatesExpanded ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                  ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                  )}
+              </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
               {notifications.length > 0 ? (
-                  notifications.map((notif, idx) => (
-                    <div key={idx} className={`flex gap-4 items-start p-3 rounded-lg border ${
-                        notif.text.includes('approved') ? 'bg-green-50 border-green-100' : 
-                        notif.text.includes('not approved') ? 'bg-red-50 border-red-100' :
-                        'bg-blue-50 border-blue-100'
-                    }`}>
-                        <span className="mt-1 text-xl">
-                            {notif.text.includes('approved') ? '✅' : notif.text.includes('not approved') ? '⚠️' : 'ℹ️'}
-                        </span>
-                        <div>
-                            <p className="font-semibold text-gray-900 text-sm">{notif.type === 'sprint_update' ? 'Sprint Status Update' : 'Notification'}</p>
-                            <p className="text-gray-600 text-sm">{notif.text}</p>
-                            <p className="text-xs text-gray-400 mt-1">{new Date(notif.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                        </div>
-                    </div>
+                  notifications.map((notif) => (
+                    <NotificationItem key={notif.id} notif={notif} />
                   ))
               ) : (
-                  <p className="text-gray-500 text-sm italic">No new updates.</p>
+                  <div className="h-full flex flex-col items-center justify-center text-center py-10 grayscale opacity-40">
+                      <span className="text-4xl mb-4">🏝️</span>
+                      <h3 className="font-black text-gray-400 uppercase tracking-[0.2em] text-[10px]">Horizon Clear</h3>
+                  </div>
               )}
           </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Link to="/coach/sprints" className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-primary transition-colors group">
-              <div className="mb-4 bg-gray-100 w-12 h-12 rounded-full flex items-center justify-center text-gray-600 group-hover:bg-primary group-hover:text-white transition-colors">
-                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+      <div className="grid grid-cols-2 gap-3 sm:gap-6 bg-white">
+          <Link to="/coach/sprints" className="bg-white p-4 sm:p-8 rounded-[2rem] shadow-sm border border-primary/10 hover:border-primary/50 hover:shadow-lg transition-all group relative overflow-hidden flex flex-col">
+              <div className="mb-4 sm:mb-6 bg-white w-10 h-10 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center text-gray-400 group-hover:bg-primary group-hover:text-white transition-all shadow-md border border-primary/5">
+                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-7 sm:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012v2M7 7h10" />
                     </svg>
               </div>
-              <h3 className="font-bold text-lg text-gray-900">Manage Sprints</h3>
-              <p className="text-sm text-gray-500">Edit content, submit drafts for approval, and view analytics.</p>
+              <h3 className="font-black text-sm sm:text-xl text-gray-900 tracking-tight mb-1">Manage Programs</h3>
+              <p className="text-[10px] sm:text-sm text-gray-500 font-medium leading-tight sm:leading-relaxed line-clamp-2">Refine curriculum and track lifecycle.</p>
+              <div className="absolute -right-4 -bottom-4 w-16 h-16 sm:w-24 sm:h-24 bg-primary/5 rounded-full blur-xl group-hover:bg-primary/10 transition-all"></div>
           </Link>
-           <Link to="/coach/participants" className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-primary transition-colors group">
-              <div className="mb-4 bg-gray-100 w-12 h-12 rounded-full flex items-center justify-center text-gray-600 group-hover:bg-primary group-hover:text-white transition-colors">
-                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+           <Link to="/coach/participants" className="bg-white p-4 sm:p-8 rounded-[2rem] shadow-sm border border-primary/10 hover:border-primary/50 hover:shadow-lg transition-all group relative overflow-hidden flex flex-col">
+              <div className="mb-4 sm:mb-6 bg-white w-10 h-10 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center text-gray-400 group-hover:bg-primary group-hover:text-white transition-all shadow-md border border-primary/5">
+                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-7 sm:w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
               </div>
-              <h3 className="font-bold text-lg text-gray-900">Participant Progress</h3>
-              <p className="text-sm text-gray-500">See who's falling behind and send encouragement.</p>
+              <h3 className="font-black text-sm sm:text-xl text-gray-900 tracking-tight mb-1">Student Insights</h3>
+              <p className="text-[10px] sm:text-sm text-gray-500 font-medium leading-tight sm:leading-relaxed line-clamp-2">Review work and send direct feedback.</p>
+              <div className="absolute -right-4 -bottom-4 w-16 h-16 sm:w-24 sm:h-24 bg-primary/5 rounded-full blur-xl group-hover:bg-primary/10 transition-all"></div>
           </Link>
       </div>
+
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #FFFFFF; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(14, 120, 80, 0.2); border-radius: 10px; border: 1px solid #FFFFFF; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(14, 120, 80, 0.4); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+      `}</style>
     </div>
   );
 };

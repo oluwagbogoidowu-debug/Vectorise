@@ -1,262 +1,300 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { MOCK_SPRINTS, SUBSCRIPTION_PLANS } from '../../services/mockData';
+import { sprintService } from '../../services/sprintService';
+import { userService } from '../../services/userService';
+import { auth } from '../../services/firebase';
+import { createUserWithEmailAndPassword, updateProfile as updateFbProfile, sendEmailVerification, signOut } from 'firebase/auth';
+import { Sprint, UserRole, Participant } from '../../types';
+import { notificationService } from '../../services/notificationService';
 import Button from '../../components/Button';
-
-// Compact mock reviews for the "What people are saying" section
-const MOCK_REVIEWS = [
-    { id: 1, user: "Alex M.", avatar: "https://i.pravatar.cc/150?u=1", text: "Changed my daily routine. Highly recommend!" },
-    { id: 2, user: "Sarah J.", avatar: "https://i.pravatar.cc/150?u=2", text: "Short, effective, exactly what I needed." },
-    { id: 3, user: "Mike T.", avatar: "https://i.pravatar.cc/150?u=3", text: "The coaching tips were spot on." },
-];
+import LocalLogo from '../../components/LocalLogo';
+import { translateToTag, calculateMatchScore } from '../../utils/tagUtils';
 
 const RecommendedSprints: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
+  const { persona, answers, recommendedPlan, occupation, targetSprintId, referrerId } = location.state || {};
 
-  const { persona, answers, recommendedPlan } = location.state || {};
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [regError, setRegError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isQueued, setIsQueued] = useState(true); 
+  
+  const [availableSprints, setAvailableSprints] = useState<Sprint[]>([]);
+  const [isLoadingSprints, setIsLoadingSprints] = useState(true);
 
-  const suggestedPlan = SUBSCRIPTION_PLANS.find(p => p.id === recommendedPlan);
-
-  // Simulate personalized recommendations with scoring logic
-  const recommendedSprints = useMemo(() => {
-    if (!persona) return MOCK_SPRINTS.slice(0, 5);
-
-    // Calculate a relevance score for each sprint
-    const scores = MOCK_SPRINTS.map(sprint => {
-        let score = 0;
-
-        // 1. Category Match based on Persona (Broad filter)
-        const lowerPersona = persona.toLowerCase();
-        const lowerCategory = sprint.category.toLowerCase();
-
-        // Base affinities
-        if (lowerPersona.includes('entrepreneur') || lowerPersona.includes('business')) {
-            if (lowerCategory === 'business') score += 10;
-            if (lowerCategory === 'productivity') score += 5;
-        } else if (lowerPersona.includes('freelancer')) {
-             if (lowerCategory === 'business') score += 10;
-             if (lowerCategory === 'productivity') score += 5;
-        } else if (lowerPersona.includes('creative')) {
-             if (lowerCategory === 'business') score += 5;
-             if (lowerCategory === 'wellness') score += 5;
-        } else if (lowerPersona.includes('9-5')) {
-             if (lowerCategory === 'productivity') score += 10;
-             if (lowerCategory === 'wellness') score += 5;
-        } else if (lowerPersona.includes('student')) {
-             if (lowerCategory === 'productivity') score += 10;
-             if (lowerCategory === 'business') score += 5;
-        }
-
-        // 2. Keyword matching from Quiz Answers (Granular filter)
-        if (answers) {
-            const answerValues = Object.values(answers).map(v => String(v).toLowerCase());
-            const combinedAnswers = answerValues.join(' ');
-
-            // Productivity Keywords
-            if (['focus', 'clarity', 'goal', 'time', 'habit', 'procrastination', 'structure', 'plan', 'overwhelm'].some(k => combinedAnswers.includes(k))) {
-                if (lowerCategory === 'productivity') score += 5;
-                if (sprint.title.toLowerCase().includes('habit')) score += 3;
-                if (sprint.title.toLowerCase().includes('clarity')) score += 3;
-            }
-
-            // Wellness Keywords
-            if (['stress', 'burnout', 'anxiety', 'balance', 'health', 'energy', 'mindful', 'detox', 'peace'].some(k => combinedAnswers.includes(k))) {
-                if (lowerCategory === 'wellness') score += 5;
-                if (sprint.title.toLowerCase().includes('digital') && combinedAnswers.includes('distraction')) score += 5;
-            }
-
-            // Business Keywords
-            if (['client', 'sales', 'money', 'income', 'revenue', 'launch', 'scale', 'market', 'brand', 'hustle', 'profit'].some(k => combinedAnswers.includes(k))) {
-                if (lowerCategory === 'business') score += 5;
-            }
-
-            // Specific Boosts
-            if (combinedAnswers.includes('launch') && sprint.title.toLowerCase().includes('launch')) score += 10;
-        }
-
-        return { sprint, score };
-    });
-
-    // Sort by score descending
-    const sorted = scores.sort((a, b) => b.score - a.score);
-    
-    // Return top 5
-    return sorted.map(s => s.sprint).slice(0, 5);
-
-  }, [persona, answers]);
-
-  // Select the first sprint by default when recommendations load
   useEffect(() => {
-    if (recommendedSprints.length > 0 && !selectedSprintId) {
-        setSelectedSprintId(recommendedSprints[0].id);
+    const fetchSprints = async () => {
+      setIsLoadingSprints(true);
+      try {
+        const sprints = await sprintService.getPublishedSprints();
+        setAvailableSprints(sprints);
+      } catch (err) {
+        console.error("Error fetching recommended sprints:", err);
+      } finally {
+        setIsLoadingSprints(false);
+      }
+    };
+    fetchSprints();
+  }, []);
+
+  const path = useMemo(() => {
+    if (availableSprints.length === 0) return null;
+
+    // Phase 01: Strictly 1 Platform-Owned Foundational Sprint
+    let foundational = availableSprints.find(s => 
+        s.category === 'Growth Fundamentals' || s.category === 'Core Platform Sprint'
+    );
+    if (!foundational) foundational = availableSprints[0];
+
+    // Phase 02: Strictly 1 Coach-Led Registry Sprint
+    const registrySprints = availableSprints.filter(s => 
+        s.category !== 'Growth Fundamentals' && s.category !== 'Core Platform Sprint'
+    );
+    
+    let nextPath = registrySprints.find(s => s.id === targetSprintId);
+    
+    if (!nextPath) {
+        const userProfile = {
+            persona: persona,
+            p1: translateToTag(persona, answers[1]),
+            p2: translateToTag(persona, answers[2]),
+            p3: translateToTag(persona, answers[3]),
+            occupation: translateToTag('', occupation)
+        };
+
+        const scoredSprints = registrySprints
+            .map(s => ({
+                sprint: s,
+                score: calculateMatchScore(userProfile, s.targeting)
+            }))
+            .sort((a, b) => b.score - a.score);
+
+        if (scoredSprints.length > 0) {
+            nextPath = scoredSprints[0].sprint;
+        }
     }
-  }, [recommendedSprints, selectedSprintId]);
 
-  const handleCardClick = (id: string) => {
-    setSelectedSprintId(id);
-  };
+    // Fallback if no registry sprints match well
+    if (!nextPath) nextPath = registrySprints[0];
 
-  const handleGetStarted = () => {
-    if (selectedSprintId) {
-        // Navigate to sign up, passing the selected sprint ID AND the profile data (persona/answers) to be stored
-        navigate('/signup', { state: { sprintId: selectedSprintId, persona, answers, recommendedPlan } });
+    return { foundational, nextPath };
+  }, [availableSprints, targetSprintId, persona, answers, occupation]);
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!firstName || !lastName || !email || !password) {
+      setRegError("All fields are required.");
+      return;
     }
-  };
+    if (!path?.foundational) {
+        setRegError("Configuration error. Please try again.");
+        return;
+    }
 
-  const selectedSprint = recommendedSprints.find(s => s.id === selectedSprintId);
+    setRegError('');
+    setIsSubmitting(true);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      const firebaseUser = userCredential.user;
+      await updateFbProfile(firebaseUser, { displayName: `${firstName} ${lastName}` });
+      
+      const queueIds = isQueued && path.nextPath ? [path.nextPath.id] : [];
+
+      const newUser: Partial<Participant> = {
+        id: firebaseUser.uid,
+        name: `${firstName} ${lastName}`,
+        email: email.trim().toLowerCase(),
+        role: UserRole.PARTICIPANT,
+        profileImageUrl: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=0E7850&color=fff`,
+        persona,
+        onboardingAnswers: answers,
+        occupation: occupation?.includes('Student') ? 'student' : occupation?.includes('Employed') ? 'employed' : occupation?.includes('Self') ? 'self_employed' : 'unemployed',
+        subscription: { planId: (recommendedPlan as any) || 'free', active: true, renewsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() },
+        savedSprintIds: queueIds,
+        enrolledSprintIds: [path.foundational.id],
+        walletBalance: 30,
+        impactStats: { peopleHelped: 0, streak: 0 },
+        createdAt: new Date().toISOString()
+      };
+      
+      await userService.createUserDocument(firebaseUser.uid, newUser);
+      localStorage.removeItem('vectorise_quiz_prefill');
+
+      await sprintService.enrollUser(firebaseUser.uid, path.foundational.id, path.foundational.duration);
+      
+      if (referrerId) {
+          const referrer = await userService.getUserDocument(referrerId) as Participant;
+          if (referrer) {
+              const currentImpact = referrer.impactStats?.peopleHelped || 0;
+              await userService.updateUserDocument(referrerId, {
+                  impactStats: { 
+                      ...referrer.impactStats!, 
+                      peopleHelped: currentImpact + 1 
+                  }
+              });
+              await notificationService.createNotification(referrerId, {
+                  type: 'referral_update',
+                  text: `✨ ${firstName} joined Vectorise. Your influence is growing!`,
+                  timestamp: new Date().toISOString(),
+                  read: false,
+                  link: '/impact'
+              });
+          }
+      }
+
+      await sendEmailVerification(firebaseUser);
+      await signOut(auth);
+      navigate('/verify-email', { state: { email: email.trim() } });
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      if (error.code === 'auth/email-already-in-use') {
+          setRegError("This email is already in use. Try logging in instead.");
+      } else if (error.code === 'auth/weak-password') {
+          setRegError("Password must be at least 6 characters.");
+      } else {
+          setRegError("Registration failed. Please try again.");
+      }
+    } finally { setIsSubmitting(false); }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-        <div className="pt-8 px-6 mb-6">
-             <h1 className="text-3xl font-bold text-gray-900 leading-tight">
-                {persona ? `Top Picks for ${persona}s` : 'Your Personalized Sprint Picks'}
-             </h1>
-             <p className="text-gray-500 mt-2 text-lg">Based on your quiz, these sprints are the best match for your goals.</p>
+    <div className="min-h-screen bg-primary text-white py-12 px-6 overflow-x-hidden relative">
+      <button 
+        onClick={() => navigate(-1)} 
+        className="absolute top-8 left-8 z-20 flex items-center gap-2 text-white/60 hover:text-white transition-colors group"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+        </svg>
+        <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
+      </button>
+
+      <div className="max-w-4xl mx-auto relative z-10">
+        <div className="flex justify-center mb-10">
+            <LocalLogo type="white" className="h-12 w-auto animate-fade-in opacity-80" />
         </div>
 
-        {/* Recommended Plan Banner */}
-        {suggestedPlan && (
-            <div className="mx-6 mb-8 bg-gradient-to-r from-blue-50 to-white border border-blue-100 rounded-xl p-4 flex items-center justify-between shadow-sm relative overflow-hidden">
-                <div className="relative z-10">
-                    <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-1">Recommended Plan</p>
-                    <h3 className="text-lg font-bold text-gray-900">{suggestedPlan.name} Tier</h3>
-                    <p className="text-sm text-gray-600">Access unlimited sprints for {suggestedPlan.currency}{suggestedPlan.price.toLocaleString()}/mo.</p>
-                </div>
-                <div className="relative z-10 text-right">
-                    <span className="text-2xl font-bold text-blue-700">{suggestedPlan.currency}{suggestedPlan.price.toLocaleString()}</span>
-                </div>
-            </div>
-        )}
-
-        {/* Carousel Container */}
-        <div className="flex-1 flex flex-col justify-center min-h-[300px]">
-            <div className="flex overflow-x-auto px-6 gap-4 snap-x pb-8 hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {recommendedSprints.map((sprint) => (
-                    <div 
-                        key={sprint.id}
-                        onClick={() => handleCardClick(sprint.id)}
-                        className={`flex-shrink-0 w-72 bg-white rounded-2xl p-6 shadow-sm border-2 cursor-pointer transition-all duration-300 snap-center relative
-                            ${selectedSprintId === sprint.id 
-                                ? 'border-primary ring-4 ring-primary/10 transform -translate-y-2 shadow-lg' 
-                                : 'border-transparent hover:border-gray-200'
-                            }
-                        `}
-                    >
-                        <div className="mb-4">
-                            <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
-                                selectedSprintId === sprint.id ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'
-                            }`}>
-                                {sprint.category}
-                            </span>
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-3 leading-snug">{sprint.title}</h3>
-                        <p className="text-sm text-gray-500 line-clamp-4 leading-relaxed">{sprint.description}</p>
-                        
-                        {selectedSprintId === sprint.id && (
-                            <div className="absolute top-4 right-4 text-primary">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                </svg>
-                            </div>
-                        )}
-                    </div>
-                ))}
-
-                {/* Discover More Card in Carousel */}
-                <div 
-                    onClick={() => navigate('/discover')}
-                    className="flex-shrink-0 w-72 bg-gray-100/50 rounded-2xl p-6 border-2 border-dashed border-gray-300 cursor-pointer transition-all duration-300 snap-center flex flex-col items-center justify-center hover:bg-white hover:border-primary group"
-                >
-                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm group-hover:scale-110 transition-transform">
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-400 group-hover:text-primary transition-colors">Discover More</h3>
-                    <p className="text-sm text-gray-400">Browse full library</p>
-                </div>
-            </div>
-        </div>
-
-        {/* Selected Sprint & Action Section */}
-        <div className="bg-white p-6 rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.05)] mt-auto min-h-[280px]">
-            <div className="max-w-md mx-auto h-full flex flex-col justify-between">
-                {selectedSprint ? (
-                    <div className="space-y-6 animate-fade-in flex-1 flex flex-col">
-                        <div>
-                            <div className="flex justify-between items-start mb-2">
-                                <div>
-                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Selected Sprint</p>
-                                    <h2 className="text-2xl font-bold text-primary leading-none">{selectedSprint.title}</h2>
-                                </div>
-                                <div className="text-right">
-                                    <span className="block text-xl font-bold text-gray-900">₦{selectedSprint.price.toLocaleString()}</span>
-                                    <span className="text-xs text-gray-500">{selectedSprint.duration} Days</span>
-                                </div>
-                            </div>
-                            
-                            {/* What people are saying section - Link to Shine */}
-                            <div className="bg-gray-50 rounded-xl p-4 mt-4">
-                                <Link to="/shine" className="flex justify-between items-center mb-3 group">
-                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide group-hover:text-primary transition-colors">What people are saying</p>
-                                    <span className="text-xs font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">View Community &rarr;</span>
-                                </Link>
-                                <Link to="/shine" className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
-                                    {MOCK_REVIEWS.map(review => (
-                                        <div key={review.id} className="bg-white p-3 rounded-lg shadow-sm border border-gray-100 flex-shrink-0 w-48 snap-center hover:border-primary/50 transition-colors">
-                                            <p className="text-xs text-gray-700 italic mb-2 line-clamp-2 leading-relaxed">"{review.text}"</p>
-                                            <div className="flex items-center gap-2">
-                                                <img src={review.avatar} className="w-5 h-5 rounded-full bg-gray-200" alt=""/>
-                                                <span className="text-[10px] font-bold text-gray-400">{review.user}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </Link>
-                            </div>
-                        </div>
-
-                        <div className="mt-auto pt-2">
-                             <Button 
-                                onClick={handleGetStarted}
-                                className="w-full py-4 text-lg rounded-xl shadow-lg font-bold"
-                            >
-                                Start Free with Subscription
-                            </Button>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="space-y-6 opacity-50 grayscale flex-1 flex flex-col justify-center">
-                         <div>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Select a Sprint</p>
-                            <h2 className="text-2xl font-bold text-gray-300">Choose a card above</h2>
-                        </div>
-                        <Button disabled className="w-full py-4 text-lg rounded-xl bg-gray-200 text-gray-400 cursor-not-allowed">
-                            Get Started
-                        </Button>
-                    </div>
-                )}
-            </div>
+        <div className="text-center mb-16 animate-fade-in">
+            <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-none mb-4 italic">Your Blueprint.</h1>
+            <p className="text-white/60 text-lg font-medium max-w-lg mx-auto">We've architected a 2-phase sequence to maximize your growth based on your profile.</p>
         </div>
         
-        <style>{`
-            .hide-scrollbar::-webkit-scrollbar {
-                display: none;
-            }
-            .hide-scrollbar {
-                -ms-overflow-style: none;
-                scrollbar-width: none;
-            }
-            @keyframes fadeIn {
-              from { opacity: 0; transform: translateY(5px); }
-              to { opacity: 1; transform: translateY(0); }
-            }
-            .animate-fade-in {
-              animation: fadeIn 0.3s ease-out forwards;
-            }
-        `}</style>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
+          {isLoadingSprints ? (
+             <div className="col-span-2 py-12 flex justify-center"><div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin"></div></div>
+          ) : path ? (
+            <>
+                <div className="bg-white rounded-[2.5rem] p-8 text-dark relative overflow-hidden shadow-2xl flex flex-col animate-slide-up">
+                    <div className="relative z-10 flex flex-col h-full">
+                        <div className="flex justify-between items-start mb-6">
+                            <span className="px-4 py-1.5 bg-primary text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20">Phase 01</span>
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Foundational</span>
+                        </div>
+                        
+                        <div className="mb-6 rounded-2xl overflow-hidden aspect-video shadow-sm">
+                            <img src={path.foundational?.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                        </div>
+
+                        <h3 className="text-2xl font-black mb-3 leading-tight tracking-tight text-gray-900">{path.foundational?.title}</h3>
+                        <p className="text-sm text-gray-500 font-medium leading-relaxed mb-8 flex-grow">
+                            To get the most of this platform and attain your goals, <span className="text-primary font-bold">run this first sprint.</span> It establishes the core focus needed for your journey.
+                        </p>
+                        
+                        <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-4">
+                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-xl shadow-sm">🚀</div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-snug">Auto-enrolled<br/><span className="text-primary">Starts immediately</span></p>
+                        </div>
+                    </div>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+                </div>
+
+                <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-[2.5rem] p-8 relative overflow-hidden shadow-2xl flex flex-col animate-slide-up" style={{ animationDelay: '150ms' }}>
+                    <div className="relative z-10 flex flex-col h-full">
+                        <div className="flex justify-between items-start mb-6">
+                            <span className="px-4 py-1.5 bg-white/20 text-white rounded-full text-[10px] font-black uppercase tracking-widest">Phase 02</span>
+                            <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Evolution</span>
+                        </div>
+
+                        <div className="mb-6 rounded-2xl overflow-hidden aspect-video border border-white/10">
+                            <img src={path.nextPath?.coverImageUrl} className="w-full h-full object-cover grayscale opacity-80" alt="" />
+                        </div>
+
+                        <h3 className="text-2xl font-black mb-3 leading-tight tracking-tight text-white">{path.nextPath?.title}</h3>
+                        <p className="text-sm text-white/60 font-medium leading-relaxed mb-8 flex-grow">
+                            Then you will run this recommended sprint <span className="text-white font-bold">based on who you are becoming.</span> It's tailored to your unique context and long-term vision.
+                        </p>
+
+                        <button 
+                            onClick={() => setIsQueued(!isQueued)}
+                            className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all border shadow-lg flex items-center justify-center gap-3 ${
+                                isQueued 
+                                ? 'bg-[#0FB881] text-primary border-[#0FB881] shadow-primary/20 scale-[0.98]' 
+                                : 'bg-white/5 text-white border-white/20 hover:bg-white/10'
+                            }`}
+                        >
+                            {isQueued ? (
+                                <><span className="text-lg">✓</span> Secured in Queue</>
+                            ) : (
+                                <><span className="text-lg">+</span> Add to Upcoming Queue</>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </>
+          ) : (
+            <div className="col-span-2 text-center py-20 opacity-30 font-black text-xs">Initializing blueprints...</div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-[3rem] p-8 md:p-14 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.4)] text-dark relative overflow-hidden animate-slide-up" style={{ animationDelay: '300ms' }}>
+          <div className="relative z-10">
+            <h2 className="text-[8px] font-black text-center mb-10 tracking-[0.4em] text-primary uppercase">SECURE YOUR BLUEPRINT & START PHASE 01</h2>
+            
+            <form onSubmit={handleSignUp} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-300 mb-2.5 ml-1">First name</label>
+                  <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold" placeholder="e.g. Jamie" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-300 mb-2.5 ml-1">Last name</label>
+                  <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold" placeholder="e.g. Lee" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-300 mb-2.5 ml-1">Email address</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold" placeholder="jamie@growth.com" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-300 mb-2.5 ml-1">Secure password</label>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold" placeholder="••••••••" />
+              </div>
+
+              {regError && <p className="text-red-500 text-[10px] font-black text-center bg-red-50 p-4 rounded-2xl border border-red-100 animate-pulse">{regError}</p>}
+
+              <Button type="submit" isLoading={isSubmitting} className="w-full py-6 text-lg font-black uppercase tracking-[0.25em] rounded-full shadow-2xl shadow-primary/30 transition-transform active:scale-95">
+                Unlock My Path
+              </Button>
+            </form>
+            <p className="text-center text-[10px] font-black text-gray-300 mt-10">Already have an account? <Link to="/login" className="text-primary hover:underline">Log in here</Link></p>
+          </div>
+          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-[100px] -mr-24 -mt-24"></div>
+        </div>
+      </div>
+      
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none bg-black/5 opacity-40"></div>
+      
+      <style>{`
+        @keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-up { animation: slideUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 0.8; } }
+        .animate-fade-in { animation: fadeIn 1s ease-out forwards; }
+      `}</style>
     </div>
   );
 };

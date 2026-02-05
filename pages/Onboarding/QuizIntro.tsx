@@ -1,49 +1,51 @@
 
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import LocalLogo from '../../components/LocalLogo';
 
 const QuizIntro: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { targetSprintId, referrerId } = location.state || {};
+
+  const handleNext = () => {
+    navigate('/onboarding/quiz', { state: { targetSprintId, referrerId } });
+  };
 
   return (
-    <div className="flex flex-col h-screen px-6 py-4 max-w-md mx-auto w-full font-sans text-white">
-      {/* Header / Status Bar Mock */}
-      <header className="flex justify-between items-center w-full pt-1 pb-6">
-         <div></div>
+    <div className="flex flex-col h-screen px-6 py-4 max-w-md mx-auto w-full font-sans text-white relative">
+      <header className="flex justify-center items-center w-full pt-8 pb-10">
+         <LocalLogo type="white" className="h-10 w-auto opacity-80" />
       </header>
 
-      {/* Progress Bar */}
-      <div className="w-full bg-white/20 rounded-full h-1.5 mb-8">
-        <div className="bg-white h-1.5 rounded-full transition-all duration-1000" style={{ width: '25%' }}></div>
+      <div className="w-full bg-white/10 rounded-full h-1.5 mb-12">
+        <div className="bg-white h-1.5 rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(255,255,255,0.4)]" style={{ width: '25%' }}></div>
       </div>
 
-      {/* Main Content */}
       <main className="flex-grow flex items-center justify-center">
-        <h1 className="text-3xl md:text-4xl font-bold text-center px-2 leading-normal">
-          Take a short quiz to set up your rise Path - quick, simple, and made for your goals.
+        <h1 className="text-3xl md:text-4xl font-bold text-center px-4 leading-snug tracking-tight">
+          {targetSprintId ? "You're almost there. Let's align your profile with this sprint for maximum impact." : "Take a short quiz to set up your rise path — quick, simple, and made for your goals."}
         </h1>
       </main>
 
-      {/* Footer Actions */}
-      <footer className="w-full pb-4 flex-shrink-0">
-        <div className="flex items-center justify-between space-x-4 mb-6">
+      <footer className="w-full pb-8 flex-shrink-0">
+        <div className="flex items-center justify-between space-x-4 mb-8">
           <button 
             onClick={() => navigate('/onboarding/welcome')}
-            className="w-1/2 bg-white text-primary font-bold py-4 px-6 rounded-full shadow-lg active:scale-95 transition-transform text-lg"
+            className="w-1/2 bg-white/10 backdrop-blur-md text-white border border-white/20 font-black py-4 px-6 rounded-full shadow-lg active:scale-95 transition-transform text-lg"
           >
-            Previous
+            Back
           </button>
           <button 
-            onClick={() => navigate('/onboarding/quiz')}
-            className="w-1/2 bg-white text-primary font-bold py-4 px-6 rounded-full shadow-lg active:scale-95 transition-transform text-lg"
+            onClick={handleNext}
+            className="w-1/2 bg-white text-primary font-black py-4 px-6 rounded-full shadow-2xl active:scale-95 transition-transform text-lg"
           >
             Next
           </button>
         </div>
 
-        {/* Home Indicator */}
         <div className="flex justify-center">
-            <div className="w-36 h-1.5 bg-white/30 rounded-full"></div>
+            <div className="w-36 h-1.5 bg-white/20 rounded-full"></div>
         </div>
       </footer>
     </div>

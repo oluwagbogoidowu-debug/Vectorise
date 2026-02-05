@@ -1,33 +1,32 @@
+
+import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import Header from './components/Header';
 import LoginPage from './pages/Auth/LoginPage';
 import SignUpPage from './pages/Auth/SignUpPage';
 import VerifyEmailPage from './pages/Auth/VerifyEmailPage';
-import HomePage from './pages/Admin/HomePage';
+import HomePage from './pages/HomePage';
 import CreateSprint from './pages/Coach/CreateSprint';
 import EditSprint from './pages/Coach/EditSprint';
 import SprintLandingPage from './pages/Participant/SprintLandingPage';
+import DiscoverSprints from './pages/Participant/DiscoverSprints';
 import ParticipantDashboard from './pages/Participant/ParticipantDashboard';
 import SprintView from './pages/Participant/SprintView';
 import AdminDashboard from './pages/Admin/AdminDashboard';
-import SprintReviewPage from './pages/Admin/SprintReviewPage';
-import React from 'react';
-import { UserRole } from './types';
-import DiscoverSprints from './pages/Participant/DiscoverSprints';
+import CreateFoundationalSprint from './pages/Admin/CreateFoundationalSprint';
+import { UserRole, Participant } from './types';
 import { Welcome } from './pages/Onboarding/Welcome';
-import { DesktopWelcome } from './pages/Onboarding/DesktopWelcome';
 import QuizIntro from './pages/Onboarding/QuizIntro';
-import DesktopQuizIntro from './pages/Onboarding/DesktopQuizIntro';
 import Quiz from './pages/Onboarding/Quiz';
-import DesktopQuiz from './pages/Onboarding/DesktopQuiz';
 import RecommendedSprints from './pages/Participant/RecommendedSprints';
 import ParticipantLayout from './components/ParticipantLayout';
-import Tribe from './pages/Participant/Tribe';
 import Profile from './pages/Participant/Profile';
-import Shine from './pages/Participant/Shine';
+import PublicProfile from './pages/Participant/PublicProfile';
 import MySprints from './pages/Participant/MySprints';
 import GrowthDashboard from './pages/Participant/GrowthDashboard';
 import BottomNavigation from './components/BottomNavigation';
+import SprintInviteLanding from './pages/Participant/SprintInviteLanding';
 
 // Impact / Referral System
 import ImpactDashboard from './pages/Participant/Impact/ImpactDashboard';
@@ -43,7 +42,13 @@ import CoachDashboard from './pages/Coach/CoachDashboard';
 import CoachSprints from './pages/Coach/CoachSprints';
 import CoachParticipants from './pages/Coach/CoachParticipants';
 import CoachEarnings from './pages/Coach/CoachEarnings';
-import MessagesPage from './pages/Participant/MessagesPage';
+import CoachImpact from './pages/Coach/CoachImpact';
+
+// Coach Onboarding
+import { CoachWelcome } from './pages/Onboarding/CoachWelcome';
+import CoachQuizIntro from './pages/Onboarding/CoachQuizIntro';
+import CoachQuiz from './pages/Onboarding/CoachQuiz';
+import CoachOnboardingComplete from './pages/Coach/CoachOnboardingComplete';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -55,7 +60,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
 
   if (loading) {
       return (
-          <div className="min-h-screen flex items-center justify-center">
+          <div className="min-h-screen flex items-center justify-center bg-light">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
           </div>
       );
@@ -84,44 +89,61 @@ const AppRoutes: React.FC = () => {
   const { user, activeRole } = useAuth();
   const location = useLocation();
   
-  const isOnboarding = location.pathname.startsWith('/onboarding');
-  const isParticipantAppRoute = 
-    location.pathname.startsWith('/dashboard') ||
-    location.pathname.startsWith('/discover') ||
-    location.pathname.startsWith('/my-sprints') ||
-    location.pathname.startsWith('/tribe') ||
-    location.pathname.startsWith('/shine') ||
-    location.pathname.startsWith('/profile') ||
-    location.pathname.startsWith('/growth') ||
-    location.pathname.startsWith('/messages') ||
-    location.pathname.startsWith('/impact') ||
+  const isOnboardingRoute = location.pathname.startsWith('/onboarding') || 
+                            location.pathname === '/recommended' || 
+                            location.pathname === '/coach/onboarding/complete' ||
+                            location.pathname.startsWith('/join/');
+  
+  const isParticipantAppLayout = 
+    location.pathname === '/dashboard' || 
+    location.pathname === '/discover' ||
+    location.pathname === '/my-sprints' ||
+    location.pathname === '/profile' ||
+    location.pathname.startsWith('/profile/') ||
+    location.pathname === '/growth' ||
+    location.pathname === '/impact' ||
+    location.pathname === '/impact/share' ||
+    location.pathname === '/impact/ripple' ||
+    location.pathname === '/impact/rewards' ||
+    location.pathname === '/impact/badges' ||
     location.pathname.startsWith('/participant/sprint/');
+
+  const isCoachAppLayout = location.pathname.startsWith('/coach/') && location.pathname !== '/coach/onboarding/complete';
+
+  const showGlobalHeader = !isOnboardingRoute && !isParticipantAppLayout && !isCoachAppLayout;
 
   const showParticipantNav = 
     user && 
     activeRole === UserRole.PARTICIPANT && 
-    isParticipantAppRoute;
+    !isOnboardingRoute &&
+    !location.pathname.startsWith('/coach') &&
+    !location.pathname.startsWith('/admin') &&
+    !location.pathname.startsWith('/login') &&
+    !location.pathname.startsWith('/signup') &&
+    !location.pathname.startsWith('/verify-email');
 
   return (
-    <div className={`min-h-screen font-sans ${isOnboarding ? 'bg-primary text-white' : 'bg-light text-dark'}`}>
-      <Routes>
+    <div className={`min-h-screen font-sans ${isOnboardingRoute ? 'bg-primary text-white' : 'bg-light text-dark'}`}>
+      {showGlobalHeader && <Header />}
+      <main className={showGlobalHeader ? "container mx-auto p-4 md:p-6 lg:p-8" : ""}>
+        <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/" element={user ? <Navigate to="/dashboard" /> : <HomePage />} />
           <Route path="/recommended" element={<RecommendedSprints />} />
           
-          {/* Onboarding Routes */}
           <Route path="/onboarding/welcome" element={<Welcome />} />
           <Route path="/onboarding/intro" element={<QuizIntro />} />
           <Route path="/onboarding/quiz" element={<Quiz />} />
 
-          {/* Desktop Onboarding Routes */}
-          <Route path="/onboarding/desktop-welcome" element={<DesktopWelcome />} />
-          <Route path="/onboarding/desktop-intro" element={<DesktopQuizIntro />} />
-          <Route path="/onboarding/desktop-quiz" element={<DesktopQuiz />} />
+          <Route path="/onboarding/coach/welcome" element={<CoachWelcome />} />
+          <Route path="/onboarding/coach/intro" element={<CoachQuizIntro />} />
+          <Route path="/onboarding/coach/quiz" element={<CoachQuiz />} />
+          <Route path="/coach/onboarding/complete" element={<CoachOnboardingComplete />} />
           
-          {/* Dashboard Redirect based on Active Role */}
+          <Route path="/join/:referralCode/:sprintId" element={<SprintInviteLanding />} />
+
           <Route path="/dashboard" element={
             <ProtectedRoute roles={[UserRole.COACH, UserRole.PARTICIPANT, UserRole.ADMIN]}>
               {activeRole === UserRole.COACH && <Navigate to="/coach/dashboard" />}
@@ -130,37 +152,31 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           } />
 
-          {/* Coach Routes - Nested under CoachLayout */}
           <Route element={<ProtectedRoute roles={[UserRole.COACH]}><CoachLayout /></ProtectedRoute>}>
              <Route path="/coach/dashboard" element={<CoachDashboard />} />
              <Route path="/coach/sprints" element={<CoachSprints />} />
              <Route path="/coach/participants" element={<CoachParticipants />} />
-             <Route path="/coach/shine" element={<Shine viewMode="coach" />} />
              <Route path="/coach/earnings" element={<CoachEarnings />} />
+             <Route path="/coach/impact" element={<CoachImpact />} />
              <Route path="/coach/profile" element={<Profile />} />
           </Route>
 
-          {/* Coach Sub-routes (Full screen/No nav) */}
           <Route path="/coach/sprint/new" element={<ProtectedRoute roles={[UserRole.COACH]}><CreateSprint /></ProtectedRoute>} />
-          <Route path="/coach/sprint/edit/:sprintId" element={<ProtectedRoute roles={[UserRole.COACH]}><EditSprint /></ProtectedRoute>} />
+          <Route path="/coach/sprint/edit/:sprintId" element={<ProtectedRoute roles={[UserRole.COACH, UserRole.ADMIN]}><EditSprint /></ProtectedRoute>} />
 
-          {/* Participant App Layout Routes */}
           <Route element={<ProtectedRoute roles={[UserRole.PARTICIPANT]}><ParticipantLayout /></ProtectedRoute>}>
              <Route path="/discover" element={<DiscoverSprints />} />
              <Route path="/my-sprints" element={<MySprints />} />
-             <Route path="/shine" element={<Shine />} />
-             <Route path="/tribe" element={<Tribe />} />
              <Route path="/profile" element={<Profile />} />
+             <Route path="/profile/:userId" element={<PublicProfile />} />
              <Route path="/growth" element={<GrowthDashboard />} />
              <Route path="/impact" element={<ImpactDashboard />} />
              <Route path="/impact/share" element={<ReferralShare />} />
              <Route path="/impact/ripple" element={<RippleEffect />} />
              <Route path="/impact/rewards" element={<GrowthRewards />} />
              <Route path="/impact/badges" element={<Badges />} />
-             <Route path="/messages" element={<MessagesPage />} />
           </Route>
           
-          {/* Shared Sprint View - Accessible by Participant, Coach, and Admin */}
           <Route path="/participant/sprint/:enrollmentId" element={
               <ProtectedRoute roles={[UserRole.PARTICIPANT, UserRole.COACH, UserRole.ADMIN]}>
                   <ParticipantLayout>
@@ -170,20 +186,19 @@ const AppRoutes: React.FC = () => {
           } />
           
           <Route path="/impact/success" element={<ReferralSuccess />} />
-
-          {/* Public view of sprint (landing page) */}
           <Route path="/sprint/:sprintId" element={<SprintLandingPage />} />
           
-          {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<ProtectedRoute roles={[UserRole.ADMIN]}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/admin/sprint/review/:sprintId" element={<ProtectedRoute roles={[UserRole.ADMIN]}><SprintReviewPage /></ProtectedRoute>} />
+          <Route path="/admin/sprint/new" element={<ProtectedRoute roles={[UserRole.ADMIN]}><CreateFoundationalSprint /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
+      </main>
       {showParticipantNav && <BottomNavigation />}
     </div>
   );
 };
+
 
 const App: React.FC = () => {
   return (

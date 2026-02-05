@@ -2,52 +2,55 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { ParticipantSprint, Sprint, Participant, Notification } from '../../types';
-import { MOCK_SPRINTS, MOCK_NOTIFICATIONS } from '../../services/mockData';
-import Button from '../../components/Button';
+import { ParticipantSprint, Sprint, Participant, Notification, NotificationPayload } from '../../types';
 import { sprintService } from '../../services/sprintService';
+import { notificationService } from '../../services/notificationService';
+import { quoteService } from '../../services/quoteService';
+import { notificationEngine, TimeOfDay, UserStage, NotificationType } from '../../services/notificationEngine';
+import LocalLogo from '../../components/LocalLogo';
+import FirstTimeGuide from '../../components/FirstTimeGuide';
 
-const QUOTES = [
-    "Your big opportunity may be right where you are now.",
-    "Success is the sum of small efforts, repeated day-in and day-out.",
-    "Don't watch the clock; do what it does. Keep going.",
-    "The future depends on what you do today.",
-    "Believe you can and you're halfway there."
+const FALLBACK_QUOTES = [
+    { text: "Your big opportunity may be right where you are now.", author: "Napoleon Hill" },
+    { text: "Success is the sum of small efforts, repeated day-in and day-out.", author: "Robert Collier" },
+    { text: "Don't watch the clock; do what it does. Keep going.", author: "Sam Levenson" },
+    { text: "The future depends on what you do today.", author: "Mahatma Gandhi" },
+    { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" }
 ];
 
-// Helper to determine the current status of a sprint day
 const getDayStatus = (enrollment: ParticipantSprint, sprint: Sprint, now: number) => {
-    // Find first incomplete day
-    let currentDayIndex = enrollment.progress.findIndex(p => !p.completed);
+    const currentDayIndex = enrollment.progress.findIndex(p => !p.completed);
     
-    // If all completed, user is done
     if (currentDayIndex === -1) {
         return { 
             day: sprint.duration, 
             isCompleted: true, 
             isLocked: false, 
             unlockTime: 0,
-            content: sprint.dailyContent.find(c => c.day === sprint.duration)
+            content: sprint.dailyContent[sprint.dailyContent.length - 1]
         };
     }
 
     const currentDay = enrollment.progress[currentDayIndex].day;
     const content = sprint.dailyContent.find(c => c.day === currentDay);
 
-    // Check for time lock (24h after previous submission)
     let isLocked = false;
     let unlockTime = 0;
 
     if (currentDay > 1) {
         const prevDay = enrollment.progress.find(p => p.day === currentDay - 1);
         if (prevDay?.completedAt) {
-            const completedTime = new Date(prevDay.completedAt).getTime();
-            const lockPeriod = 24 * 60 * 60 * 1000; // 24 Hours
-            const unlocksAt = completedTime + lockPeriod;
+            const completedDate = new Date(prevDay.completedAt);
+            const nextMidnight = new Date(
+                completedDate.getFullYear(),
+                completedDate.getMonth(),
+                completedDate.getDate() + 1,
+                0, 0, 0
+            ).getTime();
             
-            if (now < unlocksAt) {
+            if (now < nextMidnight) {
                 isLocked = true;
-                unlockTime = unlocksAt;
+                unlockTime = nextMidnight;
             }
         }
     }
@@ -65,60 +68,104 @@ const ParticipantDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [mySprints, setMySprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
-  const [quote, setQuote] = useState('');
-  
-  // Timer State
+  const [quotes, setQuotes] = useState<any[]>([]);
+  const [currentQuoteIdx, setCurrentQuoteIdx] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
-
-  // Notification State
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isQuoteFading, setIsQuoteFading] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+  
+  // AI Notification Engine State
+  const [aiNudge, setAiNudge] = useState<NotificationPayload | null>(null);
+  const [isGeneratingNudge, setIsGeneratingNudge] = useState(false);
+
   const unreadCount = notifications.filter(n => !n.read).length;
   const notificationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
-        if (user) {
-            // Get enrolled sprints from Firestore
-            const enrollments = await sprintService.getUserEnrollments(user.id);
-            
-            const enrichedSprints = enrollments.map(enrollment => {
-                const sprint = MOCK_SPRINTS.find(s => s.id === enrollment.sprintId);
-                return { enrollment, sprint: sprint! };
-            }).filter(item => item.sprint);
-            
-            setMySprints(enrichedSprints);
+        if (!user) return;
+        
+        const guideSeen = localStorage.getItem('vectorise_guide_seen');
+        if (!guideSeen) {
+            setShowGuide(true);
+        }
 
-            // Set a random quote
-            const randomQuote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-            setQuote(randomQuote);
+        setIsLoading(true);
+        try {
+            const enrollments = await sprintService.getUserEnrollments(user.id);
+            const enriched = await Promise.all(enrollments.map(async (enrollment) => {
+                const sprint = await sprintService.getSprintById(enrollment.sprintId);
+                return sprint ? { enrollment, sprint } : null;
+            }));
+            const activeOnly = enriched.filter((item): item is { enrollment: ParticipantSprint; sprint: Sprint } => {
+                return item !== null && item.enrollment.progress.some(p => !p.completed);
+            });
+            setMySprints(activeOnly);
+
+            const fetchedQuotes = await quoteService.getQuotes();
+            setQuotes(fetchedQuotes.length > 0 ? fetchedQuotes : FALLBACK_QUOTES);
+            
+            // Generate AI Nudge on load
+            generateAiNudge(activeOnly);
+
+        } catch (err) {
+            console.error("Dashboard Load Error:", err);
+            setQuotes(FALLBACK_QUOTES);
+        } finally {
+            setIsLoading(false);
         }
     };
+    
     fetchData();
+
+    let unsubscribeNotifs = () => {};
+    if (user) {
+        unsubscribeNotifs = notificationService.subscribeToNotifications(user.id, (newNotifs) => {
+            setNotifications(newNotifs);
+        });
+    }
     
-    // Click outside listener for closing notifications
-    const handleClickOutside = (event: MouseEvent) => {
-        if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
-            setShowNotifications(false);
-        }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    
-    // Timer interval
     const timerInterval = setInterval(() => setNow(Date.now()), 1000);
 
+    const quoteInterval = setInterval(() => {
+        setIsQuoteFading(true);
+        setTimeout(() => {
+            setCurrentQuoteIdx(prev => (prev + 1) % (quotes.length || 1));
+            setIsQuoteFading(false);
+        }, 400); 
+    }, 5000);
+
     return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
         clearInterval(timerInterval);
+        clearInterval(quoteInterval);
+        unsubscribeNotifs();
     };
+  }, [user, quotes.length]);
 
-  }, [user]);
+  const generateAiNudge = async (activeSprints: any[]) => {
+    if (isGeneratingNudge) return;
+    setIsGeneratingNudge(true);
+    
+    const hour = new Date().getHours();
+    const timeOfDay: TimeOfDay = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+    
+    // Simple heuristic for stage
+    let userStage: UserStage = 'clarity';
+    const totalCompleted = activeSprints.reduce((acc, curr) => 
+      acc + curr.enrollment.progress.filter((p: any) => p.completed).length, 0
+    );
+    if (totalCompleted > 10) userStage = 'execution';
+    else if (totalCompleted > 3) userStage = 'skill-building';
 
-  const handleNotificationClick = (id: string) => {
-      setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
+    const type: NotificationType = Math.random() > 0.5 ? 'nudge' : 'reflection';
+
+    const nudge = await notificationEngine.generateNotification(timeOfDay, userStage, type);
+    setAiNudge(nudge);
+    setIsGeneratingNudge(false);
   };
-
-  if (!user) return null;
 
   const calculateProgress = (enrollment: ParticipantSprint) => {
     const completedDays = enrollment.progress.filter(p => p.completed).length;
@@ -126,352 +173,287 @@ const ParticipantDashboard: React.FC = () => {
     return totalDays > 0 ? (completedDays / totalDays) * 100 : 0;
   };
 
-  // New Summary Stats Calculations
-  const activeEnrollments = mySprints.filter(s => calculateProgress(s.enrollment) < 100);
-  const avgProgress = activeEnrollments.length > 0
-    ? activeEnrollments.reduce((acc, s) => acc + calculateProgress(s.enrollment), 0) / activeEnrollments.length
+  const activeSprintsData = useMemo(() => {
+      return mySprints
+        .map(item => ({ ...item, status: getDayStatus(item.enrollment, item.sprint, now) }))
+        .sort((a, b) => {
+            const getRank = (item: any) => {
+                if (item.status.isLocked) return 1;
+                return 0;
+            };
+            return getRank(a) - getRank(b);
+        });
+  }, [mySprints, now]);
+
+  const tasksReady = useMemo(() => {
+      return activeSprintsData.filter(item => !item.status.isLocked);
+  }, [activeSprintsData]);
+
+  const avgProgress = activeSprintsData.length > 0
+    ? activeSprintsData.reduce((acc, s) => acc + calculateProgress(s.enrollment), 0) / activeSprintsData.length
     : 0;
 
-  const tasksReadyCount = mySprints.reduce((acc, item) => {
-      const status = getDayStatus(item.enrollment, item.sprint, now);
-      return acc + (!status.isCompleted && !status.isLocked ? 1 : 0);
-  }, 0);
-
-  // Process sprints for the dashboard cards (Top 5 Active)
-  const dashboardSprints = mySprints
-    .map(item => {
-        const status = getDayStatus(item.enrollment, item.sprint, now);
-        return { ...item, ...status };
-    })
-    .sort((a, b) => {
-        // Sort incomplete first, then by start date
-        if (a.isCompleted && !b.isCompleted) return 1;
-        if (!a.isCompleted && b.isCompleted) return -1;
-        // Prioritize unlocked (actionable) over locked (waiting)
-        if (!a.isLocked && b.isLocked) return -1;
-        if (a.isLocked && !b.isLocked) return 1;
-        return new Date(b.enrollment.startDate).getTime() - new Date(a.enrollment.startDate).getTime();
-    })
-    .slice(0, 5);
-
-  const formatCountdown = (targetTime: number) => {
-      const diff = targetTime - now;
-      if (diff <= 0) return "00:00:00";
-      
-      const h = Math.floor(diff / (1000 * 60 * 60));
-      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const s = Math.floor((diff % (1000 * 60)) / 1000);
-      
-      return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  const handleGuideClose = () => {
+    setShowGuide(false);
+    if (tasksReady.length > 0) {
+        const firstTask = tasksReady[0];
+        if (firstTask.sprint.category === 'Core Platform Sprint') {
+            navigate(`/participant/sprint/${firstTask.enrollment.id}`);
+        }
+    }
   };
 
-  const firstName = user.name ? user.name.split(' ')[0] : '';
+  const handleNotificationClick = async (notif: Notification) => {
+    await notificationService.markAsRead(notif.id);
+    if (notif.link) {
+      navigate(notif.link);
+    }
+    setShowNotifications(false);
+  };
 
-  // --- Slideshow Logic for Action Card ---
-  const slideIndex = Math.floor(now / 5000) % 3; // Simple cyclical index based on time
-  
-  // Determine visible slides based on state
-  let activeSlide = 'discover';
-  if (tasksReadyCount > 0) {
-      if (slideIndex === 0) activeSlide = 'up_next';
-      else if (slideIndex === 1) activeSlide = 'shine';
-      else activeSlide = 'up_next';
-  } else {
-      if (slideIndex === 0) activeSlide = 'tribe';
-      else if (slideIndex === 1) activeSlide = 'discover';
-      else activeSlide = 'shine';
-  }
+  const formatTimeAgo = (dateString: string) => {
+    const diff = new Date().getTime() - new Date(dateString).getTime();
+    if (diff < 60000) return 'Just now';
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  };
+
+  if (!user) return null;
+  const activeQuote = quotes[currentQuoteIdx] || FALLBACK_QUOTES[0];
 
   return (
-    // Main Container - Changed to allow scrolling if content exceeds viewport
-    <div className="flex flex-col h-[calc(100vh-7rem)] w-full overflow-y-auto px-4 pt-4 pb-2 hide-scrollbar">
+    <div className="flex flex-col h-[calc(100vh-7rem)] w-full overflow-y-auto px-4 pt-4 pb-2 hide-scrollbar bg-light font-sans">
+      {showGuide && <FirstTimeGuide onClose={handleGuideClose} />}
       
-      {/* 1. Header Row: Actions (Search & Notifications) */}
-      
+      {/* Header Area */}
+      <div className="flex-shrink-0 mb-6 mt-1">
+        <div className="bg-white rounded-[2rem] p-2.5 shadow-[0_8px_15px_-8px_rgba(0,0,0,0.1)] border border-gray-50 flex items-center gap-4">
+            <LocalLogo type="green" className="h-11 w-auto ml-2 flex-shrink-0" />
+            <div className="h-7 w-px bg-gray-100 flex-shrink-0"></div>
+            <Link to="/discover" className="flex-1 flex items-center gap-3 text-gray-300 hover:text-primary transition-all group">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-300 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <span className="text-xs font-black uppercase tracking-[0.2em] pt-0.5">Explore Sprints</span>
+            </Link>
             <div className="relative" ref={notificationRef}>
-            
-                 {/* Notification Dropdown */}
-                 {showNotifications && (
-                    <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-40 animate-fade-in origin-top-right">
-                        <div className="px-4 py-3 border-b border-gray-50 bg-gray-50 flex justify-between items-center">
-                            <h3 className="font-bold text-xs text-gray-900 uppercase">Notifications</h3>
-                            <span className="text-xs text-gray-500">{unreadCount} new</span>
-                        </div>
-                        <div className="max-h-60 overflow-y-auto">
-                            {notifications.length > 0 ? (
-                                notifications.map(notification => (
-                                    <div 
-                                        key={notification.id} 
-                                        onClick={() => handleNotificationClick(notification.id)}
-                                        className={`px-4 py-3 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors ${!notification.read ? 'bg-blue-50/50' : ''}`}
-                                    >
-                                        <div className="flex gap-2">
-                                            <div className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${!notification.read ? 'bg-primary' : 'bg-gray-300'}`}></div>
-                                            <div>
-                                                <p className={`text-xs ${!notification.read ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
-                                                    {notification.text}
-                                                </p>
-                                                <p className="text-[10px] text-gray-400 mt-0.5">
-                                                    {new Date(notification.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="p-4 text-center text-gray-400 text-xs">No notifications</div>
-                            )}
+                <button onClick={() => setShowNotifications(!showNotifications)} className="p-2.5 bg-gray-50 text-gray-500 hover:text-primary rounded-xl transition-all relative border border-transparent hover:border-primary/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                    {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span></span>}
+                </button>
+                {showNotifications && (
+                    <div className="absolute right-0 mt-4 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 z-50 animate-fade-in origin-top-right overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center"><h3 className="font-black text-[10px] text-gray-400 uppercase tracking-widest">Updates</h3><span className="bg-primary text-white text-[8px] font-black px-2 py-0.5 rounded-full">{unreadCount} NEW</span></div>
+                        <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                            {notifications.length > 0 ? notifications.map(n => (
+                                <button 
+                                  key={n.id} 
+                                  onClick={() => handleNotificationClick(n)}
+                                  className={`w-full text-left px-6 py-4 border-b border-gray-50 bg-white hover:bg-gray-50 transition-colors relative group`}
+                                >
+                                    {!n.read && <span className="absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-primary rounded-full"></span>}
+                                    <p className={`text-xs leading-snug ${n.read ? 'text-gray-500 font-medium' : 'text-gray-900 font-bold'}`}>{n.text}</p>
+                                    <p className="text-[9px] text-gray-400 mt-1 uppercase font-black tracking-widest">{formatTimeAgo(n.timestamp)}</p>
+                                </button>
+                            )) : <div className="p-8 text-center text-gray-400 text-[10px] font-bold uppercase tracking-widest">No updates</div>}
                         </div>
                     </div>
                 )}
+            </div>
+        </div>
       </div>
 
-      {/* 2. Welcome Section */}
-      <div className="flex-shrink-0 mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Welcome Back, {firstName}</h1>
-          <p className="text-gray-500 text-sm italic mt-1">"{quote}"</p>
-      </div>
+      {/* AI Nudge Block */}
+      {aiNudge && (
+        <div className="mb-6 animate-fade-in">
+          <div className="bg-white rounded-3xl p-5 border border-primary/10 shadow-sm relative overflow-hidden group">
+            <div className="flex items-start gap-4 relative z-10">
+              <div className="w-10 h-10 bg-primary/5 text-primary rounded-2xl flex items-center justify-center flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">{aiNudge.title}</p>
+                <p className="text-sm font-medium text-gray-600 leading-tight italic">"{aiNudge.body}"</p>
+              </div>
+            </div>
+            <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl -mr-12 -mt-12"></div>
+          </div>
+        </div>
+      )}
 
-      {/* 3. Progress Summary & Action Slideshow */}
       <div className="flex-shrink-0 grid grid-cols-2 gap-3 mb-6">
-            
-            {/* Dynamic Slideshow Card */}
-            <div className="relative overflow-hidden rounded-2xl shadow-sm h-32 bg-white border border-gray-100">
-                {activeSlide === 'up_next' && (
-                    <div className="absolute inset-0 p-4 flex flex-col justify-between group animate-fade-in bg-white hover:bg-blue-50/30 transition-colors">
-                       <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                       <div className="relative z-10">
-                           <div className="flex items-center gap-2 mb-3">
-                              <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                                  </svg>
-                              </div>
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Up Next</span>
-                           </div>
-                           <p className="text-2xl font-bold text-gray-900 leading-none mb-1">{tasksReadyCount}</p>
-                           <p className="text-xs text-gray-500 font-medium">Tasks Available</p>
-                       </div>
+            <div>
+                {tasksReady.length > 0 ? (
+                    <div className="h-full bg-primary text-white p-5 rounded-[1.25rem] shadow-lg shadow-primary/10 flex flex-col items-start animate-fade-in overflow-hidden">
+                        <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center mb-5 flex-shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-black uppercase tracking-[0.15em] opacity-70 mb-1 leading-none">Tasks Ready</p>
+                            <h3 className="text-lg font-black leading-none">{tasksReady.length} Remaining</h3>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="h-full bg-white border border-gray-50 p-5 rounded-[1.25rem] shadow-sm flex flex-col items-start animate-fade-in">
+                        <div className="w-8 h-8 bg-green-50 text-green-600 rounded-lg flex items-center justify-center mb-5">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 leading-none">Status</p>
+                            <h3 className="text-lg font-black text-gray-900 leading-none">All Caught Up</h3>
+                        </div>
                     </div>
                 )}
-
-                {activeSlide === 'shine' && (
-                    <Link to="/shine" className="absolute inset-0 p-4 flex flex-col justify-between group hover:bg-yellow-50/50 transition-colors animate-fade-in">
-                       <div className="absolute top-0 right-0 w-16 h-16 bg-yellow-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                       <div className="relative z-10">
-                           <div className="flex items-center gap-2 mb-2">
-                              <div className="p-1.5 bg-yellow-50 text-yellow-500 rounded-lg">
-                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                    </svg>
-                              </div>
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Shine</span>
-                           </div>
-                           <p className="text-lg font-bold text-gray-900 leading-none mb-1">Get Inspired</p>
-                           <p className="text-xs text-gray-500 font-medium">See Community Wins</p>
-                       </div>
-                    </Link>
-                )}
-
-                {activeSlide === 'tribe' && (
-                    <Link to="/tribe" className="absolute inset-0 p-4 flex flex-col justify-between group hover:bg-orange-50/50 transition-colors animate-fade-in">
-                       <div className="absolute top-0 right-0 w-16 h-16 bg-orange-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                       <div className="relative z-10">
-                           <div className="flex items-center gap-2 mb-2">
-                              <div className="p-1.5 bg-orange-50 text-orange-500 rounded-lg">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                      <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
-                                  </svg>
-                              </div>
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Tribe</span>
-                           </div>
-                           <p className="text-lg font-bold text-gray-900 leading-none mb-1">Check Tribe</p>
-                           <p className="text-xs text-gray-500 font-medium">Connect & Grow</p>
-                       </div>
-                    </Link>
-                )}
-
-                {activeSlide === 'discover' && (
-                    <Link to="/discover" className="absolute inset-0 p-4 flex flex-col justify-between group hover:bg-blue-50/50 transition-colors animate-fade-in">
-                        <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                        <div className="relative z-10">
-                            <div className="flex items-center gap-2 mb-2">
-                               <div className="p-1.5 bg-blue-50 text-blue-500 rounded-lg">
-                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                   </svg>
-                               </div>
-                               <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Explore</span>
-                            </div>
-                            <p className="text-lg font-bold text-gray-900 leading-none mb-1">Discover</p>
-                            <p className="text-xs text-gray-500 font-medium">Find Next Sprint</p>
-                        </div>
-                    </Link>
-                )}
-
-                {/* Slide Indicators */}
-                <div className="absolute bottom-2 right-2 flex gap-1 z-20">
-                     {[0, 1, 2].map((_, idx) => (
-                        <div 
-                            key={idx}
-                            className={`w-1.5 h-1.5 rounded-full transition-colors ${idx === (now % 3) ? 'bg-gray-400' : 'bg-gray-200'}`}
-                        ></div>
-                     ))}
-                </div>
             </div>
 
-           {/* GROWTH CARD */}
-           <Link to="/growth" className="bg-white p-4 rounded-2xl shadow-sm border border-purple-100 relative overflow-hidden group hover:border-purple-300 transition-colors h-32 flex flex-col justify-between">
-               <div className="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-               <div className="absolute bottom-2 right-2 text-purple-200 group-hover:text-purple-400 transition-colors">
-                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                    </svg>
-               </div>
-                <div className="relative z-10">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="p-1.5 bg-purple-50 text-purple-600 rounded-lg">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clipRule="evenodd" />
-                          </svg>
-                      </div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Growth</span>
-                   </div>
-                   <div className="flex items-baseline gap-1 mb-1">
-                      <p className="text-2xl font-bold text-gray-900 leading-none">{avgProgress.toFixed(0)}%</p>
-                      <span className="text-[10px] text-gray-400">Avg.</span>
-                   </div>
-                    <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                         <div className="bg-purple-500 h-full rounded-full transition-all duration-1000" style={{ width: `${avgProgress}%` }}></div>
-                     </div>
+            <Link to="/growth" className="bg-white p-5 border border-gray-50 rounded-[1.25rem] shadow-sm flex flex-col items-start group hover:border-primary/20 transition-colors overflow-hidden">
+                <div className="w-full flex justify-between items-start mb-5">
+                    <div className="w-8 h-8 bg-primary/5 text-primary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                    </div>
+                    <span className="text-lg font-black text-primary leading-none">{avgProgress.toFixed(0)}%</span>
                 </div>
-           </Link>
+                <div className="w-full">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 leading-none">Growth Analysis</p>
+                    <div className="w-full bg-gray-50 h-1 rounded-full overflow-hidden">
+                        <div className="bg-primary h-full rounded-full transition-all duration-1000" style={{ width: `${avgProgress}%` }}></div>
+                    </div>
+                </div>
+            </Link>
       </div>
 
-      {/* 4. Main Content Area (Carousel) */}
-      <div className="flex-1 flex flex-col min-h-[300px] mb-4">
-          <div className="flex justify-between items-end mb-2 px-1">
-            <h2 className="text-2xl font-bold text-gray-900 leading-none">Task of the Day</h2>
-            <Link to="/my-sprints" className="text-primary font-semibold hover:underline text-sm">View All</Link>
+      <div className="flex-shrink-0 flex flex-col min-h-[320px] mb-6">
+          <div className="flex justify-between items-end mb-3 px-1">
+            <h2 className="text-2xl font-black text-gray-900 leading-none tracking-tight">Today's Focus</h2>
+            <Link to="/my-sprints" className="text-primary font-black uppercase text-[9px] tracking-[0.2em] hover:underline">View Journey</Link>
           </div>
 
           <div className="relative w-full flex-1">
-              <div className="absolute inset-0 flex items-center overflow-x-auto gap-4 pb-2 snap-x hide-scrollbar px-1">
-                {dashboardSprints.length > 0 ? dashboardSprints.map((item) => {
-                    const progress = calculateProgress(item.enrollment);
-                    // Theme color logic based on state
-                    const statusColor = item.isCompleted ? 'bg-green-500' : item.isLocked ? 'bg-gray-400' : 'bg-primary';
-                    const statusTextBg = item.isCompleted ? 'bg-green-50' : item.isLocked ? 'bg-gray-100' : 'bg-green-50';
-                    const statusTextColor = item.isCompleted ? 'text-green-700' : item.isLocked ? 'text-gray-500' : 'text-primary';
+              <div className="absolute inset-0 flex items-center overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar px-1">
+                {isLoading ? (
+                    <div className="w-full h-full flex items-center justify-center"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>
+                ) : (
+                    <>
+                        {activeSprintsData.length > 0 ? (
+                            activeSprintsData.map((item) => {
+                                const isDoneToday = item.status.isLocked;
+                                const totalDays = item.sprint.duration;
+                                const completedCount = item.enrollment.progress.filter(p => p.completed).length;
 
-                    return (
-                    <Link key={item.enrollment.id} to={`/participant/sprint/${item.enrollment.id}`} className="block h-full min-w-[90%] sm:min-w-[360px] snap-center">
-                        <div className="h-full bg-white rounded-3xl shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300 flex flex-row overflow-hidden relative">
-                            
-                            {/* Color Bar Left (Front) - Matched to status - REDUCED WIDTH */}
-                            <div className={`w-2 h-full flex-shrink-0 ${statusColor}`}></div>
-                            
-                            {/* REDUCED PADDING */}
-                            <div className="flex-1 p-5 flex flex-col">
-                                {/* Sprint Header */}
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="overflow-hidden mr-2">
-                                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{item.sprint.category}</p>
-                                        {/* REDUCED TEXT SIZE */}
-                                        <h3 className="font-extrabold text-xl text-gray-900 leading-tight line-clamp-2" title={item.sprint.title}>{item.sprint.title}</h3>
-                                    </div>
-                                    <span className={`text-xs px-2.5 py-1 rounded-lg font-bold whitespace-nowrap shadow-sm ${statusTextBg} ${statusTextColor}`}>
-                                        {item.isCompleted ? 'Done' : `Day ${item.day}`}
-                                    </span>
-                                </div>
-
-                                {/* Main Content: Center */}
-                                <div className="flex-1 flex flex-col justify-center items-center text-center my-2 min-h-0">
-                                    {item.isCompleted ? (
-                                        <div className="flex flex-col items-center gap-2 text-green-600">
-                                            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mb-1 animate-bounce-short">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                                </svg>
-                                            </div>
-                                            <span className="font-bold text-xl">All caught up!</span>
-                                            <span className="text-sm text-gray-500">Wait for next unlock.</span>
-                                        </div>
-                                    ) : item.isLocked ? (
-                                        <div className="w-full bg-gray-50 rounded-xl p-6 border border-gray-100 relative overflow-hidden flex flex-col items-center justify-center h-full">
-                                            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
-                                            </div>
-                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Next Lesson In</p>
-                                            <p className="text-4xl font-mono font-bold text-gray-800 tracking-tighter tabular-nums">
-                                                {formatCountdown(item.unlockTime)}
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <div className="w-full h-full flex flex-col justify-center">
-                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Today's Focus</p>
-                                            {/* REDUCED TEXT SIZE */}
-                                            <p className="text-lg md:text-xl font-medium text-gray-800 leading-snug line-clamp-4">
-                                                "{item.content?.taskPrompt || item.content?.lessonText || "Continue your journey."}"
-                                            </p>
-                                            <div className="mt-6">
-                                                <span className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-white font-bold rounded-full shadow-lg text-base hover:scale-105 transition-transform">
-                                                    Start Task
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                                                    </svg>
-                                                </span>
+                                return (
+                                    <Link key={item.enrollment.id} to={`/participant/sprint/${item.enrollment.id}`} className="block h-full min-w-[88%] sm:min-w-[400px] snap-center">
+                                        <div className="h-full bg-white rounded-[2rem] shadow-md border border-gray-50 hover:shadow-lg transition-all duration-300 flex flex-row overflow-hidden group">
+                                            <div className={`w-2.5 h-full flex-shrink-0 transition-opacity ${isDoneToday ? 'bg-green-500' : 'bg-primary opacity-80 group-hover:opacity-100'}`}></div>
+                                            <div className="flex-1 p-6 flex flex-col h-full">
+                                                <div className="flex-1 flex flex-col overflow-hidden">
+                                                    <div className="flex justify-between items-start mb-4">
+                                                        <div className="flex-1 min-w-0 pr-3">
+                                                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-300 mb-1 truncate">{item.sprint.category}</p>
+                                                            <h3 className="font-black text-lg text-gray-900 leading-tight line-clamp-1">{item.sprint.title}</h3>
+                                                        </div>
+                                                        <span className={`text-[9px] px-2.5 py-1 rounded-md font-black uppercase tracking-widest border flex-shrink-0 ${isDoneToday ? 'bg-green-50 text-green-700 border-green-100' : 'bg-primary/5 text-primary border-primary/10'}`}>
+                                                            {isDoneToday ? 'Step Done' : `Day ${item.status.day}`}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    {isDoneToday ? (
+                                                        <div className="flex-1 flex flex-col justify-center items-center text-center animate-fade-in space-y-6 px-2">
+                                                            <div className="w-full max-w-[240px]">
+                                                                <div className="flex justify-between items-end mb-2.5">
+                                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Today’s step completed</p>
+                                                                    <p className="text-[11px] font-black text-gray-900">Day {completedCount} <span className="text-gray-300 font-bold">/ {totalDays}</span></p>
+                                                                </div>
+                                                                <div className="w-full h-2.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100 shadow-inner p-[1.5px]">
+                                                                    <div 
+                                                                        className="h-full bg-green-500 rounded-full transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(34,197,94,0.2)]" 
+                                                                        style={{ width: `${(completedCount / totalDays) * 100}%` }}
+                                                                    ></div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2.5 py-2 px-4 bg-orange-50/50 rounded-full border border-orange-100 text-orange-600">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse shadow-sm shadow-orange-200"></div>
+                                                                <p className="text-[9px] font-black uppercase tracking-[0.15em]">Next step unlocks tomorrow</p>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="mt-2">
+                                                            <p className="text-[9px] font-black text-gray-200 uppercase tracking-[0.3em] mb-2.5">Action for Today</p>
+                                                            <p className="text-[15px] font-medium text-gray-700 leading-relaxed line-clamp-3 italic bg-gray-50/50 p-4 rounded-2xl border border-gray-50">"{item.status.content?.taskPrompt || "Resume your session."}"</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="mt-3 pt-4 border-t border-gray-50 flex-shrink-0">
+                                                    <span className={`w-full inline-flex items-center justify-center gap-2.5 px-6 py-4 font-black uppercase tracking-[0.15em] text-[11px] rounded-2xl shadow-lg transition-all duration-300 relative overflow-hidden active:scale-[0.98] ${isDoneToday ? 'bg-gray-100 text-gray-400 shadow-none' : 'bg-primary text-white shadow-primary/20 group-hover:bg-primary-hover'}`}>
+                                                        <span className="relative z-10 flex items-center gap-2.5">
+                                                            {isDoneToday ? 'View Progress' : 'Open Task'}
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform duration-300 ${isDoneToday ? '' : 'group-hover:translate-x-1'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                                            </svg>
+                                                        </span>
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
-                                    )}
-                                </div>
-
-                                {/* Footer: Progress Bar */}
-                                <div className="mt-auto pt-4">
-                                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5 font-bold">
-                                        <span>Progress</span>
-                                        <span>{progress.toFixed(0)}%</span>
+                                    </Link>
+                                );
+                            })
+                        ) : (
+                            <Link to="/discover" className="block h-full min-w-[88%] sm:min-w-[400px] snap-center">
+                                <div className="h-full bg-gray-900 rounded-[2rem] shadow-xl border border-gray-800 hover:bg-black transition-all duration-300 p-8 flex flex-col justify-between text-white relative overflow-hidden group">
+                                    <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner border border-white/5">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                     </div>
-                                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden w-full">
-                                        {/* Progress Bar Color Matches Theme */}
-                                        <div 
-                                            className={`h-full ${statusColor} rounded-full transition-all duration-500`} 
-                                            style={{ width: `${progress}%` }}
-                                        ></div>
+                                    <div>
+                                        <p className="text-[9px] font-black uppercase tracking-[0.3em] opacity-50 mb-1.5">Explorer</p>
+                                        <h3 className="text-2xl font-black leading-tight mb-2 italic">New Horizons</h3>
+                                        <p className="text-[12px] text-white/50 font-medium leading-relaxed max-w-[200px]">Browse high-impact tracks.</p>
                                     </div>
+                                    <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white/5 rounded-full blur-3xl group-hover:bg-white/10 transition-all duration-700"></div>
                                 </div>
-                            </div>
-                        </div>
-                    </Link>
-                )}) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                        <div className="bg-white p-8 rounded-3xl shadow-sm border-2 border-dashed border-gray-300 text-center max-w-sm">
-                             <p className="text-gray-500 text-lg mb-6">You don't have any active sprints.</p>
-                             <Link to="/discover">
-                                <Button className="py-4 px-8 text-lg">Find Your First Sprint</Button>
-                             </Link>
-                        </div>
-                    </div>
+                            </Link>
+                        )}
+                    </>
                 )}
               </div>
           </div>
       </div>
 
+      <div className="flex-shrink-0 mt-auto mb-0.5 px-1">
+          <div className={`bg-white rounded-2xl p-2.5 border border-gray-50 shadow-sm relative overflow-hidden transition-all duration-700 text-center ${isQuoteFading ? 'opacity-40' : 'opacity-100'}`}>
+              <div className="relative z-10 flex flex-col items-center">
+                  <h2 className="text-[9px] font-bold text-gray-700 tracking-tight leading-tight mb-1 italic transition-all duration-500 max-w-xs">
+                      "{activeQuote.text}"
+                  </h2>
+                  <div className="flex items-center gap-1.5 justify-center">
+                      <p className="text-[7px] font-black text-primary/60 uppercase tracking-[0.15em]">
+                          {activeQuote.author}
+                      </p>
+                  </div>
+              </div>
+              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gray-50/50 overflow-hidden">
+                  <div className="h-full bg-primary/5 animate-progress-bar"></div>
+              </div>
+          </div>
+      </div>
+
       <style>{`
-          .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-          }
-          .hide-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-          }
-          @keyframes fadeIn {
-              from { opacity: 0; transform: scale(0.98); }
-              to { opacity: 1; transform: scale(1); }
-            }
-          .animate-fade-in {
-              animation: fadeIn 0.3s ease-out forwards;
-          }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
+        @keyframes progress-bar {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(0); }
+        }
+        .animate-progress-bar {
+            animation: progress-bar 5s linear infinite;
+        }
       `}</style>
     </div>
   );

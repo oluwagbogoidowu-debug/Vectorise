@@ -1,16 +1,13 @@
-
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
+import { getAuth } from "firebase/auth";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDEijT9QTC6wTyv_u2BN_UTC3NeOmADkI8",
   authDomain: "vectorise-f19d4.firebaseapp.com",
   projectId: "vectorise-f19d4",
-  storageBucket: "vectorise-f19d4.appspot.com",
+  storageBucket: "vectorise-f19d4.firebasestorage.app",
   messagingSenderId: "617918084896",
   appId: "1:617918084896:web:2e1b531c6a0fd9e85f8945",
   measurementId: "G-M7NVQD0H7B"
@@ -18,10 +15,12 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-
-// Get references to Firebase services
-const db = getFirestore(app);
-const auth = getAuth(app);
 const analytics = getAnalytics(app);
+export const auth = getAuth(app);
 
-export { db, auth, analytics };
+// Use robust cache initialization to prevent "Failed to fetch" on document reads during network instability
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
+
+export default app;

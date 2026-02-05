@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { MOCK_USERS } from '../../../services/mockData';
@@ -20,57 +19,57 @@ const RippleEffect: React.FC = () => {
         <div className="max-w-2xl mx-auto px-4 py-8 pb-24">
              <button 
                 onClick={() => navigate('/impact')} 
-                className="group flex items-center text-gray-500 hover:text-primary transition-colors mb-6 text-sm font-medium"
+                className="group flex items-center text-gray-400 hover:text-primary transition-colors mb-6 text-sm font-bold uppercase tracking-widest"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
                 </svg>
-                Back to Dashboard
-            </button>
+                My Impact
+             </button>
 
             <div className="text-center mb-10">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Your Ripple Effect</h1>
-                <p className="text-gray-600">See how your impact compares with others who are helping people grow.</p>
+                <h1 className="text-3xl font-black text-gray-900 mb-2 italic">The Impact Scale</h1>
+                <p className="text-gray-600 font-medium">Measuring the magnitude of growth you've catalyzed in others.</p>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+            <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden mb-8">
                 {leaders.map((leader, index) => {
                     const isMe = user?.id === leader.id;
                     return (
                         <div 
                             key={leader.id} 
-                            className={`flex items-center gap-4 p-5 border-b border-gray-50 ${isMe ? 'bg-green-50/50' : 'hover:bg-gray-50'} transition-colors`}
+                            className={`flex items-center gap-4 p-5 border-b border-gray-50 last:border-0 ${isMe ? 'bg-primary/5' : 'hover:bg-gray-50'} transition-colors`}
                         >
-                            <div className="font-bold text-gray-400 w-6 text-center">{index + 1}</div>
-                            <img src={leader.profileImageUrl} alt={leader.name} className="w-12 h-12 rounded-full object-cover border border-gray-200" />
+                            <div className="font-black text-gray-400 w-6 text-center text-xs">{index + 1}</div>
+                            <img src={leader.profileImageUrl} alt={leader.name} className="w-12 h-12 rounded-2xl object-cover border-2 border-white shadow-sm" />
                             <div className="flex-1">
                                 <div className="flex items-center gap-2">
-                                    <h3 className={`font-bold ${isMe ? 'text-primary' : 'text-gray-900'}`}>
+                                    <h3 className={`font-bold text-sm ${isMe ? 'text-primary' : 'text-gray-900'}`}>
                                         {leader.name} {isMe && '(You)'}
                                     </h3>
                                     {index < 3 && <span className="text-lg">🏅</span>}
                                 </div>
-                                <p className="text-xs text-gray-500">
+                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">
                                     {leader.impactStats?.peopleHelped === 1 
-                                        ? 'Helped 1 person start' 
-                                        : `Helped ${leader.impactStats?.peopleHelped || 0} people start`}
+                                        ? 'Helped 1 person grow' 
+                                        : `Helped ${leader.impactStats?.peopleHelped || 0} people grow`}
                                 </p>
                             </div>
                             <div className="text-right">
-                                <span className="block text-2xl font-bold text-gray-900">{leader.impactStats?.peopleHelped || 0}</span>
+                                <span className="block text-2xl font-black text-gray-900">{leader.impactStats?.peopleHelped || 0}</span>
                             </div>
                         </div>
                     );
                 })}
             </div>
 
-            <div className="bg-gradient-to-r from-primary to-[#0B6040] rounded-2xl p-6 text-white text-center shadow-lg">
-                <h3 className="font-bold text-xl mb-2">Expand Your Ripple</h3>
-                <p className="text-white/90 mb-6">Invite one more person to climb the leaderboard and help someone grow.</p>
+            <div className="bg-gradient-to-r from-primary to-[#0B6040] rounded-[2rem] p-8 text-white text-center shadow-xl shadow-primary/20">
+                <h3 className="font-black text-xl mb-2 tracking-tight">Catalyze More Growth</h3>
+                <p className="text-white/80 mb-8 font-medium italic">Invite someone new to climb the scale and expand your legacy.</p>
                 <Link to="/impact/share">
-                    <Button className="bg-white text-primary border-none hover:bg-gray-100 w-full sm:w-auto px-8">
-                        Invite More People
-                    </Button>
+                    <button className="bg-white text-primary px-10 py-3.5 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg hover:scale-105 transition-all active:scale-95">
+                        Invite to Grow
+                    </button>
                 </Link>
             </div>
         </div>

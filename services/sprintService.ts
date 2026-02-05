@@ -1,252 +1,452 @@
 
 import { db } from './firebase';
-import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, limit, orderBy } from 'firebase/firestore';
-import { ParticipantSprint, Sprint } from '../types';
-import { MOCK_SPRINTS, MOCK_PARTICIPANT_SPRINTS } from './mockData';
-import { userService } from './userService';
+import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, deleteDoc, onSnapshot, addDoc, deleteField } from 'firebase/firestore';
+import { ParticipantSprint, Sprint, Review, CoachingComment, UserEvent } from '../types';
+import { userService, sanitizeData } from './userService';
+import { notificationService } from './notificationService';
+import { isRegistryIncomplete } from '../utils/sprintUtils';
+
+const SPRINTS_COLLECTION = 'sprints';
+const ENROLLMENTS_COLLECTION = 'enrollments';
+const REVIEWS_COLLECTION = 'reviews';
 
 export const sprintService = {
-    /**
-     * Get all sprints from the database.
-     * Sprints are ordered by their creation date in descending order.
-     * It simulates a delay to show a loading state.
-     * @returns {Promise<Sprint[]>} A promise that resolves to an array of sprints.
-     */
-    getSprints: async (): Promise<Sprint[]> => {
+    createSprint: async (sprint: Sprint) => {
         try {
-            const q = query(collection(db, 'sprints')); // Removed orderBy for now
-            const querySnapshot = await getDocs(q);
-            const sprints = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Sprint));
-            
-            // Perform client-side sorting
-            sprints.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-            // DEV ONLY: Simulate delay
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            return sprints;
-        } catch (error) {
-            console.error("Error fetching sprints:", error);
-            // Fallback to mock data on error
-            return MOCK_SPRINTS;
-        }
-    },
-
-    /**
-     * Creates a new sprint in the database.
-     * @param sprintData - The data for the new sprint.
-     * @returns The ID of the newly created sprint.
-     */
-    createSprint: async (sprintData: Omit<Sprint, 'id' | 'createdAt'>): Promise<string> => {
-        try {
-            const sprintId = `sprint_${Date.now()}`;
-            const sprintRef = doc(db, 'sprints', sprintId);
-
-            // Inject the generated sprintId into the dailyContent actions
-            const updatedDailyContent = sprintData.dailyContent.map((content) => ({
-                ...content,
-                action: {
-                    ...content.action,
-                    id: `action_${sprintId}_${content.day}`,
-                    sprintId: sprintId,
-                }
-            }));
-
-            const newSprint: Sprint = {
-                ...sprintData,
-                id: sprintId,
-                createdAt: new Date().toISOString(),
-                dailyContent: updatedDailyContent,
-            };
-
+            const now = new Date().toISOString();
+            const newSprint = sanitizeData({
+                ...sprint,
+                createdAt: sprint.createdAt || now,
+                updatedAt: now
+            });
+            const sprintRef = doc(db, SPRINTS_COLLECTION, sprint.id);
             await setDoc(sprintRef, newSprint);
-            return sprintId;
+            return newSprint;
         } catch (error) {
-            console.error("Error creating sprint:", error);
-            throw new Error('Failed to create sprint in database.');
+            console.error("Error creating sprint in Firestore:", error);
+            throw error;
         }
     },
-    
-    /**
-     * Checks if a user is already enrolled in a specific sprint.
-     */
-    isUserEnrolled: async (userId: string, sprintId: string): Promise<boolean> => {
+
+    updateSprint: async (sprintId: string, data: Partial<Sprint>) => {
         try {
-            const q = query(collection(db, 'enrollments'), where("participantId", "==", userId), where("sprintId", "==", sprintId));
-            const querySnapshot = await getDocs(q);
-            return !querySnapshot.empty;
+            const now = new Date().toISOString();
+            const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
+            const sprintSnap = await getDoc(sprintRef);
+            
+            if (!sprintSnap.exists()) throw new Error("Sprint not found");
+            const existing = sprintSnap.data() as Sprint;
+
+            // APPROVAL WORKFLOW LOGIC:
+            // If the sprint is already approved/live, any new change must go to 'pendingChanges'
+            // to be reviewed by an Admin before hitting the live root level.
+            if (existing.approvalStatus === 'approved') {
+                const updateData = sanitizeData({
+                    pendingChanges: {
+                        ...data,
+                        updatedAt: now
+                    },
+                    updatedAt: now
+                });
+                await updateDoc(sprintRef, updateData);
+            } else {
+                // If it's still a draft or rejected, we update the root directly
+                const updateData = sanitizeData({
+                    ...data,
+                    updatedAt: now
+                });
+                await updateDoc(sprintRef, updateData);
+            }
         } catch (error) {
-            console.error("Error checking enrollment:", error);
-            return false;
+            console.error("Error updating sprint in Firestore:", error);
+            throw error;
         }
     },
-    
+
+    approveSprint: async (sprintId: string) => {
+        try {
+            const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
+            await updateDoc(sprintRef, {
+                approvalStatus: 'approved',
+                published: true,
+                updatedAt: new Date().toISOString(),
+                pendingChanges: deleteField() // Ensure no leftover staging on first approval
+            });
+        } catch (error) {
+            console.error("Error approving sprint:", error);
+            throw error;
+        }
+    },
+
     /**
-     * Fetches a single enrollment document for a user in a specific sprint.
+     * Merges staged 'pendingChanges' into the live root version of the sprint.
      */
-    getEnrollmentByUserAndSprint: async (userId: string, sprintId: string): Promise<ParticipantSprint | null> => {
+    approveSprintUpdates: async (sprintId: string) => {
+        try {
+            const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
+            const sprintSnap = await getDoc(sprintRef);
+            if (!sprintSnap.exists()) return;
+            
+            const sprint = sprintSnap.data() as Sprint;
+            if (!sprint.pendingChanges) return;
+
+            const mergedData = sanitizeData({
+                ...sprint,
+                ...sprint.pendingChanges,
+                pendingChanges: deleteField(), // Clear the staging area
+                updatedAt: new Date().toISOString()
+            });
+
+            await updateDoc(sprintRef, mergedData);
+        } catch (error) {
+            console.error("Error approving sprint updates:", error);
+            throw error;
+        }
+    },
+
+    rejectSprint: async (sprintId: string) => {
+        try {
+            const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
+            await updateDoc(sprintRef, {
+                approvalStatus: 'rejected',
+                published: false,
+                updatedAt: new Date().toISOString()
+            });
+        } catch (error) {
+            console.error("Error rejecting sprint:", error);
+            throw error;
+        }
+    },
+
+    deleteSprint: async (sprintId: string) => {
+        try {
+            const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
+            await deleteDoc(sprintRef);
+        } catch (error) {
+            console.error("Error deleting sprint from Firestore:", error);
+            throw error;
+        }
+    },
+
+    getPublishedSprints: async () => {
         try {
             const q = query(
-                collection(db, 'enrollments'), 
-                where("participantId", "==", userId), 
-                where("sprintId", "==", sprintId),
-                limit(1)
+                collection(db, SPRINTS_COLLECTION), 
+                where("approvalStatus", "==", "approved")
             );
             const querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-                return querySnapshot.docs[0].data() as ParticipantSprint;
-            }
             
-            // Fallback to mock search
-            return MOCK_PARTICIPANT_SPRINTS.find(e => e.participantId === userId && e.sprintId === sprintId) || null;
+            const dbSprints: Sprint[] = [];
+            querySnapshot.forEach((doc) => {
+                dbSprints.push(sanitizeData(doc.data()) as Sprint);
+            });
 
+            return dbSprints;
         } catch (error) {
-            console.warn("Error fetching enrollment by user and sprint:", error);
-            return MOCK_PARTICIPANT_SPRINTS.find(e => e.participantId === userId && e.sprintId === sprintId) || null;
+            console.error("Error fetching published sprints:", error);
+            return [];
         }
     },
 
-    /**
-     * Enrolls a user in a sprint by creating a document in the 'enrollments' collection.
-     */
+    getCoachSprints: async (coachId: string) => {
+        try {
+            const q = query(
+                collection(db, SPRINTS_COLLECTION), 
+                where("coachId", "==", coachId)
+            );
+            const querySnapshot = await getDocs(q);
+            
+            const dbSprints: Sprint[] = [];
+            querySnapshot.forEach((doc) => {
+                const data = sanitizeData(doc.data()) as Sprint;
+                if (data.approvalStatus === 'pending_approval' && isRegistryIncomplete(data)) {
+                    data.approvalStatus = 'draft';
+                }
+                dbSprints.push(data);
+            });
+
+            return dbSprints;
+        } catch (error) {
+            console.error("Error fetching coach sprints:", error);
+            return [];
+        }
+    },
+
+    getAdminSprints: async () => {
+        try {
+            const q = query(collection(db, SPRINTS_COLLECTION));
+            const querySnapshot = await getDocs(q);
+            const dbSprints: Sprint[] = [];
+            querySnapshot.forEach((doc) => {
+                const data = sanitizeData(doc.data()) as Sprint;
+                if (data.approvalStatus === 'pending_approval' && isRegistryIncomplete(data)) {
+                    data.approvalStatus = 'draft';
+                }
+                dbSprints.push(data);
+            });
+            return dbSprints;
+        } catch (error) {
+            console.error("Error fetching admin sprints:", error);
+            return [];
+        }
+    },
+
+    getSprintById: async (sprintId: string) => {
+        try {
+            const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
+            const sprintSnap = await getDoc(sprintRef);
+            if (sprintSnap.exists()) return sanitizeData(sprintSnap.data()) as Sprint;
+            return null;
+        } catch (error) {
+            console.error("Error fetching sprint by ID:", error);
+            return null;
+        }
+    },
+
+    getSprintParticipantAnalytics: async (sprintId: string) => {
+        try {
+            const now = new Date().getTime();
+            const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
+            const sprintSnap = await getDoc(sprintRef);
+            if (!sprintSnap.exists()) return [];
+            const sprint = sprintSnap.data() as Sprint;
+
+            const enrollQ = query(collection(db, ENROLLMENTS_COLLECTION), where("sprintId", "==", sprintId));
+            const enrollSnap = await getDocs(enrollQ);
+            const enrollments = enrollSnap.docs.map(d => ({ id: d.id, ...d.data() } as ParticipantSprint));
+
+            const msgQ = query(collection(db, 'coaching_messages'), where("sprintId", "==", sprintId));
+            const msgSnap = await getDocs(msgQ);
+            const messages = msgSnap.docs.map(d => d.data() as CoachingComment);
+
+            const eventQ = query(collection(db, 'user_events'), where("sprintId", "==", sprintId));
+            const eventSnap = await getDocs(eventQ);
+            const events = eventSnap.docs.map(d => d.data() as UserEvent);
+
+            const analysis = await Promise.all(enrollments.map(async (enroll) => {
+                const userEvents = events.filter(ev => ev.userId === enroll.participantId);
+                const userMessages = messages.filter(m => m.participantId === enroll.participantId);
+                const sortedEvents = [...userEvents].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+                const lastActivity = sortedEvents[0];
+                const lastActivityTime = lastActivity ? new Date(lastActivity.timestamp).getTime() : new Date(enroll.startDate).getTime();
+                const diffHrs = (now - lastActivityTime) / (1000 * 3600);
+                const diffDays = Math.floor(diffHrs / 24);
+
+                const sortedMsgs = [...userMessages].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+                const latestMsg = sortedMsgs[0];
+                const isWaitingForCoach = latestMsg && latestMsg.authorId === enroll.participantId && !latestMsg.read && ((now - new Date(latestMsg.timestamp).getTime()) / (1000 * 3600) >= 24);
+
+                const isCompleted = enroll.progress.every(p => p.completed);
+
+                if (!isCompleted && diffDays > 0) {
+                    await notificationService.triggerDropOffNudge(enroll, sprint, diffDays);
+                }
+
+                let segment: 'active' | 'drop1' | 'drop2' | 'completed' = 'active';
+                if (isCompleted) segment = 'completed';
+                else if (diffHrs > 48) segment = 'drop2';
+                else if (diffHrs > 24) segment = 'drop1';
+
+                return {
+                    enroll,
+                    lastActivity: lastActivity?.timestamp || enroll.startDate,
+                    segment,
+                    isWaitingForCoach,
+                    latestMessageTime: latestMsg?.timestamp
+                };
+            }));
+            
+            return analysis;
+        } catch (error) {
+            console.error("Analysis Error:", error);
+            return [];
+        }
+    },
+
     enrollUser: async (userId: string, sprintId: string, duration: number) => {
         try {
-            const existing = await sprintService.getEnrollmentByUserAndSprint(userId, sprintId);
-            if (existing && !existing.id.startsWith('enrollment_fallback')) {
-                console.warn(`User ${userId} is already enrolled in sprint ${sprintId}.`);
-                return existing;
+            const enrollmentId = `enrollment_${userId}_${sprintId}`;
+            const enrollmentRef = doc(db, ENROLLMENTS_COLLECTION, enrollmentId);
+            
+            const existing = await getDoc(enrollmentRef);
+            if (existing.exists()) {
+                return sanitizeData(existing.data()) as ParticipantSprint;
             }
 
-            const enrollmentId = `enrollment_${userId}_${sprintId}_${Date.now()}`;
-            const enrollmentRef = doc(db, 'enrollments', enrollmentId);
-            
             const newEnrollment: ParticipantSprint = {
                 id: enrollmentId,
                 sprintId: sprintId,
                 participantId: userId,
                 startDate: new Date().toISOString(),
+                sentNudges: [],
                 progress: Array.from({ length: duration }, (_, i) => ({
                     day: i + 1,
                     completed: false
                 }))
             };
 
-            await setDoc(enrollmentRef, newEnrollment);
-            
-            // Also update the User document to track this enrollment
+            await setDoc(enrollmentRef, sanitizeData(newEnrollment));
             await userService.addUserEnrollment(userId, sprintId);
-
             return newEnrollment;
         } catch (error) {
-            console.warn("Error enrolling user in DB (falling back to local):", error);
-            const fallbackEnrollment: ParticipantSprint = {
-                id: `enrollment_fallback_${Date.now()}`,
-                sprintId: sprintId,
-                participantId: userId,
-                startDate: new Date().toISOString(),
-                progress: Array.from({ length: duration }, (_, i) => ({
-                    day: i + 1,
-                    completed: false
-                }))
-            };
-            return fallbackEnrollment;
+            console.error("Error enrolling user:", error);
+            throw error;
         }
     },
 
-    /**
-     * Fetches all sprint enrollments for a specific user.
-     */
     getUserEnrollments: async (userId: string) => {
         try {
-            const q = query(collection(db, 'enrollments'), where("participantId", "==", userId));
+            const q = query(collection(db, ENROLLMENTS_COLLECTION), where("participantId", "==", userId));
             const querySnapshot = await getDocs(q);
             
             const dbEnrollments: ParticipantSprint[] = [];
             querySnapshot.forEach((doc) => {
-                dbEnrollments.push(doc.data() as ParticipantSprint);
+                dbEnrollments.push(sanitizeData(doc.data()) as ParticipantSprint);
             });
 
-            // Combine with Mock Data that belongs to this user (for hybrid demo state)
-            const mockEnrollments = MOCK_PARTICIPANT_SPRINTS.filter(p => p.participantId === userId);
-            
-            // Deduplicate based on ID, prioritizing DB enrollments
-            const allEnrollments = [...dbEnrollments, ...mockEnrollments];
-            const uniqueEnrollmentsMap = new Map();
-            allEnrollments.forEach(item => {
-                // If we already have this sprint enrollment from DB, don't overwrite with mock
-                const key = `${item.participantId}_${item.sprintId}`;
-                if (!uniqueEnrollmentsMap.has(key) || !item.id.startsWith('enrollment_fallback')) {
-                    uniqueEnrollmentsMap.set(key, item);
+            const uniqueEnrollmentsMap = new Map<string, ParticipantSprint>();
+            dbEnrollments.forEach(e => {
+                const existing = uniqueEnrollmentsMap.get(e.sprintId);
+                if (!existing || e.id === `enrollment_${userId}_${e.sprintId}`) {
+                    uniqueEnrollmentsMap.set(e.sprintId, e);
                 }
             });
 
             return Array.from(uniqueEnrollmentsMap.values());
-        } catch (error: any) {
-            console.error("Error fetching enrollments:", error);
-            return MOCK_PARTICIPANT_SPRINTS.filter(p => p.participantId === userId);
+        } catch (error) {
+            console.error("Error fetching user enrollments:", error);
+            return [];
         }
     },
 
-    /**
-     * Get a single enrollment by ID.
-     */
+    subscribeToUserEnrollments: (userId: string, callback: (enrollments: ParticipantSprint[]) => void) => {
+        const q = query(collection(db, ENROLLMENTS_COLLECTION), where("participantId", "==", userId));
+        
+        return onSnapshot(q, (snapshot) => {
+            const dbEnrollments: ParticipantSprint[] = [];
+            snapshot.forEach((doc) => {
+                dbEnrollments.push(sanitizeData(doc.data()) as ParticipantSprint);
+            });
+
+            const uniqueEnrollmentsMap = new Map<string, ParticipantSprint>();
+            dbEnrollments.forEach(e => uniqueEnrollmentsMap.set(e.sprintId, e));
+
+            callback(Array.from(uniqueEnrollmentsMap.values()));
+        }, (error) => {
+            console.error("User enrollments sync error:", error);
+            callback([]);
+        });
+    },
+
+    getEnrollmentsForSprints: async (sprintIds: string[]) => {
+        const validIds = Array.from(new Set((sprintIds || []).filter(id => !!id && typeof id === 'string' && id !== '')));
+        if (validIds.length === 0) return [];
+
+        const CHUNK_SIZE = 25;
+        const chunks: string[][] = [];
+        for (let i = 0; i < validIds.length; i += CHUNK_SIZE) {
+            chunks.push(validIds.slice(i, i + CHUNK_SIZE));
+        }
+
+        try {
+            const results: ParticipantSprint[] = [];
+            const promises = chunks.map(chunk => {
+                const q = query(collection(db, ENROLLMENTS_COLLECTION), where("sprintId", "in", chunk));
+                return getDocs(q);
+            });
+
+            const snapshots = await Promise.all(promises);
+            snapshots.forEach(snapshot => {
+                snapshot.forEach(doc => {
+                    results.push(sanitizeData(doc.data()) as ParticipantSprint);
+                });
+            });
+            
+            const map = new Map<string, ParticipantSprint>();
+            results.forEach(e => {
+                const key = `${e.participantId}_${e.sprintId}`;
+                if (!map.has(key)) map.set(key, e);
+            });
+
+            return Array.from(map.values());
+        } catch (error) {
+            console.error("Error fetching enrollments for sprints:", error);
+            return [];
+        }
+    },
+
     getEnrollmentById: async (enrollmentId: string) => {
         try {
-            const docRef = doc(db, 'enrollments', enrollmentId);
+            const docRef = doc(db, ENROLLMENTS_COLLECTION, enrollmentId);
             const docSnap = await getDoc(docRef);
-
-            if (docSnap.exists()) {
-                return docSnap.data() as ParticipantSprint;
-            }
-            
-            // Fallback to mock search
-            return MOCK_PARTICIPANT_SPRINTS.find(e => e.id === enrollmentId) || null;
+            if (docSnap.exists()) return sanitizeData(docSnap.data()) as ParticipantSprint;
+            return null;
         } catch (error) {
-            console.warn("Error fetching enrollment:", error);
-            return MOCK_PARTICIPANT_SPRINTS.find(e => e.id === enrollmentId) || null;
+            return null;
         }
     },
 
-    /**
-     * Updates the progress of a specific enrollment day.
-     */
+    subscribeToEnrollment: (enrollmentId: string, callback: (data: ParticipantSprint | null) => void) => {
+        const docRef = doc(db, ENROLLMENTS_COLLECTION, enrollmentId);
+        return onSnapshot(docRef, (doc) => {
+            if (doc.exists()) {
+                callback(sanitizeData(doc.data()) as ParticipantSprint);
+            } else {
+                callback(null);
+            }
+        }, (err) => {
+            console.error("Enrollment sub error:", err);
+            callback(null);
+        });
+    },
+
     updateProgress: async (enrollmentId: string, progress: ParticipantSprint['progress']) => {
         try {
-            // Update local mock for immediate UI consistency
-            const idx = MOCK_PARTICIPANT_SPRINTS.findIndex(e => e.id === enrollmentId);
-            if (idx !== -1) {
-                MOCK_PARTICIPANT_SPRINTS[idx].progress = progress;
-            }
-
-            // Sanitize progress data to remove undefined values
-            const cleanedProgress = progress.map(p => ({
-                ...p,
-                completedAt: p.completedAt ?? null,
-                submission: p.submission ?? null,
-                submissionFileUrl: p.submissionFileUrl ?? null,
-            }));
-
-            const enrollmentRef = doc(db, 'enrollments', enrollmentId);
-            await updateDoc(enrollmentRef, { progress: cleanedProgress });
-            console.log("Task submitted to the database successfully");
-
-        } catch (error: any) {
-            console.warn("Could not update enrollment in DB:", error?.message || error);
+            const sanitizedProgress = sanitizeData(progress);
+            const enrollmentRef = doc(db, ENROLLMENTS_COLLECTION, enrollmentId);
+            await updateDoc(enrollmentRef, { progress: sanitizedProgress });
+        } catch (error) {
+            console.error("Error updating enrollment progress:", error);
         }
     },
 
-    /**
-     * Fetches the number of enrollments for a specific sprint.
-     */
-    getEnrollmentCountForSprint: async (sprintId: string): Promise<number> => {
+    submitReview: async (review: Omit<Review, 'id'>) => {
         try {
-            const q = query(collection(db, 'enrollments'), where('sprintId', '==', sprintId));
-            const querySnapshot = await getDocs(q);
-            return querySnapshot.size;
+            const reviewsRef = collection(db, REVIEWS_COLLECTION);
+            const docRef = await addDoc(reviewsRef, sanitizeData(review));
+            return { id: docRef.id, ...review } as Review;
         } catch (error) {
-            console.error(`Error fetching enrollment count for sprint ${sprintId}:`, error);
-            return 0;
+            console.error("Error submitting review:", error);
+            throw error;
         }
+    },
+
+    subscribeToReviewsForSprints: (sprintIds: string[], callback: (reviews: Review[]) => void) => {
+        const validIds = Array.from(new Set((sprintIds || []).filter(id => !!id && typeof id === 'string' && id.trim() !== '')));
+        
+        if (validIds.length === 0) {
+            callback([]);
+            return () => {};
+        }
+
+        const limitedIds = validIds.slice(0, 30);
+        const q = query(collection(db, REVIEWS_COLLECTION), where("sprintId", "in", limitedIds));
+
+        return onSnapshot(q, (snapshot) => {
+            const dbReviews: Review[] = [];
+            snapshot.forEach((doc) => {
+                dbReviews.push(sanitizeData({ id: doc.id, ...doc.data() }) as Review);
+            });
+
+            const uniqueReviews = Array.from(new Map(dbReviews.map(r => [r.id, r])).values());
+            const sorted = uniqueReviews.sort((a, b) => 
+                new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            );
+
+            callback(sorted);
+        }, (err) => {
+            console.warn("Reviews sync error:", err);
+            callback([]);
+        });
     }
 };

@@ -9,12 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.29.1",
-    "date-fns": "^4.1.0",
-    "firebase": "^12.7.0",
-    "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.9.6"
+    "react": "^19.2.0",
+    "react-router-dom": "^7.9.6",
+    "@google/genai": "^1.29.1",
+    "firebase": "^12.7.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

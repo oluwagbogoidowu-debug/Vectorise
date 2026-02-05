@@ -1,28 +1,65 @@
 
 import { db } from './firebase';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { User, Participant, Coach, UserRole } from '../types';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, increment, addDoc } from 'firebase/firestore';
+import { User, Participant, Coach, UserRole, WalletTransaction } from '../types';
+
+/**
+ * Standardized utility to recursively remove non-serializable values and handle circularity.
+ * Strips out circular references and internal classes (like Firebase or DOM elements).
+ */
+export const sanitizeData = (val: any, seen = new WeakSet()): any => {
+    if (val === null || typeof val !== 'object') return val;
+    
+    // Prevent infinite recursion on circular structures
+    if (seen.has(val)) return undefined;
+
+    // Handle Arrays
+    if (Array.isArray(val)) {
+        seen.add(val);
+        return val.map(item => sanitizeData(item, seen)).filter(i => i !== undefined);
+    }
+
+    // Handle Dates
+    if (val instanceof Date) return val.toISOString();
+
+    // Handle Firestore Timestamps if they exist
+    if (typeof val.toDate === 'function') return val.toDate().toISOString();
+
+    // Avoid internal Firebase/DOM class instances - only allow plain objects
+    const isPlainObject = Object.prototype.toString.call(val) === '[object Object]';
+    if (!isPlainObject) return undefined;
+
+    seen.add(val);
+    const cleaned: any = {};
+    Object.entries(val).forEach(([key, value]) => {
+        const sanitizedVal = sanitizeData(value, seen);
+        if (sanitizedVal !== undefined) {
+            // Firestore requires string keys
+            cleaned[String(key)] = sanitizedVal;
+        }
+    });
+    return cleaned;
+};
 
 export const userService = {
-  /**
-   * Creates or overwrites a user document in Firestore.
-   * Use this on Registration.
-   */
   createUserDocument: async (uid: string, data: Partial<User | Participant | Coach>) => {
     try {
       const userRef = doc(db, 'users', uid);
       
-      // Ensure basic fields are present, including new activity tracking fields
-      const userData = {
+      const userData = sanitizeData({
         id: uid,
         createdAt: new Date().toISOString(),
-        role: UserRole.PARTICIPANT, // Default
+        role: UserRole.PARTICIPANT,
         savedSprintIds: [], 
         enrolledSprintIds: [], 
-        shinePostIds: [], // Track Shine posts
-        shineCommentIds: [], // Track Shine comments
+        shinePostIds: [], 
+        shineCommentIds: [], 
+        claimedMilestoneIds: [],
+        referralCode: uid.substring(0, 8).toUpperCase(),
+        walletBalance: 30,
+        impactStats: { peopleHelped: 0, streak: 0 },
         ...data
-      };
+      });
 
       await setDoc(userRef, userData, { merge: true });
       return userData;
@@ -32,16 +69,13 @@ export const userService = {
     }
   },
 
-  /**
-   * Fetches a user document by UID.
-   */
   getUserDocument: async (uid: string) => {
     try {
       const userRef = doc(db, 'users', uid);
       const userSnap = await getDoc(userRef);
 
       if (userSnap.exists()) {
-        return userSnap.data() as User | Participant | Coach;
+        return sanitizeData(userSnap.data()) as User | Participant | Coach;
       } else {
         return null;
       }
@@ -51,22 +85,151 @@ export const userService = {
     }
   },
 
-  /**
-   * Updates specific fields in a user document.
-   */
+  getUsersByIds: async (uids: string[]) => {
+    const validIds = Array.from(new Set((uids || []).filter(id => !!id && typeof id === 'string' && id !== '')));
+    if (validIds.length === 0) return [];
+
+    try {
+      const CHUNK_SIZE = 25;
+      const results: Participant[] = [];
+      const chunks: string[][] = [];
+      
+      for (let i = 0; i < validIds.length; i += CHUNK_SIZE) {
+        chunks.push(validIds.slice(i, i + CHUNK_SIZE));
+      }
+
+      for (const chunk of chunks) {
+        const q = query(collection(db, 'users'), where("id", "in", chunk));
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach((doc) => {
+          results.push(sanitizeData(doc.data()) as Participant);
+        });
+      }
+      return results;
+    } catch (error) {
+      console.error("Error fetching users by IDs:", error);
+      return [];
+    }
+  },
+
+  getCoaches: async () => {
+    try {
+      const q = query(collection(db, 'users'), where("role", "==", UserRole.COACH));
+      const querySnapshot = await getDocs(q);
+      const coaches: Coach[] = [];
+      querySnapshot.forEach((doc) => {
+        coaches.push(sanitizeData(doc.data()) as Coach);
+      });
+
+      const q2 = query(collection(db, 'users'), where("hasCoachProfile", "==", true));
+      const querySnapshot2 = await getDocs(q2);
+      querySnapshot2.forEach((doc) => {
+          const data = sanitizeData(doc.data());
+          coaches.push({
+              ...data,
+              bio: data.coachBio || data.bio,
+              niche: data.coachNiche,
+              approved: data.coachApproved
+          } as any);
+      });
+
+      return coaches;
+    } catch (error) {
+      console.error("Error fetching coaches:", error);
+      return [];
+    }
+  },
+
+  getParticipants: async () => {
+    try {
+      const q = query(collection(db, 'users'), where("role", "==", UserRole.PARTICIPANT));
+      const querySnapshot = await getDocs(q);
+      const participants: Participant[] = [];
+      querySnapshot.forEach((doc) => {
+        participants.push(sanitizeData(doc.data()) as Participant);
+      });
+      return participants;
+    } catch (error) {
+      console.error("Error fetching participants:", error);
+      return [];
+    }
+  },
+
   updateUserDocument: async (uid: string, data: Partial<User | Participant | Coach>) => {
     try {
       const userRef = doc(db, 'users', uid);
-      await updateDoc(userRef, data);
+      await updateDoc(userRef, sanitizeData(data));
     } catch (error) {
       console.error("Error updating user document:", error);
       throw error;
     }
   },
 
-  /**
-   * Deletes a user document.
-   */
+  approveCoach: async (coachId: string) => {
+      try {
+          const userRef = doc(db, 'users', coachId);
+          await updateDoc(userRef, {
+              coachApproved: true,
+              role: UserRole.COACH
+          });
+      } catch (error) {
+          console.error("Error approving coach:", error);
+          throw error;
+      }
+  },
+
+  rejectCoach: async (coachId: string) => {
+      try {
+          const userRef = doc(db, 'users', coachId);
+          await updateDoc(userRef, {
+              coachApproved: false,
+              hasCoachProfile: false 
+          });
+      } catch (error) {
+          console.error("Error rejecting coach:", error);
+          throw error;
+      }
+  },
+
+  processWalletTransaction: async (userId: string, trans: Omit<WalletTransaction, 'id' | 'userId' | 'timestamp'>) => {
+      try {
+          const transRef = collection(db, 'wallet_transactions');
+          const transactionData = sanitizeData({
+              ...trans,
+              userId,
+              timestamp: new Date().toISOString()
+          });
+          await addDoc(transRef, transactionData);
+
+          const userRef = doc(db, 'users', userId);
+          await updateDoc(userRef, {
+              walletBalance: increment(trans.amount)
+          });
+      } catch (error) {
+          console.error("Transaction Ledger Error:", error);
+          throw error;
+      }
+  },
+
+  claimMilestone: async (uid: string, milestoneId: string, points: number) => {
+      try {
+          await userService.processWalletTransaction(uid, {
+              amount: points,
+              type: 'milestone',
+              description: `Claimed milestone: ${milestoneId}`,
+              auditId: milestoneId
+          });
+
+          const userRef = doc(db, 'users', uid);
+          await updateDoc(userRef, {
+              claimedMilestoneIds: arrayUnion(milestoneId)
+          });
+      } catch (error) {
+          console.error("Error claiming milestone:", error);
+          throw error;
+      }
+  },
+
   deleteUserDocument: async (uid: string) => {
     try {
       const userRef = doc(db, 'users', uid);
@@ -77,19 +240,14 @@ export const userService = {
     }
   },
 
-  /**
-   * Toggles a sprint ID in the user's savedSprintIds array.
-   */
   toggleSavedSprint: async (uid: string, sprintId: string, isSaved: boolean) => {
       try {
           const userRef = doc(db, 'users', uid);
           if (isSaved) {
-              // Add to array
               await updateDoc(userRef, {
                   savedSprintIds: arrayUnion(sprintId)
               });
           } else {
-              // Remove from array
               await updateDoc(userRef, {
                   savedSprintIds: arrayRemove(sprintId)
               });
@@ -100,9 +258,6 @@ export const userService = {
       }
   },
 
-  /**
-   * Adds a sprint ID to the user's enrolledSprintIds array.
-   */
   addUserEnrollment: async (uid: string, sprintId: string) => {
       try {
           const userRef = doc(db, 'users', uid);
@@ -114,9 +269,6 @@ export const userService = {
       }
   },
 
-  /**
-   * Adds a post ID to the user's shinePostIds array.
-   */
   addUserPost: async (uid: string, postId: string) => {
       try {
           const userRef = doc(db, 'users', uid);
@@ -128,9 +280,6 @@ export const userService = {
       }
   },
 
-  /**
-   * Adds a comment ID to the user's shineCommentIds array.
-   */
   addUserComment: async (uid: string, commentId: string) => {
       try {
           const userRef = doc(db, 'users', uid);

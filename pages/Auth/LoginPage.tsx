@@ -1,12 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import Button from '../../components/Button';
-import { MOCK_USERS } from '../../services/mockData';
-import { UserRole } from '../../types';
-import { auth } from '../../services/firebase';
+import { useAuth } from '../../contexts/AuthContext.tsx';
+import Button from '../../components/Button.tsx';
+import { MOCK_USERS } from '../../services/mockData.ts';
+import { auth } from '../../services/firebase.ts';
 import { signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth';
+import LocalLogo from '../../components/LocalLogo.tsx';
 
 const LoginPage: React.FC = () => {
   const { login, user } = useAuth();
@@ -16,6 +15,10 @@ const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // PWA Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
 
   // Verification Modal State
   const [showVerifyModal, setShowVerifyModal] = useState(false);
@@ -28,12 +31,34 @@ const LoginPage: React.FC = () => {
   const [resetStatus, setResetStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [resetMessage, setResetMessage] = useState('');
 
-  // Auto-redirect if user is already logged in
   useEffect(() => {
       if (user) {
           navigate('/dashboard');
       }
   }, [user, navigate]);
+
+  useEffect(() => {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBtn(true);
+    });
+
+    window.addEventListener('appinstalled', () => {
+      setDeferredPrompt(null);
+      setShowInstallBtn(false);
+    });
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+      setShowInstallBtn(false);
+    }
+  };
 
   const validateEmail = (email: string) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -43,15 +68,10 @@ const LoginPage: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setEmailError('');
-
     const cleanEmail = email.trim();
 
-    if (!cleanEmail) {
-        setEmailError('Email is required.');
-        return;
-    }
-    if (!password) {
-        setEmailError('Password is required.');
+    if (!cleanEmail || !password) {
+        setEmailError('Enter your credentials to continue.');
         return;
     }
 
@@ -62,15 +82,11 @@ const LoginPage: React.FC = () => {
 
     setIsLoading(true);
 
-    // 1. CHECK FOR MOCK USER (DEMO MODE)
     const mockUser = MOCK_USERS.find(u => u.email.toLowerCase() === cleanEmail.toLowerCase());
-    
-    // Heuristic: Predefined mock users have short IDs.
     const isDemoAccount = mockUser && mockUser.id.length < 20;
 
     if (isDemoAccount) {
         if (password === 'password') {
-            // Correct Demo Credentials
             setTimeout(() => {
                 login(mockUser.id);
                 navigate('/dashboard');
@@ -78,44 +94,32 @@ const LoginPage: React.FC = () => {
             }, 800);
             return;
         } else {
-            // Wrong Demo Password - Fail locally
-            setEmailError('Password or Email Incorrect');
+            setEmailError('Credentials mismatch. Please check again.');
             setIsLoading(false);
             return;
         }
     }
 
-    // 2. CHECK FIREBASE USER (REAL MODE)
     try {
         const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
-        const user = userCredential.user;
-
-        // CHECK EMAIL VERIFICATION
-        if (!user.emailVerified) {
-            // Keep user temporarily signed in to allow sending email, but block access via modal
-            setUnverifiedUser(user);
+        const fbUser = userCredential.user;
+        
+        if (!fbUser.emailVerified) {
+            setUnverifiedUser(fbUser);
             setShowVerifyModal(true);
             setIsLoading(false);
+            await signOut(auth);
             return;
         }
-
-        // If verification passed, the AuthContext listener will pick up the state change
-        // and the useEffect above will handle the navigation to dashboard.
     } catch (error: any) {
-        // Suppress console error for expected user login failures to keep console clean
-        if (error.code !== 'auth/invalid-credential' && error.code !== 'auth/user-not-found' && error.code !== 'auth/wrong-password') {
-             console.error("Login error", error);
-        }
-        
-        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-             setEmailError('Password or Email Incorrect');
-        } else if (error.code === 'auth/too-many-requests') {
-             setEmailError('Too many failed attempts. Please try again later.');
+        if (error.code === 'auth/network-request-failed') {
+             setEmailError('Connection lost. Check your network.');
+        } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+             setEmailError('Invalid email or password.');
         } else {
-             setEmailError('Failed to sign in. Please check your connection.');
+             setEmailError('Authentication failed. Try again.');
         }
     } finally {
-        // Only set loading false if we didn't trigger the modal (modal handles its own state)
         if (!unverifiedUser) {
              setIsLoading(false);
         }
@@ -129,321 +133,219 @@ const LoginPage: React.FC = () => {
           await sendEmailVerification(unverifiedUser);
           setResendStatus('sent');
       } catch (error) {
-          console.error("Resend error", error);
           setResendStatus('error');
       }
   };
 
   const handleCloseVerification = async () => {
-      // Sign out to clean up state since they are not allowed in yet
       await signOut(auth);
       setShowVerifyModal(false);
       setUnverifiedUser(null);
-      setResendStatus('idle');
       setIsLoading(false);
-  };
-
-  // Forgot Password Handlers
-  const handleForgotPasswordClick = () => {
-      setResetEmail(email); // Pre-fill with user input
-      setShowForgotPassword(true);
-      setResetStatus('idle');
-      setResetMessage('');
   };
 
   const handleSendResetLink = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!resetEmail) {
-          setResetMessage('Please enter your email address.');
+          setResetMessage('Enter your email to reset.');
           setResetStatus('error');
           return;
       }
-      
       setResetStatus('sending');
       try {
           await sendPasswordResetEmail(auth, resetEmail);
           setResetStatus('sent');
-          setResetMessage(`We sent you a password change link to ${resetEmail}`);
+          setResetMessage(`Check ${resetEmail} for the link.`);
       } catch (error: any) {
-          console.error("Reset password error", error);
           setResetStatus('error');
-          if (error.code === 'auth/user-not-found') {
-               setResetMessage('No user found with this email address.');
-          } else if (error.code === 'auth/invalid-email') {
-               setResetMessage('Invalid email address.');
-          } else {
-               setResetMessage('Failed to send reset email. Please try again.');
-          }
+          setResetMessage('Unable to send reset link.');
       }
   };
 
-  // Keep Demo Login for testing roles quickly via buttons
-  const handleDemoLogin = (userId: string) => {
-    login(userId);
-    navigate('/dashboard');
-  };
-  
-  const coach = MOCK_USERS.find(u => u.role === UserRole.COACH && (u as any).approved);
-  const participant = MOCK_USERS.find(u => u.role === UserRole.PARTICIPANT);
-  const admin = MOCK_USERS.find(u => u.role === UserRole.ADMIN);
-
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl">
-        <h2 className="text-3xl font-bold text-center text-gray-900 mb-8">Welcome Back</h2>
+    <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center px-6 py-12 selection:bg-primary/10">
+      <div className="w-full max-w-md animate-fade-in">
         
-        {/* Placeholder Social Login */}
-        <button 
-            type="button"
-            className="w-full flex items-center justify-center gap-3 bg-white border border-gray-200 text-gray-700 font-semibold py-3.5 px-4 rounded-xl hover:bg-gray-50 transition-all hover:shadow-md mb-6 group opacity-50 cursor-not-allowed"
-            title="Google Sign In coming soon"
-        >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-            </svg>
-            <span className="group-hover:text-gray-900">Sign in with Google</span>
-        </button>
-
-        <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-            <span className="px-4 bg-white text-gray-500">Or sign in with email</span>
-            </div>
-        </div>
-
-        <form onSubmit={handleLogin} className="mb-8 space-y-4">
-            <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                <input 
-                    type="email" 
-                    id="email"
-                    value={email}
-                    onChange={(e) => {
-                        setEmail(e.target.value);
-                        if (emailError) setEmailError('');
-                    }}
-                    className={`w-full px-4 py-3 border rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white ${emailError ? 'border-red-500' : 'border-gray-200'}`}
-                    placeholder="Enter your email"
-                />
-            </div>
-            <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <div className="relative">
-                    <input 
-                        type={showPassword ? "text" : "password"}
-                        id="password"
-                        value={password}
-                        onChange={(e) => {
-                            setPassword(e.target.value);
-                            if (emailError) setEmailError('');
-                        }}
-                        className={`w-full px-4 py-3 border rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white pr-10 ${emailError ? 'border-red-500' : 'border-gray-200'}`}
-                        placeholder="Enter your password"
-                    />
-                    <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
-                    >
-                        {showPassword ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                            </svg>
-                        ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                        )}
-                    </button>
-                </div>
-            </div>
+        {/* LOGO AREA & INSTALL BUTTON */}
+        <div className="flex flex-col items-center mb-12 gap-6">
+            <Link to="/">
+                <LocalLogo type="green" className="h-10 w-auto opacity-90 hover:opacity-100 transition-opacity" />
+            </Link>
             
-            {emailError && <p className="mt-1 text-sm text-red-600 text-center font-medium">{emailError}</p>}
-            
-            <div className="flex justify-end">
-                <button
-                    type="button"
-                    onClick={handleForgotPasswordClick}
-                    className="text-sm text-primary hover:underline font-medium"
-                >
-                    Forgot password?
-                </button>
-            </div>
-
-            <Button type="submit" isLoading={isLoading} className="w-full justify-center py-3.5 rounded-xl shadow-lg text-lg">Sign In</Button>
-        </form>
-
-        <div className="text-center mt-4">
-            <p className="text-sm text-gray-600">
-                Don't have an account? <Link to="/signup" className="text-primary font-bold hover:underline">Sign Up</Link>
-            </p>
+            {showInstallBtn && (
+              <button 
+                onClick={handleInstallClick}
+                className="flex items-center gap-2 px-5 py-2.5 bg-white border border-primary/20 text-primary rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95 animate-bounce-subtle"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Install Web App</span>
+              </button>
+            )}
         </div>
 
-        {/* Demo Section for Development Convenience */}
-        <div className="mt-8 pt-6 border-t border-gray-100">
-            <p className="text-xs text-center text-gray-400 mb-4 uppercase tracking-widest font-semibold">Demo Accounts (Pass: 'password')</p>
-            <div className="grid grid-cols-1 gap-3">
-                {coach && (
-                    <button
-                    type="button"
-                    onClick={() => handleDemoLogin(coach.id)}
-                    className="w-full px-4 py-2 text-sm text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-left flex items-center justify-between group"
-                    >
-                        <span>Coach Demo</span>
-                        <span className="text-xs text-gray-400 group-hover:text-primary">Login &rarr;</span>
-                    </button>
-                )}
-                {participant && (
-                    <button
-                    type="button"
-                    onClick={() => handleDemoLogin(participant.id)}
-                    className="w-full px-4 py-2 text-sm text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-left flex items-center justify-between group"
-                    >
-                        <span>Participant Demo</span>
-                        <span className="text-xs text-gray-400 group-hover:text-primary">Login &rarr;</span>
-                    </button>
-                )}
-                 {admin && (
-                    <button
-                    type="button"
-                    onClick={() => handleDemoLogin(admin.id)}
-                    className="w-full px-4 py-2 text-sm text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-left flex items-center justify-between group"
-                    >
-                        <span>Admin Demo</span>
-                        <span className="text-xs text-gray-400 group-hover:text-primary">Login &rarr;</span>
-                    </button>
-                )}
-            </div>
-        </div>
-      </div>
-
-      {/* VERIFICATION MODAL */}
-      {showVerifyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center transform transition-all scale-100">
-                <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Email Verification Required</h3>
-                <p className="text-gray-600 text-sm mb-6">
-                    Please verify your email address <strong>{unverifiedUser?.email}</strong> to access your account.
-                </p>
-                
-                {resendStatus === 'sent' && (
-                    <div className="bg-green-50 border border-green-100 text-green-700 p-3 rounded-lg text-sm mb-4">
-                        Verification email sent! Please check your inbox and spam folder.
+        <div className="bg-white p-10 md:p-14 rounded-[3.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.08)] border border-gray-100 relative overflow-hidden">
+            {!showForgotPassword ? (
+                <>
+                    <div className="text-center mb-12">
+                        <h2 className="text-3xl font-black text-gray-900 tracking-tight leading-none mb-3">Continue your rise</h2>
+                        <p className="text-gray-400 font-medium">Welcome back to your growth path.</p>
                     </div>
-                )}
-                
-                {resendStatus === 'error' && (
-                    <div className="bg-red-50 border border-red-100 text-red-700 p-3 rounded-lg text-sm mb-4">
-                        Failed to send email. You might need to wait a moment before trying again.
-                    </div>
-                )}
-
-                <div className="space-y-3">
-                    <Button 
-                        onClick={handleResendVerification} 
-                        disabled={resendStatus === 'sending' || resendStatus === 'sent'}
-                        className="w-full justify-center"
-                    >
-                        {resendStatus === 'sending' ? 'Sending...' : 'Resend Verification Email'}
-                    </Button>
-                    <button 
-                        onClick={handleCloseVerification}
-                        className="text-gray-500 text-sm font-medium hover:text-gray-700 hover:underline"
-                    >
-                        Back to Login
-                    </button>
-                </div>
-            </div>
-        </div>
-      )}
-
-      {/* FORGOT PASSWORD MODAL */}
-      {showForgotPassword && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center transform transition-all scale-100">
-                {resetStatus === 'sent' ? (
-                    <>
-                        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
+                    
+                    <form onSubmit={handleLogin} className="space-y-6">
+                        <div>
+                            <label htmlFor="email" className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-1">Email Registry</label>
+                            <input 
+                                type="email" 
+                                id="email"
+                                value={email}
+                                onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(''); }}
+                                className={`w-full px-7 py-5 bg-gray-50 border rounded-3xl focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/30 transition-all font-bold text-gray-900 placeholder-gray-300 ${emailError ? 'border-red-100 bg-red-50/30' : 'border-gray-50 hover:border-gray-200'}`}
+                                placeholder="jamie@example.com"
+                            />
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">Check your email</h3>
-                        <p className="text-gray-600 text-sm mb-6">
-                            {resetMessage}
-                        </p>
-                        <Button 
-                            onClick={() => setShowForgotPassword(false)}
-                            className="w-full justify-center"
-                        >
-                            Back to Sign In
-                        </Button>
-                    </>
-                ) : (
-                    <>
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">Reset Password</h3>
-                        <p className="text-gray-600 text-sm mb-6">
-                            Enter your email address and we'll send you a link to reset your password.
-                        </p>
-                        
-                        <form onSubmit={handleSendResetLink}>
-                            <div className="mb-4">
-                                <input 
-                                    type="email" 
-                                    value={resetEmail}
-                                    onChange={(e) => setResetEmail(e.target.value)}
-                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-white"
-                                    placeholder="Enter your email"
-                                    required
-                                />
+                        <div>
+                            <div className="flex justify-between items-center mb-2 px-1">
+                                <label htmlFor="password" className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Password</label>
+                                <button type="button" onClick={() => setShowForgotPassword(true)} className="text-[10px] text-primary hover:text-primary-hover font-black uppercase tracking-widest transition-colors">Forgot?</button>
                             </div>
-                            
-                            {resetStatus === 'error' && (
-                                <p className="text-red-600 text-sm mb-4">{resetMessage}</p>
-                            )}
-
-                            <div className="space-y-3">
-                                <Button 
-                                    type="submit" 
-                                    isLoading={resetStatus === 'sending'}
-                                    className="w-full justify-center"
-                                >
-                                    Get Reset Link
-                                </Button>
-                                <button 
+                            <div className="relative group">
+                                <input 
+                                    type={showPassword ? "text" : "password"}
+                                    id="password"
+                                    value={password}
+                                    onChange={(e) => { setPassword(e.target.value); if (emailError) setEmailError(''); }}
+                                    className={`w-full px-7 py-5 bg-gray-50 border rounded-3xl focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/30 transition-all font-bold text-gray-900 pr-16 placeholder-gray-300 ${emailError ? 'border-red-100 bg-red-50/30' : 'border-gray-50 hover:border-gray-200'}`}
+                                    placeholder="••••••••"
+                                />
+                                <button
                                     type="button"
-                                    onClick={() => setShowForgotPassword(false)}
-                                    className="text-gray-500 text-sm font-medium hover:text-gray-700 hover:underline block w-full"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-6 flex items-center text-gray-300 hover:text-primary transition-colors"
                                 >
-                                    Cancel
+                                    {showPassword ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                                    ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                    )}
                                 </button>
                             </div>
-                        </form>
-                    </>
-                )}
+                        </div>
+                        
+                        {emailError && (
+                            <div className="bg-red-50 border border-red-100 rounded-2xl p-4 flex items-center gap-3 animate-fade-in">
+                                <div className="w-1.5 h-1.5 bg-red-400 rounded-full"></div>
+                                <p className="text-xs text-red-600 font-bold">{emailError}</p>
+                            </div>
+                        )}
+
+                        <Button 
+                            type="submit" 
+                            isLoading={isLoading} 
+                            className="w-full justify-center py-6 bg-primary text-white rounded-full shadow-2xl shadow-primary/20 text-sm font-black uppercase tracking-[0.25em] transition-transform hover:scale-[1.02] active:scale-95"
+                        >
+                            Log In
+                        </Button>
+                    </form>
+                </>
+            ) : (
+                <div className="animate-fade-in">
+                    <button onClick={() => setShowForgotPassword(false)} className="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors mb-8 text-[10px] font-black uppercase tracking-widest">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+                        Back to Login
+                    </button>
+                    <div className="text-center mb-10">
+                        <h2 className="text-3xl font-black text-gray-900 tracking-tight leading-none mb-3">Reset access</h2>
+                        <p className="text-gray-400 font-medium leading-relaxed">We'll send a recovery link to your registered email address.</p>
+                    </div>
+                    <form onSubmit={handleSendResetLink} className="space-y-6">
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 ml-1">Account Email</label>
+                            <input 
+                                type="email"
+                                value={resetEmail}
+                                onChange={(e) => setResetEmail(e.target.value)}
+                                className="w-full px-7 py-5 bg-gray-50 border border-gray-100 rounded-3xl focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/30 transition-all font-bold text-gray-900"
+                                placeholder="your@email.com"
+                            />
+                        </div>
+                        {resetMessage && (
+                            <div className={`p-4 rounded-2xl border text-xs font-bold ${resetStatus === 'sent' ? 'bg-green-50 border-green-100 text-green-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
+                                {resetMessage}
+                            </div>
+                        )}
+                        <Button 
+                            type="submit" 
+                            isLoading={resetStatus === 'sending'}
+                            className="w-full justify-center py-6 bg-primary text-white rounded-full shadow-xl text-sm font-black uppercase tracking-[0.2em]"
+                        >
+                            Send Recovery Link
+                        </Button>
+                    </form>
+                </div>
+            )}
+            
+            <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+        </div>
+
+        <div className="mt-12 space-y-8">
+            <div className="flex flex-col items-center gap-2">
+                <p className="text-sm text-gray-400 font-medium">New to Vectorise?</p>
+                <Link to="/onboarding/intro" className="text-primary font-black text-xs uppercase tracking-widest hover:underline px-4 py-2 bg-white rounded-full shadow-sm border border-gray-100 transition-all hover:scale-105 active:scale-95">
+                    Start your rise here
+                </Link>
+            </div>
+
+            <div className="pt-8 border-t border-gray-100 flex flex-col items-center">
+                <Link to="/onboarding/coach/welcome" className="group flex items-center gap-3">
+                    <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em] group-hover:text-primary transition-colors">I am a coach</span>
+                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-400 group-hover:text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
+                    </div>
+                </Link>
             </div>
         </div>
-      )}
-      
+
+        {showVerifyModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-gray-900/90 backdrop-blur-xl animate-fade-in">
+                <div className="bg-white rounded-[3rem] p-10 max-w-sm w-full text-center shadow-2xl border border-white/20">
+                    <div className="w-20 h-20 bg-primary/10 text-primary rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-inner">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <h3 className="text-2xl font-black text-gray-900 mb-3 tracking-tight">Verify Registry</h3>
+                    <p className="text-gray-500 font-medium mb-10 leading-relaxed italic">
+                        Please check your inbox to activate your growth path.
+                    </p>
+                    
+                    <div className="space-y-4">
+                        <Button 
+                            onClick={handleResendVerification}
+                            isLoading={resendStatus === 'sending'}
+                            variant="secondary"
+                            className="w-full py-4 bg-gray-50 text-gray-500 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-gray-100"
+                        >
+                            {resendStatus === 'sent' ? 'Link Resent' : 'Resend Link'}
+                        </Button>
+                        <button 
+                            onClick={handleCloseVerification}
+                            className="w-full py-4 text-primary font-black uppercase tracking-widest text-[10px] hover:underline"
+                        >
+                            Close & Continue
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+      </div>
+
       <style>{`
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        .animate-fade-in {
-            animation: fadeIn 0.2s ease-out forwards;
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes bounceSubtle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+        .animate-bounce-subtle { animation: bounceSubtle 3s ease-in-out infinite; }
       `}</style>
     </div>
   );

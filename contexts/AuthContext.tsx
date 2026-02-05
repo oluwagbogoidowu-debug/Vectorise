@@ -32,8 +32,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
-        // User is signed in.
-        
+        // CRITICAL: Block unverified users from entering the app context
+        if (!firebaseUser.emailVerified) {
+            console.log("Unverified user detected. Blocking session.");
+            await signOut(auth);
+            setUser(null);
+            setLoading(false);
+            return;
+        }
+
         try {
             // 1. Try to get data from Firestore first
             let dbUser = await userService.getUserDocument(firebaseUser.uid);
@@ -47,6 +54,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 if (!pUser.enrolledSprintIds) updates.enrolledSprintIds = [];
                 if (!pUser.shinePostIds) updates.shinePostIds = [];
                 if (!pUser.shineCommentIds) updates.shineCommentIds = [];
+                if (!pUser.referralCode) updates.referralCode = firebaseUser.uid.substring(0, 8).toUpperCase();
 
                 if (Object.keys(updates).length > 0) {
                     console.log("Migrating user profile: Adding missing tracking fields...");
@@ -73,6 +81,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     enrolledSprintIds: [],
                     shinePostIds: [],
                     shineCommentIds: [],
+                    referralCode: firebaseUser.uid.substring(0, 8).toUpperCase(),
                     walletBalance: 30, // Default 30 coins for new synced accounts
                     impactStats: { peopleHelped: 0, streak: 0 }
                 };
@@ -202,7 +211,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (user.roleDefinitionId) {
           const roleDef = MOCK_ROLES.find(r => r.id === user.roleDefinitionId);
           if (roleDef) {
-              return roleDef.permissions.includes(permission);
+              // Fix: Cast permissions to string array and permission to string to ensure type compatibility during includes check.
+              return (roleDef.permissions as string[]).includes(permission as string);
           }
       }
 
@@ -210,7 +220,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       switch (roleToCheck) {
           case 'ADMIN': return true;
-          case 'COACH': return ['sprint:create', 'sprint:edit', 'sprint:publish', 'analytics:view', 'community:moderate'].includes(permission);
+          case 'COACH': 
+              // Fix: Cast array literal to string array and permission to string to resolve string assignability issues.
+              return (['sprint:create', 'sprint:edit', 'sprint:publish', 'analytics:view', 'community:moderate'] as string[]).includes(permission as string);
           case 'PARTICIPANT': return false;
           default: return false;
       }

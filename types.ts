@@ -5,6 +5,87 @@ export enum UserRole {
   ADMIN = 'ADMIN',
 }
 
+export type EventType = 
+  | 'user_registered'
+  | 'sprint_enrolled'
+  | 'lesson_opened'
+  | 'task_viewed'
+  | 'task_submitted'
+  | 'coaching_question_asked'
+  | 'feedback_sent' // Coach action
+  | 'sprint_edited' // Coach action
+  | 'risk_flag_raised' // System event
+  | 'reflection_shared'
+  | 'wallet_credited'
+  | 'wallet_debited'
+  | 'session_start'
+  | 'milestone_claimed'
+  | 'payout_requested'
+  | 'trigger_resolved_independently';
+
+export interface UserEvent {
+  id: string;
+  userId: string; // Actor
+  eventType: EventType;
+  sprintId?: string;
+  dayNumber?: number;
+  timestamp: string;
+  metadata?: {
+      isResponseTrigger?: boolean;
+      triggerId?: string; // Links response to trigger
+      slaHrs?: number; // Configured SLA at time of trigger
+      [key: string]: any;
+  };
+}
+
+export interface Quote {
+  id: string;
+  text: string;
+  author: string;
+  createdAt: string;
+}
+
+export interface CoachAnalytics {
+  coachId: string;
+  masteryYield: number; // 0-1 (Success rate of students)
+  supportVelocityHrs: number; // Avg response time
+  slaComplianceRate: number; // % of triggers met within SLA
+  totalStudentsManaged: number;
+  activeRiskSignals: string[]; 
+  studentRetentionRate: number;
+  recoveryYield: number; // % of at-risk students recovered after response
+  updatedAt: string;
+}
+
+export type RiskLevel = 'low' | 'medium' | 'high' | 'churned';
+
+export interface UserAnalytics {
+  userId: string;
+  lastActive: string;
+  riskLevel: RiskLevel;
+  engagementScore: number; // 0-100
+  dropOffProbability: number;
+  currentCycleLabels: string[]; // e.g. ["Night Owl", "Fast Finisher"]
+  updatedAt: string;
+}
+
+export interface WalletTransaction {
+  id: string;
+  userId: string;
+  amount: number; // Positive for credit, negative for debit
+  type: 'referral' | 'milestone' | 'purchase' | 'refund' | 'payout';
+  description: string;
+  timestamp: string;
+  auditId: string; // Link to sprintId or referralId or payoutId
+}
+
+export interface PlatformPulse {
+  activeUsers24h: number;
+  totalEnrollments24h: number;
+  atRiskCount: number;
+  revenue24h: number;
+}
+
 export type Permission = 
   | 'sprint:create'
   | 'sprint:edit'
@@ -20,9 +101,9 @@ export interface RoleDefinition {
   id: string;
   name: string;
   description: string;
-  baseRole: UserRole; // Determines the dashboard layout (Coach vs Admin vs Participant)
+  baseRole: UserRole;
   permissions: Permission[];
-  isSystem?: boolean; // System roles cannot be deleted
+  isSystem?: boolean;
 }
 
 export interface User {
@@ -30,9 +111,21 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  roleDefinitionId?: string; // Link to custom role definition
+  roleDefinitionId?: string;
   profileImageUrl: string;
-  enrolledSprintIds?: string[];
+  createdAt?: string;
+}
+
+export interface CoachApplication {
+  transformationDesc: string;
+  successStory: string;
+  predictableOutcomesCount: string;
+  uniqueApproach: string;
+  uniquePhilosophy: string;
+  embodiedTraits: string;
+  personalPractice: string;
+  personalPracticeResults: string;
+  currentPricing: string;
 }
 
 export interface Coach extends User {
@@ -40,6 +133,7 @@ export interface Coach extends User {
   bio: string;
   niche: string;
   approved: boolean;
+  applicationDetails?: CoachApplication;
 }
 
 export interface Referral {
@@ -59,7 +153,7 @@ export interface ImpactReward {
   description: string;
   unlocked: boolean;
   requiredReferrals: number;
-  rewardPoints?: number; // Points awarded when unlocked
+  rewardPoints?: number;
 }
 
 export type SubscriptionTierId = 'free' | 'student' | 'basic' | 'pro' | 'premium';
@@ -80,29 +174,25 @@ export interface Participant extends User {
   role: UserRole.PARTICIPANT;
   persona?: string;
   onboardingAnswers?: Record<string, string>;
-  // Demographics for pricing
   occupation?: 'student' | 'employed' | 'self_employed' | 'unemployed';
-  incomeBracket?: 'low' | 'mid' | 'high'; // low <50k, mid 50-150k, high >150k
-  
   bio?: string;
+  intention?: string;
+  interests?: string[];
   followers?: number;
   following?: number;
   savedSprintIds?: string[];
-  
-  // New Activity Tracking Fields
+  wishlistSprintIds?: string[];
   enrolledSprintIds?: string[];
   shinePostIds?: string[];
   shineCommentIds?: string[];
-
-  // New fields for Account Switching
+  claimedMilestoneIds?: string[];
   hasCoachProfile?: boolean;
   coachBio?: string;
   coachNiche?: string;
-  coachApproved?: boolean; // Approval status for participant-turned-coach
-  
-  // Referral & Subscription System
+  coachApproved?: boolean;
+  coachApplicationDetails?: CoachApplication;
   referralCode?: string;
-  walletBalance?: number; // Growth Points/Credits
+  walletBalance?: number;
   subscription?: {
       planId: SubscriptionTierId;
       active: boolean;
@@ -110,34 +200,33 @@ export interface Participant extends User {
   };
   impactStats?: {
       peopleHelped: number;
-      streak: number; // e.g. months active
+      streak: number;
   };
 }
 
-// FIX: Add Admin interface to correctly handle users with the ADMIN role.
 export interface Admin extends User {
   role: UserRole.ADMIN;
-}
-
-export interface ActionTask {
-  id: string;
-  title: string;
-  description: string;
-  sprintId: string;
-  completed: boolean;
 }
 
 export interface DailyContent {
   day: number;
   lessonText: string;
   audioUrl?: string;
-  action: ActionTask;
+  taskPrompt: string;
   resourceUrl?: string;
   submissionType?: 'text' | 'file' | 'both' | 'none';
 }
 
 export type SprintDifficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 export type SprintApprovalStatus = 'draft' | 'pending_approval' | 'approved' | 'rejected';
+
+export interface SprintTargeting {
+    persona: string;
+    p1: string; // Question 1 for persona
+    p2: string; // Question 2 for persona
+    p3: string; // Question 3 for persona
+    occupation: string;
+}
 
 export interface Sprint {
   id: string;
@@ -148,25 +237,33 @@ export interface Sprint {
   difficulty: SprintDifficulty;
   duration: number;
   price: number;
-  pointCost?: number; // Cost in Growth Points
+  pointCost?: number;
+  pricingType?: 'cash' | 'credits';
   coverImageUrl: string;
   published: boolean;
-  approvalStatus: SprintApprovalStatus; // New field for workflow
+  approvalStatus: SprintApprovalStatus;
   dailyContent: DailyContent[];
+  updatedAt?: string;
+  createdAt?: string;
+  outcomes?: string[];
+  targeting?: SprintTargeting;
+  pendingChanges?: Partial<Sprint>; // Staging area for unapproved updates
 }
 
 export interface ParticipantSprint {
-    id: string; // Unique enrollment ID
+    id: string;
     sprintId: string;
     participantId: string;
-    startDate: string; // ISO string
+    startDate: string;
+    sentNudges?: number[]; // Track days nudged (1, 2, 4, 7, 10, 15)
     progress: {
         day: number;
         completed: boolean;
         submission?: string;
         submissionFileUrl?: string;
-        completedAt?: string; // Timestamp of completion
-        action?: ActionTask;
+        completedAt?: string;
+        reflection?: string;
+        isReflectionPublic?: boolean;
     }[];
 }
 
@@ -194,7 +291,7 @@ export interface ShinePost {
   userAvatar: string;
   content: string;
   sprintTitle?: string;
-  timestamp: string; // ISO string
+  timestamp: string;
   likes: number;
   comments: number;
   isLiked?: boolean;
@@ -211,14 +308,13 @@ export interface Notification {
   link?: string;
 }
 
-// New Types for Reviews and Coaching
 export interface Review {
     id: string;
     sprintId: string;
     userId: string;
     userName: string;
     userAvatar: string;
-    rating: number; // 1-5
+    rating: number;
     comment: string;
     timestamp: string;
 }
@@ -227,34 +323,14 @@ export interface CoachingComment {
     id: string;
     sprintId: string;
     day: number;
-    participantId: string; // The student involved
-    authorId: string; // Who wrote this message (Coach or Student)
+    participantId: string;
+    authorId: string;
     content: string;
     timestamp: string;
     read: boolean;
 }
 
-// New Types for General Chat
-export interface Message {
-  id: string;
-  conversationId: string;
-  senderId: string;
-  senderName: string;
-  senderAvatar: string;
-  content: string;
-  timestamp: string; // ISO string
-}
-
-export interface Conversation {
-  id: string;
-  type: 'direct' | 'group';
-  participants: {
-    userId: string;
-    name: string;
-    avatar: string;
-  }[];
-  groupName?: string;
-  groupAvatar?: string;
-  lastMessage: Message;
-  unreadCount: number;
+export interface NotificationPayload {
+  title: string;
+  body: string;
 }

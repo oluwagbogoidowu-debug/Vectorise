@@ -1,148 +1,101 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { sprintService } from '../../services/sprintService';
-import { Sprint } from '../../types';
-import Button from '../../components/Button';
-
-interface SprintWithCount extends Sprint {
-  participantCount: number;
-}
+import { useAuth } from '../../contexts/AuthContext.tsx';
+import { Sprint } from '../../types.ts';
+import { MOCK_PARTICIPANT_SPRINTS } from '../../services/mockData.ts';
+import { sprintService } from '../../services/sprintService.ts';
+import Button from '../../components/Button.tsx';
 
 const CoachSprints: React.FC = () => {
   const { user, hasPermission } = useAuth();
   const location = useLocation();
-  const [sprints, setSprints] = useState<SprintWithCount[]>([]);
+  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [filter, setFilter] = useState<'all' | 'published' | 'pending' | 'draft'>('all');
   const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'published' | 'pending' | 'draft' | 'rejected'>('all');
 
   useEffect(() => {
-    if (user) {
-      setIsLoading(true);
-      sprintService.getSprints()
-        .then(async allSprints => {
-          const coachSprints = allSprints.filter(s => s.coachId === user.id);
-          
-          const sprintsWithCounts = await Promise.all(
-            coachSprints.map(async sprint => {
-              const count = await sprintService.getEnrollmentCountForSprint(sprint.id);
-              return { ...sprint, participantCount: count };
-            })
-          );
-
-          setSprints(sprintsWithCounts);
-        })
-        .catch(error => {
-          console.error("Failed to fetch sprints for coach:", error);
-        })
-        .finally(() => {
+    const fetchSprints = async () => {
+      if (user) {
+        setIsLoading(true);
+        try {
+          const coachSprints = await sprintService.getCoachSprints(user.id);
+          setSprints(coachSprints);
+        } catch (err) {
+          console.error(err);
+        } finally {
           setIsLoading(false);
-        });
-    }
-  }, [user, location.key]); 
+        }
+      }
+    };
+    fetchSprints();
+  }, [user, location.key]);
 
   const filteredSprints = useMemo(() => {
-      if (filter === 'all') return sprints;
-      if (filter === 'published') return sprints.filter(s => s.published);
-      if (filter === 'pending') return sprints.filter(s => s.approvalStatus === 'pending_approval');
-      if (filter === 'rejected') return sprints.filter(s => s.approvalStatus === 'rejected');
-      if (filter === 'draft') return sprints.filter(s => s.approvalStatus === 'draft');
-      return sprints;
+    if (filter === 'all') return sprints;
+    if (filter === 'published') return sprints.filter(s => s.published);
+    if (filter === 'pending') return sprints.filter(s => s.approvalStatus === 'pending_approval');
+    if (filter === 'draft') return sprints.filter(s => s.approvalStatus === 'draft');
+    return sprints;
   }, [sprints, filter]);
-
-  const canCreateSprint = hasPermission('sprint:create');
-  const canEditSprint = hasPermission('sprint:edit');
-
-  if (isLoading) {
-    return <div className="text-center p-8">Loading your sprints...</div>;
-  }
 
   if (!user) return null;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Sprint Management</h1>
-        {canCreateSprint && (
+    <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Manage Sprints</h1>
+        {hasPermission('sprint:create') && (
             <Link to="/coach/sprint/new">
-                <Button>+ Create New Sprint</Button>
+                <Button className="rounded-xl px-6">+ Create New</Button>
             </Link>
         )}
       </div>
 
-      <div className="flex overflow-x-auto gap-2 mb-6 pb-2 hide-scrollbar">
-          {['all', 'published', 'pending', 'draft', 'rejected'].map(f => (
-              <button
+      <div className="flex gap-4 mb-8 overflow-x-auto pb-1">
+        {['all', 'published', 'pending', 'draft'].map(f => (
+            <button
                 key={f}
                 onClick={() => setFilter(f as any)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
-                    filter === f 
-                    ? 'bg-primary text-white shadow-sm' 
-                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                className={`px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-colors ${
+                    filter === f ? 'bg-primary text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                 }`}
-              >
-                  {f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-          ))}
+            >
+                {f}
+            </button>
+        ))}
       </div>
 
-      <div className="space-y-4">
-          {filteredSprints.length > 0 ? filteredSprints.map(sprint => (
-            <div key={sprint.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div className="flex items-start gap-4">
-                  <img src={sprint.coverImageUrl} alt={sprint.title} className="w-20 h-20 rounded-lg object-cover bg-gray-100" />
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-bold text-gray-900">{sprint.title}</h3>
-                        <span className={`font-bold text-[10px] px-2 py-0.5 rounded uppercase tracking-wider ${
-                            sprint.approvalStatus === 'approved' ? 'bg-green-100 text-green-700' :
-                            sprint.approvalStatus === 'pending_approval' ? 'bg-blue-100 text-blue-700' :
-                            sprint.approvalStatus === 'rejected' ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-700'
-                        }`}>
-                            {sprint.approvalStatus.replace('_', ' ')}
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-                        <span>{sprint.duration} days</span>
-                        <span>•</span>
-                        <span>{sprint.category}</span>
-                        <span>•</span>
-                        <span>{sprint.difficulty}</span>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                        <strong>{sprint.participantCount}</strong> Active Participants
-                    </div>
+      {isLoading ? (
+          <div className="text-center py-20"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div></div>
+      ) : filteredSprints.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4">
+              {filteredSprints.map(sprint => (
+                  <div key={sprint.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-6 group">
+                      <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
+                          <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-gray-900 text-lg group-hover:text-primary transition-colors truncate">{sprint.title}</h3>
+                          <div className="flex items-center gap-4 text-xs font-medium text-gray-400 mt-1">
+                              <span>{sprint.duration} Days</span>
+                              <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
+                              <span>{sprint.category}</span>
+                              <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
+                              <span className={`capitalize ${sprint.published ? 'text-green-600' : 'text-orange-500'}`}>{sprint.approvalStatus.replace('_', ' ')}</span>
+                          </div>
+                      </div>
+                      <Link to={`/coach/sprint/edit/${sprint.id}`}>
+                        <Button variant="secondary" className="px-5 py-2 rounded-lg text-xs">Edit</Button>
+                      </Link>
                   </div>
-              </div>
-              
-              <div className="flex gap-2 w-full md:w-auto">
-                {canEditSprint ? (
-                    <Link to={`/coach/sprint/edit/${sprint.id}`} className="flex-1 md:flex-none">
-                        <Button className="w-full bg-gray-100 text-gray-700 hover:bg-gray-200">
-                            {sprint.approvalStatus === 'draft' || sprint.approvalStatus === 'rejected' ? 'Edit Content' : 'View Content'}
-                        </Button>
-                    </Link>
-                ) : null}
-                {sprint.approvalStatus === 'approved' && (
-                    <Link to={`/sprint/${sprint.id}`} state={{ from: location.pathname }} className="flex-1 md:flex-none">
-                        <Button variant="secondary" className="w-full bg-white border border-gray-200 text-gray-700 hover:bg-gray-50">View Page</Button>
-                    </Link>
-                )}
-              </div>
-            </div>
-          )) : (
-            <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-200">
-                <p className="text-gray-500 mb-4">No sprints found in this category.</p>
-                {canCreateSprint && filter === 'all' && (
-                    <Link to="/coach/sprint/new">
-                        <Button>Get Started</Button>
-                    </Link>
-                )}
-            </div>
-          )}
-      </div>
+              ))}
+          </div>
+      ) : (
+          <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+              <p className="text-gray-400 font-medium">No sprints found in this category.</p>
+          </div>
+      )}
     </div>
   );
 };

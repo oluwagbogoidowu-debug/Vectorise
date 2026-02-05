@@ -1,6 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import LocalLogo from '../../components/LocalLogo';
 
 type QuizQuestion = {
   title: string;
@@ -28,21 +29,21 @@ const PERSONA_QUIZZES: PersonaQuizData = {
   ],
   "Business Owner": [
       {
-          title: "Business Type",
+          title: "Business type",
           options: ["Product-based", "Service-based", "Hybrid (product + service)", "Franchise", "E-commerce / Online store", "Local / Brick-and-mortar"]
       },
       {
-          title: "Core Challenge",
+          title: "Core challenge",
           options: ["Attracting new clients/customers", "Retaining existing clients/customers", "Scaling & increasing revenue", "Managing operations/team", "Standing out from competitors", "Accessing funding/capital"]
       },
       {
-          title: "Business Goal (Next 12 Months)",
+          title: "Business goal (Next 12 Months)",
           options: ["Build recognizable brand", "Expand into new markets/locations", "Improve loyalty & retention", "Streamline operations", "Launch new products/services", "Increase profitability/margins"]
       }
   ],
   "Freelancer/Consultant": [
       {
-          title: "Service Focus",
+          title: "Service focus",
           options: ["Coaching/mentoring", "Design/creative", "Marketing/sales", "Tech/IT", "Business/management consulting", "Other expertise"]
       },
       {
@@ -50,7 +51,7 @@ const PERSONA_QUIZZES: PersonaQuizData = {
           options: ["Getting consistent clients", "Charging my worth", "Standing out", "Building credibility", "Structuring offers/packages", "Managing clients & time"]
       },
       {
-          title: "Growth Goal (Next 12 Months)",
+          title: "Growth goal (Next 12 Months)",
           options: ["Attract high-paying clients", "Package/structure services", "Build personal brand", "Shift to retainers", "Diversify into products/courses", "Scale client delivery"]
       }
   ],
@@ -64,7 +65,7 @@ const PERSONA_QUIZZES: PersonaQuizData = {
           options: ["Packaging & positioning", "Inconsistent/low income", "Not being seen", "Passion vs. survival conflict", "No structure/strategy", "Charging true worth"]
       },
       {
-          title: "2–3 Year Vision",
+          title: "2–3 Year vision",
           options: ["Thriving creative biz", "Known authority in craft", "Partnering with big brands", "From hustle to entrepreneurship", "Multiple income streams", "Inspiring others through passion"]
       }
   ],
@@ -107,75 +108,63 @@ const INITIAL_OPTIONS = [
   "Creative/Hustler"
 ];
 
-// Additional classification questions
 const OCCUPATION_QUESTION = {
   title: "What is your current<br />employment status?",
   options: ["University Student", "Employed / Earning Salary", "Self-Employed / Business", "Unemployed / Looking"]
 };
 
-const INCOME_QUESTION = {
-  title: "What is your estimated<br />monthly income range?",
-  options: ["Under ₦50,000", "₦50,000 - ₦150,000", "₦150,000 - ₦250,000", "Above ₦250,000"]
-};
+const STORAGE_KEY = 'vectorise_quiz_prefill';
 
 const Quiz: React.FC = () => {
   const navigate = useNavigate();
-  
-  // step 0: Persona
-  // step 1 to N: Persona specific questions
-  // step N+1: Occupation
-  // step N+2: Income (if not student/unemployed)
-  const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<{[key: number]: string}>({});
-  const [selectedPersona, setSelectedPersona] = useState<string | null>(null);
-  
-  // New state for classification
-  const [occupation, setOccupation] = useState<string | null>(null);
-  const [incomeRange, setIncomeRange] = useState<string | null>(null);
+  const location = useLocation();
+  const { targetSprintId, referrerId } = location.state || {};
+
+  // Initialize state from localStorage if available
+  const getInitialState = () => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+        try {
+            return JSON.parse(saved);
+        } catch (e) {
+            return { step: 0, answers: {}, selectedPersona: null, occupation: null };
+        }
+    }
+    return { step: 0, answers: {}, selectedPersona: null, occupation: null };
+  };
+
+  const initialState = getInitialState();
+  const [step, setStep] = useState(initialState.step || 0);
+  const [answers, setAnswers] = useState<{[key: number]: string}>(initialState.answers || {});
+  const [selectedPersona, setSelectedPersona] = useState<string | null>(initialState.selectedPersona || null);
+  const [occupation, setOccupation] = useState<string | null>(initialState.occupation || null);
   const [showSummary, setShowSummary] = useState(false);
 
+  // Auto-persist state to localStorage on every change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        step, answers, selectedPersona, occupation
+    }));
+  }, [step, answers, selectedPersona, occupation]);
+
   const currentQuestion = useMemo(() => {
-    // Step 0: Persona
     if (step === 0) {
       return {
         title: "Which best describes<br />you today?",
         options: INITIAL_OPTIONS
       };
     }
-    
-    // Dynamic Persona Questions
     const personaQuestions = selectedPersona ? PERSONA_QUIZZES[selectedPersona] : [];
     const personaQCount = personaQuestions.length;
-
-    // Step 1 to N
-    if (step > 0 && step <= personaQCount) {
-      return personaQuestions[step - 1];
-    }
-
-    // Step N+1: Occupation
-    if (step === personaQCount + 1) {
-      return OCCUPATION_QUESTION;
-    }
-
-    // Step N+2: Income (Only if applicable)
-    if (step === personaQCount + 2) {
-       // Skip income for students or unemployed if you want, but the prompt asks for bracket.
-       // Let's ask everyone except maybe Students where implied.
-       return INCOME_QUESTION;
-    }
-
+    if (step > 0 && step <= personaQCount) return personaQuestions[step - 1];
+    if (step === personaQCount + 1) return OCCUPATION_QUESTION;
     return null;
   }, [step, selectedPersona]);
 
-  // Determine total steps dynamically
   const totalSteps = useMemo(() => {
      if (!selectedPersona) return 1;
-     let count = 1 + PERSONA_QUIZZES[selectedPersona].length + 1; // +1 for Occupation
-     if (occupation !== 'University Student' && occupation !== 'Unemployed / Looking') {
-         count += 1; // +1 for Income
-     }
-     return count;
-  }, [selectedPersona, occupation]);
+     return 1 + PERSONA_QUIZZES[selectedPersona].length + 1; 
+  }, [selectedPersona]);
 
   const progressPercentage = useMemo(() => {
     if (step === 0) return 15; 
@@ -184,218 +173,129 @@ const Quiz: React.FC = () => {
 
   const handleOptionSelect = (option: string) => {
     setAnswers(prev => ({ ...prev, [step]: option }));
-    
-    // Logic to store specific data
     const personaQuestions = selectedPersona ? PERSONA_QUIZZES[selectedPersona] : [];
-    
     if (step === 0) {
-      setSelectedPersona(option);
-    } else if (step === personaQuestions.length + 1) {
-        setOccupation(option);
-    } else if (step === personaQuestions.length + 2) {
-        setIncomeRange(option);
+        if (selectedPersona && selectedPersona !== option) {
+            setAnswers({ 0: option });
+            setOccupation(null);
+        }
+        setSelectedPersona(option);
     }
+    else if (step === personaQuestions.length + 1) setOccupation(option);
   };
 
   const handleNext = () => {
      const personaQuestions = selectedPersona ? PERSONA_QUIZZES[selectedPersona] : [];
-     const nextStep = step + 1;
-
-     // Logic to skip income question if student/unemployed
-     if (step === personaQuestions.length + 1) {
-         if (occupation === 'University Student' || occupation === 'Unemployed / Looking') {
-             // Finish here
-             setShowSummary(true);
-             return;
-         }
-     }
-
-     if (step >= totalSteps - 1) { // 0-indexed adjustment
-         setShowSummary(true);
-     } else {
-         setStep(nextStep);
-     }
+     if (step >= totalSteps - 1) setShowSummary(true);
+     else setStep(step + 1);
   };
 
   const handlePrevious = () => {
-    if (showSummary) {
-        setShowSummary(false);
-        return;
-    }
-    if (step === 0) {
-      navigate('/onboarding/intro');
-    } else {
-      setStep(step - 1);
-    }
+    if (showSummary) { setShowSummary(false); return; }
+    if (step === 0) navigate('/onboarding/intro');
+    else setStep(step - 1);
   };
 
   const handleFinish = () => {
-    // Determine Recommended Plan
-    let recommendedPlan = 'free'; // default
-    if (occupation === 'University Student') {
-        recommendedPlan = 'student';
-    } else {
-        if (incomeRange === 'Under ₦50,000') recommendedPlan = 'basic';
-        else if (incomeRange === '₦50,000 - ₦150,000') recommendedPlan = 'pro';
-        else if (incomeRange === '₦150,000 - ₦250,000' || incomeRange === 'Above ₦250,000') recommendedPlan = 'premium';
-        else recommendedPlan = 'basic';
-    }
-
+    let recommendedPlan = 'free'; 
+    if (occupation === 'University Student') recommendedPlan = 'student';
+    else recommendedPlan = 'basic';
+    
+    // Pass data through state to recommendations page
     navigate('/recommended', { 
-        state: { 
-            persona: selectedPersona, 
-            answers: answers,
-            occupation,
-            incomeRange,
-            recommendedPlan
-        } 
+      state: { 
+        persona: selectedPersona, 
+        answers, 
+        occupation, 
+        recommendedPlan,
+        targetSprintId,
+        referrerId 
+      } 
     });
   };
 
   if (showSummary && selectedPersona) {
     return (
-      <div className="flex flex-col h-screen px-6 py-4 max-w-md mx-auto w-full font-sans text-white animate-fade-in relative overflow-hidden">
-        <style>{`
-          @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          .animate-fade-in {
-            animation: fadeIn 0.5s ease-out forwards;
-          }
-        `}</style>
-        
-        <div className="pt-8 pb-4 text-center relative z-10">
-          <h2 className="text-3xl font-bold mb-2">Your Profile</h2>
-          <p className="opacity-80 text-lg">Here's your growth blueprint.</p>
+      <div className="flex flex-col h-screen px-6 py-4 max-w-md mx-auto w-full font-sans text-white animate-fade-in relative overflow-hidden bg-primary">
+        <div className="pt-10 pb-4 text-center relative z-10">
+          <LocalLogo type="white" className="h-8 w-auto mx-auto mb-6 opacity-80" />
+          <h2 className="text-3xl font-black mb-1 tracking-tight">Your blueprint</h2>
+          <p className="opacity-60 text-sm font-bold">Optimized for your path</p>
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar bg-white/10 rounded-3xl p-6 mb-6 backdrop-blur-md border border-white/10 shadow-xl relative z-10">
-          <div className="mb-6 border-b border-white/20 pb-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-white/60 mb-1">Persona</p>
-            <p className="text-2xl font-bold text-white tracking-wide">{selectedPersona}</p>
+        <div className="flex-1 overflow-y-auto no-scrollbar bg-white/10 rounded-[2.5rem] p-8 mb-8 backdrop-blur-xl border border-white/20 shadow-2xl relative z-10">
+          <div className="mb-8 border-b border-white/10 pb-6">
+            <p className="text-[10px] font-black text-white/40 mb-2">Selected profile</p>
+            <p className="text-2xl font-black text-white tracking-tight">{selectedPersona}</p>
           </div>
           
-           <div className="mb-6 border-b border-white/20 pb-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-white/60 mb-1">Status</p>
-            <p className="text-lg font-bold text-white tracking-wide">{occupation}</p>
-            {incomeRange && <p className="text-sm text-white/80">{incomeRange}</p>}
+           <div className="mb-8 border-b border-white/10 pb-6">
+            <p className="text-[10px] font-black text-white/40 mb-2">Context</p>
+            <p className="text-lg font-black text-white">{occupation}</p>
           </div>
 
-          <div className="space-y-6">
-            <p className="text-sm font-bold uppercase tracking-widest text-white/60">Key Insights</p>
+          <div className="space-y-8">
+            <p className="text-[10px] font-black text-white/40">Core insights</p>
             {PERSONA_QUIZZES[selectedPersona].map((question, index) => (
               <div key={index}>
-                <p 
-                  className="text-xs text-white/80 mb-1 leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: question.title }}
-                />
-                <div className="bg-black/20 rounded-lg p-3 border border-white/5">
-                    <p className="text-md font-medium text-white">
-                    {answers[index + 1]}
-                    </p>
+                <p className="text-[10px] font-bold text-white/60 mb-2 leading-relaxed" dangerouslySetInnerHTML={{ __html: question.title }} />
+                <div className="bg-black/20 rounded-2xl p-4 border border-white/5">
+                    <p className="text-sm font-bold text-white">{answers[index + 1]}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="space-y-3 pb-6 relative z-10">
-             <button
-            onClick={handleFinish}
-            className="w-full bg-white text-primary font-bold py-4 rounded-full shadow-[0_4px_14px_0_rgba(0,0,0,0.2)] active:scale-95 transition-all text-lg hover:bg-gray-50"
-            >
-            See My Plan & Sprints
+        <div className="space-y-3 pb-8 relative z-10">
+            <button onClick={handleFinish} className="w-full bg-white text-primary font-black py-5 rounded-full shadow-2xl active:scale-95 transition-all text-lg hover:bg-gray-50 uppercase tracking-widest">
+                See My Plan
             </button>
-            <button
-                onClick={() => setShowSummary(false)}
-                className="w-full text-white/80 font-semibold py-3 text-sm hover:text-white transition-colors"
-            >
-                Edit Answers
+            <button onClick={() => setShowSummary(false)} className="w-full text-white/50 font-black py-3 text-[10px] hover:text-white transition-colors">
+                Refine answers
             </button>
         </div>
       </div>
     );
   }
 
-  if (!currentQuestion) return <div>Loading...</div>;
-
-  const currentSelection = answers[step] || null;
-
-  const renderTitle = () => {
-      return { __html: currentQuestion.title };
-  };
-
   return (
-    <div className="flex flex-col h-screen px-6 py-4 max-w-md mx-auto w-full font-sans">
-      <div className="pt-8 pb-8 flex justify-center flex-shrink-0">
-        <div className="w-full h-1.5 bg-white/20 rounded-full relative overflow-hidden">
-          <div 
-            className="absolute left-0 top-0 h-full bg-white rounded-full transition-all duration-500" 
-            style={{ width: `${progressPercentage}%` }}
-          ></div>
+    <div className="flex flex-col h-screen px-6 py-4 max-w-md mx-auto w-full font-sans bg-primary text-white overflow-hidden">
+      <div className="pt-8 pb-10 flex flex-col items-center flex-shrink-0">
+        <LocalLogo type="white" className="h-6 w-auto mb-8 opacity-60" />
+        <div className="w-full h-1 bg-white/10 rounded-full relative overflow-hidden">
+          <div className="absolute left-0 top-0 h-full bg-white rounded-full transition-all duration-700 shadow-[0_0_10px_white]" style={{ width: `${progressPercentage}%` }}></div>
         </div>
       </div>
 
-      <h1 
-        className="text-3xl font-bold text-white text-center mb-8 leading-tight flex-shrink-0"
-        dangerouslySetInnerHTML={renderTitle()}
-      />
+      <h1 className="text-3xl font-black text-white text-center mb-10 leading-tight flex-shrink-0 tracking-tight" dangerouslySetInnerHTML={{ __html: currentQuestion?.title || "" }} />
 
-      <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 mb-4 px-1">
-        <div className="space-y-3 pb-4">
-          {currentQuestion.options.map((option) => {
-            const isSelected = currentSelection === option;
+      <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 mb-6 px-1 space-y-3">
+          {currentQuestion?.options.map((option) => {
+            const isSelected = answers[step] === option;
             return (
               <button
                 key={option}
                 onClick={() => handleOptionSelect(option)}
-                className={`w-full py-4 px-6 rounded-full border-2 flex items-center justify-between transition-all duration-200 group text-left text-lg font-semibold ${
-                  isSelected
-                    ? 'bg-white border-white text-primary'
-                    : 'bg-transparent border-white/40 text-white hover:bg-white/10'
+                className={`w-full py-5 px-8 rounded-[2rem] border-2 flex items-center justify-between transition-all duration-300 group text-left text-lg font-bold ${
+                  isSelected ? 'bg-white border-white text-primary shadow-xl scale-[1.02]' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
                 }`}
               >
-                <span>{option}</span>
-                <div className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
-                  isSelected ? 'border-primary bg-primary' : 'border-white/60 group-hover:border-white'
-                }`}>
-                  {isSelected && (
-                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                  )}
+                <span className="leading-tight">{option}</span>
+                <div className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${isSelected ? 'border-primary bg-primary' : 'border-white/20 group-hover:border-white/40'}`}>
+                  {isSelected && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7"></path></svg>}
                 </div>
               </button>
             );
           })}
-        </div>
       </div>
 
-      <div className="flex-shrink-0 pt-2 pb-4">
-        <div className="flex justify-between gap-4 mb-6">
-          <button
-            onClick={handlePrevious}
-            className="flex-1 bg-white text-primary font-bold py-3.5 rounded-full shadow-lg active:scale-95 transition-transform text-lg"
-          >
-            Previous
-          </button>
-          <button
-            onClick={handleNext}
-            disabled={!currentSelection}
-            className={`flex-1 font-bold py-3.5 rounded-full shadow-lg transition-all text-lg ${
-              currentSelection
-                ? 'bg-white text-primary active:scale-95'
-                : 'bg-white/50 text-primary/50 cursor-not-allowed'
-            }`}
-          >
-            Next
-          </button>
+      <div className="flex-shrink-0 pt-2 pb-6">
+        <div className="flex justify-between gap-4 mb-8">
+          <button onClick={handlePrevious} className="flex-1 bg-white/10 text-white border border-white/10 font-black py-4 rounded-full active:scale-95 transition-all text-sm">Previous</button>
+          <button onClick={handleNext} disabled={!answers[step]} className={`flex-1 font-black py-4 rounded-full shadow-xl transition-all text-sm ${answers[step] ? 'bg-white text-primary active:scale-95' : 'bg-white/30 text-white/50 cursor-not-allowed'}`}>Next</button>
         </div>
-        
-        <div className="flex justify-center">
-            <div className="w-36 h-1.5 bg-white/30 rounded-full"></div>
-        </div>
+        <div className="flex justify-center"><div className="w-36 h-1 bg-white/20 rounded-full"></div></div>
       </div>
     </div>
   );

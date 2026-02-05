@@ -1,227 +1,273 @@
 
-import React from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
-import { Participant } from '../../../types';
-import { MOCK_REWARDS, MOCK_PARTICIPANT_SPRINTS } from '../../../services/mockData';
+import { Participant, ParticipantSprint, ShinePost, Sprint } from '../../../types';
+import { sprintService } from '../../../services/sprintService';
+import { shineService } from '../../../services/shineService';
+import { userService } from '../../../services/userService';
 
-const Badges: React.FC = () => {
-    const { user } = useAuth();
-    const navigate = useNavigate();
+interface Milestone {
+    id: string;
+    title: string;
+    description: string;
+    icon: string;
+    currentValue: number;
+    targetValue: number;
+    isUnlocked: boolean;
+    isClaimed: boolean;
+    points: number;
+    color?: string;
+}
 
-    if (!user) return null;
-    const participant = user as Participant;
-    const helpCount = participant.impactStats?.peopleHelped || 0;
-    
-    // Calculate sprint stats for badges
-    const mySprints = MOCK_PARTICIPANT_SPRINTS.filter(ps => ps.participantId === user.id);
-    const completedSprints = mySprints.filter(ps => ps.progress.every(d => d.completed)).length;
-    const activeSprints = mySprints.filter(ps => !ps.progress.every(d => d.completed)).length;
+const MilestoneCard: React.FC<{ milestone: Milestone; onClaim: (m: Milestone) => void }> = ({ milestone, onClaim }) => {
+    const progress = Math.min(100, (milestone.currentValue / milestone.targetValue) * 100);
+    const [isClaiming, setIsClaiming] = useState(false);
 
-    // Define standard sprint badges with point rewards
-    const sprintBadges = [
-        {
-            id: 'sb_1',
-            title: 'Sprint Starter',
-            description: 'Enrolled in your first sprint',
-            icon: '🚀',
-            unlocked: mySprints.length > 0,
-            points: 5,
-            threshold: 1 // 1 enrollment
-        },
-        {
-            id: 'sb_2',
-            title: 'Finisher',
-            description: 'Completed your first sprint',
-            icon: '🏁',
-            unlocked: completedSprints > 0,
-            points: 10,
-            threshold: 1 // 1 completion
-        },
-        {
-            id: 'sb_3',
-            title: 'Consistent',
-            description: 'Completed 3 sprints',
-            icon: '🔥',
-            unlocked: completedSprints >= 3,
-            points: 25,
-            threshold: 3 // 3 completions
-        },
-        {
-            id: 'sb_4',
-            title: 'Master',
-            description: 'Completed 5 sprints',
-            icon: '⚡',
-            unlocked: completedSprints >= 5,
-            points: 50,
-            threshold: 5 // 5 completions
+    const handleClaim = async () => {
+        setIsClaiming(true);
+        try {
+            await onClaim(milestone);
+        } finally {
+            setIsClaiming(false);
         }
-    ];
-
-    // Find next sprint badge (based on completion count logic mostly, or just first locked)
-    // For simplicity, let's look for the next "Completion" based badge that is locked
-    const nextSprintBadge = sprintBadges.find(b => b.title !== 'Sprint Starter' && !b.unlocked);
-    const sprintProgress = nextSprintBadge 
-        ? Math.min(100, (completedSprints / nextSprintBadge.threshold) * 100) 
-        : 100;
-
-    // Get Impact Badges from Rewards (only achievements)
-    // Sort by required referrals to ensure order
-    const impactBadges = MOCK_REWARDS
-        .filter(r => r.type === 'achievement' || r.type === 'mini_guide' || r.type === 'reflection_prompt') // Including others as milestones
-        .sort((a, b) => a.requiredReferrals - b.requiredReferrals);
-
-    // Find next impact badge
-    const nextImpactBadge = impactBadges.find(r => helpCount < r.requiredReferrals);
-    const impactProgress = nextImpactBadge 
-        ? Math.min(100, (helpCount / nextImpactBadge.requiredReferrals) * 100)
-        : 100;
+    };
+    
+    const colorClass = milestone.color || 'primary';
+    const accentColor = colorClass === 'primary' ? 'rgba(14, 120, 80, 0.4)' : 
+                       colorClass === 'teal' ? 'rgba(20, 184, 166, 0.4)' : 
+                       colorClass === 'orange' ? 'rgba(249, 115, 22, 0.4)' : 
+                       'rgba(14, 120, 80, 0.4)';
 
     return (
-        <div className="max-w-4xl mx-auto px-4 py-8 pb-24">
-            <button 
-                onClick={() => navigate('/profile')} 
-                className="group flex items-center text-gray-500 hover:text-primary transition-colors mb-6 text-sm font-medium"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                Back to Profile
-            </button>
-
-            <div className="mb-8 text-center">
-                <div className="w-20 h-20 bg-yellow-50 text-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-yellow-100 shadow-sm animate-bounce-short">
-                    <span className="text-4xl">🏅</span>
+        <div className={`p-5 rounded-2xl border transition-all duration-500 relative overflow-hidden group animate-fade-in ${
+            milestone.isUnlocked 
+            ? `bg-white border-${colorClass}/20 shadow-md ring-1 ring-${colorClass}/5` 
+            : 'bg-gray-50/50 border-gray-100 opacity-80'
+        }`}>
+            <div className="flex items-start gap-4 mb-4 relative z-10">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 transition-transform duration-500 ${
+                    milestone.isUnlocked ? `bg-${colorClass}/10 text-${colorClass} scale-110 shadow-inner` : 'bg-gray-100 text-gray-300 grayscale'
+                }`}>
+                    {milestone.icon}
                 </div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Your Achievements</h1>
-                <p className="text-gray-600">Unlock badges and earn growth credits for every milestone.</p>
-            </div>
-
-            {/* NEXT MILESTONE HIGHLIGHT */}
-            <div className="bg-gradient-to-r from-primary to-[#0B6040] rounded-2xl p-6 text-white shadow-lg mb-10 relative overflow-hidden">
-                <div className="relative z-10">
-                    <div className="flex justify-between items-start mb-4">
-                        <div>
-                            <p className="text-xs font-bold text-white/70 uppercase tracking-wider mb-1">Next Major Milestone</p>
-                            <h2 className="text-2xl font-bold">{nextImpactBadge ? nextImpactBadge.title : "All Milestones Unlocked!"}</h2>
-                        </div>
-                        {nextImpactBadge && (
-                            <div className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-lg text-sm font-bold flex items-center gap-1">
-                                <span>+ {nextImpactBadge.rewardPoints || 0}</span>
-                                <span className="text-lg">🪙</span>
-                            </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start mb-1">
+                        <h3 className="font-black text-gray-900 text-sm uppercase tracking-tight truncate">{milestone.title}</h3>
+                        {milestone.isClaimed && (
+                            <span className="bg-gray-100 text-gray-400 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Collected</span>
+                        )}
+                        {milestone.isUnlocked && !milestone.isClaimed && (
+                            <span className={`bg-${colorClass} text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest animate-pulse`}>Ready</span>
                         )}
                     </div>
-                    
-                    {nextImpactBadge ? (
-                        <>
-                            <div className="flex justify-between text-xs font-semibold mb-2 text-white/80">
-                                <span>{helpCount} Referrals</span>
-                                <span>Target: {nextImpactBadge.requiredReferrals}</span>
-                            </div>
-                            <div className="w-full bg-black/20 rounded-full h-3 backdrop-blur-sm">
-                                <div 
-                                    className="bg-white h-3 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(255,255,255,0.5)]" 
-                                    style={{ width: `${impactProgress}%` }}
-                                ></div>
-                            </div>
-                            <p className="text-xs text-white/70 mt-3">
-                                {nextImpactBadge.requiredReferrals - helpCount} more referral{nextImpactBadge.requiredReferrals - helpCount !== 1 ? 's' : ''} to unlock.
-                            </p>
-                        </>
-                    ) : (
-                        <p className="text-white/90">You are a community legend! Stay tuned for more tiers.</p>
-                    )}
+                    <p className="text-[11px] text-gray-500 font-medium leading-tight line-clamp-2">{milestone.description}</p>
                 </div>
-                <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
             </div>
 
-            {/* Impact Badges Section */}
-            <div className="mb-10">
-                <div className="flex justify-between items-end mb-6">
-                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                        <span className="w-1.5 h-6 bg-yellow-500 rounded-full"></span>
-                        Impact Badges
-                    </h2>
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Referral Milestones</span>
+            <div className="relative z-10">
+                <div className="flex justify-between items-end mb-1.5">
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                        {milestone.isUnlocked ? 'Requirement Met' : `Progress: ${milestone.currentValue.toFixed(0)}/${milestone.targetValue}`}
+                    </span>
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${milestone.isUnlocked && !milestone.isClaimed ? `text-${colorClass}` : 'text-gray-400'}`}>
+                        {milestone.isClaimed ? 'Awarded' : `+${milestone.points} Credits`}
+                    </span>
                 </div>
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-4">
+                    <div 
+                        className={`h-full rounded-full transition-all duration-1000 ease-out ${milestone.isUnlocked ? (milestone.isClaimed ? 'bg-gray-400' : `bg-${colorClass} shadow-[0_0_8px_${accentColor}]`) : 'bg-gray-300'}`}
+                        style={{ width: `${progress}%` }}
+                    ></div>
+                </div>
+
+                {milestone.isUnlocked && !milestone.isClaimed && (
+                    <button 
+                        onClick={handleClaim}
+                        disabled={isClaiming}
+                        className={`w-full py-2.5 bg-${colorClass} text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-90 transition-all active:scale-95 shadow-lg shadow-${colorClass}/20 flex items-center justify-center gap-2 disabled:opacity-50`}
+                    >
+                        {isClaiming ? (
+                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        ) : 'Claim Credits'}
+                    </button>
+                )}
+            </div>
+
+            {milestone.isUnlocked && !milestone.isClaimed && (
+                <div className={`absolute top-0 right-0 w-24 h-24 bg-${colorClass}/5 rounded-full blur-2xl -mr-12 -mt-12 pointer-events-none animate-pulse`}></div>
+            )}
+        </div>
+    );
+};
+
+const Badges: React.FC = () => {
+    const { user, updateProfile } = useAuth();
+    const navigate = useNavigate();
+    const [enrollments, setEnrollments] = useState<ParticipantSprint[]>([]);
+    const [allSprintData, setAllSprintData] = useState<Sprint[]>([]);
+    const [reflections, setReflections] = useState<ShinePost[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Expansion states for each badge category
+    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+
+    useEffect(() => {
+        if (!user) return;
+        setIsLoading(true);
+        const fetchData = async () => {
+            try {
+                const [userEnrollments, allPosts] = await Promise.all([
+                    sprintService.getUserEnrollments(user.id),
+                    shineService.getPosts()
+                ]);
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {impactBadges.map(badge => {
-                         const isUnlocked = helpCount >= badge.requiredReferrals;
-                         return (
-                            <div key={badge.id} className={`p-5 rounded-xl border flex items-center gap-4 transition-all relative overflow-hidden ${isUnlocked ? 'bg-gradient-to-r from-yellow-50 to-white border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100 opacity-70'}`}>
-                                <div className={`w-16 h-16 rounded-full flex items-center justify-center text-3xl flex-shrink-0 ${isUnlocked ? 'bg-white shadow-sm' : 'bg-gray-200 grayscale'}`}>
-                                    {badge.type === 'achievement' ? '🏆' : '🎁'}
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="font-bold text-gray-900 mb-1">{badge.title}</h3>
-                                    <p className="text-xs text-gray-500 mb-2">{badge.description}</p>
-                                    <div className="flex items-center gap-2">
-                                         {isUnlocked ? (
-                                             <span className="text-[10px] font-bold bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">Unlocked</span>
-                                         ) : (
-                                             <span className="text-[10px] font-bold text-gray-400">{helpCount} / {badge.requiredReferrals} Referrals</span>
-                                         )}
-                                    </div>
-                                </div>
-                                <div className={`absolute top-0 right-0 px-2 py-1 text-[10px] font-bold rounded-bl-lg ${isUnlocked ? 'bg-yellow-200 text-yellow-900' : 'bg-gray-200 text-gray-500'}`}>
-                                    +{badge.rewardPoints} 🪙
-                                </div>
-                            </div>
-                         );
-                    })}
+                const sprintIds = Array.from(new Set(userEnrollments.map(e => e.sprintId)));
+                const sprints = await Promise.all(sprintIds.map(id => sprintService.getSprintById(id)));
+                
+                setEnrollments(userEnrollments);
+                setAllSprintData(sprints.filter((s): s is Sprint => s !== null));
+                setReflections(allPosts.filter(p => p.userId === user.id));
+            } catch (err) {
+                console.error("Achievement fetch error", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchData();
+    }, [user]);
+
+    const stats = useMemo(() => {
+        if (!user) return null;
+        const p = user as Participant;
+        const completedSprints = enrollments.filter(e => e.progress.every(day => day.completed));
+        const completedPaidSprintsCount = completedSprints.filter(e => {
+            const s = allSprintData.find(ms => ms.id === e.sprintId);
+            return s?.pricingType === 'cash' || (s?.price && s.price > 0);
+        }).length;
+        const finishedEarlyCount = completedSprints.filter(e => {
+            const lastTask = [...e.progress].sort((a,b) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime())[0];
+            if (!lastTask || !lastTask.completedAt) return false;
+            const diffDays = (new Date(lastTask.completedAt).getTime() - new Date(e.startDate).getTime()) / (1000 * 60 * 60 * 24);
+            return diffDays < (e.progress.length - 1);
+        }).length;
+        const daysSinceJoin = Math.max(1, Math.ceil((Date.now() - new Date(p.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));
+        const streak = p.impactStats?.streak || 0;
+        const peopleHelped = p.impactStats?.peopleHelped || 0;
+        return { started: enrollments.length, completed: completedSprints.length, completedPaid: completedPaidSprintsCount, finishedEarly: finishedEarlyCount, reflectionsCount: reflections.length, meaningfulReflections: reflections.filter(r => r.content.trim().length > 50).length, daysActive: daysSinceJoin, streak: streak, peopleHelped: peopleHelped };
+    }, [user, enrollments, reflections, allSprintData]);
+
+    const milestonesByType = useMemo(() => {
+        if (!stats || !user) return { sprint: [], consistency: [], commitment: [], reflection: [], impact: [] };
+        const p = user as Participant;
+        const claimed = p.claimedMilestoneIds || [];
+        const categories = {
+            sprint: [
+                { id: 's1', title: 'First Spark', description: 'Enrolled in your first growth sprint.', icon: '🚀', currentValue: stats.started, targetValue: 1, points: 5 },
+                { id: 's2', title: 'The Closer', description: 'Successfully finished your first sprint program.', icon: '🏁', currentValue: stats.completed, targetValue: 1, points: 15 },
+                { id: 's4', title: 'Growth Habit', description: 'Completed 3 high-impact sprints.', icon: '🏗️', currentValue: stats.completed, targetValue: 3, points: 50 },
+                { id: 'ps5', title: 'Paid Pioneer', description: 'Completed 5 paid sprints.', icon: '💳', currentValue: stats.completedPaid, targetValue: 5, points: 100 }
+            ],
+            impact: [
+                { id: 'i1', title: 'Impact 1 Degree', description: 'Helped 1 person start their growth journey.', icon: '🌱', currentValue: stats.peopleHelped, targetValue: 1, points: 5, color: 'teal' },
+                { id: 'i10', title: 'Impact 10 Degree', description: 'Influential guide: 10 people catalyzed.', icon: '🌳', currentValue: stats.peopleHelped, targetValue: 10, points: 50, color: 'teal' }
+            ],
+            consistency: [
+                { id: 'c1', title: 'The Start', description: 'Wrote your first learning reflection.', icon: '💡', currentValue: stats.reflectionsCount, targetValue: 1, points: 5 },
+                { id: 'c2', title: 'Momentum', description: 'Maintained a 3-day completion streak.', icon: '🔥', currentValue: stats.streak, targetValue: 3, points: 10 }
+            ],
+            commitment: [
+                { id: 'cm1', title: 'Settling In', description: '60 days since you started your rise.', icon: '🌱', currentValue: stats.daysActive, targetValue: 60, points: 20 },
+                { id: 'cm2', title: 'The Quarter', description: '90 days of intentional growth tracking.', icon: '🏢', currentValue: stats.daysActive, targetValue: 90, points: 50 }
+            ],
+            reflection: [
+                { id: 'r1', title: 'Deep Diver', description: 'First reflection exceeding surface-level updates.', icon: '🌊', currentValue: stats.meaningfulReflections, targetValue: 1, points: 10 },
+                { id: 'r2', title: 'Self-Aware', description: 'Shared 5 deep, meaningful breakthroughs.', icon: '💎', currentValue: stats.meaningfulReflections, targetValue: 5, points: 30 }
+            ]
+        };
+        const mapToMilestone = (m: any): Milestone => ({ ...m, isUnlocked: m.currentValue >= m.targetValue, isClaimed: claimed.includes(m.id) });
+        return {
+            sprint: categories.sprint.map(mapToMilestone),
+            consistency: categories.consistency.map(mapToMilestone),
+            commitment: categories.commitment.map(mapToMilestone),
+            reflection: categories.reflection.map(mapToMilestone),
+            impact: categories.impact.map(mapToMilestone)
+        };
+    }, [stats, user]);
+
+    const handleClaim = async (m: Milestone) => {
+        if (!user) return;
+        try {
+            await userService.claimMilestone(user.id, m.id, m.points);
+            const p = user as Participant;
+            const newClaimed = [...(p.claimedMilestoneIds || []), m.id];
+            const newBalance = (p.walletBalance || 0) + m.points;
+            await updateProfile({ claimedMilestoneIds: newClaimed, walletBalance: newBalance });
+        } catch (err) {
+            alert("Failed to claim credits.");
+        }
+    };
+
+    const toggleCategory = (cat: string) => {
+        setExpandedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
+    };
+
+    if (!user) return null;
+
+    const CategorySection = ({ title, type, milestones, color }: { title: string, type: string, milestones: Milestone[], color: string }) => {
+        const isExpanded = expandedCategories[type] || false;
+        const visibleMilestones = isExpanded ? milestones : milestones.slice(0, 3);
+
+        return (
+            <section className="animate-fade-in">
+                <div className="flex items-center gap-3 mb-8">
+                    <div className={`w-1.5 h-6 bg-${color}-500 rounded-full`}></div>
+                    <h2 className="text-xl font-black text-gray-900 uppercase tracking-widest">{title}</h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {visibleMilestones.map(m => <MilestoneCard key={m.id} milestone={m} onClaim={handleClaim} />)}
+                </div>
+                {milestones.length > 3 && (
+                    <button 
+                        onClick={() => toggleCategory(type)}
+                        className="mt-6 w-full py-4 bg-white hover:bg-gray-50 text-gray-400 font-black uppercase tracking-widest text-[9px] rounded-xl transition-all border border-gray-100 active:scale-95 shadow-sm"
+                    >
+                        {isExpanded ? `Collapse ${title}` : `See More (${milestones.length - 3} Hidden)`}
+                    </button>
+                )}
+            </section>
+        );
+    };
+
+    return (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 pb-32 animate-fade-in bg-[#FAFAFA]">
+            <div className="mb-12">
+                <button onClick={() => navigate('/profile')} className="group flex items-center text-gray-400 hover:text-primary transition-colors mb-6 text-xs font-black uppercase tracking-widest"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>My Profile</button>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                    <div>
+                        <h1 className="text-4xl font-black text-gray-900 tracking-tight mb-2 italic">The Hall of Rise.</h1>
+                        <p className="text-gray-500 font-medium text-lg">Your progress matters. Claim credits as you hit milestones.</p>
+                    </div>
                 </div>
             </div>
 
-            {/* Sprint Badges Section */}
-            <div>
-                <div className="flex justify-between items-end mb-6">
-                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                        <span className="w-1.5 h-6 bg-blue-500 rounded-full"></span>
-                        Sprint Milestones
-                    </h2>
-                     {nextSprintBadge && (
-                         <div className="text-right">
-                            <span className="text-[10px] font-bold text-gray-400 block uppercase tracking-wider">Next: {nextSprintBadge.title}</span>
-                             <div className="w-24 h-1.5 bg-gray-100 rounded-full mt-1">
-                                 <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${sprintProgress}%` }}></div>
-                             </div>
-                         </div>
-                     )}
+            {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-24 bg-white rounded-[3rem] border border-gray-100 shadow-sm">
+                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p className="text-gray-400 font-black uppercase tracking-widest text-[10px]">Syncing Milestones...</p>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                    {sprintBadges.map(badge => (
-                        <div key={badge.id} className={`p-4 rounded-xl border flex flex-col items-center text-center transition-all relative ${badge.unlocked ? 'bg-white border-blue-100 shadow-sm' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl mb-3 ${badge.unlocked ? 'bg-blue-50' : 'bg-gray-200 grayscale'}`}>
-                                {badge.icon}
-                            </div>
-                            <h3 className="font-bold text-gray-900 text-sm mb-1">{badge.title}</h3>
-                            <p className="text-xs text-gray-500 mb-3">{badge.description}</p>
-                            
-                            {badge.unlocked ? (
-                                <span className="mt-auto text-[10px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-1 rounded">Unlocked</span>
-                            ) : (
-                                <span className="mt-auto text-[10px] font-bold text-gray-400 uppercase tracking-wider">{completedSprints}/{badge.threshold} Done</span>
-                            )}
-                            
-                            <div className={`absolute top-2 right-2 text-[10px] font-bold ${badge.unlocked ? 'text-blue-600' : 'text-gray-400'}`}>
-                                +{badge.points} 🪙
-                            </div>
-                        </div>
-                    ))}
+            ) : (
+                <div className="space-y-16">
+                    <CategorySection title="Impact Degrees" type="impact" milestones={milestonesByType.impact} color="teal" />
+                    <CategorySection title="Sprint Milestones" type="sprint" milestones={milestonesByType.sprint} color="primary" />
+                    <CategorySection title="Consistency" type="consistency" milestones={milestonesByType.consistency} color="orange" />
+                    <CategorySection title="Commitment" type="commitment" milestones={milestonesByType.commitment} color="blue" />
+                    <CategorySection title="Self-Awareness" type="reflection" milestones={milestonesByType.reflection} color="yellow" />
                 </div>
-            </div>
-            
+            )}
             <style>{`
-                @keyframes bounceShort {
-                    0%, 100% { transform: scale(1); }
-                    50% { transform: scale(1.1); }
-                }
-                .animate-bounce-short {
-                    animation: bounceShort 0.5s ease-in-out;
-                }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
             `}</style>
         </div>
     );
