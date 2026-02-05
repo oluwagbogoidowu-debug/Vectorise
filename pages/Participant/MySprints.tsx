@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -114,197 +113,159 @@ const MySprints: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <div className="flex flex-col items-center justify-center h-screen bg-light">
                 <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Loading Journey...</p>
+                <p className="text-gray-400 font-bold uppercase tracking-widest text-[8px]">Synchronizing Journey...</p>
             </div>
         );
     }
 
     return (
-        <div className="max-w-4xl mx-auto px-4 py-8 pb-32 animate-fade-in">
-            <h1 className="text-3xl font-black mb-10 text-gray-900 tracking-tight">My Sprints</h1>
+        <div className="h-screen w-full bg-light flex flex-col overflow-hidden animate-fade-in">
+            {/* Header section fixed */}
+            <div className="px-6 py-5 flex-shrink-0 bg-white border-b border-gray-100">
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">My Journey</h1>
+            </div>
 
-            {/* 1. IN PROGRESS - Always show all */}
-            <section className="mb-14">
-                <h2 className="text-sm font-black text-gray-400 uppercase tracking-[0.2em] mb-6">In Progress</h2>
-                {inProgressSprints.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-6">
-                        {inProgressSprints.map(({ enrollment, sprint }) => {
-                            const progress = calculateProgress(enrollment);
-                            return (
-                                <Link key={enrollment.id} to={`/participant/sprint/${enrollment.id}`} className="block group">
-                                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col sm:flex-row gap-6">
-                                        <div className="w-full sm:w-32 h-32 rounded-2xl overflow-hidden flex-shrink-0">
-                                            <img src={sprint.coverImageUrl} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <p className="text-[10px] font-black text-primary uppercase tracking-widest">{sprint.category}</p>
-                                                <span className="text-xs font-bold text-gray-400">{progress.toFixed(0)}%</span>
+            {/* Scrollable Body Content */}
+            <div className="flex-1 overflow-y-auto px-4 py-6 pb-32 custom-scrollbar">
+                <div className="max-w-screen-lg mx-auto w-full">
+                    {/* 1. IN PROGRESS */}
+                    <section className="mb-10">
+                        <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-1">In Progress</h2>
+                        {inProgressSprints.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-3">
+                                {inProgressSprints.map(({ enrollment, sprint }) => {
+                                    const progress = calculateProgress(enrollment);
+                                    return (
+                                        <Link key={enrollment.id} to={`/participant/sprint/${enrollment.id}`} className="block group">
+                                            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col sm:flex-row gap-4">
+                                                <div className="w-full sm:w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 shadow-inner">
+                                                    <img src={sprint.coverImageUrl} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <p className="text-[8px] font-black text-primary uppercase tracking-widest">{sprint.category}</p>
+                                                        <span className="text-[10px] font-bold text-gray-400">{progress.toFixed(0)}%</span>
+                                                    </div>
+                                                    <h3 className="text-sm font-black text-gray-900 mb-2 truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
+                                                    <ProgressBar value={progress} />
+                                                    <div className="mt-3 flex items-center justify-between">
+                                                        <p className="text-[10px] text-gray-500 font-bold uppercase">Day {enrollment.progress.filter(p => p.completed).length + 1} / {sprint.duration}</p>
+                                                        <button className="text-[8px] font-black text-primary uppercase tracking-widest group-hover:underline">Resume &rarr;</button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <h3 className="text-lg font-bold text-gray-900 mb-4 group-hover:text-primary transition-colors truncate">{sprint.title}</h3>
-                                            <ProgressBar value={progress} />
-                                            <div className="mt-4 flex items-center justify-between">
-                                                <p className="text-xs text-gray-500 font-medium">Day {enrollment.progress.filter(p => p.completed).length + 1} of {sprint.duration}</p>
-                                                <button className="text-[10px] font-black text-primary uppercase tracking-widest group-hover:underline">Resume &rarr;</button>
-                                            </div>
-                                        </div>
-                                    </div>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                <p className="text-gray-400 mb-4 font-medium text-xs">No active programs.</p>
+                                <Link to="/discover">
+                                    <Button className="rounded-xl px-6 py-2 text-[9px] font-black uppercase tracking-widest">Find a Path</Button>
                                 </Link>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <div className="text-center py-12 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
-                        <p className="text-gray-400 mb-6 font-medium text-sm">No active sprints today.</p>
-                        <Link to="/discover">
-                            <Button className="rounded-xl px-8 text-xs font-black uppercase tracking-widest">Discover Sprints</Button>
-                        </Link>
-                    </div>
-                )}
-            </section>
-
-            {/* 2. UPCOMING QUEUE - Show 3 primarily */}
-            <section className="mb-14">
-                <div className="flex items-center gap-3 mb-6">
-                    <h2 className="text-sm font-black text-gray-400 uppercase tracking-[0.2em]">Upcoming Queue</h2>
-                    <div className="h-px bg-gray-100 flex-1"></div>
-                </div>
-                {queuedSprints.length > 0 ? (
-                    <>
-                        <div className="grid grid-cols-1 gap-4">
-                            {(isQueuedExpanded ? queuedSprints : queuedSprints.slice(0, 3)).map((sprint, idx) => (
-                                <div key={sprint.id} className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center gap-4 hover:shadow-sm transition-all group animate-fade-in">
-                                    <Link to={`/sprint/${sprint.id}`} className="flex-shrink-0">
-                                        <div className="w-16 h-16 rounded-xl overflow-hidden">
-                                            <img src={sprint.coverImageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" />
-                                        </div>
-                                    </Link>
-                                    <Link to={`/sprint/${sprint.id}`} className="min-w-0 flex-1">
-                                        <h3 className="font-bold text-gray-900 text-sm truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase">{sprint.duration} Days • {sprint.category}</p>
-                                    </Link>
-                                    <div className="flex items-center gap-1 sm:gap-2">
-                                        <div className="flex flex-col gap-1 mr-2 sm:mr-4">
-                                            <button onClick={(e) => { e.preventDefault(); handleReorder(idx, 'up'); }} disabled={idx === 0} className={`p-1.5 rounded-lg border transition-all ${idx === 0 ? 'opacity-20 cursor-not-allowed border-gray-100' : 'text-primary border-primary/10 hover:bg-primary/5 active:scale-90'}`}>
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
-                                            </button>
-                                            <button onClick={(e) => { e.preventDefault(); handleReorder(idx, 'down'); }} disabled={idx === queuedSprints.length - 1} className={`p-1.5 rounded-lg border transition-all ${idx === queuedSprints.length - 1 ? 'opacity-20 cursor-not-allowed border-gray-100' : 'text-primary border-primary/10 hover:bg-primary/5 active:scale-90'}`}>
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
-                                            </button>
-                                        </div>
-                                        <Link to={`/sprint/${sprint.id}`} className="p-3 text-gray-300 hover:text-primary transition-colors hover:bg-primary/5 rounded-xl"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg></Link>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        {queuedSprints.length > 3 && (
-                            <button 
-                                onClick={() => setIsQueuedExpanded(!isQueuedExpanded)}
-                                className="mt-4 w-full py-3 bg-gray-50 hover:bg-gray-100 text-gray-400 font-black uppercase tracking-widest text-[9px] rounded-xl transition-all border border-gray-100 active:scale-95"
-                            >
-                                {isQueuedExpanded ? 'Collapse List' : `See More (${queuedSprints.length - 3} Hidden)`}
-                            </button>
+                            </div>
                         )}
-                    </>
-                ) : (
-                    <div className="p-10 bg-gray-50/30 rounded-3xl border border-dashed border-gray-200 text-center">
-                        <p className="text-sm text-gray-400 italic">No committed sprints in queue.</p>
-                    </div>
-                )}
-            </section>
+                    </section>
 
-            {/* 3. GROWTH WAITLIST (BOOKMARKS) - Show 3 primarily */}
-            <section className="mb-14">
-                <div className="flex items-center gap-3 mb-6">
-                    <h2 className="text-sm font-black text-gray-400 uppercase tracking-[0.2em]">Growth Waitlist</h2>
-                    <div className="h-px bg-gray-100 flex-1"></div>
-                </div>
-                {waitlistSprints.length > 0 ? (
-                    <>
-                        <div className="grid grid-cols-1 gap-4">
-                            {(isWaitlistExpanded ? waitlistSprints : waitlistSprints.slice(0, 3)).map((sprint) => (
-                                <div key={sprint.id} className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center gap-4 hover:shadow-sm transition-all group animate-fade-in">
-                                    <Link to={`/sprint/${sprint.id}`} className="flex-shrink-0">
-                                        <div className="w-16 h-16 rounded-xl overflow-hidden">
-                                            <img src={sprint.coverImageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" />
-                                        </div>
-                                    </Link>
-                                    <Link to={`/sprint/${sprint.id}`} className="min-w-0 flex-1">
-                                        <h3 className="font-bold text-gray-900 text-sm truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase">{sprint.duration} Days • {sprint.category}</p>
-                                    </Link>
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={(e) => { e.preventDefault(); handleRemoveFromWaitlist(sprint.id); }} className="p-3 text-gray-300 hover:text-red-500 transition-colors hover:bg-red-50 rounded-xl" title="Remove from Waitlist">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                        </button>
-                                        <Link to={`/sprint/${sprint.id}`} className="p-3 text-primary hover:bg-primary/5 rounded-xl transition-all"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg></Link>
-                                    </div>
-                                </div>
-                            ))}
+                    {/* 2. UPCOMING QUEUE */}
+                    <section className="mb-10">
+                        <div className="flex items-center gap-2 mb-4">
+                            <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Queue</h2>
+                            <div className="h-px bg-gray-100 flex-1"></div>
                         </div>
-                        {waitlistSprints.length > 3 && (
-                            <button 
-                                onClick={() => setIsWaitlistExpanded(!isWaitlistExpanded)}
-                                className="mt-4 w-full py-3 bg-gray-50 hover:bg-gray-100 text-gray-400 font-black uppercase tracking-widest text-[9px] rounded-xl transition-all border border-gray-100 active:scale-95"
-                            >
-                                {isWaitlistExpanded ? 'Collapse Waitlist' : `See More (${waitlistSprints.length - 3} Hidden)`}
-                            </button>
+                        {queuedSprints.length > 0 ? (
+                            <>
+                                <div className="grid grid-cols-1 gap-2.5">
+                                    {(isQueuedExpanded ? queuedSprints : queuedSprints.slice(0, 2)).map((sprint, idx) => (
+                                        <div key={sprint.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3 hover:shadow-sm transition-all group animate-fade-in">
+                                            <Link to={`/sprint/${sprint.id}`} className="flex-shrink-0">
+                                                <div className="w-12 h-12 rounded-lg overflow-hidden">
+                                                    <img src={sprint.coverImageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" />
+                                                </div>
+                                            </Link>
+                                            <Link to={`/sprint/${sprint.id}`} className="min-w-0 flex-1">
+                                                <h3 className="font-bold text-gray-900 text-[12px] truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
+                                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">{sprint.duration} Days • {sprint.category}</p>
+                                            </Link>
+                                            <div className="flex items-center gap-1">
+                                                <div className="flex flex-col gap-0.5 mr-1">
+                                                    <button onClick={(e) => { e.preventDefault(); handleReorder(idx, 'up'); }} disabled={idx === 0} className={`p-1 rounded-md border transition-all ${idx === 0 ? 'opacity-20 cursor-not-allowed border-gray-50' : 'text-primary border-primary/5 hover:bg-primary/5 active:scale-90'}`}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
+                                                    </button>
+                                                    <button onClick={(e) => { e.preventDefault(); handleReorder(idx, 'down'); }} disabled={idx === queuedSprints.length - 1} className={`p-1 rounded-md border transition-all ${idx === queuedSprints.length - 1 ? 'opacity-20 cursor-not-allowed border-gray-50' : 'text-primary border-primary/5 hover:bg-primary/5 active:scale-90'}`}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                                                    </button>
+                                                </div>
+                                                <Link to={`/sprint/${sprint.id}`} className="p-2 text-gray-300 hover:text-primary transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg></Link>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                {queuedSprints.length > 2 && (
+                                    <button 
+                                        onClick={() => setIsQueuedExpanded(!isQueuedExpanded)}
+                                        className="mt-3 w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-400 font-black uppercase tracking-widest text-[8px] rounded-lg border border-gray-100 transition-all"
+                                    >
+                                        {isQueuedExpanded ? 'Collapse' : `See More (${queuedSprints.length - 2})`}
+                                    </button>
+                                )}
+                            </>
+                        ) : (
+                            <div className="p-6 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 text-center">
+                                <p className="text-[10px] text-gray-400 italic">Queue is clear.</p>
+                            </div>
                         )}
-                    </>
-                ) : (
-                    <div className="p-10 bg-gray-50/30 rounded-3xl border border-dashed border-gray-200 text-center">
-                        <p className="text-sm text-gray-400 italic">Waitlist is clear. Save sprints from discovery to see them here.</p>
-                    </div>
-                )}
-            </section>
+                    </section>
 
-            {/* 4. GROWTH ARCHIVES (MASTERED) - Show 3 primarily */}
-            <section>
-                <div className="flex items-center gap-3 mb-6">
-                    <h2 className="text-sm font-black text-gray-400 uppercase tracking-[0.2em]">Growth Archives</h2>
-                    <div className="h-px bg-gray-100 flex-1"></div>
-                </div>
-                {archivedSprints.length > 0 ? (
-                    <>
-                        <div className="grid grid-cols-1 gap-4">
-                            {(isArchivedExpanded ? archivedSprints : archivedSprints.slice(0, 3)).map(({ enrollment, sprint }) => (
-                                <div key={enrollment.id} className="bg-white rounded-2xl p-5 border border-gray-100 flex items-center gap-6 opacity-80 hover:opacity-100 transition-all group animate-fade-in">
-                                    <div className="w-16 h-16 rounded-xl overflow-hidden grayscale group-hover:grayscale-0 transition-all duration-500">
-                                        <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <h3 className="font-bold text-gray-700 text-sm truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
-                                            <span className="text-[8px] font-black bg-green-50 text-green-600 px-2 py-0.5 rounded-full uppercase tracking-widest border border-green-100">Mastered</span>
-                                        </div>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase">{sprint.duration} Days • Finished {new Date(enrollment.progress.find(p => p.day === sprint.duration)?.completedAt || '').toLocaleDateString()}</p>
-                                    </div>
-                                    <Link to={`/participant/sprint/${enrollment.id}`} className="p-3 text-gray-300 hover:text-primary transition-colors hover:bg-primary/5 rounded-xl" title="Review Content">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-                                    </Link>
-                                </div>
-                            ))}
+                    {/* 3. GROWTH ARCHIVES */}
+                    <section>
+                        <div className="flex items-center gap-2 mb-4">
+                            <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Archives</h2>
+                            <div className="h-px bg-gray-100 flex-1"></div>
                         </div>
-                        {archivedSprints.length > 3 && (
-                            <button 
-                                onClick={() => setIsArchivedExpanded(!isArchivedExpanded)}
-                                className="mt-4 w-full py-3 bg-gray-50 hover:bg-gray-100 text-gray-400 font-black uppercase tracking-widest text-[9px] rounded-xl transition-all border border-gray-100 active:scale-95"
-                            >
-                                {isArchivedExpanded ? 'Collapse Archives' : `See More (${archivedSprints.length - 3} Hidden)`}
-                            </button>
+                        {archivedSprints.length > 0 ? (
+                            <>
+                                <div className="grid grid-cols-1 gap-2.5">
+                                    {(isArchivedExpanded ? archivedSprints : archivedSprints.slice(0, 2)).map(({ enrollment, sprint }) => (
+                                        <div key={enrollment.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-4 group animate-fade-in">
+                                            <div className="w-12 h-12 rounded-lg overflow-hidden grayscale opacity-50">
+                                                <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-bold text-gray-700 text-[12px] truncate">{sprint.title}</h3>
+                                                <span className="text-[7px] font-black bg-green-50 text-green-600 px-1.5 py-0.5 rounded uppercase tracking-widest border border-green-100">Mastered</span>
+                                            </div>
+                                            <Link to={`/participant/sprint/${enrollment.id}`} className="p-2 text-gray-300 hover:text-primary transition-colors" title="Review">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                                            </Link>
+                                        </div>
+                                    ))}
+                                </div>
+                                {archivedSprints.length > 2 && (
+                                    <button 
+                                        onClick={() => setIsArchivedExpanded(!isArchivedExpanded)}
+                                        className="mt-3 w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-400 font-black uppercase tracking-widest text-[8px] rounded-lg border border-gray-100 transition-all"
+                                    >
+                                        {isArchivedExpanded ? 'Collapse' : `See More (${archivedSprints.length - 2})`}
+                                    </button>
+                                )}
+                            </>
+                        ) : (
+                            <div className="p-6 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 text-center">
+                                <p className="text-[10px] text-gray-400 italic">No archives yet.</p>
+                            </div>
                         )}
-                    </>
-                ) : (
-                    <div className="p-10 bg-gray-50/30 rounded-3xl border border-dashed border-gray-200 text-center">
-                        <p className="text-sm text-gray-400 italic">No mastered sprints yet. Complete your first cycle to start your archive.</p>
-                    </div>
-                )}
-            </section>
+                    </section>
+                </div>
+            </div>
             
             <style>{`
-                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.05); border-radius: 10px; }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
                 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
             `}</style>
         </div>

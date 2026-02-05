@@ -94,6 +94,11 @@ const AppRoutes: React.FC = () => {
                             location.pathname === '/coach/onboarding/complete' ||
                             location.pathname.startsWith('/join/');
   
+  const isAuthRoute = 
+    location.pathname === '/login' || 
+    location.pathname === '/signup' || 
+    location.pathname === '/verify-email';
+
   const isParticipantAppLayout = 
     location.pathname === '/dashboard' || 
     location.pathname === '/discover' ||
@@ -110,7 +115,8 @@ const AppRoutes: React.FC = () => {
 
   const isCoachAppLayout = location.pathname.startsWith('/coach/') && location.pathname !== '/coach/onboarding/complete';
 
-  const showGlobalHeader = !isOnboardingRoute && !isParticipantAppLayout && !isCoachAppLayout;
+  // Exclude auth routes from global header to allow fixed viewport layouts
+  const showGlobalHeader = !isOnboardingRoute && !isParticipantAppLayout && !isCoachAppLayout && !isAuthRoute;
 
   const showParticipantNav = 
     user && 
@@ -118,14 +124,12 @@ const AppRoutes: React.FC = () => {
     !isOnboardingRoute &&
     !location.pathname.startsWith('/coach') &&
     !location.pathname.startsWith('/admin') &&
-    !location.pathname.startsWith('/login') &&
-    !location.pathname.startsWith('/signup') &&
-    !location.pathname.startsWith('/verify-email');
+    !isAuthRoute;
 
   return (
     <div className={`min-h-screen font-sans ${isOnboardingRoute ? 'bg-primary text-white' : 'bg-light text-dark'}`}>
       {showGlobalHeader && <Header />}
-      <main className={showGlobalHeader ? "container mx-auto p-4 md:p-6 lg:p-8" : ""}>
+      <main className={showGlobalHeader ? "container mx-auto pt-1 md:pt-2 px-4 pb-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8" : ""}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignUpPage />} />

@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
@@ -217,41 +216,41 @@ const Quiz: React.FC = () => {
   if (showSummary && selectedPersona) {
     return (
       <div className="flex flex-col h-screen px-6 py-4 max-w-md mx-auto w-full font-sans text-white animate-fade-in relative overflow-hidden bg-primary">
-        <div className="pt-10 pb-4 text-center relative z-10">
-          <LocalLogo type="white" className="h-8 w-auto mx-auto mb-6 opacity-80" />
-          <h2 className="text-3xl font-black mb-1 tracking-tight">Your blueprint</h2>
-          <p className="opacity-60 text-sm font-bold">Optimized for your path</p>
+        <div className="pt-6 pb-4 text-center relative z-10">
+          <LocalLogo type="white" className="h-8 w-auto mx-auto mb-4 opacity-80" />
+          <h2 className="text-2xl font-black mb-1 tracking-tight">Your blueprint</h2>
+          <p className="opacity-60 text-xs font-bold">Optimized for your path</p>
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar bg-white/10 rounded-[2.5rem] p-8 mb-8 backdrop-blur-xl border border-white/20 shadow-2xl relative z-10">
-          <div className="mb-8 border-b border-white/10 pb-6">
-            <p className="text-[10px] font-black text-white/40 mb-2">Selected profile</p>
-            <p className="text-2xl font-black text-white tracking-tight">{selectedPersona}</p>
+        <div className="flex-1 overflow-y-auto no-scrollbar bg-white/10 rounded-[2rem] p-6 mb-6 backdrop-blur-xl border border-white/20 shadow-2xl relative z-10">
+          <div className="mb-6 border-b border-white/10 pb-4">
+            <p className="text-[9px] font-black text-white/40 mb-1.5">Selected profile</p>
+            <p className="text-xl font-black text-white tracking-tight">{selectedPersona}</p>
           </div>
           
-           <div className="mb-8 border-b border-white/10 pb-6">
-            <p className="text-[10px] font-black text-white/40 mb-2">Context</p>
-            <p className="text-lg font-black text-white">{occupation}</p>
+           <div className="mb-6 border-b border-white/10 pb-4">
+            <p className="text-[9px] font-black text-white/40 mb-1.5">Context</p>
+            <p className="text-base font-black text-white">{occupation}</p>
           </div>
 
-          <div className="space-y-8">
-            <p className="text-[10px] font-black text-white/40">Core insights</p>
+          <div className="space-y-6">
+            <p className="text-[9px] font-black text-white/40">Core insights</p>
             {PERSONA_QUIZZES[selectedPersona].map((question, index) => (
               <div key={index}>
-                <p className="text-[10px] font-bold text-white/60 mb-2 leading-relaxed" dangerouslySetInnerHTML={{ __html: question.title }} />
-                <div className="bg-black/20 rounded-2xl p-4 border border-white/5">
-                    <p className="text-sm font-bold text-white">{answers[index + 1]}</p>
+                <p className="text-[9px] font-bold text-white/60 mb-1.5 leading-relaxed" dangerouslySetInnerHTML={{ __html: question.title }} />
+                <div className="bg-black/20 rounded-xl p-3.5 border border-white/5">
+                    <p className="text-xs font-bold text-white">{answers[index + 1]}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="space-y-3 pb-8 relative z-10">
-            <button onClick={handleFinish} className="w-full bg-white text-primary font-black py-5 rounded-full shadow-2xl active:scale-95 transition-all text-lg hover:bg-gray-50 uppercase tracking-widest">
+        <div className="space-y-2.5 pb-6 relative z-10">
+            <button onClick={handleFinish} className="w-full bg-white text-primary font-black py-4 rounded-full shadow-2xl active:scale-95 transition-all text-base hover:bg-gray-50 uppercase tracking-widest">
                 See My Plan
             </button>
-            <button onClick={() => setShowSummary(false)} className="w-full text-white/50 font-black py-3 text-[10px] hover:text-white transition-colors">
+            <button onClick={() => setShowSummary(false)} className="w-full text-white/50 font-black py-2 text-[9px] hover:text-white transition-colors">
                 Refine answers
             </button>
         </div>
@@ -260,42 +259,42 @@ const Quiz: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen px-6 py-4 max-w-md mx-auto w-full font-sans bg-primary text-white overflow-hidden">
-      <div className="pt-8 pb-10 flex flex-col items-center flex-shrink-0">
-        <LocalLogo type="white" className="h-6 w-auto mb-8 opacity-60" />
+    <div className="flex flex-col h-screen px-6 py-3 max-w-md mx-auto w-full font-sans bg-primary text-white overflow-hidden">
+      <div className="pt-4 pb-6 flex flex-col items-center flex-shrink-0">
+        <LocalLogo type="white" className="h-5 w-auto mb-6 opacity-60" />
         <div className="w-full h-1 bg-white/10 rounded-full relative overflow-hidden">
           <div className="absolute left-0 top-0 h-full bg-white rounded-full transition-all duration-700 shadow-[0_0_10px_white]" style={{ width: `${progressPercentage}%` }}></div>
         </div>
       </div>
 
-      <h1 className="text-3xl font-black text-white text-center mb-10 leading-tight flex-shrink-0 tracking-tight" dangerouslySetInnerHTML={{ __html: currentQuestion?.title || "" }} />
+      <h1 className="text-2xl font-black text-white text-center mb-6 leading-tight flex-shrink-0 tracking-tight" dangerouslySetInnerHTML={{ __html: currentQuestion?.title || "" }} />
 
-      <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 mb-6 px-1 space-y-3">
+      <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 mb-4 px-1 space-y-2.5">
           {currentQuestion?.options.map((option) => {
             const isSelected = answers[step] === option;
             return (
               <button
                 key={option}
                 onClick={() => handleOptionSelect(option)}
-                className={`w-full py-5 px-8 rounded-[2rem] border-2 flex items-center justify-between transition-all duration-300 group text-left text-lg font-bold ${
-                  isSelected ? 'bg-white border-white text-primary shadow-xl scale-[1.02]' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
+                className={`w-full py-4 px-6 rounded-2xl border-2 flex items-center justify-between transition-all duration-300 group text-left text-base font-bold ${
+                  isSelected ? 'bg-white border-white text-primary shadow-xl scale-[1.01]' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
                 }`}
               >
                 <span className="leading-tight">{option}</span>
-                <div className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${isSelected ? 'border-primary bg-primary' : 'border-white/20 group-hover:border-white/40'}`}>
-                  {isSelected && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7"></path></svg>}
+                <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${isSelected ? 'border-primary bg-primary' : 'border-white/20 group-hover:border-white/40'}`}>
+                  {isSelected && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7"></path></svg>}
                 </div>
               </button>
             );
           })}
       </div>
 
-      <div className="flex-shrink-0 pt-2 pb-6">
-        <div className="flex justify-between gap-4 mb-8">
-          <button onClick={handlePrevious} className="flex-1 bg-white/10 text-white border border-white/10 font-black py-4 rounded-full active:scale-95 transition-all text-sm">Previous</button>
-          <button onClick={handleNext} disabled={!answers[step]} className={`flex-1 font-black py-4 rounded-full shadow-xl transition-all text-sm ${answers[step] ? 'bg-white text-primary active:scale-95' : 'bg-white/30 text-white/50 cursor-not-allowed'}`}>Next</button>
+      <div className="flex-shrink-0 pt-1 pb-4">
+        <div className="flex justify-between gap-3 mb-6">
+          <button onClick={handlePrevious} className="flex-1 bg-white/10 text-white border border-white/10 font-black py-3 rounded-full active:scale-95 transition-all text-xs">Previous</button>
+          <button onClick={handleNext} disabled={!answers[step]} className={`flex-1 font-black py-3 rounded-full shadow-xl transition-all text-xs ${answers[step] ? 'bg-white text-primary active:scale-95' : 'bg-white/30 text-white/50 cursor-not-allowed'}`}>Next</button>
         </div>
-        <div className="flex justify-center"><div className="w-36 h-1 bg-white/20 rounded-full"></div></div>
+        <div className="flex justify-center"><div className="w-24 h-1 bg-white/20 rounded-full"></div></div>
       </div>
     </div>
   );
