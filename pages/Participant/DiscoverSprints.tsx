@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Coach, Sprint, Participant, UserRole, ParticipantSprint } from '../../types';
+
+import React, { useState, useMemo, useEffect } from 'react';
+import { Coach, Sprint, Participant, UserRole } from '../../types';
 import SprintCard from '../../components/SprintCard';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
@@ -65,47 +66,71 @@ const DiscoverSprints: React.FC = () => {
     }, [sprints, coaches, searchQuery, activeSort, userProfileTags]);
 
     return (
-        <div className="max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-12 py-8 lg:py-12 animate-fade-in text-base lg:text-lg">
-            <header className="mb-12">
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-dark tracking-tighter leading-none mb-4 italic">Discover Sprints.</h1>
-                <p className="text-gray-500 font-medium max-w-xl">Curated programs designed for immediate application and visible progress.</p>
+        <div className="max-w-screen-xl mx-auto px-6 sm:px-10 lg:px-16 py-12 lg:py-20 animate-fade-in text-base pb-32">
+            
+            {/* Gallery Header */}
+            <header className="mb-16 text-center lg:text-left">
+                <div className="inline-block px-3 py-1 rounded-full bg-primary/5 border border-primary/10 mb-6">
+                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Curated Growth Catalog</p>
+                </div>
+                <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-gray-900 tracking-tighter leading-[0.95] mb-6 italic">
+                    Discover <br className="hidden lg:block"/>Sprints.
+                </h1>
+                <p className="text-lg text-gray-500 font-medium max-w-xl mx-auto lg:mx-0 leading-relaxed italic">
+                    Precision-engineered programs designed for immediate application and visible, tangible progress.
+                </p>
             </header>
 
-            <div className="flex flex-col md:flex-row gap-4 mb-12">
-                <div className="flex-1 relative">
+            {/* Filter Deck */}
+            <div className="flex flex-col lg:flex-row gap-6 mb-16 items-center">
+                <div className="w-full flex-1 relative group">
                     <input 
                         type="text" 
-                        placeholder="Search topics, categories, coaches..." 
+                        placeholder="Search themes, categories, or coaches..." 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-12 pr-6 py-4 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 outline-none font-medium" 
+                        className="w-full pl-14 pr-8 py-5 bg-white border border-gray-100 rounded-[2rem] shadow-sm focus:ring-8 focus:ring-primary/5 focus:border-primary/30 outline-none font-bold text-gray-800 transition-all placeholder:text-gray-300" 
                     />
-                    <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    <svg className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-focus-within:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
-                <div className="flex bg-white p-1.5 rounded-2xl border border-gray-100 shadow-sm">
-                    {['recommended', 'latest'].map(s => (
-                        <button key={s} onClick={() => setActiveSort(s as any)} className={`px-6 py-2.5 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all ${activeSort === s ? 'bg-primary text-white' : 'text-gray-400 hover:text-dark'}`}>{s}</button>
+                <div className="flex bg-gray-50 p-2 rounded-[1.75rem] border border-gray-100 shadow-inner">
+                    {['recommended', 'latest', 'popular'].map(s => (
+                        <button 
+                            key={s} 
+                            onClick={() => setActiveSort(s as any)} 
+                            className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${activeSort === s ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            {s}
+                        </button>
                     ))}
                 </div>
             </div>
 
+            {/* Grid Core */}
             {isLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="aspect-[4/5] bg-gray-100 animate-pulse rounded-[2rem]"></div>)}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 lg:gap-14">
+                    {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="aspect-[3/4] bg-gray-50 animate-pulse rounded-[3rem] border border-gray-100"></div>)}
                 </div>
             ) : processedSprints.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10 lg:gap-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 md:gap-12 lg:gap-16">
                     {processedSprints.map(({ sprint, coach }) => (
-                        <SprintCard key={sprint.id} sprint={sprint} coach={coach} />
+                        <div key={sprint.id} className="animate-fade-in-up" style={{ animationDelay: `${processedSprints.indexOf({sprint, coach}) * 50}ms` }}>
+                            <SprintCard sprint={sprint} coach={coach} />
+                        </div>
                     ))}
                 </div>
             ) : (
-                <div className="py-32 text-center bg-white rounded-[3rem] border border-gray-50"><p className="text-gray-400 font-bold uppercase tracking-widest">No matching programs found.</p></div>
+                <div className="py-32 text-center bg-white rounded-[4rem] border border-dashed border-gray-100">
+                    <p className="text-gray-400 font-black uppercase tracking-[0.4em] text-[10px] mb-2">No matching cycles found</p>
+                    <button onClick={() => setSearchQuery('')} className="text-primary font-black uppercase text-[10px] hover:underline">Clear Registry Filters</button>
+                </div>
             )}
             
             <style>{`
-                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-fade-in { animation: fadeIn 0.6s ease-out forwards; }
+                @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                .animate-fade-in { animation: fadeIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
             `}</style>
         </div>
     );

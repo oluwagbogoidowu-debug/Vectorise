@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ParticipantSprint, Sprint } from '../../types';
@@ -32,107 +33,128 @@ const SprintView: React.FC = () => {
         return () => unsubscribe();
     }, [enrollmentId, sprint]);
 
-    if (!enrollment || !sprint) return <div className="flex items-center justify-center h-screen text-gray-400 font-black uppercase tracking-widest text-[7px]">Syncing...</div>;
+    if (!enrollment || !sprint) return <div className="flex items-center justify-center h-screen bg-white text-gray-300 font-black uppercase tracking-[0.4em] text-[10px] animate-pulse">Synchronizing Cycle...</div>;
 
     const progressPercent = (enrollment.progress.filter(p => p.completed).length / sprint.duration) * 100;
     const currentDayContent = sprint.dailyContent.find(dc => dc.day === viewingDay);
     const isCompleted = enrollment.progress.find(p => p.day === viewingDay)?.completed;
 
     return (
-        <div className="h-screen w-full bg-light flex flex-col overflow-hidden animate-fade-in">
-            {/* Fixed Top Navigation Header */}
-            <header className="px-5 pt-3 pb-3 bg-white border-b border-gray-100 flex-shrink-0">
+        <div className="h-screen w-full bg-[#FAFAFA] flex flex-col overflow-hidden animate-fade-in font-sans">
+            {/* 1. HIGH-CONTRAST NAVIGATION HEADER */}
+            <header className="px-6 py-5 bg-white border-b border-gray-100 flex-shrink-0 z-30">
                 <div className="max-w-screen-lg mx-auto w-full">
-                    <div className="flex justify-between items-start mb-2">
-                        <button onClick={() => navigate(-1)} className="text-[7px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1 hover:text-primary transition-colors">
-                            <svg className="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
-                            Exit
+                    <div className="flex justify-between items-start mb-3">
+                        <button onClick={() => navigate(-1)} className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2 hover:text-primary transition-colors active:scale-95 group">
+                            <svg className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+                            Terminate Session
                         </button>
-                        <p className="text-[7px] font-black text-primary uppercase tracking-[0.2em]">Session • Day {viewingDay}</p>
+                        <div className="flex items-center gap-3">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                            <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Day {viewingDay} active</p>
+                        </div>
                     </div>
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-2">
-                        <h1 className="text-lg font-black text-gray-900 tracking-tight leading-tight truncate w-full md:flex-1">{sprint.title}</h1>
-                        <div className="w-full md:w-36 h-1 flex-shrink-0">
-                            <ProgressBar value={progressPercent} />
+                    <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
+                        <h1 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight leading-none truncate w-full md:flex-1">{sprint.title}</h1>
+                        <div className="w-full md:w-48 flex flex-col items-end gap-1">
+                            <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                                <div className="h-full bg-primary rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(14,120,80,0.4)]" style={{ width: `${progressPercent}%` }}></div>
+                            </div>
+                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{progressPercent.toFixed(0)}% Path Coverage</span>
                         </div>
                     </div>
                 </div>
             </header>
 
-            {/* Scrollable Main Content & Nav Area */}
-            <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-screen-lg mx-auto w-full">
+            {/* 2. MAIN WORKSPACE AREA */}
+            <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-screen-lg mx-auto w-full bg-white md:bg-transparent">
                 
-                {/* Timeline - Left on Desktop, Top horizontal on Mobile */}
-                <aside className="w-full md:w-28 flex-shrink-0 bg-white border-b md:border-b-0 md:border-r border-gray-50 flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto no-scrollbar py-2 md:py-4 px-4 md:px-2 gap-1.5">
+                {/* Vertical Sidebar Timeline */}
+                <aside className="w-full md:w-32 flex-shrink-0 bg-white md:bg-transparent border-b md:border-b-0 md:border-r border-gray-100 flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto no-scrollbar py-4 md:py-8 px-6 md:px-4 gap-2.5">
                     {enrollment.progress.map(p => (
                         <button 
                             key={p.day} 
                             onClick={() => setViewingDay(p.day)} 
-                            className={`flex flex-shrink-0 flex-col items-center justify-center w-14 md:w-auto h-12 md:h-14 rounded-xl transition-all ${
+                            className={`flex flex-shrink-0 flex-col items-center justify-center w-16 md:w-auto h-16 md:h-20 rounded-2xl transition-all duration-500 relative ${
                                 viewingDay === p.day 
-                                ? 'bg-primary text-white shadow-md shadow-primary/20 scale-105 z-10' 
+                                ? 'bg-primary text-white shadow-2xl shadow-primary/30 scale-[1.05] z-10' 
                                 : p.completed 
-                                ? 'bg-green-50 text-green-700 border border-green-100' 
-                                : 'bg-gray-50 text-gray-400 border border-gray-100'
+                                ? 'bg-white text-primary border border-primary/20 shadow-sm hover:bg-primary/5' 
+                                : 'bg-gray-50 text-gray-400 border border-gray-100 hover:bg-white hover:border-gray-200'
                             }`}
                         >
-                            <span className="text-[6px] font-black uppercase mb-0.5">Day</span>
-                            <span className="text-sm font-black leading-none">{p.day}</span>
-                            {p.completed && viewingDay !== p.day && <div className="absolute top-1 right-1 w-1 h-1 bg-green-500 rounded-full"></div>}
+                            <span className="text-[8px] font-black uppercase tracking-tighter mb-0.5 opacity-60">Day</span>
+                            <span className="text-xl font-black leading-none">{p.day}</span>
+                            {p.completed && viewingDay !== p.day && (
+                                <div className="absolute top-2 right-2 w-1.5 h-1.5 bg-primary rounded-full ring-2 ring-white"></div>
+                            )}
                         </button>
                     ))}
+                    <div className="hidden md:block h-32 flex-shrink-0"></div>
                 </aside>
 
-                {/* Lesson Viewer Content Container */}
-                <main className="flex-1 overflow-y-auto custom-scrollbar bg-white">
-                    <div className="px-6 py-6 md:px-10 md:py-12 pb-32">
-                        <div className="max-w-xl mx-auto">
-                            <div className="text-[13px] sm:text-[14px] font-medium leading-relaxed text-gray-700 mb-8 prose max-w-none">
-                                <FormattedText text={currentDayContent?.lessonText || "Syncing material..."} />
+                {/* Content Viewer / Execution Deck */}
+                <main className="flex-1 overflow-y-auto custom-scrollbar bg-white shadow-2xl md:my-6 md:mr-6 md:rounded-[3rem] relative border border-gray-100/50">
+                    <div className="px-8 py-10 md:px-16 md:py-20 pb-40">
+                        <div className="max-w-2xl mx-auto">
+                            {/* Lesson Typography Optimization */}
+                            <div className="text-[15px] md:text-[16px] font-medium leading-[1.8] text-gray-600 mb-16 prose max-w-none selection:bg-primary/10">
+                                <FormattedText text={currentDayContent?.lessonText || "Synchronizing narrative material..."} className="first-letter:text-5xl first-letter:font-black first-letter:text-primary first-letter:mr-3 first-letter:float-left first-letter:mt-1" />
                             </div>
 
-                            {/* Action Card */}
-                            <div className="bg-primary/5 rounded-2xl p-5 md:p-8 border border-primary/10 mb-8 shadow-sm">
-                                <h4 className="text-[7px] font-black text-primary uppercase tracking-[0.2em] mb-4">
-                                    Strategic Action
-                                </h4>
-                                <p className="text-base font-black text-gray-900 leading-snug mb-5">
-                                    <FormattedText text={currentDayContent?.taskPrompt || ""} />
-                                </p>
-                                
-                                {!isCompleted ? (
-                                    <textarea 
-                                        value={textSubmission} 
-                                        onChange={e => setTextSubmission(e.target.value)} 
-                                        placeholder="Record your execution notes here..." 
-                                        className="w-full p-4 bg-white border border-gray-100 rounded-xl outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/20 transition-all text-sm font-medium resize-none h-28 shadow-inner"
-                                    />
-                                ) : (
-                                    <div className="bg-white/80 p-4 rounded-xl border border-primary/5 text-center shadow-inner">
-                                        <p className="font-bold text-gray-500 text-xs italic">"Record verified in registry."</p>
+                            {/* Strategic Action Deck */}
+                            <div className="bg-[#FAFAFA] rounded-[2.5rem] p-8 md:p-12 border border-gray-100 mb-10 shadow-sm relative overflow-hidden group">
+                                <div className="relative z-10">
+                                    <div className="inline-block px-3 py-1 bg-primary text-white rounded-full text-[9px] font-black uppercase tracking-[0.2em] mb-6 shadow-lg shadow-primary/20">
+                                        Primary Directive
                                     </div>
-                                )}
+                                    <p className="text-xl md:text-2xl font-black text-gray-900 leading-[1.2] mb-8 tracking-tight italic">
+                                        <FormattedText text={currentDayContent?.taskPrompt || ""} />
+                                    </p>
+                                    
+                                    {!isCompleted ? (
+                                        <div className="relative">
+                                            <textarea 
+                                                value={textSubmission} 
+                                                onChange={e => setTextSubmission(e.target.value)} 
+                                                placeholder="Document your execution path..." 
+                                                className="w-full p-6 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-8 focus:ring-primary/5 focus:border-primary transition-all text-base font-bold text-gray-800 resize-none h-40 shadow-inner placeholder:text-gray-300"
+                                            />
+                                            <div className="absolute bottom-4 right-4 pointer-events-none">
+                                                <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Execution Notes</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="bg-white/60 p-8 rounded-2xl border border-primary/5 text-center shadow-inner flex flex-col items-center gap-4">
+                                            <div className="w-12 h-12 bg-green-50 text-primary rounded-full flex items-center justify-center text-xl shadow-sm">✓</div>
+                                            <p className="font-black text-gray-500 text-xs uppercase tracking-[0.2em]">"Record verified in growth registry."</p>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors duration-1000"></div>
                             </div>
 
-                            {/* Completion Footer */}
-                            <div className="pt-4 border-t border-gray-50 flex justify-between items-center">
-                                <div className="flex flex-col">
-                                    <span className="text-[7px] font-black text-gray-300 uppercase tracking-widest">Registry Status</span>
-                                    <span className={`text-[9px] font-black uppercase ${isCompleted ? 'text-green-600' : 'text-orange-500'}`}>
-                                        {isCompleted ? 'Cleared' : 'Action Required'}
-                                    </span>
+                            {/* Verification Footer */}
+                            <div className="pt-8 border-t border-gray-50 flex flex-col sm:flex-row justify-between items-center gap-6">
+                                <div className="flex flex-col items-center sm:items-start">
+                                    <span className="text-[9px] font-black text-gray-300 uppercase tracking-[0.3em] mb-1">Status Report</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`w-2 h-2 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`}></span>
+                                        <span className={`text-[10px] font-black uppercase tracking-widest ${isCompleted ? 'text-green-600' : 'text-orange-500'}`}>
+                                            {isCompleted ? 'Verified Mastered' : 'Action Outstanding'}
+                                        </span>
+                                    </div>
                                 </div>
                                 {!isCompleted ? (
-                                    <Button 
-                                        className="px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-primary/10" 
+                                    <button 
+                                        className="w-full sm:w-auto px-12 py-5 bg-primary text-white rounded-full text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-primary/20 hover:scale-[1.03] transition-all active:scale-95 disabled:opacity-20 disabled:grayscale" 
                                         disabled={!textSubmission.trim()}
                                     >
                                         Complete Day {viewingDay}
-                                    </Button>
+                                    </button>
                                 ) : (
-                                    <div className="flex items-center gap-1.5 text-green-600 font-black uppercase tracking-[0.2em] text-[8px] bg-green-50 px-3 py-1.5 rounded-full border border-green-100">
-                                        <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                                        Verified
+                                    <div className="flex items-center gap-3 text-green-600 font-black uppercase tracking-[0.3em] text-[10px] bg-green-50 px-6 py-3 rounded-full border border-green-100 shadow-sm">
+                                        Session Cleared
                                     </div>
                                 )}
                             </div>
@@ -142,10 +164,11 @@ const SprintView: React.FC = () => {
             </div>
 
             <style>{`
-                .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+                .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.05); border-radius: 10px; }
-                @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-fade-in { animation: fadeIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
             `}</style>
         </div>
     );
