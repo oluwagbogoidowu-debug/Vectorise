@@ -32,6 +32,17 @@
             fontFamily: {
               sans: ['Jost', 'sans-serif'],
             },
+            fontSize: {
+              'xs': ['12px', '1.5'],     /* Small text */
+              'sm': ['14px', '1.5'],     /* Labels / Buttons */
+              'base': ['16px', '1.6'],   /* Body text */
+              'lg': ['18px', '1.7'],     /* Content-heavy text */
+              'xl': ['20px', '1.4'],     /* Small H3 */
+              '2xl': ['24px', '1.4'],    /* Standard H3 */
+              '3xl': ['32px', '1.2'],    /* Standard H2 */
+              '4xl': ['40px', '1.1'],    /* Standard H1 */
+              '5xl': ['48px', '1.1'],    /* Hero H1 */
+            },
           },
         },
       }
@@ -53,7 +64,7 @@
 }
 </script>
 </head>
-  <body class="bg-light">
+  <body class="bg-light text-base">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
