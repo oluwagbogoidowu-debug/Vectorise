@@ -14,7 +14,7 @@ const HomePage: React.FC = () => {
             <LocalLogo type="green" className="h-9 w-auto" />
           </Link>
           <div className="flex gap-3">
-            <Link to="/onboarding/welcome" className="px-8 py-3.5 bg-primary text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95">
+            <Link to="/onboarding/focus-selector" className="px-8 py-3.5 bg-primary text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95">
               Start Sprint
             </Link>
           </div>
@@ -40,7 +40,7 @@ const HomePage: React.FC = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-            <Link to="/onboarding/welcome">
+            <Link to="/onboarding/focus-selector">
               <button className="px-14 py-7 bg-primary text-white font-black uppercase tracking-[0.3em] text-xs rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95">
                 Start your clarity sprint
               </button>
@@ -264,7 +264,7 @@ const HomePage: React.FC = () => {
             You just need to act today.
           </p>
           
-          <Link to="/onboarding/welcome">
+          <Link to="/onboarding/focus-selector">
             <button className="px-16 py-8 bg-white text-primary font-black uppercase tracking-[0.4em] text-sm rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all">
                 Start your clarity sprint
             </button>

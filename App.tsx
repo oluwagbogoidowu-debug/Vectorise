@@ -28,6 +28,10 @@ import GrowthDashboard from './pages/Participant/GrowthDashboard';
 import BottomNavigation from './components/BottomNavigation';
 import SprintInviteLanding from './pages/Participant/SprintInviteLanding';
 
+// New specialized onboarding pages
+import FocusSelector from './pages/Onboarding/FocusSelector';
+import ClaritySprintDescription from './pages/Onboarding/ClaritySprintDescription';
+
 // Impact / Referral System
 import ImpactDashboard from './pages/Participant/Impact/ImpactDashboard';
 import ReferralShare from './pages/Participant/Impact/ReferralShare';
@@ -138,6 +142,8 @@ const AppRoutes: React.FC = () => {
           <Route path="/recommended" element={<RecommendedSprints />} />
           
           <Route path="/onboarding/welcome" element={<Welcome />} />
+          <Route path="/onboarding/focus-selector" element={<FocusSelector />} />
+          <Route path="/onboarding/clarity-description" element={<ClaritySprintDescription />} />
           <Route path="/onboarding/intro" element={<QuizIntro />} />
           <Route path="/onboarding/quiz" element={<Quiz />} />
 
