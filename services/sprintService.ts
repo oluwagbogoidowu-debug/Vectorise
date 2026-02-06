@@ -37,9 +37,6 @@ export const sprintService = {
             if (!sprintSnap.exists()) throw new Error("Sprint not found");
             const existing = sprintSnap.data() as Sprint;
 
-            // APPROVAL WORKFLOW LOGIC:
-            // If the sprint is already approved/live, any new change must go to 'pendingChanges'
-            // to be reviewed by an Admin before hitting the live root level.
             if (existing.approvalStatus === 'approved') {
                 const updateData = sanitizeData({
                     pendingChanges: {
@@ -50,7 +47,6 @@ export const sprintService = {
                 });
                 await updateDoc(sprintRef, updateData);
             } else {
-                // If it's still a draft or rejected, we update the root directly
                 const updateData = sanitizeData({
                     ...data,
                     updatedAt: now
@@ -70,7 +66,7 @@ export const sprintService = {
                 approvalStatus: 'approved',
                 published: true,
                 updatedAt: new Date().toISOString(),
-                pendingChanges: deleteField() // Ensure no leftover staging on first approval
+                pendingChanges: deleteField() 
             });
         } catch (error) {
             console.error("Error approving sprint:", error);
@@ -78,9 +74,6 @@ export const sprintService = {
         }
     },
 
-    /**
-     * Merges staged 'pendingChanges' into the live root version of the sprint.
-     */
     approveSprintUpdates: async (sprintId: string) => {
         try {
             const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
@@ -93,7 +86,7 @@ export const sprintService = {
             const mergedData = sanitizeData({
                 ...sprint,
                 ...sprint.pendingChanges,
-                pendingChanges: deleteField(), // Clear the staging area
+                pendingChanges: deleteField(),
                 updatedAt: new Date().toISOString()
             });
 
@@ -287,6 +280,17 @@ export const sprintService = {
 
             await setDoc(enrollmentRef, sanitizeData(newEnrollment));
             await userService.addUserEnrollment(userId, sprintId);
+
+            // Trigger Notification: payment_success / enrollment
+            const sprint = await sprintService.getSprintById(sprintId);
+            await notificationService.createNotification(
+                userId,
+                'payment_success',
+                'Sprint Secured',
+                `You have successfully enrolled in ${sprint?.title || 'the sprint'}. Day 1 is now open.`,
+                { actionUrl: `/participant/sprint/${enrollmentId}?day=1` }
+            );
+
             return newEnrollment;
         } catch (error) {
             console.error("Error enrolling user:", error);
@@ -402,9 +406,47 @@ export const sprintService = {
 
     updateProgress: async (enrollmentId: string, progress: ParticipantSprint['progress']) => {
         try {
-            const sanitizedProgress = sanitizeData(progress);
             const enrollmentRef = doc(db, ENROLLMENTS_COLLECTION, enrollmentId);
-            await updateDoc(enrollmentRef, { progress: sanitizedProgress });
+            const enrollSnap = await getDoc(enrollmentRef);
+            if (!enrollSnap.exists()) return;
+            
+            const enrollment = enrollSnap.data() as ParticipantSprint;
+            const sprint = await sprintService.getSprintById(enrollment.sprintId);
+            
+            const completedDays = progress.filter(p => p.completed).length;
+            const wasCompletedCount = enrollment.progress.filter(p => p.completed).length;
+
+            await updateDoc(enrollmentRef, { progress: sanitizeData(progress) });
+
+            // Trigger Notification: sprint_day_unlocked
+            if (completedDays > wasCompletedCount && completedDays < enrollment.progress.length) {
+                const nextDay = completedDays + 1;
+                await notificationService.createNotification(
+                    enrollment.participantId,
+                    'sprint_day_unlocked',
+                    'Next Session Open',
+                    `Day ${nextDay} of ${sprint?.title} is now available.`,
+                    { 
+                        actionUrl: `/participant/sprint/${enrollmentId}?day=${nextDay}`,
+                        context: { sprintId: enrollment.sprintId, day: nextDay }
+                    }
+                );
+            }
+
+            // Trigger Notification: sprint_completed
+            if (completedDays === enrollment.progress.length && wasCompletedCount < completedDays) {
+                await notificationService.createNotification(
+                    enrollment.participantId,
+                    'sprint_completed',
+                    'Sprint Mastered',
+                    `Congratulations! You've completed the ${sprint?.title} sprint.`,
+                    { 
+                        actionUrl: `/growth`,
+                        context: { sprintId: enrollment.sprintId }
+                    }
+                );
+            }
+
         } catch (error) {
             console.error("Error updating enrollment progress:", error);
         }

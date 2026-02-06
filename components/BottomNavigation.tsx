@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,7 +11,7 @@ const BottomNavigation: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     const unsubscribe = notificationService.subscribeToNotifications(user.id, (notifs) => {
-      setHasUnread(notifs.some(n => !n.read));
+      setHasUnread(notifs.some(n => !n.isRead));
     });
     return () => unsubscribe();
   }, [user]);

@@ -1,9 +1,11 @@
 
 import { db } from './firebase';
 import { collection, addDoc, query, where, getDocs, doc, updateDoc, writeBatch } from 'firebase/firestore';
-import { CoachingComment } from '../types';
+import { CoachingComment, Sprint } from '../types';
 import { MOCK_COACHING_COMMENTS } from './mockData';
-import { sanitizeData } from './userService';
+import { sanitizeData, userService } from './userService';
+import { notificationService } from './notificationService';
+import { sprintService } from './sprintService';
 
 export const chatService = {
   sendMessage: async (message: Omit<CoachingComment, 'id'>) => {
@@ -11,7 +13,35 @@ export const chatService = {
       const sanitized = sanitizeData(message);
       const colRef = collection(db, 'coaching_messages');
       const docRef = await addDoc(colRef, sanitized);
-      return { ...sanitized, id: docRef.id } as CoachingComment;
+      const fullMessage = { ...sanitized, id: docRef.id } as CoachingComment;
+
+      // Trigger Logic: Notify the other party
+      // If author is coach, notify student
+      // If author is student, notify coach (using system logic)
+      const sprint = await sprintService.getSprintById(message.sprintId);
+      const isCoach = message.authorId === sprint?.coachId;
+      const targetUserId = isCoach ? message.participantId : sprint?.coachId;
+
+      if (targetUserId && sprint) {
+        await notificationService.createNotification(
+          targetUserId,
+          'coach_message',
+          isCoach ? 'Message from Coach' : 'Message from Student',
+          `${message.content.substring(0, 60)}${message.content.length > 60 ? '...' : ''}`,
+          { 
+            actionUrl: isCoach 
+              ? `/participant/sprint/${message.participantId}?day=${message.day}&openChat=true` 
+              : `/coach/participants`, // Coach tracker for coaches
+            context: { 
+              sprintId: message.sprintId, 
+              day: message.day,
+              participantId: message.participantId 
+            }
+          }
+        );
+      }
+
+      return fullMessage;
     } catch (error: any) {
       return { ...message, id: `local_${Date.now()}` } as CoachingComment;
     }

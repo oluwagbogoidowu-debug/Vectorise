@@ -1,9 +1,9 @@
-
 import { db } from './firebase';
-import { collection, addDoc, getDocs, query, doc, updateDoc, arrayUnion, increment, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, doc, updateDoc, arrayUnion, increment, onSnapshot, where } from 'firebase/firestore';
 import { ShinePost, ShineComment } from '../types';
 import { MOCK_SHINE_POSTS } from './mockData';
 import { userService, sanitizeData } from './userService';
+import { notificationService } from './notificationService';
 
 const COLLECTION_NAME = 'ShinePost';
 
@@ -62,11 +62,30 @@ export const shineService = {
 
             const sanitizedComment = sanitizeData(comment);
             const postRef = doc(db, COLLECTION_NAME, postId);
+            
+            // Get post to find owner
+            const postSnap = await getDocs(query(collection(db, COLLECTION_NAME), where('id', '==', postId)));
+            const postData = postSnap.docs[0]?.data() as ShinePost;
+
             await updateDoc(postRef, {
                 commentData: arrayUnion(sanitizedComment),
                 comments: increment(1)
             });
             await userService.addUserComment(comment.userId, comment.id);
+
+            // Notify post owner
+            if (postData && postData.userId !== comment.userId) {
+              await notificationService.createNotification(
+                postData.userId,
+                'shine_interaction',
+                'New Reflection',
+                `${comment.userName} commented on your shine post.`,
+                { 
+                  actionUrl: `/profile`, // Or wherever posts are visible
+                  context: { postId }
+                }
+              );
+            }
         } catch (error: any) {
             console.warn("Could not persist comment:", error.message);
         }

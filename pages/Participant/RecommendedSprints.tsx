@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { sprintService } from '../../services/sprintService';
@@ -137,13 +136,14 @@ const RecommendedSprints: React.FC = () => {
                       peopleHelped: currentImpact + 1 
                   }
               });
-              await notificationService.createNotification(referrerId, {
-                  type: 'referral_update',
-                  text: `✨ ${firstName} joined Vectorise. Your influence is growing!`,
-                  timestamp: new Date().toISOString(),
-                  read: false,
-                  link: '/impact'
-              });
+              // Fix: Corrected positional arguments for createNotification.
+              await notificationService.createNotification(
+                  referrerId, 
+                  'referral_update', 
+                  'Impact Growth', 
+                  `✨ ${firstName} joined Vectorise. Your influence is growing!`,
+                  { actionUrl: '/impact' }
+              );
           }
       }
 

@@ -134,6 +134,14 @@ const ParticipantDashboard: React.FC = () => {
 
   const tasksReady = useMemo(() => activeSprintsData.filter(item => !item.status.isLocked), [activeSprintsData]);
 
+  const handleNotificationClick = async (n: Notification) => {
+      await notificationService.markAsRead(n.id);
+      if (n.actionUrl) {
+          navigate(n.actionUrl);
+          setShowNotifications(false);
+      }
+  };
+
   if (!user) return null;
   const activeQuote = quotes[currentQuoteIdx] || FALLBACK_QUOTES[0];
 
@@ -153,10 +161,42 @@ const ParticipantDashboard: React.FC = () => {
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                     <span className="text-[10px] font-black uppercase tracking-widest">Catalog</span>
                 </Link>
-                <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 text-gray-400 hover:text-primary transition-all rounded-full hover:bg-primary/5 active:scale-90">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                    {notifications.some(n => !n.read) && <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-white animate-pulse"></span>}
-                </button>
+                <div className="relative">
+                    <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 text-gray-400 hover:text-primary transition-all rounded-full hover:bg-primary/5 active:scale-90">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                        {notifications.some(n => !n.isRead) && <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-white animate-pulse"></span>}
+                    </button>
+
+                    {/* Notification Popover */}
+                    {showNotifications && (
+                      <div className="absolute right-0 mt-3 w-80 bg-white border border-gray-100 rounded-3xl shadow-2xl z-[100] overflow-hidden animate-slide-up origin-top-right">
+                          <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Registry Feed</span>
+                              <button onClick={() => setShowNotifications(false)} className="text-[9px] font-black text-primary uppercase">Close</button>
+                          </div>
+                          <div className="max-h-96 overflow-y-auto custom-scrollbar">
+                              {notifications.length > 0 ? (
+                                  notifications.map((n) => (
+                                      <div 
+                                        key={n.id} 
+                                        onClick={() => handleNotificationClick(n)}
+                                        className={`px-6 py-4 border-b border-gray-50 cursor-pointer transition-colors flex gap-3 items-start ${!n.isRead ? 'bg-primary/5' : 'hover:bg-gray-50 opacity-60'}`}
+                                      >
+                                          <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${!n.isRead ? 'bg-primary' : 'bg-transparent'}`}></div>
+                                          <div>
+                                              <p className="text-xs font-black text-gray-900 leading-none mb-1">{n.title}</p>
+                                              <p className="text-[11px] font-medium text-gray-500 leading-relaxed italic">{n.body}</p>
+                                              <p className="text-[8px] font-black text-gray-300 uppercase mt-2">{new Date(n.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                                          </div>
+                                      </div>
+                                  ))
+                              ) : (
+                                  <div className="p-10 text-center text-gray-300 italic text-xs">Horizon Clear.</div>
+                              )}
+                          </div>
+                      </div>
+                    )}
+                </div>
                 <Link to="/profile" className="flex-shrink-0 transition-transform hover:scale-110 active:scale-95">
                     <img src={user.profileImageUrl} alt="" className="w-8 h-8 rounded-xl object-cover border border-gray-100 shadow-sm" />
                 </Link>
@@ -281,6 +321,8 @@ const ParticipantDashboard: React.FC = () => {
         
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
       `}</style>
     </div>
   );

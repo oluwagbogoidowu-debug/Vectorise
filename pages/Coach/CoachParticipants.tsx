@@ -159,13 +159,16 @@ const CoachParticipants: React.FC = () => {
         try {
             await chatService.sendMessage(newMessage);
             
-            await notificationService.createNotification(viewingSubmission.enrollment.participantId, {
-                type: 'sprint_update',
-                text: `Coach ${user.name} sent feedback for Day ${viewingSubmission.day} of ${viewingSubmission.enrollment.sprint.title}`,
-                timestamp: new Date().toISOString(),
-                read: false,
-                link: `/participant/sprint/${viewingSubmission.enrollment.id}?day=${viewingSubmission.day}&openChat=true`
-            });
+            // Fix: Corrected positional arguments for createNotification and used valid type 'coach_message'.
+            await notificationService.createNotification(
+                viewingSubmission.enrollment.participantId, 
+                'coach_message',
+                'New Coaching Guidance',
+                `Coach ${user.name} sent feedback for Day ${viewingSubmission.day} of ${viewingSubmission.enrollment.sprint.title}`,
+                { 
+                    actionUrl: `/participant/sprint/${viewingSubmission.enrollment.id}?day=${viewingSubmission.day}&openChat=true` 
+                }
+            );
 
             setFeedbackSent(true);
             setFeedbackText('');

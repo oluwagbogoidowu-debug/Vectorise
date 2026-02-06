@@ -1,7 +1,7 @@
 
 import { db } from './firebase';
-import { collection, addDoc, query, where, getDocs, updateDoc, doc, onSnapshot, limit, arrayUnion } from 'firebase/firestore';
-import { Notification, ParticipantSprint, Sprint } from '../types';
+import { collection, addDoc, query, where, updateDoc, doc, onSnapshot, limit } from 'firebase/firestore';
+import { Notification, NotificationType, ParticipantSprint, Sprint } from '../types';
 import { sanitizeData } from './userService';
 
 const COLLECTION_NAME = 'notifications';
@@ -16,20 +16,57 @@ const NUDGE_TEMPLATES: Record<number, string> = {
 };
 
 export const notificationService = {
-  createNotification: async (userId: string, notification: Omit<Notification, 'id'>) => {
+  /**
+   * Internal method to create a notification record.
+   * This logic matches the requested database schema.
+   */
+  createNotification: async (
+    userId: string, 
+    type: NotificationType, 
+    title: string, 
+    body: string, 
+    options: { 
+      actionUrl?: string, 
+      context?: any, 
+      expiresInDays?: number 
+    } = {}
+  ) => {
     try {
+      const now = new Date();
+      let expiresAt: string | null = null;
+      
+      if (options.expiresInDays) {
+        const expiryDate = new Date();
+        expiryDate.setDate(now.getDate() + options.expiresInDays);
+        expiresAt = expiryDate.toISOString();
+      }
+
+      const rawNotification: Omit<Notification, 'id'> = {
+        userId,
+        type,
+        title,
+        body,
+        actionUrl: options.actionUrl || null,
+        context: options.context || null,
+        isRead: false,
+        readAt: null,
+        createdAt: now.toISOString(),
+        expiresAt: expiresAt
+      };
+
       const colRef = collection(db, COLLECTION_NAME);
-      const docRef = await addDoc(colRef, sanitizeData({
-        ...notification,
-        userId, 
-      }));
-      return { id: docRef.id, ...notification } as Notification;
+      const docRef = await addDoc(colRef, sanitizeData(rawNotification));
+      
+      return { id: docRef.id, ...rawNotification } as Notification;
     } catch (error) {
       console.error("Error creating notification:", error);
       throw error;
     }
   },
 
+  /**
+   * Logic for drop-off nudges.
+   */
   triggerDropOffNudge: async (enrollment: ParticipantSprint, sprint: Sprint, daysInactive: number) => {
     const milestones = [1, 2, 4, 7, 10, 15];
     const currentMilestone = milestones.reverse().find(m => daysInactive >= m);
@@ -44,23 +81,29 @@ export const notificationService = {
     const message = template.replace('{day}', nextDay.toString()).replace('{title}', sprint.title);
 
     try {
-        await notificationService.createNotification(enrollment.participantId, {
-            type: 'sprint_update',
-            text: `📢 ${message}`,
-            timestamp: new Date().toISOString(),
-            read: false,
-            link: `/participant/sprint/${enrollment.id}?day=${nextDay}`
-        });
+        await notificationService.createNotification(
+          enrollment.participantId, 
+          'sprint_nudge',
+          'Resume Sprint',
+          message,
+          { 
+            actionUrl: `/participant/sprint/${enrollment.id}?day=${nextDay}`,
+            context: { sprintId: sprint.id, day: nextDay }
+          }
+        );
 
         const enrollRef = doc(db, 'enrollments', enrollment.id);
         await updateDoc(enrollRef, {
-            sentNudges: arrayUnion(currentMilestone)
+            sentNudges: [...(enrollment.sentNudges || []), currentMilestone]
         });
     } catch (err) {
         console.error("Failed to trigger nudge:", err);
     }
   },
 
+  /**
+   * Real-time subscription to user notifications.
+   */
   subscribeToNotifications: (userId: string, callback: (notifications: Notification[]) => void) => {
     if (!userId || typeof userId !== 'string') {
         callback([]);
@@ -80,8 +123,14 @@ export const notificationService = {
         notifications.push(sanitizeData({ id: doc.id, ...doc.data() }) as Notification);
       });
       
-      const sorted = notifications.sort((a, b) => 
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      // Filter out expired notifications locally for safety
+      const now = new Date().getTime();
+      const validNotifications = notifications.filter(n => 
+        !n.expiresAt || new Date(n.expiresAt).getTime() > now
+      );
+
+      const sorted = validNotifications.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       
       callback(sorted);
@@ -90,10 +139,16 @@ export const notificationService = {
     });
   },
 
+  /**
+   * Mark a single notification as read.
+   */
   markAsRead: async (notificationId: string) => {
     try {
       const docRef = doc(db, COLLECTION_NAME, notificationId);
-      await updateDoc(docRef, { read: true });
+      await updateDoc(docRef, { 
+        isRead: true,
+        readAt: new Date().toISOString()
+      });
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }

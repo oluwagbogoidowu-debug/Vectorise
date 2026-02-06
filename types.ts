@@ -299,13 +299,29 @@ export interface ShinePost {
   commentData?: ShineComment[];
 }
 
+export type NotificationType = 
+  | 'sprint_day_unlocked'
+  | 'coach_message'
+  | 'sprint_completed'
+  | 'payment_success'
+  | 'next_sprint_recommended'
+  | 'referral_update'
+  | 'shine_interaction'
+  | 'system_announcement'
+  | 'sprint_nudge';
+
 export interface Notification {
   id: string;
-  type: 'shine_like' | 'shine_comment' | 'sprint_update' | 'follow' | 'announcement' | 'referral_update';
-  text: string;
-  timestamp: string;
-  read: boolean;
-  link?: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  actionUrl?: string | null;
+  context?: Record<string, any> | null;
+  isRead: boolean;
+  readAt?: string | null;
+  createdAt: string;
+  expiresAt?: string | null;
 }
 
 export interface Review {

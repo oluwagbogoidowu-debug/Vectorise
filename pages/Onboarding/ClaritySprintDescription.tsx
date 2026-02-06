@@ -22,7 +22,7 @@ const ClaritySprintDescription: React.FC = () => {
   const [firstChoice, setFirstChoice] = useState<string | null>(null);
 
   const handleProceed = () => {
-    navigate('/onboarding/intro');
+    navigate('/onboarding/commitment');
   };
 
   const handleFirstStepChoice = (choice: string) => {
@@ -43,7 +43,7 @@ const ClaritySprintDescription: React.FC = () => {
     if (challenge === 'Positioning myself better') sprintType = 'Visibility / Positioning Sprint';
     if (challenge === 'Turning effort into results') sprintType = 'Skill Sprint';
 
-    navigate('/onboarding/intro', { 
+    navigate('/onboarding/commitment', { 
         state: { 
             skipToExecution: true, 
             executionPath: firstChoice,
@@ -54,12 +54,12 @@ const ClaritySprintDescription: React.FC = () => {
   };
 
   const handleThirdStepChoice = (moveForward: string) => {
-    navigate('/onboarding/intro', { 
+    navigate('/onboarding/commitment', { 
         state: { 
             skipToExecution: true, 
             executionPath: firstChoice,
             challenge: moveForward,
-            sprintType: moveForward // Directly routing to Focus/Consistency/Momentum Sprint
+            sprintType: moveForward 
         } 
     });
   };

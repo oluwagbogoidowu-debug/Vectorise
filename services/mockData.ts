@@ -238,13 +238,16 @@ export const MOCK_SHINE_POSTS: ShinePost[] = [
   }
 ];
 
+// Fix: corrected property names and added missing fields to match 'Notification' interface.
 export const MOCK_NOTIFICATIONS: Notification[] = [
     {
         id: 'n0',
+        userId: 'participant1',
         type: 'referral_update',
-        text: 'Someone just finished Week 1 — your influence is growing.',
-        timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-        read: false
+        title: 'Registry Impact',
+        body: 'Someone just finished Week 1 — your influence is growing.',
+        isRead: false,
+        createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString()
     }
 ];
 

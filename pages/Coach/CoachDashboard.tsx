@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -68,8 +69,8 @@ const CoachDashboard: React.FC = () => {
 
   const handleNotificationClick = async (notif: Notification) => {
       await notificationService.markAsRead(notif.id);
-      if (notif.link) {
-          navigate(notif.link);
+      if (notif.actionUrl) {
+          navigate(notif.actionUrl);
       }
   };
 
@@ -78,32 +79,32 @@ const CoachDashboard: React.FC = () => {
   const activeSprints = mySprints.filter(s => s.published);
 
   const NotificationItem: React.FC<{ notif: Notification }> = ({ notif }) => {
-      const text = notif.text.toLowerCase();
-      const isTask = text.includes('task') || text.includes('submitted');
-      const isMessage = text.includes('message') || text.includes('chat') || text.includes('question');
-      const isEnrollment = text.includes('enrolled') || text.includes('joined');
-      const isReview = text.includes('review') || text.includes('star');
-      const isApproval = text.includes('approved') || text.includes('approval');
+      const type = notif.type;
       
       return (
           <div 
               onClick={() => handleNotificationClick(notif)}
               className={`flex gap-3 items-start p-3 sm:p-4 rounded-2xl border cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] ${
-                  !notif.read ? 'bg-white border-primary/30 shadow-md ring-1 ring-primary/5' : 'bg-white border-primary/10'
+                  !notif.isRead ? 'bg-white border-primary/30 shadow-md ring-1 ring-primary/5' : 'bg-white border-primary/10'
               }`}
           >
               <span className="mt-0.5 text-lg sm:text-xl flex-shrink-0">
-                  {isReview ? '⭐' : isApproval ? '✅' : isEnrollment ? '👋' : isTask ? '📝' : isMessage ? '💬' : '🔔'}
+                  {type === 'coach_message' ? '💬' : type === 'payment_success' ? '💳' : type === 'sprint_day_unlocked' ? '🔓' : '🔔'}
               </span>
               <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start gap-2">
-                      <p className={`text-xs sm:text-sm leading-snug mb-1 ${!notif.read ? 'font-bold text-gray-900' : 'text-gray-600'}`}>
-                          {notif.text}
-                      </p>
-                      {!notif.read && <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1.5 animate-pulse"></span>}
+                      <div>
+                          <p className={`text-xs sm:text-sm leading-snug font-black mb-0.5 ${!notif.isRead ? 'text-gray-900' : 'text-gray-500'}`}>
+                              {notif.title}
+                          </p>
+                          <p className={`text-[10px] sm:text-xs leading-snug mb-1 font-medium ${!notif.isRead ? 'text-gray-700' : 'text-gray-400'}`}>
+                              {notif.body}
+                          </p>
+                      </div>
+                      {!notif.isRead && <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1.5 animate-pulse"></span>}
                   </div>
                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">
-                      {new Date(notif.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      {new Date(notif.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                   </p>
               </div>
           </div>
@@ -150,9 +151,9 @@ const CoachDashboard: React.FC = () => {
               <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(14,120,80,0.4)]"></div>
                   <h2 className="font-black text-gray-900 text-sm uppercase tracking-tight">Updates</h2>
-                  {notifications.filter(n => !n.read).length > 0 && (
+                  {notifications.filter(n => !n.isRead).length > 0 && (
                       <span className="bg-primary text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm">
-                          {notifications.filter(n => !n.read).length} NEW
+                          {notifications.filter(n => !n.isRead).length} NEW
                       </span>
                   )}
               </div>

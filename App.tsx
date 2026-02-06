@@ -15,7 +15,7 @@ import ParticipantDashboard from './pages/Participant/ParticipantDashboard';
 import SprintView from './pages/Participant/SprintView';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import CreateFoundationalSprint from './pages/Admin/CreateFoundationalSprint';
-import { UserRole, Participant } from './types';
+import { UserRole } from './types';
 import { Welcome } from './pages/Onboarding/Welcome';
 import QuizIntro from './pages/Onboarding/QuizIntro';
 import Quiz from './pages/Onboarding/Quiz';
@@ -31,6 +31,8 @@ import SprintInviteLanding from './pages/Participant/SprintInviteLanding';
 // New specialized onboarding pages
 import FocusSelector from './pages/Onboarding/FocusSelector';
 import ClaritySprintDescription from './pages/Onboarding/ClaritySprintDescription';
+import CommitmentFraming from './pages/Onboarding/CommitmentFraming';
+import ClaritySprintPayment from './pages/Onboarding/ClaritySprintPayment';
 
 // Impact / Referral System
 import ImpactDashboard from './pages/Participant/Impact/ImpactDashboard';
@@ -144,6 +146,8 @@ const AppRoutes: React.FC = () => {
           <Route path="/onboarding/welcome" element={<Welcome />} />
           <Route path="/onboarding/focus-selector" element={<FocusSelector />} />
           <Route path="/onboarding/clarity-description" element={<ClaritySprintDescription />} />
+          <Route path="/onboarding/commitment" element={<CommitmentFraming />} />
+          <Route path="/onboarding/clarity-payment" element={<ClaritySprintPayment />} />
           <Route path="/onboarding/intro" element={<QuizIntro />} />
           <Route path="/onboarding/quiz" element={<Quiz />} />
 
