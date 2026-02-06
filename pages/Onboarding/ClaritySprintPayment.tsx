@@ -10,6 +10,9 @@ const ClaritySprintPayment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  
+  // State for guest checkout
+  const [guestEmail, setGuestEmail] = useState('');
   const [finalCommitment, setFinalCommitment] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -17,9 +20,21 @@ const ClaritySprintPayment: React.FC = () => {
   // Preserve navigation context
   const state = location.state || {};
 
+  // Validation: Check if we have an identity (logged in OR email provided)
+  const userEmail = user?.email || guestEmail;
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail);
+  const canPay = finalCommitment && isEmailValid && !isProcessing;
+
   const startPayment = async () => {
-    if (!user) {
-        setErrorMessage("Identity not verified. Please log in.");
+    console.log("Pay button clicked");
+    
+    if (!userEmail) {
+        setErrorMessage("Please enter your email to secure your registry identity.");
+        return;
+    }
+
+    if (!isEmailValid) {
+        setErrorMessage("Please enter a valid email address.");
         return;
     }
 
@@ -30,9 +45,9 @@ const ClaritySprintPayment: React.FC = () => {
       console.log("[Flow] Requesting Flutterwave link from /api/flutterwave/initiate...");
       
       const checkoutUrl = await paymentService.initializeFlutterwave({
-        email: user.email,
+        email: userEmail,
         sprintId: 'clarity-sprint',
-        name: user.name
+        name: user?.name || 'Guest Sprinter'
       });
 
       console.log("[Flow] Handoff to Flutterwave:", checkoutUrl);
@@ -77,26 +92,23 @@ const ClaritySprintPayment: React.FC = () => {
              </div>
           </header>
 
-          <main className="p-8 md:p-12 space-y-12">
+          <main className="p-8 md:p-12 space-y-10">
             
-            <section className="space-y-6">
-               <h2 className="text-[9px] font-black text-primary uppercase tracking-[0.3em]">What you’re getting</h2>
-               <div className="space-y-4">
-                 {[
-                   "The 5-Day Clarity Sprint",
-                   "One focused outcome",
-                   "One guided action per day",
-                   "A repeatable clarity system you’ll use beyond this sprint"
-                 ].map((item, i) => (
-                   <div key={i} className="flex items-start gap-4">
-                      <div className="w-5 h-5 bg-primary/10 text-primary rounded-full flex items-center justify-center flex-shrink-0 text-[9px] mt-0.5">
-                        ✓
-                      </div>
-                      <p className="text-xs md:text-sm font-bold text-gray-700 leading-snug">{item}</p>
-                   </div>
-                 ))}
-               </div>
-            </section>
+            {!user && (
+              <section className="space-y-4 animate-fade-in">
+                 <h2 className="text-[9px] font-black text-primary uppercase tracking-[0.3em]">Identity Registry</h2>
+                 <div>
+                   <input 
+                    type="email" 
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    placeholder="Enter your email to secure your spot"
+                    className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all placeholder:text-gray-300"
+                   />
+                   <p className="mt-2 text-[10px] text-gray-400 italic">Your sprint access will be tied to this email.</p>
+                 </div>
+              </section>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                <section className="bg-gray-50 rounded-3xl p-8 border border-gray-100 text-center space-y-2">
@@ -108,21 +120,21 @@ const ClaritySprintPayment: React.FC = () => {
                </section>
 
                <section className="space-y-4 pt-4">
-                  <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">Why it’s paid</h2>
-                  <div className="text-[11px] md:text-xs font-medium text-gray-500 leading-relaxed italic">
-                    <p>Free creates curiosity. Paid creates completion.</p>
-                    <p className="mt-4 text-gray-900 font-bold">Protects your attention.</p>
+                  <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">What's included</h2>
+                  <div className="text-[11px] md:text-xs font-bold text-gray-600 space-y-2">
+                    <p>✓ 5-Day Guided Focus</p>
+                    <p>✓ Daily Outcome Protocol</p>
+                    <p>✓ Registry Certification</p>
                   </div>
                </section>
             </div>
 
-            <section className="pt-8 border-t border-gray-50 space-y-8">
+            <section className="pt-6 border-t border-gray-50 space-y-6">
                <div className="text-center space-y-2">
-                  <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">Final commitment</h2>
-                  <p className="text-xs font-bold text-gray-900 italic">Confirm before authorizing:</p>
+                  <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">Commitment</h2>
                </div>
 
-               <label className="flex items-start gap-4 p-6 bg-primary/5 border border-primary/10 rounded-2xl cursor-pointer active:scale-[0.98] transition-all group hover:bg-primary/10">
+               <label className="flex items-start gap-4 p-5 bg-primary/5 border border-primary/10 rounded-2xl cursor-pointer active:scale-[0.98] transition-all group hover:bg-primary/10">
                 <div className="relative flex items-center h-5 mt-0.5">
                   <input 
                     type="checkbox" 
@@ -151,10 +163,10 @@ const ClaritySprintPayment: React.FC = () => {
                     console.log("Pay button clicked");
                     startPayment();
                   }}
-                  disabled={!finalCommitment || isProcessing}
+                  disabled={!canPay}
                   isLoading={isProcessing}
                   className={`w-full py-5 rounded-full shadow-2xl transition-all text-sm uppercase tracking-[0.3em] font-black ${
-                    finalCommitment ? 'bg-primary text-white hover:scale-[1.02]' : 'bg-gray-200 text-gray-400 grayscale cursor-not-allowed border-none'
+                    canPay ? 'bg-primary text-white hover:scale-[1.02]' : 'bg-gray-200 text-gray-400 grayscale cursor-not-allowed border-none'
                   }`}
                 >
                   {isProcessing ? "Authorizing Registry..." : "Pay & Start Sprint"}
@@ -170,10 +182,6 @@ const ClaritySprintPayment: React.FC = () => {
                 </div>
              </div>
           </footer>
-        </div>
-
-        <div className="mt-12 text-center">
-           <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.5em]">Vectorise • Growth Registry Protocol</p>
         </div>
       </div>
 

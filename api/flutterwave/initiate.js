@@ -23,7 +23,7 @@ module.exports = async (req, res) => {
   const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
 
   if (!FLUTTERWAVE_SECRET_KEY) {
-    console.error("[Backend] FLUTTERWAVE_SECRET_KEY is missing from environment.");
+    console.error("[Backend] FLUTTERWAVE_SECRET_KEY is missing.");
     return res.status(500).json({ message: "Server configuration error." });
   }
 
@@ -31,7 +31,6 @@ module.exports = async (req, res) => {
     return res.status(400).json({ message: "Email and Sprint ID are required." });
   }
 
-  // Backend pricing registry (Naira)
   const SPRINT_PRICES = {
     'clarity-sprint': 5000,
     'focus-sprint': 3000,
@@ -42,6 +41,11 @@ module.exports = async (req, res) => {
   const tx_ref = `VEC_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
   try {
+    // Protocol ensures the redirect goes back to our HashRouter success page
+    const protocol = req.headers['x-forwarded-proto'] || 'https';
+    const host = req.headers.host;
+    const redirect_url = `${protocol}://${host}/#/payment/success`;
+
     console.log(`[Backend] Initiating Flutterwave for ${email}, Amt: ${amount}`);
 
     const response = await axios.post(
@@ -50,7 +54,7 @@ module.exports = async (req, res) => {
         tx_ref,
         amount,
         currency: 'NGN',
-        redirect_url: `https://${req.headers.host}/#/payment/success`,
+        redirect_url,
         customer: {
           email,
           name: name || 'Vectorise User'
