@@ -1,7 +1,8 @@
 
 /**
- * Payment Service Wrapper
- * Handles initialization and verification via backend Firebase Functions
+ * Payment Service
+ * Centralized interface for handling Sprint-based transactions.
+ * All logic is fulfilled via backend Firebase Functions.
  */
 
 interface PaymentPayload {
@@ -12,14 +13,15 @@ interface PaymentPayload {
   entrySprint?: boolean;
 }
 
-// In a real environment, this base URL would be your Firebase Project region URL
-// e.g. https://us-central1-vectorise-f19d4.cloudfunctions.net
-const FUNCTIONS_BASE_URL = 'https://us-central1-vectorise-f19d4.cloudfunctions.net';
+// Dynamically determine the function base URL
+const FUNCTIONS_BASE_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:5001/vectorise-f19d4/us-central1'
+    : 'https://us-central1-vectorise-f19d4.cloudfunctions.net';
 
 export const paymentService = {
   /**
    * initializePayment(provider, payload)
-   * Dispatches to the correct initialization logic based on provider
+   * Patterns: 'paystack' | 'flutterwave'
    */
   initializePayment: async (provider: 'paystack' | 'flutterwave', payload: PaymentPayload): Promise<string> => {
     if (provider === "paystack") {
@@ -27,31 +29,32 @@ export const paymentService = {
     }
 
     if (provider === "flutterwave") {
-      throw new Error("Flutterwave integration not yet implemented");
+      return initializeFlutterwave(payload);
     }
 
     throw new Error(`Unsupported payment provider: ${provider}`);
   },
 
   /**
-   * verifyPayment(provider, data)
-   * Used for polling or manual verification (though webhook is preferred for fulfillment)
+   * verifyPayment(provider, reference)
+   * Manually checks backend for transaction status
    */
-  verifyPayment: async (provider: 'paystack' | 'flutterwave', reference: string) => {
+  verifyPayment: async (provider: string, reference: string) => {
     try {
       const response = await fetch(`${FUNCTIONS_BASE_URL}/verifyPayment?provider=${provider}&reference=${reference}`);
+      if (!response.ok) throw new Error("Verification check failed");
       return await response.json();
     } catch (error) {
-      console.error("Verification error:", error);
+      console.error("Manual verification error:", error);
       throw error;
     }
   }
 };
 
 /**
- * Internal Paystack Logic
- * Communicates with /initiatePayment Firebase Function
+ * INTERNAL PROVIDER LOGIC
  */
+
 async function initializePaystack(payload: PaymentPayload): Promise<string> {
   try {
     const response = await fetch(`${FUNCTIONS_BASE_URL}/initiatePayment`, {
@@ -68,19 +71,20 @@ async function initializePaystack(payload: PaymentPayload): Promise<string> {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || "Failed to initiate payment");
+      throw new Error(errorData.message || "Backend initialization failed");
     }
 
     const data = await response.json();
+    if (data.authorization_url) return data.authorization_url;
     
-    // The backend returns authorization_url from Paystack Transaction Init
-    if (data.authorization_url) {
-      return data.authorization_url;
-    }
-    
-    throw new Error("No authorization URL returned from payment server");
+    throw new Error("No authorization URL provided by backend");
   } catch (error) {
-    console.error("Paystack Init Error:", error);
+    console.error("Paystack Init Logic Error:", error);
     throw error;
   }
+}
+
+async function initializeFlutterwave(payload: PaymentPayload): Promise<string> {
+  // Placeholder for future implementation
+  throw new Error("Flutterwave integration is not yet active.");
 }

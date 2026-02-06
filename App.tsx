@@ -40,6 +40,7 @@ import ReferralShare from './pages/Participant/Impact/ReferralShare';
 import RippleEffect from './pages/Participant/Impact/RippleEffect';
 import GrowthRewards from './pages/Participant/Impact/GrowthRewards';
 import ReferralSuccess from './pages/Participant/Impact/ReferralSuccess';
+import PaymentSuccess from './pages/Participant/PaymentSuccess';
 import Badges from './pages/Participant/Impact/Badges';
 
 // New Coach Layout & Pages
@@ -103,7 +104,8 @@ const AppRoutes: React.FC = () => {
   const isAuthRoute = 
     location.pathname === '/login' || 
     location.pathname === '/signup' || 
-    location.pathname === '/verify-email';
+    location.pathname === '/verify-email' ||
+    location.pathname === '/payment/success';
 
   const isParticipantAppLayout = 
     location.pathname === '/dashboard' || 
@@ -200,6 +202,7 @@ const AppRoutes: React.FC = () => {
           } />
           
           <Route path="/impact/success" element={<ReferralSuccess />} />
+          <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/sprint/:sprintId" element={<SprintLandingPage />} />
           
           <Route path="/admin/dashboard" element={<ProtectedRoute roles={[UserRole.ADMIN]}><AdminDashboard /></ProtectedRoute>} />
