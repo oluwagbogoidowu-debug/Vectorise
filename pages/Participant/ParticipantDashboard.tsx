@@ -110,36 +110,38 @@ const ParticipantDashboard: React.FC = () => {
       {/* Spacer for Floating Header */}
       <div className="h-20 flex-shrink-0"></div>
 
-      {/* BODY CONTENT - Fixed container */}
-      <div className="flex-1 overflow-hidden px-4 py-4 md:py-6">
+      {/* BODY CONTENT - pb-24 added for navigation space */}
+      <div className="flex-1 overflow-y-auto px-4 pt-4 md:pt-6 pb-24 custom-scrollbar">
           <div className="max-w-screen-md mx-auto w-full h-full flex flex-col">
             
-            {/* 1. TOP STATS ROW - Static Height */}
+            {/* 1. TOP STATS ROW - Rearranged for space maximization */}
             <div className="grid grid-cols-2 gap-3 mb-6 flex-shrink-0">
-                <div className="bg-[#0E7850] text-white p-4 rounded-3xl shadow-lg flex flex-col justify-between h-[115px] relative overflow-hidden">
-                    <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center relative z-10">
-                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.536 14.95a1 1 0 010-1.414l.707-.707a1 1 0 111.414 1.414l-.707.707a1 1 0 01-1.414 0zM6.464 14.95a1 1 0 01-1.414 0l-.707-.707a1 1 0 011.414-1.414l.707.707a1 1 0 010 1.414z" />
-                        </svg>
+                <div className="bg-[#0E7850] text-white p-4 rounded-3xl shadow-lg flex flex-col h-[115px] relative overflow-hidden transition-transform active:scale-[0.98]">
+                    <div className="flex justify-between items-start relative z-10">
+                        <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.536 14.95a1 1 0 010-1.414l.707-.707a1 1 0 111.414 1.414l-.707.707a1 1 0 01-1.414 0zM6.464 14.95a1 1 0 01-1.414 0l-.707-.707a1 1 0 011.414-1.414l.707.707a1 1 0 010 1.414z" />
+                            </svg>
+                        </div>
+                        <p className="text-[8px] font-black uppercase tracking-[0.15em] opacity-60 text-right">Tasks<br/>Ready</p>
                     </div>
-                    <div className="relative z-10">
-                        <p className="text-[8px] font-black uppercase tracking-[0.2em] opacity-70 mb-0.5">Tasks Ready</p>
+                    <div className="mt-auto relative z-10">
                         <h3 className="text-xl font-black leading-none">{tasksReady.length} Remaining</h3>
                     </div>
                     <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                 </div>
 
-                <Link to="/growth" className="bg-white border border-gray-100 p-4 rounded-3xl shadow-sm flex flex-col justify-between h-[115px] hover:border-primary/30 transition-all active:scale-[0.98] group">
-                    <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center border border-gray-100 group-hover:bg-primary/5 transition-colors">
-                        <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                        </svg>
-                    </div>
-                    <div>
-                        <div className="flex justify-between items-end mb-1.5">
-                           <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] leading-tight group-hover:text-primary transition-colors">Growth Analysis</p>
-                           <p className="text-xl font-black text-gray-900 leading-none">{overallProgress}%</p>
+                <Link to="/growth" className="bg-white border border-gray-100 p-4 rounded-3xl shadow-sm flex flex-col h-[115px] hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
+                    <div className="flex justify-between items-start relative z-10">
+                        <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center border border-gray-100 group-hover:bg-primary/5 transition-colors">
+                            <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
                         </div>
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.15em] text-right group-hover:text-primary transition-colors">Growth<br/>Analysis</p>
+                    </div>
+                    <div className="mt-auto relative z-10">
+                        <p className="text-xl font-black text-gray-900 leading-none mb-1.5">{overallProgress}%</p>
                         <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
                             <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
                         </div>
@@ -156,7 +158,7 @@ const ParticipantDashboard: React.FC = () => {
             </div>
 
             {/* 3. MAIN TASK CARD - Flex-Grow to fill middle */}
-            <div className="flex-1 flex flex-col min-h-0 mb-4">
+            <div className="flex-1 flex flex-col min-h-0 mb-6">
                 {isLoading ? (
                     <div className="bg-white rounded-3xl flex-1 animate-pulse border border-gray-100 shadow-sm"></div>
                 ) : mainTask ? (
@@ -202,8 +204,8 @@ const ParticipantDashboard: React.FC = () => {
                 )}
             </div>
 
-            {/* 4. QUOTE CARD - Always visible at the bottom of the body */}
-            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center flex-shrink-0 animate-fade-in mb-2">
+            {/* 4. QUOTE CARD - Positioned with space for bottom navigation */}
+            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center flex-shrink-0 animate-fade-in">
                 <p className="text-gray-600 font-bold italic text-xs mb-1">
                     "The future depends on what you do today."
                 </p>
