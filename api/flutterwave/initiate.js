@@ -1,12 +1,11 @@
 
-const axios = require('axios');
-
 /**
  * POST /api/flutterwave/initiate
  * Securely calls Flutterwave API to get a checkout link.
  */
 module.exports = async (req, res) => {
-  // CORS Headers
+  // Always return JSON
+  res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -19,38 +18,45 @@ module.exports = async (req, res) => {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const { email, sprintId, name } = req.body;
-  const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
-
-  if (!FLUTTERWAVE_SECRET_KEY) {
-    console.error("[Backend] FLUTTERWAVE_SECRET_KEY is missing.");
-    return res.status(500).json({ message: "Server configuration error." });
-  }
-
-  if (!email || !sprintId) {
-    return res.status(400).json({ message: "Email and Sprint ID are required." });
-  }
-
-  const SPRINT_PRICES = {
-    'clarity-sprint': 5000,
-    'focus-sprint': 3000,
-    'visibility-sprint': 7500
-  };
-
-  const amount = SPRINT_PRICES[sprintId] || 5000;
-  const tx_ref = `VEC_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-
   try {
-    // Protocol ensures the redirect goes back to our HashRouter success page
+    const { email, sprintId, name } = req.body;
+    const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
+
+    if (!FLUTTERWAVE_SECRET_KEY) {
+      console.error("[Backend] CRITICAL: FLUTTERWAVE_SECRET_KEY is missing from environment.");
+      return res.status(500).json({ 
+        message: "Server configuration error: Secret Key Missing.",
+        suggestion: "Ensure FLUTTERWAVE_SECRET_KEY is set in Vercel environment variables." 
+      });
+    }
+
+    if (!email || !sprintId) {
+      return res.status(400).json({ message: "Email and Sprint ID are required." });
+    }
+
+    const SPRINT_PRICES = {
+      'clarity-sprint': 5000,
+      'focus-sprint': 3000,
+      'visibility-sprint': 7500
+    };
+
+    const amount = SPRINT_PRICES[sprintId] || 5000;
+    const tx_ref = `VEC_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers.host;
     const redirect_url = `${protocol}://${host}/#/payment/success`;
 
     console.log(`[Backend] Initiating Flutterwave for ${email}, Amt: ${amount}`);
 
-    const response = await axios.post(
-      'https://api.flutterwave.com/v3/payments',
-      {
+    // Using native fetch (Node 18+) to avoid axios dependency issues
+    const response = await fetch('https://api.flutterwave.com/v3/payments', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${FLUTTERWAVE_SECRET_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
         tx_ref,
         amount,
         currency: 'NGN',
@@ -68,29 +74,29 @@ module.exports = async (req, res) => {
           description: `Payment for ${sprintId.replace(/-/g, ' ')}`,
           logo: 'https://lh3.googleusercontent.com/d/1rlpdJZVVY-aFonII5g-HgNNn7P9KYprl'
         }
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${FLUTTERWAVE_SECRET_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+      })
+    });
 
-    if (response.data.status === 'success') {
+    const data = await response.json();
+
+    if (response.ok && data.status === 'success') {
       return res.status(200).json({
-        authorization_url: response.data.data.link,
+        authorization_url: data.data.link,
         reference: tx_ref
       });
     }
 
-    throw new Error(response.data.message || "Flutterwave API returned failure.");
+    console.error("[Backend] Flutterwave API Error Response:", data);
+    return res.status(response.status).json({ 
+      message: data.message || "Flutterwave declined the request.",
+      detail: data
+    });
 
   } catch (error) {
-    console.error("[Backend] Flutterwave API Error:", error.response?.data || error.message);
+    console.error("[Backend] Unhandled Internal Error:", error);
     return res.status(500).json({ 
-      message: "Payment initialization failed.",
-      error: error.response?.data?.message || error.message 
+      message: "Internal Server Error in payment registry.",
+      error: error.message 
     });
   }
 };

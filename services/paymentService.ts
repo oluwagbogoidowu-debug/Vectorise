@@ -29,19 +29,28 @@ export const paymentService = {
         })
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to communicate with payment registry.");
-      }
+      const contentType = response.headers.get("content-type");
+      
+      // Check if response is actually JSON before parsing
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.message || "Registry error occurred.");
+        }
 
-      const data = await response.json();
-      
-      if (data.authorization_url) {
-        console.log("[Registry] Authorization URL generated successfully.");
-        return data.authorization_url;
+        if (data.authorization_url) {
+          console.log("[Registry] Authorization URL generated successfully.");
+          return data.authorization_url;
+        }
+        
+        throw new Error("Registry returned an incomplete response.");
+      } else {
+        // Handle non-JSON errors (like Vercel 500 text pages)
+        const textError = await response.text();
+        console.error("[Registry] Received non-JSON error from backend:", textError);
+        throw new Error("The payment registry is currently unreachable (Server 500). Please check your environment variables.");
       }
-      
-      throw new Error("Registry returned an invalid response.");
     } catch (error: any) {
       console.error("[Registry] Payment Init Error:", error.message);
       throw error;
@@ -50,24 +59,26 @@ export const paymentService = {
 
   /**
    * verifyPayment(gateway, reference)
-   * Polls the backend to verify that fulfillment (enrollment) has occurred.
+   * Polls the backend to verify that fulfillment has occurred.
    */
-  // Fixed: Added missing verifyPayment method used in PaymentSuccess.tsx to resolve property error
   verifyPayment: async (gateway: string, reference: string): Promise<{ status: string }> => {
     console.log(`[Registry] Verifying ${gateway} payment:`, reference);
     
-    // Choose appropriate verification endpoint
     const url = gateway === 'paystack'
       ? `https://us-central1-vectorise-f19d4.cloudfunctions.net/verifyPayment?reference=${reference}`
       : `/api/flutterwave/verify?reference=${reference}`;
 
     try {
       const response = await fetch(url);
-      if (!response.ok) {
-        // Handle cases where verify endpoint might not be deployed yet
+      const contentType = response.headers.get("content-type");
+
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        return await response.json();
+      } else {
+        const text = await response.text();
+        console.warn("[Registry] Verification returned non-JSON:", text);
         return { status: 'pending' };
       }
-      return await response.json();
     } catch (error) {
       console.error("[Registry] Payment Verification Error:", error);
       return { status: 'error' };
