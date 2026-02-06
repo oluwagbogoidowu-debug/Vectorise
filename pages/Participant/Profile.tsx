@@ -5,6 +5,8 @@ import Button from '../../components/Button';
 import { useNavigate, Link } from 'react-router-dom';
 import { Participant, ParticipantSprint } from '../../types';
 import { sprintService } from '../../services/sprintService';
+import { auth } from '../../services/firebase';
+import { sendEmailVerification } from 'firebase/auth';
 
 const Profile: React.FC = () => {
   const { user, logout, updateProfile } = useAuth();
@@ -13,6 +15,8 @@ const Profile: React.FC = () => {
   const [name, setName] = useState('');
   const [intention, setIntention] = useState('');
   const [enrollments, setEnrollments] = useState<ParticipantSprint[]>([]);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
 
   useEffect(() => {
       if (user) {
@@ -25,6 +29,7 @@ const Profile: React.FC = () => {
 
   if (!user) return null;
   const participant = user as Participant;
+  const isEmailVerified = auth.currentUser?.emailVerified;
 
   const handleEditToggle = async () => {
       if (isEditing) {
@@ -32,6 +37,20 @@ const Profile: React.FC = () => {
           try { await updateProfile({ name, intention }); } catch (error) { alert("Update failed."); }
       } else {
           setIsEditing(true);
+      }
+  };
+
+  const handleResendVerification = async () => {
+      if (!auth.currentUser || isVerifying) return;
+      setIsVerifying(true);
+      try {
+          await sendEmailVerification(auth.currentUser);
+          setVerificationSent(true);
+          setTimeout(() => setVerificationSent(false), 5000);
+      } catch (err) {
+          console.error("Verification resend failed:", err);
+      } finally {
+          setIsVerifying(false);
       }
   };
 
@@ -47,6 +66,27 @@ const Profile: React.FC = () => {
         {/* Scrollable Content Deck */}
         <div className="flex-1 overflow-y-auto px-6 pb-40 pt-4 custom-scrollbar">
             <div className="max-w-screen-lg mx-auto">
+                
+                {/* UNVERIFIED WARNING BANNER */}
+                {!isEmailVerified && (
+                    <div className="mb-6 bg-orange-50 border border-orange-100 p-4 rounded-2xl flex items-center justify-between animate-slide-up relative z-20">
+                        <div className="flex items-center gap-3">
+                            <span className="text-xl">⚠️</span>
+                            <div>
+                                <p className="text-[10px] font-black text-orange-800 uppercase tracking-widest leading-none mb-1">Unverified Registry</p>
+                                <p className="text-[11px] text-orange-600 font-medium italic">Check your inbox to secure your account permanently.</p>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={handleResendVerification}
+                            disabled={isVerifying || verificationSent}
+                            className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline disabled:text-gray-400"
+                        >
+                            {verificationSent ? 'Link Sent' : isVerifying ? 'Sending...' : 'Resend Link'}
+                        </button>
+                    </div>
+                )}
+
                 {/* Profile Identity Block */}
                 <div className="flex flex-col md:flex-row items-center md:items-end gap-8 -mt-24 md:-mt-32 mb-12 relative z-10">
                     <div className="w-32 h-32 md:w-44 md:h-44 rounded-[3.5rem] border-[6px] border-white bg-white shadow-2xl overflow-hidden flex-shrink-0 group">
@@ -139,6 +179,8 @@ const Profile: React.FC = () => {
             .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.05); border-radius: 10px; }
             @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
             .animate-fade-in { animation: fadeIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+            @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+            .animate-slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         `}</style>
     </div>
   );

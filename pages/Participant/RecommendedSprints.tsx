@@ -1,12 +1,8 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { sprintService } from '../../services/sprintService';
-import { userService } from '../../services/userService';
-import { auth } from '../../services/firebase';
-import { createUserWithEmailAndPassword, updateProfile as updateFbProfile, sendEmailVerification, signOut } from 'firebase/auth';
-import { Sprint, UserRole, Participant } from '../../types';
-import { notificationService } from '../../services/notificationService';
-import Button from '../../components/Button';
+import { Sprint } from '../../types';
 import LocalLogo from '../../components/LocalLogo';
 import { translateToTag, calculateMatchScore } from '../../utils/tagUtils';
 
@@ -15,14 +11,7 @@ const RecommendedSprints: React.FC = () => {
   const location = useLocation();
   const { persona, answers, recommendedPlan, occupation, targetSprintId, referrerId } = location.state || {};
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [regError, setRegError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isQueued, setIsQueued] = useState(true); 
-  
   const [availableSprints, setAvailableSprints] = useState<Sprint[]>([]);
   const [isLoadingSprints, setIsLoadingSprints] = useState(true);
 
@@ -78,88 +67,18 @@ const RecommendedSprints: React.FC = () => {
         }
     }
 
-    // Fallback if no registry sprints match well
     if (!nextPath) nextPath = registrySprints[0];
 
     return { foundational, nextPath };
   }, [availableSprints, targetSprintId, persona, answers, occupation]);
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!firstName || !lastName || !email || !password) {
-      setRegError("All fields are required.");
-      return;
-    }
-    if (!path?.foundational) {
-        setRegError("Configuration error. Please try again.");
-        return;
-    }
-
-    setRegError('');
-    setIsSubmitting(true);
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      const firebaseUser = userCredential.user;
-      await updateFbProfile(firebaseUser, { displayName: `${firstName} ${lastName}` });
-      
-      const queueIds = isQueued && path.nextPath ? [path.nextPath.id] : [];
-
-      const newUser: Partial<Participant> = {
-        id: firebaseUser.uid,
-        name: `${firstName} ${lastName}`,
-        email: email.trim().toLowerCase(),
-        role: UserRole.PARTICIPANT,
-        profileImageUrl: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=0E7850&color=fff`,
-        persona,
-        onboardingAnswers: answers,
-        occupation: occupation?.includes('Student') ? 'student' : occupation?.includes('Employed') ? 'employed' : occupation?.includes('Self') ? 'self_employed' : 'unemployed',
-        subscription: { planId: (recommendedPlan as any) || 'free', active: true, renewsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() },
-        savedSprintIds: queueIds,
-        enrolledSprintIds: [path.foundational.id],
-        walletBalance: 30,
-        impactStats: { peopleHelped: 0, streak: 0 },
-        createdAt: new Date().toISOString()
-      };
-      
-      await userService.createUserDocument(firebaseUser.uid, newUser);
-      localStorage.removeItem('vectorise_quiz_prefill');
-
-      await sprintService.enrollUser(firebaseUser.uid, path.foundational.id, path.foundational.duration);
-      
-      if (referrerId) {
-          const referrer = await userService.getUserDocument(referrerId) as Participant;
-          if (referrer) {
-              const currentImpact = referrer.impactStats?.peopleHelped || 0;
-              await userService.updateUserDocument(referrerId, {
-                  impactStats: { 
-                      ...referrer.impactStats!, 
-                      peopleHelped: currentImpact + 1 
-                  }
-              });
-              // Fix: Corrected positional arguments for createNotification.
-              await notificationService.createNotification(
-                  referrerId, 
-                  'referral_update', 
-                  'Impact Growth', 
-                  `✨ ${firstName} joined Vectorise. Your influence is growing!`,
-                  { actionUrl: '/impact' }
-              );
-          }
-      }
-
-      await sendEmailVerification(firebaseUser);
-      await signOut(auth);
-      navigate('/verify-email', { state: { email: email.trim() } });
-    } catch (error: any) {
-      console.error("Signup error:", error);
-      if (error.code === 'auth/email-already-in-use') {
-          setRegError("This email is already in use. Try logging in instead.");
-      } else if (error.code === 'auth/weak-password') {
-          setRegError("Password must be at least 6 characters.");
-      } else {
-          setRegError("Registration failed. Please try again.");
-      }
-    } finally { setIsSubmitting(false); }
+  const handleContinueToSignUp = () => {
+    navigate('/signup', { 
+        state: { 
+            ...location.state, 
+            isQueued 
+        } 
+    });
   };
 
   return (
@@ -251,43 +170,31 @@ const RecommendedSprints: React.FC = () => {
           )}
         </div>
 
-        <div className="bg-white rounded-[3rem] p-8 md:p-14 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.4)] text-dark relative overflow-hidden animate-slide-up" style={{ animationDelay: '300ms' }}>
-          <div className="relative z-10">
-            <h2 className="text-[8px] font-black text-center mb-10 tracking-[0.4em] text-primary uppercase">SECURE YOUR BLUEPRINT & START PHASE 01</h2>
-            
-            <form onSubmit={handleSignUp} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-[10px] font-black text-gray-300 mb-2.5 ml-1">First name</label>
-                  <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold" placeholder="e.g. Jamie" />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-gray-300 mb-2.5 ml-1">Last name</label>
-                  <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold" placeholder="e.g. Lee" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-gray-300 mb-2.5 ml-1">Email address</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold" placeholder="jamie@growth.com" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-gray-300 mb-2.5 ml-1">Secure password</label>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none transition-all font-bold" placeholder="••••••••" />
-              </div>
-
-              {regError && <p className="text-red-500 text-[10px] font-black text-center bg-red-50 p-4 rounded-2xl border border-red-100 animate-pulse">{regError}</p>}
-
-              <Button type="submit" isLoading={isSubmitting} className="w-full py-6 text-lg font-black uppercase tracking-[0.25em] rounded-full shadow-2xl shadow-primary/30 transition-transform active:scale-95">
-                Unlock My Path
-              </Button>
-            </form>
-            <p className="text-center text-[10px] font-black text-gray-300 mt-10">Already have an account? <Link to="/login" className="text-primary hover:underline">Log in here</Link></p>
-          </div>
-          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-[100px] -mr-24 -mt-24"></div>
+        {/* STANDALONE CTA TO SIGN UP */}
+        <div className="bg-white rounded-[3rem] p-10 md:p-14 shadow-2xl text-dark relative overflow-hidden animate-slide-up text-center" style={{ animationDelay: '300ms' }}>
+            <div className="relative z-10">
+                <h2 className="text-[9px] font-black text-primary uppercase tracking-[0.4em] mb-6">Execution Phase</h2>
+                <h3 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-tight mb-4">
+                    Ready to manifest your blueprint?
+                </h3>
+                <p className="text-gray-500 font-medium text-sm md:text-base mb-10 max-w-sm mx-auto italic">
+                    Establish your registry identity to secure these programs and begin Phase 01 immediately.
+                </p>
+                
+                <button 
+                    onClick={handleContinueToSignUp}
+                    className="w-full max-w-sm py-6 bg-primary text-white font-black uppercase tracking-[0.25em] rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-95 transition-all text-sm"
+                >
+                    Secure My Blueprint & Continue
+                </button>
+                
+                <p className="mt-8 text-[10px] font-black text-gray-300">
+                    Already in the registry? <Link to="/login" className="text-primary hover:underline">Access Login</Link>
+                </p>
+            </div>
+            <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-[100px] -mr-24 -mt-24"></div>
         </div>
       </div>
-      
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none bg-black/5 opacity-40"></div>
       
       <style>{`
         @keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }

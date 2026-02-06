@@ -11,8 +11,6 @@ const ClaritySprintPayment: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   
-  // State for guest checkout
-  const [guestEmail, setGuestEmail] = useState('');
   const [finalCommitment, setFinalCommitment] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -20,21 +18,12 @@ const ClaritySprintPayment: React.FC = () => {
   // Preserve navigation context
   const state = location.state || {};
 
-  // Validation: Check if we have an identity (logged in OR email provided)
-  const userEmail = user?.email || guestEmail;
-  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail);
-  const canPay = finalCommitment && isEmailValid && !isProcessing;
+  const userEmail = user?.email;
+  const canPay = finalCommitment && userEmail && !isProcessing;
 
   const startPayment = async () => {
-    console.log("Pay button clicked");
-    
     if (!userEmail) {
-        setErrorMessage("Please enter your email to secure your registry identity.");
-        return;
-    }
-
-    if (!isEmailValid) {
-        setErrorMessage("Please enter a valid email address.");
+        setErrorMessage("Identity not confirmed. Please ensure you are logged in.");
         return;
     }
 
@@ -47,11 +36,10 @@ const ClaritySprintPayment: React.FC = () => {
       const checkoutUrl = await paymentService.initializeFlutterwave({
         email: userEmail,
         sprintId: 'clarity-sprint',
-        name: user?.name || 'Guest Sprinter'
+        name: user?.name || 'Vectorise Sprinter'
       });
 
       console.log("[Flow] Handoff to Flutterwave:", checkoutUrl);
-      // Redirect browser to Flutterwave secure checkout
       window.location.href = checkoutUrl;
       
     } catch (error: any) {
@@ -75,7 +63,7 @@ const ClaritySprintPayment: React.FC = () => {
         <div className="flex flex-col items-center mb-10">
           <LocalLogo type="green" className="h-6 w-auto mb-6 opacity-40" />
           <div className="w-24 h-1 bg-gray-100 rounded-full overflow-hidden">
-             <div className="h-full bg-primary rounded-full transition-all duration-1000 w-[60%]" style={{ width: '60%' }}></div>
+             <div className="h-full bg-primary rounded-full transition-all duration-1000 w-[75%]" style={{ width: '75%' }}></div>
           </div>
         </div>
 
@@ -94,22 +82,6 @@ const ClaritySprintPayment: React.FC = () => {
 
           <main className="p-8 md:p-12 space-y-10">
             
-            {!user && (
-              <section className="space-y-4 animate-fade-in">
-                 <h2 className="text-[9px] font-black text-primary uppercase tracking-[0.3em]">Identity Registry</h2>
-                 <div>
-                   <input 
-                    type="email" 
-                    value={guestEmail}
-                    onChange={(e) => setGuestEmail(e.target.value)}
-                    placeholder="Enter your email to secure your spot"
-                    className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all placeholder:text-gray-300"
-                   />
-                   <p className="mt-2 text-[10px] text-gray-400 italic">Your sprint access will be tied to this email.</p>
-                 </div>
-              </section>
-            )}
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                <section className="bg-gray-50 rounded-3xl p-8 border border-gray-100 text-center space-y-2">
                   <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Price</p>
@@ -125,6 +97,7 @@ const ClaritySprintPayment: React.FC = () => {
                     <p>✓ 5-Day Guided Focus</p>
                     <p>✓ Daily Outcome Protocol</p>
                     <p>✓ Registry Certification</p>
+                    <p>✓ Professional Coaching Access</p>
                   </div>
                </section>
             </div>
@@ -159,10 +132,7 @@ const ClaritySprintPayment: React.FC = () => {
           <footer className="p-8 md:p-12 pt-4 bg-gray-50/50 border-t border-gray-50">
              <div className="space-y-6">
                 <Button 
-                  onClick={() => {
-                    console.log("Pay button clicked");
-                    startPayment();
-                  }}
+                  onClick={startPayment}
                   disabled={!canPay}
                   isLoading={isProcessing}
                   className={`w-full py-5 rounded-full shadow-2xl transition-all text-sm uppercase tracking-[0.3em] font-black ${

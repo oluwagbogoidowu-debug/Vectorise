@@ -32,14 +32,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
-        // CRITICAL: Block unverified users from entering the app context
-        if (!firebaseUser.emailVerified) {
-            console.log("Unverified user detected. Blocking session.");
-            await signOut(auth);
-            setUser(null);
-            setLoading(false);
-            return;
-        }
+        // NOTE: Verification check removed from here to allow immediate access after signup.
+        // Component-level checks (like in Profile.tsx) will notify users of unverified status.
 
         try {
             // 1. Try to get data from Firestore first
@@ -238,7 +232,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('AuthContext must be used within an AuthProvider');
   }
   return context;
 };

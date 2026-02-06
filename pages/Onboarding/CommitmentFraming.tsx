@@ -13,23 +13,16 @@ const CommitmentFraming: React.FC = () => {
   const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
 
   // Preserve navigation context (target sprints, skip logic, etc.)
-  const { skipToExecution, executionPath, challenge, sprintType, targetSprintId, referrerId } = location.state || {};
+  const state = location.state || {};
 
   const handleContinue = () => {
     if (!isCommitted) return;
     
-    // If user skipped to execution via micro selector in description, 
-    // we bypass clarity payment and go straight to the quiz intro.
-    if (skipToExecution) {
-        navigate('/onboarding/intro', { 
-          state: { skipToExecution, executionPath, challenge, sprintType, targetSprintId, referrerId } 
-        });
-    } else {
-        // Standard path: Go to Clarity Sprint Payment
-        navigate('/onboarding/clarity-payment', { 
-          state: { skipToExecution, executionPath, challenge, sprintType, targetSprintId, referrerId } 
-        });
-    }
+    // In both cases (skip to execution or standard clarity path), we now force sign-up first.
+    // We flag this as a clarity flow so the signup page knows to potentially redirect to payment later.
+    navigate('/signup', { 
+      state: { ...state, isClarityFlow: true } 
+    });
   };
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
@@ -150,7 +143,7 @@ const CommitmentFraming: React.FC = () => {
                   isCommitted ? 'bg-primary text-white active:scale-95' : 'bg-gray-100 text-gray-300 grayscale cursor-not-allowed border-none shadow-none'
                 }`}
               >
-                Start Sprint
+                Secure My Path &rarr;
               </Button>
               
               <div className="text-center">

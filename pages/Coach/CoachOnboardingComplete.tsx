@@ -18,6 +18,7 @@ const CoachOnboardingComplete: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [regError, setRegError] = useState('');
+  const [showLoginLink, setShowLoginLink] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -27,6 +28,7 @@ const CoachOnboardingComplete: React.FC = () => {
       return;
     }
     setRegError('');
+    setShowLoginLink(false);
     setIsSubmitting(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
@@ -48,10 +50,15 @@ const CoachOnboardingComplete: React.FC = () => {
       await signOut(auth);
       navigate('/verify-email', { state: { email: email.trim(), isCoach: true } });
     } catch (error: any) {
-      console.error("Signup error:", error);
-      if (error.code === 'auth/email-already-in-use') setRegError("Email taken.");
-      else if (error.code === 'auth/weak-password') setRegError("Short password.");
-      else setRegError("Registry failed.");
+      console.error("Coach Signup error handled:", error.code);
+      if (error.code === 'auth/email-already-in-use') {
+          setRegError("This email is already registered as a coach or user.");
+          setShowLoginLink(true);
+      } else if (error.code === 'auth/weak-password') {
+          setRegError("Password must be at least 6 characters.");
+      } else {
+          setRegError("Registry failed. Please try again.");
+      }
     } finally { setIsSubmitting(false); }
   };
 
@@ -87,7 +94,16 @@ const CoachOnboardingComplete: React.FC = () => {
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl focus:ring-4 focus:ring-primary/5 outline-none font-bold text-sm" placeholder="••••••••" />
               </div>
 
-              {regError && <p className="text-red-500 text-[9px] font-black text-center bg-red-50 p-2.5 rounded-xl border border-red-100">{regError}</p>}
+              {regError && (
+                <div className="bg-red-50 p-4 rounded-2xl border border-red-100 flex flex-col items-center gap-3">
+                    <p className="text-[10px] text-red-600 font-black uppercase text-center tracking-widest leading-relaxed">{regError}</p>
+                    {showLoginLink && (
+                        <Link to="/login" className="px-6 py-2 bg-red-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-md hover:bg-red-700 transition-colors">
+                            Log in instead
+                        </Link>
+                    )}
+                </div>
+              )}
 
               <Button type="submit" isLoading={isSubmitting} className="w-full py-4 text-xs font-black uppercase tracking-[0.2em] rounded-full shadow-lg transition-transform active:scale-95 mt-2">
                 Join Registry
