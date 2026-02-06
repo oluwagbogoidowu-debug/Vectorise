@@ -31,9 +31,24 @@ module.exports = async (req, res) => {
       }
     });
 
-    const data = await response.json();
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Flutterwave error:", errorText);
+      throw new Error(errorText);
+    }
 
-    if (response.ok && data.data && data.data.status === "successful") {
+    const contentType = response.headers.get("content-type");
+    let data;
+
+    if (contentType && contentType.includes("application/json")) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      console.error("Non-JSON response:", text);
+      throw new Error("Server returned non-JSON response");
+    }
+
+    if (data.data && data.data.status === "successful") {
       return res.status(200).json({ 
         status: 'successful', 
         email: data.data.customer.email 

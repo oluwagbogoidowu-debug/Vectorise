@@ -49,7 +49,6 @@ module.exports = async (req, res) => {
 
     console.log(`[Backend] Initiating Flutterwave for ${email}, Amt: ${amount}`);
 
-    // Using native fetch (Node 18+) to avoid axios dependency issues
     const response = await fetch('https://api.flutterwave.com/v3/payments', {
       method: 'POST',
       headers: {
@@ -77,17 +76,32 @@ module.exports = async (req, res) => {
       })
     });
 
-    const data = await response.json();
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Flutterwave error:", errorText);
+      throw new Error(errorText);
+    }
 
-    if (response.ok && data.status === 'success') {
+    const contentType = response.headers.get("content-type");
+    let data;
+
+    if (contentType && contentType.includes("application/json")) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      console.error("Non-JSON response:", text);
+      throw new Error("Server returned non-JSON response");
+    }
+
+    if (data.status === 'success') {
       return res.status(200).json({
         authorization_url: data.data.link,
         reference: tx_ref
       });
     }
 
-    console.error("[Backend] Flutterwave API Error Response:", data);
-    return res.status(response.status).json({ 
+    console.error("[Backend] Flutterwave API Logic Error:", data);
+    return res.status(400).json({ 
       message: data.message || "Flutterwave declined the request.",
       detail: data
     });

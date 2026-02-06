@@ -29,28 +29,29 @@ export const paymentService = {
         })
       });
 
-      const contentType = response.headers.get("content-type");
-      
-      // Check if response is actually JSON before parsing
-      if (contentType && contentType.indexOf("application/json") !== -1) {
-        const data = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(data.message || "Registry error occurred.");
-        }
-
-        if (data.authorization_url) {
-          console.log("[Registry] Authorization URL generated successfully.");
-          return data.authorization_url;
-        }
-        
-        throw new Error("Registry returned an incomplete response.");
-      } else {
-        // Handle non-JSON errors (like Vercel 500 text pages)
-        const textError = await response.text();
-        console.error("[Registry] Received non-JSON error from backend:", textError);
-        throw new Error("The payment registry is currently unreachable (Server 500). Please check your environment variables.");
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Registry error:", errorText);
+        throw new Error(errorText);
       }
+
+      const contentType = response.headers.get("content-type");
+      let data;
+
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.error("Non-JSON response:", text);
+        throw new Error("Server returned non-JSON response");
+      }
+      
+      if (data.authorization_url) {
+        console.log("[Registry] Authorization URL generated successfully.");
+        return data.authorization_url;
+      }
+      
+      throw new Error("Registry returned an incomplete response.");
     } catch (error: any) {
       console.error("[Registry] Payment Init Error:", error.message);
       throw error;
@@ -59,7 +60,7 @@ export const paymentService = {
 
   /**
    * verifyPayment(gateway, reference)
-   * Polls the backend to verify that fulfillment has occurred.
+   * Polls the backend to verify that fulfillment (enrollment) has occurred.
    */
   verifyPayment: async (gateway: string, reference: string): Promise<{ status: string }> => {
     console.log(`[Registry] Verifying ${gateway} payment:`, reference);
@@ -70,13 +71,22 @@ export const paymentService = {
 
     try {
       const response = await fetch(url);
-      const contentType = response.headers.get("content-type");
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Verification error:", errorText);
+        return { status: 'error' };
+      }
 
-      if (contentType && contentType.indexOf("application/json") !== -1) {
-        return await response.json();
+      const contentType = response.headers.get("content-type");
+      let data;
+
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+        return data;
       } else {
         const text = await response.text();
-        console.warn("[Registry] Verification returned non-JSON:", text);
+        console.error("Non-JSON response:", text);
         return { status: 'pending' };
       }
     } catch (error) {
