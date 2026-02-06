@@ -3,29 +3,44 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
+import { paymentService } from '../../services/paymentService';
+import { useAuth } from '../../contexts/AuthContext';
 
 const ClaritySprintPayment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [finalCommitment, setFinalCommitment] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showEmailCapture, setShowEmailCapture] = useState(false);
   const [email, setEmail] = useState('');
   const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Preserve navigation context
   const state = location.state || {};
 
   const handlePayment = async () => {
-    if (!finalCommitment) return;
+    if (!finalCommitment || !user) return;
     setIsProcessing(true);
+    setErrorMessage(null);
     
-    // Simulate payment processing delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setIsProcessing(false);
-    // Proceed to quiz intro
-    navigate('/onboarding/intro', { state });
+    try {
+      // Trigger the real Paystack payment flow via our backend
+      const authUrl = await paymentService.initializePayment('paystack', {
+        email: user.email,
+        sprintId: 'clarity-sprint', // Backend uses this to look up pricing
+        userStage: 'clarity',
+        entrySprint: true
+      });
+
+      // Redirect user to Paystack Checkout
+      window.location.href = authUrl;
+    } catch (error: any) {
+      console.error("Payment trigger failed:", error);
+      setErrorMessage("The payment server is unreachable. Please try again or contact support.");
+      setIsProcessing(false);
+    }
   };
 
   const handleSkipRequest = () => {
@@ -167,6 +182,12 @@ const ClaritySprintPayment: React.FC = () => {
                   I’m committing to complete this sprint.
                 </div>
               </label>
+
+              {errorMessage && (
+                <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-[10px] font-bold text-red-600 uppercase tracking-widest text-center animate-pulse">
+                  {errorMessage}
+                </div>
+              )}
             </section>
           </main>
 
@@ -175,7 +196,7 @@ const ClaritySprintPayment: React.FC = () => {
              <div className="space-y-6">
                 <Button 
                   onClick={handlePayment}
-                  disabled={!finalCommitment}
+                  disabled={!finalCommitment || isProcessing}
                   isLoading={isProcessing}
                   className={`w-full py-5 rounded-full shadow-2xl transition-all text-sm uppercase tracking-[0.3em] font-black ${
                     finalCommitment ? 'bg-primary text-white hover:scale-[1.02] active:scale-95' : 'bg-gray-200 text-gray-400 grayscale cursor-not-allowed border-none shadow-none'
