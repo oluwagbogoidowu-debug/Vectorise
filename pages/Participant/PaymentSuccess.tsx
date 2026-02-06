@@ -12,7 +12,8 @@ const PaymentSuccess: React.FC = () => {
     const [retries, setRetries] = useState(0);
 
     const query = new URLSearchParams(location.search);
-    const reference = query.get('reference');
+    // Fixed: Support both 'reference' (Paystack) and 'tx_ref' (Flutterwave)
+    const reference = query.get('reference') || query.get('tx_ref');
 
     useEffect(() => {
         if (!reference) {
@@ -22,8 +23,11 @@ const PaymentSuccess: React.FC = () => {
 
         const checkStatus = async () => {
             try {
-                const data = await paymentService.verifyPayment('paystack', reference);
-                if (data.status === 'successful') {
+                // Fixed: Determine correct gateway for verification and fix missing method error
+                const gateway = query.get('reference') ? 'paystack' : 'flutterwave';
+                const data = await paymentService.verifyPayment(gateway, reference);
+                
+                if (data.status === 'successful' || data.status === 'success') {
                     setStatus('success');
                 } else if (retries < 5) {
                     // Webhook might be slow, poll a few times
@@ -37,7 +41,7 @@ const PaymentSuccess: React.FC = () => {
         };
 
         checkStatus();
-    }, [reference, retries]);
+    }, [reference, retries, query]);
 
     return (
         <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-6 font-sans">

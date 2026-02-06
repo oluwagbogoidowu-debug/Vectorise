@@ -17,44 +17,36 @@ const ClaritySprintPayment: React.FC = () => {
   // Preserve navigation context
   const state = location.state || {};
 
-  const handlePayment = async () => {
-    console.log("Pay clicked");
-    
-    if (!finalCommitment) {
-        setErrorMessage("Please check the commitment box to proceed.");
-        return;
-    }
-
+  const startPayment = async () => {
     if (!user) {
-        setErrorMessage("Identity not verified. Please log in first.");
+        setErrorMessage("Identity not verified. Please log in.");
         return;
     }
 
     setIsProcessing(true);
     setErrorMessage(null);
-    
+
     try {
-      // 1. Call backend to get Paystack Authorization URL
-      console.log("Requesting payment initiation from registry...");
-      const authUrl = await paymentService.initializePayment('paystack', {
+      console.log("[Flow] Requesting Flutterwave link from /api/flutterwave/initiate...");
+      
+      const checkoutUrl = await paymentService.initializeFlutterwave({
         email: user.email,
-        sprintId: 'clarity-sprint', // BackendPricing logic will match this
-        userStage: 'clarity',
-        entrySprint: true
+        sprintId: 'clarity-sprint',
+        name: user.name
       });
 
-      // 2. Redirect to Paystack
-      console.log("Redirecting to secure gateway...");
-      window.location.href = authUrl;
+      console.log("[Flow] Handoff to Flutterwave:", checkoutUrl);
+      // Redirect browser to Flutterwave secure checkout
+      window.location.href = checkoutUrl;
+      
     } catch (error: any) {
-      console.error("Payment flow interrupted:", error);
-      setErrorMessage(error.message || "Connection to gateway failed. Please try again.");
+      console.error("[Flow] Payment failed:", error);
+      setErrorMessage(error.message || "Unable to reach the payment gateway. Please try again.");
       setIsProcessing(false);
     }
   };
 
   const handleSkipRequest = () => {
-    // Navigate to intro with skipToExecution flag set to true
     navigate('/onboarding/intro', { 
         state: { ...state, skipToExecution: true } 
     });
@@ -119,7 +111,7 @@ const ClaritySprintPayment: React.FC = () => {
                   <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">Why it’s paid</h2>
                   <div className="text-[11px] md:text-xs font-medium text-gray-500 leading-relaxed italic">
                     <p>Free creates curiosity. Paid creates completion.</p>
-                    <p className="mt-4">The price protects your attention, not just our time.</p>
+                    <p className="mt-4 text-gray-900 font-bold">Protects your attention.</p>
                   </div>
                </section>
             </div>
@@ -155,14 +147,17 @@ const ClaritySprintPayment: React.FC = () => {
           <footer className="p-8 md:p-12 pt-4 bg-gray-50/50 border-t border-gray-50">
              <div className="space-y-6">
                 <Button 
-                  onClick={handlePayment}
-                  disabled={isProcessing}
+                  onClick={() => {
+                    console.log("Pay button clicked");
+                    startPayment();
+                  }}
+                  disabled={!finalCommitment || isProcessing}
                   isLoading={isProcessing}
                   className={`w-full py-5 rounded-full shadow-2xl transition-all text-sm uppercase tracking-[0.3em] font-black ${
                     finalCommitment ? 'bg-primary text-white hover:scale-[1.02]' : 'bg-gray-200 text-gray-400 grayscale cursor-not-allowed border-none'
                   }`}
                 >
-                  {isProcessing ? "Securing Registry..." : "Pay & Start Sprint"}
+                  {isProcessing ? "Authorizing Registry..." : "Pay & Start Sprint"}
                 </Button>
                 
                 <div className="text-center">
@@ -170,7 +165,7 @@ const ClaritySprintPayment: React.FC = () => {
                       onClick={handleSkipRequest}
                       className="text-[10px] font-black text-gray-400 hover:text-primary transition-colors underline underline-offset-4 decoration-gray-200"
                     >
-                      Already clear? Skip and choose an execution sprint.
+                      Already clear? Skip to execution.
                     </button>
                 </div>
              </div>
