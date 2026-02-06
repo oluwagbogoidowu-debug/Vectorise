@@ -3,7 +3,7 @@
  * GET /api/flutterwave/verify?reference=TX_REF
  * Backend-to-Backend verification of the payment status.
  */
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
@@ -34,7 +34,7 @@ module.exports = async (req, res) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Flutterwave verification error:", errorText);
-      throw new Error(errorText);
+      return res.status(response.status).json({ status: 'error', message: errorText });
     }
 
     const contentType = response.headers.get("content-type");
@@ -64,4 +64,4 @@ module.exports = async (req, res) => {
     console.error("[Backend] Verification Exception:", error);
     return res.status(500).json({ status: 'error', message: error.message });
   }
-};
+}

@@ -29,12 +29,14 @@ export const paymentService = {
         })
       });
 
+      // Requirement: Ensure !response.ok check is intact
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Registry error:", errorText);
+        console.error("Flutterwave error:", errorText);
         throw new Error(errorText);
       }
 
+      // Requirement: Use the specific content-type logic requested
       const contentType = response.headers.get("content-type");
       let data;
 
@@ -46,8 +48,7 @@ export const paymentService = {
         throw new Error("Server returned non-JSON response");
       }
       
-      // Flutterwave's standard response has the link at data.link or sometimes it's returned directly
-      // Based on the backend returning the raw FLW object:
+      // Standard Flutterwave response has the link at data.link
       const checkoutUrl = data.data?.link || data.link;
       
       if (checkoutUrl) {

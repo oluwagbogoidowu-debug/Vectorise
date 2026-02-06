@@ -1,22 +1,32 @@
 
 export default async function handler(req, res) {
+  // CORS Headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
   try {
-    // CORS Headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') {
-      return res.status(200).end();
-    }
-
     const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY;
 
     if (!FLW_SECRET_KEY) {
-      console.error("[Backend] Missing FLW_SECRET_KEY in environment.");
+      console.error("[Backend] Missing FLW_SECRET_KEY");
       return res.status(500).json({ error: "Missing FLW_SECRET_KEY" });
     }
 
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    // Using global fetch (available in Node 18+) to avoid 'node-fetch' dependency issues
     const response = await fetch("https://api.flutterwave.com/v3/payments", {
       method: "POST",
       headers: {
@@ -28,9 +38,7 @@ export default async function handler(req, res) {
         amount: "5000",
         currency: "NGN",
         redirect_url: "https://vectorise.online/payment/callback",
-        customer: {
-          email: req.body.email
-        },
+        customer: { email },
         customizations: {
           title: "Clarity Sprint",
           description: "5-day Clarity Sprint"
@@ -42,10 +50,11 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Flutterwave error:", errorText);
-      throw new Error(errorText);
+      // Return error as JSON to prevent frontend crash
+      return res.status(response.status).json({ error: errorText });
     }
 
-    // Requirement: Ensure content-type check is intact
+    // Requirement: Use requested content-type checking logic
     const contentType = response.headers.get("content-type");
     let data;
 
@@ -57,11 +66,12 @@ export default async function handler(req, res) {
       throw new Error("Server returned non-JSON response");
     }
 
-    // Requirement: Use res.status(200).json(data)
+    // Return successful JSON response
     return res.status(200).json(data);
 
   } catch (error) {
     console.error("[Backend] Internal Error:", error);
+    // CRITICAL: Always return JSON even on catch to avoid "Unexpected token A"
     return res.status(500).json({ error: error.message });
   }
 }
