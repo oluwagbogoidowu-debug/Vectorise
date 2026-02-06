@@ -107,24 +107,8 @@ const AppRoutes: React.FC = () => {
     location.pathname === '/verify-email' ||
     location.pathname === '/payment/success';
 
-  const isParticipantAppLayout = 
-    location.pathname === '/dashboard' || 
-    location.pathname === '/discover' ||
-    location.pathname === '/my-sprints' ||
-    location.pathname === '/profile' ||
-    location.pathname.startsWith('/profile/') ||
-    location.pathname === '/growth' ||
-    location.pathname === '/impact' ||
-    location.pathname === '/impact/share' ||
-    location.pathname === '/impact/ripple' ||
-    location.pathname === '/impact/rewards' ||
-    location.pathname === '/impact/badges' ||
-    location.pathname.startsWith('/participant/sprint/');
-
-  const isCoachAppLayout = location.pathname.startsWith('/coach/') && location.pathname !== '/coach/onboarding/complete';
-
-  // Exclude home page and onboarding/auth routes from global header to allow specialized layouts
-  const showGlobalHeader = !isOnboardingRoute && !isParticipantAppLayout && !isCoachAppLayout && !isAuthRoute && location.pathname !== '/';
+  // Strictly only show on the dashboard (homepage) as requested
+  const showGlobalHeader = location.pathname === '/dashboard';
 
   const showParticipantNav = 
     user && 

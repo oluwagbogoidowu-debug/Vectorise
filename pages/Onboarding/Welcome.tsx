@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
@@ -9,7 +10,7 @@ export const Welcome: React.FC = () => {
     <div className="flex flex-col h-screen w-screen p-6 bg-primary text-white overflow-hidden relative selection:bg-white/10">
       <main className="flex flex-col h-full w-full justify-between relative z-10 max-w-sm mx-auto">
         <div className="pt-10 text-center animate-fade-in flex-shrink-0">
-          <LocalLogo type="white" className="h-10 w-auto mx-auto mb-2" />
+          <LocalLogo type="white" className="h-8 w-auto mx-auto mb-2" />
         </div>
 
         <div className="flex-grow flex items-center justify-center animate-slide-up">

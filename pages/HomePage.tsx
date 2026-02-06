@@ -11,7 +11,7 @@ const HomePage: React.FC = () => {
       <nav className="fixed top-0 left-0 w-full z-[100] bg-white/95 backdrop-blur-md border-b border-gray-100 px-6 py-5">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <Link to="/" className="hover:scale-105 transition-transform duration-500">
-            <LocalLogo type="green" className="h-9 w-auto" />
+            <LocalLogo type="green" className="h-[2.125rem] w-auto" />
           </Link>
           <div className="flex gap-3">
             <Link to="/onboarding/focus-selector" className="px-8 py-3.5 bg-primary text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95">
@@ -281,7 +281,7 @@ const HomePage: React.FC = () => {
       <footer className="px-10 py-20 border-t border-gray-100 bg-white">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
           <div className="flex items-center gap-6">
-            <LocalLogo type="green" className="h-9 md:h-10" />
+            <LocalLogo type="green" className="h-[2.125rem] w-auto" />
             <div className="w-px h-6 bg-gray-200"></div>
             <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.5em] leading-none pt-0.5">
               Visible Progress System
