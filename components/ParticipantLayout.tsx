@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 
@@ -7,9 +8,9 @@ interface ParticipantLayoutProps {
 
 const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-light">
-      {/* Main content area with padding bottom to prevent content being hidden behind nav */}
-      <div className="pb-24 bg-light">
+    <div className="h-[100dvh] w-full bg-light overflow-hidden flex flex-col">
+      {/* Main content area: flex-1 allows it to take up all space between header/nav if they exist */}
+      <div className="flex-1 bg-light relative overflow-hidden">
         {children || <Outlet />}
       </div>
     </div>
