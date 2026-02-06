@@ -13,27 +13,27 @@ module.exports = async (req, res) => {
 
   try {
     const { reference } = req.query;
-    const FLUTTERWAVE_SECRET_KEY = process.env.FLUTTERWAVE_SECRET_KEY;
+    const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY;
 
     if (!reference) {
       return res.status(400).json({ status: 'error', message: 'Reference is required' });
     }
 
-    if (!FLUTTERWAVE_SECRET_KEY) {
-      return res.status(500).json({ status: 'error', message: 'Missing Secret Key' });
+    if (!FLW_SECRET_KEY) {
+      return res.status(500).json({ status: 'error', message: 'Missing Secret Key (FLW_SECRET_KEY)' });
     }
 
     const response = await fetch(`https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${reference}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${FLUTTERWAVE_SECRET_KEY}`,
+        'Authorization': `Bearer ${FLW_SECRET_KEY}`,
         'Content-Type': 'application/json'
       }
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Flutterwave error:", errorText);
+      console.error("Flutterwave verification error:", errorText);
       throw new Error(errorText);
     }
 

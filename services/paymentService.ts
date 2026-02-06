@@ -46,12 +46,17 @@ export const paymentService = {
         throw new Error("Server returned non-JSON response");
       }
       
-      if (data.authorization_url) {
+      // Flutterwave's standard response has the link at data.link or sometimes it's returned directly
+      // Based on the backend returning the raw FLW object:
+      const checkoutUrl = data.data?.link || data.link;
+      
+      if (checkoutUrl) {
         console.log("[Registry] Authorization URL generated successfully.");
-        return data.authorization_url;
+        return checkoutUrl;
       }
       
-      throw new Error("Registry returned an incomplete response.");
+      console.error("[Registry] Payload received but link missing:", data);
+      throw new Error("Registry returned an incomplete response (Missing Link).");
     } catch (error: any) {
       console.error("[Registry] Payment Init Error:", error.message);
       throw error;
