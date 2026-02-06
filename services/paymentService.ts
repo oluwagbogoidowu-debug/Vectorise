@@ -21,38 +21,36 @@ const FUNCTIONS_BASE_URL = window.location.hostname === 'localhost'
 export const paymentService = {
   /**
    * initializePayment(provider, payload)
-   * Patterns: 'paystack' | 'flutterwave'
+   * Dispatches to the correct backend endpoint
    */
   initializePayment: async (provider: 'paystack' | 'flutterwave', payload: PaymentPayload): Promise<string> => {
+    console.log(`[Payment] Initializing ${provider} for ${payload.email}...`);
+    
     if (provider === "paystack") {
       return initializePaystack(payload);
     }
 
-    if (provider === "flutterwave") {
-      return initializeFlutterwave(payload);
-    }
-
-    throw new Error(`Unsupported payment provider: ${provider}`);
+    throw new Error(`Provider ${provider} is not supported in the registry yet.`);
   },
 
   /**
    * verifyPayment(provider, reference)
-   * Manually checks backend for transaction status
+   * Backend check to see if transaction is marked successful in DB
    */
   verifyPayment: async (provider: string, reference: string) => {
     try {
       const response = await fetch(`${FUNCTIONS_BASE_URL}/verifyPayment?provider=${provider}&reference=${reference}`);
-      if (!response.ok) throw new Error("Verification check failed");
+      if (!response.ok) throw new Error("Verification check failed at server");
       return await response.json();
     } catch (error) {
-      console.error("Manual verification error:", error);
+      console.error("[Payment] Verification Error:", error);
       throw error;
     }
   }
 };
 
 /**
- * INTERNAL PROVIDER LOGIC
+ * INTERNAL LOGIC
  */
 
 async function initializePaystack(payload: PaymentPayload): Promise<string> {
@@ -71,20 +69,18 @@ async function initializePaystack(payload: PaymentPayload): Promise<string> {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || "Backend initialization failed");
+      throw new Error(errorData.message || "Registry was unable to initialize transaction.");
     }
 
     const data = await response.json();
-    if (data.authorization_url) return data.authorization_url;
+    if (data.authorization_url) {
+        console.log(`[Payment] Authorization URL received: ${data.authorization_url}`);
+        return data.authorization_url;
+    }
     
-    throw new Error("No authorization URL provided by backend");
-  } catch (error) {
-    console.error("Paystack Init Logic Error:", error);
+    throw new Error("Invalid response from payment gateway server.");
+  } catch (error: any) {
+    console.error("[Payment] Paystack Init Failed:", error);
     throw error;
   }
-}
-
-async function initializeFlutterwave(payload: PaymentPayload): Promise<string> {
-  // Placeholder for future implementation
-  throw new Error("Flutterwave integration is not yet active.");
 }

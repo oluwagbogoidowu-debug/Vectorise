@@ -9,61 +9,67 @@ admin.initializeApp();
 /**
  * CONFIGURATION
  * Keys are read from:
- * functions.config().paystack.secret
- * functions.config().paystack.public
+ * firebase functions:config:set paystack.secret="sk_test_..."
  */
-const getPaystackSecret = () => functions.config().paystack ? functions.config().paystack.secret : null;
+const getPaystackSecret = () => {
+    // Priority 1: Firebase Config
+    if (functions.config().paystack && functions.config().paystack.secret) {
+        return functions.config().paystack.secret;
+    }
+    // Priority 2: Fallback for initial test (matches user provided key)
+    return "sk_test_20d6118d43b43bcb995817c64b4de06d96ec9ea7";
+};
+
 const PAYSTACK_URL = "https://api.paystack.co";
 
-// Internal Backend-Only Pricing Registry
+// Internal Pricing Registry - ONLY backend decides the cost
 const SPRINT_PRICES = {
   'clarity-sprint': 5000, // ₦5,000
-  'foundation-1': 5000,
-  'visibility-sprint': 7500,
-  'execution-accelerator': 10000
+  'focus-sprint': 3000,
+  'visibility-sprint': 7500
 };
 
 /**
- * /initiatePayment
- * Accepts: email, sprint_id, coach_id (opt), user_stage, entry_sprint (bool)
+ * POST /initiatePayment
+ * Frontend calls this to start a transaction.
  */
 exports.initiatePayment = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  
   if (req.method === 'OPTIONS') {
-    res.set('Access-Control-Allow-Methods', 'POST');
-    res.set('Access-Control-Allow-Headers', 'Content-Type');
     res.status(204).send('');
     return;
   }
 
-  const { email, sprint_id, coach_id, user_stage, entry_sprint } = req.body;
-  const secretKey = getPaystackSecret();
-
-  if (!secretKey) {
-    return res.status(500).json({ message: "Payment configuration missing on server." });
-  }
-
-  if (!email || !sprint_id) {
-    return res.status(400).json({ message: "Missing required fields (email, sprint_id)" });
-  }
-
-  // Determine amount (backend pricing control)
-  const priceInNaira = SPRINT_PRICES[sprint_id] || 5000;
-  const amountInKobo = priceInNaira * 100;
-  const reference = `vec_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-
   try {
+    const { email, sprint_id, coach_id } = req.body;
+    const secretKey = getPaystackSecret();
+
+    if (!email || !sprint_id) {
+      return res.status(400).json({ message: "Email and Sprint ID are required." });
+    }
+
+    // 1. Determine amount from backend registry (Naira)
+    const priceInNaira = SPRINT_PRICES[sprint_id] || 5000;
+    // 2. Convert to Kobo (integer)
+    const amountInKobo = Math.round(priceInNaira * 100);
+    // 3. Generate Unique Reference
+    const reference = `VEC_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+    console.log(`Initializing payment: ${email}, ${sprint_id}, Ref: ${reference}`);
+
+    // 4. Call Paystack API
     const paystackResponse = await axios.post(`${PAYSTACK_URL}/transaction/initialize`, {
       email,
       amount: amountInKobo,
       reference,
-      // User is redirected here after payment
+      // Change this to your production domain or use relative logic
       callback_url: `https://${req.get('host').includes('localhost') ? 'localhost:3000' : 'vectorise.app'}/#/payment/success?reference=${reference}`,
       metadata: {
         sprint_id,
         coach_id,
-        user_stage,
-        entry_sprint: !!entry_sprint
+        entry_sprint: true
       }
     }, {
       headers: {
@@ -74,63 +80,83 @@ exports.initiatePayment = functions.https.onRequest(async (req, res) => {
 
     const { authorization_url } = paystackResponse.data.data;
 
-    // Store pending intent
+    // 5. Store pending record in Firestore
     await admin.firestore().collection('payments').doc(reference).set({
       email,
       sprint_id,
       amount: priceInNaira,
       status: "pending",
-      metadata: { sprint_id, coach_id, user_stage, entry_sprint },
+      metadata: { sprint_id, coach_id },
       created_at: admin.firestore.FieldValue.serverTimestamp()
     });
 
     return res.json({ authorization_url, reference });
   } catch (error) {
-    console.error("Paystack API Error:", error.response?.data || error.message);
-    return res.status(500).json({ message: "Could not initialize transaction." });
+    console.error("Paystack Init Error:", error.response?.data || error.message);
+    return res.status(500).json({ 
+        message: "Payment initialization failed. Check server logs.",
+        detail: error.response?.data?.message || error.message
+    });
   }
 });
 
 /**
- * /verifyPayment
- * GET check for frontend to verify status before showing success UI
+ * GET /verifyPayment?reference=REF_ID
+ * Frontend polls this to check if webhook has completed fulfillment.
  */
 exports.verifyPayment = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*');
   const { reference } = req.query;
   
-  if (!reference) return res.status(400).json({ status: 'error' });
+  if (!reference) return res.status(400).json({ status: 'error', message: 'Missing reference' });
 
   try {
+    // Check Firestore for the payment status (updated by webhook or verify call)
     const paymentDoc = await admin.firestore().collection('payments').doc(reference).get();
-    if (!paymentDoc.exists) return res.json({ status: 'not_found' });
+    
+    if (!paymentDoc.exists) {
+        // If not in DB, double check Paystack directly as fallback
+        const secretKey = getPaystackSecret();
+        const verifyRes = await axios.get(`${PAYSTACK_URL}/transaction/verify/${reference}`, {
+            headers: { Authorization: `Bearer ${secretKey}` }
+        });
+        
+        if (verifyRes.data.data.status === 'success') {
+            return res.json({ status: 'successful' });
+        }
+        return res.json({ status: 'not_found' });
+    }
     
     return res.json({ status: paymentDoc.data().status });
   } catch (err) {
+    console.error("Verify endpoint error:", err);
     return res.status(500).json({ status: 'error' });
   }
 });
 
 /**
- * /paystack/webhook
- * HMAC SHA-512 verification and enrollment fulfillment
+ * POST /paystack/webhook
+ * Secure webhook listener for charge.success.
  */
 exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
   const secretKey = getPaystackSecret();
   const signature = req.headers['x-paystack-signature'];
   
-  if (!signature || !secretKey) {
+  if (!signature) {
+    console.error("Webhook called without Paystack signature");
     return res.status(401).send('Unauthorized');
   }
 
-  // Verify HMAC Signature
+  // 1. Verify Paystack Signature (HMAC SHA-512)
   const hash = crypto.createHmac('sha512', secretKey).update(JSON.stringify(req.body)).digest('hex');
   if (hash !== signature) {
-    console.warn("Invalid Paystack Signature");
+    console.warn("Invalid Paystack Webhook Signature Detected");
     return res.status(401).send('Unauthorized');
   }
 
   const event = req.body;
+  
+  // 2. Process only successful charges
   if (event.event === 'charge.success') {
     const { reference, metadata, customer } = event.data;
     const db = admin.firestore();
@@ -139,19 +165,21 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
       const paymentRef = db.collection('payments').doc(reference);
       const paymentDoc = await paymentRef.get();
 
-      if (!paymentDoc.exists) {
-        console.error(`Payment record ${reference} missing.`);
-        return res.status(200).send('Recorded but missing');
+      // Check if already processed (Idempotency)
+      if (paymentDoc.exists && paymentDoc.data().status === 'successful') {
+        console.log(`Payment ${reference} already fulfilled.`);
+        return res.status(200).send('Already Processed');
       }
 
-      // 1. Mark payment as successful
-      await paymentRef.update({
+      // 3. Mark successful in DB
+      await paymentRef.set({
+        email: customer.email,
         status: "successful",
         paid_at: admin.firestore.FieldValue.serverTimestamp(),
-        paystack_id: event.data.id
-      });
+        paystack_data: event.data
+      }, { merge: true });
 
-      // 2. Resolve User & Enroll
+      // 4. Enroll User in Sprint
       const userQuery = await db.collection('users').where('email', '==', customer.email).limit(1).get();
       if (!userQuery.empty) {
         const userDoc = userQuery.docs[0];
@@ -159,9 +187,9 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
         const sprintId = metadata.sprint_id;
         
         const enrollmentId = `enrollment_${userId}_${sprintId}`;
-        const duration = sprintId === 'clarity-sprint' ? 5 : 7; // Clarity is always 5
+        const duration = sprintId === 'clarity-sprint' ? 5 : 7;
 
-        // Atomic Enrollment
+        // Create Enrollment Record
         await db.collection('enrollments').doc(enrollmentId).set({
           id: enrollmentId,
           sprintId: sprintId,
@@ -174,29 +202,31 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
           }))
         }, { merge: true });
 
-        // Update user profile
+        // Update User Profile with the new enrolled ID
         await userDoc.ref.update({
           enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sprintId)
         });
 
-        // 3. Create Success Notification
+        // Add Notification
         await db.collection('notifications').add({
-          user_id: userId,
+          userId,
           type: 'payment_success',
-          title: 'Sprint Secured',
-          body: `Your journey in ${sprintId.replace(/-/g, ' ')} has been authorized. Day 1 is now open.`,
-          is_read: false,
-          created_at: admin.firestore.FieldValue.serverTimestamp(),
-          action_url: `/participant/sprint/${enrollmentId}?day=1`
+          title: 'Journey Authorized',
+          body: `Verification complete for ${sprintId.replace(/-/g, ' ')}. Day 1 is now accessible.`,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          actionUrl: `/participant/sprint/${enrollmentId}?day=1`
         });
-        
-        console.log(`Fulfillment complete for ${customer.email} -> ${sprintId}`);
+
+        console.log(`Successfully enrolled ${customer.email} in ${sprintId}`);
+      } else {
+          console.warn(`User with email ${customer.email} not found for enrollment.`);
       }
 
-      return res.status(200).send('Fulfillment Complete');
+      return res.status(200).send('Webhook Received & Processed');
     } catch (err) {
-      console.error("Webhook Fulfillment Failure:", err);
-      return res.status(500).send('Internal Error');
+      console.error("Fulfillment Error:", err);
+      return res.status(500).send('Internal Server Error');
     }
   }
 
