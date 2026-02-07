@@ -1,5 +1,5 @@
+
 export default async function handler(req, res) {
-  // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -20,18 +20,16 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Missing FLW_SECRET_KEY" });
     }
 
-    const { email, amount, sprintId } = req.body || {};
+    const { email, amount, sprintId, name } = req.body || {};
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
     }
 
-    // Use amount from body or fallback to default
     const paymentAmount = amount || "5000";
 
-    // Append sprintId to redirect URL so PaymentSuccess can construct enrollment ID
+    // CRITICAL: Append sprintId to the redirect URL for post-payment routing
     const redirectUrl = `https://vectorise.online/#/payment-success?sprintId=${sprintId || 'clarity-sprint'}`;
 
-    // Using global fetch (available in Node 18+) to avoid 'node-fetch' dependency issues
     const response = await fetch("https://api.flutterwave.com/v3/payments", {
       method: "POST",
       headers: {
@@ -43,31 +41,20 @@ export default async function handler(req, res) {
         amount: paymentAmount,
         currency: "NGN",
         redirect_url: redirectUrl,
-        customer: { email },
+        customer: { email, name: name || 'Vectorise User' },
         customizations: {
-          title: sprintId || "Growth Sprint",
-          description: "Vectorise Growth Cycle"
+          title: "Vectorise Growth Cycle",
+          description: `Enrollment for ${sprintId || 'Sprint'}`
         }
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Flutterwave error:", errorText);
       return res.status(response.status).json({ error: errorText });
     }
 
-    const contentType = response.headers.get("content-type");
-    let data;
-
-    if (contentType && contentType.includes("application/json")) {
-      data = await response.json();
-    } else {
-      const text = await response.text();
-      console.error("Non-JSON response from Flutterwave:", text);
-      throw new Error("Server returned non-JSON response");
-    }
-
+    const data = await response.json();
     return res.status(200).json(data);
 
   } catch (error) {

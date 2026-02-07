@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { paymentService } from '../../services/paymentService';
@@ -31,6 +32,8 @@ const PaymentSuccess: React.FC = () => {
                 if (data.status === 'successful' || data.status === 'success') {
                     setPaymentEmail(data.email || null);
                     setStatus('success');
+                    // Automatically mark ready if user is already logged in to speed up flow
+                    if (user) setReadyToBegin(true);
                 } else if (retries < 8) {
                     setTimeout(() => setRetries(prev => prev + 1), 2000);
                 } else {
@@ -42,26 +45,20 @@ const PaymentSuccess: React.FC = () => {
         };
 
         checkStatus();
-    }, [reference, retries, queryParams]);
+    }, [reference, retries, queryParams, user]);
 
     const handleAction = () => {
         if (user) {
-            // Immediate Enrollment tracking: constructing expected enrollment ID
-            const enrollmentId = paidSprintId ? `enrollment_${user.id}_${paidSprintId}` : null;
-            if (enrollmentId) {
-                navigate(`/participant/sprint/${enrollmentId}`);
-            } else {
-                navigate('/dashboard');
-            }
+            // Already logged in: Go straight to Day 1
+            const enrollmentId = `enrollment_${user.id}_${paidSprintId || 'clarity-sprint'}`;
+            navigate(`/participant/sprint/${enrollmentId}`);
         } else {
-            // New user flow: Go to sign up with prefilled email and sprint context
+            // New/Logged out user: Go to Signup with prefilled email and sprint intent
             navigate('/signup', { 
                 state: { 
                     prefilledEmail: paymentEmail,
-                    isClarityFlow: true,
                     fromPayment: true,
-                    reference: reference,
-                    targetSprintId: paidSprintId
+                    targetSprintId: paidSprintId || 'clarity-sprint'
                 } 
             });
         }
@@ -70,8 +67,6 @@ const PaymentSuccess: React.FC = () => {
     return (
         <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-6 font-sans selection:bg-primary/10">
             <div className="bg-white rounded-[3rem] shadow-2xl max-w-md w-full p-10 md:p-14 text-center relative overflow-hidden border border-gray-100 animate-slide-up">
-                
-                {/* Brand Decor */}
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-primary-hover"></div>
                 
                 <header className="mb-10">
@@ -85,14 +80,14 @@ const PaymentSuccess: React.FC = () => {
                             </div>
                             <div>
                                 <h1 className="text-xl font-black text-gray-900 tracking-tight uppercase tracking-[0.1em]">Verifying Registry</h1>
-                                <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-3 animate-pulse">Syncing Growth Protocol...</p>
+                                <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-3 animate-pulse">Confirming Growth Access...</p>
                             </div>
                         </div>
                     )}
 
                     {status === 'success' && (
                         <div className="animate-fade-in space-y-10">
-                            <div className="w-20 h-20 bg-primary text-white rounded-[2rem] flex items-center justify-center mx-auto shadow-xl shadow-primary/20 transition-transform hover:scale-105 duration-500">
+                            <div className="w-20 h-20 bg-primary text-white rounded-[2rem] flex items-center justify-center mx-auto shadow-xl shadow-primary/20">
                                 <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                 </svg>
@@ -101,20 +96,18 @@ const PaymentSuccess: React.FC = () => {
                             <div className="space-y-8">
                                 <h1 className="text-2xl font-black text-gray-900 tracking-tighter italic leading-tight">
                                     Investment Secured. <br/>
-                                    {user ? 'Redirecting to Day 1...' : 'Ready to secure your identity.'}
+                                    {user ? 'Redirecting to Day 1...' : 'Establishing your registry.'}
                                 </h1>
 
                                 <label className="flex items-center justify-center gap-4 p-5 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer active:scale-[0.98] transition-all hover:border-primary/20 group mx-auto max-w-[280px]">
-                                    <div className="relative flex items-center h-6 w-6">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={readyToBegin}
-                                            onChange={(e) => setReadyToBegin(e.target.checked)}
-                                            className="w-6 h-6 bg-white border-2 border-gray-200 rounded-lg focus:ring-offset-white focus:ring-primary text-primary cursor-pointer transition-all checked:bg-primary checked:border-primary"
-                                        />
-                                    </div>
-                                    <span className="text-xs font-black text-gray-700 uppercase tracking-widest select-none pt-0.5">
-                                        {user ? 'I’m ready to begin.' : 'I’m ready to secure my path.'}
+                                    <input 
+                                        type="checkbox" 
+                                        checked={readyToBegin}
+                                        onChange={(e) => setReadyToBegin(e.target.checked)}
+                                        className="w-5 h-5 bg-white border-gray-200 rounded focus:ring-primary text-primary cursor-pointer transition-all"
+                                    />
+                                    <span className="text-xs font-black text-gray-700 uppercase tracking-widest select-none">
+                                        I’m ready to begin.
                                     </span>
                                 </label>
 
@@ -123,11 +116,11 @@ const PaymentSuccess: React.FC = () => {
                                     disabled={!readyToBegin}
                                     className={`w-full py-5 font-black uppercase tracking-[0.3em] text-[11px] rounded-full shadow-2xl transition-all active:scale-95 ${
                                         readyToBegin 
-                                        ? 'bg-primary text-white shadow-primary/30 hover:scale-[1.02]' 
-                                        : 'bg-gray-100 text-gray-300 cursor-not-allowed border-none shadow-none grayscale'
+                                        ? 'bg-primary text-white shadow-primary/30' 
+                                        : 'bg-gray-100 text-gray-300 cursor-not-allowed border-none'
                                     }`}
                                 >
-                                    {user ? 'Open Day 1 Now' : 'Secure My Identity'}
+                                    {user ? 'Open Day 1 Now' : 'Complete Setup'}
                                 </button>
                             </div>
                         </div>
@@ -135,12 +128,12 @@ const PaymentSuccess: React.FC = () => {
 
                     {(status === 'delay' || status === 'error') && (
                         <div className="space-y-6 py-4">
-                            <div className="w-16 h-16 bg-orange-50 text-orange-600 rounded-[1.75rem] flex items-center justify-center mx-auto shadow-inner">
+                            <div className="w-16 h-16 bg-orange-50 text-orange-600 rounded-[1.75rem] flex items-center justify-center mx-auto">
                                 <span className="text-2xl">⏳</span>
                             </div>
                             <div>
-                                <h1 className="text-xl font-black text-gray-900 tracking-tight">Sync in Progress</h1>
-                                <p className="text-gray-500 font-medium text-xs mt-3 leading-relaxed">The registry is taking a moment to authorize. Your sprint will appear on your dashboard within 5 minutes.</p>
+                                <h1 className="text-xl font-black text-gray-900 tracking-tight">Sync Delayed</h1>
+                                <p className="text-gray-500 font-medium text-xs mt-3 leading-relaxed px-4">Verification is taking longer than expected. Please go to your dashboard; the sprint will appear shortly.</p>
                                 <button 
                                     onClick={() => navigate('/dashboard')}
                                     className="w-full mt-8 py-5 bg-gray-100 text-gray-400 font-black uppercase tracking-[0.2em] text-[10px] rounded-full hover:bg-gray-200 transition-all active:scale-95"
@@ -151,17 +144,8 @@ const PaymentSuccess: React.FC = () => {
                         </div>
                     )}
                 </header>
-
-                <footer className="mt-4">
-                    <p className="text-[7px] font-black text-gray-200 uppercase tracking-[0.4em]">
-                        Transaction ID: {reference?.substring(0, 16).toUpperCase() || 'REGISTRY_SYNC_LOCAL'}
-                    </p>
-                </footer>
-
-                {/* Aesthetic Detail */}
                 <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-primary/5 rounded-full blur-[80px] pointer-events-none"></div>
             </div>
-            
             <style>{`
                 @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
                 .animate-slide-up { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
