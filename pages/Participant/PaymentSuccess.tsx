@@ -33,6 +33,7 @@ const PaymentSuccess: React.FC = () => {
                 
                 if (data.status === 'successful' || data.status === 'success') {
                     setStatus('success');
+                    // Ready to begin state is only for manual flow, auto-enroll handles the rest
                     if (user) setReadyToBegin(true);
                 } else if (retries < 8) {
                     setTimeout(() => setRetries(prev => prev + 1), 2000);
@@ -47,18 +48,42 @@ const PaymentSuccess: React.FC = () => {
         checkStatus();
     }, [reference, retries, queryParams, user]);
 
+    // NEW: Auto-enrollment logic for logged-in users
+    useEffect(() => {
+        if (status === 'success' && user && !isEnrolling) {
+            const autoEnroll = async () => {
+                setIsEnrolling(true);
+                try {
+                    const targetId = paidSprintId || 'clarity-sprint';
+                    const sprint = await sprintService.getSprintById(targetId);
+                    const duration = sprint?.duration || 5;
+                    const enrollment = await sprintService.enrollUser(user.id, targetId, duration);
+                    
+                    // Brief pause to show the success state before jumping to the workspace
+                    setTimeout(() => {
+                        navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
+                    }, 1800);
+                } catch (err) {
+                    console.error("Auto-enrollment failed:", err);
+                    navigate('/dashboard', { replace: true });
+                }
+            };
+            autoEnroll();
+        }
+    }, [status, user, paidSprintId, navigate, isEnrolling]);
+
     const handleAction = async () => {
         if (user) {
+            // This button handle is a fallback for the auto-enroll effect
+            if (isEnrolling) return;
             setIsEnrolling(true);
             try {
                 const targetId = paidSprintId || 'clarity-sprint';
                 const sprint = await sprintService.getSprintById(targetId);
                 const duration = sprint?.duration || 5;
                 const enrollment = await sprintService.enrollUser(user.id, targetId, duration);
-                // Use replace: true to clear payment success from stack
                 navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
             } catch (err) {
-                console.error("Enrollment failed:", err);
                 navigate('/dashboard', { replace: true });
             } finally {
                 setIsEnrolling(false);
@@ -98,42 +123,55 @@ const PaymentSuccess: React.FC = () => {
 
                     {status === 'success' && (
                         <div className="animate-fade-in space-y-10">
-                            <div className="w-20 h-20 bg-primary text-white rounded-[2rem] flex items-center justify-center mx-auto shadow-xl shadow-primary/20">
-                                <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
+                            <div className="w-20 h-20 bg-primary text-white rounded-[2rem] flex items-center justify-center mx-auto shadow-xl shadow-primary/20 relative overflow-hidden">
+                                {isEnrolling ? (
+                                    <div className="absolute inset-0 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                ) : (
+                                    <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                )}
                             </div>
                             
                             <div className="space-y-8">
                                 <h1 className="text-2xl font-black text-gray-900 tracking-tighter italic leading-tight">
-                                    Access Secured. <br/>
-                                    Ready to begin Day 1.
+                                    {isEnrolling && user ? 'Registry Synchronized.' : 'Access Secured.'} <br/>
+                                    {isEnrolling && user ? 'Opening Workspace...' : 'Ready to begin Day 1.'}
                                 </h1>
 
-                                <label className="flex items-center justify-center gap-4 p-5 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer active:scale-[0.98] transition-all hover:border-primary/20 group mx-auto max-w-[280px]">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={readyToBegin}
-                                        onChange={(e) => setReadyToBegin(e.target.checked)}
-                                        className="w-5 h-5 bg-white border-gray-200 rounded focus:ring-primary text-primary cursor-pointer transition-all"
-                                    />
-                                    <span className="text-xs font-black text-gray-700 uppercase tracking-widest select-none">
-                                        I’m ready to start.
-                                    </span>
-                                </label>
+                                {!user && (
+                                    <div className="space-y-8">
+                                        <label className="flex items-center justify-center gap-4 p-5 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer active:scale-[0.98] transition-all hover:border-primary/20 group mx-auto max-w-[280px]">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={readyToBegin}
+                                                onChange={(e) => setReadyToBegin(e.target.checked)}
+                                                className="w-5 h-5 bg-white border-gray-200 rounded focus:ring-primary text-primary cursor-pointer transition-all"
+                                            />
+                                            <span className="text-xs font-black text-gray-700 uppercase tracking-widest select-none">
+                                                I’m ready to start.
+                                            </span>
+                                        </label>
 
-                                <button 
-                                    onClick={handleAction}
-                                    disabled={!readyToBegin || isEnrolling}
-                                    className={`w-full py-5 font-black uppercase tracking-[0.3em] text-[11px] rounded-full shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 ${
-                                        readyToBegin 
-                                        ? 'bg-primary text-white shadow-primary/30' 
-                                        : 'bg-gray-100 text-gray-300 cursor-not-allowed border-none'
-                                    }`}
-                                >
-                                    {isEnrolling && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-                                    {user ? 'Open Workspace' : 'Secure My Identity'}
-                                </button>
+                                        <button 
+                                            onClick={handleAction}
+                                            disabled={!readyToBegin || isEnrolling}
+                                            className={`w-full py-5 font-black uppercase tracking-[0.3em] text-[11px] rounded-full shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 ${
+                                                readyToBegin 
+                                                ? 'bg-primary text-white shadow-primary/30' 
+                                                : 'bg-gray-100 text-gray-300 cursor-not-allowed border-none'
+                                            }`}
+                                        >
+                                            Secure My Identity
+                                        </button>
+                                    </div>
+                                )}
+
+                                {user && (
+                                    <div className="py-4">
+                                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] animate-pulse">Redirecting to Day 1</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
