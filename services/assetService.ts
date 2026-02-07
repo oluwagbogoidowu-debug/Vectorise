@@ -14,7 +14,7 @@ export const assetService = {
         return url;
     }
 
-    const cached = localStorage.getItem(`asset_v3_${key}`);
+    const cached = localStorage.getItem(`asset_v4_${key}`);
     if (cached) return cached;
 
     try {
@@ -27,7 +27,7 @@ export const assetService = {
         reader.onloadend = () => {
           const base64data = reader.result as string;
           try {
-            localStorage.setItem(`asset_v3_${key}`, base64data);
+            localStorage.setItem(`asset_v4_${key}`, base64data);
           } catch (e) {
             console.warn("Storage quota exceeded");
           }
@@ -44,11 +44,15 @@ export const assetService = {
 
   KEYS: {
     LOGO_GREEN: 'logo_green',
-    LOGO_WHITE: 'logo_white'
+    LOGO_WHITE: 'logo_white',
+    FAVICON: 'favicon'
   },
 
   URLS: {
+    // Restored to original Vectorise brand logos
     LOGO_GREEN: 'https://lh3.googleusercontent.com/d/1vYOe4SzIrE7kb6DSFkOp9UYz3tHWPnHw',
-    LOGO_WHITE: 'https://lh3.googleusercontent.com/d/1rlpdJZVVY-aFonII5g-HgNNn7P9KYprl'
+    LOGO_WHITE: 'https://lh3.googleusercontent.com/d/18e3v0Z-L-xK9TqI9v4pG1T6z_8y-z_n-',
+    // Icon version for specific usage (Onboarding descriptions)
+    FAVICON: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd'
   }
 };

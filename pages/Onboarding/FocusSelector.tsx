@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
@@ -13,18 +12,16 @@ const FocusSelector: React.FC = () => {
     setIsLoading(true);
     try {
       const assignedSprintId = await sprintService.getSprintIdByFocus(option);
-      if (assignedSprintId) {
-        // If an admin has mapped this focus to a specific sprint, go to its dynamic description page
-        navigate(`/onboarding/description/${assignedSprintId}`, { 
-          state: { selectedFocus: option, sprintId: assignedSprintId } 
-        });
-      } else {
-        // Fallback to the standard clarity sprint description
-        navigate('/onboarding/clarity-description', { state: { selectedFocus: option } });
-      }
+      // If an admin has mapped this focus to a specific sprint, go to its dynamic description page
+      // Otherwise, fallback to 'sprint1' (Clarity Challenge) as the default foundational experience
+      const targetId = assignedSprintId || 'sprint1';
+      
+      navigate(`/onboarding/description/${targetId}`, { 
+        state: { selectedFocus: option, sprintId: targetId } 
+      });
     } catch (error) {
       console.error("Focus mapping resolution failed:", error);
-      navigate('/onboarding/clarity-description', { state: { selectedFocus: option } });
+      navigate(`/onboarding/description/sprint1`, { state: { selectedFocus: option } });
     } finally {
       setIsLoading(false);
     }

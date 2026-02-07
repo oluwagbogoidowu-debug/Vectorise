@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
@@ -237,13 +236,23 @@ const ProgramDescription: React.FC = () => {
                 </Button>
               </div>
 
-              <div className="mt-8 pt-6 border-t border-gray-50 flex flex-col items-center text-center">
-                <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3 shadow-inner border border-gray-100/50">
-                    <LocalLogo type="green" className="h-5 w-auto opacity-50" />
+              {/* System Sprint Section - Perfectly Centered & Styled */}
+              <div className="mt-12 pt-8 border-t border-gray-50 flex flex-col items-center text-center">
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.08)] border border-gray-100 transition-all hover:scale-110 active:scale-95 group">
+                    <LocalLogo type="favicon" className="h-9 w-auto drop-shadow-sm" />
                 </div>
-                <p className="text-[7px] font-black text-primary uppercase tracking-widest mb-1">System Sprint</p>
-                <h4 className="text-[12px] font-black text-dark tracking-tight leading-none mb-1">Vectorise Protocol</h4>
-                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Level 01 Core</p>
+                
+                <div className="space-y-1">
+                  <p className="text-[7.5px] font-black text-primary uppercase tracking-[0.4em] leading-none mb-2">
+                    System Sprint
+                  </p>
+                  <h4 className="text-[15px] font-black text-gray-900 tracking-tight leading-none italic mb-1.5">
+                    Vectorise Protocol
+                  </h4>
+                  <div className="inline-block px-2 py-0.5 bg-gray-50 border border-gray-100 rounded text-[8px] font-bold text-gray-400 uppercase tracking-widest">
+                    Level 01 Core
+                  </div>
+                </div>
               </div>
             </div>
           </aside>

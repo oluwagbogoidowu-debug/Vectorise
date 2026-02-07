@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
@@ -313,13 +312,14 @@ const ClaritySprintDescription: React.FC = () => {
                 </div>
               </div>
 
+              {/* System Sprint Section Refined */}
               <div className="mt-8 pt-6 border-t border-gray-50 flex flex-col items-center text-center">
-                <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3 shadow-inner border border-gray-100/50">
-                    <LocalLogo type="green" className="h-5 w-auto opacity-50" />
+                <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center mb-4 shadow-md border border-gray-100 transition-transform hover:scale-105">
+                    <LocalLogo type="favicon" className="h-8 w-auto" />
                 </div>
-                <p className="text-[7px] font-black text-primary uppercase tracking-widest mb-1">System Sprint</p>
-                <h4 className="text-[12px] font-black text-dark tracking-tight leading-none mb-1">Vectorise Protocol</h4>
-                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">Level 01 Core</p>
+                <p className="text-[7px] font-black text-primary uppercase tracking-[0.25em] mb-1">System Sprint</p>
+                <h4 className="text-[13px] font-black text-dark tracking-tight leading-none mb-1">Vectorise Protocol</h4>
+                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-[0.15em]">Level 01 Core</p>
               </div>
             </div>
 
@@ -342,7 +342,7 @@ const ClaritySprintDescription: React.FC = () => {
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-dark/95 backdrop-blur-md animate-fade-in">
           <div className="bg-white rounded-[2.5rem] p-8 md:p-12 w-full max-w-sm shadow-2xl relative animate-slide-up">
             <header className="text-center mb-10">
-              <LocalLogo type="green" className="h-6 w-auto mx-auto mb-6 opacity-40" />
+              <LocalLogo type="favicon" className="h-10 w-auto mx-auto mb-6 opacity-40" />
               <h2 className="text-lg md:text-xl font-black text-gray-900 tracking-tight italic leading-tight px-2">
                 {getModalTitle()}
               </h2>

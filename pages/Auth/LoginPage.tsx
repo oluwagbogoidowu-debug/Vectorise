@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.tsx';
 import Button from '../../components/Button.tsx';
-// Fix: Added missing import for LocalLogo component
 import LocalLogo from '../../components/LocalLogo.tsx';
 import { auth } from '../../services/firebase.ts';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -36,21 +35,21 @@ const LoginPage: React.FC = () => {
           if (user) {
               if (user.role === UserRole.PARTICIPANT) {
                   try {
-                      // 1. Check for payment-driven enrollment intent
+                      // 1. Check for payment-driven enrollment intent - Use replace: true
                       if (targetSprintId) {
                           const sprint = await sprintService.getSprintById(targetSprintId);
                           if (sprint) {
                               const enrollment = await sprintService.enrollUser(user.id, targetSprintId, sprint.duration);
-                              navigate(`/participant/sprint/${enrollment.id}`);
+                              navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
                               return;
                           }
                       }
 
-                      // 2. Resume active journey
+                      // 2. Resume active journey - Use replace: true
                       const enrollments = await sprintService.getUserEnrollments(user.id);
                       const active = enrollments.find(e => e.progress.some(p => !p.completed));
                       if (active) {
-                          navigate(`/participant/sprint/${active.id}`);
+                          navigate(`/participant/sprint/${active.id}`, { replace: true });
                           return;
                       }
 
@@ -59,7 +58,7 @@ const LoginPage: React.FC = () => {
                       console.error("Redirect tracking error", e);
                   }
               }
-              navigate('/dashboard');
+              navigate('/dashboard', { replace: true });
           }
       };
       handleUserRedirect();
@@ -84,15 +83,21 @@ const LoginPage: React.FC = () => {
   return (
     <div className="h-[100dvh] w-screen bg-[#FAFAFA] flex items-center justify-center px-6 overflow-hidden font-sans">
       <div className="w-full max-w-sm flex flex-col items-center animate-fade-in">
-        <header className="text-center mb-8">
-            {/* LocalLogo component is now available via import */}
-            <LocalLogo type="green" className="h-6 w-auto mx-auto mb-6 opacity-30" />
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">
-                Welcome Back
-            </h1>
-        </header>
+        <div className="w-full bg-white p-8 rounded-[2rem] shadow-2xl border border-gray-100 relative overflow-hidden">
+            {/* Home Icon Button */}
+            <Link to="/" className="absolute top-6 right-6 text-gray-300 hover:text-primary transition-all duration-300 active:scale-90">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+            </Link>
 
-        <div className="w-full bg-white p-8 rounded-[2rem] shadow-2xl border border-gray-100 relative">
+            <header className="text-center mb-8 pt-4">
+                <LocalLogo type="green" className="h-10 w-auto mx-auto mb-4" />
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">
+                    Continue your rise
+                </h1>
+            </header>
+
             <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-1">
                     <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">Email Address</label>
@@ -124,7 +129,7 @@ const LoginPage: React.FC = () => {
             </form>
             
             <p className="mt-8 text-center text-[9px] font-black text-gray-300 uppercase tracking-widest leading-none">
-                New here? <Link to="/onboarding/welcome" className="text-primary hover:underline">Establish Identity</Link>
+                New here? <Link to="/" className="text-primary hover:underline">Start your rise</Link>
             </p>
         </div>
       </div>

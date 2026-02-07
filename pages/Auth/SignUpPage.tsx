@@ -62,13 +62,13 @@ const SignUpPage: React.FC = () => {
       
       await userService.createUserDocument(firebaseUser.uid, newUser);
 
-      // 3. Post-Payment Fulfillment
+      // 3. Post-Payment Fulfillment - Use replace: true to clear history
       if (fromPayment && targetSprintId) {
           try {
               const sprint = await sprintService.getSprintById(targetSprintId);
               if (sprint) {
                   const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprintId, sprint.duration);
-                  navigate(`/participant/sprint/${enrollment.id}`);
+                  navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
                   return;
               }
           } catch (enrollError) {
@@ -77,7 +77,7 @@ const SignUpPage: React.FC = () => {
       }
 
       await sendEmailVerification(firebaseUser);
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
 
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') setRegError("Email already in use. Try logging in instead.");

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -30,7 +29,6 @@ import SprintInviteLanding from './pages/Participant/SprintInviteLanding';
 
 // New specialized onboarding pages
 import FocusSelector from './pages/Onboarding/FocusSelector';
-import ClaritySprintDescription from './pages/Onboarding/ClaritySprintDescription';
 import ProgramDescription from './pages/Onboarding/ProgramDescription';
 import CommitmentFraming from './pages/Onboarding/CommitmentFraming';
 import SprintPayment from './pages/Onboarding/SprintPayment';
@@ -132,7 +130,6 @@ const AppRoutes: React.FC = () => {
           
           <Route path="/onboarding/welcome" element={<Welcome />} />
           <Route path="/onboarding/focus-selector" element={<FocusSelector />} />
-          <Route path="/onboarding/clarity-description" element={<ClaritySprintDescription />} />
           <Route path="/onboarding/description/:sprintId" element={<ProgramDescription />} />
           <Route path="/onboarding/commitment" element={<CommitmentFraming />} />
           <Route path="/onboarding/sprint-payment" element={<SprintPayment />} />

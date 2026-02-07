@@ -45,8 +45,9 @@ const SprintView: React.FC = () => {
             <header className="px-6 py-5 bg-white border-b border-gray-100 flex-shrink-0 z-30">
                 <div className="max-w-screen-lg mx-auto w-full">
                     <div className="flex justify-between items-start mb-3">
-                        <button onClick={() => navigate(-1)} className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2 hover:text-primary transition-colors active:scale-95 group">
-                            <svg className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+                        {/* EXIT WORKSPACE: Explicitly navigate to dashboard */}
+                        <button onClick={() => navigate('/dashboard')} className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2 hover:text-primary transition-colors active:scale-95 group">
+                            <svg className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
                             Terminate Session
                         </button>
                         <div className="flex items-center gap-3">

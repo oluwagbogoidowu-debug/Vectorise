@@ -55,10 +55,11 @@ const PaymentSuccess: React.FC = () => {
                 const sprint = await sprintService.getSprintById(targetId);
                 const duration = sprint?.duration || 5;
                 const enrollment = await sprintService.enrollUser(user.id, targetId, duration);
-                navigate(`/participant/sprint/${enrollment.id}`);
+                // Use replace: true to clear payment success from stack
+                navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
             } catch (err) {
                 console.error("Enrollment failed:", err);
-                navigate('/dashboard');
+                navigate('/dashboard', { replace: true });
             } finally {
                 setIsEnrolling(false);
             }
@@ -146,7 +147,7 @@ const PaymentSuccess: React.FC = () => {
                                 <h1 className="text-xl font-black text-gray-900 tracking-tight">Sync Delayed</h1>
                                 <p className="text-gray-500 font-medium text-xs mt-3 leading-relaxed px-4">Verification is taking longer than expected. Please check your dashboard; the sprint will appear shortly.</p>
                                 <button 
-                                    onClick={() => navigate('/dashboard')}
+                                    onClick={() => navigate('/dashboard', { replace: true })}
                                     className="w-full mt-8 py-5 bg-gray-100 text-gray-400 font-black uppercase tracking-[0.2em] text-[10px] rounded-full hover:bg-gray-200 transition-all active:scale-95"
                                 >
                                     Go to Dashboard
