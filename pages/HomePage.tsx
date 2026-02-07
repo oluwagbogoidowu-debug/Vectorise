@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import LocalLogo from '../components/LocalLogo';
@@ -52,6 +51,10 @@ const HomePage: React.FC = () => {
               See how it works &darr;
             </button>
           </div>
+
+          <p className="mt-8 text-[10px] font-black text-gray-300 uppercase tracking-widest">
+            Already have an account? <Link to="/login" className="text-primary hover:underline">Continue your rise</Link>
+          </p>
         </div>
         
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] bg-primary/5 rounded-full blur-[160px] pointer-events-none -z-10"></div>
