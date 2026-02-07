@@ -65,15 +65,31 @@ export const sprintService = {
         }
     },
 
-    approveSprint: async (sprintId: string) => {
+    /**
+     * Approves a sprint and publishes it to the registry.
+     * Optionally accepts current sprint data to ensure admin-set values (like pricing) are saved.
+     */
+    approveSprint: async (sprintId: string, data?: Partial<Sprint>) => {
         try {
             const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
-            await updateDoc(sprintRef, {
+            const updateObj: any = {
                 approvalStatus: 'approved',
                 published: true,
                 updatedAt: new Date().toISOString(),
                 pendingChanges: deleteField() 
-            });
+            };
+
+            // If updated data was provided (e.g. from the admin audit modal), merge it in
+            if (data) {
+                const sanitized = sanitizeData(data);
+                // Ensure we don't accidentally overwrite the status or field deletions we just set
+                delete sanitized.approvalStatus;
+                delete sanitized.published;
+                delete sanitized.pendingChanges;
+                Object.assign(updateObj, sanitized);
+            }
+
+            await updateDoc(sprintRef, updateObj);
         } catch (error) {
             console.error("Error approving sprint:", error);
             throw error;

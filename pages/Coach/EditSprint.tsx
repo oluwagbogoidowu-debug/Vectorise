@@ -175,10 +175,11 @@ const EditSprint: React.FC = () => {
   };
 
   const handleAdminApprove = async () => {
-      if (!sprintId || approvalStatus === 'processing') return;
+      if (!sprintId || !sprint || approvalStatus === 'processing') return;
       setApprovalStatus('processing');
       try {
-          await sprintService.approveSprint(sprintId);
+          // Pass the local sprint object to ensure any admin-made adjustments (like price) are persisted
+          await sprintService.approveSprint(sprintId, sprint);
           alert("Sprint approved and published to registry.");
           navigate('/admin/dashboard');
       } catch (err) {
@@ -329,7 +330,7 @@ const EditSprint: React.FC = () => {
             {isAdmin && isPendingReview && (
                 <>
                     <button onClick={handleAdminApprove} disabled={approvalStatus === 'processing'} className="bg-green-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl px-6 py-3 shadow-lg shadow-green-200 hover:bg-green-700 transition-all active:scale-95 disabled:opacity-50">Approve & Publish</button>
-                    <button onClick={handleAdminAmend} disabled={approvalStatus === 'processing'} className="bg-orange-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl px-6 py-3 shadow-lg shadow-orange-100 hover:bg-orange-600 transition-all active:scale-95 disabled:opacity-50">Amend</button>
+                    <button onClick={handleAdminAmend} disabled={approvalStatus === 'processing'} className="bg-orange-50 text-white font-black uppercase tracking-widest text-[10px] rounded-xl px-6 py-3 shadow-lg shadow-orange-100 hover:bg-orange-600 transition-all active:scale-95 disabled:opacity-50">Amend</button>
                 </>
             )}
             
