@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { paymentService } from '../../services/paymentService';
@@ -14,11 +13,13 @@ const PaymentSuccess: React.FC = () => {
     const [readyToBegin, setReadyToBegin] = useState(false);
     const [isEnrolling, setIsEnrolling] = useState(false);
     const [retries, setRetries] = useState(0);
-    const [paymentEmail, setPaymentEmail] = useState<string | null>(null);
-
+    
     const queryParams = new URLSearchParams(location.search);
     const reference = queryParams.get('reference') || queryParams.get('tx_ref');
     const paidSprintId = queryParams.get('sprintId');
+    const queryEmail = queryParams.get('email'); // The exact email used during payment
+
+    const [paymentEmail, setPaymentEmail] = useState<string | null>(queryEmail);
 
     useEffect(() => {
         if (!reference) {
@@ -32,7 +33,8 @@ const PaymentSuccess: React.FC = () => {
                 const data = await paymentService.verifyPayment(gateway, reference);
                 
                 if (data.status === 'successful' || data.status === 'success') {
-                    setPaymentEmail(data.email || null);
+                    // Use verified email if returned, otherwise fallback to the query email
+                    setPaymentEmail(data.email || queryEmail);
                     setStatus('success');
                     if (user) setReadyToBegin(true);
                 } else if (retries < 8) {
@@ -46,7 +48,7 @@ const PaymentSuccess: React.FC = () => {
         };
 
         checkStatus();
-    }, [reference, retries, queryParams, user]);
+    }, [reference, retries, queryParams, user, queryEmail]);
 
     const handleAction = async () => {
         if (user) {
@@ -64,7 +66,7 @@ const PaymentSuccess: React.FC = () => {
                 setIsEnrolling(false);
             }
         } else {
-            // New user flow: Go to sign up with prefilled email and sprint context
+            // New user flow: Go to sign up with the EXACT prefilled email
             navigate('/signup', { 
                 state: { 
                     prefilledEmail: paymentEmail,
@@ -107,7 +109,7 @@ const PaymentSuccess: React.FC = () => {
                             <div className="space-y-8">
                                 <h1 className="text-2xl font-black text-gray-900 tracking-tighter italic leading-tight">
                                     Investment Secured. <br/>
-                                    {user ? 'Registry active. Ready for Day 1.' : 'Establishing your registry.'}
+                                    {user ? 'Registry active. Ready for Day 1.' : 'Secure your identity.'}
                                 </h1>
 
                                 <label className="flex items-center justify-center gap-4 p-5 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer active:scale-[0.98] transition-all hover:border-primary/20 group mx-auto max-w-[280px]">
@@ -132,7 +134,7 @@ const PaymentSuccess: React.FC = () => {
                                     }`}
                                 >
                                     {isEnrolling && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-                                    {user ? 'Open Day 1 Now' : 'Complete Setup'}
+                                    {user ? 'Open Day 1 Now' : 'Establish Identity'}
                                 </button>
                             </div>
                         </div>

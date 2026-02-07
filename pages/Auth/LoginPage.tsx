@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.tsx';
@@ -12,7 +11,9 @@ const LoginPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState('');
+  
+  const initialEmail = location.state?.prefilledEmail || '';
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -85,8 +86,27 @@ const LoginPage: React.FC = () => {
             </div>
             
             <form onSubmit={handleLogin} className="space-y-4">
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm" placeholder="Email Address" />
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm" placeholder="Password" />
+                <div className="space-y-1">
+                    <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
+                    <input 
+                      type="email" 
+                      value={email} 
+                      readOnly={!!initialEmail}
+                      onChange={(e) => setEmail(e.target.value)} 
+                      className={`w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm transition-all ${initialEmail ? 'opacity-60 cursor-not-allowed' : 'focus:ring-4 focus:ring-primary/5'}`} 
+                      placeholder="Email Address" 
+                    />
+                </div>
+                <div className="space-y-1">
+                    <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Password</label>
+                    <input 
+                      type="password" 
+                      value={password} 
+                      onChange={(e) => setPassword(e.target.value)} 
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none focus:ring-4 focus:ring-primary/5 font-bold text-sm" 
+                      placeholder="Password" 
+                    />
+                </div>
                 
                 {emailError && <p className="text-[10px] text-red-600 font-black uppercase text-center">{emailError}</p>}
 

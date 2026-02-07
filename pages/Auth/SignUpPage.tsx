@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { auth } from '../../services/firebase';
@@ -100,21 +99,40 @@ const SignUpPage: React.FC = () => {
             
             <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                    <input type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full px-4 py-3.5 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm" placeholder="First Name" />
-                    <input type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full px-4 py-3.5 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm" placeholder="Last Name" />
+                    <div className="space-y-1">
+                        <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">First Name</label>
+                        <input type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm" placeholder="First Name" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">Last Name</label>
+                        <input type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm" placeholder="Last Name" />
+                    </div>
                 </div>
-                <input type="email" required value={email} readOnly={!!prefilledEmail} className={`w-full px-4 py-3.5 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm ${prefilledEmail ? 'opacity-50' : ''}`} placeholder="Email" />
-                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3.5 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm" placeholder="Set Password" />
+                <div className="space-y-1">
+                    <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">Email Address</label>
+                    <input 
+                      type="email" 
+                      required 
+                      value={email} 
+                      readOnly={!!prefilledEmail} 
+                      className={`w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm transition-all ${prefilledEmail ? 'opacity-60 cursor-not-allowed' : 'focus:ring-4 focus:ring-primary/5'}`} 
+                      placeholder="Email" 
+                    />
+                </div>
+                <div className="space-y-1">
+                    <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">Set Password</label>
+                    <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none focus:ring-4 focus:ring-primary/5 font-bold text-sm" placeholder="Set Password" />
+                </div>
 
-                {regError && <p className="text-[10px] text-red-600 font-black uppercase text-center">{regError}</p>}
+                {regError && <p className="text-[10px] text-red-600 font-black uppercase text-center mt-2">{regError}</p>}
 
-                <Button type="submit" isLoading={isSubmitting} className="w-full py-4 bg-primary text-white rounded-full shadow-lg text-[10px] font-black uppercase tracking-[0.2em]">
+                <Button type="submit" isLoading={isSubmitting} className="w-full py-4 bg-primary text-white rounded-full shadow-lg text-[10px] font-black uppercase tracking-[0.2em] mt-2">
                     Access My Sprint &rarr;
                 </Button>
             </form>
 
             <p className="mt-8 text-center text-[9px] font-black text-gray-300 uppercase tracking-widest">
-                Already have an account? <Link to="/login" state={{ targetSprintId }} className="text-primary hover:underline">Log in</Link>
+                Already have an account? <Link to="/login" state={{ targetSprintId, prefilledEmail: email }} className="text-primary hover:underline">Log in</Link>
             </p>
         </div>
       </div>

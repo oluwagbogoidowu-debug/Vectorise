@@ -1,4 +1,3 @@
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -27,8 +26,8 @@ export default async function handler(req, res) {
 
     const paymentAmount = amount || "5000";
 
-    // CRITICAL: Append sprintId to the redirect URL for post-payment routing
-    const redirectUrl = `https://vectorise.online/#/payment-success?sprintId=${sprintId || 'clarity-sprint'}`;
+    // CRITICAL: Append both sprintId and email to the redirect URL to maintain exact identity continuity
+    const redirectUrl = `https://vectorise.online/#/payment-success?sprintId=${sprintId || 'clarity-sprint'}&email=${encodeURIComponent(email)}`;
 
     const response = await fetch("https://api.flutterwave.com/v3/payments", {
       method: "POST",
