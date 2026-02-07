@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
+import { Sprint } from '../../types';
 
 const CommitmentFraming: React.FC = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const CommitmentFraming: React.FC = () => {
 
   // Preserve navigation context (target sprints, skip logic, etc.)
   const state = location.state || {};
+  const sprint: Sprint | null = state.sprint || null;
 
   const handleContinue = () => {
     if (!isCommitted) return;
@@ -67,7 +69,7 @@ const CommitmentFraming: React.FC = () => {
               <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">Requirements</h2>
               <div className="space-y-3">
                 {[
-                  { t: "Daily action", d: "One focused task per day to create clarity." },
+                  { t: "Daily action", d: `One focused task per day to create ${sprint?.title || 'clarity'}.` },
                   { t: "Honest reflection", d: "Notice what energizes or drains you." },
                   { t: "Completion mindset", d: "Finishing is where the value lives." }
                 ].map((item, i) => (
@@ -103,7 +105,7 @@ const CommitmentFraming: React.FC = () => {
             <section className="bg-primary/5 rounded-[1.5rem] p-6 text-center space-y-4 border border-primary/10">
                <div className="flex justify-center items-center gap-6">
                   <div>
-                    <p className="text-2xl font-black text-primary leading-none">5</p>
+                    <p className="text-2xl font-black text-primary leading-none">{sprint?.duration || 5}</p>
                     <p className="text-[8px] font-black uppercase text-primary/60">Days</p>
                   </div>
                   <div className="w-px h-6 bg-primary/10"></div>
@@ -127,7 +129,7 @@ const CommitmentFraming: React.FC = () => {
                   />
                 </div>
                 <div className="text-xs font-bold text-gray-700 leading-tight select-none">
-                  I’m ready to commit to daily action for the next 5 days.
+                  I’m ready to commit to daily action for the next {sprint?.duration || 5} days.
                 </div>
               </label>
             </section>

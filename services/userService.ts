@@ -8,28 +8,33 @@ import { User, Participant, Coach, UserRole, WalletTransaction } from '../types'
  * Strips out circular references and internal classes (like Firebase or DOM elements).
  */
 export const sanitizeData = (val: any, seen = new WeakSet()): any => {
+    // 1. Handle primitives and null
     if (val === null || typeof val !== 'object') return val;
     
-    // Prevent infinite recursion on circular structures
+    // 2. Prevent infinite recursion on circular structures
     if (seen.has(val)) return undefined;
 
-    // Handle Arrays
+    // 3. Handle Arrays
     if (Array.isArray(val)) {
         seen.add(val);
         return val.map(item => sanitizeData(item, seen)).filter(i => i !== undefined);
     }
 
-    // Handle Dates
+    // 4. Handle Dates
     if (val instanceof Date) return val.toISOString();
 
-    // Handle Firestore Timestamps if they exist
+    // 5. Handle Firestore Timestamps and common sentinel methods
     if (typeof val.toDate === 'function') return val.toDate().toISOString();
 
-    // Avoid internal Firebase/DOM class instances - only allow plain objects
-    const isPlainObject = Object.prototype.toString.call(val) === '[object Object]';
+    // 6. Avoid internal Firebase/DOM class instances - only allow plain objects
+    // A plain object is one created via {} or new Object()
+    // Class instances like DocumentReference or Firestore will have a custom constructor.
+    const isPlainObject = val.constructor === Object || Object.getPrototypeOf(val) === null;
     if (!isPlainObject) return undefined;
 
+    // 7. Track this object to prevent circularity
     seen.add(val);
+
     const cleaned: any = {};
     Object.entries(val).forEach(([key, value]) => {
         const sanitizedVal = sanitizeData(value, seen);

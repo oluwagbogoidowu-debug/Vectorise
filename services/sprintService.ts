@@ -1,7 +1,7 @@
 
 import { db } from './firebase';
 import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, deleteDoc, onSnapshot, addDoc, deleteField } from 'firebase/firestore';
-import { ParticipantSprint, Sprint, Review, CoachingComment, UserEvent } from '../types';
+import { ParticipantSprint, Sprint, Review, CoachingComment, UserEvent, LifecycleSlotAssignment } from '../types';
 import { userService, sanitizeData } from './userService';
 import { notificationService } from './notificationService';
 import { isRegistryIncomplete } from '../utils/sprintUtils';
@@ -9,6 +9,12 @@ import { isRegistryIncomplete } from '../utils/sprintUtils';
 const SPRINTS_COLLECTION = 'sprints';
 const ENROLLMENTS_COLLECTION = 'enrollments';
 const REVIEWS_COLLECTION = 'reviews';
+const ORCHESTRATION_COLLECTION = 'orchestration';
+
+export interface OrchestrationMapping {
+    // focusCriteria is now an array to support multiple poll selections
+    assignments: Record<string, { sprintId: string; focusCriteria: string[] }>;
+}
 
 export const sprintService = {
     createSprint: async (sprint: Sprint) => {
@@ -192,6 +198,63 @@ export const sprintService = {
             return null;
         } catch (error) {
             console.error("Error fetching sprint by ID:", error);
+            return null;
+        }
+    },
+
+    saveOrchestration: async (assignments: Record<string, { sprintId: string; focusCriteria: string[] }>) => {
+        try {
+            const docRef = doc(db, ORCHESTRATION_COLLECTION, 'current_mapping');
+            await setDoc(docRef, sanitizeData({ 
+                assignments,
+                updatedAt: new Date().toISOString() 
+            }));
+        } catch (error) {
+            console.error("Orchestration save failed:", error);
+            throw error;
+        }
+    },
+
+    getOrchestration: async (): Promise<Record<string, { sprintId: string; focusCriteria: string[] }>> => {
+        try {
+            const docRef = doc(db, ORCHESTRATION_COLLECTION, 'current_mapping');
+            const snap = await getDoc(docRef);
+            if (snap.exists()) {
+                const data = snap.data().assignments || {};
+                // Normalize legacy string data to arrays
+                const normalized: Record<string, { sprintId: string; focusCriteria: string[] }> = {};
+                Object.keys(data).forEach(slotId => {
+                    const entry = data[slotId];
+                    if (typeof entry === 'string') {
+                        normalized[slotId] = { sprintId: entry, focusCriteria: [] };
+                    } else if (entry && typeof entry.focusCriteria === 'string') {
+                        normalized[slotId] = { ...entry, focusCriteria: entry.focusCriteria ? [entry.focusCriteria] : [] };
+                    } else {
+                        normalized[slotId] = entry;
+                    }
+                });
+                return normalized;
+            }
+            return {};
+        } catch (error) {
+            console.error("Orchestration fetch failed:", error);
+            return {};
+        }
+    },
+
+    getSprintIdByFocus: async (focus: string): Promise<string | null> => {
+        try {
+            const orchestration = await sprintService.getOrchestration();
+            // Iterate through slots to find if this focus option is mapped to a sprint
+            for (const slotId in orchestration) {
+                const mapping = orchestration[slotId];
+                if (mapping.focusCriteria && mapping.focusCriteria.includes(focus)) {
+                    return mapping.sprintId;
+                }
+            }
+            return null;
+        } catch (error) {
+            console.error("Focus lookup failed:", error);
             return null;
         }
     },

@@ -2,37 +2,9 @@
 import { db } from './firebase';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { UserEvent, EventType } from '../types';
+import { sanitizeData } from './userService';
 
 const EVENTS_COLLECTION = 'user_events';
-
-/**
- * Robust utility to recursively remove non-serializable values and undefined fields.
- */
-const sanitizeData = (val: any, seen = new WeakSet()): any => {
-    if (val === null || typeof val !== 'object') return val;
-    if (seen.has(val)) return undefined;
-
-    if (Array.isArray(val)) {
-        seen.add(val);
-        return val.map(item => sanitizeData(item, seen)).filter(i => i !== undefined);
-    }
-
-    if (val instanceof Date) return val.toISOString();
-    if (typeof val.toDate === 'function') return val.toDate().toISOString();
-
-    const isPlainObject = val.constructor === Object || Object.getPrototypeOf(val) === null;
-    if (!isPlainObject) return undefined;
-
-    seen.add(val);
-    const cleaned: any = {};
-    Object.entries(val).forEach(([key, value]) => {
-        const sanitizedVal = sanitizeData(value, seen);
-        if (sanitizedVal !== undefined) {
-            cleaned[String(key)] = sanitizedVal;
-        }
-    });
-    return cleaned;
-};
 
 export const eventService = {
   /**
@@ -49,7 +21,7 @@ export const eventService = {
         metadata: details.metadata
       };
       
-      // Sanitize to remove 'undefined' fields which Firestore rejects
+      // Sanitize to remove 'undefined' fields and prevent circularity
       const sanitizedEvent = sanitizeData(rawEvent);
       
       const docRef = await addDoc(collection(db, EVENTS_COLLECTION), sanitizedEvent);

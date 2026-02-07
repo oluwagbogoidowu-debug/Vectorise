@@ -31,6 +31,7 @@ import SprintInviteLanding from './pages/Participant/SprintInviteLanding';
 // New specialized onboarding pages
 import FocusSelector from './pages/Onboarding/FocusSelector';
 import ClaritySprintDescription from './pages/Onboarding/ClaritySprintDescription';
+import ProgramDescription from './pages/Onboarding/ProgramDescription';
 import CommitmentFraming from './pages/Onboarding/CommitmentFraming';
 import ClaritySprintPayment from './pages/Onboarding/ClaritySprintPayment';
 
@@ -132,6 +133,7 @@ const AppRoutes: React.FC = () => {
           <Route path="/onboarding/welcome" element={<Welcome />} />
           <Route path="/onboarding/focus-selector" element={<FocusSelector />} />
           <Route path="/onboarding/clarity-description" element={<ClaritySprintDescription />} />
+          <Route path="/onboarding/description/:sprintId" element={<ProgramDescription />} />
           <Route path="/onboarding/commitment" element={<CommitmentFraming />} />
           <Route path="/onboarding/clarity-payment" element={<ClaritySprintPayment />} />
           <Route path="/onboarding/intro" element={<QuizIntro />} />

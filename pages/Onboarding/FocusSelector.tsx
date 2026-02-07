@@ -1,22 +1,33 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
-
-const FOCUS_OPTIONS = [
-  "Get clarity on my career direction",
-  "Build real-world skills before graduation",
-  "Prepare for internships or entry roles",
-  "Turn an interest into a real project",
-  "Explore entrepreneurship seriously"
-];
+import { FOCUS_OPTIONS } from '../../services/mockData';
+import { sprintService } from '../../services/sprintService';
 
 const FocusSelector: React.FC = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSelect = (option: string) => {
-    // Navigate instantly on selection
-    navigate('/onboarding/clarity-description', { state: { selectedFocus: option } });
+  const handleSelect = async (option: string) => {
+    setIsLoading(true);
+    try {
+      const assignedSprintId = await sprintService.getSprintIdByFocus(option);
+      if (assignedSprintId) {
+        // If an admin has mapped this focus to a specific sprint, go to its dynamic description page
+        navigate(`/onboarding/description/${assignedSprintId}`, { 
+          state: { selectedFocus: option, sprintId: assignedSprintId } 
+        });
+      } else {
+        // Fallback to the standard clarity sprint description
+        navigate('/onboarding/clarity-description', { state: { selectedFocus: option } });
+      }
+    } catch (error) {
+      console.error("Focus mapping resolution failed:", error);
+      navigate('/onboarding/clarity-description', { state: { selectedFocus: option } });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -33,8 +44,9 @@ const FocusSelector: React.FC = () => {
           {FOCUS_OPTIONS.map((option, idx) => (
             <button
               key={idx}
+              disabled={isLoading}
               onClick={() => handleSelect(option)}
-              className="w-full group relative overflow-hidden bg-white/5 border border-white/10 py-4 px-6 rounded-2xl transition-all duration-500 hover:bg-white hover:border-white hover:scale-[1.01] active:scale-95 text-center flex items-center justify-center"
+              className="w-full group relative overflow-hidden bg-white/5 border border-white/10 py-4 px-6 rounded-2xl transition-all duration-500 hover:bg-white hover:border-white hover:scale-[1.01] active:scale-95 text-center flex items-center justify-center disabled:opacity-50"
             >
               <div className="relative z-10">
                 <span className="text-[9px] font-black uppercase tracking-[0.15em] group-hover:text-primary transition-colors leading-relaxed block">
@@ -51,6 +63,12 @@ const FocusSelector: React.FC = () => {
         </footer>
       </main>
 
+      {isLoading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-primary/40 backdrop-blur-sm">
+          <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      )}
+
       {/* Decorative elements - scaled down for mobile */}
       <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-white/5 rounded-full blur-[80px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-black/10 rounded-full blur-[80px] pointer-events-none"></div>
@@ -59,7 +77,7 @@ const FocusSelector: React.FC = () => {
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.99); } to { opacity: 1; transform: scale(1); } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 1.2s ease-out forwards; }
-        .animate-slide-up { animation: slideUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-slide-up { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}</style>
     </div>
   );
