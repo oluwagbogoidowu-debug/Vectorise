@@ -20,8 +20,7 @@ const CommitmentFraming: React.FC = () => {
   const handleContinue = () => {
     if (!isCommitted) return;
     
-    // REDESIGN: Skip sign-up. Go directly to payment.
-    // The payment page will now ask for an email for guest identification.
+    // Pass everything through to payment
     navigate('/onboarding/sprint-payment', { 
       state: { ...state } 
     });
@@ -32,7 +31,7 @@ const CommitmentFraming: React.FC = () => {
     if (!email.trim()) return;
     
     setIsSubmittingEmail(true);
-    // Simulate API call to save email to newsletter list
+    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 800));
     setIsSubmittingEmail(false);
     navigate('/');
@@ -45,17 +44,14 @@ const CommitmentFraming: React.FC = () => {
       {!showEmailCapture && (
         <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] animate-slide-up">
           
-          {/* Modal Header */}
           <header className="p-8 pb-4 text-center border-b border-gray-50 flex-shrink-0">
              <LocalLogo type="green" className="h-6 w-auto mx-auto mb-4 opacity-80" />
              <h1 className="text-2xl font-black text-gray-900 tracking-tighter italic">Before you start</h1>
              <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mt-1 opacity-60">Execution Protocol</p>
           </header>
 
-          {/* Modal Content - Scrollable */}
           <main className="flex-1 overflow-y-auto p-8 pt-6 custom-scrollbar space-y-8">
             
-            {/* Requirements */}
             <section className="space-y-4">
               <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">Requirements</h2>
               <div className="space-y-3">
@@ -72,7 +68,6 @@ const CommitmentFraming: React.FC = () => {
               </div>
             </section>
 
-            {/* Time & Commitment */}
             <section className="bg-primary/5 rounded-[1.5rem] p-6 text-center space-y-4 border border-primary/10">
                <div className="flex justify-center items-center gap-6">
                   <div>
@@ -88,7 +83,6 @@ const CommitmentFraming: React.FC = () => {
                <p className="text-[10px] font-medium text-primary/70 italic">"You don’t need more time. You need protected focus."</p>
             </section>
 
-            {/* The Checkbox */}
             <section className="pt-2">
               <label className="flex items-start gap-4 p-5 bg-gray-50 border border-gray-100 rounded-[1.5rem] cursor-pointer active:scale-[0.98] transition-all group hover:border-primary/20">
                 <div className="relative flex items-center h-5 mt-0.5">
@@ -106,7 +100,6 @@ const CommitmentFraming: React.FC = () => {
             </section>
           </main>
 
-          {/* Modal Footer */}
           <footer className="p-8 pt-4 border-t border-gray-50 bg-white flex-shrink-0">
             <div className="space-y-4">
               <Button 
@@ -132,7 +125,6 @@ const CommitmentFraming: React.FC = () => {
         </div>
       )}
 
-      {/* Email Capture Modal (Lead Magnet) */}
       {showEmailCapture && (
         <div className="bg-white rounded-[2.5rem] w-full max-sm shadow-2xl relative overflow-hidden flex flex-col p-8 md:p-12 animate-slide-up text-center">
           <header className="mb-8">
