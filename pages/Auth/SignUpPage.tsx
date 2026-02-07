@@ -23,7 +23,10 @@ const SignUpPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (prefilledEmail) setEmail(prefilledEmail);
+    // If we have a prefilled email from payment, set it strictly
+    if (prefilledEmail) {
+        setEmail(prefilledEmail);
+    }
   }, [prefilledEmail]);
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -38,7 +41,7 @@ const SignUpPage: React.FC = () => {
 
     try {
       // 1. Create Firebase Auth Account
-      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
       const firebaseUser = userCredential.user;
       await updateFbProfile(firebaseUser, { displayName: `${firstName} ${lastName}` });
       
@@ -77,8 +80,9 @@ const SignUpPage: React.FC = () => {
       navigate('/dashboard');
 
     } catch (error: any) {
-      if (error.code === 'auth/email-already-in-use') setRegError("Email already in registry. Please login.");
-      else setRegError("Identity creation failed. Please try again.");
+      if (error.code === 'auth/email-already-in-use') setRegError("Email already in use. Try logging in instead.");
+      else if (error.code === 'auth/weak-password') setRegError("Password must be at least 6 characters.");
+      else setRegError("Account creation failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -90,13 +94,11 @@ const SignUpPage: React.FC = () => {
         <header className="text-center mb-8">
             <LocalLogo type="green" className="h-6 w-auto mx-auto mb-6 opacity-30" />
             <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">
-                {fromPayment ? 'Final step. Secure your path.' : 'Establish your identity.'}
+                {fromPayment ? 'Establish your identity' : 'Join the Registry'}
             </h1>
         </header>
 
         <div className="w-full bg-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-hidden relative">
-            <h2 className="text-[8px] font-black text-center mb-8 tracking-[0.4em] text-primary border-b border-primary/5 pb-4 uppercase">Registry Creation</h2>
-            
             <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
@@ -115,19 +117,19 @@ const SignUpPage: React.FC = () => {
                       required 
                       value={email} 
                       readOnly={!!prefilledEmail} 
-                      className={`w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm transition-all ${prefilledEmail ? 'opacity-60 cursor-not-allowed' : 'focus:ring-4 focus:ring-primary/5'}`} 
-                      placeholder="Email" 
+                      className={`w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm transition-all ${prefilledEmail ? 'opacity-60 bg-gray-100' : 'focus:ring-4 focus:ring-primary/5'}`} 
+                      placeholder="Email Address" 
                     />
                 </div>
                 <div className="space-y-1">
                     <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">Set Password</label>
-                    <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none focus:ring-4 focus:ring-primary/5 font-bold text-sm" placeholder="Set Password" />
+                    <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none focus:ring-4 focus:ring-primary/5 font-bold text-sm" placeholder="Password" />
                 </div>
 
                 {regError && <p className="text-[10px] text-red-600 font-black uppercase text-center mt-2">{regError}</p>}
 
                 <Button type="submit" isLoading={isSubmitting} className="w-full py-4 bg-primary text-white rounded-full shadow-lg text-[10px] font-black uppercase tracking-[0.2em] mt-2">
-                    Access My Sprint &rarr;
+                    Create Account &rarr;
                 </Button>
             </form>
 

@@ -17,9 +17,8 @@ const PaymentSuccess: React.FC = () => {
     const queryParams = new URLSearchParams(location.search);
     const reference = queryParams.get('reference') || queryParams.get('tx_ref');
     const paidSprintId = queryParams.get('sprintId');
-    const queryEmail = queryParams.get('email'); // The exact email used during payment
-
-    const [paymentEmail, setPaymentEmail] = useState<string | null>(queryEmail);
+    // Extract the exact email used during payment initiation
+    const rawEmail = queryParams.get('email'); 
 
     useEffect(() => {
         if (!reference) {
@@ -33,8 +32,6 @@ const PaymentSuccess: React.FC = () => {
                 const data = await paymentService.verifyPayment(gateway, reference);
                 
                 if (data.status === 'successful' || data.status === 'success') {
-                    // Use verified email if returned, otherwise fallback to the query email
-                    setPaymentEmail(data.email || queryEmail);
                     setStatus('success');
                     if (user) setReadyToBegin(true);
                 } else if (retries < 8) {
@@ -48,7 +45,7 @@ const PaymentSuccess: React.FC = () => {
         };
 
         checkStatus();
-    }, [reference, retries, queryParams, user, queryEmail]);
+    }, [reference, retries, queryParams, user]);
 
     const handleAction = async () => {
         if (user) {
@@ -66,10 +63,10 @@ const PaymentSuccess: React.FC = () => {
                 setIsEnrolling(false);
             }
         } else {
-            // New user flow: Go to sign up with the EXACT prefilled email
+            // New user flow: Go to sign up with the EXACT email from the payment flow
             navigate('/signup', { 
                 state: { 
-                    prefilledEmail: paymentEmail,
+                    prefilledEmail: rawEmail ? decodeURIComponent(rawEmail).trim().toLowerCase() : null,
                     fromPayment: true,
                     targetSprintId: paidSprintId || 'clarity-sprint'
                 } 
@@ -92,8 +89,8 @@ const PaymentSuccess: React.FC = () => {
                                 <span className="text-2xl">🛡️</span>
                             </div>
                             <div>
-                                <h1 className="text-xl font-black text-gray-900 tracking-tight uppercase tracking-[0.1em]">Verifying Registry</h1>
-                                <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-3 animate-pulse">Confirming Growth Access...</p>
+                                <h1 className="text-xl font-black text-gray-900 tracking-tight uppercase tracking-[0.1em]">Verifying Payment</h1>
+                                <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-3 animate-pulse">Syncing with Registry...</p>
                             </div>
                         </div>
                     )}
@@ -108,8 +105,8 @@ const PaymentSuccess: React.FC = () => {
                             
                             <div className="space-y-8">
                                 <h1 className="text-2xl font-black text-gray-900 tracking-tighter italic leading-tight">
-                                    Investment Secured. <br/>
-                                    {user ? 'Registry active. Ready for Day 1.' : 'Secure your identity.'}
+                                    Access Secured. <br/>
+                                    Ready to begin Day 1.
                                 </h1>
 
                                 <label className="flex items-center justify-center gap-4 p-5 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer active:scale-[0.98] transition-all hover:border-primary/20 group mx-auto max-w-[280px]">
@@ -120,7 +117,7 @@ const PaymentSuccess: React.FC = () => {
                                         className="w-5 h-5 bg-white border-gray-200 rounded focus:ring-primary text-primary cursor-pointer transition-all"
                                     />
                                     <span className="text-xs font-black text-gray-700 uppercase tracking-widest select-none">
-                                        I’m ready to begin.
+                                        I’m ready to start.
                                     </span>
                                 </label>
 
@@ -134,7 +131,7 @@ const PaymentSuccess: React.FC = () => {
                                     }`}
                                 >
                                     {isEnrolling && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-                                    {user ? 'Open Day 1 Now' : 'Establish Identity'}
+                                    {user ? 'Open Workspace' : 'Secure My Identity'}
                                 </button>
                             </div>
                         </div>
@@ -147,7 +144,7 @@ const PaymentSuccess: React.FC = () => {
                             </div>
                             <div>
                                 <h1 className="text-xl font-black text-gray-900 tracking-tight">Sync Delayed</h1>
-                                <p className="text-gray-500 font-medium text-xs mt-3 leading-relaxed px-4">Verification is taking longer than expected. Please go to your dashboard; the sprint will appear shortly.</p>
+                                <p className="text-gray-500 font-medium text-xs mt-3 leading-relaxed px-4">Verification is taking longer than expected. Please check your dashboard; the sprint will appear shortly.</p>
                                 <button 
                                     onClick={() => navigate('/dashboard')}
                                     className="w-full mt-8 py-5 bg-gray-100 text-gray-400 font-black uppercase tracking-[0.2em] text-[10px] rounded-full hover:bg-gray-200 transition-all active:scale-95"

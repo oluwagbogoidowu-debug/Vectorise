@@ -26,8 +26,14 @@ export default async function handler(req, res) {
 
     const paymentAmount = amount || "5000";
 
-    // CRITICAL: Append both sprintId and email to the redirect URL to maintain exact identity continuity
-    const redirectUrl = `https://vectorise.online/#/payment-success?sprintId=${sprintId || 'clarity-sprint'}&email=${encodeURIComponent(email)}`;
+    // Determine origin dynamically to prevent redirecting localhost users to live site
+    const host = req.headers.host;
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const origin = `${protocol}://${host}`;
+
+    // Pass the exact email entered by the user
+    const cleanEmail = email.trim().toLowerCase();
+    const redirectUrl = `${origin}/#/payment-success?sprintId=${sprintId || 'clarity-sprint'}&email=${encodeURIComponent(cleanEmail)}`;
 
     const response = await fetch("https://api.flutterwave.com/v3/payments", {
       method: "POST",
@@ -40,7 +46,7 @@ export default async function handler(req, res) {
         amount: paymentAmount,
         currency: "NGN",
         redirect_url: redirectUrl,
-        customer: { email, name: name || 'Vectorise User' },
+        customer: { email: cleanEmail, name: name || 'Vectorise User' },
         customizations: {
           title: "Vectorise Growth Cycle",
           description: `Enrollment for ${sprintId || 'Sprint'}`
