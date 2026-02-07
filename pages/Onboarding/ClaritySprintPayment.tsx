@@ -5,6 +5,7 @@ import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
 import { paymentService } from '../../services/paymentService';
 import { useAuth } from '../../contexts/AuthContext';
+import { Sprint } from '../../types';
 
 const ClaritySprintPayment: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +18,11 @@ const ClaritySprintPayment: React.FC = () => {
 
   // Preserve navigation context
   const state = location.state || {};
+  const selectedSprint: Sprint | null = state.sprint || null;
+  
+  // Dynamic price based on flow
+  const sprintPrice = selectedSprint?.price ?? 5000;
+  const sprintTitle = selectedSprint?.title ?? "Clarity Sprint";
 
   const userEmail = user?.email;
   const canPay = finalCommitment && userEmail && !isProcessing;
@@ -31,11 +37,12 @@ const ClaritySprintPayment: React.FC = () => {
     setErrorMessage(null);
 
     try {
-      console.log("[Flow] Requesting Flutterwave link from /api/flutterwave/initiate...");
+      console.log(`[Flow] Requesting Flutterwave link for ${sprintTitle} (₦${sprintPrice})...`);
       
       const checkoutUrl = await paymentService.initializeFlutterwave({
         email: userEmail,
-        sprintId: 'clarity-sprint',
+        sprintId: selectedSprint?.id || 'clarity-sprint',
+        amount: sprintPrice,
         name: user?.name || 'Vectorise Sprinter'
       });
 
@@ -72,7 +79,7 @@ const ClaritySprintPayment: React.FC = () => {
           
           <header className="p-8 md:p-12 text-center border-b border-gray-50">
              <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-none mb-3 italic">
-               Start the Clarity Sprint
+               Start the {sprintTitle}
              </h1>
              <div className="space-y-1 text-gray-500 text-xs md:text-sm font-medium leading-relaxed italic">
                <p>You’re not paying for information.</p>
@@ -85,7 +92,7 @@ const ClaritySprintPayment: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                <section className="bg-gray-50 rounded-3xl p-8 border border-gray-100 text-center space-y-2">
                   <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Price</p>
-                  <h3 className="text-5xl font-black text-gray-900 tracking-tighter">₦5,000</h3>
+                  <h3 className="text-5xl font-black text-gray-900 tracking-tighter">₦{sprintPrice.toLocaleString()}</h3>
                   <div className="space-y-1 pt-4 border-t border-gray-200/50">
                     <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">One-time payment</p>
                   </div>
@@ -94,7 +101,7 @@ const ClaritySprintPayment: React.FC = () => {
                <section className="space-y-4 pt-4">
                   <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">What's included</h2>
                   <div className="text-[11px] md:text-xs font-bold text-gray-600 space-y-2">
-                    <p>✓ 5-Day Guided Focus</p>
+                    <p>✓ {selectedSprint?.duration || 5}-Day Guided Focus</p>
                     <p>✓ Daily Outcome Protocol</p>
                     <p>✓ Registry Certification</p>
                     <p>✓ Professional Coaching Access</p>
@@ -147,7 +154,7 @@ const ClaritySprintPayment: React.FC = () => {
                       onClick={handleSkipRequest}
                       className="text-[10px] font-black text-gray-400 hover:text-primary transition-colors underline underline-offset-4 decoration-gray-200"
                     >
-                      Already clear? Skip to execution.
+                      Need something else? View other paths.
                     </button>
                 </div>
              </div>

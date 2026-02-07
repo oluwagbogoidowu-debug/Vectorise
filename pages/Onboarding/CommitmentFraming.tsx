@@ -55,15 +55,6 @@ const CommitmentFraming: React.FC = () => {
           {/* Modal Content - Scrollable */}
           <main className="flex-1 overflow-y-auto p-8 pt-6 custom-scrollbar space-y-8">
             
-            <div className="space-y-4">
-              <div className="space-y-1 text-gray-500 text-xs font-medium leading-relaxed italic">
-                <p>This sprint only works if you show up daily.</p>
-                <p>Not perfectly. Just consistently.</p>
-                <p className="text-gray-900 mt-3 not-italic font-black text-sm">Vectorise is not content to consume.</p>
-                <p>It’s a short execution window designed to create real feedback in your life.</p>
-              </div>
-            </div>
-
             {/* Requirements */}
             <section className="space-y-4">
               <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">Requirements</h2>
@@ -79,26 +70,6 @@ const CommitmentFraming: React.FC = () => {
                   </div>
                 ))}
               </div>
-            </section>
-
-            {/* Not Promises */}
-            <section className="space-y-3">
-              <h2 className="text-[9px] font-black text-red-400 uppercase tracking-[0.3em]">The Reality</h2>
-              <div className="space-y-2">
-                {[
-                  "No instant life answers",
-                  "No guaranteed career path",
-                  "No motivation without effort"
-                ].map((text, i) => (
-                  <div key={i} className="flex items-center gap-2 text-[11px] font-bold text-gray-400 px-1">
-                    <span className="text-red-400">✕</span>
-                    <p>{text}</p>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[11px] font-medium text-gray-500 italic leading-relaxed pt-2">
-                Instead, you get <span className="text-gray-900 font-black not-italic">direction built from evidence.</span>
-              </p>
             </section>
 
             {/* Time & Commitment */}
@@ -163,7 +134,7 @@ const CommitmentFraming: React.FC = () => {
 
       {/* Email Capture Modal (Lead Magnet) */}
       {showEmailCapture && (
-        <div className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl relative overflow-hidden flex flex-col p-8 md:p-12 animate-slide-up text-center">
+        <div className="bg-white rounded-[2.5rem] w-full max-sm shadow-2xl relative overflow-hidden flex flex-col p-8 md:p-12 animate-slide-up text-center">
           <header className="mb-8">
             <div className="w-16 h-16 bg-primary/5 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 text-2xl shadow-inner">
               📩

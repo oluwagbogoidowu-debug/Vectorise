@@ -7,6 +7,7 @@
 interface PaymentPayload {
   email: string;
   sprintId: string;
+  amount: number;
   name?: string;
 }
 
@@ -25,6 +26,7 @@ export const paymentService = {
         body: JSON.stringify({
           email: payload.email,
           sprintId: payload.sprintId,
+          amount: payload.amount.toString(),
           name: payload.name || 'Vectorise User'
         })
       });

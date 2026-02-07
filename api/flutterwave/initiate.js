@@ -21,10 +21,13 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Missing FLW_SECRET_KEY" });
     }
 
-    const { email } = req.body || {};
+    const { email, amount, sprintId } = req.body || {};
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
     }
+
+    // Use amount from body or fallback to default
+    const paymentAmount = amount || "5000";
 
     // Using global fetch (available in Node 18+) to avoid 'node-fetch' dependency issues
     const response = await fetch("https://api.flutterwave.com/v3/payments", {
@@ -35,14 +38,14 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         tx_ref: `tx-${Date.now()}`,
-        amount: "5000",
+        amount: paymentAmount,
         currency: "NGN",
         // Correcting the redirect URL to match the SPA hash routing
         redirect_url: "https://vectorise.online/#/payment-success",
         customer: { email },
         customizations: {
-          title: "Clarity Sprint",
-          description: "5-day Clarity Sprint"
+          title: sprintId || "Growth Sprint",
+          description: "Vectorise Growth Cycle"
         }
       })
     });
