@@ -24,10 +24,24 @@ export type SprintType =
 export type EffortLevel = 'Low' | 'Medium' | 'High';
 export type EvidenceType = 'decision' | 'artifact' | 'habit';
 
-// FIX: Exported SprintDifficulty to satisfy imports in coach pages
 export type SprintDifficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 
-// FIX: Added SprintTargeting interface for program matching logic
+// FIX: Added LifecycleSlot interface
+export interface LifecycleSlot {
+  id: string;
+  stage: LifecycleStage;
+  type: SprintType;
+  name: string;
+  required: boolean;
+  maxCount: number;
+}
+
+// FIX: Added LifecycleSlotAssignment interface
+export interface LifecycleSlotAssignment {
+  sprintId: string;
+  focusCriteria: string[];
+}
+
 export interface SprintTargeting {
   persona: string;
   p1: string;
@@ -55,14 +69,12 @@ export interface Sprint {
   createdAt?: string;
   outcomes?: string[];
   
-  // REGISTRY STRUCTURAL FIELDS
   transformation?: string;
   forWho?: string[];
   notForWho?: string[];
   methodSnapshot?: { verb: string; description: string }[];
   protocol?: 'One action per day' | 'Guided task' | 'Challenge-based';
 
-  // ORCHESTRATION FIELDS
   actionsPerDay?: number;
   effortLevel?: EffortLevel;
   type?: SprintType;
@@ -72,29 +84,10 @@ export interface Sprint {
   evidenceProduced?: EvidenceType;
   pendingChanges?: Partial<Sprint>;
 
-  // FIX: Added missing structural fields used in registry and targeting
   sprintType?: 'Foundational' | 'Execution' | 'Skill';
   targeting?: SprintTargeting;
 
-  // REVIEW FEEDBACK (Mapping section keys to Admin comments)
   reviewFeedback?: Record<string, string>;
-}
-
-export interface LifecycleSlot {
-  id: string;
-  stage: LifecycleStage;
-  type: SprintType;
-  name: string;
-  required: boolean;
-  maxCount: number;
-}
-
-export interface LifecycleSlotAssignment {
-  id: string;
-  slotId: string;
-  sprintId: string;
-  segment?: 'Students' | 'NYSC' | 'Early Career' | 'Founders';
-  active: boolean;
 }
 
 export interface DailyContent {
@@ -104,6 +97,9 @@ export interface DailyContent {
   taskPrompt: string;
   resourceUrl?: string;
   submissionType?: 'text' | 'file' | 'both' | 'none';
+  // New Proof of Action fields
+  proofType?: 'confirmation' | 'picker' | 'note';
+  proofOptions?: string[];
 }
 
 export interface User {
@@ -113,7 +109,6 @@ export interface User {
   role: UserRole;
   profileImageUrl: string;
   createdAt?: string;
-  // FIX: Added roleDefinitionId for permissions check
   roleDefinitionId?: string;
 }
 
@@ -128,7 +123,6 @@ export interface Participant extends User {
   wishlistSprintIds?: string[];
   enrolledSprintIds?: string[];
   claimedMilestoneIds?: string[];
-  // FIX: Added missing properties for engagement, profiles and onboarding
   shinePostIds?: string[];
   shineCommentIds?: string[];
   savedSprintIds?: string[];
@@ -145,7 +139,6 @@ export interface Participant extends User {
   followers?: number;
   following?: number;
   interests?: string[];
-  // FIX: Added coach onboarding fields to Participant for role transition
   hasCoachProfile?: boolean;
   coachBio?: string;
   coachNiche?: string;
@@ -157,7 +150,6 @@ export interface Coach extends User {
   bio: string;
   niche: string;
   approved: boolean;
-  // FIX: Added mirroring properties for profile updates
   hasCoachProfile?: boolean;
   coachBio?: string;
   coachNiche?: string;
@@ -167,6 +159,72 @@ export interface Coach extends User {
 
 export interface Admin extends User {
   role: UserRole.ADMIN;
+}
+
+export interface ParticipantSprint {
+  id: string;
+  sprintId: string;
+  participantId: string;
+  startDate: string;
+  sentNudges?: number[];
+  progress: {
+    day: number;
+    completed: boolean;
+    completedAt?: string;
+    submission?: string;
+    submissionFileUrl?: string;
+    // New storage for the proof
+    proofSelection?: string;
+  }[];
+}
+
+export interface Review {
+  id: string;
+  sprintId: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  rating: number;
+  comment: string;
+  timestamp: string;
+}
+
+export interface CoachingComment {
+  id: string;
+  sprintId: string;
+  day: number;
+  participantId: string;
+  authorId: string;
+  content: string;
+  timestamp: string;
+  read: boolean;
+}
+
+// FIX: Added NotificationType union
+export type NotificationType = 
+  | 'sprint_day_unlocked' 
+  | 'payment_success' 
+  | 'coach_message' 
+  | 'sprint_completed' 
+  | 'referral_update' 
+  | 'shine_interaction' 
+  | 'sprint_nudge'
+  | 'shine_reflection'
+  | 'shine_interaction';
+
+// FIX: Updated Notification interface with missing properties
+export interface Notification {
+  id: string;
+  userId: string;
+  type: NotificationType | string;
+  title: string;
+  body: string;
+  isRead: boolean;
+  readAt?: string | null;
+  createdAt: string;
+  expiresAt?: string | null;
+  actionUrl?: string | null;
+  context?: any;
 }
 
 export interface PlatformPulse {
@@ -184,14 +242,6 @@ export interface RoleDefinition {
   permissions: string[];
 }
 
-export interface RoleDefinition {
-  id: string;
-  name: string;
-  description: string;
-  baseRole: UserRole;
-  permissions: string[];
-}
-
 export interface Quote {
   id: string;
   text: string;
@@ -199,68 +249,7 @@ export interface Quote {
   createdAt: string;
 }
 
-// FIX: Added missing exported types used in services and components
 export type Permission = string;
-
-export type NotificationType = 
-  | 'sprint_day_unlocked' 
-  | 'payment_success' 
-  | 'coach_message' 
-  | 'sprint_completed' 
-  | 'referral_update' 
-  | 'shine_interaction'
-  | 'sprint_nudge';
-
-export interface Notification {
-  id: string;
-  userId: string;
-  type: NotificationType;
-  title: string;
-  body: string;
-  isRead: boolean;
-  createdAt: string;
-  actionUrl?: string | null;
-  readAt?: string | null;
-  expiresAt?: string | null;
-  context?: any;
-}
-
-export interface Review {
-  id: string;
-  sprintId: string;
-  userId: string;
-  userName: string;
-  userAvatar: string;
-  rating: number;
-  comment: string;
-  timestamp: string;
-}
-
-export interface ParticipantSprint {
-  id: string;
-  sprintId: string;
-  participantId: string;
-  startDate: string;
-  sentNudges?: number[];
-  progress: {
-    day: number;
-    completed: boolean;
-    completedAt?: string;
-    submission?: string;
-    submissionFileUrl?: string;
-  }[];
-}
-
-export interface Referral {
-  id: string;
-  referrerId: string;
-  refereeId: string;
-  refereeName: string;
-  refereeAvatar?: string;
-  sprintName?: string;
-  status: 'joined' | 'started_sprint' | 'completed_week_1' | 'completed_sprint';
-  timestamp: string;
-}
 
 export interface ShinePost {
   id: string;
@@ -294,17 +283,6 @@ export interface WalletTransaction {
   description: string;
   auditId?: string;
   timestamp: string;
-}
-
-export interface CoachingComment {
-  id: string;
-  sprintId: string;
-  day: number;
-  participantId: string;
-  authorId: string;
-  content: string;
-  timestamp: string;
-  read: boolean;
 }
 
 export type EventType = 'task_submitted' | 'sprint_enrolled' | 'feedback_sent' | 'login' | 'page_view';
@@ -346,4 +324,17 @@ export interface CoachAnalytics {
 export interface NotificationPayload {
   title: string;
   body: string;
+}
+
+// FIX: Added Referral interface
+export interface Referral {
+  id: string;
+  referrerId: string;
+  refereeId: string;
+  refereeName: string;
+  refereeAvatar?: string;
+  sprintId?: string;
+  sprintName?: string;
+  status: 'joined' | 'started_sprint' | 'completed_week_1' | 'completed_sprint';
+  timestamp: string;
 }

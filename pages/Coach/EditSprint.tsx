@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Sprint, DailyContent, SprintDifficulty, UserRole } from '../../types';
@@ -41,13 +40,11 @@ const EditSprint: React.FC = () => {
   const isPendingReview = sprint?.approvalStatus === 'pending_approval';
   const isRejected = sprint?.approvalStatus === 'rejected';
 
-  // Derives foundational status from active edits
   const isFoundational = useMemo(() => {
     const cat = editSettings.category || sprint?.category;
     return cat === 'Core Platform Sprint' || cat === 'Growth Fundamentals';
   }, [editSettings.category, sprint?.category]);
 
-  // FIX: Added memoized checks for registry and curriculum completeness using utility functions
   const registryIncomplete = useMemo(() => sprint ? isRegistryIncomplete(sprint) : true, [sprint]);
   const curriculumIncomplete = useMemo(() => sprint ? isSprintIncomplete(sprint) : true, [sprint]);
 
@@ -66,7 +63,11 @@ const EditSprint: React.FC = () => {
 
           const cloned: Sprint = {
               ...effectiveSprint,
-              dailyContent: effectiveSprint.dailyContent.map(day => ({ ...day })),
+              dailyContent: effectiveSprint.dailyContent.map(day => ({ 
+                ...day,
+                proofType: day.proofType || 'confirmation',
+                proofOptions: day.proofOptions || []
+              })),
               outcomes: effectiveSprint.outcomes ? [...effectiveSprint.outcomes] : [],
               forWho: effectiveSprint.forWho ? [...effectiveSprint.forWho] : ['', '', '', ''],
               notForWho: effectiveSprint.notForWho ? [...effectiveSprint.notForWho] : ['', '', ''],
@@ -107,11 +108,11 @@ const EditSprint: React.FC = () => {
   }, [sprintId, navigate, user]);
 
   const currentContent = (sprint?.dailyContent.find(c => c.day === selectedDay)) || {
-    day: selectedDay, lessonText: '', taskPrompt: '', audioUrl: '', resourceUrl: '', submissionType: 'text'
+    day: selectedDay, lessonText: '', taskPrompt: '', proofType: 'confirmation', proofOptions: []
   };
 
   const handleContentChange = (field: keyof DailyContent, value: any) => {
-    if (!sprint || isAdmin) return; // Admins cannot edit curriculum
+    if (!sprint || isAdmin) return;
     setSprint(prev => {
       if (!prev) return null;
       const existingContentIndex = prev.dailyContent.findIndex(c => c.day === selectedDay);
@@ -140,14 +141,12 @@ const EditSprint: React.FC = () => {
 
   const handleAdminApprove = async () => {
       if (!sprintId || !sprint || approvalStatus === 'processing') return;
-
       const price = Number(editSettings.price ?? sprint.price ?? 0);
       const points = Number(editSettings.pointCost ?? sprint.pointCost ?? 0);
       if ((isFoundational && points <= 0) || (!isFoundational && price <= 0)) {
           alert("Admin Constraint: You must set a non-zero price before approval.");
           return;
       }
-
       setApprovalStatus('processing');
       try {
           const finalData: Partial<Sprint> = {
@@ -181,7 +180,6 @@ const EditSprint: React.FC = () => {
               const dayKey = `daily_day_${day.day}`;
               finalFeedback[dayKey] = reviewFeedback[dayKey]?.trim() || 'no input';
           });
-
           const updated = { ...sprint, approvalStatus: 'rejected' as const, reviewFeedback: finalFeedback };
           await sprintService.updateSprint(sprintId, updated);
           alert("Amendments sent to coach.");
@@ -191,40 +189,33 @@ const EditSprint: React.FC = () => {
 
   const handleApplySettings = async () => {
     if (!sprint) return;
-
     let updatedDailyContent = [...sprint.dailyContent];
     const newDuration = Number(editSettings.duration || sprint.duration);
-    
     if (!isAdmin && newDuration !== sprint.duration) {
         if (newDuration > sprint.duration) {
           for (let i = sprint.duration + 1; i <= newDuration; i++) {
-            updatedDailyContent.push({ day: i, lessonText: '', taskPrompt: '', submissionType: 'text' });
+            updatedDailyContent.push({ day: i, lessonText: '', taskPrompt: '', submissionType: 'text', proofType: 'confirmation', proofOptions: [] });
           }
         } else {
           updatedDailyContent = updatedDailyContent.filter(c => c.day <= newDuration);
           if (selectedDay > newDuration) setSelectedDay(newDuration);
         }
     }
-
     const price = Number(editSettings.price ?? sprint.price ?? 0);
     const points = Number(editSettings.pointCost ?? sprint.pointCost ?? 0);
-
     if (isAdmin && sprint.approvalStatus === 'approved') {
         if ((isFoundational && points <= 0) || (!isFoundational && price <= 0)) {
             alert("Admin Error: Price cannot be 0 for live sprints.");
             return;
         }
     }
-
     const finalSettings = {
         ...editSettings,
         description: editSettings.transformation || editSettings.description,
         pricingType: isFoundational ? 'credits' : 'cash',
         price, pointCost: points,
     };
-
     const updatedLocalSprint = { ...sprint, ...finalSettings as any, duration: newDuration, dailyContent: updatedDailyContent };
-    
     if (isAdmin && sprint.approvalStatus === 'approved') {
         try {
             setApprovalStatus('processing');
@@ -346,8 +337,76 @@ const EditSprint: React.FC = () => {
                 readOnly={isAdmin}
                 placeholder="Daily task prompt..." 
               />
-              <AdminFeedbackBox sectionKey={`daily_day_${selectedDay}`} />
-              <CoachFeedbackDisplay sectionKey={`daily_day_${selectedDay}`} />
+            </div>
+
+            {/* Proof of Action Configuration */}
+            <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-6">
+                <div className="flex items-center gap-3">
+                    <div className="w-1.5 h-6 bg-primary rounded-full"></div>
+                    <h3 className="text-[11px] font-black text-gray-900 uppercase tracking-widest">Proof of Action</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {[
+                        { id: 'confirmation', label: 'Confirmation', icon: '✅' },
+                        { id: 'picker', label: 'Picker', icon: '🔘' },
+                        { id: 'note', label: 'Note Feedback', icon: '📝' }
+                    ].map(type => (
+                        <button
+                            key={type.id}
+                            disabled={isAdmin}
+                            onClick={() => handleContentChange('proofType', type.id)}
+                            className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all duration-300 group ${
+                                currentContent.proofType === type.id 
+                                ? 'bg-primary border-primary text-white shadow-lg' 
+                                : 'bg-white border-gray-100 text-gray-400 hover:border-primary/20 hover:text-primary'
+                            }`}
+                        >
+                            <span className="text-2xl mb-2">{type.icon}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest">{type.label}</span>
+                        </button>
+                    ))}
+                </div>
+
+                {currentContent.proofType === 'picker' && (
+                    <div className="animate-slide-up space-y-3">
+                        <label className={labelClasses}>Define Picker Options</label>
+                        <div className="flex gap-2">
+                             <input 
+                                type="text"
+                                placeholder="Add option..."
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                                        const newOptions = [...(currentContent.proofOptions || []), e.currentTarget.value.trim()];
+                                        handleContentChange('proofOptions', newOptions);
+                                        e.currentTarget.value = '';
+                                    }
+                                }}
+                                className={registryInputClasses}
+                                disabled={isAdmin}
+                             />
+                        </div>
+                        <div className="flex flex-wrap gap-2 pt-2">
+                            {(currentContent.proofOptions || []).map((opt, i) => (
+                                <span key={i} className="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-2">
+                                    {opt}
+                                    {!isAdmin && (
+                                        <button onClick={() => {
+                                            const next = (currentContent.proofOptions || []).filter((_, idx) => idx !== i);
+                                            handleContentChange('proofOptions', next);
+                                        }} className="text-gray-400 hover:text-red-500">✕</button>
+                                    )}
+                                </span>
+                            ))}
+                            {(currentContent.proofOptions || []).length === 0 && (
+                                <p className="text-[10px] text-gray-300 italic font-medium">Type and press Enter to add options.</p>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                <AdminFeedbackBox sectionKey={`daily_day_${selectedDay}`} />
+                <CoachFeedbackDisplay sectionKey={`daily_day_${selectedDay}`} />
             </div>
           </div>
         </div>

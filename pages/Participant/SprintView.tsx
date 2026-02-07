@@ -1,22 +1,28 @@
-
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ParticipantSprint, Sprint } from '../../types';
-import Button from '../../components/Button';
-import ProgressBar from '../../components/ProgressBar';
+import { ParticipantSprint, Sprint, DailyContent } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import FormattedText from '../../components/FormattedText';
 
 const SprintView: React.FC = () => {
     const { user } = useAuth();
     const { enrollmentId } = useParams();
     const navigate = useNavigate();
+    
     const [enrollment, setEnrollment] = useState<ParticipantSprint | null>(null);
     const [sprint, setSprint] = useState<Sprint | null>(null);
     const [viewingDay, setViewingDay] = useState<number>(1);
+    
+    const [proofSelection, setProofSelection] = useState<string>('');
     const [textSubmission, setTextSubmission] = useState('');
+    
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [timeToNextDay, setTimeToNextDay] = useState<string | null>(null);
 
+    // Load Data
     useEffect(() => {
         if (!enrollmentId) return;
         const unsubscribe = sprintService.subscribeToEnrollment(enrollmentId, async (data) => {
@@ -33,143 +39,254 @@ const SprintView: React.FC = () => {
         return () => unsubscribe();
     }, [enrollmentId, sprint]);
 
-    if (!enrollment || !sprint) return <div className="flex items-center justify-center h-screen bg-white text-gray-300 font-black uppercase tracking-[0.4em] text-[10px] animate-pulse">Synchronizing Cycle...</div>;
+    // Timer Logic: Countdown to Midnight
+    useEffect(() => {
+        const timer = setInterval(() => {
+            const now = new Date();
+            const midnight = new Date();
+            midnight.setHours(24, 0, 0, 0);
+            
+            const diff = midnight.getTime() - now.getTime();
+            
+            if (diff <= 0) {
+                setTimeToNextDay(null);
+            } else {
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                setTimeToNextDay(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+            }
+        }, 1000);
 
-    const progressPercent = (enrollment.progress.filter(p => p.completed).length / sprint.duration) * 100;
-    const currentDayContent = sprint.dailyContent.find(dc => dc.day === viewingDay);
-    const isCompleted = enrollment.progress.find(p => p.day === viewingDay)?.completed;
+        return () => clearInterval(timer);
+    }, []);
+
+    const dayContent = sprint?.dailyContent.find(dc => dc.day === viewingDay);
+    const currentDayData = enrollment?.progress.find(p => p.day === viewingDay);
+    const isDayCompleted = !!currentDayData?.completed;
+
+    const canSubmit = useMemo(() => {
+        if (!dayContent) return false;
+        if (dayContent.proofType === 'confirmation') return true;
+        if (dayContent.proofType === 'picker') return !!proofSelection;
+        if (dayContent.proofType === 'note') return !!textSubmission.trim();
+        return true;
+    }, [dayContent, proofSelection, textSubmission]);
+
+    const handleCompleteDay = async () => {
+        if (!enrollment || !user || !canSubmit) return;
+        setIsSubmitting(true);
+        try {
+            const updatedProgress = enrollment.progress.map(p => 
+                p.day === viewingDay ? { 
+                    ...p, 
+                    completed: true, 
+                    completedAt: new Date().toISOString(), 
+                    submission: textSubmission,
+                    proofSelection: proofSelection
+                } : p
+            );
+            
+            const enrollmentRef = doc(db, 'enrollments', enrollment.id);
+            await updateDoc(enrollmentRef, { progress: updatedProgress });
+            
+            setTextSubmission('');
+            setProofSelection('');
+        } catch (err) {
+            console.error("Completion failed", err);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    if (!enrollment || !sprint) return (
+        <div className="flex items-center justify-center h-screen bg-white">
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+        </div>
+    );
+
+    const isDayLocked = (day: number) => {
+        if (day === 1) return false;
+        const prevDay = enrollment.progress.find(p => p.day === day - 1);
+        // If prev day isn't done, it's locked
+        if (!prevDay?.completed) return true;
+        
+        // If prev day WAS done, we check if it's currently "today" relative to the completion
+        // For the sake of this UI, if prev day is done, day is unlocked unless it's strictly a 24h wait
+        // The user requested: "timer down till 12 AM to unlock the next day"
+        const nowMs = new Date().getTime();
+        const completedDate = new Date(prevDay.completedAt!);
+        const nextMidnightMs = new Date(completedDate.getFullYear(), completedDate.getMonth(), completedDate.getDate() + 1, 0, 0, 0).getTime();
+        
+        return nowMs < nextMidnightMs;
+    };
 
     return (
-        <div className="h-screen w-full bg-[#FAFAFA] flex flex-col overflow-hidden animate-fade-in font-sans">
-            {/* 1. HIGH-CONTRAST NAVIGATION HEADER */}
-            <header className="px-6 py-5 bg-white border-b border-gray-100 flex-shrink-0 z-30">
-                <div className="max-w-screen-lg mx-auto w-full">
-                    <div className="flex justify-between items-start mb-3">
-                        {/* EXIT WORKSPACE: Explicitly navigate to dashboard */}
-                        <button onClick={() => navigate('/dashboard')} className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2 hover:text-primary transition-colors active:scale-95 group">
-                            <svg className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
-                            Terminate Session
-                        </button>
-                        <div className="flex items-center gap-3">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                            <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Day {viewingDay} active</p>
-                        </div>
+        <div className="min-h-screen w-full bg-[#FAFAFA] flex flex-col font-sans text-dark overflow-y-auto animate-fade-in pb-12">
+            <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
+                <div className="flex items-center justify-between">
+                    <button 
+                        onClick={() => navigate('/dashboard')} 
+                        className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 hover:text-red-500 transition-all active:scale-90"
+                        title="Exit Sprint"
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+
+                    <div className="text-center flex-1 mx-4 min-w-0">
+                        <h1 className="text-xl font-black text-gray-900 tracking-tight truncate">{sprint.title}</h1>
+                        <p className="text-[8px] font-black text-primary uppercase tracking-[0.3em] opacity-60">Cycle Registry</p>
                     </div>
-                    <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
-                        <h1 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight leading-none truncate w-full md:flex-1">{sprint.title}</h1>
-                        <div className="w-full md:w-48 flex flex-col items-end gap-1">
-                            <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden shadow-inner">
-                                <div className="h-full bg-primary rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(14,120,80,0.4)]" style={{ width: `${progressPercent}%` }}></div>
-                            </div>
-                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{progressPercent.toFixed(0)}% Path Coverage</span>
-                        </div>
+
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => navigate(`/sprint/${sprint.id}`)}
+                            className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-primary hover:bg-primary hover:text-white transition-all active:scale-90"
+                            title="View Description"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </button>
+                        <button 
+                            className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-primary hover:bg-primary hover:text-white transition-all active:scale-90"
+                            title="Reach Coach"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </header>
 
-            {/* 2. MAIN WORKSPACE AREA */}
-            <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-screen-lg mx-auto w-full bg-white md:bg-transparent">
-                
-                {/* Vertical Sidebar Timeline */}
-                <aside className="w-full md:w-32 flex-shrink-0 bg-white md:bg-transparent border-b md:border-b-0 md:border-r border-gray-100 flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto no-scrollbar py-4 md:py-8 px-6 md:px-4 gap-2.5">
-                    {enrollment.progress.map(p => (
-                        <button 
-                            key={p.day} 
-                            onClick={() => setViewingDay(p.day)} 
-                            className={`flex flex-shrink-0 flex-col items-center justify-center w-16 md:w-auto h-16 md:h-20 rounded-2xl transition-all duration-500 relative ${
-                                viewingDay === p.day 
-                                ? 'bg-primary text-white shadow-2xl shadow-primary/30 scale-[1.05] z-10' 
-                                : p.completed 
-                                ? 'bg-white text-primary border border-primary/20 shadow-sm hover:bg-primary/5' 
-                                : 'bg-gray-50 text-gray-400 border border-gray-100 hover:bg-white hover:border-gray-200'
-                            }`}
-                        >
-                            <span className="text-[8px] font-black uppercase tracking-tighter mb-0.5 opacity-60">Day</span>
-                            <span className="text-xl font-black leading-none">{p.day}</span>
-                            {p.completed && viewingDay !== p.day && (
-                                <div className="absolute top-2 right-2 w-1.5 h-1.5 bg-primary rounded-full ring-2 ring-white"></div>
-                            )}
-                        </button>
-                    ))}
-                    <div className="hidden md:block h-32 flex-shrink-0"></div>
-                </aside>
+            <div className="px-6 max-w-2xl mx-auto w-full space-y-6 mt-4">
+                {/* Curriculum Timeline - Reduced Size */}
+                <div className="bg-white rounded-3xl p-5 border border-gray-50 shadow-sm overflow-hidden">
+                    <h2 className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-4">Curriculum Timeline</h2>
+                    <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar items-center">
+                        {enrollment.progress.map((p) => {
+                            const locked = isDayLocked(p.day);
+                            const active = viewingDay === p.day;
+                            const done = p.completed;
 
-                {/* Content Viewer / Execution Deck */}
-                <main className="flex-1 overflow-y-auto custom-scrollbar bg-white shadow-2xl md:my-6 md:mr-6 md:rounded-[3rem] relative border border-gray-100/50">
-                    <div className="px-8 py-10 md:px-16 md:py-20 pb-40">
-                        <div className="max-w-2xl mx-auto">
-                            {/* Lesson Typography Optimization */}
-                            <div className="text-[15px] md:text-[16px] font-medium leading-[1.8] text-gray-600 mb-16 prose max-w-none selection:bg-primary/10">
-                                <FormattedText text={currentDayContent?.lessonText || "Synchronizing narrative material..."} className="first-letter:text-5xl first-letter:font-black first-letter:text-primary first-letter:mr-3 first-letter:float-left first-letter:mt-1" />
-                            </div>
-
-                            {/* Strategic Action Deck */}
-                            <div className="bg-[#FAFAFA] rounded-[2.5rem] p-8 md:p-12 border border-gray-100 mb-10 shadow-sm relative overflow-hidden group">
-                                <div className="relative z-10">
-                                    <div className="inline-block px-3 py-1 bg-primary text-white rounded-full text-[9px] font-black uppercase tracking-[0.2em] mb-6 shadow-lg shadow-primary/20">
-                                        Primary Directive
-                                    </div>
-                                    <p className="text-xl md:text-2xl font-black text-gray-900 leading-[1.2] mb-8 tracking-tight italic">
-                                        <FormattedText text={currentDayContent?.taskPrompt || ""} />
-                                    </p>
-                                    
-                                    {!isCompleted ? (
-                                        <div className="relative">
-                                            <textarea 
-                                                value={textSubmission} 
-                                                onChange={e => setTextSubmission(e.target.value)} 
-                                                placeholder="Document your execution path..." 
-                                                className="w-full p-6 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-8 focus:ring-primary/5 focus:border-primary transition-all text-base font-bold text-gray-800 resize-none h-40 shadow-inner placeholder:text-gray-300"
-                                            />
-                                            <div className="absolute bottom-4 right-4 pointer-events-none">
-                                                <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Execution Notes</p>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="bg-white/60 p-8 rounded-2xl border border-primary/5 text-center shadow-inner flex flex-col items-center gap-4">
-                                            <div className="w-12 h-12 bg-green-50 text-primary rounded-full flex items-center justify-center text-xl shadow-sm">✓</div>
-                                            <p className="font-black text-gray-500 text-xs uppercase tracking-[0.2em]">"Record verified in growth registry."</p>
-                                        </div>
+                            return (
+                                <button 
+                                    key={p.day}
+                                    onClick={() => !locked && setViewingDay(p.day)}
+                                    disabled={locked}
+                                    className={`flex-shrink-0 w-16 h-16 rounded-xl flex flex-col items-center justify-center transition-all duration-300 relative shadow-sm border ${
+                                        active 
+                                        ? 'bg-[#0E7850] text-white border-[#0E7850] shadow-lg shadow-green-100' 
+                                        : done 
+                                        ? 'bg-white text-primary border-primary/20' 
+                                        : 'bg-gray-50 text-gray-400 border-transparent'
+                                    } ${locked ? 'opacity-30 grayscale cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
+                                >
+                                    <span className="text-[7px] font-black uppercase tracking-widest opacity-60 mb-0.5">Day</span>
+                                    <span className="text-xl font-black leading-none">{p.day}</span>
+                                    {done && !active && (
+                                        <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-primary rounded-full"></div>
                                     )}
-                                </div>
-                                <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors duration-1000"></div>
-                            </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
 
-                            {/* Verification Footer */}
-                            <div className="pt-8 border-t border-gray-50 flex flex-col sm:flex-row justify-between items-center gap-6">
-                                <div className="flex flex-col items-center sm:items-start">
-                                    <span className="text-[9px] font-black text-gray-300 uppercase tracking-[0.3em] mb-1">Status Report</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`w-2 h-2 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`}></span>
-                                        <span className={`text-[10px] font-black uppercase tracking-widest ${isCompleted ? 'text-green-600' : 'text-orange-500'}`}>
-                                            {isCompleted ? 'Verified Mastered' : 'Action Outstanding'}
-                                        </span>
-                                    </div>
-                                </div>
-                                {!isCompleted ? (
-                                    <button 
-                                        className="w-full sm:w-auto px-12 py-5 bg-primary text-white rounded-full text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-primary/20 hover:scale-[1.03] transition-all active:scale-95 disabled:opacity-20 disabled:grayscale" 
-                                        disabled={!textSubmission.trim()}
-                                    >
-                                        Complete Day {viewingDay}
-                                    </button>
-                                ) : (
-                                    <div className="flex items-center gap-3 text-green-600 font-black uppercase tracking-[0.3em] text-[10px] bg-green-50 px-6 py-3 rounded-full border border-green-100 shadow-sm">
-                                        Session Cleared
-                                    </div>
-                                )}
-                            </div>
+                {/* Lesson Material - Reduced padding */}
+                <div>
+                    <h2 className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-3">Lesson Material</h2>
+                    <div className="bg-white rounded-2xl border border-gray-50 p-6 shadow-sm min-h-[160px]">
+                        <div className="prose max-w-none text-gray-600 font-medium text-xs sm:text-sm leading-relaxed">
+                            <FormattedText text={dayContent?.lessonText || "Lesson material is being synchronized..."} />
                         </div>
                     </div>
-                </main>
+                </div>
+
+                {/* Actionable Task - Reduced padding */}
+                <div>
+                    <h2 className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-3">Actionable Task</h2>
+                    <div className="bg-white rounded-2xl border border-gray-50 p-6 shadow-sm">
+                        <p className="text-gray-900 font-bold text-sm sm:text-base leading-tight">
+                            <FormattedText text={dayContent?.taskPrompt || "Task protocol is loading..."} />
+                        </p>
+                    </div>
+                </div>
+
+                {/* Proof of Action & Completion Button at the end */}
+                <div>
+                    <h2 className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-3">Proof of Action</h2>
+                    {!isDayCompleted ? (
+                        <div className="space-y-4">
+                             {dayContent?.proofType === 'picker' && (
+                                 <div className="grid grid-cols-1 gap-2">
+                                     {(dayContent.proofOptions || []).map((option, idx) => (
+                                         <button
+                                            key={idx}
+                                            onClick={() => setProofSelection(option)}
+                                            className={`w-full py-3.5 px-5 rounded-xl border text-left font-bold text-xs transition-all flex items-center justify-between group ${
+                                                proofSelection === option 
+                                                ? 'bg-primary border-primary text-white shadow-md' 
+                                                : 'bg-white border-gray-100 text-gray-600 hover:border-primary/20'
+                                            }`}
+                                         >
+                                             {option}
+                                             <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${proofSelection === option ? 'bg-white border-white' : 'border-gray-200 group-hover:border-primary/40'}`}>
+                                                 {proofSelection === option && <div className="w-2 h-2 bg-primary rounded-full" />}
+                                             </div>
+                                         </button>
+                                     ))}
+                                 </div>
+                             )}
+
+                             {dayContent?.proofType === 'note' && (
+                                 <textarea 
+                                    value={textSubmission}
+                                    onChange={(e) => setTextSubmission(e.target.value)}
+                                    placeholder="Drop a critique or guidance for this section..."
+                                    className="w-full bg-[#F2F7F5] border border-[#E1EBE7] rounded-xl p-4 text-xs font-medium text-primary placeholder-[#B8CCBE] outline-none focus:ring-2 focus:ring-primary/10 transition-all min-h-[100px] resize-none"
+                                 />
+                             )}
+
+                             {dayContent?.proofType === 'confirmation' && (
+                                 <div className="p-6 bg-white rounded-2xl border border-gray-100 text-center shadow-sm">
+                                     <p className="text-[10px] font-medium text-gray-400 italic">"No submission required. Confirm your action below."</p>
+                                 </div>
+                             )}
+
+                            {/* MARK COMPLETE BUTTON - AT THE END */}
+                            <button 
+                                onClick={handleCompleteDay}
+                                disabled={!canSubmit || isSubmitting}
+                                className={`w-full bg-[#159E5B] text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-green-100 transition-all active:scale-95 disabled:opacity-30 disabled:grayscale`}
+                            >
+                                {isSubmitting ? 'Processing...' : 'Complete Task & Advance'}
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="bg-[#F2F7F5] border border-[#E1EBE7] rounded-2xl p-5 flex flex-col items-center text-center space-y-3">
+                            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-primary shadow-sm">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-black text-primary uppercase tracking-widest">Entry Confirmed</p>
+                                <p className="text-[10px] text-gray-500 font-medium italic">"Next cycle window opens in {timeToNextDay || '...'} at 12:00 AM"</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             <style>{`
-                .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.05); border-radius: 10px; }
-                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-fade-in { animation: fadeIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
             `}</style>
         </div>
     );

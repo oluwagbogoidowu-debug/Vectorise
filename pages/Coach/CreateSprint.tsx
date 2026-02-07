@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/Button';
@@ -23,10 +22,6 @@ const CATEGORIES = [
     "Visibility", "Vision", "Wealth Mindset", "Wellness", "Work-Life Balance"
 ].sort();
 
-/**
- * HelpGuidance Component
- * Displays the rule clearly when triggered.
- */
 const HelpGuidance: React.FC<{ rule: string; isOpen: boolean }> = ({ rule, isOpen }) => {
     if (!isOpen) return null;
     return (
@@ -46,8 +41,6 @@ const HelpGuidance: React.FC<{ rule: string; isOpen: boolean }> = ({ rule, isOpe
 const CreateSprint: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
-    
-    // Help visibility state for each section
     const [helpOpen, setHelpOpen] = useState<Record<string, boolean>>({});
 
     const [formData, setFormData] = useState({
@@ -57,7 +50,6 @@ const CreateSprint: React.FC = () => {
         duration: 7,
         price: '0',
         coverImageUrl: '',
-        
         transformation: '',
         forWho: ['', '', '', ''],
         notForWho: ['', '', ''],
@@ -97,7 +89,6 @@ const CreateSprint: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) return;
-        
         setIsSubmitting(true);
         const sprintId = `sprint_${Date.now()}`;
         const duration = Number(formData.duration);
@@ -106,25 +97,26 @@ const CreateSprint: React.FC = () => {
             day: i + 1,
             lessonText: '',
             taskPrompt: '',
-            submissionType: 'text'
+            submissionType: 'text',
+            proofType: 'confirmation',
+            proofOptions: []
         }));
 
         const newSprint: Sprint = {
             id: sprintId,
             coachId: user.id,
             title: formData.title,
-            description: formData.transformation, // Primary description mapped from transformation
+            description: formData.transformation,
             category: formData.category,
             difficulty: formData.difficulty,
             duration: duration,
-            price: 0, // Defaulted as coaches can't set price anymore
+            price: 0,
             pointCost: 0,
             pricingType: 'cash',
             coverImageUrl: formData.coverImageUrl || `https://picsum.photos/seed/${sprintId}/800/400`,
             published: false,
             approvalStatus: 'draft',
             dailyContent: dailyContent,
-            
             transformation: formData.transformation,
             forWho: formData.forWho.filter(s => s.trim()),
             notForWho: formData.notForWho.filter(s => s.trim()),
@@ -182,8 +174,6 @@ const CreateSprint: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
                     <div className="lg:col-span-8 bg-white rounded-[3rem] shadow-sm border border-gray-100 overflow-hidden">
                         <form onSubmit={handleSubmit} className="p-8 md:p-12 space-y-20">
-                            
-                            {/* SECTION 1: REGISTRY IDENTITY */}
                             <section>
                                 <div className="flex items-center gap-3 mb-8">
                                     <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">01</div>
@@ -201,7 +191,6 @@ const CreateSprint: React.FC = () => {
                                 </div>
                             </section>
 
-                            {/* SECTION 2: TRANSFORMATION STATEMENT */}
                             <section>
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-3">
@@ -212,7 +201,7 @@ const CreateSprint: React.FC = () => {
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     </button>
                                 </div>
-                                <HelpGuidance isOpen={helpOpen.transformation} rule="No benefits list. No how-to. Emotional truth only. Describe the before-and-after state: start with their struggle, end with what changes. Mandatory, 3–4 lines max." />
+                                <HelpGuidance isOpen={helpOpen.transformation} rule="No benefits list. No how-to. Emotional truth only. Describe the before-and-after state. Mandatory, 3–4 lines max." />
                                 <textarea 
                                     name="transformation" 
                                     value={formData.transformation} 
@@ -224,7 +213,6 @@ const CreateSprint: React.FC = () => {
                                 />
                             </section>
 
-                            {/* SECTION 3: WHO IS THIS FOR */}
                             <section>
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-3">
@@ -235,7 +223,7 @@ const CreateSprint: React.FC = () => {
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     </button>
                                 </div>
-                                <HelpGuidance isOpen={helpOpen.forWho} rule="Must be emotional or behavioral, not demographic. Each bullet starts with 'You...' List the exact signals that tell someone 'this sprint is for me'. Max 4." />
+                                <HelpGuidance isOpen={helpOpen.forWho} rule="Must be emotional or behavioral. Each bullet starts with 'You...' Max 4." />
                                 <div className="space-y-3">
                                     {formData.forWho.map((item, i) => (
                                         <div key={i} className="flex gap-4 items-center">
@@ -252,7 +240,6 @@ const CreateSprint: React.FC = () => {
                                 </div>
                             </section>
 
-                            {/* SECTION 4: WHO IS THIS NOT FOR */}
                             <section>
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-3">
@@ -263,7 +250,7 @@ const CreateSprint: React.FC = () => {
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     </button>
                                 </div>
-                                <HelpGuidance isOpen={helpOpen.notForWho} rule="Who will fail or be frustrated by this sprint? Minimum 2, maximum 4. Must reference behavior, not personality." />
+                                <HelpGuidance isOpen={helpOpen.notForWho} rule="Who will be frustrated by this sprint? Minimum 2, maximum 4." />
                                 <div className="space-y-3">
                                     {formData.notForWho.map((item, i) => (
                                         <div key={i} className="flex gap-4 items-center">
@@ -280,7 +267,6 @@ const CreateSprint: React.FC = () => {
                                 </div>
                             </section>
 
-                            {/* SECTION 5: METHOD SNAPSHOT */}
                             <section>
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-3">
@@ -291,7 +277,7 @@ const CreateSprint: React.FC = () => {
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     </button>
                                 </div>
-                                <HelpGuidance isOpen={helpOpen.method} rule="Break your method into 3 verbs. Each explaining what the user actively does. Structure: Verb (1 word) + One-line explanation. No paragraphs." />
+                                <HelpGuidance isOpen={helpOpen.method} rule="Break your method into 3 verbs. Structure: Verb (1 word) + One-line explanation." />
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     {formData.methodSnapshot.map((item, i) => (
                                         <div key={i} className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100 space-y-4 shadow-inner transition-all hover:bg-white hover:shadow-md">
@@ -314,7 +300,6 @@ const CreateSprint: React.FC = () => {
                                 </div>
                             </section>
 
-                            {/* SECTION 6: OUTCOMES */}
                             <section>
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-3">
@@ -325,7 +310,7 @@ const CreateSprint: React.FC = () => {
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     </button>
                                 </div>
-                                <HelpGuidance isOpen={helpOpen.outcomes} rule="By the final day, what observable evidence will the user have? Must be observable or actionable. No 'feel more confident' without proof." />
+                                <HelpGuidance isOpen={helpOpen.outcomes} rule="What observable evidence will the user have? No 'feel more confident' without proof." />
                                 <div className="space-y-3">
                                     {formData.outcomes.map((item, i) => (
                                         <div key={i} className="flex gap-4 items-center">
@@ -342,7 +327,6 @@ const CreateSprint: React.FC = () => {
                                 </div>
                             </section>
 
-                            {/* SECTION 7: METADATA */}
                             <section className="bg-gray-50 p-8 md:p-12 rounded-[3rem] border border-gray-100">
                                 <div className="flex items-center justify-between mb-8">
                                     <div className="flex items-center gap-3">
@@ -353,7 +337,6 @@ const CreateSprint: React.FC = () => {
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     </button>
                                 </div>
-                                <HelpGuidance isOpen={helpOpen.metadata} rule="Structural settings that define the cycle rhythm. Pricing is set during the approval phase." />
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div>
                                         <label className={labelClasses}>Duration (Days)</label>
@@ -387,12 +370,11 @@ const CreateSprint: React.FC = () => {
                         </form>
                     </div>
 
-                    {/* LIVE PREVIEW SIDEBAR */}
                     <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-12">
                          <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm text-center">
                             <p className="text-[9px] font-black text-primary uppercase tracking-[0.4em] mb-4">Registry Guidance</p>
                             <h5 className="text-sm font-black text-gray-900 leading-tight mb-4 italic">Clarity over Selling.</h5>
-                            <p className="text-[11px] text-gray-400 font-medium leading-relaxed italic mb-6">"A sprint is only as effective as the clarity it provides. Use the help icons to ensure your program meets the Vectorise quality protocol."</p>
+                            <p className="text-[11px] text-gray-400 font-medium leading-relaxed italic mb-6">"A sprint is only as effective as the clarity it provides."</p>
                             <div className="w-full h-1 bg-gray-50 rounded-full overflow-hidden">
                                 <div className="h-full bg-primary transition-all duration-1000" style={{ width: formData.title ? '100%' : '20%' }}></div>
                             </div>
@@ -404,10 +386,6 @@ const CreateSprint: React.FC = () => {
                     </div>
                 </div>
             </div>
-            <style>{`
-                @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-            `}</style>
         </div>
     );
 };
