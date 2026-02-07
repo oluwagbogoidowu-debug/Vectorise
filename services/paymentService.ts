@@ -70,7 +70,8 @@ export const paymentService = {
    * verifyPayment(gateway, reference)
    * Polls the backend to verify that fulfillment (enrollment) has occurred.
    */
-  verifyPayment: async (gateway: string, reference: string): Promise<{ status: string }> => {
+  // Fix: Added optional email property to the return type to satisfy TypeScript requirements in PaymentSuccess component
+  verifyPayment: async (gateway: string, reference: string): Promise<{ status: string; email?: string }> => {
     console.log(`[Registry] Verifying ${gateway} payment:`, reference);
     
     const url = gateway === 'paystack'

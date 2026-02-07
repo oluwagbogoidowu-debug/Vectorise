@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { auth } from '../../services/firebase';
 import { createUserWithEmailAndPassword, updateProfile as updateFbProfile, sendEmailVerification } from 'firebase/auth';
@@ -15,15 +15,21 @@ const SignUpPage: React.FC = () => {
   
   // State from Onboarding (either Quiz or Clarity Sprint flow)
   const onboardingState = location.state || {};
-  const { persona, answers, recommendedPlan, occupation, referrerId, isClarityFlow } = onboardingState;
+  const { persona, answers, recommendedPlan, occupation, referrerId, isClarityFlow, prefilledEmail, fromPayment } = onboardingState;
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(prefilledEmail || '');
   const [password, setPassword] = useState('');
   const [regError, setRegError] = useState('');
   const [showLoginLink, setShowLoginLink] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (prefilledEmail) {
+        setEmail(prefilledEmail);
+    }
+  }, [prefilledEmail]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,13 +91,8 @@ const SignUpPage: React.FC = () => {
       // 4. Send Verification in background
       await sendEmailVerification(firebaseUser);
 
-      // 5. Automatic Login Transition
-      // We remain logged in and redirect to the appropriate next step immediately.
-      if (isClarityFlow) {
-        navigate('/onboarding/clarity-payment', { state: onboardingState });
-      } else {
-        navigate('/dashboard');
-      }
+      // 5. Success
+      navigate('/dashboard');
 
     } catch (error: any) {
       console.error("Signup error handled:", error.code);
@@ -114,8 +115,12 @@ const SignUpPage: React.FC = () => {
       <div className="w-full max-w-sm flex flex-col items-center animate-fade-in relative z-10">
         <header className="text-center mb-8">
             <LocalLogo type="green" className="h-6 w-auto mx-auto mb-6 opacity-30" />
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">Secure your registry.</h1>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mt-3">Final Phase Step 01</p>
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">
+                {fromPayment ? 'Secure your registry identity.' : 'Secure your registry.'}
+            </h1>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mt-3">
+                {fromPayment ? 'Final Step: Account Setup' : 'Final Phase Step 01'}
+            </p>
         </header>
 
         <div className="w-full bg-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl border border-gray-100 relative overflow-hidden">
@@ -153,14 +158,15 @@ const SignUpPage: React.FC = () => {
                         type="email" 
                         required
                         value={email}
+                        readOnly={!!prefilledEmail}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-4 py-3.5 bg-gray-50 border border-gray-50 rounded-xl focus:ring-4 focus:ring-primary/5 focus:border-primary/20 outline-none font-bold text-sm transition-all"
+                        className={`w-full px-4 py-3.5 bg-gray-50 border border-gray-50 rounded-xl focus:ring-4 focus:ring-primary/5 focus:border-primary/20 outline-none font-bold text-sm transition-all ${prefilledEmail ? 'opacity-50 cursor-not-allowed' : ''}`}
                         placeholder="name@email.com"
                     />
                 </div>
 
                 <div>
-                    <label className="block text-[8px] font-black text-gray-300 uppercase mb-1.5 ml-1">Password</label>
+                    <label className="block text-[8px] font-black text-gray-300 uppercase mb-1.5 ml-1">Set Password</label>
                     <input 
                         type="password" 
                         required
@@ -187,15 +193,17 @@ const SignUpPage: React.FC = () => {
                     isLoading={isSubmitting} 
                     className="w-full py-4 bg-primary text-white rounded-full shadow-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:scale-[1.01] active:scale-95"
                 >
-                    Create Account
+                    Complete Identity Setup
                 </Button>
             </form>
 
-            <div className="mt-8 pt-6 border-t border-gray-50 text-center">
-                <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest leading-none">
-                    Already have a registry key? <Link to="/login" className="text-primary hover:underline">Log in</Link>
-                </p>
-            </div>
+            {!fromPayment && (
+                <div className="mt-8 pt-6 border-t border-gray-50 text-center">
+                    <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest leading-none">
+                        Already have a registry key? <Link to="/login" className="text-primary hover:underline">Log in</Link>
+                    </p>
+                </div>
+            )}
             
             <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl -mr-12 -mt-12 pointer-events-none"></div>
         </div>
@@ -207,7 +215,7 @@ const SignUpPage: React.FC = () => {
 
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}</style>

@@ -20,10 +20,10 @@ const CommitmentFraming: React.FC = () => {
   const handleContinue = () => {
     if (!isCommitted) return;
     
-    // In both cases (skip to execution or standard clarity path), we now force sign-up first.
-    // We flag this as a clarity flow so the signup page knows to potentially redirect to payment later.
-    navigate('/signup', { 
-      state: { ...state, isClarityFlow: true } 
+    // REDESIGN: Skip sign-up. Go directly to payment.
+    // The payment page will now ask for an email for guest identification.
+    navigate('/onboarding/sprint-payment', { 
+      state: { ...state } 
     });
   };
 

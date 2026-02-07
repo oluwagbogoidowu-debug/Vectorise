@@ -33,7 +33,7 @@ import FocusSelector from './pages/Onboarding/FocusSelector';
 import ClaritySprintDescription from './pages/Onboarding/ClaritySprintDescription';
 import ProgramDescription from './pages/Onboarding/ProgramDescription';
 import CommitmentFraming from './pages/Onboarding/CommitmentFraming';
-import ClaritySprintPayment from './pages/Onboarding/ClaritySprintPayment';
+import SprintPayment from './pages/Onboarding/SprintPayment';
 
 // Impact / Referral System
 import ImpactDashboard from './pages/Participant/Impact/ImpactDashboard';
@@ -135,7 +135,7 @@ const AppRoutes: React.FC = () => {
           <Route path="/onboarding/clarity-description" element={<ClaritySprintDescription />} />
           <Route path="/onboarding/description/:sprintId" element={<ProgramDescription />} />
           <Route path="/onboarding/commitment" element={<CommitmentFraming />} />
-          <Route path="/onboarding/clarity-payment" element={<ClaritySprintPayment />} />
+          <Route path="/onboarding/sprint-payment" element={<SprintPayment />} />
           <Route path="/onboarding/intro" element={<QuizIntro />} />
           <Route path="/onboarding/quiz" element={<Quiz />} />
 

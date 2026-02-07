@@ -3,13 +3,16 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { paymentService } from '../../services/paymentService';
 import LocalLogo from '../../components/LocalLogo';
+import { useAuth } from '../../contexts/AuthContext';
 
 const PaymentSuccess: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [status, setStatus] = useState<'verifying' | 'success' | 'delay' | 'error'>('verifying');
     const [readyToBegin, setReadyToBegin] = useState(false);
     const [retries, setRetries] = useState(0);
+    const [paymentEmail, setPaymentEmail] = useState<string | null>(null);
 
     const query = new URLSearchParams(location.search);
     const reference = query.get('reference') || query.get('tx_ref');
@@ -26,6 +29,7 @@ const PaymentSuccess: React.FC = () => {
                 const data = await paymentService.verifyPayment(gateway, reference);
                 
                 if (data.status === 'successful' || data.status === 'success') {
+                    setPaymentEmail(data.email || null);
                     setStatus('success');
                 } else if (retries < 8) {
                     setTimeout(() => setRetries(prev => prev + 1), 2000);
@@ -39,6 +43,22 @@ const PaymentSuccess: React.FC = () => {
 
         checkStatus();
     }, [reference, retries, query]);
+
+    const handleAction = () => {
+        if (user) {
+            navigate('/dashboard');
+        } else {
+            // New user flow: Go to sign up with prefilled email
+            navigate('/signup', { 
+                state: { 
+                    prefilledEmail: paymentEmail,
+                    isClarityFlow: true,
+                    fromPayment: true,
+                    reference: reference
+                } 
+            });
+        }
+    };
 
     return (
         <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-6 font-sans selection:bg-primary/10">
@@ -72,12 +92,11 @@ const PaymentSuccess: React.FC = () => {
                             </div>
                             
                             <div className="space-y-8">
-                                {/* Confirmation (1 line) */}
                                 <h1 className="text-2xl font-black text-gray-900 tracking-tighter italic leading-tight">
-                                    You’re in. Day 1 starts now.
+                                    Investment Secured. <br/>
+                                    {user ? 'Day 1 starts now.' : 'Ready to secure your identity.'}
                                 </h1>
 
-                                {/* Commitment (1 tap) */}
                                 <label className="flex items-center justify-center gap-4 p-5 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer active:scale-[0.98] transition-all hover:border-primary/20 group mx-auto max-w-[280px]">
                                     <div className="relative flex items-center h-6 w-6">
                                         <input 
@@ -88,13 +107,12 @@ const PaymentSuccess: React.FC = () => {
                                         />
                                     </div>
                                     <span className="text-xs font-black text-gray-700 uppercase tracking-widest select-none pt-0.5">
-                                        I’m ready to begin.
+                                        {user ? 'I’m ready to begin.' : 'I’m ready to secure my path.'}
                                     </span>
                                 </label>
 
-                                {/* Action (1 button) */}
                                 <button 
-                                    onClick={() => navigate('/dashboard')}
+                                    onClick={handleAction}
                                     disabled={!readyToBegin}
                                     className={`w-full py-5 font-black uppercase tracking-[0.3em] text-[11px] rounded-full shadow-2xl transition-all active:scale-95 ${
                                         readyToBegin 
@@ -102,7 +120,7 @@ const PaymentSuccess: React.FC = () => {
                                         : 'bg-gray-100 text-gray-300 cursor-not-allowed border-none shadow-none grayscale'
                                     }`}
                                 >
-                                    Start Day 1
+                                    {user ? 'Start Day 1' : 'Secure My Identity'}
                                 </button>
                             </div>
                         </div>
