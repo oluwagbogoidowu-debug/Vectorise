@@ -64,8 +64,8 @@ exports.initiatePayment = functions.https.onRequest(async (req, res) => {
       email,
       amount: amountInKobo,
       reference,
-      // Change this to your production domain or use relative logic
-      callback_url: `https://${req.get('host').includes('localhost') ? 'localhost:3000' : 'vectorise.app'}/#/payment/success?reference=${reference}`,
+      // Aligning with flat hash route
+      callback_url: `https://${req.get('host').includes('localhost') ? 'localhost:3000' : 'vectorise.online'}/#/payment-success?reference=${reference}`,
       metadata: {
         sprint_id,
         coach_id,

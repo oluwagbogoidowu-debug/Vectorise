@@ -37,7 +37,8 @@ export default async function handler(req, res) {
         tx_ref: `tx-${Date.now()}`,
         amount: "5000",
         currency: "NGN",
-        redirect_url: "https://vectorise.online/payment/callback",
+        // Correcting the redirect URL to match the SPA hash routing
+        redirect_url: "https://vectorise.online/#/payment-success",
         customer: { email },
         customizations: {
           title: "Clarity Sprint",

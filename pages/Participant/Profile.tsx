@@ -17,6 +17,7 @@ const Profile: React.FC = () => {
   const [enrollments, setEnrollments] = useState<ParticipantSprint[]>([]);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
       if (user) {
@@ -37,6 +38,18 @@ const Profile: React.FC = () => {
           try { await updateProfile({ name, intention }); } catch (error) { alert("Update failed."); }
       } else {
           setIsEditing(true);
+      }
+  };
+
+  const handleLogout = async () => {
+      if (isLoggingOut) return;
+      setIsLoggingOut(true);
+      try {
+          await logout();
+          navigate('/login', { replace: true });
+      } catch (err) {
+          console.error("Logout failed:", err);
+          setIsLoggingOut(false);
       }
   };
 
@@ -111,8 +124,17 @@ const Profile: React.FC = () => {
                         >
                             {isEditing ? 'Save Registry' : 'Edit Profile'}
                         </button>
-                        <button onClick={() => { logout(); navigate('/login'); }} className="p-3.5 bg-white text-red-400 rounded-2xl shadow-md border border-gray-50 hover:bg-red-50 hover:text-red-500 transition-all active:scale-90 group" title="Logout">
-                            <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                        <button 
+                            onClick={handleLogout} 
+                            disabled={isLoggingOut}
+                            className="p-3.5 bg-white text-red-400 rounded-2xl shadow-md border border-gray-50 hover:bg-red-50 hover:text-red-500 transition-all active:scale-90 group disabled:opacity-50" 
+                            title="Logout"
+                        >
+                            {isLoggingOut ? (
+                                <div className="w-5 h-5 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                                <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                            )}
                         </button>
                     </div>
                 </div>

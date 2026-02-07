@@ -105,7 +105,7 @@ const AppRoutes: React.FC = () => {
     location.pathname === '/login' || 
     location.pathname === '/signup' || 
     location.pathname === '/verify-email' ||
-    location.pathname === '/payment/success';
+    location.pathname === '/payment-success';
 
   // Strictly only show on the dashboard (homepage) as requested
   const showGlobalHeader = location.pathname === '/dashboard';
@@ -186,7 +186,7 @@ const AppRoutes: React.FC = () => {
           } />
           
           <Route path="/impact/success" element={<ReferralSuccess />} />
-          <Route path="/payment/success" element={<PaymentSuccess />} />
+          <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route path="/sprint/:sprintId" element={<SprintLandingPage />} />
           
           <Route path="/admin/dashboard" element={<ProtectedRoute roles={[UserRole.ADMIN]}><AdminDashboard /></ProtectedRoute>} />

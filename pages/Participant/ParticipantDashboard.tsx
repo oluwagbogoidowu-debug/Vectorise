@@ -114,9 +114,9 @@ const ParticipantDashboard: React.FC = () => {
       <div className="flex-1 overflow-y-auto px-4 pt-4 md:pt-6 pb-24 custom-scrollbar">
           <div className="max-w-screen-md mx-auto w-full h-full flex flex-col">
             
-            {/* 1. TOP STATS ROW - Rearranged for space maximization */}
+            {/* 1. TOP STATS ROW - Reduced height and tightened padding */}
             <div className="grid grid-cols-2 gap-3 mb-6 flex-shrink-0">
-                <div className="bg-[#0E7850] text-white p-4 rounded-3xl shadow-lg flex flex-col h-[115px] relative overflow-hidden transition-transform active:scale-[0.98]">
+                <div className="bg-[#0E7850] text-white p-3.5 rounded-3xl shadow-lg flex flex-col h-[96px] relative overflow-hidden transition-transform active:scale-[0.98]">
                     <div className="flex justify-between items-start relative z-10">
                         <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
                             <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -125,13 +125,13 @@ const ParticipantDashboard: React.FC = () => {
                         </div>
                         <p className="text-[8px] font-black uppercase tracking-[0.15em] opacity-60 text-right">Tasks<br/>Ready</p>
                     </div>
-                    <div className="mt-auto relative z-10">
+                    <div className="mt-2 relative z-10">
                         <h3 className="text-xl font-black leading-none">{tasksReady.length} Remaining</h3>
                     </div>
                     <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                 </div>
 
-                <Link to="/growth" className="bg-white border border-gray-100 p-4 rounded-3xl shadow-sm flex flex-col h-[115px] hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
+                <Link to="/growth" className="bg-white border border-gray-100 p-3.5 rounded-3xl shadow-sm flex flex-col h-[96px] hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
                     <div className="flex justify-between items-start relative z-10">
                         <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center border border-gray-100 group-hover:bg-primary/5 transition-colors">
                             <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,9 +140,9 @@ const ParticipantDashboard: React.FC = () => {
                         </div>
                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.15em] text-right group-hover:text-primary transition-colors">Growth<br/>Analysis</p>
                     </div>
-                    <div className="mt-auto relative z-10">
-                        <p className="text-xl font-black text-gray-900 leading-none mb-1.5">{overallProgress}%</p>
-                        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <div className="mt-1.5 relative z-10">
+                        <p className="text-xl font-black text-gray-900 leading-none mb-1">{overallProgress}%</p>
+                        <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
                             <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
                         </div>
                     </div>
@@ -179,7 +179,7 @@ const ParticipantDashboard: React.FC = () => {
 
                             <div className="flex-1 min-h-0 overflow-hidden flex flex-col mb-4">
                                 <p className="text-[8px] font-black text-gray-200 uppercase tracking-[0.2em] mb-2 flex-shrink-0">Action for Today</p>
-                                <div className="bg-[#FAFAFA] rounded-xl p-4 border border-gray-50 shadow-inner overflow-y-auto flex-1 custom-scrollbar">
+                                <div className="bg-[#FAFAFA] rounded-xl p-4 border border-gray-100 shadow-inner overflow-y-auto flex-1 custom-scrollbar">
                                     <p className="text-gray-700 font-bold text-sm md:text-base leading-relaxed italic">
                                         "{mainTask.status.content?.taskPrompt || "Your task for today is being generated..."}"
                                     </p>

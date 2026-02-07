@@ -12,7 +12,7 @@ type AuthContextType = {
   loading: boolean; // Added loading state
   login: (userIdOrEmail: string) => boolean; // Kept for legacy/mock compatibility
   signup: (newUser: Participant | Coach) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   hasPermission: (permission: Permission) => boolean;
   switchRole: (role: UserRole) => void;
   completeCoachOnboarding: (bio: string, niche: string) => void;
@@ -32,18 +32,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
-        // NOTE: Verification check removed from here to allow immediate access after signup.
-        // Component-level checks (like in Profile.tsx) will notify users of unverified status.
-
         try {
             // 1. Try to get data from Firestore first
             let dbUser = await userService.getUserDocument(firebaseUser.uid);
 
             if (dbUser) {
-                // MIGRATION CHECK FOR EXISTING USERS
-                // Ensure new fields exist; if not, patch the document.
                 const updates: any = {};
-                const pUser = dbUser as Participant; // Type assertion to check fields
+                const pUser = dbUser as Participant;
 
                 if (!pUser.enrolledSprintIds) updates.enrolledSprintIds = [];
                 if (!pUser.shinePostIds) updates.shinePostIds = [];
@@ -51,17 +46,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 if (!pUser.referralCode) updates.referralCode = firebaseUser.uid.substring(0, 8).toUpperCase();
 
                 if (Object.keys(updates).length > 0) {
-                    console.log("Migrating user profile: Adding missing tracking fields...");
                     await userService.updateUserDocument(dbUser.id, updates);
-                    // Merge updates into local state immediately
                     dbUser = { ...dbUser, ...updates };
                 }
             }
 
-            // 2. If not in Firestore, check if it's a legacy/sync issue and create it
             if (!dbUser) {
-                console.log("User not in Firestore, creating sync record...");
-                // Construct basic profile from Firebase Auth data
                 const newUserProfile: Partial<Participant> = {
                     id: firebaseUser.uid,
                     name: firebaseUser.displayName || 'User',
@@ -76,7 +66,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     shinePostIds: [],
                     shineCommentIds: [],
                     referralCode: firebaseUser.uid.substring(0, 8).toUpperCase(),
-                    walletBalance: 30, // Default 30 coins for new synced accounts
+                    walletBalance: 30,
                     impactStats: { peopleHelped: 0, streak: 0 }
                 };
                 
@@ -84,10 +74,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 dbUser = newUserProfile as Participant;
             }
 
-            // Set state
             setUser(dbUser);
             
-            // Restore active role
             const storedRole = localStorage.getItem('vectorise_active_role');
             if (storedRole) {
                 setActiveRole(storedRole as UserRole);
@@ -97,7 +85,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         } catch (err) {
             console.error("Auth State Sync Error", err);
-            // Fallback to Mock Data lookup if Firestore fails (e.g. for purely offline/demo accounts if any)
             let foundUser = MOCK_USERS.find(u => u.email.toLowerCase() === firebaseUser.email?.toLowerCase());
             if (foundUser) {
                 setUser(foundUser);
@@ -105,11 +92,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
       } else {
-        // User is signed out.
-        setUser(null);
-        setActiveRole(UserRole.PARTICIPANT);
-        localStorage.removeItem('vectorise_user_id');
-        localStorage.removeItem('vectorise_active_role');
+        // Only clear if we don't have a demo user set (to prevent race conditions on startup)
+        // If setUser was called by demo login, auth.currentUser is null, so this fires.
+        // We use a small check or just let logout handle it.
       }
       
       setLoading(false);
@@ -118,7 +103,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => unsubscribe();
   }, []);
 
-  // Persist active role changes
   useEffect(() => {
       if (user) {
         localStorage.setItem('vectorise_active_role', activeRole);
@@ -126,7 +110,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [activeRole, user]);
 
 
-  // Helper for manual mock login (still useful for demo buttons)
   const login = (userIdOrEmail: string): boolean => {
     const userToLogin = MOCK_USERS.find(u => 
         u.id === userIdOrEmail || u.email.toLowerCase() === userIdOrEmail.toLowerCase()
@@ -136,13 +119,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(userToLogin);
       setActiveRole(userToLogin.role);
       localStorage.setItem('vectorise_user_id', userToLogin.id);
+      localStorage.setItem('vectorise_active_role', userToLogin.role);
       return true;
     }
     return false;
   };
 
   const signup = (newUser: Participant | Coach) => {
-      // Legacy mock push - now handled by userService in SignUpPage, but kept for type compatibility
       MOCK_USERS.push(newUser);
       setUser(newUser);
       setActiveRole(newUser.role);
@@ -150,9 +133,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     try {
-        await signOut(auth);
+        // 1. Sign out from Firebase if applicable
+        if (auth.currentUser) {
+            await signOut(auth);
+        }
+        
+        // 2. Clear local state and storage (Critical for Demo Accounts & instant UI response)
+        setUser(null);
+        setActiveRole(UserRole.PARTICIPANT);
+        localStorage.removeItem('vectorise_user_id');
+        localStorage.removeItem('vectorise_active_role');
+        
+        console.log("Registry Access Revoked Successfully.");
     } catch (error) {
-        console.error("Error signing out: ", error);
+        console.error("Error during logout process:", error);
     }
   };
 
@@ -164,7 +158,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!user) return;
       try {
           await userService.updateUserDocument(user.id, data);
-          // Optimistic update
           setUser(prev => prev ? { ...prev, ...data } as any : null);
       } catch (error) {
           console.error("Failed to update profile", error);
@@ -176,11 +169,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!user || !auth.currentUser) return;
       try {
           const uid = user.id;
-          // 1. Delete from Firestore
           await userService.deleteUserDocument(uid);
-          // 2. Delete from Auth
           await firebaseDeleteUser(auth.currentUser);
-          // State cleanup handled by onAuthStateChanged
       } catch (error) {
           console.error("Failed to delete account", error);
           throw error;
@@ -205,7 +195,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (user.roleDefinitionId) {
           const roleDef = MOCK_ROLES.find(r => r.id === user.roleDefinitionId);
           if (roleDef) {
-              // Fix: Cast permissions to string array and permission to string to ensure type compatibility during includes check.
               return (roleDef.permissions as string[]).includes(permission as string);
           }
       }
@@ -215,7 +204,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       switch (roleToCheck) {
           case 'ADMIN': return true;
           case 'COACH': 
-              // Fix: Cast array literal to string array and permission to string to resolve string assignability issues.
               return (['sprint:create', 'sprint:edit', 'sprint:publish', 'analytics:view', 'community:moderate'] as string[]).includes(permission as string);
           case 'PARTICIPANT': return false;
           default: return false;
