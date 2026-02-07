@@ -130,7 +130,7 @@ const MySprints: React.FC = () => {
             {/* Scrollable Body Content */}
             <div className="flex-1 overflow-y-auto px-4 py-6 pb-32 custom-scrollbar">
                 <div className="max-w-screen-lg mx-auto w-full">
-                    {/* 1. IN PROGRESS */}
+                    {/* 1. IN PROGRESS - Always visible as the primary anchor */}
                     <section className="mb-10">
                         <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-1">In Progress</h2>
                         {inProgressSprints.length > 0 ? (
@@ -170,95 +170,123 @@ const MySprints: React.FC = () => {
                         )}
                     </section>
 
-                    {/* 2. UPCOMING QUEUE */}
-                    <section className="mb-10">
-                        <div className="flex items-center gap-2 mb-4">
-                            <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Queue</h2>
-                            <div className="h-px bg-gray-100 flex-1"></div>
-                        </div>
-                        {queuedSprints.length > 0 ? (
-                            <>
-                                <div className="grid grid-cols-1 gap-2.5">
-                                    {(isQueuedExpanded ? queuedSprints : queuedSprints.slice(0, 2)).map((sprint, idx) => (
-                                        <div key={sprint.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3 hover:shadow-sm transition-all group animate-fade-in">
-                                            <Link to={`/sprint/${sprint.id}`} className="flex-shrink-0">
-                                                <div className="w-12 h-12 rounded-lg overflow-hidden">
-                                                    <img src={sprint.coverImageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform" alt="" />
-                                                </div>
-                                            </Link>
-                                            <Link to={`/sprint/${sprint.id}`} className="min-w-0 flex-1">
-                                                <h3 className="font-bold text-gray-900 text-[12px] truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
-                                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">{sprint.duration} Days • {sprint.category}</p>
-                                            </Link>
-                                            <div className="flex items-center gap-1">
-                                                <div className="flex flex-col gap-0.5 mr-1">
-                                                    <button onClick={(e) => { e.preventDefault(); handleReorder(idx, 'up'); }} disabled={idx === 0} className={`p-1 rounded-md border transition-all ${idx === 0 ? 'opacity-20 cursor-not-allowed border-gray-50' : 'text-primary border-primary/5 hover:bg-primary/5 active:scale-90'}`}>
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
-                                                    </button>
-                                                    <button onClick={(e) => { e.preventDefault(); handleReorder(idx, 'down'); }} disabled={idx === queuedSprints.length - 1} className={`p-1 rounded-md border transition-all ${idx === queuedSprints.length - 1 ? 'opacity-20 cursor-not-allowed border-gray-50' : 'text-primary border-primary/5 hover:bg-primary/5 active:scale-90'}`}>
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
-                                                    </button>
-                                                </div>
-                                                <Link to={`/sprint/${sprint.id}`} className="p-2 text-gray-300 hover:text-primary transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg></Link>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                {queuedSprints.length > 2 && (
-                                    <button 
-                                        onClick={() => setIsQueuedExpanded(!isQueuedExpanded)}
-                                        className="mt-3 w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-400 font-black uppercase tracking-widest text-[8px] rounded-lg border border-gray-100 transition-all"
-                                    >
-                                        {isQueuedExpanded ? 'Collapse' : `See More (${queuedSprints.length - 2})`}
-                                    </button>
-                                )}
-                            </>
-                        ) : (
-                            <div className="p-6 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 text-center">
-                                <p className="text-[10px] text-gray-400 italic">Queue is clear.</p>
+                    {/* 2. UPCOMING QUEUE - Only visible if not empty */}
+                    {queuedSprints.length > 0 && (
+                        <section className="mb-10">
+                            <div className="flex items-center gap-2 mb-4">
+                                <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Upcoming Queue</h2>
+                                <div className="h-px bg-gray-100 flex-1"></div>
                             </div>
-                        )}
-                    </section>
+                            <div className="grid grid-cols-1 gap-2.5">
+                                {(isQueuedExpanded ? queuedSprints : queuedSprints.slice(0, 2)).map((sprint, idx) => (
+                                    <div key={sprint.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3 hover:shadow-sm transition-all group animate-fade-in">
+                                        <Link to={`/sprint/${sprint.id}`} className="flex-shrink-0">
+                                            <div className="w-12 h-12 rounded-lg overflow-hidden">
+                                                <img src={sprint.coverImageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt="" />
+                                            </div>
+                                        </Link>
+                                        <Link to={`/sprint/${sprint.id}`} className="min-w-0 flex-1">
+                                            <h3 className="font-bold text-gray-900 text-[12px] truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
+                                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">{sprint.duration} Days • {sprint.category}</p>
+                                        </Link>
+                                        <div className="flex items-center gap-1">
+                                            <div className="flex flex-col gap-0.5 mr-1">
+                                                <button onClick={(e) => { e.preventDefault(); handleReorder(idx, 'up'); }} disabled={idx === 0} className={`p-1 rounded-md border transition-all ${idx === 0 ? 'opacity-20 cursor-not-allowed border-gray-50' : 'text-primary border-primary/5 hover:bg-primary/5 active:scale-90'}`}>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
+                                                </button>
+                                                <button onClick={(e) => { e.preventDefault(); handleReorder(idx, 'down'); }} disabled={idx === queuedSprints.length - 1} className={`p-1 rounded-md border transition-all ${idx === queuedSprints.length - 1 ? 'opacity-20 cursor-not-allowed border-gray-50' : 'text-primary border-primary/5 hover:bg-primary/5 active:scale-90'}`}>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                                                </button>
+                                            </div>
+                                            <Link to={`/sprint/${sprint.id}`} className="p-2 text-gray-300 hover:text-primary transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg></Link>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            {queuedSprints.length > 2 && (
+                                <button 
+                                    onClick={() => setIsQueuedExpanded(!isQueuedExpanded)}
+                                    className="mt-3 w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-400 font-black uppercase tracking-widest text-[8px] rounded-lg border border-gray-100 transition-all"
+                                >
+                                    {isQueuedExpanded ? 'Collapse' : `See More (${queuedSprints.length - 2})`}
+                                </button>
+                            )}
+                        </section>
+                    )}
 
-                    {/* 3. GROWTH ARCHIVES */}
-                    <section>
-                        <div className="flex items-center gap-2 mb-4">
-                            <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Archives</h2>
-                            <div className="h-px bg-gray-100 flex-1"></div>
-                        </div>
-                        {archivedSprints.length > 0 ? (
-                            <>
-                                <div className="grid grid-cols-1 gap-2.5">
-                                    {(isArchivedExpanded ? archivedSprints : archivedSprints.slice(0, 2)).map(({ enrollment, sprint }) => (
-                                        <div key={enrollment.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-4 group animate-fade-in">
-                                            <div className="w-12 h-12 rounded-lg overflow-hidden grayscale opacity-50">
-                                                <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h3 className="font-bold text-gray-700 text-[12px] truncate">{sprint.title}</h3>
-                                                <span className="text-[7px] font-black bg-green-50 text-green-600 px-1.5 py-0.5 rounded uppercase tracking-widest border border-green-100">Mastered</span>
-                                            </div>
-                                            <Link to={`/participant/sprint/${enrollment.id}`} className="p-2 text-gray-300 hover:text-primary transition-colors" title="Review">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-                                            </Link>
-                                        </div>
-                                    ))}
-                                </div>
-                                {archivedSprints.length > 2 && (
-                                    <button 
-                                        onClick={() => setIsArchivedExpanded(!isArchivedExpanded)}
-                                        className="mt-3 w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-400 font-black uppercase tracking-widest text-[8px] rounded-lg border border-gray-100 transition-all"
-                                    >
-                                        {isArchivedExpanded ? 'Collapse' : `See More (${archivedSprints.length - 2})`}
-                                    </button>
-                                )}
-                            </>
-                        ) : (
-                            <div className="p-6 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 text-center">
-                                <p className="text-[10px] text-gray-400 italic">No archives yet.</p>
+                    {/* 3. SAVED / BOOKMARKED - Only visible if not empty */}
+                    {waitlistSprints.length > 0 && (
+                        <section className="mb-10">
+                            <div className="flex items-center gap-2 mb-4">
+                                <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Saved for Later</h2>
+                                <div className="h-px bg-gray-100 flex-1"></div>
                             </div>
-                        )}
-                    </section>
+                            <div className="grid grid-cols-1 gap-2.5">
+                                {(isWaitlistExpanded ? waitlistSprints : waitlistSprints.slice(0, 2)).map((sprint) => (
+                                    <div key={sprint.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3 hover:shadow-sm transition-all group animate-fade-in">
+                                        <Link to={`/sprint/${sprint.id}`} className="flex-shrink-0">
+                                            <div className="w-12 h-12 rounded-lg overflow-hidden">
+                                                <img src={sprint.coverImageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt="" />
+                                            </div>
+                                        </Link>
+                                        <Link to={`/sprint/${sprint.id}`} className="min-w-0 flex-1">
+                                            <h3 className="font-bold text-gray-900 text-[12px] truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
+                                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">{sprint.duration} Days • {sprint.category}</p>
+                                        </Link>
+                                        <button 
+                                            onClick={() => handleRemoveFromWaitlist(sprint.id)}
+                                            className="p-2 text-gray-300 hover:text-red-400 transition-colors"
+                                            title="Remove from saved"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                            {waitlistSprints.length > 2 && (
+                                <button 
+                                    onClick={() => setIsWaitlistExpanded(!isWaitlistExpanded)}
+                                    className="mt-3 w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-400 font-black uppercase tracking-widest text-[8px] rounded-lg border border-gray-100 transition-all"
+                                >
+                                    {isWaitlistExpanded ? 'Collapse' : `See More (${waitlistSprints.length - 2})`}
+                                </button>
+                            )}
+                        </section>
+                    )}
+
+                    {/* 4. GROWTH ARCHIVES - Only visible if not empty */}
+                    {archivedSprints.length > 0 && (
+                        <section>
+                            <div className="flex items-center gap-2 mb-4">
+                                <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Archives</h2>
+                                <div className="h-px bg-gray-100 flex-1"></div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-2.5">
+                                {(isArchivedExpanded ? archivedSprints : archivedSprints.slice(0, 2)).map(({ enrollment, sprint }) => (
+                                    <div key={enrollment.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-4 group animate-fade-in">
+                                        <div className="w-12 h-12 rounded-lg overflow-hidden grayscale opacity-50">
+                                            <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-bold text-gray-700 text-[12px] truncate">{sprint.title}</h3>
+                                            <span className="text-[7px] font-black bg-green-50 text-green-600 px-1.5 py-0.5 rounded uppercase tracking-widest border border-green-100">Mastered</span>
+                                        </div>
+                                        <Link to={`/participant/sprint/${enrollment.id}`} className="p-2 text-gray-300 hover:text-primary transition-colors" title="Review">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                                        </Link>
+                                    </div>
+                                ))}
+                            </div>
+                            {archivedSprints.length > 2 && (
+                                <button 
+                                    onClick={() => setIsArchivedExpanded(!isArchivedExpanded)}
+                                    className="mt-3 w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-400 font-black uppercase tracking-widest text-[8px] rounded-lg border border-gray-100 transition-all"
+                                >
+                                    {isArchivedExpanded ? 'Collapse' : `See More (${archivedSprints.length - 2})`}
+                                </button>
+                            )}
+                        </section>
+                    )}
                 </div>
             </div>
             

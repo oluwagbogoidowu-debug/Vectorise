@@ -24,6 +24,9 @@ const ProgramDescription: React.FC = () => {
   const [sprint, setSprint] = useState<Sprint | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Focus context from previous step
+  const selectedFocus = location.state?.selectedFocus;
+
   useEffect(() => {
     const fetchSprint = async () => {
       if (!sprintId) return;
@@ -42,7 +45,7 @@ const ProgramDescription: React.FC = () => {
 
   const handleProceed = () => {
     if (!sprint) return;
-    navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint } });
+    navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus } });
   };
 
   if (isLoading) {
@@ -78,7 +81,7 @@ const ProgramDescription: React.FC = () => {
             Refine Focus
           </button>
           <div className="px-2 py-0.5 rounded-md border border-primary/20 bg-primary/5 text-primary text-[7px] font-black uppercase tracking-widest">
-            Level 01 Core
+            Registry Unlocked
           </div>
         </div>
 
@@ -106,6 +109,20 @@ const ProgramDescription: React.FC = () => {
                 <p className="text-white/60 text-[8px] font-bold uppercase tracking-[0.3em]">{sprint.duration} Day Protocol</p>
               </div>
             </div>
+
+            {/* Matched Focus Banner */}
+            {selectedFocus && (
+              <div className="bg-[#0FB881]/10 border border-[#0FB881]/20 rounded-2xl px-6 py-4 flex items-center justify-between animate-fade-in shadow-sm">
+                  <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-white rounded-xl shadow-sm flex items-center justify-center text-lg">🎯</div>
+                      <div>
+                          <p className="text-[8px] font-black text-[#0FB881] uppercase tracking-[0.2em] mb-0.5">Optimized Match</p>
+                          <p className="text-xs font-bold text-gray-700 italic">"{selectedFocus}"</p>
+                      </div>
+                  </div>
+                  <span className="text-[7px] font-black bg-white px-2 py-0.5 rounded border border-gray-100 uppercase tracking-widest text-gray-400">Validated</span>
+              </div>
+            )}
 
             {/* Transformation Section */}
             <section className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm animate-fade-in">
@@ -236,7 +253,7 @@ const ProgramDescription: React.FC = () => {
                 </Button>
               </div>
 
-              {/* System Sprint Section - Perfectly Centered & Styled */}
+              {/* System Sprint Section */}
               <div className="mt-12 pt-8 border-t border-gray-50 flex flex-col items-center text-center">
                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.08)] border border-gray-100 transition-all hover:scale-110 active:scale-95 group">
                     <LocalLogo type="favicon" className="h-9 w-auto drop-shadow-sm" />
