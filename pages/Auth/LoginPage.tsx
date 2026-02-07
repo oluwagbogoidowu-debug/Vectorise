@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.tsx';
 import Button from '../../components/Button.tsx';
 import { auth } from '../../services/firebase.ts';
@@ -11,25 +11,39 @@ import { UserRole } from '../../types.ts';
 const LoginPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Intent capture from payment success flow
+  const targetSprintId = location.state?.targetSprintId;
 
   useEffect(() => {
       const handleUserRedirect = async () => {
           if (user) {
               if (user.role === UserRole.PARTICIPANT) {
                   try {
-                      // IMPROVEMENT: Find the most relevant active sprint to open immediately
+                      // 1. Check for payment-driven enrollment intent
+                      if (targetSprintId) {
+                          const sprint = await sprintService.getSprintById(targetSprintId);
+                          if (sprint) {
+                              const enrollment = await sprintService.enrollUser(user.id, targetSprintId, sprint.duration);
+                              navigate(`/participant/sprint/${enrollment.id}`);
+                              return;
+                          }
+                      }
+
+                      // 2. Resume active journey
                       const enrollments = await sprintService.getUserEnrollments(user.id);
-                      // Priority 1: Sprints with incomplete tasks
                       const active = enrollments.find(e => e.progress.some(p => !p.completed));
                       if (active) {
                           navigate(`/participant/sprint/${active.id}`);
                           return;
                       }
-                      // Priority 2: Most recently enrolled sprint
+
+                      // 3. Last enrolled fallback
                       if (enrollments.length > 0) {
                           const latest = [...enrollments].sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())[0];
                           navigate(`/participant/sprint/${latest.id}`);
@@ -43,7 +57,7 @@ const LoginPage: React.FC = () => {
           }
       };
       handleUserRedirect();
-  }, [user, navigate]);
+  }, [user, navigate, targetSprintId]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

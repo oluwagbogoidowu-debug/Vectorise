@@ -5,8 +5,7 @@ import { auth } from '../../services/firebase';
 import { createUserWithEmailAndPassword, updateProfile as updateFbProfile, sendEmailVerification } from 'firebase/auth';
 import { userService } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
-import { notificationService } from '../../services/notificationService';
-import { UserRole, Participant, Sprint } from '../../types';
+import { UserRole, Participant } from '../../types';
 import Button from '../../components/Button';
 import LocalLogo from '../../components/LocalLogo';
 
@@ -55,7 +54,8 @@ const SignUpPage: React.FC = () => {
         onboardingAnswers: answers || {},
         occupation: occupation || 'Unemployed',
         walletBalance: 30,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        enrolledSprintIds: []
       };
       
       await userService.createUserDocument(firebaseUser.uid, newUser);
@@ -65,9 +65,7 @@ const SignUpPage: React.FC = () => {
           try {
               const sprint = await sprintService.getSprintById(targetSprintId);
               if (sprint) {
-                  // Manually trigger enrollment to ensure it exists for the next page
                   const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprintId, sprint.duration);
-                  // IMMEDIATE REDIRECTION TO DAY 1
                   navigate(`/participant/sprint/${enrollment.id}`);
                   return;
               }
@@ -116,7 +114,7 @@ const SignUpPage: React.FC = () => {
             </form>
 
             <p className="mt-8 text-center text-[9px] font-black text-gray-300 uppercase tracking-widest">
-                Already have an account? <Link to="/login" className="text-primary hover:underline">Log in</Link>
+                Already have an account? <Link to="/login" state={{ targetSprintId }} className="text-primary hover:underline">Log in</Link>
             </p>
         </div>
       </div>

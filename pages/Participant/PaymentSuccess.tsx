@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { paymentService } from '../../services/paymentService';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
+import { sprintService } from '../../services/sprintService';
 
 const PaymentSuccess: React.FC = () => {
     const location = useLocation();
@@ -11,6 +12,7 @@ const PaymentSuccess: React.FC = () => {
     const { user } = useAuth();
     const [status, setStatus] = useState<'verifying' | 'success' | 'delay' | 'error'>('verifying');
     const [readyToBegin, setReadyToBegin] = useState(false);
+    const [isEnrolling, setIsEnrolling] = useState(false);
     const [retries, setRetries] = useState(0);
     const [paymentEmail, setPaymentEmail] = useState<string | null>(null);
 
@@ -32,7 +34,6 @@ const PaymentSuccess: React.FC = () => {
                 if (data.status === 'successful' || data.status === 'success') {
                     setPaymentEmail(data.email || null);
                     setStatus('success');
-                    // Automatically mark ready if user is already logged in to speed up flow
                     if (user) setReadyToBegin(true);
                 } else if (retries < 8) {
                     setTimeout(() => setRetries(prev => prev + 1), 2000);
@@ -47,13 +48,23 @@ const PaymentSuccess: React.FC = () => {
         checkStatus();
     }, [reference, retries, queryParams, user]);
 
-    const handleAction = () => {
+    const handleAction = async () => {
         if (user) {
-            // Already logged in: Go straight to Day 1
-            const enrollmentId = `enrollment_${user.id}_${paidSprintId || 'clarity-sprint'}`;
-            navigate(`/participant/sprint/${enrollmentId}`);
+            setIsEnrolling(true);
+            try {
+                const targetId = paidSprintId || 'clarity-sprint';
+                const sprint = await sprintService.getSprintById(targetId);
+                const duration = sprint?.duration || 5;
+                const enrollment = await sprintService.enrollUser(user.id, targetId, duration);
+                navigate(`/participant/sprint/${enrollment.id}`);
+            } catch (err) {
+                console.error("Enrollment failed:", err);
+                navigate('/dashboard');
+            } finally {
+                setIsEnrolling(false);
+            }
         } else {
-            // New/Logged out user: Go to Signup with prefilled email and sprint intent
+            // New user flow: Go to sign up with prefilled email and sprint context
             navigate('/signup', { 
                 state: { 
                     prefilledEmail: paymentEmail,
@@ -96,7 +107,7 @@ const PaymentSuccess: React.FC = () => {
                             <div className="space-y-8">
                                 <h1 className="text-2xl font-black text-gray-900 tracking-tighter italic leading-tight">
                                     Investment Secured. <br/>
-                                    {user ? 'Redirecting to Day 1...' : 'Establishing your registry.'}
+                                    {user ? 'Registry active. Ready for Day 1.' : 'Establishing your registry.'}
                                 </h1>
 
                                 <label className="flex items-center justify-center gap-4 p-5 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer active:scale-[0.98] transition-all hover:border-primary/20 group mx-auto max-w-[280px]">
@@ -113,13 +124,14 @@ const PaymentSuccess: React.FC = () => {
 
                                 <button 
                                     onClick={handleAction}
-                                    disabled={!readyToBegin}
-                                    className={`w-full py-5 font-black uppercase tracking-[0.3em] text-[11px] rounded-full shadow-2xl transition-all active:scale-95 ${
+                                    disabled={!readyToBegin || isEnrolling}
+                                    className={`w-full py-5 font-black uppercase tracking-[0.3em] text-[11px] rounded-full shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 ${
                                         readyToBegin 
                                         ? 'bg-primary text-white shadow-primary/30' 
                                         : 'bg-gray-100 text-gray-300 cursor-not-allowed border-none'
                                     }`}
                                 >
+                                    {isEnrolling && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
                                     {user ? 'Open Day 1 Now' : 'Complete Setup'}
                                 </button>
                             </div>
