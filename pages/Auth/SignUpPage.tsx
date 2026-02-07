@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { auth } from '../../services/firebase';
@@ -15,7 +14,7 @@ const SignUpPage: React.FC = () => {
   
   // State from Onboarding (either Quiz or Clarity Sprint flow)
   const onboardingState = location.state || {};
-  const { persona, answers, recommendedPlan, occupation, referrerId, isClarityFlow, prefilledEmail, fromPayment } = onboardingState;
+  const { persona, answers, recommendedPlan, occupation, referrerId, isClarityFlow, prefilledEmail, fromPayment, targetSprintId } = onboardingState;
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -91,8 +90,13 @@ const SignUpPage: React.FC = () => {
       // 4. Send Verification in background
       await sendEmailVerification(firebaseUser);
 
-      // 5. Success
-      navigate('/dashboard');
+      // 5. Fulfillment check: if we came from payment, lead directly to Day 1
+      if (fromPayment && targetSprintId) {
+          const enrollmentId = `enrollment_${firebaseUser.uid}_${targetSprintId}`;
+          navigate(`/participant/sprint/${enrollmentId}`);
+      } else {
+          navigate('/dashboard');
+      }
 
     } catch (error: any) {
       console.error("Signup error handled:", error.code);

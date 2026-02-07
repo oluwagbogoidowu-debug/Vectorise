@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.tsx';
@@ -6,6 +5,8 @@ import Button from '../../components/Button.tsx';
 import { MOCK_USERS } from '../../services/mockData.ts';
 import { auth } from '../../services/firebase.ts';
 import { signInWithEmailAndPassword, signOut, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth';
+import { sprintService } from '../../services/sprintService.ts';
+import { UserRole } from '../../types.ts';
 
 const LoginPage: React.FC = () => {
   const { login, user } = useAuth();
@@ -28,9 +29,25 @@ const LoginPage: React.FC = () => {
   const [resetMessage, setResetMessage] = useState('');
 
   useEffect(() => {
-      if (user) {
-          navigate('/dashboard');
-      }
+      const handleUserRedirect = async () => {
+          if (user) {
+              if (user.role === UserRole.PARTICIPANT) {
+                  // Track sprint and open Day 1 on next login
+                  try {
+                      const enrollments = await sprintService.getUserEnrollments(user.id);
+                      const active = enrollments.find(e => e.progress.some(p => !p.completed));
+                      if (active) {
+                          navigate(`/participant/sprint/${active.id}`);
+                          return;
+                      }
+                  } catch (e) {
+                      console.error("Redirect logic error", e);
+                  }
+              }
+              navigate('/dashboard');
+          }
+      };
+      handleUserRedirect();
   }, [user, navigate]);
 
   const validateEmail = (email: string) => {
@@ -62,7 +79,6 @@ const LoginPage: React.FC = () => {
         if (password === 'password') {
             setTimeout(() => {
                 login(mockUser.id);
-                navigate('/dashboard');
                 setIsLoading(false);
             }, 600);
             return;
@@ -237,11 +253,11 @@ const LoginPage: React.FC = () => {
                 <div className="flex items-center gap-6">
                     <Link to="/onboarding/coach/welcome" className="group flex items-center gap-2 text-gray-300 hover:text-primary transition-colors">
                         <span className="text-[8px] font-black uppercase tracking-[0.2em]">Coach Access</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
                     </Link>
                     <Link to="/" className="group flex items-center gap-2 text-gray-300 hover:text-primary transition-colors">
                         <span className="text-[8px] font-black uppercase tracking-[0.2em]">Home</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
                     </Link>
                 </div>
             </div>

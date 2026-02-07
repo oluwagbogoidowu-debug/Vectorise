@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { paymentService } from '../../services/paymentService';
@@ -14,8 +13,9 @@ const PaymentSuccess: React.FC = () => {
     const [retries, setRetries] = useState(0);
     const [paymentEmail, setPaymentEmail] = useState<string | null>(null);
 
-    const query = new URLSearchParams(location.search);
-    const reference = query.get('reference') || query.get('tx_ref');
+    const queryParams = new URLSearchParams(location.search);
+    const reference = queryParams.get('reference') || queryParams.get('tx_ref');
+    const paidSprintId = queryParams.get('sprintId');
 
     useEffect(() => {
         if (!reference) {
@@ -25,7 +25,7 @@ const PaymentSuccess: React.FC = () => {
 
         const checkStatus = async () => {
             try {
-                const gateway = query.get('reference') ? 'paystack' : 'flutterwave';
+                const gateway = queryParams.get('reference') ? 'paystack' : 'flutterwave';
                 const data = await paymentService.verifyPayment(gateway, reference);
                 
                 if (data.status === 'successful' || data.status === 'success') {
@@ -42,19 +42,26 @@ const PaymentSuccess: React.FC = () => {
         };
 
         checkStatus();
-    }, [reference, retries, query]);
+    }, [reference, retries, queryParams]);
 
     const handleAction = () => {
         if (user) {
-            navigate('/dashboard');
+            // Immediate Enrollment tracking: constructing expected enrollment ID
+            const enrollmentId = paidSprintId ? `enrollment_${user.id}_${paidSprintId}` : null;
+            if (enrollmentId) {
+                navigate(`/participant/sprint/${enrollmentId}`);
+            } else {
+                navigate('/dashboard');
+            }
         } else {
-            // New user flow: Go to sign up with prefilled email
+            // New user flow: Go to sign up with prefilled email and sprint context
             navigate('/signup', { 
                 state: { 
                     prefilledEmail: paymentEmail,
                     isClarityFlow: true,
                     fromPayment: true,
-                    reference: reference
+                    reference: reference,
+                    targetSprintId: paidSprintId
                 } 
             });
         }
@@ -94,7 +101,7 @@ const PaymentSuccess: React.FC = () => {
                             <div className="space-y-8">
                                 <h1 className="text-2xl font-black text-gray-900 tracking-tighter italic leading-tight">
                                     Investment Secured. <br/>
-                                    {user ? 'Day 1 starts now.' : 'Ready to secure your identity.'}
+                                    {user ? 'Redirecting to Day 1...' : 'Ready to secure your identity.'}
                                 </h1>
 
                                 <label className="flex items-center justify-center gap-4 p-5 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer active:scale-[0.98] transition-all hover:border-primary/20 group mx-auto max-w-[280px]">
@@ -120,7 +127,7 @@ const PaymentSuccess: React.FC = () => {
                                         : 'bg-gray-100 text-gray-300 cursor-not-allowed border-none shadow-none grayscale'
                                     }`}
                                 >
-                                    {user ? 'Start Day 1' : 'Secure My Identity'}
+                                    {user ? 'Open Day 1 Now' : 'Secure My Identity'}
                                 </button>
                             </div>
                         </div>

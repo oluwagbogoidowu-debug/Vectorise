@@ -1,4 +1,3 @@
-
 export default async function handler(req, res) {
   // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -29,6 +28,9 @@ export default async function handler(req, res) {
     // Use amount from body or fallback to default
     const paymentAmount = amount || "5000";
 
+    // Append sprintId to redirect URL so PaymentSuccess can construct enrollment ID
+    const redirectUrl = `https://vectorise.online/#/payment-success?sprintId=${sprintId || 'clarity-sprint'}`;
+
     // Using global fetch (available in Node 18+) to avoid 'node-fetch' dependency issues
     const response = await fetch("https://api.flutterwave.com/v3/payments", {
       method: "POST",
@@ -40,8 +42,7 @@ export default async function handler(req, res) {
         tx_ref: `tx-${Date.now()}`,
         amount: paymentAmount,
         currency: "NGN",
-        // Correcting the redirect URL to match the SPA hash routing
-        redirect_url: "https://vectorise.online/#/payment-success",
+        redirect_url: redirectUrl,
         customer: { email },
         customizations: {
           title: sprintId || "Growth Sprint",
@@ -50,15 +51,12 @@ export default async function handler(req, res) {
       })
     });
 
-    // Requirement: Ensure !response.ok check is intact
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Flutterwave error:", errorText);
-      // Return error as JSON to prevent frontend crash
       return res.status(response.status).json({ error: errorText });
     }
 
-    // Requirement: Use requested content-type checking logic
     const contentType = response.headers.get("content-type");
     let data;
 
@@ -70,12 +68,10 @@ export default async function handler(req, res) {
       throw new Error("Server returned non-JSON response");
     }
 
-    // Return successful JSON response
     return res.status(200).json(data);
 
   } catch (error) {
     console.error("[Backend] Internal Error:", error);
-    // CRITICAL: Always return JSON even on catch to avoid "Unexpected token A"
     return res.status(500).json({ error: error.message });
   }
 }
