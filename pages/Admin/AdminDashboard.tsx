@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { MOCK_USERS, MOCK_ROLES, MOCK_SPRINTS } from '../../services/mockData';
+import { MOCK_USERS, MOCK_ROLES } from '../../services/mockData';
 import { UserRole, Coach, Sprint, RoleDefinition, Permission, Participant, PlatformPulse, Quote } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
@@ -189,7 +189,6 @@ export default function AdminDashboard() {
                                     </Link>
                                 </div>
 
-                                {/* Filter Bar - Same style as Coach view */}
                                 <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar border-b border-gray-50">
                                     {[
                                         { id: 'all', label: 'All' },
@@ -212,7 +211,6 @@ export default function AdminDashboard() {
                                     ))}
                                 </div>
 
-                                {/* Card List - Same style as Coach view */}
                                 <div className="grid grid-cols-1 gap-4">
                                     {isLoadingSprints ? (
                                         <div className="text-center py-20">
@@ -220,38 +218,49 @@ export default function AdminDashboard() {
                                             <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Syncing Registry...</p>
                                         </div>
                                     ) : filteredSprints.length > 0 ? (
-                                        filteredSprints.map(sprint => (
-                                            <div key={sprint.id} className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center gap-6 group hover:shadow-md transition-all">
-                                                <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-inner">
-                                                    <img src={sprint.coverImageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" />
-                                                </div>
-                                                <div className="flex-1 min-w-0 text-center sm:text-left">
-                                                    <h3 className="font-black text-gray-900 text-lg group-hover:text-primary transition-colors truncate tracking-tight">{sprint.title}</h3>
-                                                    <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 text-[9px] font-black text-gray-400 mt-2 uppercase tracking-widest">
-                                                        <span className="px-2 py-1 bg-gray-50 rounded-lg">{sprint.duration} Days</span>
-                                                        <div className="w-1 h-1 bg-gray-200 rounded-full"></div>
-                                                        <span className="px-2 py-1 bg-gray-50 rounded-lg">{sprint.category}</span>
-                                                        <div className="w-1 h-1 bg-gray-200 rounded-full"></div>
-                                                        <span className={`px-2 py-1 rounded-lg ${
-                                                            sprint.approvalStatus === 'approved' ? 'bg-green-50 text-green-600 border border-green-100' : 
-                                                            sprint.approvalStatus === 'rejected' ? 'bg-orange-50 text-orange-600 border border-orange-100' :
-                                                            'bg-blue-50 text-blue-500 border border-blue-100'
-                                                        }`}>
-                                                            {sprint.approvalStatus === 'rejected' ? 'Amend Required' : sprint.approvalStatus.replace('_', ' ')}
-                                                        </span>
+                                        filteredSprints.map(sprint => {
+                                            const isFoundational = sprint.category === 'Core Platform Sprint' || sprint.category === 'Growth Fundamentals';
+                                            const priceVal = isFoundational ? (sprint.pointCost || 0) : (sprint.price || 0);
+                                            const hasPricingError = priceVal <= 0;
+
+                                            return (
+                                                <div key={sprint.id} className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center gap-6 group hover:shadow-md transition-all">
+                                                    <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-inner">
+                                                        <img src={sprint.coverImageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" />
                                                     </div>
+                                                    <div className="flex-1 min-w-0 text-center sm:text-left">
+                                                        <h3 className="font-black text-gray-900 text-lg group-hover:text-primary transition-colors truncate tracking-tight">{sprint.title}</h3>
+                                                        <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 text-[9px] font-black text-gray-400 mt-2 uppercase tracking-widest">
+                                                            <span className="px-2 py-1 bg-gray-50 rounded-lg">{sprint.duration} Days</span>
+                                                            <div className="w-1 h-1 bg-gray-200 rounded-full"></div>
+                                                            <span className="px-2 py-1 bg-gray-50 rounded-lg">{sprint.category}</span>
+                                                            <div className="w-1 h-1 bg-gray-200 rounded-full"></div>
+                                                            <span className={`px-2 py-1 rounded-lg ${
+                                                                sprint.approvalStatus === 'approved' ? 'bg-green-50 text-green-600 border border-green-100' : 
+                                                                sprint.approvalStatus === 'rejected' ? 'bg-orange-50 text-orange-600 border border-orange-100' :
+                                                                'bg-blue-50 text-blue-500 border border-blue-100'
+                                                            }`}>
+                                                                {sprint.approvalStatus === 'rejected' ? 'Amend Required' : sprint.approvalStatus.replace('_', ' ')}
+                                                            </span>
+                                                            {hasPricingError && (
+                                                                <span className="px-2 py-1 bg-red-50 text-red-600 border border-red-100 rounded-lg animate-pulse font-black text-[8px]">
+                                                                    MISSING PRICE
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <Link to={`/coach/sprint/edit/${sprint.id}`} className="w-full sm:w-auto">
+                                                        <button className={`w-full sm:w-auto px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                                                            hasPricingError || sprint.approvalStatus === 'pending_approval'
+                                                            ? 'bg-orange-500 text-white shadow-lg shadow-orange-100 hover:bg-orange-600' 
+                                                            : 'bg-white border border-gray-100 text-gray-500 hover:bg-gray-50 hover:text-primary'
+                                                        }`}>
+                                                            {hasPricingError ? 'Set Price' : sprint.approvalStatus === 'pending_approval' ? 'Audit Sprint' : 'Edit Registry'}
+                                                        </button>
+                                                    </Link>
                                                 </div>
-                                                <Link to={`/coach/sprint/edit/${sprint.id}`} className="w-full sm:w-auto">
-                                                    <button className={`w-full sm:w-auto px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
-                                                        sprint.approvalStatus === 'pending_approval'
-                                                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-100 hover:bg-orange-600' 
-                                                        : 'bg-white border border-gray-100 text-gray-500 hover:bg-gray-50 hover:text-primary'
-                                                    }`}>
-                                                        {sprint.approvalStatus === 'pending_approval' ? 'Audit Sprint' : 'Edit Registry'}
-                                                    </button>
-                                                </Link>
-                                            </div>
-                                        ))
+                                            );
+                                        })
                                     ) : (
                                         <div className="text-center py-20 bg-gray-50/50 rounded-[2.5rem] border-2 border-dashed border-gray-100">
                                             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm grayscale opacity-30">🏝️</div>
