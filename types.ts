@@ -63,7 +63,8 @@ export interface Sprint {
   pricingType?: 'cash' | 'credits';
   coverImageUrl: string;
   published: boolean;
-  approvalStatus: 'draft' | 'pending_approval' | 'approved' | 'rejected';
+  deleted?: boolean; // New property for soft-deletion
+  approvalStatus: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'archived';
   dailyContent: DailyContent[];
   updatedAt?: string;
   createdAt?: string;

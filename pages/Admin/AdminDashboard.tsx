@@ -14,6 +14,44 @@ import LifecycleOrchestrator from './LifecycleOrchestrator';
 type Tab = 'pulse' | 'orchestrator' | 'registry' | 'revenue' | 'sprints' | 'quotes' | 'roles';
 type SprintFilter = 'all' | 'active' | 'core' | 'pending' | 'rejected';
 
+const DeleteConfirmationModal: React.FC<{
+    sprint: Sprint;
+    onClose: () => void;
+    onConfirm: (sprintId: string) => void;
+    isDeleting: boolean;
+}> = ({ sprint, onClose, onConfirm, isDeleting }) => {
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-fade-in text-center">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl relative overflow-hidden animate-slide-up flex flex-col p-8">
+                <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1v3M4 7h16" />
+                    </svg>
+                </div>
+                <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">Admin Delete</h3>
+                <p className="text-sm text-gray-500 font-medium leading-relaxed mb-8 italic">
+                    "Permanently hide this sprint from the registry. Existing enrollments will persist."
+                </p>
+                <div className="flex gap-3">
+                    <button 
+                        onClick={onClose}
+                        className="flex-1 py-3.5 bg-gray-50 text-gray-500 font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-gray-100 transition-all"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onClick={() => onConfirm(sprint.id)}
+                        disabled={isDeleting}
+                        className="flex-1 py-3.5 bg-red-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-red-100 active:scale-95 transition-all disabled:opacity-50"
+                    >
+                        {isDeleting ? 'Deleting...' : 'Confirm'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export default function AdminDashboard() {
     const navigate = useNavigate();
     const { logout } = useAuth();
@@ -26,30 +64,36 @@ export default function AdminDashboard() {
     const [refreshKey, setRefreshKey] = useState(0); 
     const [platformPulse, setPlatformPulse] = useState<PlatformPulse | null>(null);
 
+    const [sprintToDelete, setSprintToDelete] = useState<Sprint | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const fetchPulse = async () => {
+        const pulse = await analyticsService.getPlatformPulse();
+        setPlatformPulse(pulse);
+    };
+
+    const fetchSprints = async () => {
+        setIsLoadingSprints(true);
+        try {
+            const fetchedSprints = await sprintService.getAdminSprints();
+            setSprints(fetchedSprints);
+        } catch (err) { console.error(err); } finally { setIsLoadingSprints(false); }
+    };
+
+    const fetchQuotes = async () => {
+        const fetched = await quoteService.getQuotes();
+        setQuotes(fetched);
+    };
+
     useEffect(() => {
-        const fetchPulse = async () => {
-            const pulse = await analyticsService.getPlatformPulse();
-            setPlatformPulse(pulse);
-        };
         fetchPulse();
     }, [refreshKey]);
 
     useEffect(() => {
-        const fetchSprints = async () => {
-            setIsLoadingSprints(true);
-            try {
-                const fetchedSprints = await sprintService.getAdminSprints();
-                setSprints(fetchedSprints);
-            } catch (err) { console.error(err); } finally { setIsLoadingSprints(false); }
-        };
         fetchSprints();
     }, [refreshKey]);
 
     useEffect(() => {
-        const fetchQuotes = async () => {
-            const fetched = await quoteService.getQuotes();
-            setQuotes(fetched);
-        };
         fetchQuotes();
     }, [refreshKey]);
 
@@ -80,6 +124,19 @@ export default function AdminDashboard() {
         setRefreshKey(k => k + 1);
     };
 
+    const handleDelete = async (id: string) => {
+        setIsDeleting(true);
+        try {
+            await sprintService.deleteSprint(id);
+            setSprintToDelete(null);
+            fetchSprints();
+        } catch (err) {
+            alert("Delete failed.");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     const MetricBlock = ({ label, value, color = "gray", trend }: { label: string, value: string | number, color?: string, trend?: { label: string, positive: boolean } }) => (
         <div className={`bg-${color}-50 p-8 rounded-[2rem] border border-${color}-100 transition-all`}>
             <div className="flex justify-between items-start mb-2">
@@ -96,6 +153,15 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-[#FAFAFA] p-6">
+            {sprintToDelete && (
+                <DeleteConfirmationModal 
+                    sprint={sprintToDelete} 
+                    onClose={() => setSprintToDelete(null)} 
+                    onConfirm={handleDelete}
+                    isDeleting={isDeleting}
+                />
+            )}
+            
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-10">
                     <div className="flex items-center gap-5">
@@ -249,15 +315,26 @@ export default function AdminDashboard() {
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <Link to={`/coach/sprint/edit/${sprint.id}`} className="w-full sm:w-auto">
-                                                        <button className={`w-full sm:w-auto px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
-                                                            hasPricingError || sprint.approvalStatus === 'pending_approval'
-                                                            ? 'bg-orange-500 text-white shadow-lg shadow-orange-100 hover:bg-orange-600' 
-                                                            : 'bg-white border border-gray-100 text-gray-500 hover:bg-gray-50 hover:text-primary'
-                                                        }`}>
-                                                            {hasPricingError ? 'Set Price' : sprint.approvalStatus === 'pending_approval' ? 'Audit Sprint' : 'Edit Registry'}
+                                                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                                                        <Link to={`/coach/sprint/edit/${sprint.id}`} className="flex-1 sm:flex-none">
+                                                            <button className={`w-full sm:w-auto px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                                                                hasPricingError || sprint.approvalStatus === 'pending_approval'
+                                                                ? 'bg-orange-500 text-white shadow-lg shadow-orange-100 hover:bg-orange-600' 
+                                                                : 'bg-white border border-gray-100 text-gray-500 hover:bg-gray-50 hover:text-primary'
+                                                            }`}>
+                                                                {hasPricingError ? 'Set Price' : sprint.approvalStatus === 'pending_approval' ? 'Audit Sprint' : 'Edit Sprint'}
+                                                            </button>
+                                                        </Link>
+                                                        <button 
+                                                            onClick={() => setSprintToDelete(sprint)}
+                                                            className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-90"
+                                                            title="Delete Sprint"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1v3M4 7h16" />
+                                                            </svg>
                                                         </button>
-                                                    </Link>
+                                                    </div>
                                                 </div>
                                             );
                                         })

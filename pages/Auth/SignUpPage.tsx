@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { auth } from '../../services/firebase';
@@ -55,7 +56,7 @@ const SignUpPage: React.FC = () => {
         persona: persona || 'Seeker',
         onboardingAnswers: answers || {},
         occupation: occupation || 'Unemployed',
-        walletBalance: 30,
+        walletBalance: 50, // Updated from 30 to 50
         createdAt: new Date().toISOString(),
         enrolledSprintIds: []
       };

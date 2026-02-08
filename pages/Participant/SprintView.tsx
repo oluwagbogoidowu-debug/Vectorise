@@ -1,23 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ParticipantSprint, Sprint, DailyContent, ShinePost } from '../../types';
+import { ParticipantSprint, Sprint, DailyContent } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import FormattedText from '../../components/FormattedText';
 import LocalLogo from '../../components/LocalLogo';
-import { shineService } from '../../services/shineService';
 
 const ReflectionModal: React.FC<{
     isOpen: boolean;
     day: number;
     onClose: () => void;
-    onFinish: (reflection: string, share: boolean) => void;
+    onFinish: (reflection: string) => void;
     isSubmitting: boolean;
 }> = ({ isOpen, day, onClose, onFinish, isSubmitting }) => {
     const [text, setText] = useState('');
-    const [share, setShare] = useState(true);
 
     if (!isOpen) return null;
 
@@ -53,30 +51,21 @@ const ReflectionModal: React.FC<{
                         className="w-full bg-[#FAFAFA] border border-gray-100 rounded-2xl p-5 text-sm font-medium text-gray-700 placeholder-gray-300 outline-none focus:ring-4 focus:ring-primary/5 transition-all min-h-[140px] resize-none"
                     />
 
-                    {/* Share Toggle */}
-                    <div className="flex items-center justify-between p-4 bg-[#FAFAFA] border border-gray-50 rounded-2xl">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-gray-400">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <p className="text-xs font-black text-gray-900 uppercase tracking-widest">Share to Shine</p>
-                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Inspire someone now</p>
-                            </div>
+                    {/* Privacy Notice */}
+                    <div className="p-4 bg-gray-50 border border-gray-100 rounded-2xl flex gap-3 items-start">
+                        <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-gray-400 flex-shrink-0 shadow-sm">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
                         </div>
-                        <button 
-                            onClick={() => setShare(!share)}
-                            className={`w-12 h-6 rounded-full transition-all relative ${share ? 'bg-[#159E5B]' : 'bg-gray-200'}`}
-                        >
-                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${share ? 'left-7' : 'left-1'}`}></div>
-                        </button>
+                        <p className="text-[10px] text-gray-500 font-bold italic leading-relaxed">
+                            This is only visible to you. No coach sees your reflection. Feel free to share your mind.
+                        </p>
                     </div>
 
                     {/* Finish Button */}
                     <button 
-                        onClick={() => onFinish(text, share)}
+                        onClick={() => onFinish(text)}
                         disabled={isSubmitting}
                         className="w-full bg-[#0E7850] text-white py-4 rounded-2xl text-sm font-black uppercase tracking-widest shadow-xl shadow-green-100 transition-all active:scale-95 disabled:opacity-50"
                     >
@@ -165,28 +154,11 @@ const SprintView: React.FC = () => {
         setIsReflectionModalOpen(true);
     };
 
-    const handleFinishDay = async (reflection: string, share: boolean) => {
+    const handleFinishDay = async (reflection: string) => {
         if (!enrollment || !user || isSubmitting) return;
         setIsSubmitting(true);
         try {
-            // 1. Create Shine Post if toggled
-            if (share && reflection.trim() && sprint) {
-                await shineService.createPost({
-                    userId: user.id,
-                    userName: user.name,
-                    userAvatar: user.profileImageUrl,
-                    content: reflection,
-                    timestamp: new Date().toISOString(),
-                    likes: 0,
-                    comments: 0,
-                    isLiked: false,
-                    isSaved: false,
-                    sprintTitle: sprint.title,
-                    commentData: []
-                });
-            }
-
-            // 2. Update Enrollment
+            // Update Enrollment
             const updatedProgress = enrollment.progress.map(p => 
                 p.day === viewingDay ? { 
                     ...p, 
@@ -206,7 +178,7 @@ const SprintView: React.FC = () => {
             setProofSelection('');
             setIsReflectionModalOpen(false);
 
-            // 3. Final day logic
+            // Final day logic
             if (viewingDay === enrollment.progress.length) {
                 navigate('/discover');
             } else {

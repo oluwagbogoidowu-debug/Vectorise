@@ -22,7 +22,8 @@ export const sprintService = {
             const newSprint = sanitizeData({
                 ...sprint,
                 createdAt: sprint.createdAt || now,
-                updatedAt: now
+                updatedAt: now,
+                deleted: false
             });
             const sprintRef = doc(db, SPRINTS_COLLECTION, sprint.id);
             await setDoc(sprintRef, newSprint);
@@ -62,6 +63,20 @@ export const sprintService = {
             }
         } catch (error) {
             console.error("Error updating sprint in Firestore:", error);
+            throw error;
+        }
+    },
+
+    deleteSprint: async (sprintId: string) => {
+        try {
+            const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
+            await updateDoc(sprintRef, {
+                deleted: true,
+                published: false,
+                updatedAt: new Date().toISOString()
+            });
+        } catch (error) {
+            console.error("Error deleting sprint:", error);
             throw error;
         }
     },
@@ -111,7 +126,8 @@ export const sprintService = {
 
     getAdminSprints: async () => {
         try {
-            const q = query(collection(db, SPRINTS_COLLECTION));
+            // Only fetch sprints that are not deleted
+            const q = query(collection(db, SPRINTS_COLLECTION), where("deleted", "==", false));
             const querySnapshot = await getDocs(q);
             const dbSprints: Sprint[] = [];
             const invalidApprovedIds: string[] = [];
@@ -162,7 +178,8 @@ export const sprintService = {
         try {
             const q = query(
                 collection(db, SPRINTS_COLLECTION), 
-                where("approvalStatus", "==", "approved")
+                where("approvalStatus", "==", "approved"),
+                where("deleted", "==", false)
             );
             const querySnapshot = await getDocs(q);
             const dbSprints: Sprint[] = [];
@@ -184,7 +201,11 @@ export const sprintService = {
 
     getCoachSprints: async (coachId: string) => {
         try {
-            const q = query(collection(db, SPRINTS_COLLECTION), where("coachId", "==", coachId));
+            const q = query(
+                collection(db, SPRINTS_COLLECTION), 
+                where("coachId", "==", coachId),
+                where("deleted", "==", false)
+            );
             const querySnapshot = await getDocs(q);
             const dbSprints: Sprint[] = [];
             querySnapshot.forEach((doc) => {

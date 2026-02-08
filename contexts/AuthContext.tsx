@@ -66,7 +66,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     shinePostIds: [],
                     shineCommentIds: [],
                     referralCode: firebaseUser.uid.substring(0, 8).toUpperCase(),
-                    walletBalance: 30,
+                    walletBalance: 50, // Updated from 30 to 50
                     impactStats: { peopleHelped: 0, streak: 0 }
                 };
                 

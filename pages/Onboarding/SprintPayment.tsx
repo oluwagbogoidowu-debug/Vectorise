@@ -1,16 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+// Fix: Added Link to imports from react-router-dom
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
 import { paymentService } from '../../services/paymentService';
+import { userService } from '../../services/userService';
+import { sprintService } from '../../services/sprintService';
 import { useAuth } from '../../contexts/AuthContext';
-import { Sprint } from '../../types';
+import { Sprint, Participant } from '../../types';
 
 const SprintPayment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   
   const [guestEmail, setGuestEmail] = useState('');
   const [finalCommitment, setFinalCommitment] = useState(false);
@@ -21,16 +24,52 @@ const SprintPayment: React.FC = () => {
   const state = location.state || {};
   const selectedSprint: Sprint | null = state.sprint || null;
   
-  // Dynamic price based on flow
-  const sprintPrice = selectedSprint?.price ?? 5000;
-  const sprintTitle = selectedSprint?.title ?? "Clarity Sprint";
+  const isCreditSprint = selectedSprint?.pricingType === 'credits';
+  const sprintPrice = isCreditSprint ? (selectedSprint?.pointCost ?? 0) : (selectedSprint?.price ?? 5000);
+  const sprintTitle = selectedSprint?.title ?? "Sprint";
+
+  const userParticipant = user as Participant;
+  const userBalance = userParticipant?.walletBalance || 0;
+  const hasEnoughCredits = userBalance >= sprintPrice;
 
   // Use logged-in email if available, otherwise guest input
   const effectiveEmail = user?.email || guestEmail;
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(effectiveEmail);
-  const canPay = finalCommitment && isEmailValid && !isProcessing;
 
-  const startPayment = async () => {
+  // Button readiness logic
+  const canPay = finalCommitment && (isCreditSprint ? (!!user && hasEnoughCredits) : isEmailValid) && !isProcessing;
+
+  const handleCoinPayment = async () => {
+    if (!user || !selectedSprint) return;
+    
+    setIsProcessing(true);
+    setErrorMessage(null);
+
+    try {
+      // 1. Deduct coins via wallet transaction
+      await userService.processWalletTransaction(user.id, {
+        amount: -sprintPrice, // Deduction
+        type: 'purchase',
+        description: `Unlocked ${sprintTitle} via Credits`,
+        auditId: selectedSprint.id
+      });
+
+      // 2. Update local state balance for immediate feedback
+      await updateProfile({ walletBalance: userBalance - sprintPrice });
+
+      // 3. Enroll the user
+      const enrollment = await sprintService.enrollUser(user.id, selectedSprint.id, selectedSprint.duration);
+
+      // 4. Redirect to workspace
+      navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
+    } catch (error: any) {
+      console.error("[Registry] Coin transaction failed:", error);
+      setErrorMessage("Credit redemption failed. Please try again later.");
+      setIsProcessing(false);
+    }
+  };
+
+  const startCashPayment = async () => {
     if (!isEmailValid) {
         setErrorMessage("Please enter a valid email address to secure your registry.");
         return;
@@ -40,22 +79,25 @@ const SprintPayment: React.FC = () => {
     setErrorMessage(null);
 
     try {
-      console.log(`[Flow] Requesting Flutterwave link for ${sprintTitle} (₦${sprintPrice})...`);
-      
       const checkoutUrl = await paymentService.initializeFlutterwave({
         email: effectiveEmail.toLowerCase().trim(),
         sprintId: selectedSprint?.id || 'clarity-sprint',
-        amount: sprintPrice,
+        amount: Number(sprintPrice),
         name: user?.name || 'Vectorise Guest'
       });
 
-      console.log("[Flow] Handoff to Flutterwave:", checkoutUrl);
       window.location.href = checkoutUrl;
-      
     } catch (error: any) {
-      console.error("[Flow] Payment failed:", error);
       setErrorMessage(error.message || "Unable to reach the payment gateway. Please try again.");
       setIsProcessing(false);
+    }
+  };
+
+  const handleAction = () => {
+    if (isCreditSprint) {
+        handleCoinPayment();
+    } else {
+        startCashPayment();
     }
   };
 
@@ -82,7 +124,7 @@ const SprintPayment: React.FC = () => {
           
           <header className="p-8 md:p-12 text-center border-b border-gray-50">
              <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-none mb-3 italic">
-               Start the {sprintTitle}
+               Unlock {sprintTitle}
              </h1>
              <div className="space-y-1 text-gray-500 text-xs md:text-sm font-medium leading-relaxed italic">
                <p>You’re not paying for information.</p>
@@ -93,12 +135,24 @@ const SprintPayment: React.FC = () => {
           <main className="p-8 md:p-12 space-y-10">
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-               <section className="bg-gray-50 rounded-3xl p-8 border border-gray-100 text-center space-y-2">
-                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Price</p>
-                  <h3 className="text-5xl font-black text-gray-900 tracking-tighter">₦{sprintPrice.toLocaleString()}</h3>
+               <section className="bg-gray-50 rounded-3xl p-8 border border-gray-100 text-center space-y-2 relative overflow-hidden">
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Investment</p>
+                  <h3 className="text-5xl font-black text-gray-900 tracking-tighter">
+                    {isCreditSprint ? '🪙' : '₦'}{sprintPrice.toLocaleString()}
+                  </h3>
                   <div className="space-y-1 pt-4 border-t border-gray-200/50">
-                    <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">One-time payment</p>
+                    <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                        {isCreditSprint ? 'Credit Redemption' : 'One-time payment'}
+                    </p>
                   </div>
+                  {isCreditSprint && user && (
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Your Balance</p>
+                          <p className={`text-sm font-black ${hasEnoughCredits ? 'text-primary' : 'text-red-500 animate-pulse'}`}>
+                             🪙 {userBalance}
+                          </p>
+                      </div>
+                  )}
                </section>
 
                <section className="space-y-4 pt-4">
@@ -112,8 +166,8 @@ const SprintPayment: React.FC = () => {
                </section>
             </div>
 
-            {/* Email Identification - ONLY IF GUEST */}
-            {!user && (
+            {/* Email Identification - ONLY IF CASH AND GUEST */}
+            {!isCreditSprint && !user && (
                <section className="pt-6 border-t border-gray-50 space-y-4">
                  <div className="text-center mb-6">
                     <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">Registry Identification</h2>
@@ -125,11 +179,32 @@ const SprintPayment: React.FC = () => {
                         value={guestEmail}
                         onChange={(e) => setGuestEmail(e.target.value)}
                         placeholder="your@email.com"
-                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary transition-all outline-none text-sm font-bold placeholder-gray-300"
+                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold placeholder-gray-300"
                     />
                     <p className="text-[8px] font-medium text-gray-400 mt-3 text-center italic">This email will be used to secure your dashboard access after payment.</p>
                  </div>
                </section>
+            )}
+
+            {/* Credit Sprint Logic - Check for Login */}
+            {isCreditSprint && !user && (
+                <section className="pt-6 border-t border-gray-50 text-center space-y-4">
+                    <div className="bg-orange-50 border border-orange-100 p-6 rounded-[2rem]">
+                        <p className="text-xl mb-2">🔐</p>
+                        <p className="text-xs font-bold text-orange-800 leading-relaxed uppercase tracking-widest">
+                            Registry Login Required
+                        </p>
+                        <p className="text-[10px] text-orange-600 font-medium mt-2 leading-snug">
+                            You must be logged in to use credits earned from previous sprints or impact.
+                        </p>
+                        <button 
+                            onClick={() => navigate('/login', { state: { targetSprintId: selectedSprint?.id } })}
+                            className="mt-4 px-8 py-2.5 bg-orange-600 text-white font-black text-[9px] uppercase tracking-widest rounded-xl shadow-lg active:scale-95"
+                        >
+                            Log In to Use Credits
+                        </button>
+                    </div>
+                </section>
             )}
 
             <section className="pt-6 border-t border-gray-50 space-y-6">
@@ -137,12 +212,13 @@ const SprintPayment: React.FC = () => {
                   <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">Commitment</h2>
                </div>
 
-               <label className="flex items-start gap-4 p-5 bg-primary/5 border border-primary/10 rounded-2xl cursor-pointer active:scale-[0.98] transition-all group hover:bg-primary/10">
+               <label className={`flex items-start gap-4 p-5 bg-primary/5 border border-primary/10 rounded-2xl cursor-pointer active:scale-[0.98] transition-all group hover:bg-primary/10 ${isCreditSprint && !user ? 'opacity-30 pointer-events-none' : ''}`}>
                 <div className="relative flex items-center h-5 mt-0.5">
                   <input 
                     type="checkbox" 
                     checked={finalCommitment}
                     onChange={(e) => setFinalCommitment(e.target.checked)}
+                    disabled={isCreditSprint && !user}
                     className="w-5 h-5 bg-white border-gray-200 rounded focus:ring-offset-white focus:ring-primary text-primary cursor-pointer transition-all"
                   />
                 </div>
@@ -156,20 +232,33 @@ const SprintPayment: React.FC = () => {
                   {errorMessage}
                 </div>
               )}
+
+              {isCreditSprint && user && !hasEnoughCredits && (
+                <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl text-[10px] font-bold text-orange-800 uppercase tracking-widest text-center">
+                    Insufficient Credits. <br className="md:hidden"/> 
+                    {/* Fix: Link component now defined from router-dom */}
+                    <Link to="/impact" className="underline hover:text-orange-900">Earn more by guiding others</Link> or completing tasks.
+                </div>
+              )}
             </section>
           </main>
 
           <footer className="p-8 md:p-12 pt-4 bg-gray-50/50 border-t border-gray-50">
              <div className="space-y-6">
                 <Button 
-                  onClick={startPayment}
+                  onClick={handleAction}
                   disabled={!canPay}
                   isLoading={isProcessing}
                   className={`w-full py-5 rounded-full shadow-2xl transition-all text-sm uppercase tracking-[0.3em] font-black ${
                     canPay ? 'bg-primary text-white hover:scale-[1.02]' : 'bg-gray-200 text-gray-400 grayscale cursor-not-allowed border-none'
                   }`}
                 >
-                  {isProcessing ? "Authorizing Registry..." : "Pay & Start Sprint"}
+                  {isProcessing 
+                    ? "Authorizing Registry..." 
+                    : isCreditSprint 
+                        ? `Redeem ${sprintPrice} Credits` 
+                        : "Pay & Start Sprint"
+                  }
                 </Button>
                 
                 <div className="text-center">

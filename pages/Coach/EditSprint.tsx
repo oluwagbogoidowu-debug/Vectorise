@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Sprint, DailyContent, SprintDifficulty, UserRole } from '../../types';
@@ -5,6 +6,7 @@ import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
 import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtils';
 import { useAuth } from '../../contexts/AuthContext';
+import LocalLogo from '../../components/LocalLogo';
 
 const CATEGORIES = [
     "Accountability", "Boundaries", "Burnout Recovery", "Business", "Career", "Change", "Clarity", 
@@ -22,6 +24,29 @@ const CATEGORIES = [
     "Visibility", "Vision", "Wealth Mindset", "Wellness", "Work-Life Balance"
 ].sort();
 
+const SubmissionSuccessModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-dark/95 backdrop-blur-md animate-fade-in">
+        <div className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl relative overflow-hidden animate-slide-up flex flex-col p-10 text-center">
+            <div className="w-20 h-20 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl shadow-primary/20">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+            </div>
+            <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-4 italic">Registry Updated.</h3>
+            <p className="text-sm text-gray-500 font-medium leading-relaxed mb-10 italic">
+                "Your sprint has been submitted for audit. Our curators will review the curriculum for clarity and impact before it goes live."
+            </p>
+            <button 
+                onClick={onClose}
+                className="w-full py-4 bg-primary text-white font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-all"
+            >
+                Return to Registry
+            </button>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+        </div>
+    </div>
+);
+
 const EditSprint: React.FC = () => {
   const { sprintId } = useParams();
   const navigate = useNavigate();
@@ -31,6 +56,8 @@ const EditSprint: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState(1);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [approvalStatus, setApprovalStatus] = useState<'idle' | 'processing'>('idle');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
   const [showSettings, setShowSettings] = useState(false);
   const [editSettings, setEditSettings] = useState<Partial<Sprint>>({});
@@ -137,6 +164,22 @@ const EditSprint: React.FC = () => {
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (err) { setSaveStatus('idle'); alert("Save failed."); }
+  };
+
+  const handleSubmitForReview = async () => {
+      if (!sprint || isSubmittingReview) return;
+      setIsSubmittingReview(true);
+      try {
+          await sprintService.updateSprint(sprint.id, { 
+              ...sprint, 
+              approvalStatus: 'pending_approval' 
+          });
+          setShowSuccessModal(true);
+      } catch (err) {
+          alert("Submission failed. Please check your connection.");
+      } finally {
+          setIsSubmittingReview(false);
+      }
   };
 
   const handleAdminApprove = async () => {
@@ -266,6 +309,8 @@ const EditSprint: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-8 pb-32">
+      {showSuccessModal && <SubmissionSuccessModal onClose={() => navigate('/coach/sprints')} />}
+      
       <div className="max-w-5xl mx-auto">
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
@@ -293,8 +338,13 @@ const EditSprint: React.FC = () => {
                     <Button variant="secondary" onClick={handleSaveDraft} disabled={saveStatus === 'saving'} className="bg-white border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] rounded-xl px-6">
                       {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save Draft'}
                     </Button>
-                    <Button onClick={() => sprintService.updateSprint(sprint.id, { ...sprint, approvalStatus: 'pending_approval' })} disabled={registryIncomplete || curriculumIncomplete} className="font-black uppercase tracking-widest text-[10px] rounded-xl px-6">
-                      Submit Review
+                    <Button 
+                        onClick={handleSubmitForReview} 
+                        isLoading={isSubmittingReview}
+                        disabled={registryIncomplete || curriculumIncomplete || isSubmittingReview} 
+                        className="font-black uppercase tracking-widest text-[10px] rounded-xl px-6"
+                    >
+                      {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
                     </Button>
                 </>
             )}
