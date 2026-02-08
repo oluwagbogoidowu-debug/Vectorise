@@ -5,6 +5,7 @@ import { Coach, Sprint, Participant, UserRole } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { useAuth } from '../../contexts/AuthContext';
+import { CATEGORY_TO_STAGE_MAP } from '../../services/mockData';
 import LocalLogo from '../../components/LocalLogo';
 
 /**
@@ -95,10 +96,17 @@ const DiscoverSprints: React.FC = () => {
         loadDiscoveryData();
     }, []);
 
-    // 1. Recommended: Find the primary Foundation sprint
+    // 1. Recommended: Always a PAID sprint in the current state (defaulting to Direction/Foundation)
     const recommendedSprint = useMemo(() => {
-        return sprints.find(s => s.category === 'Growth Fundamentals' || s.category === 'Core Platform Sprint') || sprints[0];
-    }, [sprints]);
+        const participant = user as Participant;
+        // Logic: Prioritize user's actual current stage, fallback to 'Direction' for discovery
+        const targetStage = participant?.currentStage || 'Direction';
+        
+        return sprints.find(s => 
+            CATEGORY_TO_STAGE_MAP[s.category] === targetStage && 
+            s.pricingType === 'cash'
+        ) || sprints.find(s => s.pricingType === 'cash');
+    }, [sprints, user]);
 
     const recommendedCoach = useMemo(() => {
         if (!recommendedSprint) return null;
@@ -108,12 +116,26 @@ const DiscoverSprints: React.FC = () => {
         } as Coach;
     }, [recommendedSprint, coaches]);
 
-    // 2. Other Options: Sprints in same stage pool (Max 3, mix of paid/coin)
+    // 2. Other Options: Exactly one Execution and one Core Platform/Growth Fundamental
     const otherOptions = useMemo(() => {
-        if (!recommendedSprint) return [];
-        return sprints
-            .filter(s => s.id !== recommendedSprint.id)
-            .slice(0, 3);
+        const list: Sprint[] = [];
+        
+        // Find one Execution type sprint
+        const execSprint = sprints.find(s => 
+            (s.type === 'Execution' || CATEGORY_TO_STAGE_MAP[s.category] === 'Execution') && 
+            s.id !== recommendedSprint?.id
+        );
+        if (execSprint) list.push(execSprint);
+
+        // Find one Core Platform / Growth Fundamental (Coin gated)
+        const coreSprint = sprints.find(s => 
+            (s.category === 'Core Platform Sprint' || s.category === 'Growth Fundamentals') && 
+            s.id !== recommendedSprint?.id &&
+            !list.some(item => item.id === s.id)
+        );
+        if (coreSprint) list.push(coreSprint);
+
+        return list;
     }, [sprints, recommendedSprint]);
 
     if (isLoading) {
@@ -157,7 +179,7 @@ const DiscoverSprints: React.FC = () => {
                                     </div>
                                     <div className="absolute inset-0 bg-gradient-to-t from-dark/60 via-transparent to-transparent opacity-60"></div>
                                     <div className="absolute bottom-6 left-8">
-                                        <span className="px-3 py-1 bg-primary text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg">Foundational</span>
+                                        <span className="px-3 py-1 bg-primary text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg">Strategic Move</span>
                                     </div>
                                 </div>
                                 
