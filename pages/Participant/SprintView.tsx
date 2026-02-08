@@ -65,9 +65,21 @@ const SprintView: React.FC = () => {
     const currentDayData = enrollment?.progress.find(p => p.day === viewingDay);
     const isDayCompleted = !!currentDayData?.completed;
 
+    const isDayLocked = (day: number) => {
+        if (day === 1) return false;
+        const prevDay = enrollment?.progress.find(p => p.day === day - 1);
+        if (!prevDay?.completed) return true;
+        
+        const nowMs = new Date().getTime();
+        const completedDate = new Date(prevDay.completedAt!);
+        const nextMidnightMs = new Date(completedDate.getFullYear(), completedDate.getMonth(), completedDate.getDate() + 1, 0, 0, 0).getTime();
+        
+        return nowMs < nextMidnightMs;
+    };
+
     const canSubmit = useMemo(() => {
         if (!dayContent) return false;
-        if (dayContent.proofType === 'confirmation') return true;
+        if (dayContent.proofType === 'confirmation' || !dayContent.proofType) return true;
         if (dayContent.proofType === 'picker') return !!proofSelection;
         if (dayContent.proofType === 'note') return !!textSubmission.trim();
         return true;
@@ -92,6 +104,11 @@ const SprintView: React.FC = () => {
             
             setTextSubmission('');
             setProofSelection('');
+
+            // Automatically advance to next day view
+            if (viewingDay < enrollment.progress.length) {
+                setViewingDay(viewingDay + 1);
+            }
         } catch (err) {
             console.error("Completion failed", err);
         } finally {
@@ -105,29 +122,14 @@ const SprintView: React.FC = () => {
         </div>
     );
 
-    const isDayLocked = (day: number) => {
-        if (day === 1) return false;
-        const prevDay = enrollment.progress.find(p => p.day === day - 1);
-        // If prev day isn't done, it's locked
-        if (!prevDay?.completed) return true;
-        
-        // If prev day WAS done, we check if it's currently "today" relative to the completion
-        // For the sake of this UI, if prev day is done, day is unlocked unless it's strictly a 24h wait
-        // The user requested: "timer down till 12 AM to unlock the next day"
-        const nowMs = new Date().getTime();
-        const completedDate = new Date(prevDay.completedAt!);
-        const nextMidnightMs = new Date(completedDate.getFullYear(), completedDate.getMonth(), completedDate.getDate() + 1, 0, 0, 0).getTime();
-        
-        return nowMs < nextMidnightMs;
-    };
-
     return (
-        <div className="min-h-screen w-full bg-[#FAFAFA] flex flex-col font-sans text-dark overflow-y-auto animate-fade-in pb-12">
+        <div className="w-full bg-[#FAFAFA] flex flex-col font-sans text-dark animate-fade-in pb-12">
+            {/* STICKY HEADER */}
             <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
                 <div className="flex items-center justify-between">
                     <button 
                         onClick={() => navigate('/dashboard')} 
-                        className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 hover:text-red-500 transition-all active:scale-90"
+                        className="p-2 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 hover:text-red-500 transition-all active:scale-90"
                         title="Exit Sprint"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -136,25 +138,25 @@ const SprintView: React.FC = () => {
                     </button>
 
                     <div className="text-center flex-1 mx-4 min-w-0">
-                        <h1 className="text-xl font-black text-gray-900 tracking-tight truncate">{sprint.title}</h1>
-                        <p className="text-[8px] font-black text-primary uppercase tracking-[0.3em] opacity-60">Cycle Registry</p>
+                        <h1 className="text-lg font-black text-gray-900 tracking-tight truncate">{sprint.title}</h1>
+                        <p className="text-[7px] font-black text-primary uppercase tracking-[0.3em] opacity-60">Cycle Registry</p>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                         <button 
                             onClick={() => navigate(`/sprint/${sprint.id}`)}
-                            className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-primary hover:bg-primary hover:text-white transition-all active:scale-90"
+                            className="p-2 bg-white border border-gray-100 rounded-xl shadow-sm text-primary hover:bg-primary hover:text-white transition-all active:scale-90"
                             title="View Description"
                         >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </button>
                         <button 
-                            className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-primary hover:bg-primary hover:text-white transition-all active:scale-90"
+                            className="p-2 bg-white border border-gray-100 rounded-xl shadow-sm text-primary hover:bg-primary hover:text-white transition-all active:scale-90"
                             title="Reach Coach"
                         >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                             </svg>
                         </button>
@@ -163,10 +165,10 @@ const SprintView: React.FC = () => {
             </header>
 
             <div className="px-6 max-w-2xl mx-auto w-full space-y-6 mt-4">
-                {/* Curriculum Timeline - Reduced Size */}
-                <div className="bg-white rounded-3xl p-5 border border-gray-50 shadow-sm overflow-hidden">
-                    <h2 className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-4">Curriculum Timeline</h2>
-                    <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar items-center">
+                {/* CURRICULUM TIMELINE */}
+                <div className="bg-white rounded-3xl p-4 border border-gray-50 shadow-sm overflow-hidden">
+                    <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.2em] mb-3">Curriculum Timeline</h2>
+                    <div className="flex gap-2.5 overflow-x-auto pb-2 no-scrollbar items-center">
                         {enrollment.progress.map((p) => {
                             const locked = isDayLocked(p.day);
                             const active = viewingDay === p.day;
@@ -177,18 +179,18 @@ const SprintView: React.FC = () => {
                                     key={p.day}
                                     onClick={() => !locked && setViewingDay(p.day)}
                                     disabled={locked}
-                                    className={`flex-shrink-0 w-16 h-16 rounded-xl flex flex-col items-center justify-center transition-all duration-300 relative shadow-sm border ${
+                                    className={`flex-shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center transition-all duration-300 relative shadow-sm border ${
                                         active 
-                                        ? 'bg-[#0E7850] text-white border-[#0E7850] shadow-lg shadow-green-100' 
+                                        ? 'bg-[#0E7850] text-white border-[#0E7850] shadow-md' 
                                         : done 
                                         ? 'bg-white text-primary border-primary/20' 
                                         : 'bg-gray-50 text-gray-400 border-transparent'
                                     } ${locked ? 'opacity-30 grayscale cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
                                 >
-                                    <span className="text-[7px] font-black uppercase tracking-widest opacity-60 mb-0.5">Day</span>
-                                    <span className="text-xl font-black leading-none">{p.day}</span>
+                                    <span className="text-[6px] font-black uppercase tracking-widest opacity-60 mb-0.5">Day</span>
+                                    <span className="text-lg font-black leading-none">{p.day}</span>
                                     {done && !active && (
-                                        <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-primary rounded-full"></div>
+                                        <div className="absolute top-1 right-1 w-1 h-1 bg-primary rounded-full"></div>
                                     )}
                                 </button>
                             );
@@ -196,46 +198,46 @@ const SprintView: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Lesson Material - Reduced padding */}
+                {/* LESSON MATERIAL */}
                 <div>
-                    <h2 className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-3">Lesson Material</h2>
-                    <div className="bg-white rounded-2xl border border-gray-50 p-6 shadow-sm min-h-[160px]">
-                        <div className="prose max-w-none text-gray-600 font-medium text-xs sm:text-sm leading-relaxed">
+                    <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.2em] mb-2">Lesson Material</h2>
+                    <div className="bg-white rounded-2xl border border-gray-50 p-5 shadow-sm">
+                        <div className="prose max-w-none text-gray-600 font-medium text-xs leading-relaxed">
                             <FormattedText text={dayContent?.lessonText || "Lesson material is being synchronized..."} />
                         </div>
                     </div>
                 </div>
 
-                {/* Actionable Task - Reduced padding */}
+                {/* ACTIONABLE TASK */}
                 <div>
-                    <h2 className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-3">Actionable Task</h2>
-                    <div className="bg-white rounded-2xl border border-gray-50 p-6 shadow-sm">
-                        <p className="text-gray-900 font-bold text-sm sm:text-base leading-tight">
+                    <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.2em] mb-2">Actionable Task</h2>
+                    <div className="bg-white rounded-2xl border border-gray-50 p-5 shadow-sm">
+                        <p className="text-gray-900 font-bold text-xs sm:text-sm leading-snug">
                             <FormattedText text={dayContent?.taskPrompt || "Task protocol is loading..."} />
                         </p>
                     </div>
                 </div>
 
-                {/* Proof of Action & Completion Button at the end */}
-                <div>
-                    <h2 className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-3">Proof of Action</h2>
+                {/* SUBMISSION AREA & MARK COMPLETE BUTTON */}
+                <div className="pb-10">
                     {!isDayCompleted ? (
                         <div className="space-y-4">
+                             {/* Proof types (Picker or Note) render without heading */}
                              {dayContent?.proofType === 'picker' && (
                                  <div className="grid grid-cols-1 gap-2">
                                      {(dayContent.proofOptions || []).map((option, idx) => (
                                          <button
                                             key={idx}
                                             onClick={() => setProofSelection(option)}
-                                            className={`w-full py-3.5 px-5 rounded-xl border text-left font-bold text-xs transition-all flex items-center justify-between group ${
+                                            className={`w-full py-3 px-5 rounded-xl border text-left font-bold text-xs transition-all flex items-center justify-between group ${
                                                 proofSelection === option 
                                                 ? 'bg-primary border-primary text-white shadow-md' 
                                                 : 'bg-white border-gray-100 text-gray-600 hover:border-primary/20'
                                             }`}
                                          >
                                              {option}
-                                             <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${proofSelection === option ? 'bg-white border-white' : 'border-gray-200 group-hover:border-primary/40'}`}>
-                                                 {proofSelection === option && <div className="w-2 h-2 bg-primary rounded-full" />}
+                                             <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${proofSelection === option ? 'bg-white border-white' : 'border-gray-200 group-hover:border-primary/40'}`}>
+                                                 {proofSelection === option && <div className="w-1.5 h-1.5 bg-primary rounded-full" />}
                                              </div>
                                          </button>
                                      ))}
@@ -247,26 +249,21 @@ const SprintView: React.FC = () => {
                                     value={textSubmission}
                                     onChange={(e) => setTextSubmission(e.target.value)}
                                     placeholder="Drop a critique or guidance for this section..."
-                                    className="w-full bg-[#F2F7F5] border border-[#E1EBE7] rounded-xl p-4 text-xs font-medium text-primary placeholder-[#B8CCBE] outline-none focus:ring-2 focus:ring-primary/10 transition-all min-h-[100px] resize-none"
+                                    className="w-full bg-[#F2F7F5] border border-[#E1EBE7] rounded-xl p-4 text-xs font-medium text-primary placeholder-[#B8CCBE] outline-none focus:ring-2 focus:ring-primary/10 transition-all min-h-[80px] resize-none"
                                  />
                              )}
 
-                             {dayContent?.proofType === 'confirmation' && (
-                                 <div className="p-6 bg-white rounded-2xl border border-gray-100 text-center shadow-sm">
-                                     <p className="text-[10px] font-medium text-gray-400 italic">"No submission required. Confirm your action below."</p>
-                                 </div>
-                             )}
-
-                            {/* MARK COMPLETE BUTTON - AT THE END */}
+                            {/* MARK COMPLETE BUTTON */}
                             <button 
                                 onClick={handleCompleteDay}
                                 disabled={!canSubmit || isSubmitting}
-                                className={`w-full bg-[#159E5B] text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-green-100 transition-all active:scale-95 disabled:opacity-30 disabled:grayscale`}
+                                className={`w-full bg-[#159E5B] text-white py-3.5 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] shadow-lg shadow-green-100 transition-all active:scale-95 disabled:opacity-30 disabled:grayscale`}
                             >
                                 {isSubmitting ? 'Processing...' : 'Complete Task & Advance'}
                             </button>
                         </div>
                     ) : (
+                        /* LOCKED / COMPLETED STATE */
                         <div className="bg-[#F2F7F5] border border-[#E1EBE7] rounded-2xl p-5 flex flex-col items-center text-center space-y-3">
                             <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-primary shadow-sm">
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -274,8 +271,12 @@ const SprintView: React.FC = () => {
                                 </svg>
                             </div>
                             <div className="space-y-1">
-                                <p className="text-[10px] font-black text-primary uppercase tracking-widest">Entry Confirmed</p>
-                                <p className="text-[10px] text-gray-500 font-medium italic">"Next cycle window opens in {timeToNextDay || '...'} at 12:00 AM"</p>
+                                <p className="text-[9px] font-black text-primary uppercase tracking-widest">Entry Confirmed</p>
+                                <p className="text-[9px] text-gray-500 font-medium italic">
+                                    {timeToNextDay 
+                                        ? `"Next cycle window opens in ${timeToNextDay} at 12:00 AM"` 
+                                        : "Next cycle window is open."}
+                                </p>
                             </div>
                         </div>
                     )}
