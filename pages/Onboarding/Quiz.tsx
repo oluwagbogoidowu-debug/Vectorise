@@ -141,9 +141,26 @@ const Quiz: React.FC = () => {
 
   // Auto-persist state to localStorage on every change
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        step, answers, selectedPersona, occupation
-    }));
+    // Ensure we only save strings/numbers to avoid circular dependencies in answers
+    const cleanAnswers: any = {};
+    Object.keys(answers).forEach(key => {
+        if (typeof answers[Number(key)] === 'string') {
+            cleanAnswers[key] = answers[Number(key)];
+        }
+    });
+
+    const stateToSave = {
+        step, 
+        answers: cleanAnswers, 
+        selectedPersona: String(selectedPersona || ''), 
+        occupation: String(occupation || '')
+    };
+    
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+    } catch (err) {
+        console.warn("LocalStorage save failed", err);
+    }
   }, [step, answers, selectedPersona, occupation]);
 
   const currentQuestion = useMemo(() => {

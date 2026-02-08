@@ -1,48 +1,61 @@
-
 import { db } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, increment, addDoc } from 'firebase/firestore';
 import { User, Participant, Coach, UserRole, WalletTransaction } from '../types';
 
 /**
  * Standardized utility to recursively remove non-serializable values and handle circularity.
- * Strips out circular references and internal classes (like Firebase or DOM elements).
+ * Improved to handle Firestore internals and prevent 'Converting circular structure to JSON' errors.
  */
-export const sanitizeData = (val: any, seen = new WeakSet()): any => {
-    // 1. Handle primitives and null
+export const sanitizeData = (val: any, depth = 0, seen = new WeakSet()): any => {
+    // 1. Prevent recursion too deep
+    if (depth > 10) return undefined;
+
+    // 2. Handle primitives and null immediately
     if (val === null || typeof val !== 'object') return val;
     
-    // 2. Prevent infinite recursion on circular structures
-    if (seen.has(val)) return undefined;
-
-    // 3. Handle Arrays
-    if (Array.isArray(val)) {
-        seen.add(val);
-        return val.map(item => sanitizeData(item, seen)).filter(i => i !== undefined);
-    }
-
-    // 4. Handle Dates
+    // 3. Handle specific instances we want to preserve/transform
     if (val instanceof Date) return val.toISOString();
-
-    // 5. Handle Firestore Timestamps and common sentinel methods
+    
+    // Firestore Timestamps have a toDate method
     if (typeof val.toDate === 'function') return val.toDate().toISOString();
 
-    // 6. Avoid internal Firebase/DOM class instances - only allow plain objects
-    // A plain object is one created via {} or new Object()
-    // Class instances like DocumentReference or Firestore will have a custom constructor.
-    const isPlainObject = val.constructor === Object || Object.getPrototypeOf(val) === null;
+    // 4. Handle Firestore FieldValues (Sentinels like deleteField, increment, arrayUnion)
+    // These objects are usually not plain objects but are needed for Firestore operations.
+    // We detect them by checking if they look like Firestore sentinels (internal property check).
+    const isFirestoreSentinel = val.constructor && 
+        (val.constructor.name === 'FieldValue' || val.constructor.name === 'o' || val.constructor.name === 'Sa');
+    if (isFirestoreSentinel) return val;
+
+    // 5. Prevent infinite recursion on circular structures
+    if (seen.has(val)) return undefined;
+
+    // 6. Handle Arrays
+    if (Array.isArray(val)) {
+        seen.add(val);
+        return val.map(item => sanitizeData(item, depth + 1, seen)).filter(i => i !== undefined);
+    }
+
+    // 7. Strict plain object check
+    // We only recurse into objects created via {} or new Object()
+    // This blocks internal classes (References, Snapshots, etc.) that cause circularity errors.
+    const toString = Object.prototype.toString.call(val);
+    const isPlainObject = toString === '[object Object]';
     if (!isPlainObject) return undefined;
 
-    // 7. Track this object to prevent circularity
+    // 8. Track this object to prevent circularity in children
     seen.add(val);
 
     const cleaned: any = {};
-    Object.entries(val).forEach(([key, value]) => {
-        const sanitizedVal = sanitizeData(value, seen);
+    const keys = Object.keys(val);
+    for (const key of keys) {
+        // Skip potentially problematic internal properties (usually starting with _ or $)
+        if (key.startsWith('_') || key.startsWith('$')) continue;
+        
+        const sanitizedVal = sanitizeData(val[key], depth + 1, seen);
         if (sanitizedVal !== undefined) {
-            // Firestore requires string keys
             cleaned[String(key)] = sanitizedVal;
         }
-    });
+    }
     return cleaned;
 };
 

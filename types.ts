@@ -1,4 +1,3 @@
-
 export enum UserRole {
   COACH = 'COACH',
   PARTICIPANT = 'PARTICIPANT',
@@ -26,7 +25,6 @@ export type EvidenceType = 'decision' | 'artifact' | 'habit';
 
 export type SprintDifficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 
-// FIX: Added LifecycleSlot interface
 export interface LifecycleSlot {
   id: string;
   stage: LifecycleStage;
@@ -36,7 +34,6 @@ export interface LifecycleSlot {
   maxCount: number;
 }
 
-// FIX: Added LifecycleSlotAssignment interface
 export interface LifecycleSlotAssignment {
   sprintId: string;
   focusCriteria: string[];
@@ -63,7 +60,7 @@ export interface Sprint {
   pricingType?: 'cash' | 'credits';
   coverImageUrl: string;
   published: boolean;
-  deleted?: boolean; // New property for soft-deletion
+  deleted?: boolean; 
   approvalStatus: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'archived';
   dailyContent: DailyContent[];
   updatedAt?: string;
@@ -98,7 +95,6 @@ export interface DailyContent {
   taskPrompt: string;
   resourceUrl?: string;
   submissionType?: 'text' | 'file' | 'both' | 'none';
-  // New Proof of Action fields
   proofType?: 'confirmation' | 'picker' | 'note';
   proofOptions?: string[];
 }
@@ -111,6 +107,7 @@ export interface User {
   profileImageUrl: string;
   createdAt?: string;
   roleDefinitionId?: string;
+  isPartner?: boolean;
 }
 
 export interface Participant extends User {
@@ -168,14 +165,14 @@ export interface ParticipantSprint {
   participantId: string;
   startDate: string;
   sentNudges?: number[];
-  reflectionsDisabled?: boolean; // Toggle for showing/hiding reflections
+  reflectionsDisabled?: boolean;
   progress: {
     day: number;
     completed: boolean;
     completedAt?: string;
     submission?: string;
     submissionFileUrl?: string;
-    reflection?: string; // Stored reflection
+    reflection?: string;
     proofSelection?: string;
   }[];
 }
@@ -202,7 +199,6 @@ export interface CoachingComment {
   read: boolean;
 }
 
-// FIX: Added NotificationType union
 export type NotificationType = 
   | 'sprint_day_unlocked' 
   | 'payment_success' 
@@ -214,7 +210,6 @@ export type NotificationType =
   | 'shine_reflection'
   | 'shine_interaction';
 
-// FIX: Updated Notification interface with missing properties
 export interface Notification {
   id: string;
   userId: string;
@@ -328,7 +323,6 @@ export interface NotificationPayload {
   body: string;
 }
 
-// FIX: Added Referral interface
 export interface Referral {
   id: string;
   referrerId: string;
@@ -338,5 +332,24 @@ export interface Referral {
   sprintId?: string;
   sprintName?: string;
   status: 'joined' | 'started_sprint' | 'completed_week_1' | 'completed_sprint';
+  timestamp: string;
+}
+
+export interface PartnerApplication {
+  id: string;
+  fullName: string;
+  email: string;
+  country: string;
+  primaryPlatform: string;
+  platformLink: string;
+  influenceTarget: string;
+  commonRequests: string;
+  whyPartner: string;
+  introductionStrategy: string[];
+  identityType: string;
+  futureCoachIntent: string;
+  agreedToRewards: boolean;
+  agreedToRecommendations: boolean;
+  status: 'pending' | 'approved' | 'rejected';
   timestamp: string;
 }

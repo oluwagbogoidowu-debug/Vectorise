@@ -258,7 +258,7 @@ export const sprintService = {
         const docRef = doc(db, ORCHESTRATION_COLLECTION, 'current_mapping');
         const snap = await getDoc(docRef);
         if (snap.exists()) {
-            return snap.data().assignments || {};
+            return (sanitizeData(snap.data()) as any).assignments || {};
         }
         return {};
     },

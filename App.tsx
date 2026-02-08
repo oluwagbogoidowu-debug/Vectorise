@@ -26,6 +26,8 @@ import MySprints from './pages/Participant/MySprints';
 import GrowthDashboard from './pages/Participant/GrowthDashboard';
 import BottomNavigation from './components/BottomNavigation';
 import SprintInviteLanding from './pages/Participant/SprintInviteLanding';
+import PartnerPage from './pages/Partner/PartnerPage';
+import PartnerApply from './pages/Partner/PartnerApply';
 
 // New specialized onboarding pages
 import FocusSelector from './pages/Onboarding/FocusSelector';
@@ -98,7 +100,8 @@ const AppRoutes: React.FC = () => {
   const isOnboardingRoute = location.pathname.startsWith('/onboarding') || 
                             location.pathname === '/recommended' || 
                             location.pathname === '/coach/onboarding/complete' ||
-                            location.pathname.startsWith('/join/');
+                            location.pathname.startsWith('/join/') ||
+                            location.pathname === '/partner/apply';
   
   const isAuthRoute = 
     location.pathname === '/login' || 
@@ -127,6 +130,8 @@ const AppRoutes: React.FC = () => {
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/" element={user ? <Navigate to="/dashboard" /> : <HomePage />} />
           <Route path="/recommended" element={<RecommendedSprints />} />
+          <Route path="/partner" element={<PartnerPage />} />
+          <Route path="/partner/apply" element={<PartnerApply />} />
           
           <Route path="/onboarding/welcome" element={<Welcome />} />
           <Route path="/onboarding/focus-selector" element={<FocusSelector />} />

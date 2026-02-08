@@ -2,6 +2,7 @@
 import { db } from './firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, QuerySnapshot, DocumentData } from 'firebase/firestore';
 import { UserAnalytics, UserEvent, RiskLevel, PlatformPulse, CoachAnalytics, ParticipantSprint } from '../types';
+import { sanitizeData } from './userService';
 
 const ANALYTICS_COLLECTION = 'user_analytics';
 const COACH_ANALYTICS_COLLECTION = 'coach_analytics';
@@ -89,13 +90,13 @@ export const analyticsService = {
           updatedAt: now.toISOString()
       };
 
-      await setDoc(doc(db, COACH_ANALYTICS_COLLECTION, coachId), derived);
+      await setDoc(doc(db, COACH_ANALYTICS_COLLECTION, coachId), sanitizeData(derived));
       return derived;
   },
 
   getCoachAnalytics: async (coachId: string): Promise<CoachAnalytics | null> => {
     const snap = await getDoc(doc(db, COACH_ANALYTICS_COLLECTION, coachId));
-    return snap.exists() ? snap.data() as CoachAnalytics : null;
+    return snap.exists() ? sanitizeData(snap.data()) as CoachAnalytics : null;
   },
 
   refreshUserState: async (userId: string, events: UserEvent[]): Promise<UserAnalytics> => {
@@ -122,13 +123,13 @@ export const analyticsService = {
       updatedAt: now.toISOString()
     };
 
-    await setDoc(doc(db, ANALYTICS_COLLECTION, userId), derivedState);
+    await setDoc(doc(db, ANALYTICS_COLLECTION, userId), sanitizeData(derivedState));
     return derivedState;
   },
 
   getAnalytics: async (userId: string): Promise<UserAnalytics | null> => {
     const snap = await getDoc(doc(db, ANALYTICS_COLLECTION, userId));
-    return snap.exists() ? snap.data() as UserAnalytics : null;
+    return snap.exists() ? sanitizeData(snap.data()) as UserAnalytics : null;
   },
 
   getPlatformPulse: async (): Promise<PlatformPulse> => {

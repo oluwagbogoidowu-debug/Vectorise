@@ -27,8 +27,8 @@ const MiniSprintCard: React.FC<{ sprint: Sprint; coach: Coach }> = ({ sprint, co
                 
                 <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <img src={coach.profileImageUrl} className="w-6 h-6 rounded-lg object-cover" alt="" />
-                        <span className="text-[9px] font-bold text-gray-500 truncate max-w-[80px]">{coach.name.split(' ')[0]}</span>
+                        <img src={coach.profileImageUrl || `https://ui-avatars.com/api/?name=${coach.name || 'C'}&background=0E7850&color=fff`} className="w-6 h-6 rounded-lg object-cover" alt="" />
+                        <span className="text-[9px] font-bold text-gray-500 truncate max-w-[80px]">{coach.name?.split(' ')[0] || 'Coach'}</span>
                     </div>
                     <span className="text-[9px] font-black text-primary uppercase tracking-widest">
                         {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost}` : 'View Sprint'}

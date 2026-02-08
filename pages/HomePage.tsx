@@ -12,7 +12,10 @@ const HomePage: React.FC = () => {
           <Link to="/" className="hover:scale-105 transition-transform duration-500">
             <LocalLogo type="green" className="h-[2.125rem] w-auto" />
           </Link>
-          <div className="flex gap-3">
+          <div className="flex gap-4 items-center">
+            <Link to="/onboarding/coach/welcome" className="hidden sm:block text-[10px] font-black text-gray-400 hover:text-primary uppercase tracking-widest transition-colors">
+              I'm a Coach
+            </Link>
             <Link to="/onboarding/focus-selector" className="px-8 py-3.5 bg-primary text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95">
               Start Sprint
             </Link>
@@ -44,12 +47,11 @@ const HomePage: React.FC = () => {
                 Start your clarity sprint
               </button>
             </Link>
-            <button 
-              onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
-              className="px-8 py-3 text-[10px] font-black text-gray-400 hover:text-primary uppercase tracking-widest transition-all"
-            >
-              See how it works &darr;
-            </button>
+            <Link to="/partner">
+              <button className="px-8 py-3 text-[10px] font-black text-gray-400 hover:text-primary uppercase tracking-widest transition-all">
+                Be a Partner &rarr;
+              </button>
+            </Link>
           </div>
 
           <p className="mt-8 text-[10px] font-black text-gray-300 uppercase tracking-widest">
@@ -292,7 +294,8 @@ const HomePage: React.FC = () => {
           </div>
           <div className="flex gap-10">
              <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.4em]">© 2026 Vectorise</p>
-             <Link to="/login" className="text-[10px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">Join Registry</Link>
+             <Link to="/onboarding/coach/welcome" className="text-[10px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">I'm a Coach</Link>
+             <Link to="/partner" className="text-[10px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">Be a Partner</Link>
           </div>
         </div>
       </footer>
