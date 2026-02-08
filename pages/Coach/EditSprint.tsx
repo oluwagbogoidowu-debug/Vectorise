@@ -6,23 +6,7 @@ import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
 import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtils';
 import { useAuth } from '../../contexts/AuthContext';
-import LocalLogo from '../../components/LocalLogo';
-
-const CATEGORIES = [
-    "Accountability", "Boundaries", "Burnout Recovery", "Business", "Career", "Change", "Clarity", 
-    "Communication", "Confidence", "Conflict Resolution", "Connection", "Consciousness", 
-    "Consistency", "Content Creation", "Creativity", "Discipline", "Emotional Intelligence", 
-    "Emotional Resilience", "Energy Management", "Entrepreneurship", "Executive Development", 
-    "Expression", "Faith-Based", "Financial Empowerment", "Focus", "Founder", "Growth", "Habits", 
-    "Health", "High Performance", "Identity", "Inner Peace", "Inner Work", "Interpersonal Skills", 
-    "Leadership", "Life", "Life Transitions", "Lifestyle", "Limiting Beliefs", "Meaning", 
-    "Mental Fitness", "Mindset", "Money Mindset", "Performance", "Personal Branding", 
-    "Personal Development", "Professional Development", "Productivity", "Purpose", 
-    "Purpose Alignment", "Relationships", "Reset", "Reinvention", "Self-Belief", 
-    "Self-Discovery", "Self-Trust", "Solopreneur", "Spirituality", "Startup", 
-    "Stress Management", "Thought Leadership", "Time Management", "Transformation", "Transition", 
-    "Visibility", "Vision", "Wealth Mindset", "Wellness", "Work-Life Balance"
-].sort();
+import { ALL_CATEGORIES } from '../../services/mockData';
 
 const SubmissionSuccessModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-dark/95 backdrop-blur-md animate-fade-in">
@@ -64,13 +48,17 @@ const EditSprint: React.FC = () => {
   const [reviewFeedback, setReviewFeedback] = useState<Record<string, string>>({});
 
   const isAdmin = user?.role === UserRole.ADMIN;
-  const isPendingReview = sprint?.approvalStatus === 'pending_approval';
-  const isRejected = sprint?.approvalStatus === 'rejected';
-
+  
   const isFoundational = useMemo(() => {
     const cat = editSettings.category || sprint?.category;
     return cat === 'Core Platform Sprint' || cat === 'Growth Fundamentals';
   }, [editSettings.category, sprint?.category]);
+
+  // Logic: Admins can ONLY edit daily content if it's a foundational (platform) sprint
+  const canEditDirectly = !isAdmin || (isAdmin && isFoundational);
+
+  const isPendingReview = sprint?.approvalStatus === 'pending_approval';
+  const isRejected = sprint?.approvalStatus === 'rejected';
 
   const registryIncomplete = useMemo(() => sprint ? isRegistryIncomplete(sprint) : true, [sprint]);
   const curriculumIncomplete = useMemo(() => sprint ? isSprintIncomplete(sprint) : true, [sprint]);
@@ -90,7 +78,7 @@ const EditSprint: React.FC = () => {
 
           const cloned: Sprint = {
               ...effectiveSprint,
-              dailyContent: effectiveSprint.dailyContent.map(day => ({ 
+              dailyContent: (effectiveSprint.dailyContent || []).map(day => ({ 
                 ...day,
                 proofType: day.proofType || 'confirmation',
                 proofOptions: day.proofOptions || []
@@ -139,7 +127,7 @@ const EditSprint: React.FC = () => {
   };
 
   const handleContentChange = (field: keyof DailyContent, value: any) => {
-    if (!sprint || isAdmin) return;
+    if (!sprint || !canEditDirectly) return;
     setSprint(prev => {
       if (!prev) return null;
       const existingContentIndex = prev.dailyContent.findIndex(c => c.day === selectedDay);
@@ -159,8 +147,17 @@ const EditSprint: React.FC = () => {
     setSaveStatus('saving');
     try {
       const updatedSprint = { ...sprint };
-      if (updatedSprint.approvalStatus === 'rejected') updatedSprint.approvalStatus = 'draft';
-      await sprintService.updateSprint(sprint.id, updatedSprint);
+      
+      // If admin saving foundational, ensure it is published and approved automatically
+      if (isAdmin && isFoundational) {
+          updatedSprint.published = true;
+          updatedSprint.approvalStatus = 'approved';
+      } else if (!isAdmin && updatedSprint.approvalStatus === 'rejected') {
+          updatedSprint.approvalStatus = 'draft';
+      }
+      
+      // If admin saving foundational, ensure it stays approved if it was, or draft if it was
+      await sprintService.updateSprint(sprint.id, updatedSprint, isAdmin);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (err) { setSaveStatus('idle'); alert("Save failed."); }
@@ -234,7 +231,9 @@ const EditSprint: React.FC = () => {
     if (!sprint) return;
     let updatedDailyContent = [...sprint.dailyContent];
     const newDuration = Number(editSettings.duration || sprint.duration);
-    if (!isAdmin && newDuration !== sprint.duration) {
+    
+    // Duration change logic (only if we can edit directly)
+    if (canEditDirectly && newDuration !== sprint.duration) {
         if (newDuration > sprint.duration) {
           for (let i = sprint.duration + 1; i <= newDuration; i++) {
             updatedDailyContent.push({ day: i, lessonText: '', taskPrompt: '', submissionType: 'text', proofType: 'confirmation', proofOptions: [] });
@@ -244,21 +243,29 @@ const EditSprint: React.FC = () => {
           if (selectedDay > newDuration) setSelectedDay(newDuration);
         }
     }
+
     const price = Number(editSettings.price ?? sprint.price ?? 0);
     const points = Number(editSettings.pointCost ?? sprint.pointCost ?? 0);
+    
     if (isAdmin && sprint.approvalStatus === 'approved') {
         if ((isFoundational && points <= 0) || (!isFoundational && price <= 0)) {
             alert("Admin Error: Price cannot be 0 for live sprints.");
             return;
         }
     }
+
     const finalSettings = {
         ...editSettings,
         description: editSettings.transformation || editSettings.description,
         pricingType: isFoundational ? 'credits' : 'cash',
-        price, pointCost: points,
+        price, 
+        pointCost: points,
+        // Auto-publish foundational when admin applies registry changes
+        ...(isAdmin && isFoundational ? { published: true, approvalStatus: 'approved' as const } : {})
     };
+
     const updatedLocalSprint = { ...sprint, ...finalSettings as any, duration: newDuration, dailyContent: updatedDailyContent };
+    
     if (isAdmin && sprint.approvalStatus === 'approved') {
         try {
             setApprovalStatus('processing');
@@ -286,7 +293,7 @@ const EditSprint: React.FC = () => {
   };
 
   const AdminFeedbackBox = ({ sectionKey }: { sectionKey: string }) => (
-    isAdmin ? (
+    (isAdmin && !isFoundational) ? (
         <textarea 
           placeholder="Drop a critique or guidance for this section..." 
           value={reviewFeedback[sectionKey] || ''} 
@@ -321,31 +328,33 @@ const EditSprint: React.FC = () => {
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-black text-gray-900 tracking-tight">{sprint.title}</h1>
               <button onClick={() => setShowSettings(true)} className="p-2 bg-white text-primary rounded-xl border border-primary/10 hover:bg-primary hover:text-white transition-all shadow-sm flex items-center gap-2 group cursor-pointer">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                <span className="text-[10px] font-black uppercase tracking-widest">{isAdmin ? 'Audit Registry' : 'Registry'}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <span className="text-[10px] font-black uppercase tracking-widest">{(isAdmin && !isFoundational) ? 'Audit Registry' : 'Registry'}</span>
               </button>
             </div>
           </div>
 
           <div className="flex gap-3">
-            {isAdmin ? (
+            {isAdmin && !isFoundational ? (
                 <>
                     <button onClick={handleAdminApprove} disabled={approvalStatus === 'processing'} className="bg-green-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl px-6 py-3 shadow-lg hover:bg-green-700 transition-all active:scale-95 disabled:opacity-50">Approve & Publish</button>
-                    <button onClick={handleAdminAmend} disabled={approvalStatus === 'processing'} className="bg-orange-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl px-6 py-3 shadow-lg hover:bg-orange-600 transition-all active:scale-95 disabled:opacity-50">Amend</button>
+                    <button onClick={handleAdminAmend} disabled={approvalStatus === 'processing'} className="bg-orange-50 text-white font-black uppercase tracking-widest text-[10px] rounded-xl px-6 py-3 shadow-lg hover:bg-orange-600 transition-all active:scale-95 disabled:opacity-50">Amend</button>
                 </>
             ) : (
                 <>
                     <Button variant="secondary" onClick={handleSaveDraft} disabled={saveStatus === 'saving'} className="bg-white border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] rounded-xl px-6">
-                      {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save Draft'}
+                      {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : (isAdmin && isFoundational) ? 'Save & Publish' : 'Save Draft'}
                     </Button>
-                    <Button 
-                        onClick={handleSubmitForReview} 
-                        isLoading={isSubmittingReview}
-                        disabled={registryIncomplete || curriculumIncomplete || isSubmittingReview} 
-                        className="font-black uppercase tracking-widest text-[10px] rounded-xl px-6"
-                    >
-                      {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
-                    </Button>
+                    {!isAdmin && (
+                        <Button 
+                            onClick={handleSubmitForReview} 
+                            isLoading={isSubmittingReview}
+                            disabled={registryIncomplete || curriculumIncomplete || isSubmittingReview} 
+                            className="font-black uppercase tracking-widest text-[10px] rounded-xl px-6"
+                        >
+                        {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
+                        </Button>
+                    )}
                 </>
             )}
           </div>
@@ -373,7 +382,7 @@ const EditSprint: React.FC = () => {
                 onChange={e => handleContentChange('lessonText', e.target.value)} 
                 rows={8} 
                 className={editorInputClasses} 
-                readOnly={isAdmin}
+                readOnly={!canEditDirectly}
                 placeholder="Coach curriculum goes here..." 
               />
             </div>
@@ -384,7 +393,7 @@ const EditSprint: React.FC = () => {
                 onChange={e => handleContentChange('taskPrompt', e.target.value)} 
                 rows={4} 
                 className={editorInputClasses} 
-                readOnly={isAdmin}
+                readOnly={!canEditDirectly}
                 placeholder="Daily task prompt..." 
               />
             </div>
@@ -404,7 +413,7 @@ const EditSprint: React.FC = () => {
                     ].map(type => (
                         <button
                             key={type.id}
-                            disabled={isAdmin}
+                            disabled={!canEditDirectly}
                             onClick={() => handleContentChange('proofType', type.id)}
                             className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all duration-300 group ${
                                 currentContent.proofType === type.id 
@@ -433,14 +442,14 @@ const EditSprint: React.FC = () => {
                                     }
                                 }}
                                 className={registryInputClasses}
-                                disabled={isAdmin}
+                                disabled={!canEditDirectly}
                              />
                         </div>
                         <div className="flex flex-wrap gap-2 pt-2">
                             {(currentContent.proofOptions || []).map((opt, i) => (
                                 <span key={i} className="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-2">
                                     {opt}
-                                    {!isAdmin && (
+                                    {canEditDirectly && (
                                         <button onClick={() => {
                                             const next = (currentContent.proofOptions || []).filter((_, idx) => idx !== i);
                                             handleContentChange('proofOptions', next);
@@ -448,7 +457,7 @@ const EditSprint: React.FC = () => {
                                     )}
                                 </span>
                             ))}
-                            {(currentContent.proofOptions || []).length === 0 && (
+                            {canEditDirectly && (currentContent.proofOptions || []).length === 0 && (
                                 <p className="text-[10px] text-gray-300 italic font-medium">Type and press Enter to add options.</p>
                             )}
                         </div>
@@ -466,30 +475,30 @@ const EditSprint: React.FC = () => {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-8 border-b border-gray-50 bg-gray-50/50">
-              <h3 className="text-2xl font-black text-gray-900 tracking-tight">{isAdmin ? 'Registry Audit & Pricing' : 'Registry Preview'}</h3>
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight">{(isAdmin && !isFoundational) ? 'Registry Audit & Pricing' : 'Registry Preview'}</h3>
               <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-white rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
             <div className="p-10 overflow-y-auto space-y-16 custom-scrollbar">
                 <section>
                     <SectionLabel step="01" label="Identity" />
-                    <input type="text" value={editSettings.title || ''} onChange={e => setEditSettings({...editSettings, title: e.target.value})} className={registryInputClasses + " mt-2"} disabled={isAdmin} />
+                    <input type="text" value={editSettings.title || ''} onChange={e => setEditSettings({...editSettings, title: e.target.value})} className={registryInputClasses + " mt-2"} disabled={isAdmin && !isFoundational} />
                     <AdminFeedbackBox sectionKey="identity" />
                     <CoachFeedbackDisplay sectionKey="identity" />
                 </section>
                 <section>
                     <SectionLabel step="02" label="Transformation" />
-                    <textarea value={editSettings.transformation || ''} onChange={e => setEditSettings({...editSettings, transformation: e.target.value})} rows={3} className={registryInputClasses + " resize-none italic mt-2"} disabled={isAdmin} />
+                    <textarea value={editSettings.transformation || ''} onChange={e => setEditSettings({...editSettings, transformation: e.target.value})} rows={3} className={registryInputClasses + " resize-none italic mt-2"} disabled={isAdmin && !isFoundational} />
                     <AdminFeedbackBox sectionKey="transformation" />
                     <CoachFeedbackDisplay sectionKey="transformation" />
                 </section>
                 <section>
                     <SectionLabel step="07" label="Metadata" />
                     <div className="grid grid-cols-2 gap-4 mt-2">
-                        <select value={editSettings.duration || 0} onChange={e => setEditSettings({...editSettings, duration: Number(e.target.value)})} className={registryInputClasses} disabled={isAdmin}>
+                        <select value={editSettings.duration || 0} onChange={e => setEditSettings({...editSettings, duration: Number(e.target.value)})} className={registryInputClasses} disabled={isAdmin && !isFoundational}>
                             {[3, 5, 7, 10, 14, 21, 30].map(d => <option key={d} value={d}>{d} Days</option>)}
                         </select>
-                        <select value={editSettings.category || ''} onChange={e => setEditSettings({...editSettings, category: e.target.value})} className={registryInputClasses} disabled={isAdmin}>
-                            {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                        <select value={editSettings.category || ''} onChange={e => setEditSettings({...editSettings, category: e.target.value})} className={registryInputClasses} disabled={isAdmin && !isFoundational}>
+                            {ALL_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                         </select>
                     </div>
                 </section>
@@ -513,7 +522,7 @@ const EditSprint: React.FC = () => {
                 <div className="flex gap-4 pt-6">
                     {(isAdmin || isRejected || sprint.approvalStatus === 'draft') && (
                         <Button className="flex-1 py-4 font-black uppercase tracking-widest text-xs rounded-2xl" onClick={handleApplySettings}>
-                            {isAdmin ? 'Apply Audit & Price' : 'Apply Changes'}
+                            {(isAdmin && !isFoundational) ? 'Apply Audit & Price' : 'Apply Changes'}
                         </Button>
                     )}
                     <button className="flex-1 py-4 bg-white text-gray-400 font-black uppercase tracking-widest text-xs rounded-2xl border border-gray-100" onClick={() => setShowSettings(false)}>Cancel</button>

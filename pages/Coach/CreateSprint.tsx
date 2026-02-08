@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/Button';
@@ -5,22 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { Sprint, SprintDifficulty, DailyContent, Coach } from '../../types';
 import SprintCard from '../../components/SprintCard';
-
-const CATEGORIES = [
-    "Accountability", "Boundaries", "Burnout Recovery", "Business", "Career", "Change", "Clarity", 
-    "Communication", "Confidence", "Conflict Resolution", "Connection", "Consciousness", 
-    "Consistency", "Content Creation", "Creativity", "Discipline", "Emotional Intelligence", 
-    "Emotional Resilience", "Energy Management", "Entrepreneurship", "Executive Development", 
-    "Expression", "Faith-Based", "Financial Empowerment", "Focus", "Founder", "Growth", "Habits", 
-    "Health", "High Performance", "Identity", "Inner Peace", "Inner Work", "Interpersonal Skills", 
-    "Leadership", "Life", "Life Transitions", "Lifestyle", "Limiting Beliefs", "Meaning", 
-    "Mental Fitness", "Mindset", "Money Mindset", "Performance", "Personal Branding", 
-    "Personal Development", "Professional Development", "Productivity", "Purpose", 
-    "Purpose Alignment", "Relationships", "Reset", "Reinvention", "Self-Belief", 
-    "Self-Discovery", "Self-Trust", "Solopreneur", "Spirituality", "Startup", 
-    "Stress Management", "Thought Leadership", "Time Management", "Transformation", "Transition", 
-    "Visibility", "Vision", "Wealth Mindset", "Wellness", "Work-Life Balance"
-].sort();
+import { ALL_CATEGORIES } from '../../services/mockData';
 
 const HelpGuidance: React.FC<{ rule: string; isOpen: boolean }> = ({ rule, isOpen }) => {
     if (!isOpen) return null;
@@ -45,7 +31,7 @@ const CreateSprint: React.FC = () => {
 
     const [formData, setFormData] = useState({
         title: '',
-        category: CATEGORIES[0],
+        category: ALL_CATEGORIES[0],
         difficulty: 'Beginner' as SprintDifficulty,
         duration: 7,
         price: '0',
@@ -307,7 +293,7 @@ const CreateSprint: React.FC = () => {
                                         <label className={labelClasses}>Evidence of Completion</label>
                                     </div>
                                     <button type="button" onClick={() => toggleHelp('outcomes')} className={`p-2 rounded-xl transition-all ${helpOpen.outcomes ? 'bg-primary text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:text-primary'}`} title="View Rules">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     </button>
                                 </div>
                                 <HelpGuidance isOpen={helpOpen.outcomes} rule="What observable evidence will the user have? No 'feel more confident' without proof." />
@@ -334,7 +320,7 @@ const CreateSprint: React.FC = () => {
                                         <label className={labelClasses}>Sprint Metadata</label>
                                     </div>
                                     <button type="button" onClick={() => toggleHelp('metadata')} className={`p-2 rounded-xl transition-all ${helpOpen.metadata ? 'bg-primary text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:text-primary'}`} title="View Rules">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     </button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -355,7 +341,7 @@ const CreateSprint: React.FC = () => {
                                     <div className="md:col-span-2">
                                         <label className={labelClasses}>Discovery Category</label>
                                         <select name="category" value={formData.category} onChange={handleChange} className={inputClasses + " mt-2"}>
-                                            {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                            {ALL_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                                         </select>
                                     </div>
                                 </div>
