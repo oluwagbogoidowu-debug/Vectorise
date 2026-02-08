@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -46,6 +45,7 @@ const ParticipantDashboard: React.FC = () => {
   const [mySprints, setMySprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
+  const [timeToMidnight, setTimeToMidnight] = useState<string>('00:00:00');
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
@@ -70,7 +70,25 @@ const ParticipantDashboard: React.FC = () => {
     };
     
     fetchData();
-    const timerInterval = setInterval(() => setNow(Date.now()), 10000);
+
+    // High frequency timer for the countdown string
+    const timerInterval = setInterval(() => {
+        const currentTime = new Date();
+        setNow(currentTime.getTime());
+        
+        const midnight = new Date();
+        midnight.setHours(24, 0, 0, 0);
+        const diff = midnight.getTime() - currentTime.getTime();
+        
+        if (diff > 0) {
+            const h = Math.floor(diff / (1000 * 60 * 60));
+            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const s = Math.floor((diff % (1000 * 60)) / 1000);
+            setTimeToMidnight(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+        } else {
+            setTimeToMidnight('00:00:00');
+        }
+    }, 1000);
 
     let unsubscribeNotifs = () => {};
     if (user) {
@@ -103,6 +121,8 @@ const ParticipantDashboard: React.FC = () => {
   if (!user) return null;
 
   const mainTask = tasksReady[0] || activeSprintsData[0];
+  const isMainTaskLocked = mainTask?.status.isLocked;
+  const mainTaskProgress = mainTask ? Math.round((mainTask.enrollment.progress.filter(p => p.completed).length / mainTask.sprint.duration) * 100) : 0;
 
   return (
     <div className="flex flex-col h-full w-full bg-[#FDFDFD] font-sans overflow-hidden">
@@ -110,11 +130,11 @@ const ParticipantDashboard: React.FC = () => {
       {/* Spacer for Floating Header */}
       <div className="h-20 flex-shrink-0"></div>
 
-      {/* BODY CONTENT - pb-24 added for navigation space */}
+      {/* BODY CONTENT */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 md:pt-6 pb-24 custom-scrollbar">
           <div className="max-w-screen-md mx-auto w-full h-full flex flex-col">
             
-            {/* 1. TOP STATS ROW - Reduced height and tightened padding */}
+            {/* 1. TOP STATS ROW */}
             <div className="grid grid-cols-2 gap-3 mb-6 flex-shrink-0">
                 <div className="bg-[#0E7850] text-white p-3.5 rounded-3xl shadow-lg flex flex-col h-[96px] relative overflow-hidden transition-transform active:scale-[0.98]">
                     <div className="flex justify-between items-start relative z-10">
@@ -149,7 +169,7 @@ const ParticipantDashboard: React.FC = () => {
                 </Link>
             </div>
 
-            {/* 2. SECTION HEADER - Static */}
+            {/* 2. SECTION HEADER */}
             <div className="flex justify-between items-center mb-4 px-1 flex-shrink-0">
                 <h2 className="text-xl font-black text-gray-900 tracking-tight">Today's Focus</h2>
                 <Link to="/my-sprints" className="text-[8px] font-black text-primary uppercase tracking-[0.2em] hover:opacity-80 transition-opacity">
@@ -157,45 +177,73 @@ const ParticipantDashboard: React.FC = () => {
                 </Link>
             </div>
 
-            {/* 3. MAIN TASK CARD - Flex-Grow to fill middle */}
+            {/* 3. MAIN TASK CARD - Updated for Locked Timer UI */}
             <div className="flex-1 flex flex-col min-h-0 mb-6">
                 {isLoading ? (
                     <div className="bg-white rounded-3xl flex-1 animate-pulse border border-gray-100 shadow-sm"></div>
                 ) : mainTask ? (
-                    <div className="bg-white rounded-[2rem] shadow-[0_15px_40px_-20px_rgba(0,0,0,0.06)] border border-gray-100 relative overflow-hidden flex flex-1 min-h-0 animate-fade-in">
-                        {/* The thick vertical green bar */}
-                        <div className="w-2.5 bg-[#0E7850] flex-shrink-0"></div>
-                        
-                        <div className="flex-1 p-5 md:p-8 flex flex-col min-h-0">
-                            <div className="flex justify-between items-start mb-3 flex-shrink-0">
-                                <div>
-                                    <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-1">{mainTask.sprint.category}</p>
-                                    <h3 className="text-lg md:text-xl font-black text-gray-900 leading-tight tracking-tight truncate max-w-[200px]">{mainTask.sprint.title}</h3>
+                    <Link to={`/participant/sprint/${mainTask.enrollment.id}`} className="flex flex-1 min-h-0 group">
+                        <div className="bg-white rounded-[2rem] shadow-[0_15px_40px_-20px_rgba(0,0,0,0.06)] border border-gray-100 relative overflow-hidden flex flex-1 min-h-0 animate-fade-in group-hover:shadow-lg transition-all">
+                            {/* Vertical accent bar */}
+                            <div className="w-2.5 bg-[#0E7850] flex-shrink-0"></div>
+                            
+                            <div className="flex-1 p-5 md:p-8 flex flex-col min-h-0">
+                                <div className="flex justify-between items-start mb-4 flex-shrink-0">
+                                    <div>
+                                        <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-1">{mainTask.sprint.category}</p>
+                                        <h3 className="text-lg md:text-xl font-black text-gray-900 leading-tight tracking-tight truncate max-w-[200px]">{mainTask.sprint.title}</h3>
+                                    </div>
+                                    <div className="px-2 py-1 bg-gray-100 rounded-lg">
+                                        <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Day {mainTask.status.day}</span>
+                                    </div>
                                 </div>
-                                <div className="px-2 py-0.5 border border-primary/20 rounded-md bg-primary/5">
-                                    <span className="text-[8px] font-black text-primary uppercase tracking-widest">Day {mainTask.status.day}</span>
+
+                                <div className="flex-1 min-h-0 overflow-hidden flex flex-col mb-4">
+                                    {isMainTaskLocked ? (
+                                        /* LOCKED TIMER UI (Matching user reference image) */
+                                        <div className="bg-[#F9FAFB] rounded-[1.5rem] p-6 flex-1 flex flex-col items-center justify-center text-center relative overflow-hidden border border-gray-100/50">
+                                            <div className="absolute right-[-10%] top-1/2 -translate-y-1/2 opacity-[0.02] scale-[2] pointer-events-none">
+                                                <LocalLogo type="favicon" className="w-48 h-48" />
+                                            </div>
+                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2 relative z-10">Next Lesson In</p>
+                                            <h4 className="text-3xl md:text-5xl font-black text-gray-800 tracking-tighter tabular-nums relative z-10 leading-none">
+                                                {timeToMidnight}
+                                            </h4>
+                                        </div>
+                                    ) : (
+                                        /* UNLOCKED TASK UI */
+                                        <div className="flex-1 flex flex-col min-h-0">
+                                            <p className="text-[8px] font-black text-gray-200 uppercase tracking-[0.2em] mb-2 flex-shrink-0">Action for Today</p>
+                                            <div className="bg-[#FAFAFA] rounded-xl p-4 border border-gray-100 shadow-inner overflow-y-auto flex-1 custom-scrollbar">
+                                                <p className="text-gray-700 font-bold text-sm md:text-base leading-relaxed italic">
+                                                    "{mainTask.status.content?.taskPrompt || "Your task for today is being generated..."}"
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex-shrink-0">
+                                    <div className="flex justify-between items-end mb-1.5">
+                                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Progress</span>
+                                        <span className="text-[8px] font-black text-gray-400">{mainTaskProgress}%</span>
+                                    </div>
+                                    <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                                        <div 
+                                            className={`h-full rounded-full transition-all duration-1000 ${isMainTaskLocked ? 'bg-gray-300' : 'bg-primary'}`} 
+                                            style={{ width: `${mainTaskProgress}%` }}
+                                        ></div>
+                                    </div>
+                                    
+                                    {!isMainTaskLocked && (
+                                        <div className="mt-4 w-full py-3.5 bg-[#0E7850] text-white rounded-xl font-black uppercase tracking-[0.2em] text-[8px] shadow-md flex items-center justify-center gap-2 group-hover:scale-[1.02] transition-transform">
+                                            Open Task &rarr;
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-
-                            <div className="flex-1 min-h-0 overflow-hidden flex flex-col mb-4">
-                                <p className="text-[8px] font-black text-gray-200 uppercase tracking-[0.2em] mb-2 flex-shrink-0">Action for Today</p>
-                                <div className="bg-[#FAFAFA] rounded-xl p-4 border border-gray-100 shadow-inner overflow-y-auto flex-1 custom-scrollbar">
-                                    <p className="text-gray-700 font-bold text-sm md:text-base leading-relaxed italic">
-                                        "{mainTask.status.content?.taskPrompt || "Your task for today is being generated..."}"
-                                    </p>
-                                </div>
-                            </div>
-
-                            <Link to={`/participant/sprint/${mainTask.enrollment.id}`} className="block flex-shrink-0">
-                                <button className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[9px] shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-2">
-                                    Open Task
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7-7 7" />
-                                    </svg>
-                                </button>
-                            </Link>
                         </div>
-                    </div>
+                    </Link>
                 ) : (
                     <div className="py-12 text-center bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex-1 flex flex-col items-center justify-center">
                         <p className="text-gray-400 font-bold uppercase tracking-widest text-[8px]">No Active Focus. Explore Sprints to begin.</p>
@@ -204,7 +252,7 @@ const ParticipantDashboard: React.FC = () => {
                 )}
             </div>
 
-            {/* 4. QUOTE CARD - Positioned with space for bottom navigation */}
+            {/* 4. QUOTE CARD */}
             <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center flex-shrink-0 animate-fade-in">
                 <p className="text-gray-600 font-bold italic text-xs mb-1">
                     "The future depends on what you do today."
@@ -222,8 +270,6 @@ const ParticipantDashboard: React.FC = () => {
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.05); border-radius: 10px; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
       `}</style>
     </div>
   );
