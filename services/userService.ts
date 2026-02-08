@@ -57,11 +57,12 @@ export const userService = {
         role: UserRole.PARTICIPANT,
         savedSprintIds: [], 
         enrolledSprintIds: [], 
+        wishlistSprintIds: [],
         shinePostIds: [], 
         shineCommentIds: [], 
         claimedMilestoneIds: [],
         referralCode: uid.substring(0, 8).toUpperCase(),
-        walletBalance: 30,
+        walletBalance: 50,
         impactStats: { peopleHelped: 0, streak: 0 },
         ...data
       });
@@ -87,6 +88,17 @@ export const userService = {
     } catch (error) {
       console.error("Error fetching user document:", error);
       throw error;
+    }
+  },
+
+  checkEmailExists: async (email: string): Promise<boolean> => {
+    try {
+      const q = query(collection(db, 'users'), where("email", "==", email.toLowerCase().trim()));
+      const snap = await getDocs(q);
+      return !snap.empty;
+    } catch (error) {
+      console.error("Email check failed:", error);
+      return false;
     }
   },
 

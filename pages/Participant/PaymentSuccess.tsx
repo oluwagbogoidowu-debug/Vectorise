@@ -1,14 +1,17 @@
+
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { paymentService } from '../../services/paymentService';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
+import { userService } from '../../services/userService';
+import { Participant } from '../../types';
 
 const PaymentSuccess: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, updateProfile } = useAuth();
     const [status, setStatus] = useState<'verifying' | 'success' | 'delay' | 'error'>('verifying');
     const [readyToBegin, setReadyToBegin] = useState(false);
     const [isEnrolling, setIsEnrolling] = useState(false);
@@ -48,23 +51,43 @@ const PaymentSuccess: React.FC = () => {
         checkStatus();
     }, [reference, retries, queryParams, user]);
 
-    // NEW: Auto-enrollment logic for logged-in users
+    // FULFILLMENT LOGIC: Enroll or Queue
     useEffect(() => {
         if (status === 'success' && user && !isEnrolling) {
             const autoEnroll = async () => {
                 setIsEnrolling(true);
                 try {
                     const targetId = paidSprintId || 'clarity-sprint';
-                    const sprint = await sprintService.getSprintById(targetId);
-                    const duration = sprint?.duration || 5;
-                    const enrollment = await sprintService.enrollUser(user.id, targetId, duration);
                     
-                    // Brief pause to show the success state before jumping to the workspace
-                    setTimeout(() => {
-                        navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
-                    }, 1800);
+                    // 1. Check for active sprint
+                    const enrollments = await sprintService.getUserEnrollments(user.id);
+                    const hasActive = enrollments.some(e => e.progress.some(p => !p.completed));
+
+                    if (hasActive) {
+                        // Already running a sprint -> Add to waitlist (savedSprintIds)
+                        const p = user as Participant;
+                        const currentQueue = p.savedSprintIds || [];
+                        if (!currentQueue.includes(targetId)) {
+                            const newQueue = [...currentQueue, targetId];
+                            await userService.updateUserDocument(user.id, { savedSprintIds: newQueue });
+                            await updateProfile({ savedSprintIds: newQueue });
+                        }
+                        
+                        setTimeout(() => {
+                            navigate('/my-sprints', { replace: true });
+                        }, 1800);
+                    } else {
+                        // No active sprint -> Start immediately
+                        const sprint = await sprintService.getSprintById(targetId);
+                        const duration = sprint?.duration || 5;
+                        const enrollment = await sprintService.enrollUser(user.id, targetId, duration);
+                        
+                        setTimeout(() => {
+                            navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
+                        }, 1800);
+                    }
                 } catch (err) {
-                    console.error("Auto-enrollment failed:", err);
+                    console.error("Auto-fulfillment failed:", err);
                     navigate('/dashboard', { replace: true });
                 }
             };
@@ -79,10 +102,24 @@ const PaymentSuccess: React.FC = () => {
             setIsEnrolling(true);
             try {
                 const targetId = paidSprintId || 'clarity-sprint';
-                const sprint = await sprintService.getSprintById(targetId);
-                const duration = sprint?.duration || 5;
-                const enrollment = await sprintService.enrollUser(user.id, targetId, duration);
-                navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
+                const enrollments = await sprintService.getUserEnrollments(user.id);
+                const hasActive = enrollments.some(e => e.progress.some(p => !p.completed));
+
+                if (hasActive) {
+                    const p = user as Participant;
+                    const currentQueue = p.savedSprintIds || [];
+                    if (!currentQueue.includes(targetId)) {
+                        const newQueue = [...currentQueue, targetId];
+                        await userService.updateUserDocument(user.id, { savedSprintIds: newQueue });
+                        await updateProfile({ savedSprintIds: newQueue });
+                    }
+                    navigate('/my-sprints', { replace: true });
+                } else {
+                    const sprint = await sprintService.getSprintById(targetId);
+                    const duration = sprint?.duration || 5;
+                    const enrollment = await sprintService.enrollUser(user.id, targetId, duration);
+                    navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
+                }
             } catch (err) {
                 navigate('/dashboard', { replace: true });
             } finally {
@@ -169,7 +206,7 @@ const PaymentSuccess: React.FC = () => {
 
                                 {user && (
                                     <div className="py-4">
-                                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] animate-pulse">Redirecting to Day 1</p>
+                                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] animate-pulse">Redirecting to Path...</p>
                                     </div>
                                 )}
                             </div>

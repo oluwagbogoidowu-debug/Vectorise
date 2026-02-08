@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-// Fix: Added Link to imports from react-router-dom
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
@@ -57,11 +56,23 @@ const SprintPayment: React.FC = () => {
       // 2. Update local state balance for immediate feedback
       await updateProfile({ walletBalance: userBalance - sprintPrice });
 
-      // 3. Enroll the user
-      const enrollment = await sprintService.enrollUser(user.id, selectedSprint.id, selectedSprint.duration);
+      // 3. Logic: Only one active sprint at a time
+      const enrollments = await sprintService.getUserEnrollments(user.id);
+      const hasActive = enrollments.some(e => e.progress.some(p => !p.completed));
 
-      // 4. Redirect to workspace
-      navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
+      if (hasActive) {
+          // Add to queue (savedSprintIds) if already running a sprint
+          const currentQueue = userParticipant.savedSprintIds || [];
+          if (!currentQueue.includes(selectedSprint.id)) {
+              await userService.updateUserDocument(user.id, { savedSprintIds: [...currentQueue, selectedSprint.id] });
+              await updateProfile({ savedSprintIds: [...currentQueue, selectedSprint.id] });
+          }
+          navigate('/my-sprints', { replace: true });
+      } else {
+          // Enroll immediately
+          const enrollment = await sprintService.enrollUser(user.id, selectedSprint.id, selectedSprint.duration);
+          navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
+      }
     } catch (error: any) {
       console.error("[Registry] Coin transaction failed:", error);
       setErrorMessage("Credit redemption failed. Please try again later.");
@@ -79,6 +90,24 @@ const SprintPayment: React.FC = () => {
     setErrorMessage(null);
 
     try {
+      // REQUIREMENT: Check if email exists in registry before proceeding for guest users
+      if (!user) {
+          const emailExists = await userService.checkEmailExists(effectiveEmail);
+          if (emailExists) {
+              setErrorMessage("Email already in registry. Log in to continue.");
+              // After a short delay, redirect to login
+              setTimeout(() => {
+                  navigate('/login', { 
+                      state: { 
+                        prefilledEmail: effectiveEmail,
+                        targetSprintId: selectedSprint?.id 
+                      } 
+                  });
+              }, 2000);
+              return;
+          }
+      }
+
       const checkoutUrl = await paymentService.initializeFlutterwave({
         email: effectiveEmail.toLowerCase().trim(),
         sprintId: selectedSprint?.id || 'clarity-sprint',
@@ -236,7 +265,6 @@ const SprintPayment: React.FC = () => {
               {isCreditSprint && user && !hasEnoughCredits && (
                 <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl text-[10px] font-bold text-orange-800 uppercase tracking-widest text-center">
                     Insufficient Credits. <br className="md:hidden"/> 
-                    {/* Fix: Link component now defined from router-dom */}
                     <Link to="/impact" className="underline hover:text-orange-900">Earn more by guiding others</Link> or completing tasks.
                 </div>
               )}
