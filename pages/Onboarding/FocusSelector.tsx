@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
@@ -11,26 +12,32 @@ const FocusSelector: React.FC = () => {
 
   const handleSelect = async (option: string) => {
     setIsLoading(true);
-    setMatchingStatus("Analyzing focus...");
+    setMatchingStatus("Authorized Scan...");
     
-    // Simulate high-end analysis phase
-    setTimeout(() => setMatchingStatus("Scanning registry..."), 800);
-    setTimeout(() => setMatchingStatus("Optimizing path..."), 1600);
+    // Simulate high-end analysis phase for UX
+    setTimeout(() => setMatchingStatus("Polling Registry..."), 600);
+    setTimeout(() => setMatchingStatus("Foundation Check..."), 1200);
 
     try {
+      // THE FIX: Specifically look for a sprint assigned in the Foundation Orchestrator matching this focus
       const assignedSprintId = await sprintService.getSprintIdByFocus(option);
-      // Fallback to 'sprint1' (Clarity Challenge) as the default foundational experience
-      const targetId = assignedSprintId || 'sprint1';
       
-      // Delay navigation slightly to complete the "unlock" feel
-      setTimeout(() => {
-        navigate(`/onboarding/description/${targetId}`, { 
-          state: { selectedFocus: option, sprintId: targetId } 
-        });
-      }, 2400);
+      if (assignedSprintId) {
+          setTimeout(() => {
+            navigate(`/onboarding/description/${assignedSprintId}`, { 
+              state: { selectedFocus: option, sprintId: assignedSprintId } 
+            });
+          }, 1800);
+      } else {
+          // If no specific sprint is orchestrated for this focus yet
+          setMatchingStatus("Broadening Search...");
+          setTimeout(() => {
+              navigate('/discover');
+          }, 1800);
+      }
     } catch (error) {
-      console.error("Focus mapping resolution failed:", error);
-      navigate(`/onboarding/description/sprint1`, { state: { selectedFocus: option } });
+      console.error("Orchestration resolution failed:", error);
+      navigate('/discover');
     }
   };
 
@@ -56,7 +63,7 @@ const FocusSelector: React.FC = () => {
             </div>
             <div className="text-center">
                 <p className="text-[10px] font-black uppercase tracking-[0.4em] animate-pulse text-[#0FB881]">{matchingStatus}</p>
-                <p className="text-[8px] font-bold text-white/40 mt-2 italic uppercase">Unlocking custom path</p>
+                <p className="text-[8px] font-bold text-white/40 mt-2 italic uppercase">Registry Sync in Progress</p>
             </div>
           </div>
         ) : (
@@ -84,7 +91,6 @@ const FocusSelector: React.FC = () => {
         </footer>
       </main>
 
-      {/* Decorative elements - scaled down for mobile */}
       <div className="absolute top-[-10%] right-[-10%] w-80 h-80 bg-white/5 rounded-full blur-[100px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] left-[-10%] w-80 h-80 bg-black/10 rounded-full blur-[100px] pointer-events-none"></div>
 

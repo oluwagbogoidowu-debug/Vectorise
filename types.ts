@@ -168,13 +168,14 @@ export interface ParticipantSprint {
   participantId: string;
   startDate: string;
   sentNudges?: number[];
+  reflectionsDisabled?: boolean; // Toggle for showing/hiding reflections
   progress: {
     day: number;
     completed: boolean;
     completedAt?: string;
     submission?: string;
     submissionFileUrl?: string;
-    // New storage for the proof
+    reflection?: string; // Stored reflection
     proofSelection?: string;
   }[];
 }

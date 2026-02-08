@@ -6,12 +6,14 @@ import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { useAuth } from '../../contexts/AuthContext';
 import { translateToTag, calculateMatchScore } from '../../utils/tagUtils';
+import { LIFECYCLE_SLOTS } from '../../services/mockData';
 
 const DiscoverSprints: React.FC = () => {
     const { user } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [coaches, setCoaches] = useState<Coach[]>([]);
+    const [sprintToStageMap, setSprintToStageMap] = useState<Record<string, string>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [activeSort, setActiveSort] = useState<'recommended' | 'latest' | 'popular'>('recommended');
 
@@ -19,12 +21,24 @@ const DiscoverSprints: React.FC = () => {
         const loadDiscoveryData = async () => {
             setIsLoading(true);
             try {
-                const [publishedSprints, dbCoaches] = await Promise.all([
+                const [publishedSprints, dbCoaches, orchestration] = await Promise.all([
                     sprintService.getPublishedSprints(),
-                    userService.getCoaches()
+                    userService.getCoaches(),
+                    sprintService.getOrchestration()
                 ]);
+
+                // Map sprintId to stage name for badges
+                const stageMap: Record<string, string> = {};
+                Object.entries(orchestration).forEach(([slotId, mapping]) => {
+                    const slot = LIFECYCLE_SLOTS.find(s => s.id === slotId);
+                    if (slot && mapping.sprintId) {
+                        stageMap[mapping.sprintId] = slot.stage;
+                    }
+                });
+
                 setSprints(publishedSprints);
                 setCoaches(dbCoaches);
+                setSprintToStageMap(stageMap);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -50,12 +64,17 @@ const DiscoverSprints: React.FC = () => {
     const processedSprints = useMemo(() => {
         let results = sprints.map(s => ({
             sprint: s,
-            coach: coaches.find(c => c.id === s.coachId) || { name: 'Vectorise', profileImageUrl: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd', id: 'core' } as any
+            coach: coaches.find(c => c.id === s.coachId) || { name: 'Vectorise', profileImageUrl: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd', id: 'core' } as any,
+            stage: sprintToStageMap[s.id]
         }));
 
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
-            results = results.filter(r => r.sprint.title.toLowerCase().includes(q) || r.sprint.category.toLowerCase().includes(q));
+            results = results.filter(r => 
+                r.sprint.title.toLowerCase().includes(q) || 
+                r.sprint.category.toLowerCase().includes(q) ||
+                r.stage?.toLowerCase().includes(q)
+            );
         }
 
         if (activeSort === 'recommended' && userProfileTags) {
@@ -63,7 +82,7 @@ const DiscoverSprints: React.FC = () => {
         }
 
         return results;
-    }, [sprints, coaches, searchQuery, activeSort, userProfileTags]);
+    }, [sprints, coaches, searchQuery, activeSort, userProfileTags, sprintToStageMap]);
 
     return (
         <div className="h-full w-full overflow-y-auto custom-scrollbar">
@@ -78,7 +97,7 @@ const DiscoverSprints: React.FC = () => {
                         Discover <br className="hidden lg:block"/>Sprints.
                     </h1>
                     <p className="text-lg text-gray-500 font-medium max-w-xl mx-auto lg:mx-0 leading-relaxed italic">
-                        Precision-engineered programs designed for immediate application and visible, tangible progress.
+                        Precision-engineered programs designed for immediate application and revealed at specific stages of your evolution.
                     </p>
                 </header>
 
@@ -87,7 +106,7 @@ const DiscoverSprints: React.FC = () => {
                     <div className="w-full flex-1 relative group">
                         <input 
                             type="text" 
-                            placeholder="Search themes, categories, or coaches..." 
+                            placeholder="Search themes, categories, stages or coaches..." 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-14 pr-8 py-5 bg-white border border-gray-100 rounded-[2rem] shadow-sm focus:ring-8 focus:ring-primary/5 focus:border-primary/30 outline-none font-bold text-gray-800 transition-all placeholder:text-gray-300" 
@@ -114,8 +133,17 @@ const DiscoverSprints: React.FC = () => {
                     </div>
                 ) : processedSprints.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 md:gap-12 lg:gap-16">
-                        {processedSprints.map(({ sprint, coach }, idx) => (
-                            <div key={sprint.id} className="animate-fade-in-up" style={{ animationDelay: `${idx * 50}ms` }}>
+                        {processedSprints.map(({ sprint, coach, stage }, idx) => (
+                            <div key={sprint.id} className="animate-fade-in-up relative group" style={{ animationDelay: `${idx * 50}ms` }}>
+                                {/* Lifecycle Stage Reveal Label */}
+                                {stage && (
+                                    <div className="absolute top-4 left-4 z-30 pointer-events-none">
+                                        <div className="bg-dark/80 backdrop-blur-md px-3 py-1 rounded-lg border border-white/10 shadow-xl">
+                                            <p className="text-[7px] font-black text-primary uppercase tracking-[0.2em] mb-0.5">Reveal Stage</p>
+                                            <p className="text-[9px] font-black text-white uppercase tracking-widest leading-none">{stage}</p>
+                                        </div>
+                                    </div>
+                                )}
                                 <SprintCard sprint={sprint} coach={coach} />
                             </div>
                         ))}

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { MOCK_PAYOUTS } from '../../services/mockData';
+import { MOCK_PAYOUTS, LIFECYCLE_SLOTS } from '../../services/mockData';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { Sprint, ParticipantSprint, Participant, LifecycleStage } from '../../types';
@@ -13,10 +13,10 @@ interface EarningEntry {
   studentAvatar: string;
   sprintTitle: string;
   amount: number;
-  platformCutPercent: number;
+  platformCutPercent: number | null; // Null if untagged
   netEarning: number;
   date: string;
-  appliedStage: string;
+  appliedStage: string | null;
 }
 
 const STAGE_CUTS: Record<string, number> = {
@@ -41,7 +41,18 @@ const CoachEarnings: React.FC = () => {
       if (!user) return;
       setIsLoading(true);
       try {
-        // 1. Get coach's sprints
+        // 1. Get Orchestration Mapping for Stage Lookups
+        const orchestration = await sprintService.getOrchestration();
+        const sprintToStageMap: Record<string, string> = {};
+        
+        Object.entries(orchestration).forEach(([slotId, mapping]) => {
+            const slot = LIFECYCLE_SLOTS.find(s => s.id === slotId);
+            if (slot && mapping.sprintId) {
+                sprintToStageMap[mapping.sprintId] = slot.stage;
+            }
+        });
+
+        // 2. Get coach's sprints
         const coachSprints = await sprintService.getCoachSprints(user.id);
         const cashSprints = coachSprints.filter(s => s.pricingType === 'cash' && s.price > 0);
         
@@ -53,7 +64,7 @@ const CoachEarnings: React.FC = () => {
 
         const sprintIds = cashSprints.map(s => s.id);
 
-        // 2. Get all enrollments for these sprints
+        // 3. Get all enrollments for these sprints
         const enrollments = await sprintService.getEnrollmentsForSprints(sprintIds);
         
         if (enrollments.length === 0) {
@@ -62,28 +73,22 @@ const CoachEarnings: React.FC = () => {
           return;
         }
 
-        // 3. Get student data
+        // 4. Get student data
         const studentIds = Array.from(new Set(enrollments.map(e => e.participantId)));
         const students = await userService.getUsersByIds(studentIds);
 
-        // 4. Transform into Earning Entries
+        // 5. Transform into Earning Entries
         const entries: EarningEntry[] = enrollments.map(enrol => {
           const sprint = cashSprints.find(s => s.id === enrol.sprintId);
           const student = students.find(s => s.id === enrol.participantId);
           
-          // Logic: Dynamic cut based on Lifecycle Stage mapping
-          // We check compatibleStages first, fallback to category mapping
-          let detectedStage: LifecycleStage = 'Execution'; // Default fallback
+          // Logic: Strictly use Orchestrator tagging
+          const detectedStage = sprintToStageMap[enrol.sprintId] || null;
+          const cutPercent = detectedStage ? (STAGE_CUTS[detectedStage] || 30) : null;
           
-          if (sprint?.compatibleStages && sprint.compatibleStages.length > 0) {
-              detectedStage = sprint.compatibleStages[0];
-          } else if (sprint?.category === 'Clarity' || sprint?.category === 'Core Platform Sprint' || sprint?.category === 'Growth Fundamentals') {
-              detectedStage = 'Foundation';
-          }
-
-          const cutPercent = STAGE_CUTS[detectedStage] || 30;
           const grossAmount = sprint?.price || 0;
-          const netEarning = grossAmount * (1 - cutPercent / 100);
+          // If untagged, we don't calculate net yet
+          const netEarning = cutPercent !== null ? grossAmount * (1 - cutPercent / 100) : 0;
 
           return {
             enrollmentId: enrol.id,
@@ -134,7 +139,7 @@ const CoachEarnings: React.FC = () => {
             Back to Dashboard
         </button>
         <h1 className="text-4xl font-black text-gray-900 tracking-tight mb-2 italic">Earnings & Payouts</h1>
-        <p className="text-gray-500 font-medium text-sm md:text-base">Tracking your commercial impact across lifecycle stages.</p>
+        <p className="text-gray-500 font-medium text-sm md:text-base">Tracking your commercial impact across orchestrated lifecycle stages.</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
@@ -193,7 +198,9 @@ const CoachEarnings: React.FC = () => {
                                     </td>
                                     <td className="px-8 py-5">
                                         <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{entry.sprintTitle}</p>
-                                        <p className="text-[9px] font-bold text-primary uppercase tracking-widest">{entry.appliedStage}</p>
+                                        <p className={`text-[9px] font-bold uppercase tracking-widest ${entry.appliedStage ? 'text-primary' : 'text-gray-300'}`}>
+                                            {entry.appliedStage || 'UNTAGGED'}
+                                        </p>
                                     </td>
                                     <td className="px-8 py-5 text-[11px] text-gray-400 font-bold uppercase tracking-tighter">
                                         {new Date(entry.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -202,12 +209,16 @@ const CoachEarnings: React.FC = () => {
                                         <span className="text-sm font-medium text-gray-400">₦{entry.amount.toLocaleString()}</span>
                                     </td>
                                     <td className="px-8 py-5 text-right">
-                                        <span className={`text-[10px] font-black px-2 py-1 rounded-md bg-gray-100 text-gray-500`}>
-                                            {entry.platformCutPercent}%
+                                        <span className={`text-[10px] font-black px-2 py-1 rounded-md ${entry.platformCutPercent === null ? 'bg-orange-50 text-orange-400' : 'bg-gray-100 text-gray-500'}`}>
+                                            {entry.platformCutPercent === null ? 'PENDING' : `${entry.platformCutPercent}%`}
                                         </span>
                                     </td>
                                     <td className="px-8 py-5 text-right">
-                                        <span className="text-sm font-black text-primary italic">₦{entry.netEarning.toLocaleString()}</span>
+                                        {entry.platformCutPercent === null ? (
+                                            <span className="text-xs font-bold text-gray-300 italic uppercase">Awaiting Registry Tag</span>
+                                        ) : (
+                                            <span className="text-sm font-black text-primary italic">₦{entry.netEarning.toLocaleString()}</span>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

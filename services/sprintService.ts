@@ -5,6 +5,7 @@ import { ParticipantSprint, Sprint, Review, CoachingComment, UserEvent, Lifecycl
 import { userService, sanitizeData } from './userService';
 import { notificationService } from './notificationService';
 import { isRegistryIncomplete } from '../utils/sprintUtils';
+import { LIFECYCLE_SLOTS } from './mockData';
 
 const SPRINTS_COLLECTION = 'sprints';
 const ENROLLMENTS_COLLECTION = 'enrollments';
@@ -176,6 +177,17 @@ export const sprintService = {
 
     getPublishedSprints: async () => {
         try {
+            // 1. Get Orchestration Mapping
+            const orchestration = await sprintService.getOrchestration();
+            const orchestratedSprintIds = new Set(
+                Object.values(orchestration)
+                    .map(mapping => mapping.sprintId)
+                    .filter(id => !!id)
+            );
+
+            if (orchestratedSprintIds.size === 0) return [];
+
+            // 2. Fetch approved sprints
             const q = query(
                 collection(db, SPRINTS_COLLECTION), 
                 where("approvalStatus", "==", "approved"),
@@ -183,8 +195,13 @@ export const sprintService = {
             );
             const querySnapshot = await getDocs(q);
             const dbSprints: Sprint[] = [];
+
             querySnapshot.forEach((doc) => {
                 const data = sanitizeData(doc.data()) as Sprint;
+                
+                // Only reveal if ID is in the orchestration mapping
+                if (!orchestratedSprintIds.has(data.id)) return;
+
                 // Final safety check for registry
                 const isFoundational = data.category === 'Core Platform Sprint' || data.category === 'Growth Fundamentals';
                 const p = Number(data.price || 0);
@@ -248,7 +265,20 @@ export const sprintService = {
 
     getSprintIdByFocus: async (focus: string): Promise<string | null> => {
         const orchestration = await sprintService.getOrchestration();
+        
+        // Strategy: First check Foundation slots specifically
+        const foundationSlotIds = LIFECYCLE_SLOTS.filter(s => s.stage === 'Foundation').map(s => s.id);
+        
+        for (const slotId of foundationSlotIds) {
+            const mapping = orchestration[slotId];
+            if (mapping && mapping.sprintId && mapping.focusCriteria && mapping.focusCriteria.includes(focus)) {
+                return mapping.sprintId;
+            }
+        }
+
+        // Fallback: Check all other slots if not found in Foundation
         for (const slotId in orchestration) {
+            if (foundationSlotIds.includes(slotId)) continue;
             const mapping = orchestration[slotId];
             if (mapping.focusCriteria && mapping.focusCriteria.includes(focus)) {
                 return mapping.sprintId;
