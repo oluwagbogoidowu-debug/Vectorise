@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -52,7 +51,6 @@ const SprintLandingPage: React.FC = () => {
 
     const handleJoinClick = () => {
         if (!sprint) return;
-        // Proceed to commitment framing, passing the sprint details
         navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint } });
     };
 
@@ -66,7 +64,6 @@ const SprintLandingPage: React.FC = () => {
         <div className="bg-light min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
             <div className="max-w-screen-lg mx-auto px-4 pt-2">
                 
-                {/* Top Navigation */}
                 <div className="flex justify-between items-center mb-3">
                     <button 
                         onClick={() => navigate('/discover')} 
@@ -84,10 +81,8 @@ const SprintLandingPage: React.FC = () => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
                     
-                    {/* Main Content Area */}
                     <div className="lg:col-span-8 space-y-4">
                         
-                        {/* Hero Image Section */}
                         <div className="relative h-[200px] sm:h-[280px] lg:h-[360px] rounded-2xl overflow-hidden shadow-lg group">
                             <img 
                                 src={sprint.coverImageUrl} 
@@ -107,9 +102,13 @@ const SprintLandingPage: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Transformation Section */}
                         <section className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm animate-fade-in">
-                            <SectionHeading>The Transformation</SectionHeading>
+                            <div className="flex justify-between items-start mb-6">
+                                <SectionHeading>The Transformation</SectionHeading>
+                                {sprint.outcomeTag && (
+                                    <span className="bg-primary/10 text-primary px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest italic">{sprint.outcomeTag}</span>
+                                )}
+                            </div>
                             <div className="space-y-6 text-gray-600 leading-relaxed text-[12px] font-medium">
                                 <p className="text-gray-900 font-bold text-lg leading-tight italic">
                                     <FormattedText text={sprint.transformation || sprint.description} />
@@ -148,7 +147,6 @@ const SprintLandingPage: React.FC = () => {
                             </div>
                         </section>
 
-                        {/* Method Snapshot Section */}
                         {sprint.methodSnapshot && sprint.methodSnapshot.length > 0 && (
                             <section className="bg-dark text-white rounded-2xl p-8 relative overflow-hidden group shadow-xl">
                                 <SectionHeading color="primary">How This Sprint Works</SectionHeading>
@@ -174,7 +172,6 @@ const SprintLandingPage: React.FC = () => {
                             </section>
                         )}
 
-                        {/* Outcomes Section */}
                         {sprint.outcomes && sprint.outcomes.length > 0 && (
                             <section className="bg-white rounded-2xl p-6 md:p-10 border border-gray-100 shadow-xl animate-fade-in">
                                 <SectionHeading>By Day {sprint.duration}, You'll Have:</SectionHeading>
@@ -191,7 +188,6 @@ const SprintLandingPage: React.FC = () => {
                             </section>
                         )}
 
-                        {/* Closing */}
                         <section className="py-12 text-center border-t border-gray-100">
                             <p className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-6">The Outcome</p>
                             <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight tracking-tight mb-6 px-4 italic">
@@ -200,7 +196,6 @@ const SprintLandingPage: React.FC = () => {
                         </section>
                     </div>
 
-                    {/* Sidebar Area */}
                     <aside className="lg:col-span-4 space-y-4">
                         <div className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-md lg:sticky lg:top-6">
                             <div className="text-center mb-6">
@@ -244,7 +239,6 @@ const SprintLandingPage: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Aesthetic Proof Card */}
                         <div className="bg-gray-900 rounded-2xl p-6 text-white relative overflow-hidden group shadow-lg">
                             <div className="relative z-10">
                                 <p className="text-[11px] font-black uppercase tracking-widest text-primary mb-3">Commitment</p>

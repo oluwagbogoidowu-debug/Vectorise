@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/Button';
@@ -37,6 +36,7 @@ const CreateSprint: React.FC = () => {
         price: '0',
         coverImageUrl: '',
         transformation: '',
+        outcomeTag: '',
         forWho: ['', '', '', ''],
         notForWho: ['', '', ''],
         methodSnapshot: [
@@ -104,6 +104,7 @@ const CreateSprint: React.FC = () => {
             approvalStatus: 'draft',
             dailyContent: dailyContent,
             transformation: formData.transformation,
+            outcomeTag: formData.outcomeTag || 'Clarity gained',
             forWho: formData.forWho.filter(s => s.trim()),
             notForWho: formData.notForWho.filter(s => s.trim()),
             methodSnapshot: formData.methodSnapshot,
@@ -136,7 +137,8 @@ const CreateSprint: React.FC = () => {
         published: false,
         approvalStatus: 'draft',
         dailyContent: [],
-        outcomes: formData.outcomes.filter(o => o.trim() !== '')
+        outcomes: formData.outcomes.filter(o => o.trim() !== ''),
+        outcomeTag: formData.outcomeTag
     };
 
     const inputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all placeholder-gray-300";
@@ -163,7 +165,7 @@ const CreateSprint: React.FC = () => {
                             <section>
                                 <div className="flex items-center gap-3 mb-8">
                                     <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">01</div>
-                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Registry Identity</h4>
+                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Registry Identity</h4>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="md:col-span-2">
@@ -197,6 +199,18 @@ const CreateSprint: React.FC = () => {
                                     placeholder="You know you want to do something meaningful, but you can’t clearly name it yet..." 
                                     required 
                                 />
+                                <div className="mt-8">
+                                    <label className={labelClasses}>Archive Outcome Tag</label>
+                                    <input 
+                                        type="text" 
+                                        name="outcomeTag" 
+                                        value={formData.outcomeTag} 
+                                        onChange={handleChange} 
+                                        className={inputClasses + " mt-2 bg-gray-50/50"} 
+                                        placeholder="e.g. Clarity gained, Skill activated" 
+                                    />
+                                    <p className="text-[9px] text-gray-400 font-bold mt-1 uppercase tracking-widest italic px-1">This appears as the badge on completed sprint cards in the student profile.</p>
+                                </div>
                             </section>
 
                             <section>

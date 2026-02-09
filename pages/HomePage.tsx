@@ -47,11 +47,6 @@ const HomePage: React.FC = () => {
                 Start your clarity sprint
               </button>
             </Link>
-            <Link to="/partner">
-              <button className="px-8 py-3 text-[10px] font-black text-gray-400 hover:text-primary uppercase tracking-widest transition-all">
-                Be a Partner &rarr;
-              </button>
-            </Link>
           </div>
 
           <p className="mt-8 text-[10px] font-black text-gray-300 uppercase tracking-widest">

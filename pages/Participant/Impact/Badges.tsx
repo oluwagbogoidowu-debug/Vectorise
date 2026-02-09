@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -53,24 +52,24 @@ const MilestoneCard: React.FC<{ milestone: Milestone; onClaim: (m: Milestone) =>
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start mb-1">
-                        <h3 className="font-black text-gray-900 text-sm uppercase tracking-tight truncate">{milestone.title}</h3>
+                        <h3 className="font-black text-gray-900 text-xs uppercase tracking-tight truncate">{milestone.title}</h3>
                         {milestone.isClaimed && (
-                            <span className="bg-gray-100 text-gray-400 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Collected</span>
+                            <span className="bg-gray-100 text-gray-400 text-[7px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Collected</span>
                         )}
                         {milestone.isUnlocked && !milestone.isClaimed && (
-                            <span className={`bg-${colorClass} text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest animate-pulse`}>Ready</span>
+                            <span className={`bg-${colorClass} text-white text-[7px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest animate-pulse`}>Ready</span>
                         )}
                     </div>
-                    <p className="text-[11px] text-gray-500 font-medium leading-tight line-clamp-2">{milestone.description}</p>
+                    <p className="text-[9px] text-gray-500 font-medium leading-tight line-clamp-2">{milestone.description}</p>
                 </div>
             </div>
 
             <div className="relative z-10">
                 <div className="flex justify-between items-end mb-1.5">
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                    <span className="text-[7px] font-black text-gray-400 uppercase tracking-widest">
                         {milestone.isUnlocked ? 'Requirement Met' : `Progress: ${milestone.currentValue.toFixed(0)}/${milestone.targetValue}`}
                     </span>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${milestone.isUnlocked && !milestone.isClaimed ? `text-${colorClass}` : 'text-gray-400'}`}>
+                    <span className={`text-[7px] font-black uppercase tracking-widest ${milestone.isUnlocked && !milestone.isClaimed ? `text-${colorClass}` : 'text-gray-400'}`}>
                         {milestone.isClaimed ? 'Awarded' : `+${milestone.points} Credits`}
                     </span>
                 </div>
@@ -85,7 +84,7 @@ const MilestoneCard: React.FC<{ milestone: Milestone; onClaim: (m: Milestone) =>
                     <button 
                         onClick={handleClaim}
                         disabled={isClaiming}
-                        className={`w-full py-2.5 bg-${colorClass} text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-90 transition-all active:scale-95 shadow-lg shadow-${colorClass}/20 flex items-center justify-center gap-2 disabled:opacity-50`}
+                        className={`w-full py-2.5 bg-${colorClass} text-white rounded-xl text-[8px] font-black uppercase tracking-widest hover:brightness-90 transition-all active:scale-95 shadow-lg shadow-${colorClass}/20 flex items-center justify-center gap-2 disabled:opacity-50`}
                     >
                         {isClaiming ? (
                             <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -222,7 +221,7 @@ const Badges: React.FC = () => {
             <section className="animate-fade-in">
                 <div className="flex items-center gap-3 mb-8">
                     <div className={`w-1.5 h-6 bg-${color}-500 rounded-full`}></div>
-                    <h2 className="text-xl font-black text-gray-900 uppercase tracking-widest">{title}</h2>
+                    <h2 className="text-sm font-black text-gray-900 uppercase tracking-widest">{title}</h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {visibleMilestones.map(m => <MilestoneCard key={m.id} milestone={m} onClaim={handleClaim} />)}
@@ -230,7 +229,7 @@ const Badges: React.FC = () => {
                 {milestones.length > 3 && (
                     <button 
                         onClick={() => toggleCategory(type)}
-                        className="mt-6 w-full py-4 bg-white hover:bg-gray-50 text-gray-400 font-black uppercase tracking-widest text-[9px] rounded-xl transition-all border border-gray-100 active:scale-95 shadow-sm"
+                        className="mt-6 w-full py-4 bg-white hover:bg-gray-50 text-gray-400 font-black uppercase tracking-widest text-[8px] rounded-xl transition-all border border-gray-100 active:scale-95 shadow-sm"
                     >
                         {isExpanded ? `Collapse ${title}` : `See More (${milestones.length - 3} Hidden)`}
                     </button>
@@ -242,11 +241,11 @@ const Badges: React.FC = () => {
     return (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 pb-32 animate-fade-in bg-[#FAFAFA]">
             <div className="mb-12">
-                <button onClick={() => navigate('/profile')} className="group flex items-center text-gray-400 hover:text-primary transition-colors mb-6 text-xs font-black uppercase tracking-widest"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>My Profile</button>
+                <button onClick={() => navigate('/profile')} className="group flex items-center text-gray-400 hover:text-primary transition-colors mb-6 text-[8px] font-black uppercase tracking-widest"><svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1.5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>My Profile</button>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                     <div>
-                        <h1 className="text-4xl font-black text-gray-900 tracking-tight mb-2 italic">The Hall of Rise.</h1>
-                        <p className="text-gray-500 font-medium text-lg">Your progress matters. Claim credits as you hit milestones.</p>
+                        <h1 className="text-2xl font-black text-gray-900 tracking-tight mb-2 italic">The Hall of Rise.</h1>
+                        <p className="text-gray-500 font-medium text-xs">Your progress matters. Claim credits as you hit milestones.</p>
                     </div>
                 </div>
             </div>

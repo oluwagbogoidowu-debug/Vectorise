@@ -251,6 +251,14 @@ const ProgramDescription: React.FC = () => {
                 >
                   Start This Sprint
                 </Button>
+                <div className="text-center">
+                  <button 
+                    onClick={() => navigate('/discover')}
+                    className="text-[8px] font-black text-gray-400 hover:text-primary uppercase tracking-widest transition-colors cursor-pointer"
+                  >
+                    Already gain clarity move to execution.
+                  </button>
+                </div>
               </div>
 
               {/* System Sprint Section */}

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Participant, Sprint } from '../../../types';
-import Button from '../../../components/Button';
 import { sprintService } from '../../../services/sprintService';
 
 const ReferralShare: React.FC = () => {
@@ -12,7 +11,6 @@ const ReferralShare: React.FC = () => {
     const [copied, setCopied] = useState(false);
     const [targetSprint, setTargetSprint] = useState<Sprint | null>(null);
 
-    // Check if we are sharing a specific sprint from state or query
     const searchParams = new URLSearchParams(location.search);
     const sprintId = searchParams.get('sprintId');
 
@@ -30,14 +28,11 @@ const ReferralShare: React.FC = () => {
     const participant = user as Participant;
     const referralCode = participant.referralCode || 'GROWTH';
     
-    // referral links now strictly follow the pattern: domain.com/?ref=CODE&sprintId=ID#/
-    const inviteParams = targetSprint 
-        ? `?ref=${referralCode}&sprintId=${targetSprint.id}` 
-        : `?ref=${referralCode}`;
-    const referralLink = `${window.location.origin}/${inviteParams}#/`;
+    // UNIFIED LOGIC: One single link format, identical to Partner Main Link
+    const referralLink = `${window.location.origin}/?ref=${referralCode}#/`;
     
     const defaultMessage = targetSprint 
-        ? `I'm currently focused on this '${targetSprint.title}' sprint and thought you'd love it. Let's grow together: ${referralLink}`
+        ? `I'm currently focused on this '${targetSprint.title}' sprint and thought you'd love it. Join me: ${referralLink}`
         : `I found a platform that helps me stay consistent with my growth. Join me on this path: ${referralLink}`;
 
     const handleCopy = () => {
@@ -51,127 +46,118 @@ const ReferralShare: React.FC = () => {
         let url = '';
 
         switch (platform) {
-            case 'whatsapp':
-                url = `https://wa.me/?text=${encodedMsg}`;
-                break;
-            case 'twitter':
-                url = `https://twitter.com/intent/tweet?text=${encodedMsg}`;
-                break;
-            case 'email':
-                url = `mailto:?subject=Grow with me on Vectorise&body=${encodedMsg}`;
-                break;
+            case 'whatsapp': url = `https://wa.me/?text=${encodedMsg}`; break;
+            case 'twitter': url = `https://twitter.com/intent/tweet?text=${encodedMsg}`; break;
+            case 'email': url = `mailto:?subject=Grow with me on Vectorise&body=${encodedMsg}`; break;
         }
 
         if (url) window.open(url, '_blank');
     };
 
     return (
-        <div className="max-w-2xl mx-auto px-4 py-8 pb-32 animate-fade-in">
-            <button 
-                onClick={() => navigate(-1)} 
-                className="group flex items-center text-gray-500 hover:text-primary transition-colors mb-6 text-xs font-black uppercase tracking-widest"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
-                </svg>
-                Go Back
-            </button>
-
-            <div className="text-center mb-12">
-                <div className="w-20 h-20 bg-primary/10 text-primary rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner ring-1 ring-primary/5">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                    </svg>
-                </div>
-                <h1 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">
-                    {targetSprint ? 'Invite to this Sprint' : 'Invite to Vectorise'}
-                </h1>
-                <p className="text-gray-500 font-medium text-lg leading-relaxed max-w-sm mx-auto">
-                    {targetSprint 
-                        ? `Share your progress in '${targetSprint.title}' with someone ready to evolve.` 
-                        : 'Your influence is measured by the growth you catalyze in others.'}
-                </p>
-            </div>
-
-            {targetSprint && (
-                <div className="bg-primary/5 rounded-[2rem] p-6 border border-primary/10 mb-8 flex items-center gap-6 group">
-                    <div className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 shadow-sm">
-                        <img src={targetSprint.coverImageUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Contextual Invite</p>
-                        <h3 className="font-bold text-gray-900 leading-tight">{targetSprint.title}</h3>
-                    </div>
-                </div>
-            )}
-
-            <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 p-8 md:p-10 mb-8 relative overflow-hidden">
-                <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] mb-4 ml-1">Your Personalized Message</p>
-                <div className="bg-gray-50 rounded-3xl p-6 text-gray-700 italic border border-gray-100 mb-8 leading-relaxed font-medium">
-                    "{defaultMessage}"
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <button 
-                        onClick={() => handleShare('whatsapp')}
-                        className="flex items-center gap-4 px-6 py-4 bg-green-50 hover:bg-green-100 border border-green-100 rounded-2xl transition-all active:scale-95 group"
-                    >
-                        <span className="text-2xl">💬</span>
-                        <div className="text-left">
-                            <p className="font-black text-green-800 text-xs uppercase tracking-widest">WhatsApp</p>
-                            <p className="text-[10px] text-green-600 font-bold opacity-70">Direct Share</p>
-                        </div>
+        <div className="bg-[#FDFDFD] h-screen w-full font-sans overflow-hidden flex flex-col animate-fade-in selection:bg-primary/10">
+            {/* COMPACT HEADER */}
+            <header className="flex-shrink-0 bg-white border-b border-gray-50 px-5 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-gray-300 hover:text-primary transition-all">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
                     </button>
-                    <button 
-                        onClick={() => handleShare('email')}
-                        className="flex items-center gap-4 px-6 py-4 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-2xl transition-all active:scale-95 group"
-                    >
-                        <span className="text-2xl">✉️</span>
-                        <div className="text-left">
-                            <p className="font-black text-blue-800 text-xs uppercase tracking-widest">Email</p>
-                            <p className="text-[10px] text-blue-600 font-bold opacity-70">Reach Inbox</p>
+                    <h1 className="text-sm font-black text-gray-900 tracking-tight leading-none italic">Invite</h1>
+                </div>
+                <div className="text-right">
+                    <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest">Protocol</p>
+                    <p className="text-[10px] font-bold text-primary italic">Catalyst</p>
+                </div>
+            </header>
+
+            <main className="flex-1 overflow-y-auto custom-scrollbar px-4 py-4 space-y-4">
+                
+                {/* CONTEXT CARD - COMPACT */}
+                {targetSprint && (
+                    <div className="bg-primary/5 rounded-[2rem] p-4 border border-primary/10 flex items-center gap-4 group">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border-2 border-white">
+                            <img src={targetSprint.coverImageUrl} alt="" className="w-full h-full object-cover grayscale opacity-80" />
                         </div>
-                    </button>
+                        <div className="min-w-0">
+                            <p className="text-[7px] font-black text-primary uppercase tracking-widest mb-0.5">Active Target</p>
+                            <h3 className="text-xs font-black text-gray-900 leading-tight truncate">{targetSprint.title}</h3>
+                        </div>
+                    </div>
+                )}
+
+                {/* MAIN SHARE INTERFACE */}
+                <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 p-6 relative overflow-hidden flex flex-col">
+                    <p className="text-[7px] font-black text-gray-300 uppercase tracking-[0.2em] mb-3 ml-1">Personal Message</p>
+                    <div className="bg-gray-50 rounded-2xl p-4 text-gray-600 italic border border-gray-100 mb-6 leading-relaxed font-medium text-[11px]">
+                        "{defaultMessage}"
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                        <button 
+                            onClick={() => handleShare('whatsapp')}
+                            className="flex items-center gap-3 p-3 bg-green-50 hover:bg-green-100 border border-green-100 rounded-xl transition-all active:scale-95"
+                        >
+                            <span className="text-xl">💬</span>
+                            <div className="text-left">
+                                <p className="font-black text-green-800 text-[9px] uppercase tracking-widest leading-none">WhatsApp</p>
+                            </div>
+                        </button>
+                        <button 
+                            onClick={() => handleShare('email')}
+                            className="flex items-center gap-3 p-3 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-xl transition-all active:scale-95"
+                        >
+                            <span className="text-xl">✉️</span>
+                            <div className="text-left">
+                                <p className="font-black text-blue-800 text-[9px] uppercase tracking-widest leading-none">Email</p>
+                            </div>
+                        </button>
+                    </div>
+
                     <button 
                         onClick={handleCopy}
-                        className={`sm:col-span-2 flex items-center justify-between px-8 py-5 border-2 rounded-2xl transition-all active:scale-95 group ${
+                        className={`flex items-center justify-between p-4 border-2 rounded-2xl transition-all active:scale-95 group ${
                             copied ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-100 hover:border-primary/20'
                         }`}
                     >
-                        <div className="flex items-center gap-4">
-                            <span className="text-2xl">{copied ? '✅' : '🔗'}</span>
-                            <div className="text-left">
-                                <p className={`font-black text-xs uppercase tracking-widest ${copied ? 'text-green-800' : 'text-gray-900'}`}>
-                                    {copied ? 'Copied Link' : 'Invite Link'}
+                        <div className="flex items-center gap-3 min-w-0">
+                            <span className="text-lg">{copied ? '✅' : '🔗'}</span>
+                            <div className="text-left min-w-0">
+                                <p className={`font-black text-[9px] uppercase tracking-widest leading-none mb-1 ${copied ? 'text-green-800' : 'text-gray-900'}`}>
+                                    {copied ? 'Link Copied' : 'Unified Invite Link'}
                                 </p>
-                                <p className="text-[10px] text-gray-400 font-bold tracking-tight truncate max-w-[200px]">
+                                <p className="text-[8px] text-gray-400 font-bold tracking-tight truncate">
                                     {referralLink}
                                 </p>
                             </div>
                         </div>
                         {!copied && (
-                            <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-100 group-hover:text-primary transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            <div className="bg-white p-1.5 rounded-lg shadow-sm border border-gray-100 group-hover:text-primary transition-colors flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                 </svg>
                             </div>
                         )}
                     </button>
+                    
+                    <div className="absolute -top-12 -right-12 w-24 h-24 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
                 </div>
-                
-                {/* Subtle detail */}
-                <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
-            </div>
 
-            <div className="text-center">
-                <Link to="/impact" className="text-xs font-black text-gray-400 hover:text-primary uppercase tracking-[0.2em] transition-colors">
-                    View My Global Impact &rarr;
-                </Link>
-            </div>
-            
+                <div className="text-center pt-2">
+                    <Link to="/impact" className="text-[7px] font-black text-gray-300 hover:text-primary uppercase tracking-[0.3em] transition-colors">
+                        View Global Impact Ledger &rarr;
+                    </Link>
+                </div>
+            </main>
+
+            <footer className="text-center pb-4 flex-shrink-0">
+                <p className="text-[7px] font-black text-gray-200 uppercase tracking-[0.4em]">Vectorise • Catalyst Protocol v4.2</p>
+            </footer>
+
             <style>{`
-                @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+                .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.03); border-radius: 10px; }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
             `}</style>
         </div>
     );

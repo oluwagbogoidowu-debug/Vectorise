@@ -67,6 +67,7 @@ export interface Sprint {
   updatedAt?: string;
   createdAt?: string;
   outcomes?: string[];
+  outcomeTag?: string; // New field for the Master Sprint Archive label
   
   transformation?: string;
   forWho?: string[];
@@ -121,7 +122,7 @@ export interface Participant extends User {
   referralCode?: string;
   referrerId?: string | null;
   referralFirstTouch?: string | null;
-  partnerCommissionClosed?: boolean; // Locked after first paid sprint
+  partnerCommissionClosed?: boolean; 
   impactStats?: { peopleHelped: number; streak: number };
   wishlistSprintIds?: string[];
   enrolledSprintIds?: string[];
@@ -171,7 +172,7 @@ export interface ParticipantSprint {
   startDate: string;
   sentNudges?: number[];
   reflectionsDisabled?: boolean;
-  isCommissionTrigger?: boolean; // Marks the one sprint that paid the partner
+  isCommissionTrigger?: boolean; 
   progress: {
     day: number;
     completed: boolean;

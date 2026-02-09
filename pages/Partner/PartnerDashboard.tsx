@@ -7,6 +7,7 @@ import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
 import { Participant, Sprint } from '../../types';
 import { sprintService } from '../../services/sprintService';
+import { sanitizeData } from '../../services/userService';
 
 type PartnerTab = 'overview' | 'links' | 'earnings' | 'referrals' | 'settings';
 
@@ -34,14 +35,14 @@ const PartnerDashboard: React.FC = () => {
     const unsubscribeUsers = onSnapshot(usersQuery, async (snapshot) => {
       const referralsData = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...sanitizeData(doc.data())
       }));
 
       const userIds = referralsData.map(r => r.id);
       if (userIds.length > 0) {
         const enrollQuery = query(collection(db, 'enrollments'), where('participantId', 'in', userIds.slice(0, 30)));
         const enrollSnap = await getDocs(enrollQuery);
-        const enrollments = enrollSnap.docs.map(d => d.data());
+        const enrollments = enrollSnap.docs.map(d => sanitizeData(d.data()));
 
         const merged = referralsData.map(refUser => {
           const userEnrollments = enrollments.filter(e => e.participantId === refUser.id);
@@ -61,7 +62,7 @@ const PartnerDashboard: React.FC = () => {
     // B. Fetch available sprints
     const sprintsQuery = query(collection(db, 'sprints'), where('published', '==', true));
     const unsubscribeSprints = onSnapshot(sprintsQuery, (snapshot) => {
-      setRealTimeSprints(snapshot.docs.map(doc => doc.data() as Sprint));
+      setRealTimeSprints(snapshot.docs.map(doc => sanitizeData(doc.data()) as Sprint));
     });
 
     // C. Subscribe to Link Click Telemetry

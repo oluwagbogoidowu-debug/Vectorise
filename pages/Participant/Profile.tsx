@@ -112,7 +112,6 @@ const Profile: React.FC = () => {
   return (
     <div className="bg-[#FDFDFD] h-screen w-full font-sans overflow-hidden flex flex-col animate-fade-in">
       
-      {/* 1. IDENTITY HEADER - COMPACT */}
       <header className="flex-shrink-0 bg-white border-b border-gray-50 px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -145,12 +144,9 @@ const Profile: React.FC = () => {
         </button>
       </header>
 
-      {/* MAIN DENSE SCROLL AREA */}
       <main className="flex-1 overflow-y-auto custom-scrollbar px-4 py-4 space-y-5">
         
-        {/* TOP METRICS ROW */}
         <div className="grid grid-cols-2 gap-3">
-          {/* CURRENT FOCUS CARD */}
           <div className="col-span-2">
             {activeEntry ? (
               <Link to={`/participant/sprint/${activeEntry.enrollment.id}`} className="block">
@@ -178,7 +174,6 @@ const Profile: React.FC = () => {
             )}
           </div>
 
-          {/* RISE MINI CARD */}
           <div className="bg-dark rounded-3xl p-4 text-white relative overflow-hidden flex flex-col justify-center">
              <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 mb-1">Rise</p>
              <div className="flex items-end gap-1">
@@ -187,14 +182,12 @@ const Profile: React.FC = () => {
              </div>
           </div>
 
-          {/* IMPACT MINI CARD */}
           <Link to="/impact" className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col justify-center">
             <p className="text-[7px] font-black uppercase tracking-[0.3em] text-gray-400 mb-1">Impact</p>
             <h3 className="text-2xl font-black text-gray-900 tracking-tighter italic">{p.impactStats?.peopleHelped || 0}</h3>
           </Link>
         </div>
 
-        {/* MASTER SPRINT ARCHIVE - HORIZONTAL */}
         <section>
           <SectionLabel text="Sprint Archive" />
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
@@ -205,7 +198,7 @@ const Profile: React.FC = () => {
                     <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
                   </div>
                   <h4 className="font-black text-gray-900 text-[9px] tracking-tight leading-tight line-clamp-2 italic mb-1">{sprint.title}</h4>
-                  <span className="text-[7px] font-black bg-primary/5 text-primary px-1.5 py-0.5 rounded uppercase">Mastered</span>
+                  <span className="text-[7px] font-black bg-primary/5 text-primary px-1.5 py-0.5 rounded uppercase">{sprint.outcomeTag || 'Clarity gained'}</span>
                 </div>
               ))
             ) : (
@@ -214,7 +207,6 @@ const Profile: React.FC = () => {
           </div>
         </section>
 
-        {/* REFLECTION ARCHIVE - HORIZONTAL */}
         <section>
           <div className="flex justify-between items-center mb-2 px-1">
             <SectionLabel text="Reflections" />
@@ -243,7 +235,6 @@ const Profile: React.FC = () => {
           </div>
         </section>
 
-        {/* MICRO PICKER ARCHIVE - HORIZONTAL */}
         <section>
           <SectionLabel text="Micro Decisions" />
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
@@ -260,7 +251,6 @@ const Profile: React.FC = () => {
           </div>
         </section>
 
-        {/* COACH ACCESS - HORIZONTAL */}
         <section className="pb-4">
           <SectionLabel text="Coach Registry" />
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
@@ -278,7 +268,6 @@ const Profile: React.FC = () => {
           </div>
         </section>
 
-        {/* LOGOUT / VERSION FOOTER */}
         <footer className="text-center pt-2">
             <p className="text-[7px] font-black text-gray-200 uppercase tracking-[0.4em]">Vectorise • Profile 4.1 Dense</p>
         </footer>

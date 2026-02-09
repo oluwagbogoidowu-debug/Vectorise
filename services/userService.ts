@@ -8,7 +8,7 @@ import { User, Participant, Coach, UserRole, WalletTransaction } from '../types'
  */
 export const sanitizeData = (val: any, depth = 0, seen = new WeakSet()): any => {
     // 1. Prevent recursion too deep
-    if (depth > 10) return undefined;
+    if (depth > 12) return undefined;
 
     // 2. Handle primitives and null immediately
     if (val === null || typeof val !== 'object') return val;
@@ -20,11 +20,18 @@ export const sanitizeData = (val: any, depth = 0, seen = new WeakSet()): any => 
     if (typeof val.toDate === 'function') return val.toDate().toISOString();
 
     // 4. Handle Firestore FieldValues (Sentinels like deleteField, increment, arrayUnion)
-    // These objects are usually not plain objects but are needed for Firestore operations.
-    // We detect them by checking if they look like Firestore sentinels (internal property check).
-    const isFirestoreSentinel = val.constructor && 
-        (val.constructor.name === 'FieldValue' || val.constructor.name === 'o' || val.constructor.name === 'Sa');
-    if (isFirestoreSentinel) return val;
+    // We check for minified names (Sa, o, Q$1) and standard ones to prevent circular recursion.
+    const constructorName = val.constructor?.name;
+    const isFirestoreInternal = constructorName && 
+        (['FieldValue', 'o', 'Sa', 'Q$1', 'Firestore', 'DocumentReference', 'CollectionReference', 'Query', 'DocumentSnapshot'].includes(constructorName) ||
+         typeof val._methodName === 'string' || 
+         (val.firestore && val.path));
+
+    if (isFirestoreInternal) {
+        // Return FieldValues as-is so Firestore can use them, but strip structural objects (db, ref)
+        // to prevent circularity leaks into application state.
+        return typeof val._methodName === 'string' ? val : undefined;
+    }
 
     // 5. Prevent infinite recursion on circular structures
     if (seen.has(val)) return undefined;
@@ -36,19 +43,17 @@ export const sanitizeData = (val: any, depth = 0, seen = new WeakSet()): any => 
     }
 
     // 7. Strict plain object check
-    // We only recurse into objects created via {} or new Object()
-    // This blocks internal classes (References, Snapshots, etc.) that cause circularity errors.
+    // This is the primary defense against circularity in complex objects.
     const toString = Object.prototype.toString.call(val);
-    const isPlainObject = toString === '[object Object]';
-    if (!isPlainObject) return undefined;
+    if (toString !== '[object Object]') return undefined;
 
-    // 8. Track this object to prevent circularity in children
+    // 8. Track this object
     seen.add(val);
 
     const cleaned: any = {};
     const keys = Object.keys(val);
     for (const key of keys) {
-        // Skip potentially problematic internal properties (usually starting with _ or $)
+        // Skip internal properties
         if (key.startsWith('_') || key.startsWith('$')) continue;
         
         const sanitizedVal = sanitizeData(val[key], depth + 1, seen);

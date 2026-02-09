@@ -17,15 +17,10 @@ export interface OrchestrationMapping {
 }
 
 export const sprintService = {
-    /**
-     * Increments the click count for a specific referral link.
-     * Uses a composite ID to ensure we can track 'main' vs 'sprint-specific' clicks.
-     */
     incrementLinkClick: async (referralCode: string, sprintId?: string | null) => {
         try {
             const docId = sprintId ? `${referralCode}_${sprintId}` : `${referralCode}_main`;
             const docRef = doc(db, LINK_STATS_COLLECTION, docId);
-            
             await setDoc(docRef, {
                 referralCode,
                 sprintId: sprintId || 'main',
@@ -37,9 +32,6 @@ export const sprintService = {
         }
     },
 
-    /**
-     * Subscribes to all link statistics for a partner.
-     */
     subscribeToLinkStats: (referralCode: string, callback: (stats: Record<string, number>) => void) => {
         const q = query(collection(db, LINK_STATS_COLLECTION), where("referralCode", "==", referralCode));
         return onSnapshot(q, (snapshot) => {
@@ -79,18 +71,23 @@ export const sprintService = {
             if (!sprintSnap.exists()) throw new Error("Sprint not found");
             const existing = sprintSnap.data() as Sprint;
 
-            if (isDirect || existing.approvalStatus !== 'approved') {
+            // If Admin is editing or it's a fresh draft, update directly
+            if (isDirect || existing.approvalStatus === 'draft' || existing.approvalStatus === 'rejected') {
                 const updateData = sanitizeData({
                     ...data,
                     updatedAt: now
                 });
                 await updateDoc(sprintRef, updateData);
             } else {
+                // If Coach is editing a published/approved sprint, it goes into pendingChanges
+                // and triggers a re-audit status.
                 const updateData = sanitizeData({
                     pendingChanges: {
+                        ...(existing.pendingChanges || {}),
                         ...data,
                         updatedAt: now
                     },
+                    approvalStatus: 'pending_approval', // Flag for Admin re-audit
                     updatedAt: now
                 });
                 await updateDoc(sprintRef, updateData);
@@ -118,39 +115,22 @@ export const sprintService = {
     approveSprint: async (sprintId: string, data?: Partial<Sprint>) => {
         try {
             const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
-            
-            if (data) {
-                const isFoundational = data.category === 'Core Platform Sprint' || data.category === 'Growth Fundamentals';
-                const price = Number(data.price || 0);
-                const points = Number(data.pointCost || 0);
-                if ((isFoundational && points <= 0) || (!isFoundational && price <= 0)) {
-                    throw new Error("Financial Constraint: A price must be set before approval.");
-                }
-            }
+            const sprintSnap = await getDoc(sprintRef);
+            if (!sprintSnap.exists()) throw new Error("Sprint not found");
+            const existing = sprintSnap.data() as Sprint;
 
-            const updateObj: any = {
+            // Merge pendingChanges into main record on approval
+            const finalData = {
+                ...(existing || {}),
+                ...(existing.pendingChanges || {}),
+                ...(data || {}),
                 approvalStatus: 'approved',
                 published: true,
                 updatedAt: new Date().toISOString(),
                 pendingChanges: deleteField() 
             };
 
-            if (data) {
-                const sanitized = sanitizeData(data);
-                const fieldsToOverwrite = [
-                    'price', 'pointCost', 'pricingType', 'title', 
-                    'description', 'transformation', 'category', 
-                    'difficulty', 'duration', 'coverImageUrl', 
-                    'outcomes', 'forWho', 'notForWho', 'methodSnapshot', 'protocol'
-                ];
-                fieldsToOverwrite.forEach(field => {
-                    if (sanitized[field] !== undefined) {
-                        updateObj[field] = sanitized[field];
-                    }
-                });
-            }
-
-            await updateDoc(sprintRef, updateObj);
+            await updateDoc(sprintRef, sanitizeData(finalData));
         } catch (error) {
             console.error("Error approving sprint:", error);
             throw error;
@@ -162,41 +142,9 @@ export const sprintService = {
             const q = query(collection(db, SPRINTS_COLLECTION), where("deleted", "==", false));
             const querySnapshot = await getDocs(q);
             const dbSprints: Sprint[] = [];
-            const invalidApprovedIds: string[] = [];
-
             querySnapshot.forEach((doc) => {
-                const data = sanitizeData(doc.data()) as Sprint;
-                
-                if (data.approvalStatus === 'approved') {
-                    const isFoundational = data.category === 'Core Platform Sprint' || data.category === 'Growth Fundamentals';
-                    const price = Number(data.price || 0);
-                    const points = Number(data.pointCost || 0);
-                    
-                    if ((isFoundational && points <= 0) || (!isFoundational && price <= 0)) {
-                        data.approvalStatus = 'pending_approval';
-                        data.published = false;
-                        invalidApprovedIds.push(data.id);
-                    }
-                }
-
-                if (data.approvalStatus === 'pending_approval' && isRegistryIncomplete(data)) {
-                    data.approvalStatus = 'draft';
-                }
-                dbSprints.push(data);
+                dbSprints.push(sanitizeData(doc.data()) as Sprint);
             });
-
-            if (invalidApprovedIds.length > 0) {
-                const batch = writeBatch(db);
-                invalidApprovedIds.forEach(id => {
-                    batch.update(doc(db, SPRINTS_COLLECTION, id), { 
-                        approvalStatus: 'pending_approval', 
-                        published: false,
-                        updatedAt: new Date().toISOString()
-                    });
-                });
-                await batch.commit();
-            }
-
             return dbSprints;
         } catch (error) {
             console.error("Error fetching admin sprints:", error);
@@ -212,9 +160,7 @@ export const sprintService = {
                     .map(mapping => mapping.sprintId)
                     .filter(id => !!id)
             );
-
             if (orchestratedSprintIds.size === 0) return [];
-
             const q = query(
                 collection(db, SPRINTS_COLLECTION), 
                 where("approvalStatus", "==", "approved"),
@@ -222,16 +168,10 @@ export const sprintService = {
             );
             const querySnapshot = await getDocs(q);
             const dbSprints: Sprint[] = [];
-
             querySnapshot.forEach((doc) => {
                 const data = sanitizeData(doc.data()) as Sprint;
                 if (!orchestratedSprintIds.has(data.id)) return;
-                const isFoundational = data.category === 'Core Platform Sprint' || data.category === 'Growth Fundamentals';
-                const p = Number(data.price || 0);
-                const pts = Number(data.pointCost || 0);
-                if ((isFoundational && pts > 0) || (!isFoundational && p > 0)) {
-                    dbSprints.push(data);
-                }
+                dbSprints.push(data);
             });
             return dbSprints;
         } catch (error) {
@@ -249,11 +189,7 @@ export const sprintService = {
             const querySnapshot = await getDocs(q);
             const dbSprints: Sprint[] = [];
             querySnapshot.forEach((doc) => {
-                const data = sanitizeData(doc.data()) as Sprint;
-                if (data.approvalStatus === 'pending_approval' && isRegistryIncomplete(data)) {
-                    data.approvalStatus = 'draft';
-                }
-                dbSprints.push(data);
+                dbSprints.push(sanitizeData(doc.data()) as Sprint);
             });
             return dbSprints;
         } catch (error) {
@@ -288,17 +224,7 @@ export const sprintService = {
 
     getSprintIdByFocus: async (focus: string): Promise<string | null> => {
         const orchestration = await sprintService.getOrchestration();
-        const foundationSlotIds = LIFECYCLE_SLOTS.filter(s => s.stage === 'Foundation').map(s => s.id);
-        
-        for (const slotId of foundationSlotIds) {
-            const mapping = orchestration[slotId];
-            if (mapping && mapping.sprintId && mapping.focusCriteria && mapping.focusCriteria.includes(focus)) {
-                return mapping.sprintId;
-            }
-        }
-
         for (const slotId in orchestration) {
-            if (foundationSlotIds.includes(slotId)) continue;
             const mapping = orchestration[slotId];
             if (mapping.focusCriteria && mapping.focusCriteria.includes(focus)) {
                 return mapping.sprintId;
@@ -312,13 +238,11 @@ export const sprintService = {
         const enrollmentRef = doc(db, ENROLLMENTS_COLLECTION, enrollmentId);
         const existing = await getDoc(enrollmentRef);
         if (existing.exists()) return sanitizeData(existing.data()) as ParticipantSprint;
-
         const newEnrollment: ParticipantSprint = {
             id: enrollmentId, sprintId, participantId: userId,
             startDate: new Date().toISOString(), sentNudges: [],
             progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
         };
-
         await setDoc(enrollmentRef, sanitizeData(newEnrollment));
         await userService.addUserEnrollment(userId, sprintId);
         return newEnrollment;
