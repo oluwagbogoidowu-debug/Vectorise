@@ -13,17 +13,31 @@ const SignUpPage: React.FC = () => {
   const location = useLocation();
   
   const onboardingState = location.state || {};
+  
+  // Helper to extract cookie value
+  const getCookie = (name: string) => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift();
+    return null;
+  };
+
+  // 1. Permanent Attribution Check (Background Storage)
+  // We check LocalStorage first (durable), then Cookie (backup for payment redirects)
+  const storedRef = localStorage.getItem('vectorise_ref') || getCookie('vectorise_ref');
+  const savedSprint = localStorage.getItem('vectorise_last_sprint');
+
   const { 
     persona, 
     answers, 
     recommendedPlan, 
     occupation, 
-    referrerId, 
+    referrerId = storedRef, // Attribution priority
     prefilledEmail, 
     prefilledFirstName,
     prefilledLastName,
     fromPayment, 
-    targetSprintId,
+    targetSprintId = savedSprint,
     isPartnerApplication,
     partnerData 
   } = onboardingState;
@@ -57,7 +71,7 @@ const SignUpPage: React.FC = () => {
       const firebaseUser = userCredential.user;
       await updateFbProfile(firebaseUser, { displayName: `${firstName} ${lastName}` });
       
-      // 2. Create User Document
+      // 2. Create User Document with Permanent Attribution
       const newUser: Partial<Participant> = {
         id: firebaseUser.uid,
         name: `${firstName} ${lastName}`,
@@ -71,12 +85,21 @@ const SignUpPage: React.FC = () => {
         createdAt: new Date().toISOString(),
         enrolledSprintIds: [],
         isPartner: !!isPartnerApplication,
-        partnerData: partnerData || null
+        partnerData: partnerData || null,
+        
+        // ATTACH REFERRAL DATA PERMANENTLY
+        referrerId: referrerId || null,
+        referralFirstTouch: referrerId ? new Date().toISOString() : null
       };
       
       await userService.createUserDocument(firebaseUser.uid, newUser);
 
-      // 3. Post-Payment Fulfillment
+      // 3. Clean up used tracking data
+      localStorage.removeItem('vectorise_ref');
+      localStorage.removeItem('vectorise_last_sprint');
+      document.cookie = "vectorise_ref=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
+      // 4. Post-Payment Fulfillment
       if (fromPayment && targetSprintId) {
           try {
               const sprint = await sprintService.getSprintById(targetSprintId);
@@ -110,6 +133,11 @@ const SignUpPage: React.FC = () => {
             <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">
                 {isPartnerApplication ? 'Establish Partner Identity' : fromPayment ? 'Establish your identity' : 'Join the Registry'}
             </h1>
+            {referrerId && !isPartnerApplication && (
+                <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-3">
+                    Referred by Catalyst: {referrerId}
+                </p>
+            )}
         </header>
 
         <div className="w-full bg-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-hidden relative">

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -31,9 +30,11 @@ const ReferralShare: React.FC = () => {
     const participant = user as Participant;
     const referralCode = participant.referralCode || 'GROWTH';
     
-    // THE SPRINT-SPECIFIC LINK
-    const invitePath = targetSprint ? `/join/${referralCode}/${targetSprint.id}` : `/join/${referralCode}/general`;
-    const referralLink = `${window.location.origin}/#${invitePath}`;
+    // referral links now strictly follow the pattern: domain.com/?ref=CODE&sprintId=ID#/
+    const inviteParams = targetSprint 
+        ? `?ref=${referralCode}&sprintId=${targetSprint.id}` 
+        : `?ref=${referralCode}`;
+    const referralLink = `${window.location.origin}/${inviteParams}#/`;
     
     const defaultMessage = targetSprint 
         ? `I'm currently focused on this '${targetSprint.title}' sprint and thought you'd love it. Let's grow together: ${referralLink}`

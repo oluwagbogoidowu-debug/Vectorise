@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/Header';
@@ -28,6 +28,7 @@ import BottomNavigation from './components/BottomNavigation';
 import SprintInviteLanding from './pages/Participant/SprintInviteLanding';
 import PartnerPage from './pages/Partner/PartnerPage';
 import PartnerApply from './pages/Partner/PartnerApply';
+import PartnerDashboard from './pages/Partner/PartnerDashboard';
 
 // New specialized onboarding pages
 import FocusSelector from './pages/Onboarding/FocusSelector';
@@ -57,14 +58,6 @@ import { CoachWelcome } from './pages/Onboarding/CoachWelcome';
 import CoachQuizIntro from './pages/Onboarding/CoachQuizIntro';
 import CoachQuiz from './pages/Onboarding/CoachQuiz';
 import CoachOnboardingComplete from './pages/Coach/CoachOnboardingComplete';
-
-const PartnerDashboardPlaceholder = () => (
-  <div className="p-12 text-center">
-    <h1 className="text-4xl font-black mb-4">Partner Dashboard</h1>
-    <p className="text-gray-500">Welcome to your partner portal. Tracking and impact metrics coming soon.</p>
-    <Navigate to="/dashboard" />
-  </div>
-);
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -104,6 +97,44 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
 const AppRoutes: React.FC = () => {
   const { user, activeRole } = useAuth();
   const location = useLocation();
+
+  // GLOBAL REFERRAL TRACKER (ENHANCED FOR HASH ROUTING)
+  useEffect(() => {
+    // 1. Capture 'ref' from window.location.search (BEFORE the hash)
+    // This handles: vectorise.online/?ref=CODE#/
+    const urlParams = new URLSearchParams(window.location.search);
+    const refFromUrl = urlParams.get('ref');
+
+    // 2. Capture 'ref' from Hash part as fallback (though usually ignored by browser spec)
+    // This handles: vectorise.online/#/?ref=CODE
+    const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || "");
+    const refFromHash = hashParams.get('ref');
+
+    const finalRef = refFromUrl || refFromHash;
+    
+    if (finalRef) {
+      // FIRST TOUCH RULE: Do not overwrite if a code is already stored
+      const existingRef = localStorage.getItem('vectorise_ref');
+      
+      if (!existingRef) {
+        console.log("[Registry] Capturing New First-Touch Referral:", finalRef);
+        
+        // Persist in LocalStorage
+        localStorage.setItem('vectorise_ref', finalRef);
+        
+        // Persist in Cookie for robustness across payment redirects
+        const expires = new Date();
+        expires.setTime(expires.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 Days
+        document.cookie = `vectorise_ref=${finalRef};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+      }
+    }
+
+    // Capture contextual Sprint ID if present
+    const sprintId = urlParams.get('sprintId') || hashParams.get('sprintId');
+    if (sprintId) {
+      localStorage.setItem('vectorise_last_sprint', sprintId);
+    }
+  }, [location.pathname]);
   
   const isOnboardingRoute = location.pathname.startsWith('/onboarding') || 
                             location.pathname === '/recommended' || 
@@ -117,12 +148,11 @@ const AppRoutes: React.FC = () => {
     location.pathname === '/verify-email' ||
     location.pathname === '/payment-success';
 
-  // Strictly only show on the dashboard (homepage) as requested
   const showGlobalHeader = location.pathname === '/dashboard';
 
   const showParticipantNav = 
     user && 
-    (activeRole === UserRole.PARTICIPANT || activeRole === UserRole.PARTNER) && 
+    activeRole === UserRole.PARTICIPANT && 
     !isOnboardingRoute &&
     !location.pathname.startsWith('/coach') &&
     !location.pathname.startsWith('/admin') &&
@@ -140,7 +170,7 @@ const AppRoutes: React.FC = () => {
           <Route path="/recommended" element={<RecommendedSprints />} />
           <Route path="/partner" element={<PartnerPage />} />
           <Route path="/partner/apply" element={<PartnerApply />} />
-          <Route path="/partner/dashboard" element={<ProtectedRoute roles={[UserRole.PARTNER, UserRole.ADMIN]}><PartnerDashboardPlaceholder /></ProtectedRoute>} />
+          <Route path="/partner/dashboard" element={<ProtectedRoute roles={[UserRole.PARTNER, UserRole.ADMIN]}><PartnerDashboard /></ProtectedRoute>} />
           
           <Route path="/onboarding/welcome" element={<Welcome />} />
           <Route path="/onboarding/focus-selector" element={<FocusSelector />} />

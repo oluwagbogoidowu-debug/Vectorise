@@ -119,6 +119,10 @@ export interface Participant extends User {
   activeSprintId?: string;
   walletBalance?: number;
   referralCode?: string;
+  // Added for referral tracking
+  referrerId?: string | null;
+  // Added for referral tracking
+  referralFirstTouch?: string | null;
   impactStats?: { peopleHelped: number; streak: number };
   wishlistSprintIds?: string[];
   enrolledSprintIds?: string[];
