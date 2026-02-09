@@ -29,7 +29,6 @@ import SprintInviteLanding from './pages/Participant/SprintInviteLanding';
 import PartnerPage from './pages/Partner/PartnerPage';
 import PartnerApply from './pages/Partner/PartnerApply';
 import PartnerDashboard from './pages/Partner/PartnerDashboard';
-import { partnerService } from './services/partnerService';
 
 // New specialized onboarding pages
 import FocusSelector from './pages/Onboarding/FocusSelector';
@@ -99,41 +98,44 @@ const AppRoutes: React.FC = () => {
   const { user, activeRole } = useAuth();
   const location = useLocation();
 
-  // GLOBAL REFERRAL TRACKER (ENHANCED FOR HASH ROUTING)
+  // GLOBAL REFERRAL TRACKER (ENHANCED FOR HASH ROUTING & IDEMPOTENCY)
   useEffect(() => {
     // 1. Capture 'ref' from window.location.search (BEFORE the hash)
-    // This handles: vectorise.online/?ref=CODE#/
     const urlParams = new URLSearchParams(window.location.search);
     const refFromUrl = urlParams.get('ref');
 
-    // 2. Capture 'ref' from Hash part as fallback (though usually ignored by browser spec)
-    // This handles: vectorise.online/#/?ref=CODE
+    // 2. Capture 'ref' from Hash part as fallback
     const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || "");
     const refFromHash = hashParams.get('ref');
 
     const finalRef = refFromUrl || refFromHash;
-    const sprintId = urlParams.get('sprintId') || hashParams.get('sprintId');
     
     if (finalRef) {
-      // TRACK THE CLICK IN REAL TIME
-      partnerService.logClick(finalRef, sprintId);
+      // PREVENT DOUBLE COUNTING: Use sessionStorage to track if this link load was already processed in this session
+      const sessionProcessedKey = `vec_ref_processed_${finalRef}`;
+      const isAlreadyProcessed = sessionStorage.getItem(sessionProcessedKey);
 
-      // FIRST TOUCH RULE: Do not overwrite if a code is already stored
-      const existingRef = localStorage.getItem('vectorise_ref');
-      
-      if (!existingRef) {
-        console.log("[Registry] Capturing New First-Touch Referral:", finalRef);
+      if (!isAlreadyProcessed) {
+        // FIRST TOUCH RULE: Do not overwrite if a code is already stored in long-term storage
+        const existingRef = localStorage.getItem('vectorise_ref');
         
-        // Persist in LocalStorage
-        localStorage.setItem('vectorise_ref', finalRef);
-        
-        // Persist in Cookie for robustness across payment redirects
-        const expires = new Date();
-        expires.setTime(expires.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 Days
-        document.cookie = `vectorise_ref=${finalRef};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+        if (!existingRef) {
+          console.log("[Registry] Capturing New First-Touch Referral:", finalRef);
+          localStorage.setItem('vectorise_ref', finalRef);
+          
+          // Persist in Cookie for robustness across payment redirects (30 days)
+          const expires = new Date();
+          expires.setTime(expires.getTime() + (30 * 24 * 60 * 60 * 1000));
+          document.cookie = `vectorise_ref=${finalRef};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+        }
+
+        // Mark as processed for this browser session to prevent "1 click = 3 counts" logic errors
+        sessionStorage.setItem(sessionProcessedKey, 'true');
       }
     }
 
+    // Capture contextual Sprint ID
+    const sprintId = urlParams.get('sprintId') || hashParams.get('sprintId');
     if (sprintId) {
       localStorage.setItem('vectorise_last_sprint', sprintId);
     }
@@ -161,6 +163,10 @@ const AppRoutes: React.FC = () => {
     !location.pathname.startsWith('/admin') &&
     !isAuthRoute;
 
+  // Check if we have a referral parameter currently in the URL
+  const hasRefParam = new URLSearchParams(window.location.search).has('ref') || 
+                      new URLSearchParams(window.location.hash.split('?')[1] || "").has('ref');
+
   return (
     <div className={`min-h-screen font-sans ${isOnboardingRoute ? 'bg-primary text-white' : 'bg-light text-dark'}`}>
       {showGlobalHeader && <Header />}
@@ -169,7 +175,10 @@ const AppRoutes: React.FC = () => {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
-          <Route path="/" element={user ? <Navigate to="/dashboard" /> : <HomePage />} />
+          
+          {/* Refined Home route: If a partner is testing their link (?ref=...) don't force them to dashboard immediately */}
+          <Route path="/" element={(user && !hasRefParam) ? <Navigate to="/dashboard" /> : <HomePage />} />
+          
           <Route path="/recommended" element={<RecommendedSprints />} />
           <Route path="/partner" element={<PartnerPage />} />
           <Route path="/partner/apply" element={<PartnerApply />} />
