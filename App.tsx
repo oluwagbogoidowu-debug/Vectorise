@@ -29,6 +29,7 @@ import SprintInviteLanding from './pages/Participant/SprintInviteLanding';
 import PartnerPage from './pages/Partner/PartnerPage';
 import PartnerApply from './pages/Partner/PartnerApply';
 import PartnerDashboard from './pages/Partner/PartnerDashboard';
+import { partnerService } from './services/partnerService';
 
 // New specialized onboarding pages
 import FocusSelector from './pages/Onboarding/FocusSelector';
@@ -111,8 +112,12 @@ const AppRoutes: React.FC = () => {
     const refFromHash = hashParams.get('ref');
 
     const finalRef = refFromUrl || refFromHash;
+    const sprintId = urlParams.get('sprintId') || hashParams.get('sprintId');
     
     if (finalRef) {
+      // TRACK THE CLICK IN REAL TIME
+      partnerService.logClick(finalRef, sprintId);
+
       // FIRST TOUCH RULE: Do not overwrite if a code is already stored
       const existingRef = localStorage.getItem('vectorise_ref');
       
@@ -129,8 +134,6 @@ const AppRoutes: React.FC = () => {
       }
     }
 
-    // Capture contextual Sprint ID if present
-    const sprintId = urlParams.get('sprintId') || hashParams.get('sprintId');
     if (sprintId) {
       localStorage.setItem('vectorise_last_sprint', sprintId);
     }

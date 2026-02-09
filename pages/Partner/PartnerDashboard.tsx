@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
 import { Participant } from '../../types';
+import { partnerService } from '../../services/partnerService';
 
 type PartnerTab = 'overview' | 'links' | 'earnings' | 'referrals' | 'settings';
 
@@ -11,14 +12,25 @@ const PartnerDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<PartnerTab>('overview');
+  const [realTimeMetrics, setRealTimeMetrics] = useState({ totalClicks: 0 });
 
   const p = user as Participant;
   const referralCode = p?.referralCode || 'PARTNER';
   
+  // Real-time metrics subscription
+  useEffect(() => {
+    if (referralCode) {
+      const unsubscribe = partnerService.subscribeToMetrics(referralCode, (data) => {
+        setRealTimeMetrics(data);
+      });
+      return () => unsubscribe();
+    }
+  }, [referralCode]);
+
   // referral links now strictly follow: domain.com/?ref=CODE#/
   const partnerLink = `${window.location.origin}/?ref=${referralCode}#/`;
 
-  // Mock data for the partner metrics
+  // Mock data for the partner metrics (except clicks which is now real)
   const stats = {
     revenue: 125000,
     earnings: 37500,
@@ -106,8 +118,8 @@ const PartnerDashboard: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Monthly Revenue</p>
-                <h3 className="text-3xl font-black text-gray-900 tracking-tight">₦{stats.revenue.toLocaleString()}</h3>
+                <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">Real-time Clicks</p>
+                <h3 className="text-3xl font-black text-gray-900 tracking-tight">{realTimeMetrics.totalClicks.toLocaleString()}</h3>
                 <div className="absolute -bottom-6 -right-6 w-20 h-20 bg-primary/5 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
               </div>
               <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group">
@@ -130,8 +142,8 @@ const PartnerDashboard: React.FC = () => {
                 <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.3em] mb-8 border-b border-gray-50 pb-4">Performance Metrics</h4>
                 <div className="space-y-6">
                   <div className="flex justify-between items-center">
-                    <p className="text-sm font-bold text-gray-500">Active Links</p>
-                    <p className="text-lg font-black text-gray-900">{stats.activeLinks}</p>
+                    <p className="text-sm font-bold text-gray-500">Total Link Clicks</p>
+                    <p className="text-lg font-black text-primary animate-pulse">{realTimeMetrics.totalClicks.toLocaleString()}</p>
                   </div>
                   <div className="flex justify-between items-center">
                     <p className="text-sm font-bold text-gray-500">Purchases via Link</p>
