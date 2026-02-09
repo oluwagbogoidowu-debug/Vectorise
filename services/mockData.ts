@@ -1,4 +1,3 @@
-
 import { UserRole, Coach, Participant, Admin, RoleDefinition, Sprint, LifecycleStage, LifecycleSlot, SprintType, ParticipantSprint, Referral, ShinePost, CoachingComment } from '../types';
 
 export const FOCUS_OPTIONS = [
@@ -30,6 +29,7 @@ export const CATEGORY_TO_STAGE_MAP: Record<string, LifecycleStage> = {
     'Inner Peace': 'Foundation',
     'Growth Fundamentals': 'Foundation', // Platform Core
     'Core Platform Sprint': 'Foundation', // Platform Core
+    'Clarity': 'Foundation', // Explicitly mapped to Foundation for the Clarity Slot
 
     // 02. Direction: Helping people understand who they are and where they’re headed.
     'Life': 'Direction',
@@ -37,7 +37,6 @@ export const CATEGORY_TO_STAGE_MAP: Record<string, LifecycleStage> = {
     'Identity': 'Direction',
     'Purpose': 'Direction',
     'Vision': 'Direction',
-    'Clarity': 'Direction',
     'Purpose Alignment': 'Direction',
     'Meaning': 'Direction',
     'Consciousness': 'Direction',
@@ -128,9 +127,10 @@ export const LIFECYCLE_STAGES_CONFIG: Record<LifecycleStage, { subtitle: string;
 };
 
 export const LIFECYCLE_SLOTS: LifecycleSlot[] = [
-    // Foundation uniquely has both Clarity and Orientation
+    // Foundation uniquely has 3 subcategories as requested
     { id: 'slot_found_clarity', stage: 'Foundation', type: 'Execution', name: 'Clarity', required: true, maxCount: 1 },
     { id: 'slot_found_orient', stage: 'Foundation', type: 'Diagnostic', name: 'Orientation', required: true, maxCount: 1 },
+    { id: 'slot_found_core', stage: 'Foundation', type: 'Execution', name: 'Core Foundation', required: true, maxCount: 1 },
     
     // All others have singular slots for mapping
     { id: 'slot_dir_primary', stage: 'Direction', type: 'Narrowing', name: 'Mapping Slot', required: true, maxCount: 1 },

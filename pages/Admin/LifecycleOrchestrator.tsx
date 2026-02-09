@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { LifecycleStage, LifecycleSlot, Sprint } from '../../types';
 import { LIFECYCLE_STAGES_CONFIG, LIFECYCLE_SLOTS, FOCUS_OPTIONS, CATEGORY_TO_STAGE_MAP } from '../../services/mockData';
@@ -40,28 +39,36 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
     const currentStageConfig = LIFECYCLE_STAGES_CONFIG[selectedStage];
     const currentSlots = LIFECYCLE_SLOTS.filter(s => s.stage === selectedStage);
 
-    // Filter logic to show only sprints whose category maps to the selected stage
-    const availableSprintsForStage = useMemo(() => {
+    /**
+     * STATED REQUIREMENT: Foundation has 3 subcategories
+     * 1. Clarity: Only sprints with tag 'Clarity'
+     * 2. Orientation: Only sprints with tag 'Core Platform Sprint'
+     * 3. Core Foundation: Only sprints with tag 'Growth Fundamentals'
+     */
+    const getAvailableSprintsForSlot = (slot: LifecycleSlot) => {
         return allSprints.filter(s => {
-            // Must be approved
+            // Must be approved and published
             if (s.approvalStatus !== 'approved' && !s.published) return false;
-            
-            // PLATFORM EXCEPTION: Core and Fundamentals can be assigned to ANY stage in the lifecycle
-            const isPlatformCore = s.category === 'Core Platform Sprint' || s.category === 'Growth Fundamentals';
-            if (isPlatformCore) return true;
 
+            // Logic for Foundation Stage
+            if (slot.stage === 'Foundation') {
+                if (slot.id === 'slot_found_clarity') return s.category === 'Clarity';
+                if (slot.id === 'slot_found_orient') return s.category === 'Core Platform Sprint';
+                if (slot.id === 'slot_found_core') return s.category === 'Growth Fundamentals';
+                return false;
+            }
+
+            // Logic for all other stages
             const mappedStage = CATEGORY_TO_STAGE_MAP[s.category];
-            
-            // Strict check: Is this category mapped to this stage?
             if (mappedStage === selectedStage) return true;
 
             // Fallback: If it's already assigned here, keep it visible
-            const isCurrentlyAssignedHere = currentSlots.some(slot => assignments[slot.id]?.sprintId === s.id);
+            const isCurrentlyAssignedHere = assignments[slot.id]?.sprintId === s.id;
             if (isCurrentlyAssignedHere) return true;
 
             return false;
         });
-    }, [allSprints, selectedStage, assignments, currentSlots]);
+    };
 
     const handleSprintAssign = (slotId: string, sprintId: string) => {
         setAssignments(prev => ({ 
@@ -146,6 +153,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                 <div className="grid grid-cols-1 gap-4">
                     {currentSlots.map(slot => {
                         const assignment = assignments[slot.id] || { sprintId: '', focusCriteria: [] };
+                        const availablePool = getAvailableSprintsForSlot(slot);
                         const assignedSprint = allSprints.find(s => s.id === assignment.sprintId);
 
                         return (
@@ -154,20 +162,22 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                                 <div className="flex flex-col md:flex-row gap-8 items-start">
                                     <div className="w-full md:w-56">
                                         <h4 className="text-lg font-black text-gray-900 tracking-tight mb-1">{slot.name}</h4>
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">Assignment Slot</p>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">
+                                            {slot.stage === 'Foundation' ? 'Restricted Category Pool' : 'Assignment Slot'}
+                                        </p>
                                     </div>
 
                                     <div className="flex-1 w-full space-y-6">
                                         {/* POOL SELECTOR */}
                                         <div className="relative">
-                                            <label className="block text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-1.5 ml-2">Available Pool ({availableSprintsForStage.length}):</label>
+                                            <label className="block text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-1.5 ml-2">Available Pool ({availablePool.length}):</label>
                                             <select 
                                                 value={assignment.sprintId} 
                                                 onChange={(e) => handleSprintAssign(slot.id, e.target.value)}
                                                 className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all font-bold text-sm text-gray-700 cursor-pointer appearance-none"
                                             >
                                                 <option value="">-- Unassigned --</option>
-                                                {availableSprintsForStage
+                                                {availablePool
                                                     .filter(s => !globallyAssignedSprintIds.includes(s.id) || assignment.sprintId === s.id)
                                                     .map(s => (
                                                         <option key={s.id} value={s.id}>{s.title}</option>
@@ -211,7 +221,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                                                 onClick={() => handleSprintAssign(slot.id, '')}
                                                 className="p-1.5 text-gray-300 hover:text-red-400 transition-colors cursor-pointer"
                                             >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12"/></svg>
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12"/></svg>
                                             </button>
                                         </div>
                                     )}
