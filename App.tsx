@@ -29,6 +29,7 @@ import SprintInviteLanding from './pages/Participant/SprintInviteLanding';
 import PartnerPage from './pages/Partner/PartnerPage';
 import PartnerApply from './pages/Partner/PartnerApply';
 import PartnerDashboard from './pages/Partner/PartnerDashboard';
+import { sprintService } from './services/sprintService';
 
 // New specialized onboarding pages
 import FocusSelector from './pages/Onboarding/FocusSelector';
@@ -98,44 +99,39 @@ const AppRoutes: React.FC = () => {
   const { user, activeRole } = useAuth();
   const location = useLocation();
 
-  // GLOBAL REFERRAL TRACKER (ENHANCED FOR HASH ROUTING & IDEMPOTENCY)
+  // GLOBAL REFERRAL TRACKER (ENHANCED FOR TELEMETRY & IDEMPOTENCY)
   useEffect(() => {
-    // 1. Capture 'ref' from window.location.search (BEFORE the hash)
     const urlParams = new URLSearchParams(window.location.search);
     const refFromUrl = urlParams.get('ref');
-
-    // 2. Capture 'ref' from Hash part as fallback
     const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || "");
     const refFromHash = hashParams.get('ref');
-
     const finalRef = refFromUrl || refFromHash;
+    const sprintId = urlParams.get('sprintId') || hashParams.get('sprintId');
     
     if (finalRef) {
-      // PREVENT DOUBLE COUNTING: Use sessionStorage to track if this link load was already processed in this session
-      const sessionProcessedKey = `vec_ref_processed_${finalRef}`;
+      // PREVENT DOUBLE COUNTING: Use session-specific key including sprint context
+      const sessionProcessedKey = `vec_click_${finalRef}_${sprintId || 'main'}`;
       const isAlreadyProcessed = sessionStorage.getItem(sessionProcessedKey);
 
       if (!isAlreadyProcessed) {
-        // FIRST TOUCH RULE: Do not overwrite if a code is already stored in long-term storage
+        // 1. Log Click to Firestore Telemetry
+        sprintService.incrementLinkClick(finalRef, sprintId);
+
+        // 2. Mark as processed for this session
+        sessionStorage.setItem(sessionProcessedKey, 'true');
+
+        // 3. Persist for signup attribution (First-Touch)
         const existingRef = localStorage.getItem('vectorise_ref');
-        
         if (!existingRef) {
           console.log("[Registry] Capturing New First-Touch Referral:", finalRef);
           localStorage.setItem('vectorise_ref', finalRef);
-          
-          // Persist in Cookie for robustness across payment redirects (30 days)
           const expires = new Date();
           expires.setTime(expires.getTime() + (30 * 24 * 60 * 60 * 1000));
           document.cookie = `vectorise_ref=${finalRef};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
         }
-
-        // Mark as processed for this browser session to prevent "1 click = 3 counts" logic errors
-        sessionStorage.setItem(sessionProcessedKey, 'true');
       }
     }
 
-    // Capture contextual Sprint ID
-    const sprintId = urlParams.get('sprintId') || hashParams.get('sprintId');
     if (sprintId) {
       localStorage.setItem('vectorise_last_sprint', sprintId);
     }
@@ -163,7 +159,6 @@ const AppRoutes: React.FC = () => {
     !location.pathname.startsWith('/admin') &&
     !isAuthRoute;
 
-  // Check if we have a referral parameter currently in the URL
   const hasRefParam = new URLSearchParams(window.location.search).has('ref') || 
                       new URLSearchParams(window.location.hash.split('?')[1] || "").has('ref');
 
@@ -175,15 +170,11 @@ const AppRoutes: React.FC = () => {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
-          
-          {/* Refined Home route: If a partner is testing their link (?ref=...) don't force them to dashboard immediately */}
           <Route path="/" element={(user && !hasRefParam) ? <Navigate to="/dashboard" /> : <HomePage />} />
-          
           <Route path="/recommended" element={<RecommendedSprints />} />
           <Route path="/partner" element={<PartnerPage />} />
           <Route path="/partner/apply" element={<PartnerApply />} />
           <Route path="/partner/dashboard" element={<ProtectedRoute roles={[UserRole.PARTNER, UserRole.ADMIN]}><PartnerDashboard /></ProtectedRoute>} />
-          
           <Route path="/onboarding/welcome" element={<Welcome />} />
           <Route path="/onboarding/focus-selector" element={<FocusSelector />} />
           <Route path="/onboarding/description/:sprintId" element={<ProgramDescription />} />
@@ -191,14 +182,11 @@ const AppRoutes: React.FC = () => {
           <Route path="/onboarding/sprint-payment" element={<SprintPayment />} />
           <Route path="/onboarding/intro" element={<QuizIntro />} />
           <Route path="/onboarding/quiz" element={<Quiz />} />
-
           <Route path="/onboarding/coach/welcome" element={<CoachWelcome />} />
           <Route path="/onboarding/coach/intro" element={<CoachQuizIntro />} />
           <Route path="/onboarding/coach/quiz" element={<CoachQuiz />} />
           <Route path="/coach/onboarding/complete" element={<CoachOnboardingComplete />} />
-          
           <Route path="/join/:referralCode/:sprintId" element={<SprintInviteLanding />} />
-
           <Route path="/dashboard" element={
             <ProtectedRoute roles={[UserRole.COACH, UserRole.PARTICIPANT, UserRole.ADMIN, UserRole.PARTNER]}>
               {activeRole === UserRole.COACH && <Navigate to="/coach/dashboard" />}
@@ -207,7 +195,6 @@ const AppRoutes: React.FC = () => {
               {(activeRole === UserRole.PARTICIPANT || activeRole === UserRole.PARTNER) && <ParticipantLayout><ParticipantDashboard /></ParticipantLayout>}
             </ProtectedRoute>
           } />
-
           <Route element={<ProtectedRoute roles={[UserRole.COACH]}><CoachLayout /></ProtectedRoute>}>
              <Route path="/coach/dashboard" element={<CoachDashboard />} />
              <Route path="/coach/sprints" element={<CoachSprints />} />
@@ -216,10 +203,8 @@ const AppRoutes: React.FC = () => {
              <Route path="/coach/impact" element={<CoachImpact />} />
              <Route path="/coach/profile" element={<Profile />} />
           </Route>
-
           <Route path="/coach/sprint/new" element={<ProtectedRoute roles={[UserRole.COACH]}><CreateSprint /></ProtectedRoute>} />
           <Route path="/coach/sprint/edit/:sprintId" element={<ProtectedRoute roles={[UserRole.COACH, UserRole.ADMIN]}><EditSprint /></ProtectedRoute>} />
-
           <Route element={<ProtectedRoute roles={[UserRole.PARTICIPANT, UserRole.PARTNER]}><ParticipantLayout /></ProtectedRoute>}>
              <Route path="/discover" element={<DiscoverSprints />} />
              <Route path="/my-sprints" element={<MySprints />} />
@@ -232,7 +217,6 @@ const AppRoutes: React.FC = () => {
              <Route path="/impact/rewards" element={<GrowthRewards />} />
              <Route path="/impact/badges" element={<Badges />} />
           </Route>
-          
           <Route path="/participant/sprint/:enrollmentId" element={
               <ProtectedRoute roles={[UserRole.PARTICIPANT, UserRole.COACH, UserRole.ADMIN, UserRole.PARTNER]}>
                   <ParticipantLayout>
@@ -240,14 +224,11 @@ const AppRoutes: React.FC = () => {
                   </ParticipantLayout>
               </ProtectedRoute>
           } />
-          
           <Route path="/impact/success" element={<ReferralSuccess />} />
           <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route path="/sprint/:sprintId" element={<SprintLandingPage />} />
-          
           <Route path="/admin/dashboard" element={<ProtectedRoute roles={[UserRole.ADMIN]}><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/sprint/new" element={<ProtectedRoute roles={[UserRole.ADMIN]}><CreateFoundationalSprint /></ProtectedRoute>} />
-
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>

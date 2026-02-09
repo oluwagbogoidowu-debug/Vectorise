@@ -1,6 +1,5 @@
-
 import { db } from './firebase';
-import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, deleteDoc, onSnapshot, addDoc, deleteField, writeBatch } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, deleteDoc, onSnapshot, addDoc, deleteField, writeBatch, increment, serverTimestamp } from 'firebase/firestore';
 import { ParticipantSprint, Sprint, Review, CoachingComment, UserEvent, LifecycleSlotAssignment } from '../types';
 import { userService, sanitizeData } from './userService';
 import { notificationService } from './notificationService';
@@ -11,12 +10,48 @@ const SPRINTS_COLLECTION = 'sprints';
 const ENROLLMENTS_COLLECTION = 'enrollments';
 const REVIEWS_COLLECTION = 'reviews';
 const ORCHESTRATION_COLLECTION = 'orchestration';
+const LINK_STATS_COLLECTION = 'link_stats';
 
 export interface OrchestrationMapping {
     assignments: Record<string, { sprintId: string; focusCriteria: string[] }>;
 }
 
 export const sprintService = {
+    /**
+     * Increments the click count for a specific referral link.
+     * Uses a composite ID to ensure we can track 'main' vs 'sprint-specific' clicks.
+     */
+    incrementLinkClick: async (referralCode: string, sprintId?: string | null) => {
+        try {
+            const docId = sprintId ? `${referralCode}_${sprintId}` : `${referralCode}_main`;
+            const docRef = doc(db, LINK_STATS_COLLECTION, docId);
+            
+            await setDoc(docRef, {
+                referralCode,
+                sprintId: sprintId || 'main',
+                clicks: increment(1),
+                lastClickAt: serverTimestamp()
+            }, { merge: true });
+        } catch (error) {
+            console.error("[Telemetry] Failed to log click:", error);
+        }
+    },
+
+    /**
+     * Subscribes to all link statistics for a partner.
+     */
+    subscribeToLinkStats: (referralCode: string, callback: (stats: Record<string, number>) => void) => {
+        const q = query(collection(db, LINK_STATS_COLLECTION), where("referralCode", "==", referralCode));
+        return onSnapshot(q, (snapshot) => {
+            const statsMap: Record<string, number> = {};
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                statsMap[data.sprintId] = data.clicks || 0;
+            });
+            callback(statsMap);
+        });
+    },
+
     createSprint: async (sprint: Sprint) => {
         try {
             const now = new Date().toISOString();
@@ -44,8 +79,6 @@ export const sprintService = {
             if (!sprintSnap.exists()) throw new Error("Sprint not found");
             const existing = sprintSnap.data() as Sprint;
 
-            // If Admin (isDirect) or not yet approved, update directly.
-            // Coaches editing approved sprints go to pendingChanges.
             if (isDirect || existing.approvalStatus !== 'approved') {
                 const updateData = sanitizeData({
                     ...data,
@@ -86,7 +119,6 @@ export const sprintService = {
         try {
             const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
             
-            // Check provided data for pricing validity
             if (data) {
                 const isFoundational = data.category === 'Core Platform Sprint' || data.category === 'Growth Fundamentals';
                 const price = Number(data.price || 0);
@@ -127,7 +159,6 @@ export const sprintService = {
 
     getAdminSprints: async () => {
         try {
-            // Only fetch sprints that are not deleted
             const q = query(collection(db, SPRINTS_COLLECTION), where("deleted", "==", false));
             const querySnapshot = await getDocs(q);
             const dbSprints: Sprint[] = [];
@@ -136,7 +167,6 @@ export const sprintService = {
             querySnapshot.forEach((doc) => {
                 const data = sanitizeData(doc.data()) as Sprint;
                 
-                // VALIDATION RULE: Demote approved sprints with 0 price
                 if (data.approvalStatus === 'approved') {
                     const isFoundational = data.category === 'Core Platform Sprint' || data.category === 'Growth Fundamentals';
                     const price = Number(data.price || 0);
@@ -155,7 +185,6 @@ export const sprintService = {
                 dbSprints.push(data);
             });
 
-            // Perform batch update for demotions
             if (invalidApprovedIds.length > 0) {
                 const batch = writeBatch(db);
                 invalidApprovedIds.forEach(id => {
@@ -177,7 +206,6 @@ export const sprintService = {
 
     getPublishedSprints: async () => {
         try {
-            // 1. Get Orchestration Mapping
             const orchestration = await sprintService.getOrchestration();
             const orchestratedSprintIds = new Set(
                 Object.values(orchestration)
@@ -187,7 +215,6 @@ export const sprintService = {
 
             if (orchestratedSprintIds.size === 0) return [];
 
-            // 2. Fetch approved sprints
             const q = query(
                 collection(db, SPRINTS_COLLECTION), 
                 where("approvalStatus", "==", "approved"),
@@ -198,11 +225,7 @@ export const sprintService = {
 
             querySnapshot.forEach((doc) => {
                 const data = sanitizeData(doc.data()) as Sprint;
-                
-                // Only reveal if ID is in the orchestration mapping
                 if (!orchestratedSprintIds.has(data.id)) return;
-
-                // Final safety check for registry
                 const isFoundational = data.category === 'Core Platform Sprint' || data.category === 'Growth Fundamentals';
                 const p = Number(data.price || 0);
                 const pts = Number(data.pointCost || 0);
@@ -265,8 +288,6 @@ export const sprintService = {
 
     getSprintIdByFocus: async (focus: string): Promise<string | null> => {
         const orchestration = await sprintService.getOrchestration();
-        
-        // Strategy: First check Foundation slots specifically
         const foundationSlotIds = LIFECYCLE_SLOTS.filter(s => s.stage === 'Foundation').map(s => s.id);
         
         for (const slotId of foundationSlotIds) {
@@ -276,7 +297,6 @@ export const sprintService = {
             }
         }
 
-        // Fallback: Check all other slots if not found in Foundation
         for (const slotId in orchestration) {
             if (foundationSlotIds.includes(slotId)) continue;
             const mapping = orchestration[slotId];

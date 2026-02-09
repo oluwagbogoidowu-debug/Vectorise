@@ -6,6 +6,7 @@ import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestor
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
 import { Participant, Sprint } from '../../types';
+import { sprintService } from '../../services/sprintService';
 
 type PartnerTab = 'overview' | 'links' | 'earnings' | 'referrals' | 'settings';
 
@@ -17,29 +18,27 @@ const PartnerDashboard: React.FC = () => {
   // Real-time states
   const [realTimeReferrals, setRealTimeReferrals] = useState<any[]>([]);
   const [realTimeSprints, setRealTimeSprints] = useState<Sprint[]>([]);
+  const [linkStats, setLinkStats] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   const p = user as Participant;
   const referralCode = p?.referralCode || 'PARTNER';
   const partnerLink = `${window.location.origin}/?ref=${referralCode}#/`;
 
-  // 1. Real-time Subscription to referred users and their progress
+  // 1. Real-time Subscription to referred users, sprints, and telemetry
   useEffect(() => {
     if (!user) return;
 
-    // Listen for users where referrerId matches our code
+    // A. Listen for users where referrerId matches our code
     const usersQuery = query(collection(db, 'users'), where('referrerId', '==', referralCode));
-    
     const unsubscribeUsers = onSnapshot(usersQuery, async (snapshot) => {
       const referralsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
 
-      // Fetch corresponding enrollments for these users to track progress/purchases
       const userIds = referralsData.map(r => r.id);
       if (userIds.length > 0) {
-        // Since Firestore IN limit is 30, we chunk if needed (simplified here for dashboard)
         const enrollQuery = query(collection(db, 'enrollments'), where('participantId', 'in', userIds.slice(0, 30)));
         const enrollSnap = await getDocs(enrollQuery);
         const enrollments = enrollSnap.docs.map(d => d.data());
@@ -59,25 +58,27 @@ const PartnerDashboard: React.FC = () => {
       setIsLoading(false);
     });
 
-    // 2. Fetch available sprints for link generation
+    // B. Fetch available sprints
     const sprintsQuery = query(collection(db, 'sprints'), where('published', '==', true));
     const unsubscribeSprints = onSnapshot(sprintsQuery, (snapshot) => {
       setRealTimeSprints(snapshot.docs.map(doc => doc.data() as Sprint));
     });
 
+    // C. Subscribe to Link Click Telemetry
+    const unsubscribeLinkStats = sprintService.subscribeToLinkStats(referralCode, (stats) => {
+        setLinkStats(stats);
+    });
+
     return () => {
       unsubscribeUsers();
       unsubscribeSprints();
+      unsubscribeLinkStats();
     };
   }, [user, referralCode]);
 
   // Derived real-time stats
   const stats = useMemo(() => {
     const totalPurchases = realTimeReferrals.filter(r => r.hasPurchased).length;
-    
-    // Logic: Calculate revenue based on sprint prices in referrals
-    // In a real production app, you'd calculate this from a 'payments' or 'ledger' collection
-    // For this dashboard, we derive it from enrollments
     let totalRevenue = 0;
     realTimeReferrals.forEach(r => {
       (r.enrollments || []).forEach((e: any) => {
@@ -86,8 +87,12 @@ const PartnerDashboard: React.FC = () => {
       });
     });
 
-    const earnings = totalRevenue * 0.3; // Assuming 30% flat partner share
-    const completions = realTimeReferrals.reduce((acc, r) => {
+    const earnings = totalRevenue * 0.3; 
+    // Fix: Explicitly typed acc and curr to number to avoid unknown inference from Record values
+    const totalClicks = Object.values(linkStats).reduce((acc: number, curr: number) => acc + curr, 0);
+
+    // Fix: Explicitly typed reduce parameters to ensure number arithmetic on completions
+    const completions = realTimeReferrals.reduce((acc: number, r: any) => {
       const completedCount = (r.enrollments || []).filter((e: any) => e.progress.every((p: any) => p.completed)).length;
       return acc + completedCount;
     }, 0);
@@ -95,13 +100,14 @@ const PartnerDashboard: React.FC = () => {
     return {
       revenue: totalRevenue,
       earnings: earnings,
-      paidOut: 0, // In real app, fetch from payouts collection
+      paidOut: 0, 
       pending: earnings,
       activeLinks: realTimeSprints.length,
       purchases: totalPurchases,
-      completions: completions
+      completions: completions,
+      totalClicks
     };
-  }, [realTimeReferrals, realTimeSprints]);
+  }, [realTimeReferrals, realTimeSprints, linkStats]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -124,7 +130,6 @@ const PartnerDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col font-sans">
-      {/* Top Nav */}
       <header className="bg-white border-b border-gray-100 px-6 py-5 flex justify-between items-center sticky top-0 z-30">
         <div className="flex items-center gap-4">
           <Link to="/">
@@ -140,7 +145,6 @@ const PartnerDashboard: React.FC = () => {
         </div>
       </header>
 
-      {/* Tab bar */}
       <div className="bg-white border-b border-gray-100 px-6 sticky top-[69px] z-20">
         <div className="max-w-screen-xl mx-auto flex overflow-x-auto no-scrollbar">
           <TabButton id="overview" label="Overview" />
@@ -152,7 +156,6 @@ const PartnerDashboard: React.FC = () => {
       </div>
 
       <main className="flex-1 p-6 md:p-10 max-w-screen-xl mx-auto w-full">
-        {/* TAB 1: OVERVIEW */}
         {activeTab === 'overview' && (
           <div className="animate-fade-in space-y-10">
             <div className="flex justify-between items-end">
@@ -173,7 +176,7 @@ const PartnerDashboard: React.FC = () => {
                 <div className="absolute -bottom-6 -right-6 w-20 h-20 bg-primary/5 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
               </div>
               <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group">
-                <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">Your Real-Time Earnings</p>
+                <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">Real-Time Earnings</p>
                 <h3 className="text-3xl font-black text-gray-900 tracking-tight">₦{stats.earnings.toLocaleString()}</h3>
                 <div className="absolute -bottom-6 -right-6 w-20 h-20 bg-primary/5 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
               </div>
@@ -196,12 +199,18 @@ const PartnerDashboard: React.FC = () => {
                     <p className="text-lg font-black text-gray-900">{stats.activeLinks}</p>
                   </div>
                   <div className="flex justify-between items-center">
+                    <p className="text-sm font-bold text-gray-500">Total Click Count</p>
+                    <p className="text-lg font-black text-gray-900">{stats.totalClicks}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
                     <p className="text-sm font-bold text-gray-500">Purchases via Link</p>
                     <p className="text-lg font-black text-gray-900">{stats.purchases}</p>
                   </div>
                   <div className="flex justify-between items-center">
-                    <p className="text-sm font-bold text-gray-500">Sprint Completions</p>
-                    <p className="text-lg font-black text-primary">{stats.completions}</p>
+                    <p className="text-sm font-bold text-gray-500">Conversion Rate</p>
+                    <p className="text-lg font-black text-primary">
+                        {stats.totalClicks > 0 ? ((stats.purchases / stats.totalClicks) * 100).toFixed(1) : 0}%
+                    </p>
                   </div>
                 </div>
               </section>
@@ -218,21 +227,26 @@ const PartnerDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 2: LINKS */}
         {activeTab === 'links' && (
           <div className="animate-fade-in space-y-10">
             <div>
               <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-1 italic">Links.</h2>
-              <p className="text-gray-500 font-medium text-sm">Share sprints you believe in. Every purchase through your link is tracked.</p>
+              <p className="text-gray-500 font-medium text-sm">Share sprints you believe in. Every interaction through your link is tracked in real-time.</p>
             </div>
 
             <div className="bg-white rounded-[2.5rem] p-10 border border-primary/20 shadow-xl relative overflow-hidden">
-              <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-6">Main Partner Link</p>
+              <div className="flex justify-between items-start mb-6">
+                <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Main Partner Link</p>
+                <div className="bg-primary/10 px-3 py-1 rounded-lg">
+                    <span className="text-[10px] font-black text-primary uppercase tracking-widest">{linkStats['main'] || 0} CLICKS</span>
+                </div>
+              </div>
               <div className="flex flex-col sm:flex-row gap-4 items-center">
                 <div className="flex-1 bg-gray-50 px-6 py-4 rounded-2xl border border-gray-100 w-full">
                   <code className="text-xs font-bold text-gray-600 truncate block">{partnerLink}</code>
                 </div>
-                <button onClick={() => copyToClipboard(partnerLink)} className="px-10 py-4 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-lg active:scale-95 transition-all w-full sm:w-auto">
+                <button onClick={() => copyToClipboard(partnerLink)} className="px-8 py-4 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-lg active:scale-95 transition-all w-full sm:w-auto flex items-center justify-center gap-3">
+                  <span className="bg-white/20 px-2 py-0.5 rounded-md">{linkStats['main'] || 0}</span>
                   Copy Link
                 </button>
               </div>
@@ -248,8 +262,9 @@ const PartnerDashboard: React.FC = () => {
                   <thead>
                     <tr className="bg-white border-b border-gray-50">
                       <th className="px-10 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest">Sprint Name</th>
+                      <th className="px-10 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Clicks</th>
                       <th className="px-10 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest">Price</th>
-                      <th className="px-10 py-5 text-[9px] font-black text-primary uppercase tracking-widest">Your Share (30%)</th>
+                      <th className="px-10 py-5 text-[9px] font-black text-primary uppercase tracking-widest">Your Share</th>
                       <th className="px-10 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Action</th>
                     </tr>
                   </thead>
@@ -257,10 +272,18 @@ const PartnerDashboard: React.FC = () => {
                     {realTimeSprints.map((s) => (
                       <tr key={s.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-10 py-5 font-bold text-gray-900 text-sm">{s.title}</td>
+                        <td className="px-10 py-5 text-center">
+                            <span className={`px-2 py-1 rounded-md text-[10px] font-black ${linkStats[s.id] ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-400'}`}>
+                                {linkStats[s.id] || 0}
+                            </span>
+                        </td>
                         <td className="px-10 py-5 text-gray-500 font-medium text-sm">₦{s.price?.toLocaleString()}</td>
                         <td className="px-10 py-5 text-primary font-black text-sm italic">₦{((s.price || 0) * 0.3).toLocaleString()}</td>
                         <td className="px-10 py-5 text-right">
-                          <button onClick={() => copyToClipboard(`${window.location.origin}/?ref=${referralCode}&sprintId=${s.id}#/`)} className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Copy Link</button>
+                          <button onClick={() => copyToClipboard(`${window.location.origin}/?ref=${referralCode}&sprintId=${s.id}#/`)} className="px-4 py-2 bg-white border border-gray-100 rounded-xl text-[9px] font-black text-gray-400 hover:text-primary hover:border-primary/20 transition-all flex items-center gap-2 ml-auto">
+                            <span className="text-primary font-bold">{linkStats[s.id] || 0}</span>
+                            Copy Link
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -271,7 +294,6 @@ const PartnerDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 4: REFERRALS (Real-Time) */}
         {activeTab === 'referrals' && (
           <div className="animate-fade-in space-y-10">
             <div>
@@ -291,7 +313,7 @@ const PartnerDashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {realTimeReferrals.map((r, idx) => {
+                    {realTimeReferrals.map((r) => {
                       let potential = 0;
                       (r.enrollments || []).forEach((e: any) => {
                         const sprint = realTimeSprints.find(s => s.id === e.sprintId);
