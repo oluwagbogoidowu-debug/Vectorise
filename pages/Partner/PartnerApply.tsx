@@ -1,13 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
 import { partnerService } from '../../services/partnerService';
 
+const COUNTRIES = [
+  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan",
+  "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi",
+  "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic",
+  "Denmark", "Djibouti", "Dominica", "Dominican Republic",
+  "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia",
+  "Fiji", "Finland", "France",
+  "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana",
+  "Haiti", "Honduras", "Hungary",
+  "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Ivory Coast",
+  "Jamaica", "Japan", "Jordan",
+  "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan",
+  "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg",
+  "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar",
+  "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway",
+  "Oman",
+  "Pakistan", "Palau", "Palestine", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal",
+  "Qatar",
+  "Romania", "Russia", "Rwanda",
+  "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria",
+  "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu",
+  "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Uzbekistan",
+  "Vanuatu", "Vatican City", "Venezuela", "Vietnam",
+  "Yemen",
+  "Zambia", "Zimbabwe"
+];
+
 const PartnerApply: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const countryRef = useRef<HTMLDivElement>(null);
+
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -50,6 +80,24 @@ const PartnerApply: React.FC = () => {
       setIsSubmitting(false);
     }
   };
+
+  const filteredCountries = useMemo(() => {
+    if (!formData.country) return [];
+    return COUNTRIES.filter(c => 
+      c.toLowerCase().includes(formData.country.toLowerCase()) && 
+      c.toLowerCase() !== formData.country.toLowerCase()
+    ).slice(0, 5);
+  }, [formData.country]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (countryRef.current && !countryRef.current.contains(event.target as Node)) {
+        setShowCountryDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const inputClasses = "w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white text-base font-bold placeholder-white/20 focus:ring-4 focus:ring-white/5 outline-none transition-all";
   const labelClasses = "block text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-3 ml-1";
@@ -104,9 +152,35 @@ const PartnerApply: React.FC = () => {
                   <label className={labelClasses}>Email Address</label>
                   <input type="email" value={formData.email} onChange={e => updateForm('email', e.target.value)} className={inputClasses} placeholder="your@email.com" />
                 </div>
-                <div>
+                <div className="relative" ref={countryRef}>
                   <label className={labelClasses}>Country</label>
-                  <input type="text" value={formData.country} onChange={e => updateForm('country', e.target.value)} className={inputClasses} placeholder="Current location" />
+                  <input 
+                    type="text" 
+                    value={formData.country} 
+                    onChange={e => {
+                        updateForm('country', e.target.value);
+                        setShowCountryDropdown(true);
+                    }} 
+                    onFocus={() => setShowCountryDropdown(true)}
+                    className={inputClasses} 
+                    placeholder="Search your country..." 
+                  />
+                  {showCountryDropdown && filteredCountries.length > 0 && (
+                      <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl overflow-hidden shadow-2xl z-50 border border-gray-100 animate-slide-up">
+                          {filteredCountries.map(country => (
+                              <button
+                                key={country}
+                                onClick={() => {
+                                    updateForm('country', country);
+                                    setShowCountryDropdown(false);
+                                }}
+                                className="w-full px-6 py-4 text-left text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
+                              >
+                                {country}
+                              </button>
+                          ))}
+                      </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -230,7 +304,7 @@ const PartnerApply: React.FC = () => {
           {step < 5 ? (
             <button 
               disabled={
-                (step === 0 && (!formData.fullName || !formData.email)) ||
+                (step === 0 && (!formData.fullName || !formData.email || !formData.country)) ||
                 (step === 1 && (!formData.primaryPlatform || !formData.platformLink)) ||
                 (step === 2 && (!formData.influenceTarget || !formData.commonRequests)) ||
                 (step === 3 && (!formData.whyPartner || formData.introductionStrategy.length === 0)) ||
@@ -258,6 +332,8 @@ const PartnerApply: React.FC = () => {
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}</style>
     </div>
   );

@@ -1,4 +1,3 @@
-
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
@@ -28,6 +27,72 @@ const SPRINT_PRICES = {
   'focus-sprint': 3000,
   'visibility-sprint': 7500
 };
+
+/**
+ * POST /createPartnerAccount
+ * Securely creates an Auth account and Firestore profile for an approved partner.
+ */
+exports.createPartnerAccount = functions.https.onRequest(async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+
+  try {
+    const { email, password, fullName, country, primaryPlatform } = req.body;
+
+    if (!email || !password || !fullName) {
+      return res.status(400).json({ message: "Incomplete partner data." });
+    }
+
+    console.log(`[Admin] Provisioning Partner Account: ${email}`);
+
+    // 1. Create the Auth User
+    const userRecord = await admin.auth().createUser({
+      email: email.trim().toLowerCase(),
+      password: password,
+      displayName: fullName,
+      emailVerified: true // Pre-verify since this is an admin-provisioned account
+    });
+
+    const uid = userRecord.uid;
+
+    // 2. Create the User Document in Firestore
+    await admin.firestore().collection('users').doc(uid).set({
+      id: uid,
+      name: fullName,
+      email: email.trim().toLowerCase(),
+      role: 'PARTICIPANT', // Initial role, can be upgraded
+      isPartner: true,
+      profileImageUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0E7850&color=fff`,
+      country: country || 'Unknown',
+      primaryPlatform: primaryPlatform || 'None',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      savedSprintIds: [],
+      enrolledSprintIds: [],
+      wishlistSprintIds: [],
+      shinePostIds: [],
+      shineCommentIds: [],
+      claimedMilestoneIds: [],
+      referralCode: uid.substring(0, 8).toUpperCase(),
+      walletBalance: 50,
+      impactStats: { peopleHelped: 0, streak: 0 }
+    });
+
+    console.log(`[Admin] Partner account provisioned successfully for UID: ${uid}`);
+
+    return res.json({ status: 'success', uid });
+  } catch (error) {
+    console.error("Partner Creation Error:", error);
+    return res.status(500).json({ 
+        message: "Failed to create partner authentication account.",
+        detail: error.message
+    });
+  }
+});
 
 /**
  * POST /initiatePayment

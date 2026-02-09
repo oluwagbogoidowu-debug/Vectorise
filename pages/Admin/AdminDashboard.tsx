@@ -14,11 +14,50 @@ import LifecycleOrchestrator from './LifecycleOrchestrator';
 type Tab = 'pulse' | 'orchestrator' | 'registry' | 'revenue' | 'sprints' | 'quotes' | 'roles' | 'partners';
 type SprintFilter = 'all' | 'active' | 'core' | 'pending' | 'rejected';
 
+const PartnerApprovalSuccessModal: React.FC<{ 
+    email: string; 
+    pass: string; 
+    onClose: () => void 
+}> = ({ email, pass, onClose }) => (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-dark/40 backdrop-blur-sm animate-fade-in">
+        <div className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl relative overflow-hidden flex flex-col p-10 text-center animate-slide-up">
+            <div className="w-20 h-20 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+            </div>
+            <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2 italic">Access Dispatched.</h3>
+            <p className="text-sm text-gray-500 font-medium leading-relaxed mb-8">
+                The account has been created in Authentication. An approval message was sent to <span className="font-bold text-gray-900">{email}</span> with generated credentials and a password reset link.
+            </p>
+            
+            <div className="bg-gray-50 rounded-2xl p-6 mb-8 text-left space-y-3 border border-gray-100">
+                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Auth Credentials</p>
+                <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">Temp Password</p>
+                    <p className="text-lg font-black text-primary tracking-tight">{pass}</p>
+                </div>
+                <div className="pt-2 border-t border-gray-200/50">
+                    <p className="text-[9px] font-medium text-gray-400 italic">Action: Partner can now log in immediately.</p>
+                </div>
+            </div>
+
+            <button 
+                onClick={onClose}
+                className="w-full py-4 bg-primary text-white font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl shadow-lg active:scale-95 transition-all"
+            >
+                Confirm & Continue
+            </button>
+        </div>
+    </div>
+);
+
 const PartnerReviewModal: React.FC<{
     app: PartnerApplication;
     onClose: () => void;
     onStatusChange: (id: string, status: 'approved' | 'rejected') => void;
-}> = ({ app, onClose, onStatusChange }) => {
+    isUpdating: boolean;
+}> = ({ app, onClose, onStatusChange, isUpdating }) => {
     return (
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-6 bg-dark/95 backdrop-blur-md animate-fade-in">
             <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] animate-slide-up">
@@ -68,8 +107,20 @@ const PartnerReviewModal: React.FC<{
                     </section>
                 </div>
                 <div className="p-8 border-t border-gray-50 flex gap-4 bg-gray-50/50">
-                    <button onClick={() => onStatusChange(app.id, 'approved')} className="flex-1 py-4 bg-green-600 text-white font-black uppercase tracking-widest text-[11px] rounded-2xl shadow-xl active:scale-95 transition-all">Approve & Send Access</button>
-                    <button onClick={() => onStatusChange(app.id, 'rejected')} className="flex-1 py-4 bg-white text-red-500 border border-red-100 font-black uppercase tracking-widest text-[11px] rounded-2xl hover:bg-red-50 transition-all">Reject Application</button>
+                    <button 
+                        disabled={isUpdating}
+                        onClick={() => onStatusChange(app.id, 'approved')} 
+                        className="flex-1 py-4 bg-green-600 text-white font-black uppercase tracking-widest text-[11px] rounded-2xl shadow-xl active:scale-95 transition-all disabled:opacity-50"
+                    >
+                        {isUpdating ? 'Provisioning...' : 'Approve & Send Access'}
+                    </button>
+                    <button 
+                        disabled={isUpdating}
+                        onClick={() => onStatusChange(app.id, 'rejected')} 
+                        className="flex-1 py-4 bg-white text-red-500 border border-red-100 font-black uppercase tracking-widest text-[11px] rounded-2xl hover:bg-red-50 transition-all disabled:opacity-50"
+                    >
+                        Reject Application
+                    </button>
                 </div>
             </div>
         </div>
@@ -124,11 +175,13 @@ export default function AdminDashboard() {
     const [partnerApps, setPartnerApps] = useState<PartnerApplication[]>([]);
     const [isLoadingSprints, setIsLoadingSprints] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [isPartnerActionLoading, setIsPartnerActionLoading] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0); 
     const [platformPulse, setPlatformPulse] = useState<PlatformPulse | null>(null);
 
     const [sprintToDelete, setSprintToDelete] = useState<Sprint | null>(null);
     const [viewingPartner, setViewingPartner] = useState<PartnerApplication | null>(null);
+    const [approvalSuccess, setApprovalSuccess] = useState<{ email: string, pass: string } | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
     const fetchPulse = async () => {
@@ -211,22 +264,49 @@ export default function AdminDashboard() {
     };
 
     const handlePartnerStatus = async (id: string, status: 'approved' | 'rejected') => {
+        setIsPartnerActionLoading(true);
         try {
-            await partnerService.updateApplicationStatus(id, status);
             if (status === 'approved') {
                 const app = partnerApps.find(a => a.id === id);
-                const generatedPass = Math.random().toString(36).substring(2, 10).toUpperCase();
-                alert(`SUCCESS: Access Message Sent to ${app?.email}.
+                if (!app) throw new Error("Application not found.");
                 
-Email content summary:
-- Account Email: ${app?.email}
-- Initial Password: ${generatedPass}
-- Action: Link to change password provided.`);
+                // 1. Generate temp password
+                const generatedPass = Math.random().toString(36).substring(2, 10).toUpperCase() + "!" + Math.floor(Math.random() * 100);
+                
+                // 2. Call secure internal API route to create Auth account and Firestore profile
+                console.log(`[Admin] Initializing Partner provisioning for ${app.email} via local API...`);
+                const response = await fetch("/api/admin/provision-partner", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: app.email,
+                        password: generatedPass,
+                        fullName: app.fullName,
+                        country: app.country,
+                        primaryPlatform: app.primaryPlatform
+                    })
+                });
+
+                if (!response.ok) {
+                    const errBody = await response.json().catch(() => ({}));
+                    throw new Error(errBody.error || `Provisioning failed with status ${response.status}`);
+                }
+
+                // 3. Mark application as approved in our internal tracking
+                await partnerService.updateApplicationStatus(id, 'approved');
+                
+                setApprovalSuccess({ email: app.email, pass: generatedPass });
+            } else {
+                await partnerService.updateApplicationStatus(id, 'rejected');
             }
+            
             setViewingPartner(null);
             fetchPartners();
-        } catch (err) {
-            alert("Update failed.");
+        } catch (err: any) {
+            console.error("[Admin] Partner approval error:", err);
+            alert(`Process failed: ${err.message || 'Check browser console for network details.'}`);
+        } finally {
+            setIsPartnerActionLoading(false);
         }
     };
 
@@ -259,6 +339,14 @@ Email content summary:
                     app={viewingPartner} 
                     onClose={() => setViewingPartner(null)} 
                     onStatusChange={handlePartnerStatus}
+                    isUpdating={isPartnerActionLoading}
+                />
+            )}
+            {approvalSuccess && (
+                <PartnerApprovalSuccessModal 
+                    email={approvalSuccess.email} 
+                    pass={approvalSuccess.pass} 
+                    onClose={() => setApprovalSuccess(null)} 
                 />
             )}
             
