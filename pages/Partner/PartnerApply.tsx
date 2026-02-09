@@ -17,7 +17,7 @@ const COUNTRIES = [
   "Jamaica", "Japan", "Jordan",
   "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan",
   "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg",
-  "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar",
+  "Madagascar", "Malawi", "Malaysia", "Maddives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar",
   "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway",
   "Oman",
   "Pakistan", "Palau", "Palestine", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal",
@@ -72,11 +72,26 @@ const PartnerApply: React.FC = () => {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
+      // Still record the application
       await partnerService.submitApplication(formData);
-      setStep(99); // Success view
+      
+      // Split full name for signup
+      const names = formData.fullName.split(' ');
+      const firstName = names[0] || '';
+      const lastName = names.slice(1).join(' ') || '';
+
+      // Redirect to Sign Up with Partner Tag
+      navigate('/signup', { 
+        state: { 
+          isPartnerApplication: true,
+          partnerData: formData,
+          prefilledEmail: formData.email,
+          prefilledFirstName: firstName,
+          prefilledLastName: lastName
+        } 
+      });
     } catch (err) {
-      alert("Application failed. Please try again.");
-    } finally {
+      alert("Application process failed. Please try again.");
       setIsSubmitting(false);
     }
   };
@@ -101,28 +116,6 @@ const PartnerApply: React.FC = () => {
 
   const inputClasses = "w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white text-base font-bold placeholder-white/20 focus:ring-4 focus:ring-white/5 outline-none transition-all";
   const labelClasses = "block text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-3 ml-1";
-
-  if (step === 99) {
-    return (
-      <div className="flex flex-col h-screen bg-primary p-10 items-center justify-center text-center animate-fade-in overflow-hidden relative">
-        <div className="relative z-10">
-          <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce">
-              <span className="text-4xl">🚀</span>
-          </div>
-          <h1 className="text-3xl font-black mb-4 italic">Application Received.</h1>
-          <p className="text-lg text-white/60 font-medium italic max-w-sm mb-12 leading-relaxed">
-            Your application is now in the partner registry. Our curators will review your profile and reach out via email.
-          </p>
-          <Button onClick={() => navigate('/')} className="bg-white text-primary px-12 py-4 rounded-full font-black uppercase tracking-widest text-xs">
-            Return Home
-          </Button>
-        </div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-5 scale-[1.5]">
-          <LocalLogo type="white" className="w-96 h-auto" />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-screen bg-primary p-6 md:p-12 overflow-hidden selection:bg-white/10 relative">
@@ -322,7 +315,7 @@ const PartnerApply: React.FC = () => {
               onClick={handleSubmit} 
               className="flex-1 py-5 bg-white text-primary font-black uppercase tracking-[0.2em] text-[11px] rounded-full shadow-2xl"
             >
-              Apply to Partner &rarr;
+              Create Account &rarr;
             </Button>
           )}
         </footer>

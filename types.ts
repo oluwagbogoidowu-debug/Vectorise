@@ -2,6 +2,7 @@ export enum UserRole {
   COACH = 'COACH',
   PARTICIPANT = 'PARTICIPANT',
   ADMIN = 'ADMIN',
+  PARTNER = 'PARTNER',
 }
 
 export type LifecycleStage = 
@@ -108,10 +109,11 @@ export interface User {
   createdAt?: string;
   roleDefinitionId?: string;
   isPartner?: boolean;
+  partnerData?: any;
 }
 
 export interface Participant extends User {
-  role: UserRole.PARTICIPANT;
+  role: UserRole.PARTICIPANT | UserRole.PARTNER;
   currentStage?: LifecycleStage;
   completedSlotIds?: string[];
   activeSprintId?: string;

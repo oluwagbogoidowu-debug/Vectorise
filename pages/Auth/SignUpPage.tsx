@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { auth } from '../../services/firebase';
@@ -14,21 +13,33 @@ const SignUpPage: React.FC = () => {
   const location = useLocation();
   
   const onboardingState = location.state || {};
-  const { persona, answers, recommendedPlan, occupation, referrerId, prefilledEmail, fromPayment, targetSprintId } = onboardingState;
+  const { 
+    persona, 
+    answers, 
+    recommendedPlan, 
+    occupation, 
+    referrerId, 
+    prefilledEmail, 
+    prefilledFirstName,
+    prefilledLastName,
+    fromPayment, 
+    targetSprintId,
+    isPartnerApplication,
+    partnerData 
+  } = onboardingState;
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState(prefilledFirstName || '');
+  const [lastName, setLastName] = useState(prefilledLastName || '');
   const [email, setEmail] = useState(prefilledEmail || '');
   const [password, setPassword] = useState('');
   const [regError, setRegError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // If we have a prefilled email from payment, set it strictly
-    if (prefilledEmail) {
-        setEmail(prefilledEmail);
-    }
-  }, [prefilledEmail]);
+    if (prefilledEmail) setEmail(prefilledEmail);
+    if (prefilledFirstName) setFirstName(prefilledFirstName);
+    if (prefilledLastName) setLastName(prefilledLastName);
+  }, [prefilledEmail, prefilledFirstName, prefilledLastName]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,19 +62,21 @@ const SignUpPage: React.FC = () => {
         id: firebaseUser.uid,
         name: `${firstName} ${lastName}`,
         email: email.trim().toLowerCase(),
-        role: UserRole.PARTICIPANT,
+        role: isPartnerApplication ? UserRole.PARTNER : UserRole.PARTICIPANT,
         profileImageUrl: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=0E7850&color=fff`,
-        persona: persona || 'Seeker',
+        persona: persona || (isPartnerApplication ? 'Growth Partner' : 'Seeker'),
         onboardingAnswers: answers || {},
-        occupation: occupation || 'Unemployed',
-        walletBalance: 50, // Updated from 30 to 50
+        occupation: occupation || (isPartnerApplication ? 'Partner' : 'Unemployed'),
+        walletBalance: 50,
         createdAt: new Date().toISOString(),
-        enrolledSprintIds: []
+        enrolledSprintIds: [],
+        isPartner: !!isPartnerApplication,
+        partnerData: partnerData || null
       };
       
       await userService.createUserDocument(firebaseUser.uid, newUser);
 
-      // 3. Post-Payment Fulfillment - Use replace: true to clear history
+      // 3. Post-Payment Fulfillment
       if (fromPayment && targetSprintId) {
           try {
               const sprint = await sprintService.getSprintById(targetSprintId);
@@ -95,7 +108,7 @@ const SignUpPage: React.FC = () => {
         <header className="text-center mb-8">
             <LocalLogo type="green" className="h-6 w-auto mx-auto mb-6 opacity-30" />
             <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">
-                {fromPayment ? 'Establish your identity' : 'Join the Registry'}
+                {isPartnerApplication ? 'Establish Partner Identity' : fromPayment ? 'Establish your identity' : 'Join the Registry'}
             </h1>
         </header>
 
@@ -130,7 +143,7 @@ const SignUpPage: React.FC = () => {
                 {regError && <p className="text-[10px] text-red-600 font-black uppercase text-center mt-2">{regError}</p>}
 
                 <Button type="submit" isLoading={isSubmitting} className="w-full py-4 bg-primary text-white rounded-full shadow-lg text-[10px] font-black uppercase tracking-[0.2em] mt-2">
-                    Create Account &rarr;
+                    {isPartnerApplication ? 'Secure Partner Access' : 'Create Account'} &rarr;
                 </Button>
             </form>
 

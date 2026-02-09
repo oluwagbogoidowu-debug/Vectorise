@@ -58,6 +58,14 @@ import CoachQuizIntro from './pages/Onboarding/CoachQuizIntro';
 import CoachQuiz from './pages/Onboarding/CoachQuiz';
 import CoachOnboardingComplete from './pages/Coach/CoachOnboardingComplete';
 
+const PartnerDashboardPlaceholder = () => (
+  <div className="p-12 text-center">
+    <h1 className="text-4xl font-black mb-4">Partner Dashboard</h1>
+    <p className="text-gray-500">Welcome to your partner portal. Tracking and impact metrics coming soon.</p>
+    <Navigate to="/dashboard" />
+  </div>
+);
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
   roles: UserRole[];
@@ -114,7 +122,7 @@ const AppRoutes: React.FC = () => {
 
   const showParticipantNav = 
     user && 
-    activeRole === UserRole.PARTICIPANT && 
+    (activeRole === UserRole.PARTICIPANT || activeRole === UserRole.PARTNER) && 
     !isOnboardingRoute &&
     !location.pathname.startsWith('/coach') &&
     !location.pathname.startsWith('/admin') &&
@@ -132,6 +140,7 @@ const AppRoutes: React.FC = () => {
           <Route path="/recommended" element={<RecommendedSprints />} />
           <Route path="/partner" element={<PartnerPage />} />
           <Route path="/partner/apply" element={<PartnerApply />} />
+          <Route path="/partner/dashboard" element={<ProtectedRoute roles={[UserRole.PARTNER, UserRole.ADMIN]}><PartnerDashboardPlaceholder /></ProtectedRoute>} />
           
           <Route path="/onboarding/welcome" element={<Welcome />} />
           <Route path="/onboarding/focus-selector" element={<FocusSelector />} />
@@ -149,10 +158,11 @@ const AppRoutes: React.FC = () => {
           <Route path="/join/:referralCode/:sprintId" element={<SprintInviteLanding />} />
 
           <Route path="/dashboard" element={
-            <ProtectedRoute roles={[UserRole.COACH, UserRole.PARTICIPANT, UserRole.ADMIN]}>
+            <ProtectedRoute roles={[UserRole.COACH, UserRole.PARTICIPANT, UserRole.ADMIN, UserRole.PARTNER]}>
               {activeRole === UserRole.COACH && <Navigate to="/coach/dashboard" />}
-              {activeRole === UserRole.PARTICIPANT && <ParticipantLayout><ParticipantDashboard /></ParticipantLayout>}
               {activeRole === UserRole.ADMIN && <Navigate to="/admin/dashboard" />}
+              {activeRole === UserRole.PARTNER && <Navigate to="/partner/dashboard" />}
+              {(activeRole === UserRole.PARTICIPANT || activeRole === UserRole.PARTNER) && <ParticipantLayout><ParticipantDashboard /></ParticipantLayout>}
             </ProtectedRoute>
           } />
 
@@ -168,7 +178,7 @@ const AppRoutes: React.FC = () => {
           <Route path="/coach/sprint/new" element={<ProtectedRoute roles={[UserRole.COACH]}><CreateSprint /></ProtectedRoute>} />
           <Route path="/coach/sprint/edit/:sprintId" element={<ProtectedRoute roles={[UserRole.COACH, UserRole.ADMIN]}><EditSprint /></ProtectedRoute>} />
 
-          <Route element={<ProtectedRoute roles={[UserRole.PARTICIPANT]}><ParticipantLayout /></ProtectedRoute>}>
+          <Route element={<ProtectedRoute roles={[UserRole.PARTICIPANT, UserRole.PARTNER]}><ParticipantLayout /></ProtectedRoute>}>
              <Route path="/discover" element={<DiscoverSprints />} />
              <Route path="/my-sprints" element={<MySprints />} />
              <Route path="/profile" element={<Profile />} />
@@ -182,7 +192,7 @@ const AppRoutes: React.FC = () => {
           </Route>
           
           <Route path="/participant/sprint/:enrollmentId" element={
-              <ProtectedRoute roles={[UserRole.PARTICIPANT, UserRole.COACH, UserRole.ADMIN]}>
+              <ProtectedRoute roles={[UserRole.PARTICIPANT, UserRole.COACH, UserRole.ADMIN, UserRole.PARTNER]}>
                   <ParticipantLayout>
                       <SprintView />
                   </ParticipantLayout>

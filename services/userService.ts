@@ -77,6 +77,7 @@ export const userService = {
         referralCode: uid.substring(0, 8).toUpperCase(),
         walletBalance: 50,
         impactStats: { peopleHelped: 0, streak: 0 },
+        isPartner: false,
         ...data
       });
 
