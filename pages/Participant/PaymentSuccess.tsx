@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { paymentService } from '../../services/paymentService';
@@ -6,7 +5,9 @@ import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
-import { Participant } from '../../types';
+import { Participant, ParticipantSprint } from '../../types';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 const PaymentSuccess: React.FC = () => {
     const location = useLocation();
@@ -20,7 +21,6 @@ const PaymentSuccess: React.FC = () => {
     const queryParams = new URLSearchParams(location.search);
     const reference = queryParams.get('reference') || queryParams.get('tx_ref');
     const paidSprintId = queryParams.get('sprintId');
-    // Extract the exact email used during payment initiation
     const rawEmail = queryParams.get('email'); 
 
     useEffect(() => {
@@ -36,208 +36,215 @@ const PaymentSuccess: React.FC = () => {
                 
                 if (data.status === 'successful' || data.status === 'success') {
                     setStatus('success');
-                    // Ready to begin state is only for manual flow, auto-enroll handles the rest
-                    if (user) setReadyToBegin(true);
-                } else if (retries < 8) {
-                    setTimeout(() => setRetries(prev => prev + 1), 2000);
+                    // We don't auto-navigate yet, we wait for enrollment logic to finish
+                } else if (retries < 10) {
+                    setTimeout(() => setRetries(prev => prev + 1), 3000);
                 } else {
                     setStatus('delay');
                 }
             } catch (err) {
+                console.error("Verification error:", err);
                 setStatus('error');
             }
         };
 
-        checkStatus();
-    }, [reference, retries, queryParams, user]);
-
-    // FULFILLMENT LOGIC: Enroll or Queue
-    useEffect(() => {
-        if (status === 'success' && user && !isEnrolling) {
-            const autoEnroll = async () => {
-                setIsEnrolling(true);
-                try {
-                    const targetId = paidSprintId || 'clarity-sprint';
-                    
-                    // 1. Check for active sprint
-                    const enrollments = await sprintService.getUserEnrollments(user.id);
-                    const hasActive = enrollments.some(e => e.progress.some(p => !p.completed));
-
-                    if (hasActive) {
-                        // Already running a sprint -> Add to waitlist (savedSprintIds)
-                        const p = user as Participant;
-                        const currentQueue = p.savedSprintIds || [];
-                        if (!currentQueue.includes(targetId)) {
-                            const newQueue = [...currentQueue, targetId];
-                            await userService.updateUserDocument(user.id, { savedSprintIds: newQueue });
-                            await updateProfile({ savedSprintIds: newQueue });
-                        }
-                        
-                        setTimeout(() => {
-                            navigate('/my-sprints', { replace: true });
-                        }, 1800);
-                    } else {
-                        // No active sprint -> Start immediately
-                        const sprint = await sprintService.getSprintById(targetId);
-                        const duration = sprint?.duration || 5;
-                        const enrollment = await sprintService.enrollUser(user.id, targetId, duration);
-                        
-                        setTimeout(() => {
-                            navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
-                        }, 1800);
-                    }
-                } catch (err) {
-                    console.error("Auto-fulfillment failed:", err);
-                    navigate('/dashboard', { replace: true });
-                }
-            };
-            autoEnroll();
+        if (status === 'verifying') {
+            checkStatus();
         }
-    }, [status, user, paidSprintId, navigate, isEnrolling]);
+    }, [reference, retries, status]);
 
-    const handleAction = async () => {
-        if (user) {
-            // This button handle is a fallback for the auto-enroll effect
-            if (isEnrolling) return;
+    /**
+     * CORE LOGIC: ONE USER -> ONE PARTNER -> ONE PAID SPRINT
+     * This effect handles the fulfillment and the commission lockout.
+     */
+    useEffect(() => {
+        const performFulfillment = async () => {
+            if (status !== 'success' || !paidSprintId || isEnrolling) return;
+            
             setIsEnrolling(true);
-            try {
-                const targetId = paidSprintId || 'clarity-sprint';
-                const enrollments = await sprintService.getUserEnrollments(user.id);
-                const hasActive = enrollments.some(e => e.progress.some(p => !p.completed));
 
-                if (hasActive) {
-                    const p = user as Participant;
-                    const currentQueue = p.savedSprintIds || [];
-                    if (!currentQueue.includes(targetId)) {
-                        const newQueue = [...currentQueue, targetId];
-                        await userService.updateUserDocument(user.id, { savedSprintIds: newQueue });
-                        await updateProfile({ savedSprintIds: newQueue });
+            try {
+                // 1. Identify the user
+                let targetUid = user?.id;
+                
+                // If user is guest, they MUST have used an email that we can look up or they need to sign up
+                if (!targetUid && rawEmail) {
+                    const emailExists = await userService.checkEmailExists(rawEmail);
+                    if (emailExists) {
+                        // User exists, but is not logged in. 
+                        // We redirect to login and let the login page handle the pending enrollment
+                        navigate('/login', { 
+                            state: { 
+                                prefilledEmail: rawEmail, 
+                                targetSprintId: paidSprintId,
+                                fromPayment: true 
+                            } 
+                        });
+                        return;
+                    } else {
+                        // User is new. Force signup to establish identity before enrollment
+                        navigate('/signup', { 
+                            state: { 
+                                prefilledEmail: rawEmail, 
+                                targetSprintId: paidSprintId,
+                                fromPayment: true 
+                            } 
+                        });
+                        return;
                     }
-                    navigate('/my-sprints', { replace: true });
-                } else {
-                    const sprint = await sprintService.getSprintById(targetId);
-                    const duration = sprint?.duration || 5;
-                    const enrollment = await sprintService.enrollUser(user.id, targetId, duration);
-                    navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
                 }
+
+                if (!targetUid) {
+                    // Fallback: If we have no user and no email, we are in an error state
+                    setStatus('error');
+                    setIsEnrolling(false);
+                    return;
+                }
+
+                // 2. Fetch User Profile to check Referral Lock
+                const userRef = doc(db, 'users', targetUid);
+                const userSnap = await getDoc(userRef);
+                if (!userSnap.exists()) throw new Error("Registry identity not found.");
+                
+                const userData = userSnap.data() as Participant;
+                const isFirstPaidSprint = !userData.partnerCommissionClosed;
+                const sprint = await sprintService.getSprintById(paidSprintId);
+                
+                if (!sprint) throw new Error("Sprint metadata not found.");
+
+                // 3. Create or find enrollment
+                const enrollment = await sprintService.enrollUser(targetUid, paidSprintId, sprint.duration);
+                const enrollmentRef = doc(db, 'enrollments', enrollment.id);
+
+                // 4. LOCK LOGIC: 
+                // If user has a referrer AND it's their first paid buy, trigger commission and CLOSE path.
+                if (userData.referrerId && isFirstPaidSprint && sprint.price > 0) {
+                    console.log("[Fulfillment] One-Time Partner Commission Triggered for:", userData.referrerId);
+                    
+                    await updateDoc(userRef, { 
+                        partnerCommissionClosed: true 
+                    });
+                    
+                    await updateDoc(enrollmentRef, { 
+                        isCommissionTrigger: true 
+                    });
+
+                    // Update local auth context
+                    if (updateProfile) {
+                        await updateProfile({ partnerCommissionClosed: true });
+                    }
+                }
+
+                setReadyToBegin(true);
+                setTimeout(() => navigate(`/participant/sprint/${enrollment.id}`, { replace: true }), 2500);
+
             } catch (err) {
-                navigate('/dashboard', { replace: true });
+                console.error("[Fulfillment] Critical Error:", err);
+                setStatus('error');
             } finally {
                 setIsEnrolling(false);
             }
-        } else {
-            // New user flow: Go to sign up with the EXACT email from the payment flow
-            navigate('/signup', { 
-                state: { 
-                    prefilledEmail: rawEmail ? decodeURIComponent(rawEmail).trim().toLowerCase() : null,
-                    fromPayment: true,
-                    targetSprintId: paidSprintId || 'clarity-sprint'
-                } 
-            });
-        }
-    };
+        };
+
+        performFulfillment();
+    }, [status, user, paidSprintId, rawEmail]);
 
     return (
-        <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-6 font-sans selection:bg-primary/10">
-            <div className="bg-white rounded-[3rem] shadow-2xl max-w-md w-full p-10 md:p-14 text-center relative overflow-hidden border border-gray-100 animate-slide-up">
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-primary-hover"></div>
+        <div className="min-h-screen bg-[#FDFDFD] flex flex-col items-center justify-center p-6 text-center font-sans overflow-hidden">
+            <div className="max-w-md w-full bg-white rounded-[3rem] shadow-2xl border border-gray-100 p-12 relative overflow-hidden animate-fade-in">
                 
                 <header className="mb-10">
-                    <LocalLogo type="green" className="h-6 w-auto mx-auto mb-10 opacity-30" />
+                    <LocalLogo type="green" className="h-10 w-auto mx-auto mb-6" />
                     
                     {status === 'verifying' && (
-                        <div className="space-y-8 py-4">
-                            <div className="w-16 h-16 bg-primary/5 rounded-[1.75rem] flex items-center justify-center mx-auto relative">
-                                <div className="absolute inset-0 border-[3px] border-primary border-t-transparent rounded-[1.75rem] animate-spin"></div>
-                                <span className="text-2xl">🛡️</span>
+                        <div className="space-y-6">
+                            <div className="relative w-20 h-20 mx-auto">
+                                <div className="absolute inset-0 border-4 border-primary/10 rounded-full"></div>
+                                <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                <div className="absolute inset-0 flex items-center justify-center text-2xl">🔒</div>
                             </div>
                             <div>
-                                <h1 className="text-xl font-black text-gray-900 tracking-tight uppercase tracking-[0.1em]">Verifying Payment</h1>
-                                <p className="text-gray-400 font-bold text-[9px] uppercase tracking-widest mt-3 animate-pulse">Syncing with Registry...</p>
+                                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">Securing Path</h1>
+                                <p className="text-xs text-gray-400 font-bold uppercase tracking-[0.2em] mt-3">Authorizing Registry Access...</p>
                             </div>
                         </div>
                     )}
 
                     {status === 'success' && (
-                        <div className="animate-fade-in space-y-10">
-                            <div className="w-20 h-20 bg-primary text-white rounded-[2rem] flex items-center justify-center mx-auto shadow-xl shadow-primary/20 relative overflow-hidden">
-                                {isEnrolling ? (
-                                    <div className="absolute inset-0 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
-                                ) : (
-                                    <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                )}
+                        <div className="space-y-6 animate-slide-up">
+                            <div className="w-20 h-20 bg-green-50 text-green-600 rounded-[2rem] flex items-center justify-center mx-auto text-4xl shadow-inner border border-green-100">
+                                ✓
+                            </div>
+                            <div>
+                                <h1 className="text-3xl font-black text-gray-900 tracking-tight leading-none italic">Authorized.</h1>
+                                <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mt-3">Your cycle is now active.</p>
                             </div>
                             
-                            <div className="space-y-8">
-                                <h1 className="text-2xl font-black text-gray-900 tracking-tighter italic leading-tight">
-                                    {isEnrolling && user ? 'Registry Synchronized.' : 'Access Secured.'} <br/>
-                                    {isEnrolling && user ? 'Opening Workspace...' : 'Ready to begin Day 1.'}
-                                </h1>
-
-                                {!user && (
-                                    <div className="space-y-8">
-                                        <label className="flex items-center justify-center gap-4 p-5 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer active:scale-[0.98] transition-all hover:border-primary/20 group mx-auto max-w-[280px]">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={readyToBegin}
-                                                onChange={(e) => setReadyToBegin(e.target.checked)}
-                                                className="w-5 h-5 bg-white border-gray-200 rounded focus:ring-primary text-primary cursor-pointer transition-all"
-                                            />
-                                            <span className="text-xs font-black text-gray-700 uppercase tracking-widest select-none">
-                                                I’m ready to start.
-                                            </span>
-                                        </label>
-
-                                        <button 
-                                            onClick={handleAction}
-                                            disabled={!readyToBegin || isEnrolling}
-                                            className={`w-full py-5 font-black uppercase tracking-[0.3em] text-[11px] rounded-full shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3 ${
-                                                readyToBegin 
-                                                ? 'bg-primary text-white shadow-primary/30' 
-                                                : 'bg-gray-100 text-gray-300 cursor-not-allowed border-none'
-                                            }`}
-                                        >
-                                            Secure My Identity
-                                        </button>
+                            {readyToBegin ? (
+                                <div className="pt-6 animate-pulse">
+                                    <p className="text-sm text-gray-500 font-medium italic">"Initializing dashboard..."</p>
+                                </div>
+                            ) : (
+                                <div className="pt-6">
+                                    <div className="w-12 h-1 bg-gray-100 rounded-full mx-auto overflow-hidden">
+                                        <div className="h-full bg-primary rounded-full animate-progress-fast"></div>
                                     </div>
-                                )}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
-                                {user && (
-                                    <div className="py-4">
-                                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] animate-pulse">Redirecting to Path...</p>
-                                    </div>
-                                )}
+                    {status === 'delay' && (
+                        <div className="space-y-6 animate-fade-in">
+                            <div className="w-20 h-20 bg-orange-50 text-orange-600 rounded-[2rem] flex items-center justify-center mx-auto text-4xl shadow-inner border border-orange-100">
+                                ⏳
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">Syncing Payouts</h1>
+                                <p className="text-sm text-gray-500 font-medium leading-relaxed mt-4 italic">
+                                    "Your payment was successful but the registry is still syncing. We'll automatically enroll you in a moment."
+                                </p>
                             </div>
                         </div>
                     )}
 
-                    {(status === 'delay' || status === 'error') && (
-                        <div className="space-y-6 py-4">
-                            <div className="w-16 h-16 bg-orange-50 text-orange-600 rounded-[1.75rem] flex items-center justify-center mx-auto">
-                                <span className="text-2xl">⏳</span>
+                    {status === 'error' && (
+                        <div className="space-y-6 animate-fade-in">
+                            <div className="w-20 h-20 bg-red-50 text-red-500 rounded-[2rem] flex items-center justify-center mx-auto text-4xl shadow-inner border border-red-100">
+                                ✕
                             </div>
                             <div>
-                                <h1 className="text-xl font-black text-gray-900 tracking-tight">Sync Delayed</h1>
-                                <p className="text-gray-500 font-medium text-xs mt-3 leading-relaxed px-4">Verification is taking longer than expected. Please check your dashboard; the sprint will appear shortly.</p>
-                                <button 
-                                    onClick={() => navigate('/dashboard', { replace: true })}
-                                    className="w-full mt-8 py-5 bg-gray-100 text-gray-400 font-black uppercase tracking-[0.2em] text-[10px] rounded-full hover:bg-gray-200 transition-all active:scale-95"
-                                >
-                                    Go to Dashboard
-                                </button>
+                                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">Verification Failed</h1>
+                                <p className="text-sm text-gray-500 font-medium leading-relaxed mt-4 italic">
+                                    "We couldn't verify this transaction reference. If you were charged, please contact help@vectorise.com."
+                                </p>
                             </div>
+                            <button 
+                                onClick={() => navigate('/dashboard')}
+                                className="w-full py-4 bg-gray-900 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all"
+                            >
+                                Return to Dashboard
+                            </button>
                         </div>
                     )}
                 </header>
-                <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-primary/5 rounded-full blur-[80px] pointer-events-none"></div>
+
+                {/* Subtle Detail */}
+                <div className="absolute -bottom-12 -right-12 w-40 h-40 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
             </div>
+
             <style>{`
-                @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-slide-up { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-                .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
+                @keyframes progressFast {
+                    0% { width: 0%; transform: translateX(-100%); }
+                    100% { width: 100%; transform: translateX(100%); }
+                }
+                .animate-progress-fast {
+                    animation: progressFast 1.5s ease-in-out infinite;
+                }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+                @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
             `}</style>
         </div>
     );

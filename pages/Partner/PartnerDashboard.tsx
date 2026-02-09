@@ -48,7 +48,7 @@ const PartnerDashboard: React.FC = () => {
           return {
             ...refUser,
             enrollments: userEnrollments,
-            hasPurchased: userEnrollments.length > 0
+            hasPurchased: userEnrollments.some((e: any) => e.isCommissionTrigger)
           };
         });
         setRealTimeReferrals(merged);
@@ -80,18 +80,22 @@ const PartnerDashboard: React.FC = () => {
   const stats = useMemo(() => {
     const totalPurchases = realTimeReferrals.filter(r => r.hasPurchased).length;
     let totalRevenue = 0;
+    
+    /**
+     * ENFORCED LOGIC: One user -> one partner -> one paid sprint.
+     * We only calculate revenue from the enrollment explicitly marked as 'isCommissionTrigger'.
+     */
     realTimeReferrals.forEach(r => {
-      (r.enrollments || []).forEach((e: any) => {
-        const sprint = realTimeSprints.find(s => s.id === e.sprintId);
+      const commissionEnrollment = (r.enrollments || []).find((e: any) => e.isCommissionTrigger);
+      if (commissionEnrollment) {
+        const sprint = realTimeSprints.find(s => s.id === commissionEnrollment.sprintId);
         if (sprint) totalRevenue += (sprint.price || 0);
-      });
+      }
     });
 
     const earnings = totalRevenue * 0.3; 
-    // Fix: Explicitly typed acc and curr to number to avoid unknown inference from Record values
     const totalClicks = Object.values(linkStats).reduce((acc: number, curr: number) => acc + curr, 0);
 
-    // Fix: Explicitly typed reduce parameters to ensure number arithmetic on completions
     const completions = realTimeReferrals.reduce((acc: number, r: any) => {
       const completedCount = (r.enrollments || []).filter((e: any) => e.progress.every((p: any) => p.completed)).length;
       return acc + completedCount;
@@ -171,9 +175,9 @@ const PartnerDashboard: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Total Managed Revenue</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Commissionable Revenue</p>
                 <h3 className="text-3xl font-black text-gray-900 tracking-tight">₦{stats.revenue.toLocaleString()}</h3>
-                <div className="absolute -bottom-6 -right-6 w-20 h-20 bg-primary/5 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+                <p className="text-[8px] font-bold text-gray-300 mt-1 uppercase">1st Sale/User Only</p>
               </div>
               <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group">
                 <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">Real-Time Earnings</p>
@@ -203,11 +207,11 @@ const PartnerDashboard: React.FC = () => {
                     <p className="text-lg font-black text-gray-900">{stats.totalClicks}</p>
                   </div>
                   <div className="flex justify-between items-center">
-                    <p className="text-sm font-bold text-gray-500">Purchases via Link</p>
+                    <p className="text-sm font-bold text-gray-500">Unique Users Converted</p>
                     <p className="text-lg font-black text-gray-900">{stats.purchases}</p>
                   </div>
                   <div className="flex justify-between items-center">
-                    <p className="text-sm font-bold text-gray-500">Conversion Rate</p>
+                    <p className="text-sm font-bold text-gray-500">New User Conversion</p>
                     <p className="text-lg font-black text-primary">
                         {stats.totalClicks > 0 ? ((stats.purchases / stats.totalClicks) * 100).toFixed(1) : 0}%
                     </p>
@@ -298,7 +302,7 @@ const PartnerDashboard: React.FC = () => {
           <div className="animate-fade-in space-y-10">
             <div>
               <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-1 italic">Referrals.</h2>
-              <p className="text-gray-500 font-medium text-sm">Live tracking of users catalyzed through your registry code.</p>
+              <p className="text-gray-500 font-medium text-sm">Users locked to your registry via the 'First Paid Sprint' protocol.</p>
             </div>
 
             <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
@@ -308,17 +312,18 @@ const PartnerDashboard: React.FC = () => {
                     <tr className="bg-gray-50/50 border-b border-gray-100">
                       <th className="px-10 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest">Participant</th>
                       <th className="px-10 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                      <th className="px-10 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Active Cycles</th>
-                      <th className="px-10 py-5 text-[9px] font-black text-primary uppercase tracking-widest text-right">Potential Earned</th>
+                      <th className="px-10 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Comm. Status</th>
+                      <th className="px-10 py-5 text-[9px] font-black text-primary uppercase tracking-widest text-right">Earning Locked</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {realTimeReferrals.map((r) => {
                       let potential = 0;
-                      (r.enrollments || []).forEach((e: any) => {
-                        const sprint = realTimeSprints.find(s => s.id === e.sprintId);
+                      const commissionEnrollment = (r.enrollments || []).find((e: any) => e.isCommissionTrigger);
+                      if (commissionEnrollment) {
+                        const sprint = realTimeSprints.find(s => s.id === commissionEnrollment.sprintId);
                         if (sprint) potential += (sprint.price || 0) * 0.3;
-                      });
+                      }
 
                       return (
                         <tr key={r.id} className="hover:bg-gray-50 transition-colors">
@@ -330,11 +335,11 @@ const PartnerDashboard: React.FC = () => {
                           </td>
                           <td className="px-10 py-5">
                             <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${r.hasPurchased ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-400'}`}>
-                                {r.hasPurchased ? 'Sprinting' : 'Joined'}
+                                {r.hasPurchased ? 'Mastered First Cycle' : 'In Onboarding'}
                             </span>
                           </td>
-                          <td className="px-10 py-5 text-center font-bold text-gray-500 text-xs">
-                            {r.enrollments?.length || 0}
+                          <td className="px-10 py-5 text-center font-bold text-gray-500 text-xs uppercase tracking-tighter">
+                            {r.partnerCommissionClosed ? 'Closed (Paid)' : 'Awaiting First Buy'}
                           </td>
                           <td className="px-10 py-5 text-right font-black text-gray-900 text-sm italic">
                             ₦{potential.toLocaleString()}

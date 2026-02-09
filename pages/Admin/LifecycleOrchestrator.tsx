@@ -40,17 +40,17 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
     const currentSlots = LIFECYCLE_SLOTS.filter(s => s.stage === selectedStage);
 
     /**
-     * STATED REQUIREMENT: Foundation has 3 subcategories
-     * 1. Clarity: Only sprints with tag 'Clarity'
-     * 2. Orientation: Only sprints with tag 'Core Platform Sprint'
-     * 3. Core Foundation: Only sprints with tag 'Growth Fundamentals'
+     * STATED REQUIREMENT: Foundation has 3 strictly defined subcategories:
+     * 1. Clarity: Only sprints with category 'Clarity'
+     * 2. Orientation: Only sprints with category 'Core Platform Sprint'
+     * 3. Core Foundation: Only sprints with category 'Growth Fundamentals'
      */
     const getAvailableSprintsForSlot = (slot: LifecycleSlot) => {
         return allSprints.filter(s => {
             // Must be approved and published
             if (s.approvalStatus !== 'approved' && !s.published) return false;
 
-            // Logic for Foundation Stage
+            // Strict Logic for Foundation Stage
             if (slot.stage === 'Foundation') {
                 if (slot.id === 'slot_found_clarity') return s.category === 'Clarity';
                 if (slot.id === 'slot_found_orient') return s.category === 'Core Platform Sprint';
@@ -58,7 +58,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                 return false;
             }
 
-            // Logic for all other stages
+            // Standard Logic for all other stages
             const mappedStage = CATEGORY_TO_STAGE_MAP[s.category];
             if (mappedStage === selectedStage) return true;
 
@@ -163,7 +163,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                                     <div className="w-full md:w-56">
                                         <h4 className="text-lg font-black text-gray-900 tracking-tight mb-1">{slot.name}</h4>
                                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">
-                                            {slot.stage === 'Foundation' ? 'Restricted Category Pool' : 'Assignment Slot'}
+                                            {slot.stage === 'Foundation' ? 'Strict Subcategory Pool' : 'Assignment Slot'}
                                         </p>
                                     </div>
 

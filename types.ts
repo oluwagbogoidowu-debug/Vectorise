@@ -119,10 +119,9 @@ export interface Participant extends User {
   activeSprintId?: string;
   walletBalance?: number;
   referralCode?: string;
-  // Added for referral tracking
   referrerId?: string | null;
-  // Added for referral tracking
   referralFirstTouch?: string | null;
+  partnerCommissionClosed?: boolean; // Locked after first paid sprint
   impactStats?: { peopleHelped: number; streak: number };
   wishlistSprintIds?: string[];
   enrolledSprintIds?: string[];
@@ -172,6 +171,7 @@ export interface ParticipantSprint {
   startDate: string;
   sentNudges?: number[];
   reflectionsDisabled?: boolean;
+  isCommissionTrigger?: boolean; // Marks the one sprint that paid the partner
   progress: {
     day: number;
     completed: boolean;
