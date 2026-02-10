@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import LocalLogo from '../components/LocalLogo';
@@ -173,37 +172,211 @@ const HomePage: React.FC = () => {
 
             <div className="lg:col-span-5 flex flex-col items-center">
                <div className="relative w-full aspect-[4/5] bg-yellow-400 rounded-[3rem] overflow-hidden shadow-2xl">
-                  {/* Added image content and closed tags for the insight section */}
                   <img 
-                    src="https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80" 
-                    className="w-full h-full object-cover" 
-                    alt="Clarity Insight" 
+                    src="https://lh3.googleusercontent.com/d/1adBe3Z_E3_9mAPPG86f67dYENzT1jR7O" 
+                    className="w-full h-full object-cover animate-grayscale-loop" 
+                    alt="Founder Story" 
                   />
-                  <div className="absolute inset-0 bg-primary/10 mix-blend-overlay"></div>
                </div>
+               <p className="mt-6 text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] text-center leading-relaxed">BUILT BY SOMEONE WHO'S WALKED THE PATH FROM <br/> CONFUSION TO CLARITY.</p>
             </div>
+          </div>
+
+          <div className="mt-20 max-w-4xl mx-auto bg-gray-50 rounded-[2rem] p-10 md:p-14 text-center border border-gray-100 shadow-inner">
+             <p className="text-lg md:text-2xl text-gray-900 font-black italic">
+                "Vectorise exists so others don’t have to <br className="hidden md:block" />
+                <span className="text-primary underline decoration-primary/20 underline-offset-8">learn this late.</span>"
+             </p>
           </div>
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="py-20 bg-gray-50 px-6 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
-          <LocalLogo type="green" className="h-8 w-auto" />
-          <div className="flex gap-8">
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">© 2026 Vectorise</p>
-            <Link to="/onboarding/coach/welcome" className="text-[9px] font-black text-gray-400 hover:text-primary uppercase tracking-widest transition-colors">Coach Portal</Link>
+      {/* THE SYSTEM SECTION (DARK) */}
+      <section className="py-24 md:py-40 bg-dark text-white px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-[80px] font-black italic tracking-tighter leading-none mb-8">The System.</h2>
+            <p className="text-white/40 font-bold text-xs md:text-base max-w-md mx-auto leading-relaxed uppercase tracking-[0.1em]">
+                Vectorise is not a marketplace of programs. <br/>
+                It's a guided growth system designed to force focus.
+            </p>
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              { label: "PROTOCOL", title: "Sprints", desc: "Short, outcome-driven growth cycles." },
+              { label: "STRATEGY", title: "One Focus", desc: "Every sprint solves one clear problem." },
+              { label: "EXECUTION", title: "Daily Action", desc: "You act, not just consume content." },
+              { label: "SUPPORT", title: "Coach Guidance", desc: "Access when friction shows up." }
+            ].map((item, i) => (
+              <div key={i} className="bg-white/[0.03] border border-white/10 p-8 rounded-[1.5rem] group hover:bg-white/[0.05] transition-all">
+                <p className="text-[7px] font-black text-primary uppercase tracking-widest mb-4">{item.label}</p>
+                <h4 className="text-xl font-black mb-2 italic">{item.title}</h4>
+                <p className="text-xs text-white/40 font-medium italic">"{item.desc}"</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-20 text-center">
+            <p className="text-lg md:text-2xl font-black italic tracking-tight opacity-80 leading-snug">
+                "Finish one sprint. Then decide your next move. That’s <br className="hidden md:block" /> how real growth compounds."
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* WHEN YOU CLICK START SECTION */}
+      <section className="py-24 md:py-40 bg-white px-6">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
+            <div className="lg:col-span-5">
+                <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-[1] mb-8">
+                    When you click <br/><span className="text-primary italic">Start.</span>
+                </h2>
+                <p className="text-gray-400 font-bold text-xs md:text-sm leading-relaxed max-w-xs italic uppercase tracking-widest">
+                    No theory overload. No pressure to have life figured out. Just clarity you can build on.
+                </p>
+            </div>
+            
+            <div className="lg:col-span-7 space-y-3">
+                {[
+                    "You enter a structured 5-day experience",
+                    "Each day gives you one prompt and one action",
+                    "You learn by doing, not overthinking",
+                    "You reflect on real signals, not guesses",
+                    "You leave with direction and momentum"
+                ].map((text, i) => (
+                    <div key={i} className="bg-gray-50 border border-gray-100 p-5 md:p-6 rounded-[1.5rem] flex items-center gap-6">
+                        <span className="text-lg md:text-xl font-black text-gray-200 italic">0{i+1}</span>
+                        <p className="text-xs md:text-sm font-black text-gray-900 tracking-tight leading-none">{text}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+      </section>
+
+      {/* WHO THIS IS FOR SECTION */}
+      <section className="py-24 md:py-40 bg-gray-50 border-y border-gray-100 px-6">
+        <div className="max-w-5xl mx-auto text-center">
+            <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-none mb-6">Who this is for</h2>
+            <p className="text-gray-400 font-medium italic text-xs md:text-sm mb-16 uppercase tracking-widest">Vectorise is for people at a transition point.</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+                {[
+                    { t: "Students", s: "FINAL YEAR", d: "Unsure of what comes next after graduation." },
+                    { t: "Professionals", s: "EARLY CAREER", d: "Questioning direction and seeking alignment." },
+                    { t: "Creators", s: "BUILDERS", d: "Recalibrating focus to scale what actually works." }
+                ].map((item, i) => (
+                    <div key={i} className="bg-white p-8 rounded-[2rem] border border-gray-200 shadow-sm flex flex-col text-left h-full">
+                        <h4 className="text-lg font-black text-gray-900 italic mb-1">{item.t}</h4>
+                        <p className="text-[8px] font-black text-primary uppercase tracking-[0.2em] mb-6">{item.s}</p>
+                        <p className="text-[11px] text-gray-500 font-medium leading-relaxed italic mt-auto">"{item.d}"</p>
+                    </div>
+                ))}
+            </div>
+
+            <p className="text-lg md:text-2xl font-black italic tracking-tight text-gray-900 leading-tight">
+                "If you’re tired of moving without certainty, <span className="text-primary underline decoration-primary/20 underline-offset-8">you belong here.</span>"
+            </p>
+        </div>
+      </section>
+
+      {/* THE PROMISE SECTION */}
+      <section className="py-24 md:py-40 bg-white px-6">
+        <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-5xl md:text-[80px] font-black text-gray-900 tracking-tighter leading-none mb-10 italic">The Promise.</h2>
+            <div className="space-y-2 mb-20">
+                <p className="text-xs md:text-base text-gray-400 font-medium italic">You don’t leave Vectorise with motivation.</p>
+                <p className="text-sm md:text-xl font-black text-gray-900 uppercase tracking-[0.3em] leading-none">You leave with:</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-6">
+                {[
+                    { t: "Clarity", s: "ON WHAT MATTERS NOW" },
+                    { t: "Momentum", s: "FROM REAL ACTION" },
+                    { t: "Proof", s: "YOU CAN BUILD ON" }
+                ].map((item, i) => (
+                    <div key={i} className="space-y-2">
+                        <h4 className="text-3xl md:text-4xl font-black text-primary italic leading-none">{item.t}</h4>
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em]">{item.s}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+      </section>
+
+      {/* FINAL CTA SECTION - RECTANGULAR FULL WIDTH */}
+      <section className="bg-primary py-24 md:py-40 px-6 relative overflow-hidden flex-shrink-0">
+        <div className="max-w-4xl mx-auto text-center relative z-10 flex flex-col items-center">
+            <h2 className="text-4xl md:text-[80px] font-black text-white italic tracking-tighter leading-[1] mb-10">
+                Clarity on your <br className="hidden md:block" /> next move.
+            </h2>
+            <p className="text-white/60 text-xs md:text-lg font-medium italic max-w-sm mx-auto mb-12 leading-relaxed">
+                You don't need to figure out your whole future. <br className="hidden md:block" /> You just need to act today.
+            </p>
+            <button 
+                onClick={handleStartAction}
+                className="px-12 py-5 bg-white text-primary font-black uppercase tracking-[0.3em] text-[10px] md:text-xs rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all"
+            >
+                START YOUR CLARITY SPRINT
+            </button>
+        </div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-white/5 rounded-full pointer-events-none"></div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="py-20 bg-white border-t border-gray-100 px-10">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
+            <div className="flex items-center gap-6">
+                <LocalLogo type="green" className="h-4 w-auto" />
+                <div className="h-5 w-px bg-gray-200"></div>
+                <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.4em] leading-none pt-0.5">VISIBLE PROGRESS SYSTEM</p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-8 md:gap-12">
+                <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.4em]">© 2026 VECTORISE</p>
+                <Link to="/onboarding/coach/welcome" className="text-[9px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">I'M A COACH</Link>
+                <Link to="/partner" className="text-[9px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">BE A PARTNER</Link>
+            </div>
         </div>
       </footer>
 
+      {/* Engagement Micro Selector Modal */}
+      {showMicroSelector && activeSelector && currentStep && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-dark/95 backdrop-blur-md animate-fade-in">
+          <div className="bg-white rounded-[2.5rem] p-8 md:p-12 w-full max-w-sm shadow-2xl relative animate-slide-up">
+            <header className="text-center mb-10">
+              <LocalLogo type="favicon" className="h-10 w-auto mx-auto mb-6 opacity-40" />
+              <h2 className="text-lg md:text-xl font-black text-gray-900 tracking-tight italic leading-tight px-2">{currentStep.question}</h2>
+            </header>
+            <div className="space-y-3">
+              {currentStep.options.map((opt, idx) => (
+                <button key={idx} onClick={() => handleOptionClick(opt)} className="w-full group relative overflow-hidden bg-gray-50 border border-gray-100 py-4 px-6 rounded-2xl transition-all duration-500 hover:bg-primary hover:border-primary hover:scale-[1.01] active:scale-95 text-center flex items-center justify-center cursor-pointer">
+                  <span className="relative z-10 text-[9px] font-black uppercase tracking-[0.15em] text-gray-500 group-hover:text-white transition-colors leading-relaxed block">{opt.label}</span>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setShowMicroSelector(false)} className="w-full mt-8 py-2 text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-red-400 transition-colors cursor-pointer">Close</button>
+          </div>
+        </div>
+      )}
+
       <style>{`
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        /* Loop grayscale filters: 0% and 100% are grayscale, middle is color */
+        @keyframes grayscaleLoop {
+          0%, 100% { filter: grayscale(100%) brightness(1.1) contrast(1.1); }
+          40%, 60% { filter: grayscale(0%) brightness(1) contrast(1); }
+        }
+        .animate-grayscale-loop { animation: grayscaleLoop 12s cubic-bezier(0.445, 0.05, 0.55, 0.95) infinite; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
     </div>
   );
 };
 
-// Fixed: Added missing default export to satisfy App.tsx import
 export default HomePage;

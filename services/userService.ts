@@ -4,64 +4,65 @@ import { User, Participant, Coach, UserRole, WalletTransaction } from '../types'
 
 /**
  * Standardized utility to recursively remove non-serializable values and handle circularity.
- * Improved to handle Firestore internals and prevent 'Converting circular structure to JSON' errors.
+ * Prevents 'Converting circular structure to JSON' errors by strictly allowing only
+ * primitives, plain objects, plain arrays, and specific allowed types.
  */
 export const sanitizeData = (val: any, depth = 0, seen = new WeakSet()): any => {
-    // 1. Prevent recursion too deep
-    if (depth > 12) return undefined;
+    // 1. Handle null and undefined
+    if (val === null || val === undefined) return val;
 
-    // 2. Handle primitives and null immediately
-    if (val === null || typeof val !== 'object') return val;
-    
-    // 3. Handle specific instances we want to preserve/transform
+    // 2. Prevent recursion too deep
+    if (depth > 15) return undefined;
+
+    // 3. Handle primitives
+    const type = typeof val;
+    if (type === 'string' || type === 'number' || type === 'boolean') return val;
+
+    // 4. Handle Dates & Firestore Timestamps
     if (val instanceof Date) return val.toISOString();
-    
-    // Firestore Timestamps have a toDate method
     if (typeof val.toDate === 'function') return val.toDate().toISOString();
 
-    // 4. Handle Firestore FieldValues (Sentinels like deleteField, increment, arrayUnion)
-    // We check for minified names (Sa, o, Q$1) and standard ones to prevent circular recursion.
-    const constructorName = val.constructor?.name;
-    const isFirestoreInternal = constructorName && 
-        (['FieldValue', 'o', 'Sa', 'Q$1', 'Firestore', 'DocumentReference', 'CollectionReference', 'Query', 'DocumentSnapshot'].includes(constructorName) ||
-         typeof val._methodName === 'string' || 
-         (val.firestore && val.path));
-
-    if (isFirestoreInternal) {
-        // Return FieldValues as-is so Firestore can use them, but strip structural objects (db, ref)
-        // to prevent circularity leaks into application state.
-        return typeof val._methodName === 'string' ? val : undefined;
+    // 5. Handle Firestore FieldValues (for writes)
+    // characteristic property of FieldValue in many SDK versions
+    if (val && (typeof val._methodName === 'string' || val.constructor?.name?.includes('FieldValue'))) {
+        return val;
     }
 
-    // 5. Prevent infinite recursion on circular structures
+    // 6. Prevent circularity
     if (seen.has(val)) return undefined;
 
-    // 6. Handle Arrays
+    // 7. Handle Arrays
     if (Array.isArray(val)) {
         seen.add(val);
         return val.map(item => sanitizeData(item, depth + 1, seen)).filter(i => i !== undefined);
     }
 
-    // 7. Strict plain object check
-    // This is the primary defense against circularity in complex objects.
-    const toString = Object.prototype.toString.call(val);
-    if (toString !== '[object Object]') return undefined;
-
-    // 8. Track this object
-    seen.add(val);
-
-    const cleaned: any = {};
-    const keys = Object.keys(val);
-    for (const key of keys) {
-        // Skip internal properties
-        if (key.startsWith('_') || key.startsWith('$')) continue;
-        
-        const sanitizedVal = sanitizeData(val[key], depth + 1, seen);
-        if (sanitizedVal !== undefined) {
-            cleaned[String(key)] = sanitizedVal;
+    // 8. Handle Plain Objects
+    if (type === 'object') {
+        const proto = Object.getPrototypeOf(val);
+        // Only recurse into objects created via {} or new Object()
+        // This automatically skips Firestore internals like DocumentReference (mangled names like Q$1)
+        if (proto !== null && proto !== Object.prototype) {
+            return undefined;
         }
+
+        seen.add(val);
+        const cleaned: any = {};
+        for (const key in val) {
+            if (Object.prototype.hasOwnProperty.call(val, key)) {
+                // Skip internal-looking properties
+                if (key.startsWith('_') || key.startsWith('$')) continue;
+                
+                const sanitizedVal = sanitizeData(val[key], depth + 1, seen);
+                if (sanitizedVal !== undefined) {
+                    cleaned[key] = sanitizedVal;
+                }
+            }
+        }
+        return cleaned;
     }
-    return cleaned;
+
+    return undefined;
 };
 
 export const userService = {
@@ -286,7 +287,7 @@ export const userService = {
           } else {
               await updateDoc(userRef, {
                   savedSprintIds: arrayRemove(sprintId)
-              });
+                });
           }
       } catch (error) {
           console.error("Error toggling saved sprint:", error);
