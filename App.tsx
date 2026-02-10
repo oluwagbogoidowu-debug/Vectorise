@@ -37,6 +37,7 @@ import ProgramDescription from './pages/Onboarding/ProgramDescription';
 import ClaritySprintDescription from './pages/Onboarding/ClaritySprintDescription';
 import CommitmentFraming from './pages/Onboarding/CommitmentFraming';
 import SprintPayment from './pages/Onboarding/SprintPayment';
+import TheMap from './pages/Onboarding/TheMap';
 
 // Impact / Referral System
 import ImpactDashboard from './pages/Participant/Impact/ImpactDashboard';
@@ -182,6 +183,7 @@ const AppRoutes: React.FC = () => {
           <Route path="/onboarding/clarity-description/:sprintId" element={<ClaritySprintDescription />} />
           <Route path="/onboarding/commitment" element={<CommitmentFraming />} />
           <Route path="/onboarding/sprint-payment" element={<SprintPayment />} />
+          <Route path="/onboarding/map" element={<TheMap />} />
           <Route path="/onboarding/intro" element={<QuizIntro />} />
           <Route path="/onboarding/quiz" element={<Quiz />} />
           <Route path="/onboarding/coach/welcome" element={<CoachWelcome />} />

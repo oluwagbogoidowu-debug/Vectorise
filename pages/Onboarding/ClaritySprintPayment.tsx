@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
@@ -56,9 +55,9 @@ const ClaritySprintPayment: React.FC = () => {
     }
   };
 
-  const handleSkipRequest = () => {
-    navigate('/onboarding/intro', { 
-        state: { ...state, skipToExecution: true } 
+  const handleHesitation = () => {
+    navigate('/onboarding/map', { 
+        state: { ...state } 
     });
   };
 
@@ -151,10 +150,10 @@ const ClaritySprintPayment: React.FC = () => {
                 
                 <div className="text-center">
                     <button 
-                      onClick={handleSkipRequest}
+                      onClick={handleHesitation}
                       className="text-[10px] font-black text-gray-400 hover:text-primary transition-colors underline underline-offset-4 decoration-gray-200"
                     >
-                      Need something else? View other paths.
+                      Not sure yet? See The Map (the full system) before you begin
                     </button>
                 </div>
              </div>

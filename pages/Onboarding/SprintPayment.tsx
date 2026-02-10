@@ -19,9 +19,6 @@ const SprintPayment: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   const [globalSettings, setGlobalSettings] = useState<GlobalOrchestrationSettings | null>(null);
-  const [showMicroSelector, setShowMicroSelector] = useState(false);
-  const [activeSelector, setActiveSelector] = useState<MicroSelector | null>(null);
-  const [currentStepIdx, setCurrentStepIdx] = useState(0);
 
   // Preserve navigation context
   const state = location.state || {};
@@ -111,44 +108,8 @@ const SprintPayment: React.FC = () => {
   };
 
   const handleHesitation = () => {
-    if (!globalSettings) {
-      navigate('/onboarding/intro', { state: { ...state, skipToExecution: true } });
-      return;
-    }
-
-    const action = globalSettings.triggerActions?.['payment_hesitation'];
-    if (action) {
-      if (action.type === 'show_micro_selector') {
-        const selector = globalSettings.microSelectors.find(ms => ms.id === action.value);
-        if (selector) {
-          setActiveSelector(selector);
-          setCurrentStepIdx(0);
-          setShowMicroSelector(true);
-          return;
-        }
-      } else if (action.type === 'recommend_sprint') {
-        navigate(`/sprint/${action.value}`);
-        return;
-      } else if (action.type === 'navigate_to') {
-        navigate(action.value);
-        return;
-      }
-    }
-    
-    navigate('/onboarding/intro', { state: { ...state, skipToExecution: true } });
+    navigate('/onboarding/map', { state: { ...state } });
   };
-
-  const handleOptionClick = (option: any) => {
-    if (option.action === 'next_step') {
-      setCurrentStepIdx(currentStepIdx + 1);
-    } else if (option.action === 'skip_to_stage') {
-      navigate('/discover', { state: { targetStage: option.value } });
-    } else if (option.action === 'finish_and_recommend') {
-      navigate('/discover');
-    }
-  };
-
-  const currentStep = activeSelector?.steps[currentStepIdx];
 
   return (
     <div className="min-h-screen w-full bg-[#FAFAFA] flex flex-col items-center py-12 px-6 overflow-x-hidden selection:bg-primary/10 font-sans relative">
@@ -229,7 +190,7 @@ const SprintPayment: React.FC = () => {
                       onClick={handleHesitation}
                       className="text-[10px] font-black text-gray-400 hover:text-primary transition-colors underline underline-offset-4 decoration-gray-200 cursor-pointer"
                     >
-                      Need something else? View other paths.
+                      Not sure yet? See The Map (the full system) before you begin
                     </button>
                 </div>
              </div>
@@ -237,29 +198,11 @@ const SprintPayment: React.FC = () => {
         </div>
       </div>
 
-      {showMicroSelector && activeSelector && currentStep && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-dark/95 backdrop-blur-md animate-fade-in">
-          <div className="bg-white rounded-[2.5rem] p-8 md:p-12 w-full max-w-sm shadow-2xl relative animate-slide-up">
-            <header className="text-center mb-10">
-              <LocalLogo type="favicon" className="h-10 w-auto mx-auto mb-6 opacity-40" />
-              <h2 className="text-lg md:text-xl font-black text-gray-900 tracking-tight italic leading-tight px-2">{currentStep.question}</h2>
-            </header>
-            <div className="space-y-3">
-              {currentStep.options.map((opt, idx) => (
-                <button key={idx} onClick={() => handleOptionClick(opt)} className="w-full py-4 px-6 rounded-2xl bg-gray-50 border border-gray-100 font-black text-[9px] uppercase tracking-widest text-gray-500 hover:bg-primary hover:text-white transition-all cursor-pointer">
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       <style>{`
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-slide-up { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}</style>
     </div>
   );
