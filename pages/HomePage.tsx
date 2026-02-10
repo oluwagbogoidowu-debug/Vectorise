@@ -12,7 +12,6 @@ const HomePage: React.FC = () => {
   const [showMicroSelector, setShowMicroSelector] = useState(false);
   const [activeSelector, setActiveSelector] = useState<MicroSelector | null>(null);
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
-  const [pendingTargetSprintId, setPendingTargetSprintId] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubSettings = sprintService.subscribeToGlobalSettings((settings) => setGlobalSettings(settings));
@@ -25,32 +24,7 @@ const HomePage: React.FC = () => {
   }, []);
 
   const handleStartAction = () => {
-    const triggerMatch = (Object.values(orchestration) as LifecycleSlotAssignment[]).find(a => a.stateTrigger === 'after_homepage');
-    const targetId = triggerMatch ? (triggerMatch.sprintId || (triggerMatch.sprintIds && triggerMatch.sprintIds[0])) : null;
-    const triggerAction = globalSettings?.triggerActions?.['after_homepage'];
-    let selectorToShow = null;
-    
-    if (triggerAction?.type === 'show_micro_selector') {
-      selectorToShow = globalSettings?.microSelectors.find(ms => ms.id === triggerAction.value);
-    }
-    
-    if (!selectorToShow) {
-      selectorToShow = globalSettings?.microSelectors.find(ms => ms.stage === 'Foundation');
-    }
-
-    if (selectorToShow) {
-      setActiveSelector(selectorToShow);
-      setCurrentStepIdx(0);
-      setPendingTargetSprintId(targetId || null);
-      setShowMicroSelector(true);
-      return;
-    }
-
-    if (targetId) {
-       navigate(`/onboarding/clarity-description/${targetId}`);
-       return;
-    }
-    
+    // Direct navigation to FocusSelector as requested
     navigate('/onboarding/focus-selector');
   };
 
@@ -71,11 +45,7 @@ const HomePage: React.FC = () => {
 
   const finalizeEngagement = () => {
     setShowMicroSelector(false);
-    if (pendingTargetSprintId) {
-      navigate(`/onboarding/clarity-description/${pendingTargetSprintId}`);
-    } else {
-      navigate('/discover');
-    }
+    navigate('/discover');
   };
 
   const currentStep = activeSelector?.steps[currentStepIdx];

@@ -1,12 +1,10 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import { FOCUS_OPTIONS } from '../../services/mockData';
 import { sprintService } from '../../services/sprintService';
 import { useAuth } from '../../contexts/AuthContext';
-// Added Participant import for type casting
-import { Participant } from '../../types';
+import { Participant, LifecycleSlotAssignment } from '../../types';
 
 const FocusSelector: React.FC = () => {
   const navigate = useNavigate();
@@ -14,12 +12,27 @@ const FocusSelector: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [matchingStatus, setMatchingStatus] = useState<string | null>(null);
   const [focusOptions, setFocusOptions] = useState<string[]>(FOCUS_OPTIONS);
+  const [homepageAssignment, setHomepageAssignment] = useState<LifecycleSlotAssignment | null>(null);
 
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const settings = await sprintService.getGlobalOrchestrationSettings();
-        if (settings?.focusOptions && settings.focusOptions.length > 0) {
+        const [settings, orchestration] = await Promise.all([
+          sprintService.getGlobalOrchestrationSettings(),
+          sprintService.getOrchestration()
+        ]);
+
+        // Find the slot assigned to the homepage trigger
+        const assignment = Object.values(orchestration).find(
+          (a: any) => a.stateTrigger === 'after_homepage'
+        ) as LifecycleSlotAssignment | undefined;
+
+        if (assignment) {
+          setHomepageAssignment(assignment);
+          if (assignment.availableFocusOptions && assignment.availableFocusOptions.length > 0) {
+            setFocusOptions(assignment.availableFocusOptions);
+          }
+        } else if (settings?.focusOptions && settings.focusOptions.length > 0) {
           setFocusOptions(settings.focusOptions);
         }
       } catch (err) {
@@ -36,8 +49,6 @@ const FocusSelector: React.FC = () => {
     // Persist focus to user profile if logged in
     if (user) {
       try {
-        // Fix: Cast user to Participant to access onboardingAnswers property. 
-        // Use 'as any' to allow adding 'selected_focus' string key to a record that may strictly expect numbers.
         const participantUser = user as Participant;
         await updateProfile({
           onboardingAnswers: {
@@ -50,24 +61,38 @@ const FocusSelector: React.FC = () => {
       }
     }
 
-    // Simulate high-end analysis phase for UX
+    // Simulate analysis phase for high-end UX feel
     setTimeout(() => setMatchingStatus("Polling Registry..."), 600);
     setTimeout(() => setMatchingStatus("Foundation Check..."), 1200);
 
     try {
-      // Find the sprint assigned in the Foundation Orchestrator matching this focus
-      const orchestration = await sprintService.getOrchestration();
-      
-      // Look for a match in any foundation slot using the focusCriteria lookup
-      // Priority: Clarity Slot -> Orientation Slot -> Core Slot
-      const foundationSlotIds = ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
+      // Priority: Resolve sprint from the explicit homepage assignment map
       let resolvedSprintId: string | null = null;
 
-      for (const slotId of foundationSlotIds) {
-          const mapping = orchestration[slotId];
-          if (mapping?.sprintId && mapping.focusCriteria?.includes(option)) {
-              resolvedSprintId = mapping.sprintId;
-              break;
+      if (homepageAssignment?.sprintFocusMap) {
+          resolvedSprintId = Object.keys(homepageAssignment.sprintFocusMap).find(
+              sId => homepageAssignment.sprintFocusMap?.[sId]?.includes(option)
+          ) || null;
+      }
+
+      // Fallback: If no explicit map match, look at general Foundation slots
+      if (!resolvedSprintId) {
+          const orchestration = await sprintService.getOrchestration();
+          const foundationSlotIds = ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
+          
+          for (const slotId of foundationSlotIds) {
+              const mapping = orchestration[slotId] as LifecycleSlotAssignment;
+              if (mapping?.sprintFocusMap) {
+                  const matchedId = Object.keys(mapping.sprintFocusMap).find(sId => mapping.sprintFocusMap?.[sId]?.includes(option));
+                  if (matchedId) {
+                      resolvedSprintId = matchedId;
+                      break;
+                  }
+              }
+              if (mapping?.sprintId && mapping.focusCriteria?.includes(option)) {
+                  resolvedSprintId = mapping.sprintId;
+                  break;
+              }
           }
       }
       
