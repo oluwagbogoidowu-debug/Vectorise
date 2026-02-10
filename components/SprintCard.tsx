@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Sprint, Coach, UserRole, Participant } from '../types';
@@ -9,9 +8,11 @@ import { userService } from '../services/userService';
 interface SprintCardProps {
     sprint: Sprint;
     coach: Coach;
+    forceShowOutcomeTag?: boolean; 
+    isStatic?: boolean; // New prop to disable navigation
 }
 
-const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach }) => {
+const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcomeTag = false, isStatic = false }) => {
     const { user, updateProfile } = useAuth();
     const [isProcessingSave, setIsProcessingSave] = useState(false);
 
@@ -36,7 +37,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach }) => {
     const handleToggleSave = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!user || isProcessingSave || isQueued || isEnrolled) return;
+        if (isStatic || !user || isProcessingSave || isQueued || isEnrolled) return;
 
         setIsProcessingSave(true);
         try {
@@ -57,10 +58,13 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach }) => {
         }
     };
 
+    const CardContainer = isStatic ? 'div' : Link;
+    const containerProps = isStatic ? {} : { to: `/sprint/${sprint.id}` };
+
     return (
-        <div className="relative group h-full">
+        <div className="relative group h-full w-full">
             {/* Sophisticated Bookmark Toggle */}
-            {!isEnrolled && !isQueued && (
+            {!isEnrolled && !isQueued && !isStatic && (
                 <button 
                     onClick={handleToggleSave}
                     disabled={isProcessingSave}
@@ -80,11 +84,22 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach }) => {
                 </button>
             )}
 
-            <Link to={`/sprint/${sprint.id}`} className="bg-white rounded-[3rem] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.12)] transition-all duration-700 flex flex-col border border-gray-100/60 overflow-hidden h-full group hover:-translate-y-2">
+            <CardContainer 
+                {...containerProps} 
+                className={`bg-white rounded-[3rem] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] transition-all duration-700 flex flex-col border border-gray-100/60 overflow-hidden h-full group ${!isStatic ? 'hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-2 cursor-pointer' : 'cursor-default'}`}
+            >
                 <div className="relative h-60 overflow-hidden">
-                    <img src={sprint.coverImageUrl} alt="" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110 group-hover:rotate-1" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-dark/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                    <img src={sprint.coverImageUrl || "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80"} alt="" className={`w-full h-full object-cover transition-transform duration-1000 ${!isStatic ? 'group-hover:scale-110 group-hover:rotate-1' : ''}`} />
+                    <div className={`absolute inset-0 bg-gradient-to-t from-dark/40 to-transparent transition-opacity duration-700 ${!isStatic ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}></div>
                     <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black text-primary shadow-lg uppercase tracking-[0.2em]">{sprint.duration} Days</div>
+                    
+                    {/* Archive Badge Preview */}
+                    {forceShowOutcomeTag && sprint.outcomeTag && (
+                         <div className="absolute top-4 left-4 bg-primary text-white px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest italic shadow-lg z-10 animate-fade-in border border-white/20">
+                            {sprint.outcomeTag}
+                         </div>
+                    )}
+
                     {isQueued && (
                         <div className="absolute bottom-4 left-4 bg-blue-600/90 backdrop-blur-md px-4 py-1.5 rounded-full text-[9px] font-black text-white uppercase tracking-[0.2em] shadow-lg">In Queue</div>
                     )}
@@ -95,7 +110,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach }) => {
                         <span className="px-3 py-1 rounded-lg bg-gray-50 border border-gray-100 text-gray-400 text-[9px] font-black uppercase tracking-[0.25em]">{sprint.category}</span>
                     </div>
 
-                    <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-primary transition-colors leading-[1.1] tracking-tight">{sprint.title}</h3>
+                    <h3 className={`text-2xl font-black text-gray-900 mb-3 transition-colors leading-[1.1] tracking-tight ${!isStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>
                     <p className="text-[13px] text-gray-500 line-clamp-2 mb-8 flex-grow font-medium leading-relaxed italic opacity-80">"{sprint.description}"</p>
                     
                     <div className="pt-6 border-t border-gray-50 mt-auto">
@@ -118,7 +133,11 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach }) => {
                         </div>
                     </div>
                 </div>
-            </Link>
+            </CardContainer>
+            <style>{`
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+            `}</style>
         </div>
     )
 }

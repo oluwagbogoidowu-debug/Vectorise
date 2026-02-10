@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { Sprint, SprintDifficulty, DailyContent, Coach } from '../../types';
 import SprintCard from '../../components/SprintCard';
+import LandingPreview from '../../components/LandingPreview';
 import { ALL_CATEGORIES } from '../../services/mockData';
 
 const HelpGuidance: React.FC<{ rule: string; isOpen: boolean }> = ({ rule, isOpen }) => {
@@ -27,6 +28,7 @@ const CreateSprint: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const [helpOpen, setHelpOpen] = useState<Record<string, boolean>>({});
+    const [previewType, setPreviewType] = useState<'card' | 'landing'>('card');
 
     const [formData, setFormData] = useState({
         title: '',
@@ -37,6 +39,7 @@ const CreateSprint: React.FC = () => {
         coverImageUrl: '',
         transformation: '',
         outcomeTag: '',
+        outcomeStatement: 'Focus creates feedback. *Feedback creates clarity.*',
         forWho: ['', '', '', ''],
         notForWho: ['', '', ''],
         methodSnapshot: [
@@ -105,6 +108,7 @@ const CreateSprint: React.FC = () => {
             dailyContent: dailyContent,
             transformation: formData.transformation,
             outcomeTag: formData.outcomeTag || 'Clarity gained',
+            outcomeStatement: formData.outcomeStatement,
             forWho: formData.forWho.filter(s => s.trim()),
             notForWho: formData.notForWho.filter(s => s.trim()),
             methodSnapshot: formData.methodSnapshot,
@@ -124,7 +128,7 @@ const CreateSprint: React.FC = () => {
         }
     };
 
-    const previewSprint: Sprint = {
+    const previewSprint: Partial<Sprint> = {
         id: 'preview',
         coachId: user?.id || '',
         title: formData.title || 'Untitled Sprint',
@@ -138,7 +142,11 @@ const CreateSprint: React.FC = () => {
         approvalStatus: 'draft',
         dailyContent: [],
         outcomes: formData.outcomes.filter(o => o.trim() !== ''),
-        outcomeTag: formData.outcomeTag
+        outcomeTag: formData.outcomeTag,
+        outcomeStatement: formData.outcomeStatement,
+        transformation: formData.transformation,
+        forWho: formData.forWho,
+        methodSnapshot: formData.methodSnapshot
     };
 
     const inputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all placeholder-gray-300";
@@ -170,11 +178,11 @@ const CreateSprint: React.FC = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="md:col-span-2">
                                         <label className={labelClasses}>Sprint Title</label>
-                                        <input type="text" name="title" value={formData.title} onChange={handleChange} className={inputClasses + " mt-2"} placeholder="e.g. 7-Day High Velocity Content" required />
+                                        <input type="text" name="title" value={formData.title} onChange={handleChange} className={inputClasses} placeholder="e.g. 7-Day High Velocity Content" required />
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className={labelClasses}>Cover Image URL</label>
-                                        <input type="url" name="coverImageUrl" value={formData.coverImageUrl} onChange={handleChange} className={inputClasses + " mt-2"} placeholder="https://..." />
+                                        <input type="url" name="coverImageUrl" value={formData.coverImageUrl} onChange={handleChange} className={inputClasses} placeholder="https://..." />
                                     </div>
                                 </div>
                             </section>
@@ -199,18 +207,6 @@ const CreateSprint: React.FC = () => {
                                     placeholder="You know you want to do something meaningful, but you can’t clearly name it yet..." 
                                     required 
                                 />
-                                <div className="mt-8">
-                                    <label className={labelClasses}>Archive Outcome Tag</label>
-                                    <input 
-                                        type="text" 
-                                        name="outcomeTag" 
-                                        value={formData.outcomeTag} 
-                                        onChange={handleChange} 
-                                        className={inputClasses + " mt-2 bg-gray-50/50"} 
-                                        placeholder="e.g. Clarity gained, Skill activated" 
-                                    />
-                                    <p className="text-[9px] text-gray-400 font-bold mt-1 uppercase tracking-widest italic px-1">This appears as the badge on completed sprint cards in the student profile.</p>
-                                </div>
                             </section>
 
                             <section>
@@ -334,19 +330,19 @@ const CreateSprint: React.FC = () => {
                                         <label className={labelClasses}>Sprint Metadata</label>
                                     </div>
                                     <button type="button" onClick={() => toggleHelp('metadata')} className={`p-2 rounded-xl transition-all ${helpOpen.metadata ? 'bg-primary text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:text-primary'}`} title="View Rules">
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     </button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div>
                                         <label className={labelClasses}>Duration (Days)</label>
-                                        <select name="duration" value={formData.duration} onChange={handleChange} className={inputClasses + " mt-2"}>
+                                        <select name="duration" value={formData.duration} onChange={handleChange} className={inputClasses}>
                                             {[3, 5, 7, 10, 14, 21, 30].map(d => <option key={d} value={d}>{d} Continuous Days</option>)}
                                         </select>
                                     </div>
                                     <div>
                                         <label className={labelClasses}>Protocol</label>
-                                        <select name="protocol" value={formData.protocol} onChange={handleChange} className={inputClasses + " mt-2"}>
+                                        <select name="protocol" value={formData.protocol} onChange={handleChange} className={inputClasses}>
                                             <option value="One action per day">One action per day</option>
                                             <option value="Guided task">Guided task</option>
                                             <option value="Challenge-based">Challenge-based</option>
@@ -354,9 +350,46 @@ const CreateSprint: React.FC = () => {
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className={labelClasses}>Discovery Category</label>
-                                        <select name="category" value={formData.category} onChange={handleChange} className={inputClasses + " mt-2"}>
+                                        <select name="category" value={formData.category} onChange={handleChange} className={inputClasses}>
                                             {ALL_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                                         </select>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section className="bg-primary/5 p-8 md:p-12 rounded-[3rem] border border-primary/10">
+                                <div className="flex items-center gap-3 mb-8">
+                                    <div className="w-8 h-8 bg-white rounded-xl shadow-sm flex items-center justify-center text-primary text-xs font-black">08</div>
+                                    <label className={labelClasses + " text-primary"}>Completion Assets</label>
+                                </div>
+                                <div className="space-y-8">
+                                    <div>
+                                        <label className={labelClasses}>Archive Outcome Tag</label>
+                                        <input 
+                                            type="text" 
+                                            name="outcomeTag" 
+                                            value={formData.outcomeTag} 
+                                            onChange={handleChange} 
+                                            className={inputClasses + " mt-2 border-primary/20"} 
+                                            placeholder="e.g. Clarity gained, Skill activated" 
+                                        />
+                                        <p className="text-[9px] text-gray-400 font-bold mt-2 uppercase tracking-widest italic px-1 leading-relaxed">
+                                            This appears as the badge on completed sprint cards in the student profile.
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className={labelClasses}>The Outcome (Final Statement)</label>
+                                        <input 
+                                            type="text" 
+                                            name="outcomeStatement" 
+                                            value={formData.outcomeStatement} 
+                                            onChange={handleChange} 
+                                            className={inputClasses + " mt-2 border-primary/20 italic"} 
+                                            placeholder="Focus creates feedback. *Feedback creates clarity.*" 
+                                        />
+                                        <p className="text-[9px] text-gray-400 font-bold mt-2 uppercase tracking-widest italic px-1 leading-relaxed">
+                                            Appears at the bottom of the landing page. Use *text* for emphasis.
+                                        </p>
                                     </div>
                                 </div>
                             </section>
@@ -375,17 +408,57 @@ const CreateSprint: React.FC = () => {
                             <p className="text-[9px] font-black text-primary uppercase tracking-[0.4em] mb-4">Registry Guidance</p>
                             <h5 className="text-sm font-black text-gray-900 leading-tight mb-4 italic">Clarity over Selling.</h5>
                             <p className="text-[11px] text-gray-400 font-medium leading-relaxed italic mb-6">"A sprint is only as effective as the clarity it provides."</p>
-                            <div className="w-full h-1 bg-gray-50 rounded-full overflow-hidden">
+                            <div className="w-full h-1 bg-gray-50 rounded-full overflow-hidden mb-6">
                                 <div className="h-full bg-primary transition-all duration-1000" style={{ width: formData.title ? '100%' : '20%' }}></div>
                             </div>
-                         </div>
-                         <div className="transform scale-[0.9] origin-top">
-                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6 px-4">Live Deck Preview</h4>
-                            <SprintCard sprint={previewSprint} coach={user as Coach} />
+                            
+                            {/* Preview Toggle */}
+                            <div className="bg-gray-100 p-1 rounded-xl flex gap-1 mb-8">
+                                <button 
+                                    onClick={() => setPreviewType('card')}
+                                    className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${previewType === 'card' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    Deck View
+                                </button>
+                                <button 
+                                    onClick={() => setPreviewType('landing')}
+                                    className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${previewType === 'landing' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    Landing View
+                                </button>
+                            </div>
+
+                            {previewType === 'card' ? (
+                                <div className="animate-fade-in flex flex-col items-center">
+                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6 px-4">Registry Card Preview</h4>
+                                    <div className="w-full max-w-[320px]">
+                                        <SprintCard 
+                                            sprint={previewSprint as Sprint} 
+                                            coach={user as Coach} 
+                                            forceShowOutcomeTag={true} 
+                                            isStatic={true}
+                                        />
+                                    </div>
+                                    <p className="mt-6 text-[8px] text-gray-400 font-bold uppercase tracking-widest px-4 italic leading-relaxed">
+                                        Badge Preview: The green tag appears only after completion.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="animate-fade-in">
+                                    <LandingPreview sprint={previewSprint} coach={user as Coach} />
+                                </div>
+                            )}
                          </div>
                     </div>
                 </div>
             </div>
+            <style>{`
+                @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+            `}</style>
         </div>
     );
 };

@@ -65,6 +65,8 @@ const ProgramDescription: React.FC = () => {
     );
   }
 
+  const isExecutionSprint = sprint.sprintType === 'Execution' || sprint.category.includes('Execution') || sprint.category.includes('Productivity');
+
   return (
     <div className="bg-light min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
       <div className="max-w-screen-lg mx-auto px-4 pt-2">
@@ -132,7 +134,7 @@ const ProgramDescription: React.FC = () => {
                   <FormattedText text={sprint.transformation || sprint.description} />
                 </p>
                 
-                <div className="h-px bg-gray-50 my-6"></div>
+                <div className="h-px bg-gray-50 my-4"></div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {sprint.forWho && sprint.forWho.length > 0 && (
@@ -212,7 +214,7 @@ const ProgramDescription: React.FC = () => {
             <section className="py-12 text-center border-t border-gray-100">
                 <p className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-6">The Outcome</p>
                 <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight tracking-tight mb-6 px-4 italic">
-                    Focus creates feedback. <span className="text-primary underline underline-offset-8 decoration-primary/20">Feedback creates clarity.</span>
+                    <FormattedText text={sprint.outcomeStatement || "Focus creates feedback. *Feedback creates clarity.*"} />
                 </h3>
             </section>
           </div>
@@ -251,14 +253,18 @@ const ProgramDescription: React.FC = () => {
                 >
                   Start This Sprint
                 </Button>
-                <div className="text-center">
-                  <button 
-                    onClick={() => navigate('/discover')}
-                    className="text-[8px] font-black text-gray-400 hover:text-primary uppercase tracking-widest transition-colors cursor-pointer"
-                  >
-                    Already gain clarity move to execution.
-                  </button>
-                </div>
+                
+                {!isExecutionSprint && (
+                  <div className="text-center space-y-1">
+                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Are you already clear on what you want to do?</p>
+                    <button 
+                      onClick={() => navigate('/discover')}
+                      className="text-[9px] font-black text-primary hover:underline uppercase tracking-widest transition-all cursor-pointer"
+                    >
+                      Start Execution Sprint
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* System Sprint Section */}

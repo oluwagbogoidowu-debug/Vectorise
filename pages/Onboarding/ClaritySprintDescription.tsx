@@ -66,32 +66,13 @@ const ClaritySprintDescription: React.FC = () => {
   };
 
   const handleSkipClarity = () => {
-      if (!globalSettings) {
-          navigate('/discover');
-          return;
-      }
-
-      const action = globalSettings.triggerActions?.['skip_clarity'];
-      if (action) {
-          if (action.type === 'show_micro_selector') {
-              const selector = globalSettings.microSelectors.find(ms => ms.id === action.value);
-              if (selector) {
-                  setActiveSelector(selector);
-                  setCurrentStepIdx(0);
-                  setShowMicroSelector(true);
-                  return;
-              }
-          } else if (action.type === 'recommend_sprint') {
-              navigate(`/sprint/${action.value}`);
-              return;
-          } else if (action.type === 'navigate_to') {
-              navigate(action.value);
-              return;
-          }
-      }
-      
-      // Default fallback
-      navigate('/discover');
+      // Navigate to the same FocusSelector file but with the 'skip_clarity' trigger context
+      navigate('/onboarding/focus-selector', { 
+          state: { 
+              trigger: 'skip_clarity',
+              fromClaritySprintId: sprintId 
+          } 
+      });
   };
 
   const handleOptionClick = (option: any) => {
@@ -253,7 +234,7 @@ const ClaritySprintDescription: React.FC = () => {
             <section className="py-12 text-center border-t border-gray-100">
                 <p className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-6">The Outcome</p>
                 <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight tracking-tight mb-6 px-4 italic">
-                    Focus creates feedback. <span className="text-primary underline underline-offset-8 decoration-primary/20">Feedback creates clarity.</span>
+                    <FormattedText text={sprint.outcomeStatement || "Focus creates feedback. *Feedback creates clarity.*"} />
                 </h3>
             </section>
           </div>
@@ -276,8 +257,9 @@ const ClaritySprintDescription: React.FC = () => {
               </div>
               <div className="space-y-4">
                 <Button onClick={handleProceed} className="w-full py-4 rounded-xl shadow-xl shadow-primary/20 text-[9px] uppercase tracking-widest font-black">Start This Sprint</Button>
-                <div className="text-center">
-                  <button onClick={handleSkipClarity} className="text-[8px] font-black text-gray-400 hover:text-primary uppercase tracking-widest transition-colors cursor-pointer">Already gain clarity move to execution.</button>
+                <div className="text-center space-y-1">
+                  <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Are you already clear on what you want to do?</p>
+                  <button onClick={handleSkipClarity} className="text-[9px] font-black text-primary hover:underline uppercase tracking-widest transition-all cursor-pointer">Start Execution Sprint</button>
                 </div>
               </div>
             </div>

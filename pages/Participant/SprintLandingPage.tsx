@@ -191,7 +191,7 @@ const SprintLandingPage: React.FC = () => {
                         <section className="py-12 text-center border-t border-gray-100">
                             <p className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-6">The Outcome</p>
                             <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight tracking-tight mb-6 px-4 italic">
-                                Focus creates feedback. <span className="text-primary underline underline-offset-8 decoration-primary/20">Feedback creates clarity.</span>
+                                <FormattedText text={sprint.outcomeStatement || "Focus creates feedback. *Feedback creates clarity.*"} />
                             </h3>
                         </section>
                     </div>

@@ -104,6 +104,7 @@ export interface Sprint {
   createdAt?: string;
   outcomes?: string[];
   outcomeTag?: string; 
+  outcomeStatement?: string; // New field for custom summary outcome
   
   transformation?: string;
   forWho?: string[];

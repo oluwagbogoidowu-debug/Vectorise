@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import { FOCUS_OPTIONS } from '../../services/mockData';
 import { sprintService } from '../../services/sprintService';
@@ -8,11 +8,17 @@ import { Participant, LifecycleSlotAssignment } from '../../types';
 
 const FocusSelector: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, updateProfile } = useAuth();
+  
+  // Detect if we are coming from a "Skip Clarity" or other specific flow
+  const activeTrigger = location.state?.trigger || 'after_homepage';
+  const isExecutionMode = activeTrigger === 'skip_clarity';
+
   const [isLoading, setIsLoading] = useState(false);
   const [matchingStatus, setMatchingStatus] = useState<string | null>(null);
   const [focusOptions, setFocusOptions] = useState<string[]>(FOCUS_OPTIONS);
-  const [homepageAssignment, setHomepageAssignment] = useState<LifecycleSlotAssignment | null>(null);
+  const [activeAssignment, setActiveAssignment] = useState<LifecycleSlotAssignment | null>(null);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -22,13 +28,13 @@ const FocusSelector: React.FC = () => {
           sprintService.getOrchestration()
         ]);
 
-        // Find the slot assigned to the homepage trigger
+        // Find the slot assigned to the specific trigger passed in state
         const assignment = Object.values(orchestration).find(
-          (a: any) => a.stateTrigger === 'after_homepage'
+          (a: any) => a.stateTrigger === activeTrigger
         ) as LifecycleSlotAssignment | undefined;
 
         if (assignment) {
-          setHomepageAssignment(assignment);
+          setActiveAssignment(assignment);
           if (assignment.availableFocusOptions && assignment.availableFocusOptions.length > 0) {
             setFocusOptions(assignment.availableFocusOptions);
           }
@@ -40,13 +46,12 @@ const FocusSelector: React.FC = () => {
       }
     };
     loadSettings();
-  }, []);
+  }, [activeTrigger]);
 
   const handleSelect = async (option: string, index: number) => {
     setIsLoading(true);
     setMatchingStatus("Authorized Scan...");
     
-    // Persist focus to user profile if logged in
     if (user) {
       try {
         const participantUser = user as Participant;
@@ -61,26 +66,28 @@ const FocusSelector: React.FC = () => {
       }
     }
 
-    // Simulate analysis phase for high-end UX feel
+    // High-fidelity analysis phase
     setTimeout(() => setMatchingStatus("Polling Registry..."), 600);
-    setTimeout(() => setMatchingStatus("Foundation Check..."), 1200);
+    setTimeout(() => setMatchingStatus(isExecutionMode ? "Execution Match..." : "Foundation Check..."), 1200);
 
     try {
-      // Priority: Resolve sprint from the explicit homepage assignment map
       let resolvedSprintId: string | null = null;
 
-      if (homepageAssignment?.sprintFocusMap) {
-          resolvedSprintId = Object.keys(homepageAssignment.sprintFocusMap).find(
-              sId => homepageAssignment.sprintFocusMap?.[sId]?.includes(option)
+      // 1. Check explicit focus map in the active assignment
+      if (activeAssignment?.sprintFocusMap) {
+          resolvedSprintId = Object.keys(activeAssignment.sprintFocusMap).find(
+              sId => activeAssignment.sprintFocusMap?.[sId]?.includes(option)
           ) || null;
       }
 
-      // Fallback: If no explicit map match, look at general Foundation slots
+      // 2. Fallback to general slot search if no explicit map match
       if (!resolvedSprintId) {
           const orchestration = await sprintService.getOrchestration();
-          const foundationSlotIds = ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
+          const slotPool = isExecutionMode 
+            ? Object.keys(orchestration).filter(id => !id.startsWith('slot_found'))
+            : ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
           
-          for (const slotId of foundationSlotIds) {
+          for (const slotId of slotPool) {
               const mapping = orchestration[slotId] as LifecycleSlotAssignment;
               if (mapping?.sprintFocusMap) {
                   const matchedId = Object.keys(mapping.sprintFocusMap).find(sId => mapping.sprintFocusMap?.[sId]?.includes(option));
@@ -96,18 +103,20 @@ const FocusSelector: React.FC = () => {
           }
       }
       
-      if (resolvedSprintId) {
-          setTimeout(() => {
-            navigate(`/onboarding/clarity-description/${resolvedSprintId}`, { 
+      setTimeout(() => {
+        if (resolvedSprintId) {
+            // Foundational sprints go to clarity-description, others go to standard description
+            const isFoundational = resolvedSprintId.includes('foundational') || !isExecutionMode;
+            const path = isFoundational ? 'clarity-description' : 'description';
+            
+            navigate(`/onboarding/${path}/${resolvedSprintId}`, { 
               state: { selectedFocus: option, sprintId: resolvedSprintId } 
             });
-          }, 1800);
-      } else {
-          setMatchingStatus("Broadening Search...");
-          setTimeout(() => {
-              navigate('/discover');
-          }, 1800);
-      }
+        } else {
+            setMatchingStatus("Broadening Search...");
+            setTimeout(() => navigate('/discover'), 600);
+        }
+      }, 1800);
     } catch (error) {
       console.error("Orchestration resolution failed:", error);
       navigate('/discover');
@@ -120,9 +129,14 @@ const FocusSelector: React.FC = () => {
         <header className="mb-12 text-center animate-fade-in">
            <LocalLogo type="white" className="h-5 w-auto mx-auto mb-8 opacity-40" />
            <h1 className="text-xl md:text-2xl font-black tracking-tight leading-tight italic">
-             What’s your biggest <br/> focus right now?
+             {isExecutionMode 
+                ? "What specific execution goal is your priority?" 
+                : "What’s your biggest focus right now?"
+             }
            </h1>
-           <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em] mt-4">Growth Catalyst Mapping</p>
+           <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em] mt-4">
+             {isExecutionMode ? 'Execution Registry Logic' : 'Growth Catalyst Mapping'}
+           </p>
         </header>
 
         {matchingStatus ? (
@@ -156,11 +170,20 @@ const FocusSelector: React.FC = () => {
                 <div className="absolute inset-0 bg-white group-hover:opacity-100 opacity-0 transition-opacity"></div>
               </button>
             ))}
+            
+            {isExecutionMode && (
+                <button 
+                  onClick={() => navigate(-1)}
+                  className="w-full mt-4 text-[9px] font-black text-white/40 uppercase tracking-widest hover:text-white transition-colors"
+                >
+                    &larr; Back to Clarity
+                </button>
+            )}
           </div>
         )}
 
         <footer className="mt-12 opacity-20 text-center">
-            <p className="text-[7px] font-black uppercase tracking-[0.5em]">Vectorise • Growth Registry Protocol</p>
+            <p className="text-[7px] font-black uppercase tracking-[0.5em]">Vectorise • {isExecutionMode ? 'Execution' : 'Clarity'} Protocol</p>
         </footer>
       </main>
 

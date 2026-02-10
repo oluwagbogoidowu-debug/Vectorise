@@ -9,7 +9,7 @@ import LocalLogo from '../../components/LocalLogo';
 
 /**
  * MINI SPRINT CARD (Internal)
- * Used for "Registry Assignment" section
+ * Used for "Other options you can explore" section
  */
 const MiniSprintCard: React.FC<{ sprint: Sprint; coach: Coach }> = ({ sprint, coach }) => (
     <Link to={`/sprint/${sprint.id}`} className="flex-shrink-0 w-64 group">
@@ -148,7 +148,7 @@ const DiscoverSprints: React.FC = () => {
         } as Coach;
     }, [recommendedSprint, coaches]);
 
-    // 2. Registry Assignment: All other available sprints from the orchestrated pool
+    // 2. Other options: All other available sprints from the orchestrated pool
     const otherOptions = useMemo(() => {
         return sprints.filter(s => s.id !== recommendedSprint?.id);
     }, [sprints, recommendedSprint]);
@@ -222,11 +222,11 @@ const DiscoverSprints: React.FC = () => {
                     </section>
                 )}
 
-                {/* SECTION 2: REGISTRY ASSIGNMENT (ALL OTHER OPTIONS) */}
+                {/* SECTION 2: OTHER OPTIONS (ALL OTHER OPTIONS) */}
                 {otherOptions.length > 0 && (
                     <section className="mb-16">
                         <div className="mb-6 px-2">
-                            <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em] mb-1">Registry Assignment</h2>
+                            <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em] mb-1">Other options you can explore</h2>
                             <p className="text-xs text-gray-400 font-medium italic">Select another program from the active registry pool.</p>
                         </div>
                         
