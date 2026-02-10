@@ -1,6 +1,6 @@
 import { db } from './firebase';
 import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, deleteDoc, onSnapshot, addDoc, deleteField, writeBatch, increment, serverTimestamp } from 'firebase/firestore';
-import { ParticipantSprint, Sprint, Review, CoachingComment, UserEvent, LifecycleSlotAssignment } from '../types';
+import { ParticipantSprint, Sprint, Review, CoachingComment, UserEvent, LifecycleSlotAssignment, GlobalOrchestrationSettings } from '../types';
 import { userService, sanitizeData } from './userService';
 import { notificationService } from './notificationService';
 import { isRegistryIncomplete } from '../utils/sprintUtils';
@@ -210,7 +210,7 @@ export const sprintService = {
 
     saveOrchestration: async (assignments: Record<string, { sprintId: string; focusCriteria: string[] }>) => {
         const docRef = doc(db, ORCHESTRATION_COLLECTION, 'current_mapping');
-        await setDoc(docRef, sanitizeData({ assignments, updatedAt: new Date().toISOString() }));
+        await setDoc(docRef, sanitizeData({ assignments, updatedAt: new Date().toISOString() }), { merge: true });
     },
 
     getOrchestration: async (): Promise<Record<string, { sprintId: string; focusCriteria: string[] }>> => {
@@ -220,6 +220,40 @@ export const sprintService = {
             return (sanitizeData(snap.data()) as any).assignments || {};
         }
         return {};
+    },
+
+    // Added subscribeToOrchestration to support real-time platform logic updates
+    subscribeToOrchestration: (callback: (mapping: Record<string, any>) => void) => {
+        const docRef = doc(db, ORCHESTRATION_COLLECTION, 'current_mapping');
+        return onSnapshot(docRef, (doc) => {
+            if (doc.exists()) {
+                callback((sanitizeData(doc.data()) as any).assignments || {});
+            } else {
+                callback({});
+            }
+        });
+    },
+
+    saveGlobalOrchestrationSettings: async (settings: GlobalOrchestrationSettings) => {
+        const docRef = doc(db, ORCHESTRATION_COLLECTION, 'global_settings');
+        await setDoc(docRef, sanitizeData({ ...settings, updatedAt: new Date().toISOString() }));
+    },
+
+    getGlobalOrchestrationSettings: async (): Promise<GlobalOrchestrationSettings | null> => {
+        const docRef = doc(db, ORCHESTRATION_COLLECTION, 'global_settings');
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+            return sanitizeData(snap.data()) as GlobalOrchestrationSettings;
+        }
+        return null;
+    },
+
+    // Added subscribeToGlobalSettings to support real-time global orchestration settings
+    subscribeToGlobalSettings: (callback: (settings: GlobalOrchestrationSettings | null) => void) => {
+        const docRef = doc(db, ORCHESTRATION_COLLECTION, 'global_settings');
+        return onSnapshot(docRef, (doc) => {
+            callback(doc.exists() ? sanitizeData(doc.data()) as GlobalOrchestrationSettings : null);
+        });
     },
 
     getSprintIdByFocus: async (focus: string): Promise<string | null> => {

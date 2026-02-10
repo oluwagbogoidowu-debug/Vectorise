@@ -1,35 +1,83 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import { FOCUS_OPTIONS } from '../../services/mockData';
 import { sprintService } from '../../services/sprintService';
+import { useAuth } from '../../contexts/AuthContext';
+// Added Participant import for type casting
+import { Participant } from '../../types';
 
 const FocusSelector: React.FC = () => {
   const navigate = useNavigate();
+  const { user, updateProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [matchingStatus, setMatchingStatus] = useState<string | null>(null);
+  const [focusOptions, setFocusOptions] = useState<string[]>(FOCUS_OPTIONS);
 
-  const handleSelect = async (option: string) => {
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings = await sprintService.getGlobalOrchestrationSettings();
+        if (settings?.focusOptions && settings.focusOptions.length > 0) {
+          setFocusOptions(settings.focusOptions);
+        }
+      } catch (err) {
+        console.warn("Could not load dynamic focus registry:", err);
+      }
+    };
+    loadSettings();
+  }, []);
+
+  const handleSelect = async (option: string, index: number) => {
     setIsLoading(true);
     setMatchingStatus("Authorized Scan...");
     
+    // Persist focus to user profile if logged in
+    if (user) {
+      try {
+        // Fix: Cast user to Participant to access onboardingAnswers property. 
+        // Use 'as any' to allow adding 'selected_focus' string key to a record that may strictly expect numbers.
+        const participantUser = user as Participant;
+        await updateProfile({
+          onboardingAnswers: {
+            ...(participantUser.onboardingAnswers || {}),
+            selected_focus: option
+          } as any
+        });
+      } catch (err) {
+        console.error("Failed to save focus to profile:", err);
+      }
+    }
+
     // Simulate high-end analysis phase for UX
     setTimeout(() => setMatchingStatus("Polling Registry..."), 600);
     setTimeout(() => setMatchingStatus("Foundation Check..."), 1200);
 
     try {
-      // THE FIX: Specifically look for a sprint assigned in the Foundation Orchestrator matching this focus
-      const assignedSprintId = await sprintService.getSprintIdByFocus(option);
+      // Find the sprint assigned in the Foundation Orchestrator matching this focus
+      const orchestration = await sprintService.getOrchestration();
       
-      if (assignedSprintId) {
+      // Look for a match in any foundation slot using the focusCriteria lookup
+      // Priority: Clarity Slot -> Orientation Slot -> Core Slot
+      const foundationSlotIds = ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
+      let resolvedSprintId: string | null = null;
+
+      for (const slotId of foundationSlotIds) {
+          const mapping = orchestration[slotId];
+          if (mapping?.sprintId && mapping.focusCriteria?.includes(option)) {
+              resolvedSprintId = mapping.sprintId;
+              break;
+          }
+      }
+      
+      if (resolvedSprintId) {
           setTimeout(() => {
-            navigate(`/onboarding/description/${assignedSprintId}`, { 
-              state: { selectedFocus: option, sprintId: assignedSprintId } 
+            navigate(`/onboarding/clarity-description/${resolvedSprintId}`, { 
+              state: { selectedFocus: option, sprintId: resolvedSprintId } 
             });
           }, 1800);
       } else {
-          // If no specific sprint is orchestrated for this focus yet
           setMatchingStatus("Broadening Search...");
           setTimeout(() => {
               navigate('/discover');
@@ -68,11 +116,11 @@ const FocusSelector: React.FC = () => {
           </div>
         ) : (
           <div className="w-full space-y-3 animate-slide-up">
-            {FOCUS_OPTIONS.map((option, idx) => (
+            {focusOptions.map((option, idx) => (
               <button
                 key={idx}
                 disabled={isLoading}
-                onClick={() => handleSelect(option)}
+                onClick={() => handleSelect(option, idx)}
                 className="w-full group relative overflow-hidden bg-white/5 border border-white/10 py-5 px-6 rounded-2xl transition-all duration-500 hover:bg-white hover:border-white hover:scale-[1.02] active:scale-95 text-center flex items-center justify-center disabled:opacity-50"
               >
                 <div className="relative z-10">

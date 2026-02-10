@@ -1,16 +1,15 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Coach, Sprint, Participant, UserRole } from '../../types';
+import { Coach, Sprint, Participant, UserRole, LifecycleSlotAssignment } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { useAuth } from '../../contexts/AuthContext';
-import { CATEGORY_TO_STAGE_MAP } from '../../services/mockData';
+import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import LocalLogo from '../../components/LocalLogo';
 
 /**
  * MINI SPRINT CARD (Internal)
- * Used for "Other ways to move forward" section
+ * Used for "Registry Assignment" section
  */
 const MiniSprintCard: React.FC<{ sprint: Sprint; coach: Coach }> = ({ sprint, coach }) => (
     <Link to={`/sprint/${sprint.id}`} className="flex-shrink-0 w-64 group">
@@ -75,18 +74,21 @@ const DiscoverSprints: React.FC = () => {
     const navigate = useNavigate();
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [coaches, setCoaches] = useState<Coach[]>([]);
+    const [orchestration, setOrchestration] = useState<Record<string, LifecycleSlotAssignment>>({});
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const loadDiscoveryData = async () => {
             setIsLoading(true);
             try {
-                const [publishedSprints, dbCoaches] = await Promise.all([
+                const [publishedSprints, dbCoaches, mapping] = await Promise.all([
                     sprintService.getPublishedSprints(),
-                    userService.getCoaches()
+                    userService.getCoaches(),
+                    sprintService.getOrchestration() as Promise<Record<string, LifecycleSlotAssignment>>
                 ]);
                 setSprints(publishedSprints);
                 setCoaches(dbCoaches);
+                setOrchestration(mapping);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -96,17 +98,47 @@ const DiscoverSprints: React.FC = () => {
         loadDiscoveryData();
     }, []);
 
-    // 1. Recommended: Always a PAID sprint in the current state (defaulting to Direction/Foundation)
+    // 1. Recommended Logic: Priority Slot Resolution based on User Focus
     const recommendedSprint = useMemo(() => {
-        const participant = user as Participant;
-        // Logic: Prioritize user's actual current stage, fallback to 'Direction' for discovery
-        const targetStage = participant?.currentStage || 'Direction';
+        if (sprints.length === 0) return null;
         
+        const participant = user as Participant;
+        // Find user focus from profile answers
+        const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
+                         Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
+
+        if (userFocus) {
+            // Check foundation slots in priority order
+            const prioritySlots = ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
+            for (const slotId of prioritySlots) {
+                const mapping = orchestration[slotId];
+                if (mapping) {
+                    // New logic: Check the sprintFocusMap for a specific match
+                    const focusMap = mapping.sprintFocusMap || {};
+                    const matchedSprintId = Object.keys(focusMap).find(sId => focusMap[sId]?.includes(userFocus));
+                    
+                    if (matchedSprintId) {
+                        const matchedSprint = sprints.find(s => s.id === matchedSprintId);
+                        if (matchedSprint) return matchedSprint;
+                    }
+
+                    // Fallback to older focusCriteria logic if map is empty
+                    if (mapping.focusCriteria?.includes(userFocus)) {
+                        const pool = mapping.sprintIds || (mapping.sprintId ? [mapping.sprintId] : []);
+                        const matchedSprint = sprints.find(s => pool.includes(s.id));
+                        if (matchedSprint) return matchedSprint;
+                    }
+                }
+            }
+        }
+
+        // Fallback to default logic (Paid sprint matching stage)
+        const targetStage = participant?.currentStage || 'Direction';
         return sprints.find(s => 
             CATEGORY_TO_STAGE_MAP[s.category] === targetStage && 
             s.pricingType === 'cash'
         ) || sprints.find(s => s.pricingType === 'cash');
-    }, [sprints, user]);
+    }, [sprints, user, orchestration]);
 
     const recommendedCoach = useMemo(() => {
         if (!recommendedSprint) return null;
@@ -116,26 +148,9 @@ const DiscoverSprints: React.FC = () => {
         } as Coach;
     }, [recommendedSprint, coaches]);
 
-    // 2. Other Options: Exactly one Execution and one Core Platform/Growth Fundamental
+    // 2. Registry Assignment: All other available sprints from the orchestrated pool
     const otherOptions = useMemo(() => {
-        const list: Sprint[] = [];
-        
-        // Find one Execution type sprint
-        const execSprint = sprints.find(s => 
-            (s.type === 'Execution' || CATEGORY_TO_STAGE_MAP[s.category] === 'Execution') && 
-            s.id !== recommendedSprint?.id
-        );
-        if (execSprint) list.push(execSprint);
-
-        // Find one Core Platform / Growth Fundamental (Coin gated)
-        const coreSprint = sprints.find(s => 
-            (s.category === 'Core Platform Sprint' || s.category === 'Growth Fundamentals') && 
-            s.id !== recommendedSprint?.id &&
-            !list.some(item => item.id === s.id)
-        );
-        if (coreSprint) list.push(coreSprint);
-
-        return list;
+        return sprints.filter(s => s.id !== recommendedSprint?.id);
     }, [sprints, recommendedSprint]);
 
     if (isLoading) {
@@ -207,12 +222,12 @@ const DiscoverSprints: React.FC = () => {
                     </section>
                 )}
 
-                {/* SECTION 2: OTHER OPTIONS */}
+                {/* SECTION 2: REGISTRY ASSIGNMENT (ALL OTHER OPTIONS) */}
                 {otherOptions.length > 0 && (
                     <section className="mb-16">
                         <div className="mb-6 px-2">
-                            <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em] mb-1">Other ways to move forward</h2>
-                            <p className="text-xs text-gray-400 font-medium italic">Different paths. Same stage.</p>
+                            <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em] mb-1">Registry Assignment</h2>
+                            <p className="text-xs text-gray-400 font-medium italic">Select another program from the active registry pool.</p>
                         </div>
                         
                         <div className="flex gap-5 overflow-x-auto pb-8 no-scrollbar px-2 -mx-2">

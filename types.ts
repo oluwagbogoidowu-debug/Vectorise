@@ -35,17 +35,53 @@ export interface LifecycleSlot {
   maxCount: number;
 }
 
+export type OrchestrationTrigger = 
+  | 'after_homepage'
+  | 'skip_clarity'
+  | 'payment_hesitation'
+  | 'after_1_sprint'
+  | 'after_1_paid_sprint'
+  | 'after_2_sprints'
+  | 'after_2_paid_sprints'
+  | 'after_3_sprints';
+
 export interface LifecycleSlotAssignment {
   sprintId: string;
-  focusCriteria: string[];
+  sprintIds?: string[]; // Support multiple assignments per slot
+  focusCriteria: string[]; // Deprecated but kept for compatibility
+  sprintFocusMap?: Record<string, string[]>; // Mapping sprintId -> array of focus tags
+  stateTrigger?: OrchestrationTrigger; 
+  availableFocusOptions?: string[];
 }
 
-export interface SprintTargeting {
-  persona: string;
-  p1: string;
-  p2: string;
-  p3: string;
-  occupation: string;
+export interface OrchestrationAction {
+  type: 'show_micro_selector' | 'recommend_sprint' | 'navigate_to' | 'none';
+  value: string; // selectorId, sprintId, or path
+}
+
+export interface MicroSelectorOption {
+  label: string;
+  action: 'next_step' | 'finish_and_recommend' | 'skip_to_stage' | 'trigger_action';
+  value?: string; 
+}
+
+export interface MicroSelectorStep {
+  question: string;
+  options: MicroSelectorOption[];
+}
+
+export interface MicroSelector {
+  id: string;
+  stage?: LifecycleStage;
+  title: string;
+  steps: MicroSelectorStep[];
+}
+
+export interface GlobalOrchestrationSettings {
+  stageToTypeMapping: Record<LifecycleStage, SprintType[]>;
+  microSelectors: MicroSelector[];
+  triggerActions: Record<OrchestrationTrigger, OrchestrationAction | null>;
+  focusOptions: string[];
 }
 
 export interface Sprint {
@@ -67,7 +103,7 @@ export interface Sprint {
   updatedAt?: string;
   createdAt?: string;
   outcomes?: string[];
-  outcomeTag?: string; // New field for the Master Sprint Archive label
+  outcomeTag?: string; 
   
   transformation?: string;
   forWho?: string[];
@@ -88,6 +124,14 @@ export interface Sprint {
   targeting?: SprintTargeting;
 
   reviewFeedback?: Record<string, string>;
+}
+
+export interface SprintTargeting {
+  persona: string;
+  p1: string;
+  p2: string;
+  p3: string;
+  occupation: string;
 }
 
 export interface DailyContent {
@@ -236,6 +280,14 @@ export interface PlatformPulse {
   totalEnrollments24h: number;
   atRiskCount: number;
   revenue24h: number;
+}
+
+export interface RoleDefinition {
+  id: string;
+  name: string;
+  description: string;
+  baseRole: UserRole;
+  permissions: string[];
 }
 
 export interface RoleDefinition {
