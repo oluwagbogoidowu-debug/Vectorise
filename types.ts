@@ -1,3 +1,4 @@
+
 export enum UserRole {
   COACH = 'COACH',
   PARTICIPANT = 'PARTICIPANT',
@@ -140,6 +141,7 @@ export interface DailyContent {
   lessonText: string;
   audioUrl?: string;
   taskPrompt: string;
+  coachInsight?: string; // Added field
   resourceUrl?: string;
   submissionType?: 'text' | 'file' | 'both' | 'none';
   proofType?: 'confirmation' | 'picker' | 'note';
@@ -281,14 +283,6 @@ export interface PlatformPulse {
   totalEnrollments24h: number;
   atRiskCount: number;
   revenue24h: number;
-}
-
-export interface RoleDefinition {
-  id: string;
-  name: string;
-  description: string;
-  baseRole: UserRole;
-  permissions: string[];
 }
 
 export interface RoleDefinition {

@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { ParticipantSprint, Sprint, DailyContent, GlobalOrchestrationSettings, MicroSelector, MicroSelectorStep } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
@@ -50,6 +51,7 @@ const SprintView: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isReflectionModalOpen, setIsReflectionModalOpen] = useState(false);
     
+    const [reflectionsEnabled, setReflectionsEnabled] = useState(true);
     const [globalSettings, setGlobalSettings] = useState<GlobalOrchestrationSettings | null>(null);
     const [showMicroSelector, setShowMicroSelector] = useState(false);
     const [activeSelector, setActiveSelector] = useState<MicroSelector | null>(null);
@@ -60,6 +62,9 @@ const SprintView: React.FC = () => {
         const unsubscribe = sprintService.subscribeToEnrollment(enrollmentId, async (data) => {
             if (data) {
                 setEnrollment(data);
+                if (data.reflectionsDisabled !== undefined) {
+                    setReflectionsEnabled(!data.reflectionsDisabled);
+                }
                 if (!sprint) {
                     const found = await sprintService.getSprintById(data.sprintId);
                     setSprint(found);
@@ -79,6 +84,18 @@ const SprintView: React.FC = () => {
       loadSettings();
     }, []);
 
+    const toggleReflectionState = async () => {
+        if (!enrollment) return;
+        const newState = !reflectionsEnabled;
+        setReflectionsEnabled(newState);
+        try {
+            const enrollmentRef = doc(db, 'enrollments', enrollment.id);
+            await updateDoc(enrollmentRef, { reflectionsDisabled: !newState });
+        } catch (err) {
+            console.error("Toggle reflection state failed", err);
+        }
+    };
+
     const handleFinishDay = async (reflection: string) => {
         if (!enrollment || !user || isSubmitting) return;
         setIsSubmitting(true);
@@ -91,9 +108,7 @@ const SprintView: React.FC = () => {
             
             setIsReflectionModalOpen(false);
 
-            // Final day logic
             if (viewingDay === enrollment.progress.length && updatedProgress.every(p => p.completed)) {
-                // Determine Trigger ID based on count
                 const prevEnrollments = await sprintService.getUserEnrollments(user.id);
                 const totalFinished = prevEnrollments.filter(e => e.progress.every(p => p.completed)).length;
                 const isPaid = (sprint?.price || 0) > 0;
@@ -128,6 +143,14 @@ const SprintView: React.FC = () => {
         }
     };
 
+    const handleQuickComplete = () => {
+        if (reflectionsEnabled) {
+            setIsReflectionModalOpen(true);
+        } else {
+            handleFinishDay("");
+        }
+    };
+
     const handleOptionClick = (option: any) => {
       if (option.action === 'next_step') {
         setCurrentStepIdx(currentStepIdx + 1);
@@ -141,6 +164,7 @@ const SprintView: React.FC = () => {
     if (!enrollment || !sprint) return <div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
 
     const dayContent = sprint.dailyContent.find(dc => dc.day === viewingDay);
+    const dayProgress = enrollment.progress.find(p => p.day === viewingDay);
     const currentStep = activeSelector?.steps[currentStepIdx];
 
     return (
@@ -149,17 +173,36 @@ const SprintView: React.FC = () => {
 
             <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
                 <div className="flex items-center justify-between">
-                    <button onClick={() => navigate('/dashboard')} className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    <button onClick={() => navigate('/dashboard')} className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                     </button>
                     <div className="text-center flex-1 mx-4 min-w-0">
-                        <h1 className="text-lg font-black text-gray-900 truncate">{sprint.title}</h1>
+                        <h1 className="text-lg font-black text-gray-900 truncate italic">{sprint.title}</h1>
                     </div>
+                    <button 
+                        onClick={toggleReflectionState}
+                        className={`p-2.5 rounded-2xl shadow-sm transition-all border ${reflectionsEnabled ? 'bg-white text-primary border-gray-100' : 'bg-primary text-white border-primary'} active:scale-95`}
+                        title={reflectionsEnabled ? "Disable Reflections" : "Enable Reflections"}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                    </button>
+                </div>
+
+                {/* Sub-Header Actions */}
+                <div className="flex gap-2 mt-6">
+                    <Link to={`/sprint/${sprint.id}`} className="flex-1 bg-white border border-gray-100 rounded-xl py-3 px-4 flex items-center justify-center gap-2 group hover:bg-gray-50 transition-all active:scale-[0.98]">
+                        <svg className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-primary">Protocol Info</span>
+                    </Link>
+                    <button className="flex-1 bg-white border border-gray-100 rounded-xl py-3 px-4 flex items-center justify-center gap-2 group hover:bg-gray-50 transition-all active:scale-[0.98]">
+                        <svg className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-primary">Message Coach</span>
+                    </button>
                 </div>
             </header>
 
             <div className="px-6 max-w-2xl mx-auto w-full space-y-6 mt-4">
-                {/* Day Navigation Strip - Matches Screenshot Style */}
+                {/* Day Navigation Strip */}
                 <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1">
                     {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => {
                         const isActive = viewingDay === day;
@@ -175,9 +218,7 @@ const SprintView: React.FC = () => {
                                         : 'bg-[#F3F4F6] text-gray-400'
                                 }`}
                             >
-                                {/* Status Dot */}
-                                <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${isActive ? 'bg-white' : 'bg-[#0E7850]'}`}></div>
-
+                                <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${isCompleted ? (isActive ? 'bg-white' : 'bg-[#0E7850]') : 'bg-transparent'}`}></div>
                                 <span className={`text-[8px] font-black uppercase tracking-widest ${isActive ? 'text-white/60' : 'text-gray-300'}`}>Day</span>
                                 <span className="text-3xl font-black leading-none">{day}</span>
                             </button>
@@ -186,24 +227,53 @@ const SprintView: React.FC = () => {
                 </div>
 
                 {/* Main Content Card */}
-                <div className="bg-white rounded-3xl p-6 md:p-8 border border-gray-100 shadow-sm animate-slide-up">
-                    <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.2em] mb-4">Lesson Day {viewingDay}</h2>
-                    <div className="prose max-w-none text-gray-600 font-medium text-xs sm:text-sm leading-relaxed mb-8">
+                <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden">
+                    <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day {viewingDay}</h2>
+                    
+                    <div className="prose max-w-none text-gray-700 font-medium text-sm md:text-base leading-relaxed mb-10">
                         <FormattedText text={dayContent?.lessonText || ""} />
                     </div>
-                    <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10">
-                        <p className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
-                            <FormattedText text={dayContent?.taskPrompt || ""} />
-                        </p>
+
+                    <div className="space-y-6">
+                        <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
+                            <p className="text-[7px] font-black text-primary uppercase tracking-[0.2em] mb-3">Today's Mission</p>
+                            <p className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
+                                <FormattedText text={dayContent?.taskPrompt || ""} />
+                            </p>
+                            <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                        </div>
+
+                        {/* Coach Insight Section */}
+                        {dayContent?.coachInsight && (
+                            <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
+                                <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Coach's Insight</p>
+                                <p className="text-gray-600 italic font-medium text-xs md:text-sm leading-relaxed">
+                                    "{dayContent.coachInsight}"
+                                </p>
+                            </div>
+                        )}
                     </div>
-                    <div className="mt-8">
+
+                    <div className="mt-12 space-y-6">
                         <button 
-                          onClick={() => setIsReflectionModalOpen(true)}
-                          disabled={isSubmitting || enrollment.progress.find(p => p.day === viewingDay)?.completed}
-                          className="w-full py-4 bg-[#159E5B] text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg disabled:opacity-50"
+                          onClick={handleQuickComplete}
+                          disabled={isSubmitting || dayProgress?.completed}
+                          className="w-full py-5 bg-[#159E5B] text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] shadow-xl shadow-primary/10 active:scale-95 disabled:opacity-50 transition-all"
                         >
-                          {enrollment.progress.find(p => p.day === viewingDay)?.completed ? 'Day Completed' : 'Mark Task Complete'}
+                          {dayProgress?.completed ? 'Mission Complete' : 'Mark Task Complete'}
                         </button>
+
+                        {/* Completed Reflection Display */}
+                        {dayProgress?.completed && dayProgress.reflection && (
+                            <div className="animate-fade-in pt-4 border-t border-gray-50">
+                                <p className="text-[7px] font-black text-primary uppercase tracking-[0.2em] mb-4">Your Breakthrough</p>
+                                <div className="bg-primary/5 rounded-[1.5rem] p-6 border border-primary/10">
+                                    <p className="text-gray-800 italic font-medium text-sm leading-relaxed">
+                                        "{dayProgress.reflection}"
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
