@@ -16,9 +16,16 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with experimental settings for better reliability in restricted networks
+/**
+ * Initialize Firestore with optimized settings.
+ * - experimentalAutoDetectLongPolling: Allows SDK to choose between WebSockets and Long Polling.
+ * - ignoreUndefinedProperties: Prevents errors when saving objects with undefined fields.
+ * - useFetchStreams: false: Avoids streaming issues in certain network environments.
+ */
 export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true, // Forces long-polling for environments where WebSockets might be blocked
+  experimentalAutoDetectLongPolling: true, 
+  ignoreUndefinedProperties: true,
+  useFetchStreams: false, 
 });
 
 const analytics = getAnalytics(app);

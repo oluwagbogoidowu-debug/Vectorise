@@ -23,7 +23,6 @@ export const sanitizeData = (val: any, depth = 0, seen = new WeakSet()): any => 
     if (typeof val.toDate === 'function') return val.toDate().toISOString();
 
     // 5. Handle Firestore FieldValues (for writes)
-    // characteristic property of FieldValue in many SDK versions
     if (val && (typeof val._methodName === 'string' || val.constructor?.name?.includes('FieldValue'))) {
         return val;
     }
@@ -40,9 +39,16 @@ export const sanitizeData = (val: any, depth = 0, seen = new WeakSet()): any => 
     // 8. Handle Plain Objects
     if (type === 'object') {
         const proto = Object.getPrototypeOf(val);
-        // Only recurse into objects created via {} or new Object()
-        // This automatically skips Firestore internals like DocumentReference (mangled names like Q$1)
+        
+        // STRICTION: Only recurse into objects created via {} or new Object().
+        // This automatically skips Firestore internal classes like DocumentReference (e.g., Q$1)
+        // because their prototype is not Object.prototype.
         if (proto !== null && proto !== Object.prototype) {
+            return undefined;
+        }
+
+        // Catch internal Firebase-looking structures even if prototype check passes
+        if (val.firestore || val._database || val._path) {
             return undefined;
         }
 

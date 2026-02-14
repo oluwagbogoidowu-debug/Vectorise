@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ParticipantSprint, Sprint, DailyContent, GlobalOrchestrationSettings, MicroSelector, MicroSelectorStep } from '../../types';
@@ -160,7 +159,7 @@ const SprintView: React.FC = () => {
             </header>
 
             <div className="px-6 max-w-2xl mx-auto w-full space-y-6 mt-4">
-                {/* Day Navigation Strip */}
+                {/* Day Navigation Strip - Matches Screenshot Style */}
                 <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1">
                     {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => {
                         const isActive = viewingDay === day;
@@ -187,7 +186,7 @@ const SprintView: React.FC = () => {
                 </div>
 
                 {/* Main Content Card */}
-                <div className="bg-white rounded-3xl p-6 md:p-8 border border-gray-50 shadow-sm animate-slide-up">
+                <div className="bg-white rounded-3xl p-6 md:p-8 border border-gray-100 shadow-sm animate-slide-up">
                     <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.2em] mb-4">Lesson Day {viewingDay}</h2>
                     <div className="prose max-w-none text-gray-600 font-medium text-xs sm:text-sm leading-relaxed mb-8">
                         <FormattedText text={dayContent?.lessonText || ""} />

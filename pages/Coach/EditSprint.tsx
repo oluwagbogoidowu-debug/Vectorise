@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Sprint, DailyContent, SprintDifficulty, UserRole, Coach } from '../../types';
@@ -14,14 +15,20 @@ import LandingPreview from '../../components/LandingPreview';
  * Highlights new/modified words in bright red.
  */
 const DiffHighlight: React.FC<{ original: any; updated: any; label: string }> = ({ original, updated, label }) => {
-    const origStr = String(original || '').trim();
-    const upStr = String(updated || '').trim();
+    const origStr = Array.isArray(original) 
+        ? original.map(item => typeof item === 'object' ? `${item.verb}: ${item.description}` : item).join('\n')
+        : String(original || '').trim();
+        
+    const upStr = Array.isArray(updated)
+        ? updated.map(item => typeof item === 'object' ? `${item.verb}: ${item.description}` : item).join('\n')
+        : String(updated || '').trim();
+
     const hasChanged = origStr !== upStr;
 
     if (!hasChanged) return (
         <div className="space-y-1">
             <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest">{label}</p>
-            <p className="text-xs text-gray-500 font-medium">{origStr || '—'}</p>
+            <p className="text-xs text-gray-500 font-medium whitespace-pre-wrap">{origStr || '—'}</p>
         </div>
     );
 
@@ -37,11 +44,11 @@ const DiffHighlight: React.FC<{ original: any; updated: any; label: string }> = 
             <div className="flex flex-col gap-3">
                 <div>
                     <p className="text-[7px] font-black text-gray-300 uppercase mb-1">Live Original:</p>
-                    <p className="text-xs text-gray-400 line-through decoration-gray-300">{origStr}</p>
+                    <p className="text-xs text-gray-400 line-through decoration-gray-300 whitespace-pre-wrap">{origStr}</p>
                 </div>
                 <div>
                     <p className="text-[7px] font-black text-red-400 uppercase mb-1">Proposed Update:</p>
-                    <div className="text-sm font-bold text-gray-900 leading-relaxed">
+                    <div className="text-sm font-bold text-gray-900 leading-relaxed whitespace-pre-wrap">
                         {upWords.map((word, i) => {
                             const isNew = !origWords.includes(word);
                             return (
@@ -304,7 +311,7 @@ const EditSprint: React.FC = () => {
             {isAdmin && !isFoundational ? (
                 <>
                     <button onClick={handleAdminApprove} disabled={approvalStatus === 'processing'} className="bg-green-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl px-6 py-3 shadow-lg hover:bg-green-700 transition-all active:scale-95 disabled:opacity-50">Approve & Push Updates</button>
-                    <button onClick={handleAdminAmend} disabled={approvalStatus === 'processing'} className="bg-orange-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl px-6 py-3 shadow-lg hover:bg-orange-600 transition-all active:scale-95 disabled:opacity-50">Request Fixes</button>
+                    <button onClick={handleAdminAmend} disabled={approvalStatus === 'processing'} className="bg-orange-50 text-white font-black uppercase tracking-widest text-[10px] rounded-xl px-6 py-3 shadow-lg hover:bg-orange-600 transition-all active:scale-95 disabled:opacity-50">Request Fixes</button>
                 </>
             ) : (
                 <>
@@ -381,7 +388,7 @@ const EditSprint: React.FC = () => {
         </div>
       </div>
 
-      {/* Registry Settings Modal - Now expanded with all description fields */}
+      {/* Registry Settings Modal */}
       {showSettings && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -393,11 +400,44 @@ const EditSprint: React.FC = () => {
                 
                 {isAdmin && !isFoundational ? (
                     <section className="space-y-8">
-                        <DiffHighlight label="Title" original={originalSprint?.title} updated={editSettings.title} />
-                        <DiffHighlight label="Transformation" original={originalSprint?.transformation || originalSprint?.description} updated={editSettings.transformation} />
-                        <DiffHighlight label="Archive Outcome Tag" original={originalSprint?.outcomeTag} updated={editSettings.outcomeTag} />
-                        <DiffHighlight label="The Outcome Statement" original={originalSprint?.outcomeStatement} updated={editSettings.outcomeStatement} />
-                        <DiffHighlight label="Category" original={originalSprint?.category} updated={editSettings.category} />
+                        {/* FULL DIFF FOR ALL REGISTRY FIELDS */}
+                        <div className="bg-primary/5 p-6 rounded-[2rem] border border-primary/10 mb-8">
+                            <label className={labelClasses + " text-primary mb-4 block"}>Administrative Actions</label>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Set Sprint Price (₦)</label>
+                                    <input 
+                                        type="number" 
+                                        value={editSettings.price || 0} 
+                                        onChange={e => setEditSettings({...editSettings, price: Number(e.target.value)})} 
+                                        className="w-full px-6 py-4 bg-white border border-primary/20 rounded-2xl text-lg font-black text-primary shadow-sm outline-none focus:ring-4 focus:ring-primary/5"
+                                        placeholder="0"
+                                    />
+                                    <p className="text-[8px] font-bold text-gray-400 mt-2 uppercase tracking-widest italic">Note: Only admins can set the final price before pushing live.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-6">
+                            <DiffHighlight label="Title" original={originalSprint?.title} updated={editSettings.title} />
+                            <DiffHighlight label="Cover Image URL" original={originalSprint?.coverImageUrl} updated={editSettings.coverImageUrl} />
+                            <DiffHighlight label="Transformation Statement" original={originalSprint?.transformation || originalSprint?.description} updated={editSettings.transformation} />
+                            <DiffHighlight label="Target Signals (forWho)" original={originalSprint?.forWho} updated={editSettings.forWho} />
+                            <DiffHighlight label="Exclusions (notForWho)" original={originalSprint?.notForWho} updated={editSettings.notForWho} />
+                            <DiffHighlight label="Method Snapshot" original={originalSprint?.methodSnapshot} updated={editSettings.methodSnapshot} />
+                            <DiffHighlight label="Evidence of Completion (outcomes)" original={originalSprint?.outcomes} updated={editSettings.outcomes} />
+                            <DiffHighlight label="Archive Outcome Tag" original={originalSprint?.outcomeTag} updated={editSettings.outcomeTag} />
+                            <DiffHighlight label="The Outcome Statement" original={originalSprint?.outcomeStatement} updated={editSettings.outcomeStatement} />
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <DiffHighlight label="Category" original={originalSprint?.category} updated={editSettings.category} />
+                                <DiffHighlight label="Difficulty" original={originalSprint?.difficulty} updated={editSettings.difficulty} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <DiffHighlight label="Duration" original={originalSprint?.duration} updated={editSettings.duration} />
+                                <DiffHighlight label="Protocol" original={originalSprint?.protocol} updated={editSettings.protocol} />
+                            </div>
+                        </div>
                     </section>
                 ) : (
                     <>
