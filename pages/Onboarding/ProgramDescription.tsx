@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
@@ -12,7 +13,7 @@ interface SectionHeadingProps {
 }
 
 const SectionHeading: React.FC<SectionHeadingProps> = ({ children, color = "primary" }) => (
-  <h2 className={`text-[8px] font-black text-${color} uppercase tracking-[0.25em] mb-4`}>
+  <h2 className={`text-[8px] font-black text-${color} uppercase tracking-[0.4em] mb-6`}>
       {children}
   </h2>
 );
@@ -101,9 +102,8 @@ const ProgramDescription: React.FC = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-dark/90 via-dark/20 to-transparent"></div>
               <div className="absolute bottom-6 left-6 right-6 text-white">
-                <div className="flex flex-wrap gap-2 mb-3">
+                <div className="flex gap-2 mb-3">
                   <span className="px-2 py-0.5 bg-primary rounded text-[7px] font-black uppercase tracking-widest border border-white/10 shadow-lg">{sprint.category}</span>
-                  <span className="px-2 py-0.5 bg-white/10 backdrop-blur-md rounded text-[7px] font-black uppercase tracking-widest border border-white/10">{sprint.difficulty}</span>
                 </div>
                 <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-none mb-1 italic">
                   <FormattedText text={sprint.title} />
@@ -111,20 +111,6 @@ const ProgramDescription: React.FC = () => {
                 <p className="text-white/60 text-[8px] font-bold uppercase tracking-[0.3em]">{sprint.duration} Day Protocol</p>
               </div>
             </div>
-
-            {/* Matched Focus Banner */}
-            {selectedFocus && (
-              <div className="bg-[#0FB881]/10 border border-[#0FB881]/20 rounded-2xl px-6 py-4 flex items-center justify-between animate-fade-in shadow-sm">
-                  <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-white rounded-xl shadow-sm flex items-center justify-center text-lg">🎯</div>
-                      <div>
-                          <p className="text-[8px] font-black text-[#0FB881] uppercase tracking-[0.2em] mb-0.5">Optimized Match</p>
-                          <p className="text-xs font-bold text-gray-700 italic">"{selectedFocus}"</p>
-                      </div>
-                  </div>
-                  <span className="text-[7px] font-black bg-white px-2 py-0.5 rounded border border-gray-100 uppercase tracking-widest text-gray-400">Validated</span>
-              </div>
-            )}
 
             {/* Transformation Section */}
             <section className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm animate-fade-in">
@@ -134,7 +120,7 @@ const ProgramDescription: React.FC = () => {
                   <FormattedText text={sprint.transformation || sprint.description} />
                 </p>
                 
-                <div className="h-px bg-gray-50 my-4"></div>
+                <div className="h-px bg-gray-50 my-6"></div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {sprint.forWho && sprint.forWho.length > 0 && (
@@ -167,29 +153,31 @@ const ProgramDescription: React.FC = () => {
               </div>
             </section>
 
-            {/* Method Snapshot Section */}
+            {/* Method Snapshot Section - Improved per user screenshot */}
             {sprint.methodSnapshot && sprint.methodSnapshot.length > 0 && (
-                <section className="bg-dark text-white rounded-2xl p-8 relative overflow-hidden group shadow-xl">
+                <section className="bg-[#111827] text-white rounded-[2rem] p-8 md:p-12 relative overflow-hidden group shadow-2xl">
                     <SectionHeading color="primary">How This Sprint Works</SectionHeading>
-                    <div className="relative z-10 space-y-6">
-                        <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
-                            <p className="text-lg font-black text-white italic tracking-tight mb-4">
+                    <div className="relative z-10 space-y-10">
+                        <div className="p-8 md:p-10 bg-white/[0.03] border border-white/5 rounded-[2.5rem] backdrop-blur-sm shadow-inner">
+                            <p className="text-2xl md:text-3xl font-black text-white italic tracking-tight mb-10 leading-[1.1]">
                                 For {sprint.duration} days, you’ll complete one focused action per day.
                             </p>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 gap-8">
                                 {sprint.methodSnapshot.map((item, i) => (
-                                    <div key={i} className="space-y-1">
-                                        <p className="text-primary font-black uppercase text-[9px] tracking-widest">{item.verb}</p>
-                                        <p className="text-[10px] text-white/40 leading-tight">{item.description}</p>
+                                    <div key={i} className="space-y-1.5 group">
+                                        <p className="text-[#0FB881] font-black uppercase text-[11px] tracking-[0.25em] group-hover:translate-x-1 transition-transform">
+                                            {item.verb}
+                                        </p>
+                                        <p className="text-white/40 text-[11px] font-medium leading-relaxed italic max-w-sm">
+                                            {item.description}
+                                        </p>
                                     </div>
                                 ))}
                             </div>
                         </div>
-                        <p className="text-center text-primary font-black uppercase tracking-[0.2em] text-[10px] pt-4 border-t border-white/5">
-                            Real breakthroughs emerge from what you do.
-                        </p>
                     </div>
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+                    {/* Decorative subtle pulse */}
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[100px] pointer-events-none group-hover:bg-primary/10 transition-all duration-1000"></div>
                 </section>
             )}
 

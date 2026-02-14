@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ParticipantSprint, Sprint, DailyContent, GlobalOrchestrationSettings, MicroSelector, MicroSelectorStep } from '../../types';
@@ -159,7 +160,34 @@ const SprintView: React.FC = () => {
             </header>
 
             <div className="px-6 max-w-2xl mx-auto w-full space-y-6 mt-4">
-                <div className="bg-white rounded-3xl p-6 md:p-8 border border-gray-50 shadow-sm">
+                {/* Day Navigation Strip */}
+                <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1">
+                    {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => {
+                        const isActive = viewingDay === day;
+                        const isCompleted = enrollment.progress.find(p => p.day === day)?.completed;
+
+                        return (
+                            <button
+                                key={day}
+                                onClick={() => setViewingDay(day)}
+                                className={`flex-shrink-0 w-20 h-20 rounded-[1.5rem] flex flex-col items-center justify-center relative transition-all duration-300 active:scale-95 ${
+                                    isActive
+                                        ? 'bg-[#0E7850] text-white shadow-xl shadow-primary/20 scale-105'
+                                        : 'bg-[#F3F4F6] text-gray-400'
+                                }`}
+                            >
+                                {/* Status Dot */}
+                                <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${isActive ? 'bg-white' : 'bg-[#0E7850]'}`}></div>
+
+                                <span className={`text-[8px] font-black uppercase tracking-widest ${isActive ? 'text-white/60' : 'text-gray-300'}`}>Day</span>
+                                <span className="text-3xl font-black leading-none">{day}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* Main Content Card */}
+                <div className="bg-white rounded-3xl p-6 md:p-8 border border-gray-50 shadow-sm animate-slide-up">
                     <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.2em] mb-4">Lesson Day {viewingDay}</h2>
                     <div className="prose max-w-none text-gray-600 font-medium text-xs sm:text-sm leading-relaxed mb-8">
                         <FormattedText text={dayContent?.lessonText || ""} />
@@ -198,6 +226,15 @@ const SprintView: React.FC = () => {
                 </div>
               </div>
             )}
+
+            <style>{`
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+                @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+            `}</style>
         </div>
     );
 };

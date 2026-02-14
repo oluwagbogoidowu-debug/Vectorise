@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
@@ -12,7 +13,7 @@ interface SectionHeadingProps {
 }
 
 const SectionHeading: React.FC<SectionHeadingProps> = ({ children, color = "primary" }) => (
-  <h2 className={`text-[8px] font-black text-${color} uppercase tracking-[0.25em] mb-4`}>
+  <h2 className={`text-[8px] font-black text-${color} uppercase tracking-[0.4em] mb-6`}>
       {children}
   </h2>
 );
@@ -143,7 +144,6 @@ const ClaritySprintDescription: React.FC = () => {
               <div className="absolute bottom-6 left-6 right-6 text-white">
                 <div className="flex flex-wrap gap-2 mb-3">
                   <span className="px-2 py-0.5 bg-primary rounded text-[7px] font-black uppercase tracking-widest border border-white/10 shadow-lg">Foundational Path</span>
-                  <span className="px-2 py-0.5 bg-white/10 backdrop-blur-md rounded text-[7px] font-black uppercase tracking-widest border border-white/10">Action-Based</span>
                 </div>
                 <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-none mb-1 italic">
                   <FormattedText text={sprint.title} />
@@ -197,23 +197,30 @@ const ClaritySprintDescription: React.FC = () => {
               </div>
             </section>
 
+            {/* Method Snapshot Section - Improved per user screenshot */}
             {sprint.methodSnapshot && sprint.methodSnapshot.length > 0 && (
-                <section className="bg-dark text-white rounded-2xl p-8 relative overflow-hidden group shadow-xl">
+                <section className="bg-[#111827] text-white rounded-[2rem] p-8 md:p-12 relative overflow-hidden group shadow-2xl">
                     <SectionHeading color="primary">How This Sprint Works</SectionHeading>
-                    <div className="relative z-10 space-y-6">
-                        <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
-                            <p className="text-lg font-black text-white italic tracking-tight mb-4">For {sprint.duration} days, you’ll complete one focused action per day.</p>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="relative z-10 space-y-10">
+                        <div className="p-8 md:p-10 bg-white/[0.03] border border-white/5 rounded-[2.5rem] backdrop-blur-sm shadow-inner">
+                            <p className="text-2xl md:text-3xl font-black text-white italic tracking-tight mb-10 leading-[1.1]">
+                                For {sprint.duration} days, you’ll complete one focused action per day.
+                            </p>
+                            <div className="grid grid-cols-1 gap-8">
                                 {sprint.methodSnapshot.map((item, i) => (
-                                    <div key={i} className="space-y-1">
-                                        <p className="text-primary font-black uppercase text-[9px] tracking-widest">{item.verb}</p>
-                                        <p className="text-[10px] text-white/40 leading-tight">{item.description}</p>
+                                    <div key={i} className="space-y-1.5 group">
+                                        <p className="text-[#0FB881] font-black uppercase text-[11px] tracking-[0.25em] group-hover:translate-x-1 transition-transform">
+                                            {item.verb}
+                                        </p>
+                                        <p className="text-white/40 text-[11px] font-medium leading-relaxed italic max-w-sm">
+                                            {item.description}
+                                        </p>
                                     </div>
                                 ))}
                             </div>
                         </div>
                     </div>
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[100px] pointer-events-none group-hover:bg-primary/10 transition-all duration-1000"></div>
                 </section>
             )}
 
