@@ -86,7 +86,7 @@ const DiscoverSprints: React.FC = () => {
     // A sprint is active if it has incomplete tasks
     const activeSprintId = useMemo(() => {
         const active = userEnrollments.find(e => e.status === 'active' && e.progress.some(p => !p.completed));
-        return active?.sprintId;
+        return active?.sprint_id;
     }, [userEnrollments]);
 
     // 1. Recommended Logic: Priority Slot Resolution based on User Focus
@@ -180,7 +180,7 @@ const DiscoverSprints: React.FC = () => {
                     </section>
                 )}
 
-                {/* SECTION 2: OTHER OPTIONS (Max 3, no active) */}
+                {/* SECTION 2: OTHER OPTIONS (Horizontal Scroll, Max 3, no active) */}
                 {otherOptions.length > 0 && (
                     <section className="mb-16">
                         <div className="mb-6 px-2">
@@ -188,13 +188,14 @@ const DiscoverSprints: React.FC = () => {
                             <p className="text-xs text-gray-400 font-medium italic">Save for later to build your future waitlist (Max 3).</p>
                         </div>
                         
-                        <div className="flex flex-col gap-8">
+                        <div className="flex gap-6 overflow-x-auto pb-8 no-scrollbar px-2 -mx-2 snap-x snap-mandatory">
                             {otherOptions.map(s => (
-                                <SprintCard 
-                                    key={s.id} 
-                                    sprint={s} 
-                                    coach={coaches.find(c => c.id === s.coachId) || ({} as Coach)} 
-                                />
+                                <div key={s.id} className="w-[320px] flex-shrink-0 snap-center">
+                                    <SprintCard 
+                                        sprint={s} 
+                                        coach={coaches.find(c => c.id === s.coachId) || ({} as Coach)} 
+                                    />
+                                </div>
                             ))}
                         </div>
                     </section>
