@@ -62,6 +62,7 @@ const PaymentSuccess: React.FC = () => {
             try {
                 let targetUid = user?.id;
                 
+                // Only redirect to auth if not logged in
                 if (!targetUid && rawEmail) {
                     const emailExists = await userService.checkEmailExists(rawEmail);
                     if (emailExists) {
@@ -126,7 +127,7 @@ const PaymentSuccess: React.FC = () => {
         };
 
         performFulfillment();
-    }, [status, user, paidSprintId, rawEmail]);
+    }, [status, user, paidSprintId, rawEmail, navigate, updateProfile]);
 
     return (
         <div className="min-h-screen bg-[#FDFDFD] flex flex-col items-center justify-center p-6 text-center font-sans overflow-hidden">

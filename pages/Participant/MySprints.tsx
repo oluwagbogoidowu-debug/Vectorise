@@ -255,7 +255,7 @@ const MySprints: React.FC = () => {
                         </section>
                     )}
 
-                    {/* 4. GROWTH ARCHIVES */}
+                    {/* 4. GROWTH ARCHIVES (Vibrant, No Grayscale) */}
                     {archivedSprints.length > 0 && (
                         <section>
                             <div className="flex items-center gap-2 mb-4">
@@ -265,7 +265,7 @@ const MySprints: React.FC = () => {
                             <div className="grid grid-cols-1 gap-2.5">
                                 {(isArchivedExpanded ? archivedSprints : archivedSprints.slice(0, 2)).map(({ enrollment, sprint }) => (
                                     <div key={enrollment.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-4 group animate-fade-in">
-                                        <div className="w-12 h-12 rounded-lg overflow-hidden grayscale opacity-50">
+                                        <div className="w-12 h-12 rounded-lg overflow-hidden">
                                             <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
                                         </div>
                                         <div className="flex-1 min-w-0">
