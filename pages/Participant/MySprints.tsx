@@ -22,14 +22,13 @@ const MySprints: React.FC = () => {
         if (!user) return;
         setIsLoading(true);
 
-        // 1. Subscribe to enrollments
+        // 1. Subscribe to enrollments in real-time
         const unsubEnrollments = sprintService.subscribeToUserEnrollments(user.id, (data) => {
             setEnrollments(data);
         });
 
-        // 2. Subscribe to ALL active (non-deleted) sprints for metadata 
-        // This ensures cover images show even for sprints that are currently 'draft' or 'archived' in the registry
-        // but were previously active when the user enrolled.
+        // 2. Subscribe to ALL active sprints for real-time metadata syncing (like unique images)
+        // This ensures if a coach updates an image, it reflects on the enrollment card immediately.
         const unsubSprints = sprintService.subscribeToAdminSprints((data) => {
             setAllSprints(data);
             setIsLoading(false);

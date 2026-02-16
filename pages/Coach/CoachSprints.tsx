@@ -60,7 +60,7 @@ const CoachSprints: React.FC = () => {
     
     setIsLoading(true);
     
-    // 1. Subscribe to coach's sprints in real-time
+    // 1. Subscribe to coach's sprints in real-time to track metadata and unique covers instantly
     const unsubSprints = sprintService.subscribeToCoachSprints(user.id, (data) => {
         setSprints(data);
         setIsLoading(false);
