@@ -1,13 +1,12 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/Button';
-import { Coach, Sprint, ParticipantSprint } from '../../types';
+import { Coach, Sprint } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
+import { assetService } from '../../services/assetService';
 import FormattedText from '../../components/FormattedText';
-import LocalLogo from '../../components/LocalLogo';
 
 interface SectionHeadingProps {
   children: React.ReactNode;
@@ -20,6 +19,10 @@ const SectionHeading: React.FC<SectionHeadingProps> = ({ children, color = "prim
   </h2>
 );
 
+/**
+ * SprintLandingPage component: Displays the landing page for a specific sprint.
+ * Fixed error: Added missing default export.
+ */
 const SprintLandingPage: React.FC = () => {
     const { sprintId } = useParams();
     const navigate = useNavigate();
@@ -31,7 +34,7 @@ const SprintLandingPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [imageError, setImageError] = useState(false);
     
-    const fallbackImage = "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80";
+    const fallbackImage = assetService.URLS.DEFAULT_SPRINT_COVER;
 
     const selectedFocus = location.state?.selectedFocus;
 
@@ -58,7 +61,7 @@ const SprintLandingPage: React.FC = () => {
 
     const handleJoinClick = () => {
         if (!sprint) return;
-        navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint } });
+        navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus } });
     };
 
     if (isLoading) return <div className="flex items-center justify-center min-h-screen bg-light text-[8px] font-black uppercase tracking-[0.2em] text-gray-300">Synchronizing registry...</div>;
@@ -111,7 +114,7 @@ const SprintLandingPage: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Optimized Match Card - Exact UI from User Reference */}
+                        {/* Optimized Match Card */}
                         {selectedFocus && (
                           <div className="bg-[#E7F5F0] border border-[#D3EBE3] rounded-[2.5rem] px-8 py-6 flex items-center justify-between animate-fade-in shadow-sm">
                               <div className="flex items-center gap-5">
@@ -131,7 +134,6 @@ const SprintLandingPage: React.FC = () => {
                           </div>
                         )}
 
-                        {/* ENHANCED Transformation Section - Same Size, No Italics */}
                         <section className="bg-white rounded-[2.5rem] p-10 md:p-14 border border-gray-100 shadow-sm animate-fade-in relative overflow-hidden">
                             <div className="relative z-10">
                                 <div className="flex justify-between items-start mb-8">
@@ -189,7 +191,6 @@ const SprintLandingPage: React.FC = () => {
                             </div>
                         </section>
 
-                        {/* How This Sprint Works - Green Background */}
                         {sprint.methodSnapshot && sprint.methodSnapshot.length > 0 && (
                             <section className="bg-primary text-white rounded-[3rem] p-10 md:p-14 relative overflow-hidden shadow-2xl border border-white/5 group">
                                 <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-white/10 rounded-full blur-[100px] -mr-48 -mt-48 opacity-60"></div>
@@ -225,7 +226,6 @@ const SprintLandingPage: React.FC = () => {
                             </section>
                         )}
 
-                        {/* Outcomes Section */}
                         {sprint.outcomes && sprint.outcomes.length > 0 && (
                             <section className="bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-xl animate-fade-in relative overflow-hidden">
                                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-10">By Day {sprint.duration}, You'll Have:</p>
@@ -276,46 +276,14 @@ const SprintLandingPage: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-
+                            
                             <div className="space-y-6">
-                                <Button 
-                                    onClick={handleJoinClick} 
-                                    className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black"
-                                >
-                                    Authorize Path &rarr;
-                                </Button>
-                            </div>
-
-                            <div className="mt-16 pt-12 border-t border-gray-50 flex flex-col items-center text-center">
-                                <img src={sprintCoach.profileImageUrl} alt="" className="w-20 h-20 rounded-[1.75rem] object-cover border-4 border-white shadow-xl mb-6" />
-                                <SectionHeading>Guided By</SectionHeading>
-                                <h4 className="text-xl font-black text-dark tracking-tight leading-none mb-1">{sprintCoach.name}</h4>
-                                <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">{sprintCoach.niche}</p>
-                            </div>
-                        </div>
-
-                        <div className="bg-dark rounded-[3rem] p-12 text-white relative overflow-hidden group shadow-2xl border border-white/5">
-                            <div className="relative z-10">
-                                <SectionHeading color="primary">Commitment</SectionHeading>
-                                <p className="text-lg font-medium italic leading-relaxed opacity-90 mb-10">
-                                    "A complete shift in my professional value. The direct feedback was the catalyst I needed."
-                                </p>
-                                <div className="flex items-center gap-4">
-                                  <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-                                  <p className="font-black text-[10px] uppercase tracking-widest text-white/40">Jamie L. • Graduate</p>
-                                </div>
+                                <Button onClick={handleJoinClick} className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black">Authorize Path &rarr;</Button>
                             </div>
                         </div>
                     </aside>
                 </div>
             </div>
-            
-            <style>{`
-                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-                @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-            `}</style>
         </div>
     );
 };

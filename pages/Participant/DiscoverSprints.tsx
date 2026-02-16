@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Coach, Sprint, Participant, ParticipantSprint, LifecycleSlotAssignment } from '../../types';
@@ -50,25 +49,27 @@ const DiscoverSprints: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const loadDiscoveryData = async () => {
-            setIsLoading(true);
+        // Subscribe to published sprints in real-time
+        const unsubSprints = sprintService.subscribeToPublishedSprints((data) => {
+            setSprints(data);
+            setIsLoading(false);
+        });
+
+        const loadCoachesAndOrchestration = async () => {
             try {
-                const [publishedSprints, dbCoaches, mapping] = await Promise.all([
-                    sprintService.getPublishedSprints(),
+                const [dbCoaches, mapping] = await Promise.all([
                     userService.getCoaches(),
                     sprintService.getOrchestration() as Promise<Record<string, LifecycleSlotAssignment>>
                 ]);
-                
-                setSprints(publishedSprints);
                 setCoaches(dbCoaches);
                 setOrchestration(mapping);
             } catch (err) {
                 console.error(err);
-            } finally {
-                setIsLoading(false);
             }
         };
-        loadDiscoveryData();
+        
+        loadCoachesAndOrchestration();
+        return () => unsubSprints();
     }, []);
 
     // Subscribe to enrollments for reactive filtering of "Active" sprints
@@ -84,13 +85,12 @@ const DiscoverSprints: React.FC = () => {
     }, [user]);
 
     // Identity the active sprint to exclude it from discovery
-    // A sprint is active if it has incomplete tasks
     const activeSprintId = useMemo(() => {
         const active = userEnrollments.find(e => e.status === 'active' && e.progress.some(p => !p.completed));
         return active?.sprint_id;
     }, [userEnrollments]);
 
-    // 1. Recommended Logic: Priority Slot Resolution based on User Focus
+    // 1. Recommended Logic
     const recommendedSprint = useMemo(() => {
         if (sprints.length === 0) return null;
         
@@ -135,7 +135,7 @@ const DiscoverSprints: React.FC = () => {
         } as Coach;
     }, [recommendedSprint, coaches]);
 
-    // 2. Other options: Filtered for active sprint and limited to 3
+    // 2. Other options
     const otherOptions = useMemo(() => {
         return sprints
             .filter(s => s.id !== recommendedSprint?.id && s.id !== activeSprintId)
@@ -181,7 +181,7 @@ const DiscoverSprints: React.FC = () => {
                     </section>
                 )}
 
-                {/* SECTION 2: OTHER OPTIONS (Horizontal Scroll, Max 3, no active) */}
+                {/* SECTION 2: OTHER OPTIONS */}
                 {otherOptions.length > 0 && (
                     <section className="mb-16">
                         <div className="mb-6 px-2">

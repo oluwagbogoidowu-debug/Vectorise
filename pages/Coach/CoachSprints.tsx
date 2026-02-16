@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.tsx';
 import { Sprint } from '../../types.ts';
 import { sprintService } from '../../services/sprintService.ts';
+import { assetService } from '../../services/assetService.ts';
 import Button from '../../components/Button.tsx';
 
 const DeleteConfirmationModal: React.FC<{
@@ -55,33 +55,34 @@ const CoachSprints: React.FC = () => {
   const [sprintToDelete, setSprintToDelete] = useState<Sprint | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const fetchData = async () => {
-    if (user) {
-      setIsLoading(true);
-      try {
-        const [coachSprints, orchestration] = await Promise.all([
-            sprintService.getCoachSprints(user.id),
-            sprintService.getOrchestration()
-        ]);
-        
-        const liveIds = new Set(
-            Object.values(orchestration)
-                .map(m => m.sprintId)
-                .filter(id => !!id)
-        );
-
-        setSprints(coachSprints);
-        setOrchestratedIds(liveIds);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  };
-
   useEffect(() => {
-    fetchData();
+    if (!user) return;
+    
+    setIsLoading(true);
+    
+    // 1. Subscribe to coach's sprints in real-time
+    const unsubSprints = sprintService.subscribeToCoachSprints(user.id, (data) => {
+        setSprints(data);
+        setIsLoading(false);
+    });
+
+    // 2. Load orchestration mapping
+    const loadOrchestration = async () => {
+        try {
+            const orchestration = await sprintService.getOrchestration();
+            const liveIds = new Set(
+                Object.values(orchestration)
+                    .map(m => m.sprintId)
+                    .filter(id => !!id)
+            );
+            setOrchestratedIds(liveIds);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+    
+    loadOrchestration();
+    return () => unsubSprints();
   }, [user, location.key]);
 
   const filteredSprints = useMemo(() => {
@@ -98,7 +99,6 @@ const CoachSprints: React.FC = () => {
     try {
         await sprintService.deleteSprint(id);
         setSprintToDelete(null);
-        await fetchData();
     } catch (err) {
         alert("Failed to delete sprint.");
     } finally {
@@ -107,6 +107,8 @@ const CoachSprints: React.FC = () => {
   };
 
   if (!user) return null;
+
+  const fallbackUrl = assetService.URLS.DEFAULT_SPRINT_COVER;
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -125,8 +127,8 @@ const CoachSprints: React.FC = () => {
             <p className="text-gray-500 font-medium text-sm">Curate and track your growth cycles.</p>
         </div>
         {hasPermission('sprint:create') && (
-            <Link to="/coach/sprint/new">
-                <Button className="rounded-xl px-6 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">+ Create New</Button>
+            <Link to="/coach/sprint/new" className="bg-primary text-white rounded-xl px-6 py-3 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
+                + Create New
             </Link>
         )}
       </div>
@@ -161,8 +163,13 @@ const CoachSprints: React.FC = () => {
 
                   return (
                       <div key={sprint.id} className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center gap-6 group hover:shadow-md transition-all">
-                          <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-inner">
-                              <img src={sprint.coverImageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" />
+                          <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-inner bg-gray-50">
+                              <img 
+                                src={sprint.coverImageUrl || fallbackUrl} 
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                                alt="" 
+                                onError={(e) => { e.currentTarget.src = fallbackUrl }}
+                              />
                           </div>
                           <div className="flex-1 min-w-0 text-center sm:text-left">
                               <div className="flex items-center gap-3 mb-1">

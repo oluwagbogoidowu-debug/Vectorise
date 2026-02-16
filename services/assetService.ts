@@ -53,6 +53,8 @@ export const assetService = {
     LOGO_GREEN: 'https://lh3.googleusercontent.com/d/1vYOe4SzIrE7kb6DSFkOp9UYz3tHWPnHw',
     LOGO_WHITE: 'https://lh3.googleusercontent.com/d/1rlpdJZVVY-aFonII5g-HgNNn7P9KYprl',
     // Icon version for specific usage (Onboarding descriptions)
-    FAVICON: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd'
+    FAVICON: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd',
+    // Global standard fallback for sprint covers
+    DEFAULT_SPRINT_COVER: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80'
   }
 };

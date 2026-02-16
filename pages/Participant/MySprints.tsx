@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,69 +6,65 @@ import ProgressBar from '../../components/ProgressBar';
 import Button from '../../components/Button';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
+import { assetService } from '../../services/assetService';
 
 const MySprints: React.FC = () => {
     const { user, updateProfile } = useAuth();
-    const [inProgressSprints, setInProgressSprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
-    const [archivedSprints, setArchivedSprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
-    const [queuedSprints, setQueuedSprints] = useState<Sprint[]>([]);
-    const [waitlistSprints, setWaitlistSprints] = useState<Sprint[]>([]);
+    const [enrollments, setEnrollments] = useState<ParticipantSprint[]>([]);
+    const [allSprints, setAllSprints] = useState<Sprint[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Expansion states for "See More" logic
     const [isQueuedExpanded, setIsQueuedExpanded] = useState(false);
     const [isWaitlistExpanded, setIsWaitlistExpanded] = useState(false);
     const [isArchivedExpanded, setIsArchivedExpanded] = useState(false);
 
     useEffect(() => {
-        const loadSprints = async () => {
-            if (!user) return;
-            setIsLoading(true);
-            try {
-                const enrollments = await sprintService.getUserEnrollments(user.id);
-                const enriched = await Promise.all(enrollments.map(async (enrollment) => {
-                    const sprint = await sprintService.getSprintById(enrollment.sprint_id);
-                    return sprint ? { enrollment, sprint } : null;
-                }));
+        if (!user) return;
+        setIsLoading(true);
 
-                const validEnrollments = enriched.filter((item): item is { enrollment: ParticipantSprint; sprint: Sprint } => item !== null);
-                
-                const inProgress = validEnrollments.filter(e => e.enrollment.progress.some(p => !p.completed));
-                const mastered = validEnrollments.filter(e => e.enrollment.progress.every(p => p.completed));
-                
-                setInProgressSprints(inProgress);
-                setArchivedSprints(mastered);
+        // 1. Subscribe to enrollments
+        const unsubEnrollments = sprintService.subscribeToUserEnrollments(user.id, (data) => {
+            setEnrollments(data);
+        });
 
-                const p = user as Participant;
-                const savedIds = p.savedSprintIds || [];
-                const wishlistIds = p.wishlistSprintIds || [];
-                const activeOrMasteredIds = new Set(validEnrollments.map(ae => ae.sprint.id));
+        // 2. Subscribe to ALL active (non-deleted) sprints for metadata 
+        // This ensures cover images show even for sprints that are currently 'draft' or 'archived' in the registry
+        // but were previously active when the user enrolled.
+        const unsubSprints = sprintService.subscribeToAdminSprints((data) => {
+            setAllSprints(data);
+            setIsLoading(false);
+        });
 
-                const conflictingSavedIds = savedIds.filter(id => activeOrMasteredIds.has(id));
-                let finalSavedIds = [...savedIds];
-                
-                if (conflictingSavedIds.length > 0) {
-                    finalSavedIds = savedIds.filter(id => !activeOrMasteredIds.has(id));
-                    await userService.updateUserDocument(user.id, { savedSprintIds: finalSavedIds });
-                    await updateProfile({ savedSprintIds: finalSavedIds });
-                }
-
-                const saved = await Promise.all(finalSavedIds.map(id => sprintService.getSprintById(id)));
-                setQueuedSprints(saved.filter((s): s is Sprint => s !== null));
-
-                const filteredWaitlistIds = wishlistIds.filter(id => !activeOrMasteredIds.has(id) && !finalSavedIds.includes(id));
-                const waitlisted = await Promise.all(filteredWaitlistIds.map(id => sprintService.getSprintById(id)));
-                setWaitlistSprints(waitlisted.filter((s): s is Sprint => s !== null));
-
-            } catch (err) {
-                console.error("Error loading My Sprints:", err);
-            } finally {
-                setIsLoading(false);
-            }
+        return () => {
+            unsubEnrollments();
+            unsubSprints();
         };
-        
-        loadSprints();
     }, [user?.id]);
+
+    const categorized = useMemo(() => {
+        const enriched = enrollments.map(enrol => {
+            const sprint = allSprints.find(s => s.id === enrol.sprint_id);
+            return sprint ? { enrollment: enrol, sprint } : null;
+        }).filter((item): item is { enrollment: ParticipantSprint; sprint: Sprint } => item !== null);
+
+        const inProgress = enriched.filter(e => e.enrollment.progress.some(p => !p.completed));
+        const archived = enriched.filter(e => e.enrollment.progress.every(p => p.completed));
+
+        const p = user as Participant;
+        const activeIds = new Set(enriched.map(e => e.sprint.id));
+        
+        const queued = (p.savedSprintIds || [])
+            .filter(id => !activeIds.has(id))
+            .map(id => allSprints.find(s => s.id === id))
+            .filter((s): s is Sprint => !!s);
+
+        const waitlist = (p.wishlistSprintIds || [])
+            .filter(id => !activeIds.has(id) && !(p.savedSprintIds || []).includes(id))
+            .map(id => allSprints.find(s => s.id === id))
+            .filter((s): s is Sprint => !!s);
+
+        return { inProgress, archived, queued, waitlist };
+    }, [enrollments, allSprints, user]);
 
     const calculateProgress = (enrollment: ParticipantSprint) => {
         const completedDays = enrollment.progress.filter(p => p.completed).length;
@@ -82,16 +77,9 @@ const MySprints: React.FC = () => {
         const p = user as Participant;
         const newIds = [...(p.savedSprintIds || [])];
         const targetIndex = direction === 'up' ? index - 1 : index + 1;
-
         if (targetIndex < 0 || targetIndex >= newIds.length) return;
-
         [newIds[index], newIds[targetIndex]] = [newIds[targetIndex], newIds[index]];
-
         try {
-            const newQueuedSprints = [...queuedSprints];
-            [newQueuedSprints[index], newQueuedSprints[targetIndex]] = [newQueuedSprints[targetIndex], newQueuedSprints[index]];
-            setQueuedSprints(newQueuedSprints);
-
             await userService.updateUserDocument(user.id, { savedSprintIds: newIds });
             await updateProfile({ savedSprintIds: newIds });
         } catch (error) {
@@ -106,7 +94,6 @@ const MySprints: React.FC = () => {
             const newWishlist = (p.wishlistSprintIds || []).filter(id => id !== sprintId);
             await userService.updateUserDocument(user.id, { wishlistSprintIds: newWishlist });
             await updateProfile({ wishlistSprintIds: newWishlist });
-            setWaitlistSprints(prev => prev.filter(s => s.id !== sprintId));
         } catch (err) {
             console.error(err);
         }
@@ -121,28 +108,34 @@ const MySprints: React.FC = () => {
         );
     }
 
+    const { inProgress, archived, queued, waitlist } = categorized;
+    const fallbackUrl = assetService.URLS.DEFAULT_SPRINT_COVER;
+
     return (
         <div className="h-screen w-full bg-light flex flex-col overflow-hidden animate-fade-in">
-            {/* Header section fixed */}
             <div className="px-6 py-5 flex-shrink-0 bg-white border-b border-gray-100">
                 <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none">My Journey</h1>
             </div>
 
-            {/* Scrollable Body Content */}
             <div className="flex-1 overflow-y-auto px-4 py-6 pb-32 custom-scrollbar">
                 <div className="max-w-screen-lg mx-auto w-full">
                     {/* 1. IN PROGRESS */}
                     <section className="mb-10">
                         <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-1">In Progress</h2>
-                        {inProgressSprints.length > 0 ? (
+                        {inProgress.length > 0 ? (
                             <div className="grid grid-cols-1 gap-3">
-                                {inProgressSprints.map(({ enrollment, sprint }) => {
+                                {inProgress.map(({ enrollment, sprint }) => {
                                     const progress = calculateProgress(enrollment);
                                     return (
                                         <Link key={enrollment.id} to={`/participant/sprint/${enrollment.id}`} className="block group">
                                             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col sm:flex-row gap-4">
-                                                <div className="w-full sm:w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 shadow-inner">
-                                                    <img src={sprint.coverImageUrl} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                                <div className="w-full sm:w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 shadow-inner bg-gray-50">
+                                                    <img 
+                                                        src={sprint.coverImageUrl || fallbackUrl} 
+                                                        alt="" 
+                                                        className="w-full h-full object-cover transition-transform group-hover:scale-105" 
+                                                        onError={(e) => { e.currentTarget.src = fallbackUrl }}
+                                                    />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex justify-between items-start mb-1">
@@ -172,18 +165,23 @@ const MySprints: React.FC = () => {
                     </section>
 
                     {/* 2. UPCOMING QUEUE */}
-                    {queuedSprints.length > 0 && (
+                    {queued.length > 0 && (
                         <section className="mb-10">
                             <div className="flex items-center gap-2 mb-4">
                                 <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Upcoming Queue</h2>
                                 <div className="h-px bg-gray-100 flex-1"></div>
                             </div>
                             <div className="grid grid-cols-1 gap-2.5">
-                                {(isQueuedExpanded ? queuedSprints : queuedSprints.slice(0, 2)).map((sprint, idx) => (
+                                {(isQueuedExpanded ? queued : queued.slice(0, 2)).map((sprint, idx) => (
                                     <div key={sprint.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3 hover:shadow-sm transition-all group animate-fade-in">
                                         <Link to={`/sprint/${sprint.id}`} className="flex-shrink-0">
-                                            <div className="w-12 h-12 rounded-lg overflow-hidden">
-                                                <img src={sprint.coverImageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt="" />
+                                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50">
+                                                <img 
+                                                    src={sprint.coverImageUrl || fallbackUrl} 
+                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform" 
+                                                    alt="" 
+                                                    onError={(e) => { e.currentTarget.src = fallbackUrl }}
+                                                />
                                             </div>
                                         </Link>
                                         <Link to={`/sprint/${sprint.id}`} className="min-w-0 flex-1">
@@ -195,7 +193,7 @@ const MySprints: React.FC = () => {
                                                 <button onClick={(e) => { e.preventDefault(); handleReorder(idx, 'up'); }} disabled={idx === 0} className={`p-1 rounded-md border transition-all ${idx === 0 ? 'opacity-20 cursor-not-allowed border-gray-50' : 'text-primary border-primary/5 hover:bg-primary/5 active:scale-90'}`}>
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
                                                 </button>
-                                                <button onClick={(e) => { e.preventDefault(); handleReorder(idx, 'down'); }} disabled={idx === queuedSprints.length - 1} className={`p-1 rounded-md border transition-all ${idx === queuedSprints.length - 1 ? 'opacity-20 cursor-not-allowed border-gray-50' : 'text-primary border-primary/5 hover:bg-primary/5 active:scale-90'}`}>
+                                                <button onClick={(e) => { e.preventDefault(); handleReorder(idx, 'down'); }} disabled={idx === queued.length - 1} className={`p-1 rounded-md border transition-all ${idx === queued.length - 1 ? 'opacity-20 cursor-not-allowed border-gray-50' : 'text-primary border-primary/5 hover:bg-primary/5 active:scale-90'}`}>
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
                                                 </button>
                                             </div>
@@ -204,30 +202,35 @@ const MySprints: React.FC = () => {
                                     </div>
                                 ))}
                             </div>
-                            {queuedSprints.length > 2 && (
+                            {queued.length > 2 && (
                                 <button 
                                     onClick={() => setIsQueuedExpanded(!isQueuedExpanded)}
                                     className="mt-3 w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-400 font-black uppercase tracking-widest text-[8px] rounded-lg border border-gray-100 transition-all"
                                 >
-                                    {isQueuedExpanded ? 'Collapse' : `See More (${queuedSprints.length - 2})`}
+                                    {isQueuedExpanded ? 'Collapse' : `See More (${queued.length - 2})`}
                                 </button>
                             )}
                         </section>
                     )}
 
                     {/* 3. SAVED / BOOKMARKED */}
-                    {waitlistSprints.length > 0 && (
+                    {waitlist.length > 0 && (
                         <section className="mb-10">
                             <div className="flex items-center gap-2 mb-4">
                                 <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Saved for Later</h2>
                                 <div className="h-px bg-gray-100 flex-1"></div>
                             </div>
                             <div className="grid grid-cols-1 gap-2.5">
-                                {(isWaitlistExpanded ? waitlistSprints : waitlistSprints.slice(0, 2)).map((sprint) => (
+                                {(isWaitlistExpanded ? waitlist : waitlist.slice(0, 2)).map((sprint) => (
                                     <div key={sprint.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3 hover:shadow-sm transition-all group animate-fade-in">
                                         <Link to={`/sprint/${sprint.id}`} className="flex-shrink-0">
-                                            <div className="w-12 h-12 rounded-lg overflow-hidden">
-                                                <img src={sprint.coverImageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt="" />
+                                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50">
+                                                <img 
+                                                    src={sprint.coverImageUrl || fallbackUrl} 
+                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform" 
+                                                    alt="" 
+                                                    onError={(e) => { e.currentTarget.src = fallbackUrl }}
+                                                />
                                             </div>
                                         </Link>
                                         <Link to={`/sprint/${sprint.id}`} className="min-w-0 flex-1">
@@ -244,29 +247,34 @@ const MySprints: React.FC = () => {
                                     </div>
                                 ))}
                             </div>
-                            {waitlistSprints.length > 2 && (
+                            {waitlist.length > 2 && (
                                 <button 
                                     onClick={() => setIsWaitlistExpanded(!isWaitlistExpanded)}
                                     className="mt-3 w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-400 font-black uppercase tracking-widest text-[8px] rounded-lg border border-gray-100 transition-all"
                                 >
-                                    {isWaitlistExpanded ? 'Collapse' : `See More (${waitlistSprints.length - 2})`}
+                                    {isWaitlistExpanded ? 'Collapse' : `See More (${waitlist.length - 2})`}
                                 </button>
                             )}
                         </section>
                     )}
 
-                    {/* 4. GROWTH ARCHIVES (Vibrant, No Grayscale) */}
-                    {archivedSprints.length > 0 && (
+                    {/* 4. GROWTH ARCHIVES */}
+                    {archived.length > 0 && (
                         <section>
                             <div className="flex items-center gap-2 mb-4">
                                 <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Archives</h2>
                                 <div className="h-px bg-gray-100 flex-1"></div>
                             </div>
                             <div className="grid grid-cols-1 gap-2.5">
-                                {(isArchivedExpanded ? archivedSprints : archivedSprints.slice(0, 2)).map(({ enrollment, sprint }) => (
+                                {(isArchivedExpanded ? archived : archived.slice(0, 2)).map(({ enrollment, sprint }) => (
                                     <div key={enrollment.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-4 group animate-fade-in">
-                                        <div className="w-12 h-12 rounded-lg overflow-hidden">
-                                            <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50">
+                                            <img 
+                                                src={sprint.coverImageUrl || fallbackUrl} 
+                                                className="w-full h-full object-cover" 
+                                                alt="" 
+                                                onError={(e) => { e.currentTarget.src = fallbackUrl }}
+                                            />
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h3 className="font-bold text-gray-700 text-[12px] truncate">{sprint.title}</h3>
@@ -278,12 +286,12 @@ const MySprints: React.FC = () => {
                                     </div>
                                 ))}
                             </div>
-                            {archivedSprints.length > 2 && (
+                            {archived.length > 2 && (
                                 <button 
                                     onClick={() => setIsArchivedExpanded(!isArchivedExpanded)}
                                     className="mt-3 w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-400 font-black uppercase tracking-widest text-[8px] rounded-lg border border-gray-100 transition-all"
                                 >
-                                    {isArchivedExpanded ? 'Collapse' : `See More (${archivedSprints.length - 2})`}
+                                    {isArchivedExpanded ? 'Collapse' : `See More (${archived.length - 2})`}
                                 </button>
                             )}
                         </section>

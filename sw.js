@@ -33,12 +33,14 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // 2. Bypass interception for Firestore, Google APIs, and external CDNs
-  // This is critical to prevent "Failed to fetch" errors on complex dynamic requests.
+  // 2. Bypass interception for Firestore, Google APIs, and common external image CDNs
+  // This is critical to prevent "Failed to fetch" errors on complex dynamic requests or CORS image fetches.
   if (
     url.hostname.includes('firestore.googleapis.com') || 
     url.hostname.includes('firebase.io') ||
     url.hostname.includes('lh3.googleusercontent.com') ||
+    url.hostname.includes('picsum.photos') ||
+    url.hostname.includes('unsplash.com') ||
     url.pathname.includes('generateContent')
   ) {
     return;

@@ -1,10 +1,10 @@
-
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Sprint, Coach, UserRole, Participant } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { MOCK_PARTICIPANT_SPRINTS } from '../services/mockData';
 import { userService } from '../services/userService';
+import { assetService } from '../services/assetService';
 
 interface SprintCardProps {
     sprint: Sprint;
@@ -20,7 +20,6 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
     const isEnrolled = useMemo(() => {
         if (!user || user.role !== UserRole.PARTICIPANT) return false;
         const p = user as Participant;
-        // Fix: Property 'participantId' and 'sprintId' replaced with 'user_id' and 'sprint_id' to match type definition
         return p.enrolledSprintIds?.includes(sprint.id) || MOCK_PARTICIPANT_SPRINTS.some(ps => ps.user_id === user.id && ps.sprint_id === sprint.id);
     }, [user, sprint.id]);
 
@@ -69,6 +68,8 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
     const CardContainer = isStatic ? 'div' : Link;
     const containerProps = isStatic ? {} : { to: `/sprint/${sprint.id}` };
 
+    const fallbackUrl = assetService.URLS.DEFAULT_SPRINT_COVER;
+
     return (
         <div className="relative group h-full w-full">
             {/* Sophisticated Bookmark Toggle */}
@@ -97,8 +98,13 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                 {...containerProps} 
                 className={`bg-white rounded-[3rem] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] transition-all duration-700 flex flex-col border border-gray-100/60 overflow-hidden h-full group ${!isStatic ? 'hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-2 cursor-pointer' : 'cursor-default'}`}
             >
-                <div className="relative h-60 overflow-hidden">
-                    <img src={sprint.coverImageUrl || "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80"} alt="" className={`w-full h-full object-cover transition-transform duration-1000 ${!isStatic ? 'group-hover:scale-110 group-hover:rotate-1' : ''}`} />
+                <div className="relative h-60 overflow-hidden bg-gray-100">
+                    <img 
+                        src={sprint.coverImageUrl || fallbackUrl} 
+                        alt="" 
+                        className={`w-full h-full object-cover transition-transform duration-1000 ${!isStatic ? 'group-hover:scale-110 group-hover:rotate-1' : ''}`} 
+                        onError={(e) => { e.currentTarget.src = fallbackUrl }}
+                    />
                     <div className={`absolute inset-0 bg-gradient-to-t from-dark/40 to-transparent transition-opacity duration-700 ${!isStatic ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}></div>
                     <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black text-primary shadow-lg uppercase tracking-[0.2em]">{sprint.duration} Days</div>
                     

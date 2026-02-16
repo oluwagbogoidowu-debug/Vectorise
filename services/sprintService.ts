@@ -1,4 +1,3 @@
-
 import { db } from './firebase';
 import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp } from 'firebase/firestore';
 import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review } from '../types';
@@ -62,10 +61,23 @@ export const sprintService = {
         return snap.exists() ? sanitizeData(snap.data()) as Sprint : null;
     },
 
+    subscribeToSprint: (sprintId: string, callback: (sprint: Sprint | null) => void) => {
+        return onSnapshot(doc(db, SPRINTS_COLLECTION, sprintId), (doc) => {
+            callback(doc.exists() ? sanitizeData(doc.data()) as Sprint : null);
+        });
+    },
+
     getCoachSprints: async (coachId: string) => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("coachId", "==", coachId), where("deleted", "==", false));
         const snap = await getDocs(q);
         return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+    },
+
+    subscribeToCoachSprints: (coachId: string, callback: (sprints: Sprint[]) => void) => {
+        const q = query(collection(db, SPRINTS_COLLECTION), where("coachId", "==", coachId), where("deleted", "==", false));
+        return onSnapshot(q, (snap) => {
+            callback(snap.docs.map(doc => sanitizeData(doc.data()) as Sprint));
+        });
     },
 
     getAdminSprints: async () => {
@@ -74,10 +86,24 @@ export const sprintService = {
         return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
     },
 
+    subscribeToAdminSprints: (callback: (sprints: Sprint[]) => void) => {
+        const q = query(collection(db, SPRINTS_COLLECTION), where("deleted", "==", false));
+        return onSnapshot(q, (snap) => {
+            callback(snap.docs.map(doc => sanitizeData(doc.data()) as Sprint));
+        });
+    },
+
     getPublishedSprints: async () => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("published", "==", true), where("deleted", "==", false));
         const snap = await getDocs(q);
         return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+    },
+
+    subscribeToPublishedSprints: (callback: (sprints: Sprint[]) => void) => {
+        const q = query(collection(db, SPRINTS_COLLECTION), where("published", "==", true), where("deleted", "==", false));
+        return onSnapshot(q, (snap) => {
+            callback(snap.docs.map(doc => sanitizeData(doc.data()) as Sprint));
+        });
     },
 
     subscribeToReviewsForSprints: (sprintIds: string[], callback: (reviews: Review[]) => void) => {
