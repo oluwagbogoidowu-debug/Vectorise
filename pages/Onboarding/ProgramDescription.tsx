@@ -137,7 +137,11 @@ const ProgramDescription: React.FC = () => {
               <div className="bg-[#E7F5F0] border border-[#D3EBE3] rounded-[2.5rem] px-8 py-6 flex items-center justify-between animate-fade-in shadow-sm">
                   <div className="flex items-center gap-5">
                       <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center">
-                        <img src="https://em-content.zobj.net/source/apple/354/bullseye_1f3af.png" className="w-8 h-8" alt="target" />
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-[#159E6A]">
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5"/>
+                          <circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="2.5"/>
+                          <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                        </svg>
                       </div>
                       <div>
                           <p className="text-[10px] font-black text-[#159E6A] uppercase tracking-[0.25em] mb-1">Optimized Match</p>

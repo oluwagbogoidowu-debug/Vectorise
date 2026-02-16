@@ -33,6 +33,8 @@ const SprintLandingPage: React.FC = () => {
     
     const fallbackImage = "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80";
 
+    const selectedFocus = location.state?.selectedFocus;
+
     useEffect(() => {
         const fetchData = async () => {
             if (!sprintId) return;
@@ -108,6 +110,26 @@ const SprintLandingPage: React.FC = () => {
                                 <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.4em]">{sprint.duration} DAY PROTOCOL</p>
                             </div>
                         </div>
+
+                        {/* Optimized Match Card - Exact UI from User Reference */}
+                        {selectedFocus && (
+                          <div className="bg-[#E7F5F0] border border-[#D3EBE3] rounded-[2.5rem] px-8 py-6 flex items-center justify-between animate-fade-in shadow-sm">
+                              <div className="flex items-center gap-5">
+                                  <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-[#159E6A]">
+                                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5"/>
+                                      <circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="2.5"/>
+                                      <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                                    </svg>
+                                  </div>
+                                  <div>
+                                      <p className="text-[10px] font-black text-[#159E6A] uppercase tracking-[0.25em] mb-1">Optimized Match</p>
+                                      <p className="text-[14px] font-bold text-gray-700 italic leading-none">"{selectedFocus}"</p>
+                                  </div>
+                              </div>
+                              <span className="text-[9px] font-black bg-white px-4 py-2 rounded-xl text-gray-400 uppercase tracking-widest shadow-sm">Validated</span>
+                          </div>
+                        )}
 
                         {/* ENHANCED Transformation Section - Same Size, No Italics */}
                         <section className="bg-white rounded-[2.5rem] p-10 md:p-14 border border-gray-100 shadow-sm animate-fade-in relative overflow-hidden">
