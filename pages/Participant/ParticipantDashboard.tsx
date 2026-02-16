@@ -7,9 +7,14 @@ import { sprintService } from '../../services/sprintService';
 import { notificationService } from '../../services/notificationService';
 import LocalLogo from '../../components/LocalLogo';
 
+/**
+ * Calculates if a day is locked based on the "Next Midnight" protocol.
+ * A day is only accessible if the previous day is complete AND it is at least the next calendar day.
+ */
 const getDayStatus = (enrollment: ParticipantSprint, sprint: Sprint, now: number) => {
     const currentDayIndex = enrollment.progress.findIndex(p => !p.completed);
     
+    // If all days are completed
     if (currentDayIndex === -1) {
         return { 
             day: sprint.duration, 
@@ -23,21 +28,26 @@ const getDayStatus = (enrollment: ParticipantSprint, sprint: Sprint, now: number
     const content = sprint.dailyContent.find(c => c.day === currentDay);
 
     let isLocked = false;
+    let unlockTime = 0;
+
     if (currentDay > 1) {
         const prevDay = enrollment.progress.find(p => p.day === currentDay - 1);
         if (prevDay?.completedAt) {
             const completedDate = new Date(prevDay.completedAt);
+            // Lock until midnight of the next day
             const nextMidnight = new Date(
                 completedDate.getFullYear(),
                 completedDate.getMonth(),
                 completedDate.getDate() + 1,
                 0, 0, 0
             ).getTime();
+            
+            unlockTime = nextMidnight;
             if (now < nextMidnight) isLocked = true;
         }
     }
 
-    return { day: currentDay, isCompleted: false, isLocked, content };
+    return { day: currentDay, isCompleted: false, isLocked, unlockTime, content };
 };
 
 const ParticipantDashboard: React.FC = () => {
@@ -60,7 +70,7 @@ const ParticipantDashboard: React.FC = () => {
                 return sprint ? { enrollment, sprint } : null;
             }));
             const activeOnly = enriched.filter((item): item is { enrollment: ParticipantSprint; sprint: Sprint } => {
-                return item !== null && item.enrollment.progress.some(p => !p.completed);
+                return item !== null && item.enrollment.status === 'active';
             });
             setMySprints(activeOnly);
         } catch (err) {
@@ -72,23 +82,10 @@ const ParticipantDashboard: React.FC = () => {
     
     fetchData();
 
-    // High frequency timer for the countdown string
+    // High frequency timer for countdown calculation
     const timerInterval = setInterval(() => {
-        const currentTime = new Date();
-        setNow(currentTime.getTime());
-        
-        const midnight = new Date();
-        midnight.setHours(24, 0, 0, 0);
-        const diff = midnight.getTime() - currentTime.getTime();
-        
-        if (diff > 0) {
-            const h = Math.floor(diff / (1000 * 60 * 60));
-            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const s = Math.floor((diff % (1000 * 60)) / 1000);
-            setTimeToMidnight(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
-        } else {
-            setTimeToMidnight('00:00:00');
-        }
+        const currentTime = Date.now();
+        setNow(currentTime);
     }, 1000);
 
     let unsubscribeNotifs = () => {};
@@ -110,7 +107,23 @@ const ParticipantDashboard: React.FC = () => {
         .sort((a, b) => (a.status.isLocked ? 1 : 0) - (b.status.isLocked ? 1 : 0));
   }, [mySprints, now]);
 
-  const tasksReady = useMemo(() => activeSprintsData.filter(item => !item.status.isLocked), [activeSprintsData]);
+  const tasksReady = activeSprintsData.filter(item => !item.status.isLocked);
+  const mainTask = tasksReady[0] || activeSprintsData[0];
+
+  // Update countdown string for the main task if it's locked
+  useEffect(() => {
+    if (mainTask?.status.isLocked && mainTask.status.unlockTime) {
+        const diff = mainTask.status.unlockTime - now;
+        if (diff > 0) {
+            const h = Math.floor(diff / (1000 * 60 * 60));
+            const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const s = Math.floor((diff % (1000 * 60)) / 1000);
+            setTimeToMidnight(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+        } else {
+            setTimeToMidnight('00:00:00');
+        }
+    }
+  }, [mainTask, now]);
   
   const overallProgress = useMemo(() => {
       if (mySprints.length === 0) return 0;
@@ -121,7 +134,6 @@ const ParticipantDashboard: React.FC = () => {
 
   if (!user) return null;
 
-  const mainTask = tasksReady[0] || activeSprintsData[0];
   const isMainTaskLocked = mainTask?.status.isLocked;
   const mainTaskProgress = mainTask ? Math.round((mainTask.enrollment.progress.filter(p => p.completed).length / mainTask.sprint.duration) * 100) : 0;
 
