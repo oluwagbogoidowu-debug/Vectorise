@@ -1,20 +1,14 @@
+
 import { db } from './firebase';
-import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, deleteDoc, onSnapshot, addDoc, deleteField, writeBatch, increment, serverTimestamp } from 'firebase/firestore';
-import { ParticipantSprint, Sprint, Review, CoachingComment, UserEvent, LifecycleSlotAssignment, GlobalOrchestrationSettings } from '../types';
-import { userService, sanitizeData } from './userService';
-import { notificationService } from './notificationService';
-import { isRegistryIncomplete } from '../utils/sprintUtils';
-import { LIFECYCLE_SLOTS } from './mockData';
+import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp } from 'firebase/firestore';
+import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review } from '../types';
+import { sanitizeData } from './userService';
 
 const SPRINTS_COLLECTION = 'sprints';
 const ENROLLMENTS_COLLECTION = 'enrollments';
-const REVIEWS_COLLECTION = 'reviews';
+const ORCHESTRATOR_LOGS = 'orchestrator_logs';
 const ORCHESTRATION_COLLECTION = 'orchestration';
 const LINK_STATS_COLLECTION = 'link_stats';
-
-export interface OrchestrationMapping {
-    assignments: Record<string, { sprintId: string; focusCriteria: string[] }>;
-}
 
 export const sprintService = {
     incrementLinkClick: async (referralCode: string, sprintId?: string | null) => {
@@ -44,271 +38,147 @@ export const sprintService = {
         });
     },
 
+    logOrchestratorResolution: async (log: Omit<OrchestratorLog, 'timestamp'>) => {
+        try {
+            const entry = sanitizeData({
+                ...log,
+                timestamp: new Date().toISOString()
+            });
+            await addDoc(collection(db, ORCHESTRATOR_LOGS), entry);
+        } catch (e) {
+            console.error("[Orchestrator] Logging failed:", e);
+        }
+    },
+
     createSprint: async (sprint: Sprint) => {
-        try {
-            const now = new Date().toISOString();
-            const newSprint = sanitizeData({
-                ...sprint,
-                createdAt: sprint.createdAt || now,
-                updatedAt: now,
-                deleted: false
-            });
-            const sprintRef = doc(db, SPRINTS_COLLECTION, sprint.id);
-            await setDoc(sprintRef, newSprint);
-            return newSprint;
-        } catch (error) {
-            console.error("Error creating sprint in Firestore:", error);
-            throw error;
-        }
-    },
-
-    updateSprint: async (sprintId: string, data: Partial<Sprint>, isDirect: boolean = false) => {
-        try {
-            const now = new Date().toISOString();
-            const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
-            const sprintSnap = await getDoc(sprintRef);
-            
-            if (!sprintSnap.exists()) throw new Error("Sprint not found");
-            const existing = sprintSnap.data() as Sprint;
-
-            // If Admin is editing or it's a fresh draft, update directly
-            if (isDirect || existing.approvalStatus === 'draft' || existing.approvalStatus === 'rejected') {
-                const updateData = sanitizeData({
-                    ...data,
-                    updatedAt: now
-                });
-                await updateDoc(sprintRef, updateData);
-            } else {
-                // If Coach is editing a published/approved sprint, it goes into pendingChanges
-                // and triggers a re-audit status.
-                const updateData = sanitizeData({
-                    pendingChanges: {
-                        ...(existing.pendingChanges || {}),
-                        ...data,
-                        updatedAt: now
-                    },
-                    approvalStatus: 'pending_approval', // Flag for Admin re-audit
-                    updatedAt: now
-                });
-                await updateDoc(sprintRef, updateData);
-            }
-        } catch (error) {
-            console.error("Error updating sprint in Firestore:", error);
-            throw error;
-        }
-    },
-
-    deleteSprint: async (sprintId: string) => {
-        try {
-            const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
-            await updateDoc(sprintRef, {
-                deleted: true,
-                published: false,
-                updatedAt: new Date().toISOString()
-            });
-        } catch (error) {
-            console.error("Error deleting sprint:", error);
-            throw error;
-        }
-    },
-
-    approveSprint: async (sprintId: string, data?: Partial<Sprint>) => {
-        try {
-            const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
-            const sprintSnap = await getDoc(sprintRef);
-            if (!sprintSnap.exists()) throw new Error("Sprint not found");
-            const existing = sprintSnap.data() as Sprint;
-
-            // Merge pendingChanges into main record on approval
-            const finalData = {
-                ...(existing || {}),
-                ...(existing.pendingChanges || {}),
-                ...(data || {}),
-                approvalStatus: 'approved',
-                published: true,
-                updatedAt: new Date().toISOString(),
-                pendingChanges: deleteField() 
-            };
-
-            await updateDoc(sprintRef, sanitizeData(finalData));
-        } catch (error) {
-            console.error("Error approving sprint:", error);
-            throw error;
-        }
-    },
-
-    getAdminSprints: async () => {
-        try {
-            const q = query(collection(db, SPRINTS_COLLECTION), where("deleted", "==", false));
-            const querySnapshot = await getDocs(q);
-            const dbSprints: Sprint[] = [];
-            querySnapshot.forEach((doc) => {
-                dbSprints.push(sanitizeData(doc.data()) as Sprint);
-            });
-            return dbSprints;
-        } catch (error) {
-            console.error("Error fetching admin sprints:", error);
-            return [];
-        }
-    },
-
-    getPublishedSprints: async () => {
-        try {
-            const orchestration = await sprintService.getOrchestration();
-            const orchestratedSprintIds = new Set(
-                Object.values(orchestration)
-                    .map(mapping => mapping.sprintId)
-                    .filter(id => !!id)
-            );
-            if (orchestratedSprintIds.size === 0) return [];
-            const q = query(
-                collection(db, SPRINTS_COLLECTION), 
-                where("approvalStatus", "==", "approved"),
-                where("deleted", "==", false)
-            );
-            const querySnapshot = await getDocs(q);
-            const dbSprints: Sprint[] = [];
-            querySnapshot.forEach((doc) => {
-                const data = sanitizeData(doc.data()) as Sprint;
-                if (!orchestratedSprintIds.has(data.id)) return;
-                dbSprints.push(data);
-            });
-            return dbSprints;
-        } catch (error) {
-            return [];
-        }
-    },
-
-    getCoachSprints: async (coachId: string) => {
-        try {
-            const q = query(
-                collection(db, SPRINTS_COLLECTION), 
-                where("coachId", "==", coachId),
-                where("deleted", "==", false)
-            );
-            const querySnapshot = await getDocs(q);
-            const dbSprints: Sprint[] = [];
-            querySnapshot.forEach((doc) => {
-                dbSprints.push(sanitizeData(doc.data()) as Sprint);
-            });
-            return dbSprints;
-        } catch (error) {
-            return [];
-        }
+        const now = new Date().toISOString();
+        const newSprint = sanitizeData({ ...sprint, createdAt: now, updatedAt: now, deleted: false });
+        await setDoc(doc(db, SPRINTS_COLLECTION, sprint.id), newSprint);
+        return newSprint;
     },
 
     getSprintById: async (sprintId: string) => {
-        try {
-            const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
-            const sprintSnap = await getDoc(sprintRef);
-            if (sprintSnap.exists()) return sanitizeData(sprintSnap.data()) as Sprint;
-            return null;
-        } catch (error) {
-            return null;
-        }
+        const snap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId));
+        return snap.exists() ? sanitizeData(snap.data()) as Sprint : null;
     },
 
-    // Fix: Updated type to Record<string, LifecycleSlotAssignment> to support deep registry configuration
+    // Added missing method getCoachSprints
+    getCoachSprints: async (coachId: string) => {
+        const q = query(collection(db, SPRINTS_COLLECTION), where("coachId", "==", coachId), where("deleted", "==", false));
+        const snap = await getDocs(q);
+        return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+    },
+
+    // Added missing method getAdminSprints
+    getAdminSprints: async () => {
+        const q = query(collection(db, SPRINTS_COLLECTION), where("deleted", "==", false));
+        const snap = await getDocs(q);
+        return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+    },
+
+    // Added missing method getPublishedSprints
+    getPublishedSprints: async () => {
+        const q = query(collection(db, SPRINTS_COLLECTION), where("published", "==", true), where("deleted", "==", false));
+        const snap = await getDocs(q);
+        return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+    },
+
+    // Added missing method subscribeToReviewsForSprints
+    subscribeToReviewsForSprints: (sprintIds: string[], callback: (reviews: Review[]) => void) => {
+        if (!sprintIds.length) {
+            callback([]);
+            return () => {};
+        }
+        const q = query(collection(db, 'reviews'), where("sprintId", "in", sprintIds.slice(0, 10)));
+        return onSnapshot(q, (snapshot) => {
+            callback(snapshot.docs.map(doc => sanitizeData(doc.data()) as Review));
+        });
+    },
+
     saveOrchestration: async (assignments: Record<string, LifecycleSlotAssignment>) => {
         const docRef = doc(db, ORCHESTRATION_COLLECTION, 'current_mapping');
         await setDoc(docRef, sanitizeData({ assignments, updatedAt: new Date().toISOString() }), { merge: true });
     },
 
-    // Fix: Corrected return type to include the full LifecycleSlotAssignment interface
     getOrchestration: async (): Promise<Record<string, LifecycleSlotAssignment>> => {
         const docRef = doc(db, ORCHESTRATION_COLLECTION, 'current_mapping');
         const snap = await getDoc(docRef);
-        if (snap.exists()) {
-            return (sanitizeData(snap.data()) as any).assignments || {};
-        }
-        return {};
+        return snap.exists() ? (sanitizeData(snap.data()) as any).assignments || {} : {};
     },
 
-    // Added subscribeToOrchestration to support real-time platform logic updates
     subscribeToOrchestration: (callback: (mapping: Record<string, any>) => void) => {
-        const docRef = doc(db, ORCHESTRATION_COLLECTION, 'current_mapping');
-        return onSnapshot(docRef, (doc) => {
-            if (doc.exists()) {
-                callback((sanitizeData(doc.data()) as any).assignments || {});
-            } else {
-                callback({});
-            }
+        return onSnapshot(doc(db, ORCHESTRATION_COLLECTION, 'current_mapping'), (doc) => {
+            callback(doc.exists() ? (sanitizeData(doc.data()) as any).assignments || {} : {});
         });
     },
 
-    saveGlobalOrchestrationSettings: async (settings: GlobalOrchestrationSettings) => {
-        const docRef = doc(db, ORCHESTRATION_COLLECTION, 'global_settings');
-        await setDoc(docRef, sanitizeData({ ...settings, updatedAt: new Date().toISOString() }));
-    },
-
     getGlobalOrchestrationSettings: async (): Promise<GlobalOrchestrationSettings | null> => {
-        const docRef = doc(db, ORCHESTRATION_COLLECTION, 'global_settings');
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-            return sanitizeData(snap.data()) as GlobalOrchestrationSettings;
-        }
-        return null;
+        const snap = await getDoc(doc(db, ORCHESTRATION_COLLECTION, 'global_settings'));
+        return snap.exists() ? sanitizeData(snap.data()) as GlobalOrchestrationSettings : null;
     },
 
-    // Added subscribeToGlobalSettings to support real-time global orchestration settings
     subscribeToGlobalSettings: (callback: (settings: GlobalOrchestrationSettings | null) => void) => {
-        const docRef = doc(db, ORCHESTRATION_COLLECTION, 'global_settings');
-        return onSnapshot(docRef, (doc) => {
+        return onSnapshot(doc(db, ORCHESTRATION_COLLECTION, 'global_settings'), (doc) => {
             callback(doc.exists() ? sanitizeData(doc.data()) as GlobalOrchestrationSettings : null);
         });
     },
 
-    getSprintIdByFocus: async (focus: string): Promise<string | null> => {
-        const orchestration = await sprintService.getOrchestration();
-        for (const slotId in orchestration) {
-            const mapping = orchestration[slotId];
-            if (mapping.focusCriteria && mapping.focusCriteria.includes(focus)) {
-                return mapping.sprintId;
-            }
+    // Updated enrollUser to make commercial data optional to satisfy callers in LoginPage/SignUpPage
+    enrollUser: async (
+        userId: string, 
+        sprintId: string, 
+        duration: number, 
+        commercial?: { 
+            coachId?: string, 
+            pricePaid?: number, 
+            source?: PaymentSource, 
+            referral?: string | null 
         }
-        return null;
-    },
-
-    enrollUser: async (userId: string, sprintId: string, duration: number) => {
+    ) => {
         const enrollmentId = `enrollment_${userId}_${sprintId}`;
         const enrollmentRef = doc(db, ENROLLMENTS_COLLECTION, enrollmentId);
         const existing = await getDoc(enrollmentRef);
+        
         if (existing.exists()) return sanitizeData(existing.data()) as ParticipantSprint;
+
+        const now = new Date().toISOString();
         const newEnrollment: ParticipantSprint = {
-            id: enrollmentId, sprintId, participantId: userId,
-            startDate: new Date().toISOString(), sentNudges: [],
+            id: enrollmentId,
+            sprintId,
+            participantId: userId,
+            coachId: commercial?.coachId || '',
+            startDate: now,
+            pricePaid: commercial?.pricePaid || 0,
+            paymentSource: commercial?.source || 'direct',
+            referralSource: commercial?.referral || null,
+            status: 'active',
+            lastActivityAt: now,
+            sentNudges: [],
             progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
         };
+
         await setDoc(enrollmentRef, sanitizeData(newEnrollment));
-        await userService.addUserEnrollment(userId, sprintId);
         return newEnrollment;
     },
 
     getUserEnrollments: async (userId: string) => {
         const q = query(collection(db, ENROLLMENTS_COLLECTION), where("participantId", "==", userId));
         const snap = await getDocs(q);
-        const results: ParticipantSprint[] = [];
-        snap.forEach((doc) => results.push(sanitizeData(doc.data()) as ParticipantSprint));
-        return results;
+        return snap.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint);
     },
 
     subscribeToUserEnrollments: (userId: string, callback: (enrollments: ParticipantSprint[]) => void) => {
         const q = query(collection(db, ENROLLMENTS_COLLECTION), where("participantId", "==", userId));
         return onSnapshot(q, (snapshot) => {
-            const results: ParticipantSprint[] = [];
-            snapshot.forEach((doc) => results.push(sanitizeData(doc.data()) as ParticipantSprint));
-            callback(results);
+            callback(snapshot.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint));
         });
     },
 
     getEnrollmentsForSprints: async (sprintIds: string[]) => {
-        const validIds = (sprintIds || []).filter(id => !!id);
-        if (validIds.length === 0) return [];
-        const q = query(collection(db, ENROLLMENTS_COLLECTION), where("sprintId", "in", validIds.slice(0, 10)));
+        if (!sprintIds.length) return [];
+        const q = query(collection(db, ENROLLMENTS_COLLECTION), where("sprintId", "in", sprintIds.slice(0, 10)));
         const snap = await getDocs(q);
-        const results: ParticipantSprint[] = [];
-        snap.forEach(doc => results.push(sanitizeData(doc.data()) as ParticipantSprint));
-        return results;
+        return snap.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint);
     },
 
     subscribeToEnrollment: (enrollmentId: string, callback: (data: ParticipantSprint | null) => void) => {
@@ -317,14 +187,18 @@ export const sprintService = {
         });
     },
 
-    subscribeToReviewsForSprints: (sprintIds: string[], callback: (reviews: Review[]) => void) => {
-        const validIds = (sprintIds || []).filter(id => !!id);
-        if (validIds.length === 0) { callback([]); return () => {}; }
-        const q = query(collection(db, REVIEWS_COLLECTION), where("sprintId", "in", validIds.slice(0, 10)));
-        return onSnapshot(q, (snapshot) => {
-            const results: Review[] = [];
-            snapshot.forEach(doc => results.push(sanitizeData({ id: doc.id, ...doc.data() }) as Review));
-            callback(results);
-        });
+    updateSprint: async (sprintId: string, data: Partial<Sprint>, isDirect: boolean = false) => {
+        const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
+        await updateDoc(sprintRef, sanitizeData({ ...data, updatedAt: new Date().toISOString() }));
+    },
+
+    deleteSprint: async (sprintId: string) => {
+        await updateDoc(doc(db, SPRINTS_COLLECTION, sprintId), { deleted: true, published: false });
+    },
+
+    approveSprint: async (sprintId: string, data?: Partial<Sprint>) => {
+        const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
+        const finalData = { ...(data || {}), approvalStatus: 'approved', published: true, updatedAt: new Date().toISOString(), pendingChanges: deleteField() };
+        await updateDoc(sprintRef, sanitizeData(finalData));
     }
 };

@@ -3,15 +3,37 @@
  * Payment Service
  * Handles Sprint-based transactions via Flutterwave.
  */
+import { db } from './firebase';
+import { collection, addDoc } from 'firebase/firestore';
+import { PaymentAttempt, PaymentAttemptStatus } from '../types';
+import { sanitizeData } from './userService';
 
 interface PaymentPayload {
+  userId: string; // Required for tracking
   email: string;
   sprintId: string;
   amount: number;
   name?: string;
 }
 
+const PAYMENT_ATTEMPTS = 'payment_attempts';
+
 export const paymentService = {
+  /**
+   * Internal telemetry for payment lifecycles.
+   */
+  logPaymentAttempt: async (log: Omit<PaymentAttempt, 'timestamp'>) => {
+    try {
+      const entry = sanitizeData({
+        ...log,
+        timestamp: new Date().toISOString()
+      });
+      await addDoc(collection(db, PAYMENT_ATTEMPTS), entry);
+    } catch (e) {
+      console.error("[Registry] Logging payment failed:", e);
+    }
+  },
+
   /**
    * initializeFlutterwave(payload)
    * Calls the Vercel/Node serverless function to get a checkout link.
@@ -19,6 +41,14 @@ export const paymentService = {
   initializeFlutterwave: async (payload: PaymentPayload): Promise<string> => {
     console.log("[Registry] Initializing Flutterwave session for:", payload.email);
     
+    // 1. Log Initiation
+    await paymentService.logPaymentAttempt({
+        userId: payload.userId,
+        sprintId: payload.sprintId,
+        amount: payload.amount,
+        status: 'initiated'
+    });
+
     try {
       const response = await fetch("/api/flutterwave/initiate", {
         method: "POST",
@@ -31,75 +61,57 @@ export const paymentService = {
         })
       });
 
-      // Requirement: Ensure !response.ok check is intact
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Flutterwave error:", errorText);
+        await paymentService.logPaymentAttempt({
+            userId: payload.userId,
+            sprintId: payload.sprintId,
+            amount: payload.amount,
+            status: 'failed',
+            failureReason: errorText
+        });
         throw new Error(errorText);
       }
 
-      // Requirement: Use the specific content-type logic requested
-      const contentType = response.headers.get("content-type");
-      let data;
-
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json();
-      } else {
-        const text = await response.text();
-        console.error("Non-JSON response:", text);
-        throw new Error("Server returned non-JSON response");
-      }
-      
-      // Standard Flutterwave response has the link at data.link
+      const data = await response.json();
       const checkoutUrl = data.data?.link || data.link;
       
       if (checkoutUrl) {
-        console.log("[Registry] Authorization URL generated successfully.");
+        await paymentService.logPaymentAttempt({
+            userId: payload.userId,
+            sprintId: payload.sprintId,
+            amount: payload.amount,
+            status: 'processing'
+        });
         return checkoutUrl;
       }
       
-      console.error("[Registry] Payload received but link missing:", data);
       throw new Error("Registry returned an incomplete response (Missing Link).");
     } catch (error: any) {
-      console.error("[Registry] Payment Init Error:", error.message);
+      await paymentService.logPaymentAttempt({
+          userId: payload.userId,
+          sprintId: payload.sprintId,
+          amount: payload.amount,
+          status: 'failed',
+          failureReason: error.message
+      });
       throw error;
     }
   },
 
   /**
    * verifyPayment(gateway, reference)
-   * Polls the backend to verify that fulfillment (enrollment) has occurred.
    */
-  // Fix: Added optional email property to the return type to satisfy TypeScript requirements in PaymentSuccess component
   verifyPayment: async (gateway: string, reference: string): Promise<{ status: string; email?: string }> => {
-    console.log(`[Registry] Verifying ${gateway} payment:`, reference);
-    
     const url = gateway === 'paystack'
       ? `https://us-central1-vectorise-f19d4.cloudfunctions.net/verifyPayment?reference=${reference}`
       : `/api/flutterwave/verify?reference=${reference}`;
 
     try {
       const response = await fetch(url);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Verification error:", errorText);
-        return { status: 'error' };
-      }
-
-      const contentType = response.headers.get("content-type");
-      let data;
-
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json();
-        return data;
-      } else {
-        const text = await response.text();
-        console.error("Non-JSON response:", text);
-        return { status: 'pending' };
-      }
+      if (!response.ok) return { status: 'error' };
+      return await response.json();
     } catch (error) {
-      console.error("[Registry] Payment Verification Error:", error);
       return { status: 'error' };
     }
   }

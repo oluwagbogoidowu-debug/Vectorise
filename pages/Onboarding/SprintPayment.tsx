@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
@@ -6,7 +7,7 @@ import { paymentService } from '../../services/paymentService';
 import { userService } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { useAuth } from '../../contexts/AuthContext';
-import { Sprint, Participant, GlobalOrchestrationSettings, MicroSelector, MicroSelectorStep } from '../../types';
+import { Sprint, Participant, GlobalOrchestrationSettings } from '../../types';
 
 const SprintPayment: React.FC = () => {
   const navigate = useNavigate();
@@ -20,7 +21,6 @@ const SprintPayment: React.FC = () => {
   
   const [globalSettings, setGlobalSettings] = useState<GlobalOrchestrationSettings | null>(null);
 
-  // Preserve navigation context
   const state = location.state || {};
   const selectedSprint: Sprint | null = state.sprint || null;
   
@@ -57,8 +57,10 @@ const SprintPayment: React.FC = () => {
         auditId: selectedSprint.id
       });
       await updateProfile({ walletBalance: userBalance - sprintPrice });
+      
       const enrollments = await sprintService.getUserEnrollments(user.id);
-      const hasActive = enrollments.some(e => e.progress.some(p => !p.completed));
+      const hasActive = enrollments.some(e => e.status === 'active');
+      
       if (hasActive) {
           const currentQueue = userParticipant.savedSprintIds || [];
           if (!currentQueue.includes(selectedSprint.id)) {
@@ -67,7 +69,11 @@ const SprintPayment: React.FC = () => {
           }
           navigate('/my-sprints', { replace: true });
       } else {
-          const enrollment = await sprintService.enrollUser(user.id, selectedSprint.id, selectedSprint.duration);
+          const enrollment = await sprintService.enrollUser(user.id, selectedSprint.id, selectedSprint.duration, {
+              coachId: selectedSprint.coachId,
+              pricePaid: 0,
+              source: 'coin'
+          });
           navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
       }
     } catch (error: any) {
@@ -81,8 +87,15 @@ const SprintPayment: React.FC = () => {
         setErrorMessage("Please enter a valid email address to secure your registry.");
         return;
     }
+    
+    // REQUIRE USER ID FOR TRACKING
+    // If not logged in, we must generate a ghost ID or redirect to signup first.
+    // For Vectorise, we prioritize checkout. We'll use the email as a temporary trace.
+    const traceId = user?.id || `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
+
     setIsProcessing(true);
     setErrorMessage(null);
+
     try {
       if (!user) {
           const emailExists = await userService.checkEmailExists(effectiveEmail);
@@ -94,12 +107,15 @@ const SprintPayment: React.FC = () => {
               return;
           }
       }
+
       const checkoutUrl = await paymentService.initializeFlutterwave({
+        userId: traceId,
         email: effectiveEmail.toLowerCase().trim(),
         sprintId: selectedSprint?.id || 'clarity-sprint',
         amount: Number(sprintPrice),
         name: user?.name || 'Vectorise Guest'
       });
+      
       window.location.href = checkoutUrl;
     } catch (error: any) {
       setErrorMessage(error.message || "Unable to reach the payment gateway. Please try again.");
@@ -123,18 +139,13 @@ const SprintPayment: React.FC = () => {
 
         <div className="bg-white rounded-[3rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col animate-slide-up">
           <header className="p-8 md:p-12 text-center border-b border-gray-50">
-             <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-none mb-3 italic">
-               Unlock {sprintTitle}
-             </h1>
+             <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-none mb-3 italic">Unlock {sprintTitle}</h1>
           </header>
-
           <main className="p-8 md:p-12 space-y-10">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                <section className="bg-gray-50 rounded-3xl p-8 border border-gray-100 text-center space-y-2 relative overflow-hidden">
                   <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Investment</p>
-                  <h3 className="text-5xl font-black text-gray-900 tracking-tighter">
-                    {isCreditSprint ? '🪙' : '₦'}{sprintPrice.toLocaleString()}
-                  </h3>
+                  <h3 className="text-5xl font-black text-gray-900 tracking-tighter">{isCreditSprint ? '🪙' : '₦'}{sprintPrice.toLocaleString()}</h3>
                </section>
                <section className="space-y-4 pt-4">
                   <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">What's included</h2>
@@ -145,64 +156,35 @@ const SprintPayment: React.FC = () => {
                   </div>
                </section>
             </div>
-
             {!isCreditSprint && !user && (
                <section className="pt-6 border-t border-gray-50 space-y-4">
                  <div className="max-w-sm mx-auto">
                     <label className="block text-[8px] font-black text-gray-400 uppercase mb-2 ml-1">Email Address</label>
-                    <input 
-                        type="email"
-                        value={guestEmail}
-                        onChange={(e) => setGuestEmail(e.target.value)}
-                        placeholder="your@email.com"
-                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold"
-                    />
+                    <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="your@email.com" className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold" />
                  </div>
                </section>
             )}
-
             <section className="pt-6 border-t border-gray-50 space-y-6">
                <label className="flex items-start gap-4 p-5 bg-primary/5 border border-primary/10 rounded-2xl cursor-pointer active:scale-[0.98] transition-all group hover:bg-primary/10">
-                <input 
-                  type="checkbox" 
-                  checked={finalCommitment}
-                  onChange={(e) => setFinalCommitment(e.target.checked)}
-                  className="w-5 h-5 mt-0.5 bg-white border-gray-200 rounded focus:ring-primary text-primary"
-                />
+                <input type="checkbox" checked={finalCommitment} onChange={(e) => setFinalCommitment(e.target.checked)} className="w-5 h-5 mt-0.5 bg-white border-gray-200 rounded focus:ring-primary text-primary" />
                 <span className="text-xs font-black text-primary uppercase tracking-widest leading-tight">I’m committing to complete this sprint.</span>
               </label>
+              {errorMessage && <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-[10px] font-bold text-red-600 uppercase tracking-widest text-center animate-pulse">{errorMessage}</div>}
             </section>
           </main>
-
           <footer className="p-8 md:p-12 pt-4 bg-gray-50/50 border-t border-gray-50">
              <div className="space-y-6">
-                <Button 
-                  onClick={isCreditSprint ? handleCoinPayment : startCashPayment}
-                  disabled={!canPay}
-                  isLoading={isProcessing}
-                  className="w-full py-5 rounded-full shadow-2xl text-sm uppercase font-black"
-                >
-                  {isProcessing ? "Authorizing..." : isCreditSprint ? `Redeem ${sprintPrice} Credits` : "Pay & Start Sprint"}
-                </Button>
-                
-                <div className="text-center">
-                    <button 
-                      onClick={handleHesitation}
-                      className="text-[10px] font-black text-gray-400 hover:text-primary transition-colors underline underline-offset-4 decoration-gray-200 cursor-pointer"
-                    >
-                      Not sure yet? See The Map (the full system) before you begin
-                    </button>
-                </div>
+                <Button onClick={isCreditSprint ? handleCoinPayment : startCashPayment} disabled={!canPay} isLoading={isProcessing} className="w-full py-5 rounded-full shadow-2xl text-sm uppercase font-black">{isProcessing ? "Authorizing..." : isCreditSprint ? `Redeem ${sprintPrice} Credits` : "Pay & Start Sprint"}</Button>
+                <div className="text-center"><button onClick={handleHesitation} className="text-[10px] font-black text-gray-400 hover:text-primary transition-colors underline underline-offset-4 decoration-gray-200 cursor-pointer">Not sure yet? See The Map</button></div>
              </div>
           </footer>
         </div>
       </div>
-
       <style>{`
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-slide-up { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}</style>
     </div>
   );

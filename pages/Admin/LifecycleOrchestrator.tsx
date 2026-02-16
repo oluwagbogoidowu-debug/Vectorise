@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { LifecycleStage, LifecycleSlot, Sprint, SprintType, MicroSelector, MicroSelectorStep, GlobalOrchestrationSettings, OrchestrationTrigger, OrchestrationAction, LifecycleSlotAssignment } from '../../types';
 import { LIFECYCLE_STAGES_CONFIG, LIFECYCLE_SLOTS, FOCUS_OPTIONS } from '../../services/mockData';
@@ -101,7 +102,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
             const current = prev[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...FOCUS_OPTIONS] };
             const focusMap = { ...(current.sprintFocusMap || {}) };
             
-            // Fix: Cast 'options' as string[] to resolve the type error on line 107
+            // Fix: Cast 'options' as string[] to resolve the type error
             const isUsedByOther = Object.entries(focusMap).some(([otherId, options]) => 
                 otherId !== sprintId && (options as string[]).includes(option)
             );
@@ -225,6 +226,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                         
                         const isTriggerOpen = activeTriggerPicker === slot.id;
                         const isSprintPickerOpen = activeSprintPicker === slot.id;
+                        // Fix: Corrected typo 'editingFocusText' to 'isEditingFocusText'
                         const isEditingFocusText = editingFocusSlot === slot.id;
                         
                         const slotFocusOptions = assignment.availableFocusOptions || FOCUS_OPTIONS;
@@ -284,7 +286,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                                         <div className="flex items-center gap-2">
                                             <h5 className="text-[9px] font-black text-gray-300 uppercase tracking-[0.25em]">Registry Assignment</h5>
                                             <button 
-                                                onClick={() => setEditingFocusSlot(editingFocusText ? null : slot.id)}
+                                                onClick={() => setEditingFocusSlot(isEditingFocusText ? null : slot.id)}
                                                 className={`p-1 transition-all active:scale-90 ${isEditingFocusText ? 'text-primary' : 'text-gray-300 hover:text-primary'}`}
                                                 title="Edit Focus Option Labels"
                                             >
@@ -431,7 +433,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                                                 // UNIFIED UNIQUENESS LOGIC: Find focus options taken by OTHER items in THIS slot
                                                 const focusTakenByOthers = Object.entries(assignment.sprintFocusMap || {})
                                                     .filter(([otherId]) => otherId !== sId)
-                                                    .flatMap(([_, options]) => options);
+                                                    .flatMap(([_, options]) => options as string[]);
 
                                                 return (
                                                     <div key={sId} className={`w-full p-8 rounded-[2.5rem] border shadow-md flex flex-col gap-6 group transition-all hover:shadow-lg ${isSystem ? 'bg-primary/5 border-primary/20' : 'bg-white border-primary/10'}`}>
