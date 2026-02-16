@@ -1,21 +1,45 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
 import { Sprint } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
+import { sprintService } from '../../services/sprintService';
 
 const CommitmentFraming: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [isCommitted, setIsCommitted] = useState(false);
   const [showEmailCapture, setShowEmailCapture] = useState(false);
   const [email, setEmail] = useState('');
   const [isSubmittingEmail, setIsSubmittingEmail] = useState(false);
+  const [hasActiveSprint, setHasActiveSprint] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
   // Preserve navigation context (target sprints, skip logic, etc.)
   const state = location.state || {};
   const sprint: Sprint | null = state.sprint || null;
+
+  useEffect(() => {
+    const checkActive = async () => {
+        if (!user) {
+            setIsChecking(false);
+            return;
+        }
+        try {
+            const enrollments = await sprintService.getUserEnrollments(user.id);
+            const active = enrollments.some(e => e.status === 'active' && e.progress.some(p => !p.completed));
+            setHasActiveSprint(active);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsChecking(false);
+        }
+    };
+    checkActive();
+  }, [user]);
 
   const handleContinue = () => {
     if (!isCommitted) return;
@@ -37,6 +61,14 @@ const CommitmentFraming: React.FC = () => {
     navigate('/');
   };
 
+  if (isChecking) {
+      return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-dark/95 backdrop-blur-md">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+          </div>
+      );
+  }
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-dark/95 backdrop-blur-md animate-fade-in selection:bg-primary/10">
       
@@ -47,11 +79,25 @@ const CommitmentFraming: React.FC = () => {
           <header className="p-8 pb-4 text-center border-b border-gray-50 flex-shrink-0">
              <LocalLogo type="green" className="h-6 w-auto mx-auto mb-4 opacity-80" />
              <h1 className="text-2xl font-black text-gray-900 tracking-tighter italic">Before you start</h1>
-             <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mt-1 opacity-60">Execution Protocol</p>
+             <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mt-1 opacity-60">
+                 {hasActiveSprint ? 'Registry Queue Protocol' : 'Execution Protocol'}
+             </p>
           </header>
 
           <main className="flex-1 overflow-y-auto p-8 pt-6 custom-scrollbar space-y-8">
             
+            {hasActiveSprint && (
+                <div className="bg-blue-50 border border-blue-100 p-5 rounded-2xl animate-fade-in">
+                    <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
+                        Active Session Detected
+                    </p>
+                    <p className="text-xs font-bold text-blue-800 leading-relaxed italic">
+                        "You’re already running a sprint. This program will be added to your <strong className="underline decoration-blue-200 underline-offset-2">Upcoming Queue</strong> and will activate automatically once your current cycle ends."
+                    </p>
+                </div>
+            )}
+
             <section className="space-y-4">
               <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">Requirements</h2>
               <div className="space-y-3">
@@ -106,10 +152,10 @@ const CommitmentFraming: React.FC = () => {
                 onClick={handleContinue}
                 disabled={!isCommitted}
                 className={`w-full py-4 rounded-full shadow-xl transition-all text-[11px] uppercase tracking-widest font-black ${
-                  isCommitted ? 'bg-primary text-white active:scale-95' : 'bg-gray-100 text-gray-300 grayscale cursor-not-allowed border-none shadow-none'
+                  isCommitted ? 'bg-primary text-white active:scale-95' : 'bg-gray-100 text-gray-400 grayscale cursor-not-allowed border-none shadow-none'
                 }`}
               >
-                Secure My Path &rarr;
+                {hasActiveSprint ? 'Secure for Queue' : 'Secure My Path'} &rarr;
               </Button>
               
               <div className="text-center">

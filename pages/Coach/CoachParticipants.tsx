@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -57,14 +58,17 @@ const CoachParticipants: React.FC = () => {
                 }
 
                 const enrollments = await sprintService.getEnrollmentsForSprints(mySprintIds);
-                const uniqueParticipantIds = Array.from(new Set(enrollments.map(e => e.participantId)));
+                // Fix: Property 'participantId' replaced with 'user_id' and added explicit string array casting
+                const uniqueParticipantIds = Array.from(new Set(enrollments.map(e => e.user_id))) as string[];
                 const dbParticipants = await userService.getUsersByIds(uniqueParticipantIds);
 
                 const now = new Date();
                 const enriched = enrollments.map(ps => {
-                    const student = dbParticipants.find(u => u.id === ps.participantId) || 
-                                   MOCK_USERS.find(u => u.id === ps.participantId) as Participant;
-                    const sprint = approvedSprints.find(s => s.id === ps.sprintId) as Sprint;
+                    // Fix: Property 'participantId' replaced with 'user_id'
+                    const student = dbParticipants.find(u => u.id === ps.user_id) || 
+                                   MOCK_USERS.find(u => u.id === ps.user_id) as Participant;
+                    // Fix: Property 'sprintId' replaced with 'sprint_id'
+                    const sprint = approvedSprints.find(s => s.id === ps.sprint_id) as Sprint;
                     
                     if (!sprint || !student) return null;
 
@@ -108,9 +112,10 @@ const CoachParticipants: React.FC = () => {
         }
 
         const fetchChat = async () => {
+            // Fix: Property 'sprintId' replaced with 'sprint_id' and 'participantId' replaced with 'user_id'
             const allMessages = await chatService.getConversation(
-                viewingSubmission.enrollment.sprintId, 
-                viewingSubmission.enrollment.participantId
+                viewingSubmission.enrollment.sprint_id, 
+                viewingSubmission.enrollment.user_id
             );
             setDayComments(allMessages.filter(c => c.day === viewingSubmission.day));
         };
@@ -129,7 +134,8 @@ const CoachParticipants: React.FC = () => {
 
     const filteredEnrollments = useMemo(() => {
         return allEnrollments.filter(e => {
-            const matchesSprint = selectedSprintId === 'all' || e.sprintId === selectedSprintId;
+            // Fix: Property 'sprintId' replaced with 'sprint_id'
+            const matchesSprint = selectedSprintId === 'all' || e.sprint_id === selectedSprintId;
             const matchesSearch = e.student.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                                  e.sprint.title.toLowerCase().includes(searchTerm.toLowerCase());
             return matchesSprint && matchesSearch;
@@ -146,10 +152,11 @@ const CoachParticipants: React.FC = () => {
         if (!content || !user || !viewingSubmission) return;
 
         setIsSendingFeedback(true);
+        // Fix: Property 'sprintId' replaced with 'sprint_id' and 'participantId' replaced with 'user_id'
         const newMessage: Omit<CoachingComment, 'id'> = {
-            sprintId: viewingSubmission.enrollment.sprintId,
+            sprintId: viewingSubmission.enrollment.sprint_id,
             day: viewingSubmission.day,
-            participantId: viewingSubmission.enrollment.participantId,
+            participantId: viewingSubmission.enrollment.user_id,
             authorId: user.id,
             content: content,
             timestamp: new Date().toISOString(),
@@ -160,8 +167,9 @@ const CoachParticipants: React.FC = () => {
             await chatService.sendMessage(newMessage);
             
             // Fix: Corrected positional arguments for createNotification and used valid type 'coach_message'.
+            // Fix: Property 'participantId' replaced with 'user_id'
             await notificationService.createNotification(
-                viewingSubmission.enrollment.participantId, 
+                viewingSubmission.enrollment.user_id, 
                 'coach_message',
                 'New Coaching Guidance',
                 `Coach ${user.name} sent feedback for Day ${viewingSubmission.day} of ${viewingSubmission.enrollment.sprint.title}`,
@@ -255,7 +263,8 @@ const CoachParticipants: React.FC = () => {
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-bold text-gray-900">{e.student.name}</p>
-                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">Started {formatTimeAgo(e.startDate)}</p>
+                                                    {/* Fix: Property 'startDate' replaced with 'started_at' */}
+                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">Started {formatTimeAgo(e.started_at)}</p>
                                                 </div>
                                             </div>
                                         </td>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -55,7 +56,7 @@ const ParticipantDashboard: React.FC = () => {
         try {
             const enrollments = await sprintService.getUserEnrollments(user.id);
             const enriched = await Promise.all(enrollments.map(async (enrollment) => {
-                const sprint = await sprintService.getSprintById(enrollment.sprintId);
+                const sprint = await sprintService.getSprintById(enrollment.sprint_id);
                 return sprint ? { enrollment, sprint } : null;
             }));
             const activeOnly = enriched.filter((item): item is { enrollment: ParticipantSprint; sprint: Sprint } => {
@@ -177,7 +178,7 @@ const ParticipantDashboard: React.FC = () => {
                 </Link>
             </div>
 
-            {/* 3. MAIN TASK CARD - Updated for Locked Timer UI */}
+            {/* 3. MAIN TASK CARD */}
             <div className="flex-1 flex flex-col min-h-0 mb-6">
                 {isLoading ? (
                     <div className="bg-white rounded-3xl flex-1 animate-pulse border border-gray-100 shadow-sm"></div>
@@ -198,9 +199,9 @@ const ParticipantDashboard: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="flex-1 min-h-0 overflow-hidden flex flex-col mb-4">
+                                <div className="flex-1 min-w-0 overflow-hidden flex flex-col mb-4">
                                     {isMainTaskLocked ? (
-                                        /* LOCKED TIMER UI (Matching user reference image) */
+                                        /* LOCKED TIMER UI */
                                         <div className="bg-[#F9FAFB] rounded-[1.5rem] p-6 flex-1 flex flex-col items-center justify-center text-center relative overflow-hidden border border-gray-100/50">
                                             <div className="absolute right-[-10%] top-1/2 -translate-y-1/2 opacity-[0.02] scale-[2] pointer-events-none">
                                                 <LocalLogo type="favicon" className="w-48 h-48" />

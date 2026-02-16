@@ -1,42 +1,13 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Coach, Sprint, Participant, UserRole, LifecycleSlotAssignment } from '../../types';
+import { useNavigate } from 'react-router-dom';
+import { Coach, Sprint, Participant, ParticipantSprint, LifecycleSlotAssignment } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { useAuth } from '../../contexts/AuthContext';
 import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import LocalLogo from '../../components/LocalLogo';
-
-/**
- * MINI SPRINT CARD (Internal)
- * Used for "Other options you can explore" section
- */
-const MiniSprintCard: React.FC<{ sprint: Sprint; coach: Coach }> = ({ sprint, coach }) => (
-    <Link to={`/sprint/${sprint.id}`} className="flex-shrink-0 w-64 group">
-        <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden h-full flex flex-col transition-all hover:shadow-md active:scale-[0.98]">
-            <div className="relative h-32 overflow-hidden">
-                <img src={sprint.coverImageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" />
-                <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-2 py-1 rounded-lg text-[7px] font-black text-primary uppercase tracking-widest shadow-sm">
-                    {sprint.duration} Days
-                </div>
-            </div>
-            <div className="p-5 flex flex-col flex-1">
-                <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest mb-1">{sprint.category}</p>
-                <h4 className="text-sm font-black text-gray-900 leading-tight mb-4 line-clamp-2">{sprint.title}</h4>
-                
-                <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <img src={coach.profileImageUrl || `https://ui-avatars.com/api/?name=${coach.name || 'C'}&background=0E7850&color=fff`} className="w-6 h-6 rounded-lg object-cover" alt="" />
-                        <span className="text-[9px] font-bold text-gray-500 truncate max-w-[80px]">{coach.name?.split(' ')[0] || 'Coach'}</span>
-                    </div>
-                    <span className="text-[9px] font-black text-primary uppercase tracking-widest">
-                        {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost}` : 'View Sprint'}
-                    </span>
-                </div>
-            </div>
-        </div>
-    </Link>
-);
+import SprintCard from '../../components/SprintCard';
 
 /**
  * LOCKED STAGE CARD (Internal)
@@ -71,9 +42,9 @@ const LockedStageCard: React.FC<{
 
 const DiscoverSprints: React.FC = () => {
     const { user } = useAuth();
-    const navigate = useNavigate();
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [coaches, setCoaches] = useState<Coach[]>([]);
+    const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
     const [orchestration, setOrchestration] = useState<Record<string, LifecycleSlotAssignment>>({});
     const [isLoading, setIsLoading] = useState(true);
 
@@ -86,6 +57,7 @@ const DiscoverSprints: React.FC = () => {
                     userService.getCoaches(),
                     sprintService.getOrchestration() as Promise<Record<string, LifecycleSlotAssignment>>
                 ]);
+                
                 setSprints(publishedSprints);
                 setCoaches(dbCoaches);
                 setOrchestration(mapping);
@@ -98,22 +70,38 @@ const DiscoverSprints: React.FC = () => {
         loadDiscoveryData();
     }, []);
 
+    // Subscribe to enrollments for reactive filtering of "Active" sprints
+    useEffect(() => {
+        if (!user) {
+            setUserEnrollments([]);
+            return;
+        }
+        const unsubscribe = sprintService.subscribeToUserEnrollments(user.id, (data) => {
+            setUserEnrollments(data);
+        });
+        return () => unsubscribe();
+    }, [user]);
+
+    // Identity the active sprint to exclude it from discovery
+    // A sprint is active if it has incomplete tasks
+    const activeSprintId = useMemo(() => {
+        const active = userEnrollments.find(e => e.status === 'active' && e.progress.some(p => !p.completed));
+        return active?.sprintId;
+    }, [userEnrollments]);
+
     // 1. Recommended Logic: Priority Slot Resolution based on User Focus
     const recommendedSprint = useMemo(() => {
         if (sprints.length === 0) return null;
         
         const participant = user as Participant;
-        // Find user focus from profile answers
         const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
                          Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
 
         if (userFocus) {
-            // Check foundation slots in priority order
             const prioritySlots = ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
             for (const slotId of prioritySlots) {
                 const mapping = orchestration[slotId];
                 if (mapping) {
-                    // New logic: Check the sprintFocusMap for a specific match
                     const focusMap = mapping.sprintFocusMap || {};
                     const matchedSprintId = Object.keys(focusMap).find(sId => focusMap[sId]?.includes(userFocus));
                     
@@ -122,7 +110,6 @@ const DiscoverSprints: React.FC = () => {
                         if (matchedSprint) return matchedSprint;
                     }
 
-                    // Fallback to older focusCriteria logic if map is empty
                     if (mapping.focusCriteria?.includes(userFocus)) {
                         const pool = mapping.sprintIds || (mapping.sprintId ? [mapping.sprintId] : []);
                         const matchedSprint = sprints.find(s => pool.includes(s.id));
@@ -132,7 +119,6 @@ const DiscoverSprints: React.FC = () => {
             }
         }
 
-        // Fallback to default logic (Paid sprint matching stage)
         const targetStage = participant?.currentStage || 'Direction';
         return sprints.find(s => 
             CATEGORY_TO_STAGE_MAP[s.category] === targetStage && 
@@ -148,10 +134,12 @@ const DiscoverSprints: React.FC = () => {
         } as Coach;
     }, [recommendedSprint, coaches]);
 
-    // 2. Other options: All other available sprints from the orchestrated pool
+    // 2. Other options: Filtered for active sprint and limited to 3
     const otherOptions = useMemo(() => {
-        return sprints.filter(s => s.id !== recommendedSprint?.id);
-    }, [sprints, recommendedSprint]);
+        return sprints
+            .filter(s => s.id !== recommendedSprint?.id && s.id !== activeSprintId)
+            .slice(0, 3);
+    }, [sprints, recommendedSprint, activeSprintId]);
 
     if (isLoading) {
         return (
@@ -185,54 +173,24 @@ const DiscoverSprints: React.FC = () => {
                             <p className="text-xs text-gray-400 font-medium italic">Based on where you are right now.</p>
                         </div>
 
-                        <Link to={`/sprint/${recommendedSprint.id}`} className="block group">
-                            <div className="bg-white rounded-[3rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.08)] border border-gray-100 overflow-hidden transition-all duration-700 hover:shadow-2xl hover:-translate-y-1">
-                                <div className="relative h-64 overflow-hidden">
-                                    <img src={recommendedSprint.coverImageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" alt="" />
-                                    <div className="absolute top-6 right-6 bg-white/95 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black text-primary shadow-lg uppercase tracking-widest">
-                                        {recommendedSprint.duration} Days
-                                    </div>
-                                    <div className="absolute inset-0 bg-gradient-to-t from-dark/60 via-transparent to-transparent opacity-60"></div>
-                                    <div className="absolute bottom-6 left-8">
-                                        <span className="px-3 py-1 bg-primary text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg">Strategic Move</span>
-                                    </div>
-                                </div>
-                                
-                                <div className="p-8 md:p-10">
-                                    <h3 className="text-2xl font-black text-gray-900 mb-3 tracking-tight group-hover:text-primary transition-colors italic">
-                                        {recommendedSprint.title}
-                                    </h3>
-                                    <p className="text-sm text-gray-500 font-medium leading-relaxed italic mb-8">"{recommendedSprint.description}"</p>
-                                    
-                                    <div className="flex flex-col sm:flex-row gap-6 items-center justify-between pt-6 border-t border-gray-50">
-                                        <div className="flex items-center gap-3">
-                                            <img src={recommendedCoach?.profileImageUrl} className="w-10 h-10 rounded-xl object-cover border-2 border-white shadow-sm ring-1 ring-gray-100" alt="" />
-                                            <div>
-                                                <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest">Guided By</p>
-                                                <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{recommendedCoach?.name}</p>
-                                            </div>
-                                        </div>
-                                        <button className="w-full sm:w-auto px-10 py-4 bg-primary text-white rounded-[1.5rem] font-black uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-primary/20 active:scale-95 transition-all">
-                                            Start this sprint &rarr;
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </Link>
+                        <SprintCard 
+                            sprint={recommendedSprint} 
+                            coach={recommendedCoach as Coach} 
+                        />
                     </section>
                 )}
 
-                {/* SECTION 2: OTHER OPTIONS (ALL OTHER OPTIONS) */}
+                {/* SECTION 2: OTHER OPTIONS (Max 3, no active) */}
                 {otherOptions.length > 0 && (
                     <section className="mb-16">
                         <div className="mb-6 px-2">
                             <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em] mb-1">Other options you can explore</h2>
-                            <p className="text-xs text-gray-400 font-medium italic">Select another program from the active registry pool.</p>
+                            <p className="text-xs text-gray-400 font-medium italic">Save for later to build your future waitlist (Max 3).</p>
                         </div>
                         
-                        <div className="flex gap-5 overflow-x-auto pb-8 no-scrollbar px-2 -mx-2">
+                        <div className="flex flex-col gap-8">
                             {otherOptions.map(s => (
-                                <MiniSprintCard 
+                                <SprintCard 
                                     key={s.id} 
                                     sprint={s} 
                                     coach={coaches.find(c => c.id === s.coachId) || ({} as Coach)} 

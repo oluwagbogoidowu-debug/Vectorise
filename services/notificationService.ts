@@ -81,8 +81,9 @@ export const notificationService = {
     const message = template.replace('{day}', nextDay.toString()).replace('{title}', sprint.title);
 
     try {
+        // Fix: Property 'participantId' replaced with 'user_id'
         await notificationService.createNotification(
-          enrollment.participantId, 
+          enrollment.user_id, 
           'sprint_nudge',
           'Resume Sprint',
           message,

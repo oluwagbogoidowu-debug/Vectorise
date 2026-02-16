@@ -74,16 +74,20 @@ const CoachEarnings: React.FC = () => {
         }
 
         // 4. Get student data
-        const studentIds = Array.from(new Set(enrollments.map(e => e.participantId)));
+        // Fix: Property 'participantId' replaced with 'user_id' and added explicit string array casting
+        const studentIds = Array.from(new Set(enrollments.map(e => e.user_id))) as string[];
         const students = await userService.getUsersByIds(studentIds);
 
         // 5. Transform into Earning Entries
         const entries: EarningEntry[] = enrollments.map(enrol => {
-          const sprint = cashSprints.find(s => s.id === enrol.sprintId);
-          const student = students.find(s => s.id === enrol.participantId);
+          // Fix: Property 'sprintId' replaced with 'sprint_id'
+          const sprint = cashSprints.find(s => s.id === enrol.sprint_id);
+          // Fix: Property 'participantId' replaced with 'user_id'
+          const student = students.find(s => s.id === enrol.user_id);
           
           // Logic: Strictly use Orchestrator tagging
-          const detectedStage = sprintToStageMap[enrol.sprintId] || null;
+          // Fix: Property 'sprintId' replaced with 'sprint_id'
+          const detectedStage = sprintToStageMap[enrol.sprint_id] || null;
           const cutPercent = detectedStage ? (STAGE_CUTS[detectedStage] || 30) : null;
           
           const grossAmount = sprint?.price || 0;
@@ -98,7 +102,8 @@ const CoachEarnings: React.FC = () => {
             amount: grossAmount,
             platformCutPercent: cutPercent,
             netEarning: netEarning,
-            date: enrol.startDate,
+            // Fix: Property 'startDate' replaced with 'started_at'
+            date: enrol.started_at,
             appliedStage: detectedStage
           };
         }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());

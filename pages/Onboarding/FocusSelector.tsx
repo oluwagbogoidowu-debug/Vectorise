@@ -58,6 +58,8 @@ const FocusSelector: React.FC = () => {
     setIsProcessingSelection(true);
     setLookupError(null);
     
+    const userId = user?.id || 'guest_' + Math.random().toString(36).substr(2, 9);
+
     if (user) {
       try {
         await updateProfile({
@@ -107,16 +109,14 @@ const FocusSelector: React.FC = () => {
       }
 
       if (resolvedSprintId) {
-          // TELEMETRY: Log what the orchestrator picked
-          if (user) {
-              await sprintService.logOrchestratorResolution({
-                  userId: user.id,
-                  trigger: activeTrigger,
-                  inputFocus: option,
-                  resolvedSprintId,
-                  slotId: resolvedSlotId
-              });
-          }
+          // TELEMETRY: Log what the orchestrator picked using snake_case for DB alignment
+          await sprintService.logOrchestratorResolution({
+              user_id: userId,
+              trigger: activeTrigger,
+              input_focus: option,
+              resolved_sprint_id: resolvedSprintId,
+              slot_id: resolvedSlotId
+          });
 
           if (resolvedSprintId === 'system_map') {
             navigate('/onboarding/map', { 

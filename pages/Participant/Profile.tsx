@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
@@ -23,7 +24,7 @@ const Profile: React.FC = () => {
       try {
         const userEnrollments = await sprintService.getUserEnrollments(user.id);
         const enriched = await Promise.all(userEnrollments.map(async (en) => {
-          const sprint = await sprintService.getSprintById(en.sprintId);
+          const sprint = await sprintService.getSprintById(en.sprint_id);
           if (!sprint) return null;
           const coachData = await userService.getUserDocument(sprint.coachId);
           return { enrollment: en, sprint, coach: (coachData as Coach) || null };
@@ -54,7 +55,7 @@ const Profile: React.FC = () => {
           sprintTitle: e.sprint.title,
           day: p.day,
           text: p.reflection || '',
-          date: p.completedAt || e.enrollment.startDate
+          date: p.completedAt || e.enrollment.started_at
         }))
     ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [enrollments]);

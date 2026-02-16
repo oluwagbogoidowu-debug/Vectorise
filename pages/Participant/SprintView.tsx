@@ -10,8 +10,8 @@ import FormattedText from '../../components/FormattedText';
 import LocalLogo from '../../components/LocalLogo';
 
 const ReflectionModal: React.FC<{
-    isOpen: boolean;
     day: number;
+    isOpen: boolean;
     onClose: () => void;
     onFinish: (reflection: string) => void;
     isSubmitting: boolean;
@@ -66,7 +66,7 @@ const SprintView: React.FC = () => {
                     setReflectionsEnabled(!data.reflectionsDisabled);
                 }
                 if (!sprint) {
-                    const found = await sprintService.getSprintById(data.sprintId);
+                    const found = await sprintService.getSprintById(data.sprint_id);
                     setSprint(found);
                     const firstIncomplete = data.progress.find(p => !p.completed);
                     setViewingDay(firstIncomplete ? firstIncomplete.day : data.progress.length);
@@ -100,15 +100,28 @@ const SprintView: React.FC = () => {
         if (!enrollment || !user || isSubmitting) return;
         setIsSubmitting(true);
         try {
+            const now = new Date().toISOString();
+            const isLastDay = viewingDay === enrollment.progress.length;
             const updatedProgress = enrollment.progress.map(p => 
-                p.day === viewingDay ? { ...p, completed: true, completedAt: new Date().toISOString(), reflection: reflection.trim() } : p
+                p.day === viewingDay ? { ...p, completed: true, completedAt: now, reflection: reflection.trim() } : p
             );
+            
             const enrollmentRef = doc(db, 'enrollments', enrollment.id);
-            await updateDoc(enrollmentRef, { progress: updatedProgress });
+            const updatePayload: any = { 
+                progress: updatedProgress,
+                last_activity_at: now
+            };
+
+            if (isLastDay && updatedProgress.every(p => p.completed)) {
+                updatePayload.completed_at = now;
+                updatePayload.status = 'completed';
+            }
+
+            await updateDoc(enrollmentRef, updatePayload);
             
             setIsReflectionModalOpen(false);
 
-            if (viewingDay === enrollment.progress.length && updatedProgress.every(p => p.completed)) {
+            if (isLastDay && updatedProgress.every(p => p.completed)) {
                 const prevEnrollments = await sprintService.getUserEnrollments(user.id);
                 const totalFinished = prevEnrollments.filter(e => e.progress.every(p => p.completed)).length;
                 const isPaid = (sprint?.price || 0) > 0;
@@ -255,7 +268,6 @@ const SprintView: React.FC = () => {
                             <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
                         </div>
 
-                        {/* Coach Insight Section */}
                         {dayContent?.coachInsight && (
                             <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
                                 <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Coach's Insight</p>
@@ -275,7 +287,6 @@ const SprintView: React.FC = () => {
                           {dayProgress?.completed ? 'Mission Complete' : 'Mark Task Complete'}
                         </button>
 
-                        {/* Completed Reflection Display */}
                         {dayProgress?.completed && dayProgress.reflection && (
                             <div className="animate-fade-in pt-4 border-t border-gray-50">
                                 <p className="text-[7px] font-black text-primary uppercase tracking-[0.2em] mb-4">Your Breakthrough</p>

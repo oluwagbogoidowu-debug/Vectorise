@@ -89,7 +89,7 @@ const PaymentSuccess: React.FC = () => {
                 
                 if (!sprint) throw new Error("Sprint metadata not found.");
 
-                // ENRICHED ENROLLMENT CREATION
+                // ENRICHED ENROLLMENT CREATION WITH SNAKE_CASE FIELDS
                 const enrollment = await sprintService.enrollUser(targetUid, paidSprintId, sprint.duration, {
                     coachId: sprint.coachId,
                     pricePaid: sprint.price || 0,
@@ -108,8 +108,8 @@ const PaymentSuccess: React.FC = () => {
 
                 // TELEMETRY: Mark payment as successful in attempt history
                 await paymentService.logPaymentAttempt({
-                    userId: targetUid,
-                    sprintId: paidSprintId,
+                    user_id: targetUid,
+                    sprint_id: paidSprintId,
                     amount: sprint.price || 0,
                     status: 'successful'
                 });

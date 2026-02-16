@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Sprint, Coach, UserRole, Participant } from '../types';
@@ -19,7 +20,8 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
     const isEnrolled = useMemo(() => {
         if (!user || user.role !== UserRole.PARTICIPANT) return false;
         const p = user as Participant;
-        return p.enrolledSprintIds?.includes(sprint.id) || MOCK_PARTICIPANT_SPRINTS.some(ps => ps.participantId === user.id && ps.sprintId === sprint.id);
+        // Fix: Property 'participantId' and 'sprintId' replaced with 'user_id' and 'sprint_id' to match type definition
+        return p.enrolledSprintIds?.includes(sprint.id) || MOCK_PARTICIPANT_SPRINTS.some(ps => ps.user_id === user.id && ps.sprint_id === sprint.id);
     }, [user, sprint.id]);
 
     const isQueued = useMemo(() => {
@@ -39,12 +41,18 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
         e.stopPropagation();
         if (isStatic || !user || isProcessingSave || isQueued || isEnrolled) return;
 
+        const p = user as Participant;
+        const currentWishlist = p.wishlistSprintIds || [];
+        const isCurrentlySaved = currentWishlist.includes(sprint.id);
+
+        // ENFORCE WAITLIST LIMIT: Max 3 items
+        if (!isCurrentlySaved && currentWishlist.length >= 3) {
+            alert("Waitlist limit reached. You can only save up to 3 sprints for later.");
+            return;
+        }
+
         setIsProcessingSave(true);
         try {
-            const p = user as Participant;
-            const currentWishlist = p.wishlistSprintIds || [];
-            const isCurrentlySaved = currentWishlist.includes(sprint.id);
-            
             const newWishlist = isCurrentlySaved 
                 ? currentWishlist.filter((id: string) => id !== sprint.id)
                 : [...currentWishlist, sprint.id];
@@ -73,6 +81,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                         ? 'bg-primary text-white scale-110' 
                         : 'bg-white/80 text-gray-400 hover:text-primary hover:bg-white border border-white/40'
                     }`}
+                    title={isSaved ? "Remove from waitlist" : "Save to waitlist"}
                 >
                     {isProcessingSave ? (
                         <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -27,7 +28,7 @@ const MySprints: React.FC = () => {
             try {
                 const enrollments = await sprintService.getUserEnrollments(user.id);
                 const enriched = await Promise.all(enrollments.map(async (enrollment) => {
-                    const sprint = await sprintService.getSprintById(enrollment.sprintId);
+                    const sprint = await sprintService.getSprintById(enrollment.sprint_id);
                     return sprint ? { enrollment, sprint } : null;
                 }));
 
@@ -130,7 +131,7 @@ const MySprints: React.FC = () => {
             {/* Scrollable Body Content */}
             <div className="flex-1 overflow-y-auto px-4 py-6 pb-32 custom-scrollbar">
                 <div className="max-w-screen-lg mx-auto w-full">
-                    {/* 1. IN PROGRESS - Always visible as the primary anchor */}
+                    {/* 1. IN PROGRESS */}
                     <section className="mb-10">
                         <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-1">In Progress</h2>
                         {inProgressSprints.length > 0 ? (
@@ -170,7 +171,7 @@ const MySprints: React.FC = () => {
                         )}
                     </section>
 
-                    {/* 2. UPCOMING QUEUE - Only visible if not empty */}
+                    {/* 2. UPCOMING QUEUE */}
                     {queuedSprints.length > 0 && (
                         <section className="mb-10">
                             <div className="flex items-center gap-2 mb-4">
@@ -214,7 +215,7 @@ const MySprints: React.FC = () => {
                         </section>
                     )}
 
-                    {/* 3. SAVED / BOOKMARKED - Only visible if not empty */}
+                    {/* 3. SAVED / BOOKMARKED */}
                     {waitlistSprints.length > 0 && (
                         <section className="mb-10">
                             <div className="flex items-center gap-2 mb-4">
@@ -254,7 +255,7 @@ const MySprints: React.FC = () => {
                         </section>
                     )}
 
-                    {/* 4. GROWTH ARCHIVES - Only visible if not empty */}
+                    {/* 4. GROWTH ARCHIVES */}
                     {archivedSprints.length > 0 && (
                         <section>
                             <div className="flex items-center gap-2 mb-4">

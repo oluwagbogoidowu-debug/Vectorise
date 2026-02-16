@@ -6,7 +6,6 @@ export enum UserRole {
   PARTNER = 'PARTNER',
 }
 
-// Add Permission type
 export type Permission = string;
 
 export type LifecycleStage = 
@@ -62,36 +61,36 @@ export interface LifecycleSlotAssignment {
 
 export interface OrchestratorLog {
   id?: string;
-  userId: string;
+  user_id: string;
   trigger: OrchestrationTrigger;
-  inputFocus: string;
-  resolvedSprintId: string;
-  slotId: string;
+  input_focus: string;
+  resolved_sprint_id: string;
+  slot_id: string;
   timestamp: string;
 }
 
 export interface PaymentAttempt {
   id?: string;
-  userId: string;
-  sprintId: string;
+  user_id: string;
+  sprint_id: string;
   amount: number;
   status: PaymentAttemptStatus;
-  failureReason?: string;
+  failure_reason?: string;
   timestamp: string;
 }
 
 export interface ParticipantSprint {
   id: string;
-  sprintId: string;
-  participantId: string;
-  coachId: string; // New: Direct tracking of responsible coach
-  startDate: string;
-  pricePaid: number; // New: Commercial truth
-  paymentSource: PaymentSource; // New: Attribution
-  referralSource?: string | null; // New: Influencer link
-  status: 'active' | 'completed' | 'paused'; // New: Enforced status
-  completedAt?: string | null; // New: Success timestamp
-  lastActivityAt?: string; // New: Retention tracking
+  sprint_id: string;
+  user_id: string;
+  coach_id: string;
+  started_at: string;
+  price_paid: number;
+  payment_source: PaymentSource;
+  status: 'active' | 'completed' | 'paused';
+  completed_at?: string | null;
+  last_activity_at?: string;
+  referral_source?: string | null;
   sentNudges?: number[];
   reflectionsDisabled?: boolean;
   isCommissionTrigger?: boolean; 
@@ -106,7 +105,6 @@ export interface ParticipantSprint {
   }[];
 }
 
-// Update Sprint with pendingChanges and targeting
 export interface Sprint {
   id: string;
   coachId: string;
@@ -158,7 +156,6 @@ export interface User {
   roleDefinitionId?: string;
 }
 
-// Update Participant with missing properties
 export interface Participant extends User {
   role: UserRole.PARTICIPANT | UserRole.PARTNER;
   currentStage?: LifecycleStage;
@@ -177,6 +174,8 @@ export interface Participant extends User {
   savedSprintIds: string[];
   bio: string;
   persona: string;
+  /* Added missing occupation field */
+  occupation?: string;
   createdAt: string;
   interests?: string[];
   followers?: number;
@@ -186,7 +185,6 @@ export interface Participant extends User {
   referralFirstTouch?: string | null;
 }
 
-// Update Coach with missing properties
 export interface Coach extends User {
   role: UserRole.COACH;
   niche: string;
@@ -199,12 +197,10 @@ export interface Coach extends User {
   coachApproved?: boolean;
 }
 
-// Add Admin
 export interface Admin extends User {
   role: UserRole.ADMIN;
 }
 
-// Add RoleDefinition
 export interface RoleDefinition {
   id: string;
   name: string;
@@ -213,7 +209,6 @@ export interface RoleDefinition {
   permissions: string[] | Permission[];
 }
 
-// Add NotificationType and update Notification
 export type NotificationType = 'sprint_day_unlocked' | 'payment_success' | 'coach_message' | 'sprint_completed' | 'referral_update' | 'shine_interaction' | 'sprint_nudge';
 
 export interface Notification {
@@ -230,7 +225,6 @@ export interface Notification {
   context?: any;
 }
 
-// Add ShinePost
 export interface ShinePost {
   id: string;
   userId: string;
@@ -246,7 +240,6 @@ export interface ShinePost {
   sprintTitle?: string;
 }
 
-// Add ShineComment
 export interface ShineComment {
   id: string;
   userId: string;
@@ -256,7 +249,6 @@ export interface ShineComment {
   timestamp: string;
 }
 
-// Add CoachingComment
 export interface CoachingComment {
   id: string;
   sprintId: string;
@@ -268,7 +260,6 @@ export interface CoachingComment {
   read: boolean;
 }
 
-// Add Review
 export interface Review {
   id: string;
   sprintId: string;
@@ -280,27 +271,23 @@ export interface Review {
   timestamp: string;
 }
 
-// Add GlobalOrchestrationSettings
 export interface GlobalOrchestrationSettings {
   focusOptions: string[];
   triggerActions: Record<string, OrchestrationAction>;
   microSelectors: MicroSelector[];
 }
 
-// Add OrchestrationAction
 export interface OrchestrationAction {
   type: 'show_micro_selector' | 'recommend_sprint';
   value: string;
 }
 
-// Add MicroSelector
 export interface MicroSelector {
   id: string;
   stage: LifecycleStage;
   steps: MicroSelectorStep[];
 }
 
-// Add MicroSelectorStep
 export interface MicroSelectorStep {
   question: string;
   options: {
@@ -310,7 +297,6 @@ export interface MicroSelectorStep {
   }[];
 }
 
-// Add PlatformPulse
 export interface PlatformPulse {
   activeUsers24h: number;
   totalEnrollments24h: number;
@@ -318,7 +304,6 @@ export interface PlatformPulse {
   revenue24h: number;
 }
 
-// Add Quote
 export interface Quote {
   id: string;
   text: string;
@@ -326,7 +311,6 @@ export interface Quote {
   createdAt: string;
 }
 
-// Add PartnerApplication
 export interface PartnerApplication {
   id: string;
   fullName: string;
@@ -344,13 +328,11 @@ export interface PartnerApplication {
   timestamp: string;
 }
 
-// Add NotificationPayload
 export interface NotificationPayload {
   title: string;
   body: string;
 }
 
-// Add UserEvent and EventType
 export interface UserEvent {
   id?: string;
   userId: string;
@@ -363,7 +345,6 @@ export interface UserEvent {
 
 export type EventType = 'sprint_enrolled' | 'task_submitted' | 'feedback_sent' | 'sprint_completed';
 
-// Add UserAnalytics and RiskLevel
 export interface UserAnalytics {
   userId: string;
   lastActive: string;
@@ -376,7 +357,6 @@ export interface UserAnalytics {
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'churned';
 
-// Add CoachAnalytics
 export interface CoachAnalytics {
   coachId: string;
   masteryYield: number;

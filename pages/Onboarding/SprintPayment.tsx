@@ -59,7 +59,7 @@ const SprintPayment: React.FC = () => {
       await updateProfile({ walletBalance: userBalance - sprintPrice });
       
       const enrollments = await sprintService.getUserEnrollments(user.id);
-      const hasActive = enrollments.some(e => e.status === 'active');
+      const hasActive = enrollments.some(e => e.status === 'active' && e.progress.some(p => !p.completed));
       
       if (hasActive) {
           const currentQueue = userParticipant.savedSprintIds || [];
@@ -88,9 +88,7 @@ const SprintPayment: React.FC = () => {
         return;
     }
     
-    // REQUIRE USER ID FOR TRACKING
-    // If not logged in, we must generate a ghost ID or redirect to signup first.
-    // For Vectorise, we prioritize checkout. We'll use the email as a temporary trace.
+    // Use traceId for cross-session tracking
     const traceId = user?.id || `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
 
     setIsProcessing(true);
@@ -123,7 +121,15 @@ const SprintPayment: React.FC = () => {
     }
   };
 
-  const handleHesitation = () => {
+  const handleHesitation = async () => {
+    const traceId = user?.id || `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
+    // Log abandonment of the payment process
+    await paymentService.logPaymentAttempt({
+        user_id: traceId,
+        sprint_id: selectedSprint?.id || 'clarity-sprint',
+        amount: Number(sprintPrice),
+        status: 'abandoned'
+    });
     navigate('/onboarding/map', { state: { ...state } });
   };
 
@@ -166,7 +172,7 @@ const SprintPayment: React.FC = () => {
             )}
             <section className="pt-6 border-t border-gray-50 space-y-6">
                <label className="flex items-start gap-4 p-5 bg-primary/5 border border-primary/10 rounded-2xl cursor-pointer active:scale-[0.98] transition-all group hover:bg-primary/10">
-                <input type="checkbox" checked={finalCommitment} onChange={(e) => setFinalCommitment(e.target.checked)} className="w-5 h-5 mt-0.5 bg-white border-gray-200 rounded focus:ring-primary text-primary" />
+                <input type="checkbox" checked={finalCommitment} onChange={(e) => setFinalCommitment(e.target.checked)} className="w-5 h-5 bg-white border-gray-200 rounded focus:ring-primary text-primary" />
                 <span className="text-xs font-black text-primary uppercase tracking-widest leading-tight">I’m committing to complete this sprint.</span>
               </label>
               {errorMessage && <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-[10px] font-bold text-red-600 uppercase tracking-widest text-center animate-pulse">{errorMessage}</div>}

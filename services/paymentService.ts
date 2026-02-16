@@ -9,7 +9,7 @@ import { PaymentAttempt, PaymentAttemptStatus } from '../types';
 import { sanitizeData } from './userService';
 
 interface PaymentPayload {
-  userId: string; // Required for tracking
+  userId: string; 
   email: string;
   sprintId: string;
   amount: number;
@@ -30,7 +30,7 @@ export const paymentService = {
       });
       await addDoc(collection(db, PAYMENT_ATTEMPTS), entry);
     } catch (e) {
-      console.error("[Registry] Logging payment failed:", e);
+      console.error("[Telemetry] Logging payment failed:", e);
     }
   },
 
@@ -43,8 +43,8 @@ export const paymentService = {
     
     // 1. Log Initiation
     await paymentService.logPaymentAttempt({
-        userId: payload.userId,
-        sprintId: payload.sprintId,
+        user_id: payload.userId,
+        sprint_id: payload.sprintId,
         amount: payload.amount,
         status: 'initiated'
     });
@@ -64,11 +64,11 @@ export const paymentService = {
       if (!response.ok) {
         const errorText = await response.text();
         await paymentService.logPaymentAttempt({
-            userId: payload.userId,
-            sprintId: payload.sprintId,
+            user_id: payload.userId,
+            sprint_id: payload.sprintId,
             amount: payload.amount,
             status: 'failed',
-            failureReason: errorText
+            failure_reason: errorText
         });
         throw new Error(errorText);
       }
@@ -78,8 +78,8 @@ export const paymentService = {
       
       if (checkoutUrl) {
         await paymentService.logPaymentAttempt({
-            userId: payload.userId,
-            sprintId: payload.sprintId,
+            user_id: payload.userId,
+            sprint_id: payload.sprintId,
             amount: payload.amount,
             status: 'processing'
         });
@@ -89,11 +89,11 @@ export const paymentService = {
       throw new Error("Registry returned an incomplete response (Missing Link).");
     } catch (error: any) {
       await paymentService.logPaymentAttempt({
-          userId: payload.userId,
-          sprintId: payload.sprintId,
+          user_id: payload.userId,
+          sprint_id: payload.sprintId,
           amount: payload.amount,
           status: 'failed',
-          failureReason: error.message
+          failure_reason: error.message
       });
       throw error;
     }

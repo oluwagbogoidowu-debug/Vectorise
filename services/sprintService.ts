@@ -62,28 +62,24 @@ export const sprintService = {
         return snap.exists() ? sanitizeData(snap.data()) as Sprint : null;
     },
 
-    // Added missing method getCoachSprints
     getCoachSprints: async (coachId: string) => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("coachId", "==", coachId), where("deleted", "==", false));
         const snap = await getDocs(q);
         return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
     },
 
-    // Added missing method getAdminSprints
     getAdminSprints: async () => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("deleted", "==", false));
         const snap = await getDocs(q);
         return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
     },
 
-    // Added missing method getPublishedSprints
     getPublishedSprints: async () => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("published", "==", true), where("deleted", "==", false));
         const snap = await getDocs(q);
         return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
     },
 
-    // Added missing method subscribeToReviewsForSprints
     subscribeToReviewsForSprints: (sprintIds: string[], callback: (reviews: Review[]) => void) => {
         if (!sprintIds.length) {
             callback([]);
@@ -123,7 +119,6 @@ export const sprintService = {
         });
     },
 
-    // Updated enrollUser to make commercial data optional to satisfy callers in LoginPage/SignUpPage
     enrollUser: async (
         userId: string, 
         sprintId: string, 
@@ -144,15 +139,15 @@ export const sprintService = {
         const now = new Date().toISOString();
         const newEnrollment: ParticipantSprint = {
             id: enrollmentId,
-            sprintId,
-            participantId: userId,
-            coachId: commercial?.coachId || '',
-            startDate: now,
-            pricePaid: commercial?.pricePaid || 0,
-            paymentSource: commercial?.source || 'direct',
-            referralSource: commercial?.referral || null,
+            sprint_id: sprintId,
+            user_id: userId,
+            coach_id: commercial?.coachId || '',
+            started_at: now,
+            price_paid: commercial?.pricePaid || 0,
+            payment_source: commercial?.source || 'direct',
+            referral_source: commercial?.referral || null,
             status: 'active',
-            lastActivityAt: now,
+            last_activity_at: now,
             sentNudges: [],
             progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
         };
@@ -162,13 +157,13 @@ export const sprintService = {
     },
 
     getUserEnrollments: async (userId: string) => {
-        const q = query(collection(db, ENROLLMENTS_COLLECTION), where("participantId", "==", userId));
+        const q = query(collection(db, ENROLLMENTS_COLLECTION), where("user_id", "==", userId));
         const snap = await getDocs(q);
         return snap.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint);
     },
 
     subscribeToUserEnrollments: (userId: string, callback: (enrollments: ParticipantSprint[]) => void) => {
-        const q = query(collection(db, ENROLLMENTS_COLLECTION), where("participantId", "==", userId));
+        const q = query(collection(db, ENROLLMENTS_COLLECTION), where("user_id", "==", userId));
         return onSnapshot(q, (snapshot) => {
             callback(snapshot.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint));
         });
@@ -176,7 +171,7 @@ export const sprintService = {
 
     getEnrollmentsForSprints: async (sprintIds: string[]) => {
         if (!sprintIds.length) return [];
-        const q = query(collection(db, ENROLLMENTS_COLLECTION), where("sprintId", "in", sprintIds.slice(0, 10)));
+        const q = query(collection(db, ENROLLMENTS_COLLECTION), where("sprint_id", "in", sprintIds.slice(0, 10)));
         const snap = await getDocs(q);
         return snap.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint);
     },
