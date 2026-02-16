@@ -1,10 +1,11 @@
+
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { paymentService } from '../../services/paymentService';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
-import { userService } from '../../services/userService';
+import { userService, sanitizeData } from '../../services/userService';
 import { Participant, ParticipantSprint } from '../../types';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -36,7 +37,6 @@ const PaymentSuccess: React.FC = () => {
                 
                 if (data.status === 'successful' || data.status === 'success') {
                     setStatus('success');
-                    // We don't auto-navigate yet, we wait for enrollment logic to finish
                 } else if (retries < 10) {
                     setTimeout(() => setRetries(prev => prev + 1), 3000);
                 } else {
@@ -53,10 +53,6 @@ const PaymentSuccess: React.FC = () => {
         }
     }, [reference, retries, status]);
 
-    /**
-     * CORE LOGIC: ONE USER -> ONE PARTNER -> ONE PAID SPRINT
-     * This effect handles the fulfillment and the commission lockout.
-     */
     useEffect(() => {
         const performFulfillment = async () => {
             if (status !== 'success' || !paidSprintId || isEnrolling) return;
@@ -64,15 +60,11 @@ const PaymentSuccess: React.FC = () => {
             setIsEnrolling(true);
 
             try {
-                // 1. Identify the user
                 let targetUid = user?.id;
                 
-                // If user is guest, they MUST have used an email that we can look up or they need to sign up
                 if (!targetUid && rawEmail) {
                     const emailExists = await userService.checkEmailExists(rawEmail);
                     if (emailExists) {
-                        // User exists, but is not logged in. 
-                        // We redirect to login and let the login page handle the pending enrollment
                         navigate('/login', { 
                             state: { 
                                 prefilledEmail: rawEmail, 
@@ -82,7 +74,6 @@ const PaymentSuccess: React.FC = () => {
                         });
                         return;
                     } else {
-                        // User is new. Force signup to establish identity before enrollment
                         navigate('/signup', { 
                             state: { 
                                 prefilledEmail: rawEmail, 
@@ -95,31 +86,27 @@ const PaymentSuccess: React.FC = () => {
                 }
 
                 if (!targetUid) {
-                    // Fallback: If we have no user and no email, we are in an error state
                     setStatus('error');
                     setIsEnrolling(false);
                     return;
                 }
 
-                // 2. Fetch User Profile to check Referral Lock
                 const userRef = doc(db, 'users', targetUid);
                 const userSnap = await getDoc(userRef);
                 if (!userSnap.exists()) throw new Error("Registry identity not found.");
                 
-                const userData = userSnap.data() as Participant;
+                // CRITICAL: Sanitize user data immediately to prevent circular reference errors
+                const userData = sanitizeData(userSnap.data()) as Participant;
                 const isFirstPaidSprint = !userData.partnerCommissionClosed;
                 const sprint = await sprintService.getSprintById(paidSprintId);
                 
                 if (!sprint) throw new Error("Sprint metadata not found.");
 
-                // 3. Create or find enrollment
                 const enrollment = await sprintService.enrollUser(targetUid, paidSprintId, sprint.duration);
                 const enrollmentRef = doc(db, 'enrollments', enrollment.id);
 
-                // 4. LOCK LOGIC: 
-                // If user has a referrer AND it's their first paid buy, trigger commission and CLOSE path.
                 if (userData.referrerId && isFirstPaidSprint && sprint.price > 0) {
-                    console.log("[Fulfillment] One-Time Partner Commission Triggered for:", userData.referrerId);
+                    console.log("[Fulfillment] One-Time Partner Commission Triggered.");
                     
                     await updateDoc(userRef, { 
                         partnerCommissionClosed: true 
@@ -129,7 +116,6 @@ const PaymentSuccess: React.FC = () => {
                         isCommissionTrigger: true 
                     });
 
-                    // Update local auth context
                     if (updateProfile) {
                         await updateProfile({ partnerCommissionClosed: true });
                     }
@@ -229,7 +215,6 @@ const PaymentSuccess: React.FC = () => {
                     )}
                 </header>
 
-                {/* Subtle Detail */}
                 <div className="absolute -bottom-12 -right-12 w-40 h-40 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
             </div>
 

@@ -53,6 +53,15 @@ const ProgramDescription: React.FC = () => {
     navigate('/onboarding/focus-selector', { state: { trigger: activeTrigger } });
   };
 
+  const handleSkipClarity = () => {
+      navigate('/onboarding/focus-selector', { 
+          state: { 
+              trigger: 'skip_clarity',
+              fromClaritySprintId: sprintId 
+          } 
+      });
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-primary flex items-center justify-center">
@@ -70,6 +79,7 @@ const ProgramDescription: React.FC = () => {
     );
   }
 
+  const isFoundational = sprint.category === 'Core Platform Sprint' || sprint.category === 'Growth Fundamentals' || sprint.id.includes('foundational') || sprint.id.includes('core');
   const isExecutionSprint = sprint.sprintType === 'Execution' || sprint.category.includes('Execution') || sprint.category.includes('Productivity');
 
   return (
@@ -108,7 +118,7 @@ const ProgramDescription: React.FC = () => {
               <div className="absolute bottom-10 left-10 right-10 text-white">
                 <div className="mb-4">
                   <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg">
-                    REGISTRY PATH
+                    {isFoundational ? 'FOUNDATIONAL PATH' : 'REGISTRY PATH'}
                   </span>
                 </div>
                 <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-[1] mb-3 italic">
@@ -255,7 +265,7 @@ const ProgramDescription: React.FC = () => {
               <div className="text-center mb-12">
                 <SectionHeading>Registry Status</SectionHeading>
                 <h3 className="text-3xl font-black text-dark tracking-tighter italic leading-none">
-                  Registry Path
+                  {isFoundational ? 'Foundational' : 'Registry Path'}
                 </h3>
               </div>
 
@@ -284,7 +294,19 @@ const ProgramDescription: React.FC = () => {
                   Authorize Path &rarr;
                 </Button>
                 
-                {!isExecutionSprint && (
+                {isFoundational && (
+                  <div className="text-center space-y-3 pt-2">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-4 leading-relaxed">Already clear on your direction?</p>
+                    <button 
+                      onClick={handleSkipClarity}
+                      className="text-[11px] font-black text-primary hover:underline uppercase tracking-widest transition-all cursor-pointer bg-primary/5 px-6 py-3 rounded-2xl w-full"
+                    >
+                      Skip to Execution
+                    </button>
+                  </div>
+                )}
+                
+                {!isFoundational && !isExecutionSprint && (
                   <div className="text-center space-y-3 pt-2">
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-4 leading-relaxed">Already clear on your direction?</p>
                     <button 

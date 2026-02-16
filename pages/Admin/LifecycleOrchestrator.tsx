@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { LifecycleStage, LifecycleSlot, Sprint, SprintType, MicroSelector, MicroSelectorStep, GlobalOrchestrationSettings, OrchestrationTrigger, OrchestrationAction, LifecycleSlotAssignment } from '../../types';
 import { LIFECYCLE_STAGES_CONFIG, LIFECYCLE_SLOTS, FOCUS_OPTIONS } from '../../services/mockData';
 import { sprintService } from '../../services/sprintService';
@@ -41,33 +42,37 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
         focusOptions: FOCUS_OPTIONS
     });
 
-    useEffect(() => {
-        const loadOrchestration = async () => {
-            if (refreshKey > 0) setIsInitialLoading(false);
-            try {
-                const [liveMapping, settings] = await Promise.all([
-                    sprintService.getOrchestration(),
-                    sprintService.getGlobalOrchestrationSettings()
-                ]);
-                setAssignments(liveMapping as Record<string, LifecycleSlotAssignment>);
-                if (settings) {
-                    setGlobalSettings({
-                        ...settings,
-                        triggerActions: {
-                            ...globalSettings.triggerActions,
-                            ...(settings.triggerActions || {})
-                        },
-                        focusOptions: settings.focusOptions || FOCUS_OPTIONS
-                    });
-                }
-            } catch (err) {
-                console.error("Registry sync failed:", err);
-            } finally {
-                setIsInitialLoading(false);
+    const loadOrchestrationData = useCallback(async (isInitial: boolean = false) => {
+        if (isInitial) setIsInitialLoading(true);
+        try {
+            const [liveMapping, settings] = await Promise.all([
+                sprintService.getOrchestration(),
+                sprintService.getGlobalOrchestrationSettings()
+            ]);
+            
+            setAssignments(liveMapping as Record<string, LifecycleSlotAssignment>);
+            
+            if (settings) {
+                setGlobalSettings(prev => ({
+                    ...prev,
+                    ...settings,
+                    triggerActions: {
+                        ...prev.triggerActions,
+                        ...(settings.triggerActions || {})
+                    },
+                    focusOptions: settings.focusOptions || FOCUS_OPTIONS
+                }));
             }
-        };
-        loadOrchestration();
-    }, [refreshKey]);
+        } catch (err) {
+            console.error("Registry sync failed:", err);
+        } finally {
+            setIsInitialLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadOrchestrationData(true);
+    }, [refreshKey, loadOrchestrationData]);
 
     const usedTriggerStates = useMemo(() => {
         return new Set(
@@ -102,7 +107,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                 };
             }
         });
-        // Auto close picker on selection
         setActiveSprintPicker(null);
     };
 
@@ -238,7 +242,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
 
     return (
         <div className="flex flex-col lg:flex-row gap-10 animate-fade-in font-sans relative pb-20">
-            {/* LEFT PANEL: TIMELINE */}
             <aside className="lg:w-64 flex-shrink-0">
                 <div className="bg-gray-50 p-3 rounded-[2.5rem] border border-gray-100 flex flex-col gap-2 sticky top-6">
                     {STAGES.map((stage, idx) => (
@@ -267,7 +270,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                 </div>
             </aside>
 
-            {/* RIGHT PANEL: CONFIGURATION */}
             <main className="flex-1 space-y-8">
                 <header className="bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-sm relative overflow-hidden">
                     <div className="relative z-10 flex justify-between items-start">
@@ -292,22 +294,12 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                         const isEditingFocusText = editingFocusSlot === slot.id;
                         
                         const slotFocusOptions = assignment.availableFocusOptions || FOCUS_OPTIONS;
-
-                        // Fix: Once a sprint is selected, it shouldn't show in the dropdown again for this slot
                         const availableSprintsForPicker = allSprints
                             .filter(s => (s.published && s.approvalStatus === 'approved') && !assignedSprintIds.includes(s.id))
                             .sort((a, b) => a.title.localeCompare(b.title));
 
-                        // Helper to check if an option is already taken by another sprint in this slot
-                        const isOptionTaken = (option: string, currentSprintId: string) => {
-                            const focusMap = assignment.sprintFocusMap || {};
-                            return Object.keys(focusMap).some(sId => sId !== currentSprintId && focusMap[sId]?.includes(option));
-                        };
-
                         return (
                             <div key={slot.id} className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm flex flex-col gap-8 transition-all relative overflow-visible">
-                                
-                                {/* Slot Header & Trigger Picker */}
                                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                                     <div className="flex items-center gap-2 mb-1">
                                         <h4 className="text-lg font-black text-gray-900 tracking-tight italic">{slot.name}</h4>
@@ -351,7 +343,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                                     )}
                                 </div>
 
-                                {/* Registry Assignment Selector */}
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-2 px-1">
                                         <div className="flex items-center gap-2">
@@ -465,7 +456,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                                         )}
                                     </div>
 
-                                    {/* Assigned Sprints List */}
                                     {assignedSprintIds.length > 0 && (
                                         <div className="space-y-8 animate-fade-in mt-10">
                                             {assignedSprintIds.map((sId) => {
@@ -498,7 +488,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                                                             </button>
                                                         </div>
 
-                                                        {/* FOCUS SELECTION PER SPRINT */}
                                                         <div className="space-y-4 pt-4 border-t border-gray-50">
                                                             <div className="flex items-center gap-3">
                                                                 <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Map Focus Criteria</h5>
@@ -508,18 +497,14 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                                                             <div className="flex flex-wrap gap-2">
                                                                 {slotFocusOptions.map((opt, optIdx) => {
                                                                     const isSelected = sprintFocus.includes(opt);
-                                                                    const isLocked = isOptionTaken(opt, sId);
                                                                     
                                                                     return (
                                                                         <button
                                                                             key={opt}
-                                                                            onClick={() => !isLocked && handleToggleSprintFocus(slot.id, sId, opt)}
-                                                                            disabled={isLocked}
+                                                                            onClick={() => handleToggleSprintFocus(slot.id, sId, opt)}
                                                                             className={`px-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-2.5 group ${
                                                                                 isSelected 
                                                                                 ? 'bg-primary text-white border-primary shadow-lg scale-[1.02]' 
-                                                                                : isLocked
-                                                                                ? 'bg-red-50 text-red-200 border-red-100 cursor-not-allowed opacity-40 grayscale'
                                                                                 : 'bg-white text-gray-400 border-gray-100 hover:border-primary/20 hover:text-primary'
                                                                             }`}
                                                                         >
@@ -527,7 +512,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                                                                                 {optIdx + 1}
                                                                             </span>
                                                                             {opt}
-                                                                            {isLocked && <svg className="w-3 h-3 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>}
                                                                         </button>
                                                                     );
                                                                 })}
@@ -556,7 +540,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                 </div>
             </main>
 
-            {/* GLOBAL SETTINGS MODAL */}
             {showGlobalSettings && (
                 <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-dark/90 backdrop-blur-md animate-fade-in">
                     <div className="bg-white rounded-[3rem] w-full max-w-4xl shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] animate-slide-up">
@@ -629,7 +612,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                                                     </select>
                                                 )}
                                                 {(globalSettings.triggerActions[trigger.id]?.type === 'recommend_sprint' || globalSettings.triggerActions[trigger.id]?.type === 'navigate_to') && (
-                                                    <input type="text" value={globalSettings.triggerActions[trigger.id]?.value || ''} onChange={e => updateTriggerAction(trigger.id, { value: e.target.value })} placeholder={globalSettings.triggerActions[trigger.id]?.type === 'recommend_sprint' ? "Sprint Identity ID" : "/path-to-target"} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-xs font-bold" />
+                                                    <input type="text" value={globalSettings.triggerActions[trigger.id]?.value || ''} onChange={e => updateTriggerAction(trigger.id, { value: e.target.value })} placeholder={globalSettings.triggerActions[trigger.id]?.type === 'recommend_sprint' ? "Sprint Identity ID" : "/path-to-target"} className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-xs font-bold" />
                                                 )}
                                             </div>
                                         </div>

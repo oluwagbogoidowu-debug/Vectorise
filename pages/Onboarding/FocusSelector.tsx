@@ -1,11 +1,11 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import { FOCUS_OPTIONS } from '../../services/mockData';
 import { sprintService } from '../../services/sprintService';
 import { useAuth } from '../../contexts/AuthContext';
-import { Participant, LifecycleSlotAssignment, GlobalOrchestrationSettings } from '../../types';
+import { Participant, LifecycleSlotAssignment } from '../../types';
 
 const FocusSelector: React.FC = () => {
   const navigate = useNavigate();
@@ -14,11 +14,12 @@ const FocusSelector: React.FC = () => {
   
   const activeTrigger = location.state?.trigger || 'after_homepage';
   
-  const [isLoading, setIsLoading] = useState(false);
-  const [matchingStatus, setMatchingStatus] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessingSelection, setIsProcessingSelection] = useState(false);
   const [pollQuestion, setPollQuestion] = useState<string>("What’s your biggest focus right now?");
   const [focusOptions, setFocusOptions] = useState<string[]>(FOCUS_OPTIONS);
   const [activeAssignment, setActiveAssignment] = useState<LifecycleSlotAssignment | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadDynamicOrchestration = async () => {
@@ -28,14 +29,12 @@ const FocusSelector: React.FC = () => {
           sprintService.getOrchestration()
         ]);
 
-        // Find the slot assigned to this specific trigger
         const assignment = Object.values(orchestration).find(
           (a: any) => a.stateTrigger === activeTrigger
         ) as LifecycleSlotAssignment | undefined;
 
         if (assignment) {
           setActiveAssignment(assignment);
-          // Only use custom options if they exist, otherwise fallback to global
           if (assignment.availableFocusOptions && assignment.availableFocusOptions.length > 0) {
             setFocusOptions(assignment.availableFocusOptions);
           } else if (settings?.focusOptions) {
@@ -48,14 +47,16 @@ const FocusSelector: React.FC = () => {
         }
       } catch (err) {
         console.warn("Registry sync failed:", err);
+      } finally {
+        setIsLoading(false);
       }
     };
     loadDynamicOrchestration();
   }, [activeTrigger]);
 
   const handleSelect = async (option: string) => {
-    setIsLoading(true);
-    setMatchingStatus("Authorized Scan...");
+    setIsProcessingSelection(true);
+    setLookupError(null);
     
     if (user) {
       try {
@@ -71,24 +72,18 @@ const FocusSelector: React.FC = () => {
       }
     }
 
-    setTimeout(() => setMatchingStatus("Polling Registry..."), 600);
-    setTimeout(() => setMatchingStatus("Resolving Logic..."), 1200);
-
     try {
-      let resolvedSprintId: string | null = null;
       const orchestration = await sprintService.getOrchestration();
-
-      // STRICT LOOKUP: Scan ALL orchestrated slots for a match to this specific option
       const slots = Object.values(orchestration) as LifecycleSlotAssignment[];
       
-      // Prioritize searching the active trigger's assigned slot first
+      let resolvedSprintId: string | null = null;
+
       if (activeAssignment?.sprintFocusMap) {
           resolvedSprintId = Object.keys(activeAssignment.sprintFocusMap).find(
               sId => activeAssignment.sprintFocusMap?.[sId]?.includes(option)
           ) || null;
       }
 
-      // If not found in primary slot, scan every other orchestrated slot for a specific mapping
       if (!resolvedSprintId) {
           for (const mapping of slots) {
               if (mapping.sprintFocusMap) {
@@ -103,87 +98,113 @@ const FocusSelector: React.FC = () => {
           }
       }
 
-      setTimeout(() => {
-        if (resolvedSprintId) {
-            // Foundational logic: check if the sprint is platform-owned or categorized as Foundational
-            const isFoundational = resolvedSprintId.includes('foundational') || resolvedSprintId.includes('core');
-            const pathPrefix = isFoundational ? 'clarity-description' : 'description';
-            
-            navigate(`/onboarding/${pathPrefix}/${resolvedSprintId}`, { 
-              state: { selectedFocus: option, sprintId: resolvedSprintId, trigger: activeTrigger } 
-            });
-        } else {
-            // If the orchestrator has NO mapping for this choice, we cannot show a default.
-            // We must take them to discovery to choose manually.
-            navigate('/discover');
-        }
-      }, 1800);
+      if (resolvedSprintId) {
+          navigate(`/onboarding/description/${resolvedSprintId}`, { 
+            state: { selectedFocus: option, sprintId: resolvedSprintId, trigger: activeTrigger } 
+          });
+      } else {
+          setLookupError(`No matching path found in the Orchestrator for: "${option}"`);
+          setIsProcessingSelection(false);
+      }
+
     } catch (error) {
-      console.error("Orchestration resolution failed:", error);
-      navigate('/discover');
+      setLookupError("The Registry is currently unreachable. Please try again.");
+      setIsProcessingSelection(false);
     }
   };
 
-  return (
-    <div className="flex flex-col h-screen w-screen bg-primary text-white overflow-hidden relative selection:bg-white/10 p-6">
-      <main className="flex flex-col h-full w-full justify-center items-center relative z-10 max-w-[320px] mx-auto">
-        <header className="mb-12 text-center animate-fade-in">
-           <LocalLogo type="white" className="h-5 w-auto mx-auto mb-8 opacity-40" />
-           <h1 className="text-xl md:text-2xl font-black tracking-tight leading-tight italic">
-             {pollQuestion}
-           </h1>
-           <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em] mt-4">
-             {activeTrigger === 'skip_clarity' ? 'Execution Registry Logic' : 'Growth Catalyst Mapping'}
-           </p>
-        </header>
+  const handleReset = () => {
+    setLookupError(null);
+    setIsProcessingSelection(false);
+  };
 
-        {matchingStatus ? (
-          <div className="w-full flex flex-col items-center justify-center space-y-6 animate-fade-in py-12">
+  return (
+    <div className="flex flex-col min-h-screen w-full items-center justify-center p-6 bg-primary text-white relative overflow-hidden selection:bg-white/10">
+      <div className="w-full max-w-[320px] z-10">
+        
+        {isLoading || isProcessingSelection ? (
+          <div className="flex flex-col items-center justify-center space-y-8 animate-fade-in py-20">
             <div className="relative">
                 <div className="w-16 h-16 border-2 border-white/10 rounded-full"></div>
                 <div className="absolute inset-0 w-16 h-16 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-xs">⚡</span>
-                </div>
             </div>
             <div className="text-center">
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] animate-pulse text-[#0FB881]">{matchingStatus}</p>
-                <p className="text-[8px] font-bold text-white/40 mt-2 italic uppercase">Registry Sync Active</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] animate-pulse">
+                  {isProcessingSelection ? "Resolving Path..." : "Synchronizing..."}
+                </p>
+                <p className="text-[8px] font-bold text-white/30 mt-2 italic uppercase">Registry Sync 4.4</p>
+            </div>
+          </div>
+        ) : lookupError ? (
+          <div className="w-full text-center animate-fade-in space-y-8">
+            <div className="w-20 h-20 bg-white/10 rounded-[2.5rem] flex items-center justify-center mx-auto text-3xl shadow-inner">
+                ⚠️
+            </div>
+            <div>
+                <h1 className="text-xl font-black tracking-tight mb-2 italic">Registry Mapping Missing</h1>
+                <p className="text-xs text-white/60 font-medium leading-relaxed italic px-4">
+                    "{lookupError}"
+                </p>
+            </div>
+            <div className="space-y-3 pt-4">
+                <button 
+                  onClick={handleReset}
+                  className="w-full py-4 bg-white text-primary font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all"
+                >
+                    Try Another Focus
+                </button>
+                <button 
+                  onClick={() => navigate('/discover')}
+                  className="w-full py-4 bg-white/10 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl border border-white/10 active:scale-95 transition-all"
+                >
+                    Browse Full Registry
+                </button>
             </div>
           </div>
         ) : (
-          <div className="w-full space-y-3 animate-slide-up">
-            {focusOptions.map((option, idx) => (
-              <button
-                key={idx}
-                disabled={isLoading}
-                onClick={() => handleSelect(option)}
-                className="w-full group relative overflow-hidden bg-white/5 border border-white/10 py-5 px-6 rounded-2xl transition-all duration-500 hover:bg-white hover:border-white hover:scale-[1.02] active:scale-95 text-center flex items-center justify-center disabled:opacity-50"
-              >
-                <div className="relative z-10">
-                  <span className="text-[9px] font-black uppercase tracking-[0.15em] text-white group-hover:text-primary transition-colors leading-relaxed block">
-                    {option}
-                  </span>
-                </div>
-                <div className="absolute inset-0 bg-white group-hover:opacity-100 opacity-0 transition-opacity"></div>
-              </button>
-            ))}
-            
-            {activeTrigger !== 'after_homepage' && (
-                <button 
-                  onClick={() => navigate('/')}
-                  className="w-full mt-4 text-[9px] font-black text-white/40 uppercase tracking-widest hover:text-white transition-colors"
+          <div className="animate-fade-in">
+            <header className="mb-12 text-center">
+               <LocalLogo type="white" className="h-5 w-auto mx-auto mb-8 opacity-40" />
+               <h1 className="text-xl md:text-2xl font-black tracking-tight leading-tight italic">
+                 {pollQuestion}
+               </h1>
+               <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em] mt-4">
+                 {activeTrigger === 'skip_clarity' ? 'Execution Registry' : 'Growth Catalyst Mapping'}
+               </p>
+            </header>
+
+            <div className="w-full space-y-3 animate-slide-up">
+              {focusOptions.map((option, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSelect(option)}
+                  className="w-full group relative overflow-hidden bg-white/5 border border-white/10 py-5 px-6 rounded-2xl transition-all duration-500 hover:bg-white hover:border-white hover:scale-[1.02] active:scale-95 text-center flex items-center justify-center"
                 >
-                    Cancel Action
+                  <div className="relative z-10">
+                    <span className="text-[9px] font-black uppercase tracking-[0.15em] text-white group-hover:text-primary transition-colors leading-relaxed block">
+                      {option}
+                    </span>
+                  </div>
+                  <div className="absolute inset-0 bg-white group-hover:opacity-100 opacity-0 transition-opacity"></div>
                 </button>
-            )}
+              ))}
+              
+              {activeTrigger !== 'after_homepage' && (
+                  <button 
+                    onClick={() => navigate('/')}
+                    className="w-full mt-4 text-[9px] font-black text-white/40 uppercase tracking-widest hover:text-white transition-colors"
+                  >
+                      Cancel Action
+                  </button>
+              )}
+            </div>
           </div>
         )}
 
         <footer className="mt-12 opacity-20 text-center">
-            <p className="text-[7px] font-black uppercase tracking-[0.5em]">Vectorise • System 4.2</p>
+            <p className="text-[7px] font-black uppercase tracking-[0.5em]">Vectorise • System 4.5</p>
         </footer>
-      </main>
+      </div>
 
       <div className="absolute top-[-10%] right-[-10%] w-80 h-80 bg-white/5 rounded-full blur-[100px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] left-[-10%] w-80 h-80 bg-black/10 rounded-full blur-[100px] pointer-events-none"></div>

@@ -5,76 +5,67 @@ import { User, Participant, Coach, UserRole, WalletTransaction } from '../types'
 
 /**
  * Standardized utility to recursively remove non-serializable values and handle circularity.
- * Prevents 'Converting circular structure to JSON' errors by strictly allowing only
- * primitives, plain objects, plain arrays, and specific allowed types.
+ * This is the primary defense against 'Converting circular structure to JSON' errors.
  */
 export const sanitizeData = (val: any, depth = 0, seen = new WeakSet()): any => {
     // 1. Handle null and undefined
     if (val === null || val === undefined) return val;
 
-    // 2. Prevent recursion too deep
-    if (depth > 15) return undefined;
+    // 2. Depth safeguard
+    if (depth > 12) return undefined;
 
-    // 3. Handle primitives
+    // 3. Handle primitives (including strings, numbers, booleans)
     const type = typeof val;
-    if (type === 'string' || type === 'number' || type === 'boolean') return val;
+    if (type !== 'object') return val;
 
-    // 4. Handle Dates & Firestore Timestamps
+    // 4. Circularity check - MUST happen before any property access
+    if (seen.has(val)) return undefined;
+    seen.add(val);
+
+    // 5. Handle Dates & Firestore Timestamps
     if (val instanceof Date) return val.toISOString();
-    if (typeof val.toDate === 'function') return val.toDate().toISOString();
-
-    // 5. Handle Firestore FieldValues (for writes) - these must be passed through to Firestore
-    // but they shouldn't be in objects intended for JSON serialization.
-    // We check for common minified/internal indicators of FieldValue.
-    if (val && (val._methodName || val.constructor?.name?.includes('FieldValue'))) {
-        return val;
+    if (typeof val.toDate === 'function') {
+        try {
+            return val.toDate().toISOString();
+        } catch (e) {
+            return undefined;
+        }
     }
 
-    // 6. Prevent circularity - apply to both Objects and Arrays
-    if (typeof val === 'object') {
-        if (seen.has(val)) return undefined;
-    }
-
-    // 7. Handle Arrays
+    // 6. Handle Arrays
     if (Array.isArray(val)) {
-        seen.add(val);
         return val.map(item => sanitizeData(item, depth + 1, seen)).filter(i => i !== undefined);
     }
 
-    // 8. Handle Plain Objects
-    if (type === 'object') {
-        const proto = Object.getPrototypeOf(val);
-        
-        // STRICTION: Only recurse into objects created via {} or new Object().
-        // This automatically skips Firestore internal classes like DocumentReference (e.g., Q$1)
-        // because their prototype is not Object.prototype.
-        if (proto !== null && proto !== Object.prototype) {
-            return undefined;
-        }
-
-        // Catch internal Firebase-looking structures even if prototype check passes
-        // properties like firestore, _delegate, _database are common in SDK internals
-        if (val.firestore || val._database || val._path || val._delegate) {
-            return undefined;
-        }
-
-        seen.add(val);
-        const cleaned: any = {};
-        for (const key in val) {
-            if (Object.prototype.hasOwnProperty.call(val, key)) {
-                // Skip internal-looking properties
-                if (key.startsWith('_') || key.startsWith('$')) continue;
-                
-                const sanitizedVal = sanitizeData(val[key], depth + 1, seen);
-                if (sanitizedVal !== undefined) {
-                    cleaned[key] = sanitizedVal;
-                }
-            }
-        }
-        return cleaned;
+    // 7. Handle Objects
+    // Special case for Firestore FieldValues (for writes)
+    if (val._methodName || (val.constructor && val.constructor.name && val.constructor.name.includes('FieldValue'))) {
+        return val;
     }
 
-    return undefined;
+    // Identify plain objects vs internal library classes (like DocumentReference, etc.)
+    const proto = Object.getPrototypeOf(val);
+    const isPlain = proto === null || proto === Object.prototype;
+
+    if (!isPlain) {
+        // This is an internal class instance (like Q$1 in minified code)
+        // We strip these to avoid circularities during stringification.
+        return undefined;
+    }
+
+    const cleaned: any = {};
+    for (const key in val) {
+        if (Object.prototype.hasOwnProperty.call(val, key)) {
+            // Skip internal private properties
+            if (key.startsWith('_') || key.startsWith('$')) continue;
+            
+            const sanitizedVal = sanitizeData(val[key], depth + 1, seen);
+            if (sanitizedVal !== undefined) {
+                cleaned[key] = sanitizedVal;
+            }
+        }
+    }
+    return cleaned;
 };
 
 export const userService = {
