@@ -24,9 +24,12 @@ const ProgramDescription: React.FC = () => {
   const location = useLocation();
   const [sprint, setSprint] = useState<Sprint | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
 
   const selectedFocus = location.state?.selectedFocus;
   const activeTrigger = location.state?.trigger || 'after_homepage';
+
+  const fallbackImage = "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80";
 
   useEffect(() => {
     const fetchSprint = async () => {
@@ -108,11 +111,12 @@ const ProgramDescription: React.FC = () => {
           <div className="lg:col-span-8 space-y-6">
             
             {/* Hero Section - Moderate Sizing */}
-            <div className="relative h-[260px] sm:h-[320px] lg:h-[400px] rounded-[2.5rem] overflow-hidden shadow-2xl group border-4 border-white">
+            <div className="relative h-[260px] sm:h-[320px] lg:h-[400px] rounded-[2.5rem] overflow-hidden shadow-2xl group border-4 border-white bg-dark">
               <img 
-                src={sprint.coverImageUrl || "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80"} 
+                src={imageError || !sprint.coverImageUrl ? fallbackImage : sprint.coverImageUrl} 
                 className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
                 alt={sprint.title} 
+                onError={() => setImageError(true)}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
               <div className="absolute bottom-10 left-10 right-10 text-white">

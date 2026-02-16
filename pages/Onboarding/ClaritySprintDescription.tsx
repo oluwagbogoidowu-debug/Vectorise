@@ -24,6 +24,7 @@ const ClaritySprintDescription: React.FC = () => {
   const location = useLocation();
   const [sprint, setSprint] = useState<Sprint | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
   const [globalSettings, setGlobalSettings] = useState<GlobalOrchestrationSettings | null>(null);
   
   const [showMicroSelector, setShowMicroSelector] = useState(false);
@@ -32,6 +33,8 @@ const ClaritySprintDescription: React.FC = () => {
 
   const selectedFocus = location.state?.selectedFocus;
   const activeTrigger = location.state?.trigger || 'after_homepage';
+  
+  const fallbackImage = "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80";
 
   useEffect(() => {
     const fetchData = async () => {
@@ -115,8 +118,13 @@ const ClaritySprintDescription: React.FC = () => {
           <div className="lg:col-span-8 space-y-8">
             
             {/* Hero Section - Moderate Sizing */}
-            <div className="relative h-[260px] sm:h-[320px] lg:h-[400px] rounded-[3rem] overflow-hidden shadow-2xl group border-4 border-white">
-              <img src={sprint.coverImageUrl} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt={sprint.title} />
+            <div className="relative h-[260px] sm:h-[320px] lg:h-[400px] rounded-[3rem] overflow-hidden shadow-2xl group border-4 border-white bg-dark">
+              <img 
+                src={imageError || !sprint.coverImageUrl ? fallbackImage : sprint.coverImageUrl} 
+                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
+                alt={sprint.title} 
+                onError={() => setImageError(true)}
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
               <div className="absolute bottom-10 left-10 right-10 text-white">
                 <div className="mb-4">
@@ -274,7 +282,7 @@ const ClaritySprintDescription: React.FC = () => {
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(0px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}</style>
     </div>

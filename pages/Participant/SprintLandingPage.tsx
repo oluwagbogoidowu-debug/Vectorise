@@ -29,7 +29,10 @@ const SprintLandingPage: React.FC = () => {
     const [sprint, setSprint] = useState<Sprint | null>(null);
     const [fetchedCoach, setFetchedCoach] = useState<Coach | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [imageError, setImageError] = useState(false);
     
+    const fallbackImage = "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80";
+
     useEffect(() => {
         const fetchData = async () => {
             if (!sprintId) return;
@@ -85,11 +88,12 @@ const SprintLandingPage: React.FC = () => {
                     
                     <div className="lg:col-span-8 space-y-6">
                         
-                        <div className="relative h-[280px] sm:h-[340px] lg:h-[440px] rounded-[3rem] overflow-hidden shadow-2xl group border-4 border-white">
+                        <div className="relative h-[280px] sm:h-[340px] lg:h-[440px] rounded-[3rem] overflow-hidden shadow-2xl group border-4 border-white bg-dark">
                             <img 
-                                src={sprint.coverImageUrl} 
+                                src={imageError || !sprint.coverImageUrl ? fallbackImage : sprint.coverImageUrl} 
                                 className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
                                 alt={sprint.title} 
+                                onError={() => setImageError(true)}
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
                             <div className="absolute bottom-10 left-10 right-10 text-white">
