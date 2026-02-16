@@ -42,6 +42,7 @@ const LockedStageCard: React.FC<{
 
 const DiscoverSprints: React.FC = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [coaches, setCoaches] = useState<Coach[]>([]);
     const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);

@@ -85,6 +85,11 @@ const PaymentSuccess: React.FC = () => {
                 if (!userSnap.exists()) throw new Error("Registry identity not found.");
                 
                 const userData = sanitizeData(userSnap.data()) as Participant;
+                
+                // CHECK FOR ACTIVE SPRINT (Rule: One active per time)
+                const userEnrollments = await sprintService.getUserEnrollments(targetUid);
+                const hasActive = userEnrollments.some(e => e.status === 'active' && e.progress.some(p => !p.completed));
+
                 const isFirstPaidSprint = !userData.partnerCommissionClosed;
                 const sprint = await sprintService.getSprintById(paidSprintId);
                 
@@ -116,7 +121,10 @@ const PaymentSuccess: React.FC = () => {
                 });
 
                 setReadyToBegin(true);
-                setTimeout(() => navigate(`/participant/sprint/${enrollment.id}`, { replace: true }), 2500);
+                
+                // NAVIGATION LOGIC: If already has an active sprint, go to "My Sprints" (Queue), else load Day 1
+                const targetUrl = hasActive ? '/my-sprints' : `/participant/sprint/${enrollment.id}`;
+                setTimeout(() => navigate(targetUrl, { replace: true }), 2500);
 
             } catch (err) {
                 console.error("[Fulfillment] Critical Error:", err);
