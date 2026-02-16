@@ -82,7 +82,7 @@ const SprintLandingPage: React.FC = () => {
                         Back to Registry
                     </button>
                     <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[9px] font-black uppercase tracking-widest">
-                        {isFoundational ? 'FOUNDATIONAL PATH' : 'REGISTRY PATH'}
+                        {isFoundational ? 'FOUNDATIONAL PATH' : 'FOUNDATION PATH'}
                     </div>
                 </div>
 
@@ -135,7 +135,7 @@ const SprintLandingPage: React.FC = () => {
                         <section className="bg-white rounded-[2.5rem] p-10 md:p-14 border border-gray-100 shadow-sm animate-fade-in relative overflow-hidden">
                             <div className="relative z-10">
                                 <div className="flex justify-between items-start mb-8">
-                                    <SectionHeading>The Transformation</SectionHeading>
+                                    <div className="h-4"></div>
                                     {sprint.outcomeTag && (
                                         <span className="bg-primary/10 text-primary px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest italic">{sprint.outcomeTag}</span>
                                     )}
@@ -228,7 +228,6 @@ const SprintLandingPage: React.FC = () => {
                         {/* Outcomes Section */}
                         {sprint.outcomes && sprint.outcomes.length > 0 && (
                             <section className="bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-xl animate-fade-in relative overflow-hidden">
-                                <SectionHeading>Evidence of Completion</SectionHeading>
                                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-10">By Day {sprint.duration}, You'll Have:</p>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-10 relative z-10">
                                     {sprint.outcomes.map((outcome, i) => (
@@ -244,7 +243,6 @@ const SprintLandingPage: React.FC = () => {
                         )}
 
                         <section className="py-12 text-center border-t border-gray-100">
-                            <SectionHeading>The Outcome</SectionHeading>
                             <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-[1.15] tracking-tighter px-4 italic max-w-xl mx-auto">
                                 <FormattedText text={sprint.outcomeStatement || "Focus creates feedback. *Feedback creates clarity.*"} />
                             </h3>
@@ -256,7 +254,7 @@ const SprintLandingPage: React.FC = () => {
                             <div className="absolute top-0 left-0 w-full h-2 bg-primary/20"></div>
                             
                             <div className="text-center mb-12">
-                                <SectionHeading>Registry Status</SectionHeading>
+                                <SectionHeading>Sprint Status</SectionHeading>
                                 <h3 className="text-3xl font-black text-dark tracking-tighter italic leading-none">
                                     {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost}` : `₦${sprint.price.toLocaleString()}`}
                                 </h3>

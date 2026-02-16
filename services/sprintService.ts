@@ -208,12 +208,14 @@ export const sprintService = {
         }
     },
 
-    saveOrchestration: async (assignments: Record<string, { sprintId: string; focusCriteria: string[] }>) => {
+    // Fix: Updated type to Record<string, LifecycleSlotAssignment> to support deep registry configuration
+    saveOrchestration: async (assignments: Record<string, LifecycleSlotAssignment>) => {
         const docRef = doc(db, ORCHESTRATION_COLLECTION, 'current_mapping');
         await setDoc(docRef, sanitizeData({ assignments, updatedAt: new Date().toISOString() }), { merge: true });
     },
 
-    getOrchestration: async (): Promise<Record<string, { sprintId: string; focusCriteria: string[] }>> => {
+    // Fix: Corrected return type to include the full LifecycleSlotAssignment interface
+    getOrchestration: async (): Promise<Record<string, LifecycleSlotAssignment>> => {
         const docRef = doc(db, ORCHESTRATION_COLLECTION, 'current_mapping');
         const snap = await getDoc(docRef);
         if (snap.exists()) {

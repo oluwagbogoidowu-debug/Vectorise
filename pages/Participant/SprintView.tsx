@@ -130,7 +130,11 @@ const SprintView: React.FC = () => {
                       return;
                     }
                   } else if (action.type === 'recommend_sprint') {
-                    navigate(`/sprint/${action.value}`, { replace: true });
+                    if (action.value === 'system_map') {
+                      navigate('/onboarding/map', { replace: true });
+                    } else {
+                      navigate(`/sprint/${action.value}`, { replace: true });
+                    }
                     return;
                   }
                 }
@@ -155,9 +159,17 @@ const SprintView: React.FC = () => {
       if (option.action === 'next_step') {
         setCurrentStepIdx(currentStepIdx + 1);
       } else if (option.action === 'skip_to_stage') {
-        navigate('/discover', { state: { targetStage: option.value }, replace: true });
+        if (option.value === 'system_map') {
+            navigate('/onboarding/map', { replace: true });
+        } else {
+            navigate('/discover', { state: { targetStage: option.value }, replace: true });
+        }
       } else if (option.action === 'finish_and_recommend') {
-        navigate('/discover', { replace: true });
+        if (option.value === 'system_map') {
+            navigate('/onboarding/map', { replace: true });
+        } else {
+            navigate('/discover', { replace: true });
+        }
       }
     };
 

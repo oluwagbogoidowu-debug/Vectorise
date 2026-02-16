@@ -122,7 +122,7 @@ const ProgramDescription: React.FC = () => {
               <div className="absolute bottom-10 left-10 right-10 text-white">
                 <div className="mb-4">
                   <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg">
-                    {isFoundational ? 'FOUNDATIONAL PATH' : 'REGISTRY PATH'}
+                    {isFoundational ? 'FOUNDATIONAL PATH' : 'FOUNDATION PATH'}
                   </span>
                 </div>
                 <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-[1] mb-3 italic">
@@ -155,7 +155,6 @@ const ProgramDescription: React.FC = () => {
             {/* Transformation Section - Normalized Text Size, No Italics */}
             <section className="bg-white rounded-[2.5rem] p-10 md:p-14 border border-gray-100 shadow-sm animate-fade-in relative overflow-hidden">
               <div className="relative z-10">
-                <SectionHeading>The Transformation</SectionHeading>
                 <div className="space-y-10">
                   <p className="text-gray-900 font-bold text-sm leading-relaxed">
                     <FormattedText text={sprint.transformation || sprint.description} />
@@ -241,7 +240,6 @@ const ProgramDescription: React.FC = () => {
             {/* Outcomes Section */}
             {sprint.outcomes && sprint.outcomes.length > 0 && (
                 <section className="bg-white rounded-[2.5rem] p-12 md:p-16 border border-gray-100 shadow-xl animate-fade-in relative overflow-hidden">
-                    <SectionHeading>Evidence of Completion</SectionHeading>
                     <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-12">By Day {sprint.duration}, You'll Have:</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-y-10 gap-x-16 relative z-10">
                         {sprint.outcomes.map((outcome, i) => (
@@ -258,7 +256,6 @@ const ProgramDescription: React.FC = () => {
 
             {/* Closing */}
             <section className="py-16 text-center border-t border-gray-100">
-                <SectionHeading>The Outcome</SectionHeading>
                 <h3 className="text-3xl md:text-4xl font-black text-gray-900 leading-[1.1] tracking-tighter px-4 italic max-w-2xl mx-auto">
                     <FormattedText text={sprint.outcomeStatement || "Focus creates feedback. *Feedback creates clarity.*"} />
                 </h3>
@@ -271,9 +268,9 @@ const ProgramDescription: React.FC = () => {
               <div className="absolute top-0 left-0 w-full h-2 bg-primary/20"></div>
               
               <div className="text-center mb-12">
-                <SectionHeading>Registry Status</SectionHeading>
+                <SectionHeading>Sprint Status</SectionHeading>
                 <h3 className="text-3xl font-black text-dark tracking-tighter italic leading-none">
-                  {isFoundational ? 'Foundational' : 'Registry Path'}
+                  {isFoundational ? 'Foundational' : 'Foundation Path'}
                 </h3>
               </div>
 

@@ -99,9 +99,15 @@ const FocusSelector: React.FC = () => {
       }
 
       if (resolvedSprintId) {
-          navigate(`/onboarding/description/${resolvedSprintId}`, { 
-            state: { selectedFocus: option, sprintId: resolvedSprintId, trigger: activeTrigger } 
-          });
+          if (resolvedSprintId === 'system_map') {
+            navigate('/onboarding/map', { 
+              state: { selectedFocus: option, trigger: activeTrigger } 
+            });
+          } else {
+            navigate(`/onboarding/description/${resolvedSprintId}`, { 
+              state: { selectedFocus: option, sprintId: resolvedSprintId, trigger: activeTrigger } 
+            });
+          }
       } else {
           setLookupError(`No matching path found in the Orchestrator for: "${option}"`);
           setIsProcessingSelection(false);
@@ -120,7 +126,7 @@ const FocusSelector: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen w-full items-center justify-center p-6 bg-primary text-white relative overflow-hidden selection:bg-white/10">
-      <div className="w-full max-w-[320px] z-10">
+      <div className="w-full max-[320px] z-10">
         
         {isLoading || isProcessingSelection ? (
           <div className="flex flex-col items-center justify-center space-y-8 animate-fade-in py-20">
