@@ -1,54 +1,59 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import { FOCUS_OPTIONS } from '../../services/mockData';
 import { sprintService } from '../../services/sprintService';
 import { useAuth } from '../../contexts/AuthContext';
-import { Participant, LifecycleSlotAssignment } from '../../types';
+import { Participant, LifecycleSlotAssignment, GlobalOrchestrationSettings } from '../../types';
 
 const FocusSelector: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, updateProfile } = useAuth();
   
-  // Detect if we are coming from a "Skip Clarity" or other specific flow
   const activeTrigger = location.state?.trigger || 'after_homepage';
-  const isExecutionMode = activeTrigger === 'skip_clarity';
-
+  
   const [isLoading, setIsLoading] = useState(false);
   const [matchingStatus, setMatchingStatus] = useState<string | null>(null);
+  const [pollQuestion, setPollQuestion] = useState<string>("What’s your biggest focus right now?");
   const [focusOptions, setFocusOptions] = useState<string[]>(FOCUS_OPTIONS);
   const [activeAssignment, setActiveAssignment] = useState<LifecycleSlotAssignment | null>(null);
 
   useEffect(() => {
-    const loadSettings = async () => {
+    const loadDynamicOrchestration = async () => {
       try {
         const [settings, orchestration] = await Promise.all([
           sprintService.getGlobalOrchestrationSettings(),
           sprintService.getOrchestration()
         ]);
 
-        // Find the slot assigned to the specific trigger passed in state
+        // Find the slot assigned to this specific trigger
         const assignment = Object.values(orchestration).find(
           (a: any) => a.stateTrigger === activeTrigger
         ) as LifecycleSlotAssignment | undefined;
 
         if (assignment) {
           setActiveAssignment(assignment);
+          // Only use custom options if they exist, otherwise fallback to global
           if (assignment.availableFocusOptions && assignment.availableFocusOptions.length > 0) {
             setFocusOptions(assignment.availableFocusOptions);
+          } else if (settings?.focusOptions) {
+            setFocusOptions(settings.focusOptions);
           }
-        } else if (settings?.focusOptions && settings.focusOptions.length > 0) {
-          setFocusOptions(settings.focusOptions);
+        }
+
+        if (activeTrigger === 'skip_clarity') {
+          setPollQuestion("What specific execution goal is your priority?");
         }
       } catch (err) {
-        console.warn("Could not load dynamic focus registry:", err);
+        console.warn("Registry sync failed:", err);
       }
     };
-    loadSettings();
+    loadDynamicOrchestration();
   }, [activeTrigger]);
 
-  const handleSelect = async (option: string, index: number) => {
+  const handleSelect = async (option: string) => {
     setIsLoading(true);
     setMatchingStatus("Authorized Scan...");
     
@@ -62,59 +67,55 @@ const FocusSelector: React.FC = () => {
           } as any
         });
       } catch (err) {
-        console.error("Failed to save focus to profile:", err);
+        console.error("Profile sync failed:", err);
       }
     }
 
-    // High-fidelity analysis phase
     setTimeout(() => setMatchingStatus("Polling Registry..."), 600);
-    setTimeout(() => setMatchingStatus(isExecutionMode ? "Execution Match..." : "Foundation Check..."), 1200);
+    setTimeout(() => setMatchingStatus("Resolving Logic..."), 1200);
 
     try {
       let resolvedSprintId: string | null = null;
+      const orchestration = await sprintService.getOrchestration();
 
-      // 1. Check explicit focus map in the active assignment
+      // STRICT LOOKUP: Scan ALL orchestrated slots for a match to this specific option
+      const slots = Object.values(orchestration) as LifecycleSlotAssignment[];
+      
+      // Prioritize searching the active trigger's assigned slot first
       if (activeAssignment?.sprintFocusMap) {
           resolvedSprintId = Object.keys(activeAssignment.sprintFocusMap).find(
               sId => activeAssignment.sprintFocusMap?.[sId]?.includes(option)
           ) || null;
       }
 
-      // 2. Fallback to general slot search if no explicit map match
+      // If not found in primary slot, scan every other orchestrated slot for a specific mapping
       if (!resolvedSprintId) {
-          const orchestration = await sprintService.getOrchestration();
-          const slotPool = isExecutionMode 
-            ? Object.keys(orchestration).filter(id => !id.startsWith('slot_found'))
-            : ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
-          
-          for (const slotId of slotPool) {
-              const mapping = orchestration[slotId] as LifecycleSlotAssignment;
-              if (mapping?.sprintFocusMap) {
-                  const matchedId = Object.keys(mapping.sprintFocusMap).find(sId => mapping.sprintFocusMap?.[sId]?.includes(option));
-                  if (matchedId) {
-                      resolvedSprintId = matchedId;
+          for (const mapping of slots) {
+              if (mapping.sprintFocusMap) {
+                  const match = Object.keys(mapping.sprintFocusMap).find(
+                      sId => mapping.sprintFocusMap?.[sId]?.includes(option)
+                  );
+                  if (match) {
+                      resolvedSprintId = match;
                       break;
                   }
               }
-              if (mapping?.sprintId && mapping.focusCriteria?.includes(option)) {
-                  resolvedSprintId = mapping.sprintId;
-                  break;
-              }
           }
       }
-      
+
       setTimeout(() => {
         if (resolvedSprintId) {
-            // Foundational sprints go to clarity-description, others go to standard description
-            const isFoundational = resolvedSprintId.includes('foundational') || !isExecutionMode;
-            const path = isFoundational ? 'clarity-description' : 'description';
+            // Foundational logic: check if the sprint is platform-owned or categorized as Foundational
+            const isFoundational = resolvedSprintId.includes('foundational') || resolvedSprintId.includes('core');
+            const pathPrefix = isFoundational ? 'clarity-description' : 'description';
             
-            navigate(`/onboarding/${path}/${resolvedSprintId}`, { 
-              state: { selectedFocus: option, sprintId: resolvedSprintId } 
+            navigate(`/onboarding/${pathPrefix}/${resolvedSprintId}`, { 
+              state: { selectedFocus: option, sprintId: resolvedSprintId, trigger: activeTrigger } 
             });
         } else {
-            setMatchingStatus("Broadening Search...");
-            setTimeout(() => navigate('/discover'), 600);
+            // If the orchestrator has NO mapping for this choice, we cannot show a default.
+            // We must take them to discovery to choose manually.
+            navigate('/discover');
         }
       }, 1800);
     } catch (error) {
@@ -129,13 +130,10 @@ const FocusSelector: React.FC = () => {
         <header className="mb-12 text-center animate-fade-in">
            <LocalLogo type="white" className="h-5 w-auto mx-auto mb-8 opacity-40" />
            <h1 className="text-xl md:text-2xl font-black tracking-tight leading-tight italic">
-             {isExecutionMode 
-                ? "What specific execution goal is your priority?" 
-                : "What’s your biggest focus right now?"
-             }
+             {pollQuestion}
            </h1>
            <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em] mt-4">
-             {isExecutionMode ? 'Execution Registry Logic' : 'Growth Catalyst Mapping'}
+             {activeTrigger === 'skip_clarity' ? 'Execution Registry Logic' : 'Growth Catalyst Mapping'}
            </p>
         </header>
 
@@ -150,7 +148,7 @@ const FocusSelector: React.FC = () => {
             </div>
             <div className="text-center">
                 <p className="text-[10px] font-black uppercase tracking-[0.4em] animate-pulse text-[#0FB881]">{matchingStatus}</p>
-                <p className="text-[8px] font-bold text-white/40 mt-2 italic uppercase">Registry Sync in Progress</p>
+                <p className="text-[8px] font-bold text-white/40 mt-2 italic uppercase">Registry Sync Active</p>
             </div>
           </div>
         ) : (
@@ -159,7 +157,7 @@ const FocusSelector: React.FC = () => {
               <button
                 key={idx}
                 disabled={isLoading}
-                onClick={() => handleSelect(option, idx)}
+                onClick={() => handleSelect(option)}
                 className="w-full group relative overflow-hidden bg-white/5 border border-white/10 py-5 px-6 rounded-2xl transition-all duration-500 hover:bg-white hover:border-white hover:scale-[1.02] active:scale-95 text-center flex items-center justify-center disabled:opacity-50"
               >
                 <div className="relative z-10">
@@ -171,19 +169,19 @@ const FocusSelector: React.FC = () => {
               </button>
             ))}
             
-            {isExecutionMode && (
+            {activeTrigger !== 'after_homepage' && (
                 <button 
-                  onClick={() => navigate(-1)}
+                  onClick={() => navigate('/')}
                   className="w-full mt-4 text-[9px] font-black text-white/40 uppercase tracking-widest hover:text-white transition-colors"
                 >
-                    &larr; Back to Clarity
+                    Cancel Action
                 </button>
             )}
           </div>
         )}
 
         <footer className="mt-12 opacity-20 text-center">
-            <p className="text-[7px] font-black uppercase tracking-[0.5em]">Vectorise • {isExecutionMode ? 'Execution' : 'Clarity'} Protocol</p>
+            <p className="text-[7px] font-black uppercase tracking-[0.5em]">Vectorise • System 4.2</p>
         </footer>
       </main>
 

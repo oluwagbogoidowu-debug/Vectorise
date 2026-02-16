@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
@@ -56,8 +57,9 @@ const ClaritySprintPayment: React.FC = () => {
   };
 
   const handleHesitation = () => {
+    // Correctly triggering the 'payment_hesitation' context
     navigate('/onboarding/map', { 
-        state: { ...state } 
+        state: { ...state, trigger: 'payment_hesitation' } 
     });
   };
 
@@ -164,8 +166,8 @@ const ClaritySprintPayment: React.FC = () => {
       <style>{`
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
-        .animate-slide-up { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}</style>
     </div>
   );

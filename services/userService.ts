@@ -1,3 +1,4 @@
+
 import { db } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, increment, addDoc } from 'firebase/firestore';
 import { User, Participant, Coach, UserRole, WalletTransaction } from '../types';
@@ -22,13 +23,17 @@ export const sanitizeData = (val: any, depth = 0, seen = new WeakSet()): any => 
     if (val instanceof Date) return val.toISOString();
     if (typeof val.toDate === 'function') return val.toDate().toISOString();
 
-    // 5. Handle Firestore FieldValues (for writes)
-    if (val && (typeof val._methodName === 'string' || val.constructor?.name?.includes('FieldValue'))) {
+    // 5. Handle Firestore FieldValues (for writes) - these must be passed through to Firestore
+    // but they shouldn't be in objects intended for JSON serialization.
+    // We check for common minified/internal indicators of FieldValue.
+    if (val && (val._methodName || val.constructor?.name?.includes('FieldValue'))) {
         return val;
     }
 
-    // 6. Prevent circularity
-    if (seen.has(val)) return undefined;
+    // 6. Prevent circularity - apply to both Objects and Arrays
+    if (typeof val === 'object') {
+        if (seen.has(val)) return undefined;
+    }
 
     // 7. Handle Arrays
     if (Array.isArray(val)) {
@@ -48,7 +53,8 @@ export const sanitizeData = (val: any, depth = 0, seen = new WeakSet()): any => 
         }
 
         // Catch internal Firebase-looking structures even if prototype check passes
-        if (val.firestore || val._database || val._path) {
+        // properties like firestore, _delegate, _database are common in SDK internals
+        if (val.firestore || val._database || val._path || val._delegate) {
             return undefined;
         }
 
