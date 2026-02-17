@@ -26,13 +26,17 @@ export default async function handler(req, res) {
 
     const paymentAmount = amount || "5000";
 
-    // Determine origin dynamically to prevent redirecting localhost users to live site
+    // Determine origin dynamically
     const host = req.headers.host;
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const origin = `${protocol}://${host}`;
 
-    // Pass the exact email entered by the user
     const cleanEmail = email.trim().toLowerCase();
+    
+    /**
+     * Flutterwave appends its own query string to the redirect_url.
+     * By putting our internal params at the end, Flutterwave will append with '&'
+     */
     const redirectUrl = `${origin}/#/payment-success?sprintId=${sprintId || 'clarity-sprint'}&email=${encodeURIComponent(cleanEmail)}`;
 
     const response = await fetch("https://api.flutterwave.com/v3/payments", {
