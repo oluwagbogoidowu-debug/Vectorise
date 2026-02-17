@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { paymentService } from '../../services/paymentService';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
-import { Participant } from '../../types';
+import { Participant, Sprint } from '../../types';
 import { doc, updateDoc, getDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
@@ -18,6 +18,7 @@ const PaymentSuccess: React.FC = () => {
     const [readyToBegin, setReadyToBegin] = useState(false);
     const [isFulfilling, setIsFulfilling] = useState(false);
     const [retries, setRetries] = useState(0);
+    const [sprintMetadata, setSprintMetadata] = useState<Sprint | null>(null);
     const fulfillmentAttempted = useRef(false);
     
     const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -26,6 +27,13 @@ const PaymentSuccess: React.FC = () => {
     const reference = queryParams.get('reference') || queryParams.get('transaction_id');
     const paidSprintId = queryParams.get('sprintId');
     const rawEmail = queryParams.get('email'); 
+
+    // Fetch sprint metadata immediately for UI and fallback navigation
+    useEffect(() => {
+        if (paidSprintId) {
+            sprintService.getSprintById(paidSprintId).then(setSprintMetadata);
+        }
+    }, [paidSprintId]);
 
     // 1. Verify Payment Status with Secure Backend
     useEffect(() => {
@@ -109,7 +117,7 @@ const PaymentSuccess: React.FC = () => {
                 if (!userSnap.exists()) throw new Error("Registry identity not found.");
                 
                 const userData = userSnap.data() as Participant;
-                const sprint = await sprintService.getSprintById(paidSprintId);
+                const sprint = sprintMetadata || await sprintService.getSprintById(paidSprintId);
                 if (!sprint) throw new Error("Sprint metadata not found.");
 
                 // Check for existing active sprint
@@ -158,7 +166,7 @@ const PaymentSuccess: React.FC = () => {
                 await paymentService.logPaymentAttempt({
                     user_id: user.id,
                     sprint_id: paidSprintId,
-                    amount: sprint.price || 0,
+                    amount: sprintMetadata?.price || 0,
                     status: 'successful'
                 });
 
@@ -171,12 +179,18 @@ const PaymentSuccess: React.FC = () => {
         };
 
         performFulfillment();
-    }, [status, user, loading, paidSprintId, rawEmail, navigate, updateProfile, isFulfilling]);
+    }, [status, user, loading, paidSprintId, rawEmail, navigate, updateProfile, isFulfilling, sprintMetadata]);
 
-    // Cleanup reference in useMemo for React warning
-    function useMemo(factory: () => URLSearchParams, deps: React.DependencyList): URLSearchParams {
-        return React.useMemo(factory, deps);
-    }
+    const handleReturnToPayment = () => {
+        if (paidSprintId && sprintMetadata) {
+            navigate('/onboarding/sprint-payment', { 
+                state: { sprint: sprintMetadata },
+                replace: true 
+            });
+        } else {
+            navigate('/discover', { replace: true });
+        }
+    };
 
     return (
         <div className="min-h-screen bg-[#FDFDFD] flex flex-col items-center justify-center p-6 text-center font-sans overflow-hidden">
@@ -242,7 +256,12 @@ const PaymentSuccess: React.FC = () => {
                                     {errorNote || "We couldn't verify this transaction reference. The sprint remains locked."}
                                 </p>
                             </div>
-                            <button onClick={() => navigate('/discover')} className="w-full py-4 bg-gray-900 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all">Return to Registry</button>
+                            <button 
+                                onClick={handleReturnToPayment} 
+                                className="w-full py-4 bg-gray-900 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all"
+                            >
+                                {paidSprintId ? 'Return to Payment' : 'Return to Registry'}
+                            </button>
                         </div>
                     )}
                 </header>

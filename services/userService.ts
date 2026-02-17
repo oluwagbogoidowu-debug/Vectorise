@@ -1,28 +1,33 @@
-
 import { db } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, increment, addDoc } from 'firebase/firestore';
 import { User, Participant, Coach, UserRole, WalletTransaction } from '../types';
 
 /**
  * Standardized utility to recursively remove non-serializable values and handle circularity.
- * This is the primary defense against 'Converting circular structure to JSON' errors.
+ * Hardened to detect minified Firestore internal classes and prevent React state corruption.
  */
 export const sanitizeData = (val: any, depth = 0, seen = new WeakSet()): any => {
     // 1. Handle null and undefined
     if (val === null || val === undefined) return val;
 
-    // 2. Depth safeguard
-    if (depth > 12) return undefined;
+    // 2. Depth safeguard to prevent runaway recursion in edge cases
+    if (depth > 10) return undefined;
 
-    // 3. Handle primitives (including strings, numbers, booleans)
+    // 3. Handle primitives
     const type = typeof val;
-    if (type !== 'object') return val;
+    if (type !== 'object' && type !== 'function') return val;
+    if (type === 'function') return undefined; // functions are not serializable
 
     // 4. Circularity check - MUST happen before any property access
-    if (seen.has(val)) return undefined;
-    seen.add(val);
+    try {
+        if (seen.has(val)) return undefined;
+        seen.add(val);
+    } catch (e) {
+        // Fallback for objects that cannot be added to WeakSet
+        return undefined;
+    }
 
-    // 5. Handle Dates & Firestore Timestamps
+    // 5. Handle Firestore Timestamps and Dates
     if (val instanceof Date) return val.toISOString();
     if (typeof val.toDate === 'function') {
         try {
@@ -34,35 +39,42 @@ export const sanitizeData = (val: any, depth = 0, seen = new WeakSet()): any => 
 
     // 6. Handle Arrays
     if (Array.isArray(val)) {
-        return val.map(item => sanitizeData(item, depth + 1, seen)).filter(i => i !== undefined);
+        return val
+            .map(item => sanitizeData(item, depth + 1, seen))
+            .filter(i => i !== undefined);
     }
 
     // 7. Handle Objects
-    // Special case for Firestore FieldValues (for writes)
-    if (val._methodName || (val.constructor && val.constructor.name && val.constructor.name.includes('FieldValue'))) {
+    // Check for Firestore FieldValues which are necessary for writes but problematic for UI
+    const isFieldValue = val._methodName || 
+                        (val.constructor && val.constructor.name && val.constructor.name.includes('FieldValue')) ||
+                        (val.constructor && val.constructor.name === 'Fe'); // Common minified FieldValue name
+
+    if (isFieldValue) {
         return val;
     }
 
-    // Identify plain objects vs internal library classes (like DocumentReference, etc.)
+    // Identify plain objects vs internal classes or DOM elements
     const proto = Object.getPrototypeOf(val);
     const isPlain = proto === null || proto === Object.prototype;
+    
+    // Safety check for minified names (Q$1 is Query, Sa is Firestore, etc.)
+    const constructorName = val.constructor?.name || '';
+    const isInternalClass = /^[A-Z]\$[0-9]$|^[A-Z][a-z]$/.test(constructorName);
 
-    if (!isPlain) {
-        // This is an internal class instance (like Q$1 in minified code)
-        // We strip these to avoid circularities during stringification.
+    if (!isPlain || isInternalClass || val instanceof Element) {
         return undefined;
     }
 
     const cleaned: any = {};
-    for (const key in val) {
-        if (Object.prototype.hasOwnProperty.call(val, key)) {
-            // Skip internal private properties
-            if (key.startsWith('_') || key.startsWith('$')) continue;
-            
-            const sanitizedVal = sanitizeData(val[key], depth + 1, seen);
-            if (sanitizedVal !== undefined) {
-                cleaned[key] = sanitizedVal;
-            }
+    const keys = Object.keys(val);
+    for (const key of keys) {
+        // Skip internal private properties starting with _ or $
+        if (key.startsWith('_') || key.startsWith('$')) continue;
+        
+        const sanitizedVal = sanitizeData(val[key], depth + 1, seen);
+        if (sanitizedVal !== undefined) {
+            cleaned[key] = sanitizedVal;
         }
     }
     return cleaned;
@@ -213,7 +225,7 @@ export const userService = {
               role: UserRole.COACH
           });
       } catch (error) {
-          console.error("Error approving coach:", error);
+          console.error("Error approving coach:", coachId, error);
           throw error;
       }
   },
@@ -226,7 +238,7 @@ export const userService = {
               hasCoachProfile: false 
           });
       } catch (error) {
-          console.error("Error rejecting coach:", error);
+          console.error("Error rejecting coach:", coachId, error);
           throw error;
       }
   },
