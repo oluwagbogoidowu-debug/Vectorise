@@ -4,7 +4,7 @@ import { paymentService } from '../../services/paymentService';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
-import { userService } from '../../services/userService';
+import { userService, sanitizeData } from '../../services/userService';
 import { Participant, Sprint } from '../../types';
 import { doc, updateDoc, getDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -21,7 +21,12 @@ const PaymentSuccess: React.FC = () => {
     const [sprintMetadata, setSprintMetadata] = useState<Sprint | null>(null);
     const fulfillmentAttempted = useRef(false);
     
-    const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+    // Resilient parameter extraction for HashRouter
+    const queryParams = useMemo(() => {
+        // Check standard location.search and fallback to parsing the hash if needed
+        const search = location.search || (window.location.hash.includes('?') ? '?' + window.location.hash.split('?')[1] : '');
+        return new URLSearchParams(search);
+    }, [location.search]);
     
     // Flutterwave appends transaction_id to the redirect URL
     const reference = queryParams.get('reference') || queryParams.get('transaction_id');
@@ -39,7 +44,7 @@ const PaymentSuccess: React.FC = () => {
     useEffect(() => {
         if (!reference) {
             const flwStatus = queryParams.get('status');
-            if (flwStatus === 'cancelled') {
+            if (flwStatus === 'cancelled' || queryParams.get('status') === 'cancelled') {
                 setStatus('failed');
                 setErrorNote("Payment was cancelled by the user.");
             } else {
@@ -51,6 +56,7 @@ const PaymentSuccess: React.FC = () => {
 
         const checkStatus = async () => {
             try {
+                // Determine gateway based on parameters
                 const gateway = queryParams.get('reference') ? 'paystack' : 'flutterwave';
                 const data = await paymentService.verifyPayment(gateway, reference, paidSprintId || undefined);
                 
@@ -183,12 +189,20 @@ const PaymentSuccess: React.FC = () => {
 
     const handleReturnToPayment = () => {
         if (paidSprintId && sprintMetadata) {
+            // We shallow copy/sanitize metadata to avoid any React navigation circular structure errors
             navigate('/onboarding/sprint-payment', { 
-                state: { sprint: sprintMetadata },
+                state: { 
+                  sprint: sanitizeData(sprintMetadata),
+                  prefilledEmail: rawEmail
+                },
                 replace: true 
             });
+        } else if (paidSprintId) {
+            // Resilient fallback: landing pages are public and won't trigger login redirects
+            navigate(`/sprint/${paidSprintId}`, { replace: true });
         } else {
-            navigate('/discover', { replace: true });
+            // Ultimate fallback
+            navigate('/', { replace: true });
         }
     };
 
@@ -260,7 +274,7 @@ const PaymentSuccess: React.FC = () => {
                                 onClick={handleReturnToPayment} 
                                 className="w-full py-4 bg-gray-900 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all"
                             >
-                                {paidSprintId ? 'Return to Payment' : 'Return to Registry'}
+                                {paidSprintId ? 'Return to Payment' : 'Return to Home'}
                             </button>
                         </div>
                     )}

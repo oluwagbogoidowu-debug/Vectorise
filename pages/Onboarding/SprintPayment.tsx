@@ -11,7 +11,7 @@ import { Sprint, Participant, GlobalOrchestrationSettings } from '../../types';
 const SprintPayment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  // Fixed typo: changed userAuth to useAuth
+  // Fixed typo: userAuth -> useAuth
   const { user, updateProfile } = useAuth();
   
   const [guestEmail, setGuestEmail] = useState('');
@@ -30,7 +30,12 @@ const SprintPayment: React.FC = () => {
       setGlobalSettings(settings);
     };
     loadSettings();
-  }, []);
+    
+    // If returning from a failed/cancelled payment, state might have guest email
+    if (state.prefilledEmail && !guestEmail) {
+      setGuestEmail(state.prefilledEmail);
+    }
+  }, [state.prefilledEmail]);
 
   const isCreditSprint = selectedSprint?.pricingType === 'credits';
   const sprintPrice = isCreditSprint ? (selectedSprint?.pointCost ?? 0) : (selectedSprint?.price ?? 5000);
