@@ -143,6 +143,7 @@ const EditSprint: React.FC = () => {
           setReviewFeedback(found.reviewFeedback || {});
           setEditSettings({
             title: merged.title,
+            subtitle: merged.subtitle,
             description: merged.description,
             transformation: merged.transformation || merged.description,
             outcomeTag: merged.outcomeTag || '',
@@ -420,6 +421,7 @@ const EditSprint: React.FC = () => {
 
                         <div className="grid grid-cols-1 gap-6">
                             <DiffHighlight label="Title" original={originalSprint?.title} updated={editSettings.title} />
+                            <DiffHighlight label="Subtitle" original={originalSprint?.subtitle} updated={editSettings.subtitle} />
                             <DiffHighlight label="Cover Image URL" original={originalSprint?.coverImageUrl} updated={editSettings.coverImageUrl} />
                             <DiffHighlight label="Transformation Statement" original={originalSprint?.transformation || originalSprint?.description} updated={editSettings.transformation} />
                             <DiffHighlight label="Target Signals (forWho)" original={originalSprint?.forWho} updated={editSettings.forWho} />
@@ -448,6 +450,10 @@ const EditSprint: React.FC = () => {
                                 <div className="md:col-span-2">
                                     <label className={labelClasses}>Sprint Title</label>
                                     <input type="text" value={editSettings.title || ''} onChange={e => setEditSettings({...editSettings, title: e.target.value})} className={registryInputClasses + " mt-2"} />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className={labelClasses}>Sprint Subtitle</label>
+                                    <input type="text" value={editSettings.subtitle || ''} onChange={e => setEditSettings({...editSettings, subtitle: e.target.value})} className={registryInputClasses + " mt-2"} />
                                 </div>
                                 <div className="md:col-span-2">
                                     <label className={labelClasses}>Cover Image URL</label>

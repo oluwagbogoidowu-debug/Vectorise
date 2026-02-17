@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Sprint, Coach } from '../types';
 import FormattedText from './FormattedText';
@@ -43,6 +44,9 @@ const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint, coach }) => {
             <h1 className="text-xl font-black tracking-tight leading-none mb-1 italic">
               <FormattedText text={sprint.title || 'Untitled Sprint'} />
             </h1>
+            {sprint.subtitle && (
+                <p className="text-[8px] font-black text-white/50 uppercase tracking-[0.2em] mb-2 italic">{sprint.subtitle}</p>
+            )}
             <p className="text-white/60 text-[6px] font-bold uppercase tracking-widest">{sprint.duration || 7} Day Protocol</p>
           </div>
         </div>

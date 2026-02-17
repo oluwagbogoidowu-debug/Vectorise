@@ -204,7 +204,10 @@ const ParticipantDashboard: React.FC = () => {
                                 <div className="flex justify-between items-start mb-4 flex-shrink-0">
                                     <div>
                                         <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-1">{mainTask.sprint.category}</p>
-                                        <h3 className="text-lg md:text-xl font-black text-gray-900 leading-tight tracking-tight truncate max-w-[200px]">{mainTask.sprint.title}</h3>
+                                        <h3 className="text-lg md:text-xl font-black text-gray-900 leading-tight tracking-tight truncate max-w-[200px] mb-0.5">{mainTask.sprint.title}</h3>
+                                        {mainTask.sprint.subtitle && (
+                                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest italic leading-none">{mainTask.sprint.subtitle}</p>
+                                        )}
                                     </div>
                                     <div className="px-2 py-1 bg-gray-100 rounded-lg">
                                         <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Day {mainTask.status.day}</span>

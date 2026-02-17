@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -107,9 +108,12 @@ const SprintLandingPage: React.FC = () => {
                                         {isFoundational ? 'FOUNDATIONAL PATH' : 'PREMIUM SPRINT'}
                                     </span>
                                 </div>
-                                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-[1] mb-3 italic">
+                                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-[1] mb-2 italic">
                                     <FormattedText text={sprint.title} />
                                 </h1>
+                                {sprint.subtitle && (
+                                    <p className="text-white/70 text-[10px] font-black uppercase tracking-[0.4em] mb-4 italic leading-none">{sprint.subtitle}</p>
+                                )}
                                 <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.4em]">{sprint.duration} DAY PROTOCOL</p>
                             </div>
                         </div>

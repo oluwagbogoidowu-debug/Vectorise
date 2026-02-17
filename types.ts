@@ -109,6 +109,7 @@ export interface Sprint {
   id: string;
   coachId: string;
   title: string;
+  subtitle?: string;
   description: string; 
   category: string;
   difficulty: SprintDifficulty;

@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Sprint, Coach, UserRole, Participant } from '../types';
@@ -125,7 +126,10 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                         <span className="px-3 py-1 rounded-lg bg-gray-50 border border-gray-100 text-gray-400 text-[9px] font-black uppercase tracking-[0.25em]">{sprint.category}</span>
                     </div>
 
-                    <h3 className={`text-2xl font-black text-gray-900 mb-3 transition-colors leading-[1.1] tracking-tight ${!isStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>
+                    <h3 className={`text-2xl font-black text-gray-900 mb-1 transition-colors leading-[1.1] tracking-tight ${!isStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>
+                    {sprint.subtitle && (
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3 leading-none italic">{sprint.subtitle}</p>
+                    )}
                     <p className="text-[13px] text-gray-500 line-clamp-2 mb-8 flex-grow font-medium leading-relaxed italic opacity-80">"{sprint.description}"</p>
                     
                     <div className="pt-6 border-t border-gray-50 mt-auto">

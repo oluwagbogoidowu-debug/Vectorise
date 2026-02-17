@@ -130,9 +130,12 @@ const ClaritySprintDescription: React.FC = () => {
                 <div className="mb-4">
                   <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg">FOUNDATIONAL PATH</span>
                 </div>
-                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-[1] mb-3 italic">
+                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-[1] mb-2 italic">
                   <FormattedText text={sprint.title} />
                 </h1>
+                {sprint.subtitle && (
+                    <p className="text-white/70 text-[10px] font-black uppercase tracking-[0.4em] mb-4 italic leading-none">{sprint.subtitle}</p>
+                )}
                 <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.4em]">{sprint.duration} Day Protocol</p>
               </div>
             </div>
@@ -284,7 +287,7 @@ const ClaritySprintDescription: React.FC = () => {
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}</style>
     </div>
   );

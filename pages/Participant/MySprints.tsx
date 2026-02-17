@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -141,7 +142,8 @@ const MySprints: React.FC = () => {
                                                         <p className="text-[8px] font-black text-primary uppercase tracking-widest">{sprint.category}</p>
                                                         <span className="text-[10px] font-bold text-gray-400">{progress.toFixed(0)}%</span>
                                                     </div>
-                                                    <h3 className="text-sm font-black text-gray-900 mb-2 truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
+                                                    <h3 className="text-sm font-black text-gray-900 mb-0.5 truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
+                                                    {sprint.subtitle && <p className="text-[9px] font-bold text-gray-400 uppercase italic mb-2 truncate">{sprint.subtitle}</p>}
                                                     <ProgressBar value={progress} />
                                                     <div className="mt-3 flex items-center justify-between">
                                                         <p className="text-[10px] text-gray-500 font-bold uppercase">Day {enrollment.progress.filter(p => p.completed).length + 1} / {sprint.duration}</p>

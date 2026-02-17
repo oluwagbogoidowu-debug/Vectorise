@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/Button';
@@ -32,6 +33,7 @@ const CreateSprint: React.FC = () => {
 
     const [formData, setFormData] = useState({
         title: '',
+        subtitle: '',
         category: ALL_CATEGORIES[0],
         difficulty: 'Beginner' as SprintDifficulty,
         duration: 7,
@@ -95,6 +97,7 @@ const CreateSprint: React.FC = () => {
             id: sprintId,
             coachId: user.id,
             title: formData.title,
+            subtitle: formData.subtitle,
             description: formData.transformation,
             category: formData.category,
             difficulty: formData.difficulty,
@@ -132,6 +135,7 @@ const CreateSprint: React.FC = () => {
         id: 'preview',
         coachId: user?.id || '',
         title: formData.title || 'Untitled Sprint',
+        subtitle: formData.subtitle,
         description: formData.transformation || 'A transformation focused journey...',
         category: formData.category,
         difficulty: formData.difficulty,
@@ -179,6 +183,10 @@ const CreateSprint: React.FC = () => {
                                     <div className="md:col-span-2">
                                         <label className={labelClasses}>Sprint Title</label>
                                         <input type="text" name="title" value={formData.title} onChange={handleChange} className={inputClasses} placeholder="e.g. 7-Day High Velocity Content" required />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className={labelClasses}>Sprint Subtitle</label>
+                                        <input type="text" name="subtitle" value={formData.subtitle} onChange={handleChange} className={inputClasses} placeholder="e.g. For emerging creators" />
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className={labelClasses}>Cover Image URL</label>
@@ -407,7 +415,7 @@ const CreateSprint: React.FC = () => {
                          <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm text-center">
                             <p className="text-[9px] font-black text-primary uppercase tracking-[0.4em] mb-4">Registry Guidance</p>
                             <h5 className="text-sm font-black text-gray-900 leading-tight mb-4 italic">Clarity over Selling.</h5>
-                            <p className="text-[11px] text-gray-400 font-medium leading-relaxed italic mb-6">"A sprint is only as effective as the clarity it provides."</p>
+                            <p className="text-11px text-gray-400 font-medium leading-relaxed italic mb-6">"A sprint is only as effective as the clarity it provides."</p>
                             <div className="w-full h-1 bg-gray-50 rounded-full overflow-hidden mb-6">
                                 <div className="h-full bg-primary transition-all duration-1000" style={{ width: formData.title ? '100%' : '20%' }}></div>
                             </div>
