@@ -108,13 +108,11 @@ const SprintView: React.FC = () => {
       loadSettings();
     }, []);
 
-    // Reset proof states when day changes
     useEffect(() => {
         setProofInput('');
         setProofSelected('');
     }, [viewingDay]);
 
-    // Update 'now' every second for countdowns
     useEffect(() => {
         const interval = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(interval);
@@ -123,15 +121,12 @@ const SprintView: React.FC = () => {
     const dayLockDetails = useMemo(() => {
         if (!enrollment || !sprint || !enrollment.progress) return { isLocked: false, unlockTime: 0 };
         
-        // Day 1 is always unlocked
         if (viewingDay === 1) return { isLocked: false, unlockTime: 0 };
 
         const prevDay = enrollment.progress.find(p => p.day === viewingDay - 1);
         
-        // If previous day is not completed, definitely locked
         if (!prevDay?.completed) return { isLocked: true, unlockTime: 0, reason: 'Complete previous day first.' };
 
-        // Protocol: Unlock at midnight of the day following completion of previous day
         if (prevDay.completedAt) {
             const completedDate = new Date(prevDay.completedAt);
             const nextMidnight = new Date(
@@ -274,10 +269,10 @@ const SprintView: React.FC = () => {
                 <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1">
                     {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => {
                         const isActive = viewingDay === day;
-                        const prog = enrollment.progress.find(p => p.day === day);
+                        const prog = enrollment.progress?.find(p => p.day === day);
                         const isCompleted = prog?.completed;
                         
-                        const firstIncomplete = enrollment.progress.find(p => !p.completed)?.day || sprint.duration;
+                        const firstIncomplete = enrollment.progress?.find(p => !p.completed)?.day || sprint.duration;
                         const isDisabled = day > firstIncomplete;
 
                         return (

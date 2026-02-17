@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/Header';
@@ -31,24 +31,18 @@ import PartnerPage from './pages/Partner/PartnerPage';
 import PartnerApply from './pages/Partner/PartnerApply';
 import PartnerDashboard from './pages/Partner/PartnerDashboard';
 import { sprintService } from './services/sprintService';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 
-// New specialized onboarding pages
+// Added missing imports for onboarding and coach-related pages
 import FocusSelector from './pages/Onboarding/FocusSelector';
 import ProgramDescription from './pages/Onboarding/ProgramDescription';
 import CommitmentFraming from './pages/Onboarding/CommitmentFraming';
 import SprintPayment from './pages/Onboarding/SprintPayment';
 import TheMap from './pages/Onboarding/TheMap';
-
-// Impact / Referral System
-import ImpactDashboard from './pages/Participant/Impact/ImpactDashboard';
-import ReferralShare from './pages/Participant/Impact/ReferralShare';
-import RippleEffect from './pages/Participant/Impact/RippleEffect';
-import GrowthRewards from './pages/Participant/Impact/GrowthRewards';
-import ReferralSuccess from './pages/Participant/Impact/ReferralSuccess';
-import PaymentSuccess from './pages/Participant/PaymentSuccess';
-import Badges from './pages/Participant/Impact/Badges';
-
-// New Coach Layout & Pages
+import { CoachWelcome } from './pages/Onboarding/CoachWelcome';
+import CoachQuizIntro from './pages/Onboarding/CoachQuizIntro';
+import CoachQuiz from './pages/Onboarding/CoachQuiz';
+import CoachOnboardingComplete from './pages/Coach/CoachOnboardingComplete';
 import CoachLayout from './components/CoachLayout';
 import CoachDashboard from './pages/Coach/CoachDashboard';
 import CoachSprints from './pages/Coach/CoachSprints';
@@ -56,11 +50,14 @@ import CoachParticipants from './pages/Coach/CoachParticipants';
 import CoachEarnings from './pages/Coach/CoachEarnings';
 import CoachImpact from './pages/Coach/CoachImpact';
 
-// Coach Onboarding
-import { CoachWelcome } from './pages/Onboarding/CoachWelcome';
-import CoachQuizIntro from './pages/Onboarding/CoachQuizIntro';
-import CoachQuiz from './pages/Onboarding/CoachQuiz';
-import CoachOnboardingComplete from './pages/Coach/CoachOnboardingComplete';
+// Added missing imports for impact dashboard and success pages
+import ImpactDashboard from './pages/Participant/Impact/ImpactDashboard';
+import ReferralShare from './pages/Participant/Impact/ReferralShare';
+import RippleEffect from './pages/Participant/Impact/RippleEffect';
+import GrowthRewards from './pages/Participant/Impact/GrowthRewards';
+import Badges from './pages/Participant/Impact/Badges';
+import ReferralSuccess from './pages/Participant/Impact/ReferralSuccess';
+import PaymentSuccess from './pages/Participant/PaymentSuccess';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -100,8 +97,23 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
 const AppRoutes: React.FC = () => {
   const { user, activeRole } = useAuth();
   const location = useLocation();
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
-  // GLOBAL REFERRAL TRACKER (ENHANCED FOR TELEMETRY & IDEMPOTENCY)
+  // Capture PWA Install Prompt event
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', () => {
+      localStorage.setItem('vec_pwa_installed', 'true');
+      setDeferredPrompt(null);
+    });
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  // GLOBAL REFERRAL TRACKER
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const refFromUrl = urlParams.get('ref');
@@ -111,21 +123,14 @@ const AppRoutes: React.FC = () => {
     const sprintId = urlParams.get('sprintId') || hashParams.get('sprintId');
     
     if (finalRef) {
-      // PREVENT DOUBLE COUNTING: Use session-specific key including sprint context
       const sessionProcessedKey = `vec_click_${finalRef}_${sprintId || 'main'}`;
       const isAlreadyProcessed = sessionStorage.getItem(sessionProcessedKey);
 
       if (!isAlreadyProcessed) {
-        // 1. Log Click to Firestore Telemetry
         sprintService.incrementLinkClick(finalRef, sprintId);
-
-        // 2. Mark as processed for this session
         sessionStorage.setItem(sessionProcessedKey, 'true');
-
-        // 3. Persist for signup attribution (First-Touch)
         const existingRef = localStorage.getItem('vectorise_ref');
         if (!existingRef) {
-          console.log("[Registry] Capturing New First-Touch Referral:", finalRef);
           localStorage.setItem('vectorise_ref', finalRef);
           const expires = new Date();
           expires.setTime(expires.getTime() + (30 * 24 * 60 * 60 * 1000));
@@ -236,6 +241,7 @@ const AppRoutes: React.FC = () => {
         </Routes>
       </main>
       {showParticipantNav && <BottomNavigation />}
+      <PWAInstallPrompt deferredPrompt={deferredPrompt} />
     </div>
   );
 };

@@ -75,7 +75,7 @@ const Header: React.FC = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <Link to="/discover" className="flex flex-col text-left group">
-            <span className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] leading-none group-hover:text-primary transition-colors">Search</span>
+            <span className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] leading-none group-hover:text-primary transition-colors">Explore</span>
             <span className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] leading-none group-hover:text-primary transition-colors">Sprints</span>
           </Link>
         </div>
