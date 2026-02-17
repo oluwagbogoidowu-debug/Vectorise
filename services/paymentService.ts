@@ -1,4 +1,3 @@
-
 /**
  * Payment Service
  * Handles Sprint-based transactions via Flutterwave.
@@ -100,19 +99,20 @@ export const paymentService = {
   },
 
   /**
-   * verifyPayment(gateway, reference)
+   * verifyPayment(gateway, reference, sprintId)
    */
-  verifyPayment: async (gateway: string, reference: string): Promise<{ status: string; email?: string }> => {
+  verifyPayment: async (gateway: string, reference: string, sprintId?: string): Promise<{ status: string; email?: string; message?: string }> => {
+    // For Flutterwave, 'reference' here is the transaction_id returned in the redirect URL
     const url = gateway === 'paystack'
       ? `https://us-central1-vectorise-f19d4.cloudfunctions.net/verifyPayment?reference=${reference}`
-      : `/api/flutterwave/verify?reference=${reference}`;
+      : `/api/flutterwave/verify?transaction_id=${reference}${sprintId ? `&sprintId=${sprintId}` : ''}`;
 
     try {
       const response = await fetch(url);
-      if (!response.ok) return { status: 'error' };
+      if (!response.ok) return { status: 'error', message: 'Network validation failed' };
       return await response.json();
     } catch (error) {
-      return { status: 'error' };
+      return { status: 'error', message: 'Verification service unavailable' };
     }
   }
 };

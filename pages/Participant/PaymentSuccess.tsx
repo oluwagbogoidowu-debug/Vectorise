@@ -4,7 +4,7 @@ import { paymentService } from '../../services/paymentService';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
-import { userService, sanitizeData } from '../../services/userService';
+import { userService } from '../../services/userService';
 import { Participant } from '../../types';
 import { doc, updateDoc, getDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -13,33 +13,48 @@ const PaymentSuccess: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, loading, updateProfile } = useAuth();
-    const [status, setStatus] = useState<'verifying' | 'success' | 'delay' | 'error'>('verifying');
+    const [status, setStatus] = useState<'verifying' | 'success' | 'delay' | 'error' | 'failed'>('verifying');
+    const [errorNote, setErrorNote] = useState<string | null>(null);
     const [readyToBegin, setReadyToBegin] = useState(false);
     const [isFulfilling, setIsFulfilling] = useState(false);
     const [retries, setRetries] = useState(0);
     const fulfillmentAttempted = useRef(false);
     
-    const queryParams = new URLSearchParams(location.search);
-    const reference = queryParams.get('reference') || queryParams.get('tx_ref');
+    const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+    
+    // Flutterwave appends transaction_id to the redirect URL
+    const reference = queryParams.get('reference') || queryParams.get('transaction_id');
     const paidSprintId = queryParams.get('sprintId');
     const rawEmail = queryParams.get('email'); 
 
-    // 1. Verify Payment Status with Gateway
+    // 1. Verify Payment Status with Secure Backend
     useEffect(() => {
         if (!reference) {
-            setStatus('error');
+            const flwStatus = queryParams.get('status');
+            if (flwStatus === 'cancelled') {
+                setStatus('failed');
+                setErrorNote("Payment was cancelled by the user.");
+            } else {
+                setStatus('error');
+                setErrorNote("No transaction reference found.");
+            }
             return;
         }
 
         const checkStatus = async () => {
             try {
                 const gateway = queryParams.get('reference') ? 'paystack' : 'flutterwave';
-                const data = await paymentService.verifyPayment(gateway, reference);
+                const data = await paymentService.verifyPayment(gateway, reference, paidSprintId || undefined);
                 
                 if (data.status === 'successful' || data.status === 'success') {
                     setStatus('success');
-                } else if (retries < 15) {
-                    setTimeout(() => setRetries(prev => prev + 1), 3000);
+                } else if (data.status === 'failed') {
+                    setStatus('failed');
+                    setErrorNote(data.message || "Payment not completed.");
+                } else if (retries < 10) {
+                    // Exponential-ish backoff to prevent UI lock while waiting for gateway sync
+                    const delay = Math.min(5000, 1000 + (retries * 500));
+                    setTimeout(() => setRetries(prev => prev + 1), delay);
                 } else {
                     setStatus('delay');
                 }
@@ -52,7 +67,7 @@ const PaymentSuccess: React.FC = () => {
         if (status === 'verifying') {
             checkStatus();
         }
-    }, [reference, retries, status, queryParams]);
+    }, [reference, retries, status, queryParams, paidSprintId]);
 
     // 2. Fulfillment Logic
     useEffect(() => {
@@ -102,7 +117,7 @@ const PaymentSuccess: React.FC = () => {
                 const hasActive = userEnrollments.some(e => e.status === 'active' && e.progress.some(p => !p.completed));
 
                 if (hasActive) {
-                    // Rule: One active sprint at a time. Add to Upcoming Queue (waitlist).
+                    // Rule: One active sprint at a time. Add to Upcoming Queue.
                     console.log("[Fulfillment] Active sprint detected. Adding to queue.");
                     const currentQueue = userData.savedSprintIds || [];
                     
@@ -127,7 +142,7 @@ const PaymentSuccess: React.FC = () => {
                         referral: userData.referrerId || null
                     });
 
-                    // Handle Partner Commission logic if applicable
+                    // Handle Partner Commission logic
                     if (userData.referrerId && !userData.partnerCommissionClosed && (sprint.price || 0) > 0) {
                         const enrollmentRef = doc(db, 'enrollments', enrollment.id);
                         await updateDoc(userRef, { partnerCommissionClosed: true });
@@ -158,6 +173,11 @@ const PaymentSuccess: React.FC = () => {
         performFulfillment();
     }, [status, user, loading, paidSprintId, rawEmail, navigate, updateProfile, isFulfilling]);
 
+    // Cleanup reference in useMemo for React warning
+    function useMemo(factory: () => URLSearchParams, deps: React.DependencyList): URLSearchParams {
+        return React.useMemo(factory, deps);
+    }
+
     return (
         <div className="min-h-screen bg-[#FDFDFD] flex flex-col items-center justify-center p-6 text-center font-sans overflow-hidden">
             <div className="max-w-md w-full bg-white rounded-[3rem] shadow-2xl border border-gray-100 p-12 relative overflow-hidden animate-fade-in">
@@ -172,8 +192,11 @@ const PaymentSuccess: React.FC = () => {
                                 <div className="absolute inset-0 flex items-center justify-center text-2xl">🔒</div>
                             </div>
                             <div>
-                                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">Securing Path</h1>
-                                <p className="text-xs text-gray-400 font-bold uppercase tracking-[0.2em] mt-3">Authorizing Registry Access...</p>
+                                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">Validating Path</h1>
+                                <p className="text-xs text-gray-400 font-bold uppercase tracking-[0.2em] mt-3">Requesting Registry Clearance...</p>
+                                {retries > 2 && (
+                                    <p className="text-[10px] text-primary font-black uppercase mt-4 animate-pulse">Syncing with Gateway...</p>
+                                )}
                             </div>
                         </div>
                     )}
@@ -203,20 +226,23 @@ const PaymentSuccess: React.FC = () => {
                         <div className="space-y-6 animate-fade-in">
                             <div className="w-20 h-20 bg-orange-50 text-orange-600 rounded-[2rem] flex items-center justify-center mx-auto text-4xl shadow-inner border border-orange-100">⏳</div>
                             <div>
-                                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">Registry Syncing</h1>
-                                <p className="text-sm text-gray-500 font-medium leading-relaxed mt-4 italic">"Your payment was successful but the gateway is slow. We'll finalize your access in a moment."</p>
+                                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">Sync Delayed</h1>
+                                <p className="text-sm text-gray-500 font-medium leading-relaxed mt-4 italic">"The payment was accepted, but the registry sync is taking longer than expected. We'll update your profile automatically."</p>
                             </div>
+                            <button onClick={() => navigate('/dashboard')} className="w-full py-4 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all">Go to Dashboard</button>
                         </div>
                     )}
 
-                    {status === 'error' && (
+                    {(status === 'error' || status === 'failed') && (
                         <div className="space-y-6 animate-fade-in">
                             <div className="w-20 h-20 bg-red-50 text-red-500 rounded-[2rem] flex items-center justify-center mx-auto text-4xl shadow-inner border border-red-100">✕</div>
                             <div>
                                 <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">Authorization Error</h1>
-                                <p className="text-sm text-gray-500 font-medium leading-relaxed mt-4 italic">"We couldn't verify this transaction reference. Please contact support if your account was debited."</p>
+                                <p className="text-sm text-gray-500 font-medium leading-relaxed mt-4 italic">
+                                    {errorNote || "We couldn't verify this transaction reference. The sprint remains locked."}
+                                </p>
                             </div>
-                            <button onClick={() => navigate('/dashboard')} className="w-full py-4 bg-gray-900 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all">Return to Dashboard</button>
+                            <button onClick={() => navigate('/discover')} className="w-full py-4 bg-gray-900 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all">Return to Registry</button>
                         </div>
                     )}
                 </header>
