@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
@@ -162,14 +161,28 @@ const SprintPayment: React.FC = () => {
                   </div>
                </section>
             </div>
-            {!isCreditSprint && !user && (
+            
+            {!isCreditSprint && (
                <section className="pt-6 border-t border-gray-50 space-y-4">
                  <div className="max-w-sm mx-auto">
                     <label className="block text-[8px] font-black text-gray-400 uppercase mb-2 ml-1">Email Address</label>
-                    <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="your@email.com" className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold" />
+                    <input 
+                      type="email" 
+                      value={user?.email || guestEmail} 
+                      onChange={(e) => setGuestEmail(e.target.value)} 
+                      readOnly={!!user}
+                      placeholder="your@email.com" 
+                      className={`w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all ${user ? 'opacity-60 cursor-not-allowed' : ''}`} 
+                    />
+                    {user && (
+                      <p className="text-[8px] font-bold text-gray-300 uppercase tracking-widest mt-2 ml-1 italic">
+                        Connected to your active registry identity
+                      </p>
+                    )}
                  </div>
                </section>
             )}
+
             <section className="pt-6 border-t border-gray-50 space-y-6">
                <label className="flex items-start gap-4 p-5 bg-primary/5 border border-primary/10 rounded-2xl cursor-pointer active:scale-[0.98] transition-all group hover:bg-primary/10">
                 <input type="checkbox" checked={finalCommitment} onChange={(e) => setFinalCommitment(e.target.checked)} className="w-5 h-5 bg-white border-gray-200 rounded focus:ring-primary text-primary" />

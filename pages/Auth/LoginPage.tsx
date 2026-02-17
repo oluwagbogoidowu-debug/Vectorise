@@ -17,6 +17,7 @@ const LoginPage: React.FC = () => {
   const initialEmail = location.state?.prefilledEmail || '';
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -83,14 +84,7 @@ const LoginPage: React.FC = () => {
   return (
     <div className="h-[100dvh] w-screen bg-[#FAFAFA] flex items-center justify-center px-6 overflow-hidden font-sans">
       <div className="w-full max-w-sm flex flex-col items-center animate-fade-in">
-        <div className="w-full bg-white p-8 rounded-[2rem] shadow-2xl border border-gray-100 relative overflow-hidden">
-            {/* Home Icon Button */}
-            <Link to="/" className="absolute top-6 right-6 text-gray-300 hover:text-primary transition-all duration-300 active:scale-90">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-            </Link>
-
+        <div className="w-full bg-white p-8 rounded-[2.5rem] shadow-2xl border border-gray-100 relative overflow-hidden">
             <header className="text-center mb-8 pt-4">
                 <LocalLogo type="green" className="h-10 w-auto mx-auto mb-4" />
                 <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">
@@ -112,13 +106,37 @@ const LoginPage: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                     <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">Password</label>
-                    <input 
-                      type="password" 
-                      value={password} 
-                      onChange={(e) => setPassword(e.target.value)} 
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none focus:ring-4 focus:ring-primary/5 font-bold text-sm" 
-                      placeholder="Password" 
-                    />
+                    <div className="relative">
+                      <input 
+                        type={showPassword ? 'text' : 'password'}
+                        value={password} 
+                        onChange={(e) => setPassword(e.target.value)} 
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none focus:ring-4 focus:ring-primary/5 font-bold text-sm pr-12" 
+                        placeholder="Password" 
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-primary transition-colors focus:outline-none"
+                      >
+                        {showPassword ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                </div>
+
+                <div className="flex justify-end pr-1">
+                    <Link to="#" className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline">
+                      Forgot Password?
+                    </Link>
                 </div>
                 
                 {emailError && <p className="text-[10px] text-red-600 font-black uppercase text-center">{emailError}</p>}
