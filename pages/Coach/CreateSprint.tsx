@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/Button';
@@ -88,6 +87,8 @@ const CreateSprint: React.FC = () => {
             day: i + 1,
             lessonText: '',
             taskPrompt: '',
+            coachInsight: '',
+            reflectionQuestion: 'One idea that shifted my thinking was...',
             submissionType: 'text',
             proofType: 'confirmation',
             proofOptions: []
@@ -217,191 +218,6 @@ const CreateSprint: React.FC = () => {
                                 />
                             </section>
 
-                            <section>
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">03</div>
-                                        <label className={labelClasses}>Target Signals (Who it's for)</label>
-                                    </div>
-                                    <button type="button" onClick={() => toggleHelp('forWho')} className={`p-2 rounded-xl transition-all ${helpOpen.forWho ? 'bg-primary text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:text-primary'}`} title="View Rules">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    </button>
-                                </div>
-                                <HelpGuidance isOpen={helpOpen.forWho} rule="Must be emotional or behavioral. Each bullet starts with 'You...' Max 4." />
-                                <div className="space-y-3">
-                                    {formData.forWho.map((item, i) => (
-                                        <div key={i} className="flex gap-4 items-center">
-                                            <span className="text-[10px] font-black text-gray-300 w-4">0{i+1}</span>
-                                            <input 
-                                                type="text" 
-                                                value={item} 
-                                                onChange={(e) => handleArrayChange('forWho', i, e.target.value)} 
-                                                className={inputClasses} 
-                                                placeholder="You feel capable but directionless..." 
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-
-                            <section>
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">04</div>
-                                        <label className={labelClasses}>Exclusions (Who it's not for)</label>
-                                    </div>
-                                    <button type="button" onClick={() => toggleHelp('notForWho')} className={`p-2 rounded-xl transition-all ${helpOpen.notForWho ? 'bg-primary text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:text-primary'}`} title="View Rules">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    </button>
-                                </div>
-                                <HelpGuidance isOpen={helpOpen.notForWho} rule="Who will be frustrated by this sprint? Minimum 2, maximum 4." />
-                                <div className="space-y-3">
-                                    {formData.notForWho.map((item, i) => (
-                                        <div key={i} className="flex gap-4 items-center">
-                                            <span className="text-[10px] font-black text-gray-300 w-4">0{i+1}</span>
-                                            <input 
-                                                type="text" 
-                                                value={item} 
-                                                onChange={(e) => handleArrayChange('notForWho', i, e.target.value)} 
-                                                className={inputClasses + " border-red-50 focus:border-red-200 focus:ring-red-500/5"} 
-                                                placeholder="You want results without acting on the daily prompts..." 
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-
-                            <section>
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">05</div>
-                                        <label className={labelClasses}>Method Snapshot (How it works)</label>
-                                    </div>
-                                    <button type="button" onClick={() => toggleHelp('method')} className={`p-2 rounded-xl transition-all ${helpOpen.method ? 'bg-primary text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:text-primary'}`} title="View Rules">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    </button>
-                                </div>
-                                <HelpGuidance isOpen={helpOpen.method} rule="Break your method into 3 verbs. Structure: Verb (1 word) + One-line explanation." />
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    {formData.methodSnapshot.map((item, i) => (
-                                        <div key={i} className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100 space-y-4 shadow-inner transition-all hover:bg-white hover:shadow-md">
-                                            <input 
-                                                type="text" 
-                                                value={item.verb} 
-                                                onChange={(e) => handleMethodChange(i, 'verb', e.target.value)} 
-                                                className={inputClasses + " text-center uppercase tracking-widest text-[10px] py-2 border-primary/10"} 
-                                                placeholder="VERB" 
-                                            />
-                                            <textarea 
-                                                value={item.description} 
-                                                onChange={(e) => handleMethodChange(i, 'description', e.target.value)} 
-                                                rows={2}
-                                                className={inputClasses + " text-center text-xs font-medium bg-transparent border-none shadow-none resize-none p-0"} 
-                                                placeholder="One-line explanation of action." 
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-
-                            <section>
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">06</div>
-                                        <label className={labelClasses}>Evidence of Completion</label>
-                                    </div>
-                                    <button type="button" onClick={() => toggleHelp('outcomes')} className={`p-2 rounded-xl transition-all ${helpOpen.outcomes ? 'bg-primary text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:text-primary'}`} title="View Rules">
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    </button>
-                                </div>
-                                <HelpGuidance isOpen={helpOpen.outcomes} rule="What observable evidence will the user have? No 'feel more confident' without proof." />
-                                <div className="space-y-3">
-                                    {formData.outcomes.map((item, i) => (
-                                        <div key={i} className="flex gap-4 items-center">
-                                            <div className="w-6 h-6 bg-primary/10 text-primary rounded-full flex items-center justify-center text-[10px] font-black">✓</div>
-                                            <input 
-                                                type="text" 
-                                                value={item} 
-                                                onChange={(e) => handleArrayChange('outcomes', i, e.target.value)} 
-                                                className={inputClasses} 
-                                                placeholder="A mapped decision filter for future opportunities..." 
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-
-                            <section className="bg-gray-50 p-8 md:p-12 rounded-[3rem] border border-gray-100">
-                                <div className="flex items-center justify-between mb-8">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-white rounded-xl shadow-sm flex items-center justify-center text-gray-400 text-xs font-black">07</div>
-                                        <label className={labelClasses}>Sprint Metadata</label>
-                                    </div>
-                                    <button type="button" onClick={() => toggleHelp('metadata')} className={`p-2 rounded-xl transition-all ${helpOpen.metadata ? 'bg-primary text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:text-primary'}`} title="View Rules">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    </button>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div>
-                                        <label className={labelClasses}>Duration (Days)</label>
-                                        <select name="duration" value={formData.duration} onChange={handleChange} className={inputClasses}>
-                                            {[3, 5, 7, 10, 14, 21, 30].map(d => <option key={d} value={d}>{d} Continuous Days</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className={labelClasses}>Protocol</label>
-                                        <select name="protocol" value={formData.protocol} onChange={handleChange} className={inputClasses}>
-                                            <option value="One action per day">One action per day</option>
-                                            <option value="Guided task">Guided task</option>
-                                            <option value="Challenge-based">Challenge-based</option>
-                                        </select>
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className={labelClasses}>Discovery Category</label>
-                                        <select name="category" value={formData.category} onChange={handleChange} className={inputClasses}>
-                                            {ALL_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                            </section>
-
-                            <section className="bg-primary/5 p-8 md:p-12 rounded-[3rem] border border-primary/10">
-                                <div className="flex items-center gap-3 mb-8">
-                                    <div className="w-8 h-8 bg-white rounded-xl shadow-sm flex items-center justify-center text-primary text-xs font-black">08</div>
-                                    <label className={labelClasses + " text-primary"}>Completion Assets</label>
-                                </div>
-                                <div className="space-y-8">
-                                    <div>
-                                        <label className={labelClasses}>Archive Outcome Tag</label>
-                                        <input 
-                                            type="text" 
-                                            name="outcomeTag" 
-                                            value={formData.outcomeTag} 
-                                            onChange={handleChange} 
-                                            className={inputClasses + " mt-2 border-primary/20"} 
-                                            placeholder="e.g. Clarity gained, Skill activated" 
-                                        />
-                                        <p className="text-[9px] text-gray-400 font-bold mt-2 uppercase tracking-widest italic px-1 leading-relaxed">
-                                            This appears as the badge on completed sprint cards in the student profile.
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className={labelClasses}>The Outcome (Final Statement)</label>
-                                        <input 
-                                            type="text" 
-                                            name="outcomeStatement" 
-                                            value={formData.outcomeStatement} 
-                                            onChange={handleChange} 
-                                            className={inputClasses + " mt-2 border-primary/20 italic"} 
-                                            placeholder="Focus creates feedback. *Feedback creates clarity.*" 
-                                        />
-                                        <p className="text-[9px] text-gray-400 font-bold mt-2 uppercase tracking-widest italic px-1 leading-relaxed">
-                                            Appears at the bottom of the landing page. Use *text* for emphasis.
-                                        </p>
-                                    </div>
-                                </div>
-                            </section>
-
                             <div className="flex justify-end gap-4 pt-10 border-t border-gray-50">
                                 <button type="button" onClick={() => navigate('/coach/dashboard')} className="px-8 py-3.5 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-red-400 transition-colors">Cancel</button>
                                 <Button type="submit" isLoading={isSubmitting} className="px-12 py-4 rounded-[1.5rem] shadow-xl shadow-primary/20 group">
@@ -415,12 +231,7 @@ const CreateSprint: React.FC = () => {
                          <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm text-center">
                             <p className="text-[9px] font-black text-primary uppercase tracking-[0.4em] mb-4">Registry Guidance</p>
                             <h5 className="text-sm font-black text-gray-900 leading-tight mb-4 italic">Clarity over Selling.</h5>
-                            <p className="text-11px text-gray-400 font-medium leading-relaxed italic mb-6">"A sprint is only as effective as the clarity it provides."</p>
-                            <div className="w-full h-1 bg-gray-50 rounded-full overflow-hidden mb-6">
-                                <div className="h-full bg-primary transition-all duration-1000" style={{ width: formData.title ? '100%' : '20%' }}></div>
-                            </div>
                             
-                            {/* Preview Toggle */}
                             <div className="bg-gray-100 p-1 rounded-xl flex gap-1 mb-8">
                                 <button 
                                     onClick={() => setPreviewType('card')}
@@ -430,7 +241,7 @@ const CreateSprint: React.FC = () => {
                                 </button>
                                 <button 
                                     onClick={() => setPreviewType('landing')}
-                                    className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${previewType === 'landing' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                    className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${previewType === 'landing' ? 'bg-white text-primary shadow-sm' : 'text-gray-400'}`}
                                 >
                                     Landing View
                                 </button>
@@ -447,9 +258,6 @@ const CreateSprint: React.FC = () => {
                                             isStatic={true}
                                         />
                                     </div>
-                                    <p className="mt-6 text-[8px] text-gray-400 font-bold uppercase tracking-widest px-4 italic leading-relaxed">
-                                        Badge Preview: The green tag appears only after completion.
-                                    </p>
                                 </div>
                             ) : (
                                 <div className="animate-fade-in">

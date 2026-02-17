@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { ParticipantSprint, Sprint, DailyContent, GlobalOrchestrationSettings, MicroSelector, MicroSelectorStep } from '../../types';
@@ -12,20 +11,24 @@ import LocalLogo from '../../components/LocalLogo';
 const ReflectionModal: React.FC<{
     day: number;
     isOpen: boolean;
+    question?: string;
     onClose: () => void;
     onFinish: (reflection: string) => void;
     isSubmitting: boolean;
-}> = ({ isOpen, day, onClose, onFinish, isSubmitting }) => {
+}> = ({ isOpen, day, question, onClose, onFinish, isSubmitting }) => {
     const [text, setText] = useState('');
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-fade-in">
             <div className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl relative overflow-hidden animate-slide-up flex flex-col p-8">
-                <h3 className="text-xl font-black text-gray-900 tracking-tight mb-8">Sprint Reflection</h3>
+                <h3 className="text-xl font-black text-gray-900 tracking-tight mb-4">Sprint Reflection</h3>
+                <p className="text-[11px] font-black text-primary uppercase tracking-widest mb-6 leading-tight">
+                    {question || "One idea that shifted my thinking was..."}
+                </p>
                 <textarea
                     value={text}
                     onChange={(e) => setText(e.target.value)}
-                    placeholder="One idea that shifted my thinking was..."
+                    placeholder="Enter your breakthrough..."
                     className="w-full bg-[#FAFAFA] border border-gray-100 rounded-2xl p-5 text-sm font-medium min-h-[140px] mb-8"
                 />
                 <button 
@@ -47,6 +50,17 @@ const ReflectionModal: React.FC<{
     );
 };
 
+interface SectionHeadingProps {
+    children: React.ReactNode;
+    color?: string;
+}
+
+const SectionHeading: React.FC<SectionHeadingProps> = ({ children, color = "primary" }) => (
+    <h2 className={`text-[8px] font-black text-${color} uppercase tracking-[0.4em] mb-4`}>
+        {children}
+    </h2>
+);
+
 const SprintView: React.FC = () => {
     const { user } = useAuth();
     const { enrollmentId } = useParams();
@@ -60,11 +74,12 @@ const SprintView: React.FC = () => {
     const [now, setNow] = useState(Date.now());
     const [timeToUnlock, setTimeToUnlock] = useState<string>('00:00:00');
     
+    // Day Completion State (Proof)
+    const [proofInput, setProofInput] = useState('');
+    const [proofSelected, setProofSelected] = useState('');
+
     const [reflectionsEnabled, setReflectionsEnabled] = useState(true);
     const [globalSettings, setGlobalSettings] = useState<GlobalOrchestrationSettings | null>(null);
-    const [showMicroSelector, setShowMicroSelector] = useState(false);
-    const [activeSelector, setActiveSelector] = useState<MicroSelector | null>(null);
-    const [currentStepIdx, setCurrentStepIdx] = useState(0);
 
     useEffect(() => {
         if (!enrollmentId) return;
@@ -77,8 +92,8 @@ const SprintView: React.FC = () => {
                 if (!sprint) {
                     const found = await sprintService.getSprintById(data.sprint_id);
                     setSprint(found);
-                    const firstIncomplete = data.progress.find(p => !p.completed);
-                    setViewingDay(firstIncomplete ? firstIncomplete.day : data.progress.length);
+                    const firstIncomplete = data.progress?.find(p => !p.completed);
+                    setViewingDay(firstIncomplete ? firstIncomplete.day : (data.progress?.length || 1));
                 }
             }
         });
@@ -93,6 +108,12 @@ const SprintView: React.FC = () => {
       loadSettings();
     }, []);
 
+    // Reset proof states when day changes
+    useEffect(() => {
+        setProofInput('');
+        setProofSelected('');
+    }, [viewingDay]);
+
     // Update 'now' every second for countdowns
     useEffect(() => {
         const interval = setInterval(() => setNow(Date.now()), 1000);
@@ -100,7 +121,7 @@ const SprintView: React.FC = () => {
     }, []);
 
     const dayLockDetails = useMemo(() => {
-        if (!enrollment || !sprint) return { isLocked: false, unlockTime: 0 };
+        if (!enrollment || !sprint || !enrollment.progress) return { isLocked: false, unlockTime: 0 };
         
         // Day 1 is always unlocked
         if (viewingDay === 1) return { isLocked: false, unlockTime: 0 };
@@ -154,13 +175,20 @@ const SprintView: React.FC = () => {
     };
 
     const handleFinishDay = async (reflection: string) => {
-        if (!enrollment || !user || isSubmitting) return;
+        if (!enrollment || !user || isSubmitting || !enrollment.progress) return;
         setIsSubmitting(true);
         try {
             const timestamp = new Date().toISOString();
             const isLastDay = viewingDay === enrollment.progress.length;
             const updatedProgress = enrollment.progress.map(p => 
-                p.day === viewingDay ? { ...p, completed: true, completedAt: timestamp, reflection: reflection.trim() } : p
+                p.day === viewingDay ? { 
+                    ...p, 
+                    completed: true, 
+                    completedAt: timestamp, 
+                    reflection: reflection.trim(),
+                    submission: proofInput,
+                    proofSelection: proofSelected
+                } : p
             );
             
             const enrollmentRef = doc(db, 'enrollments', enrollment.id);
@@ -187,7 +215,18 @@ const SprintView: React.FC = () => {
         }
     };
 
+    const dayContent = sprint?.dailyContent?.find(dc => dc.day === viewingDay);
+    const dayProgress = enrollment?.progress?.find(p => p.day === viewingDay);
+
+    const isProofMet = useMemo(() => {
+        if (!dayContent) return false;
+        if (dayContent.proofType === 'picker') return !!proofSelected;
+        if (dayContent.proofType === 'note') return proofInput.trim().length > 2;
+        return true; // confirmation
+    }, [dayContent, proofInput, proofSelected]);
+
     const handleQuickComplete = () => {
+        if (!isProofMet) return;
         if (reflectionsEnabled) {
             setIsReflectionModalOpen(true);
         } else {
@@ -195,29 +234,18 @@ const SprintView: React.FC = () => {
         }
     };
 
-    const handleOptionClick = (option: any) => {
-      if (option.action === 'next_step') {
-        setCurrentStepIdx(currentStepIdx + 1);
-      } else if (option.action === 'skip_to_stage') {
-        if (option.value === 'system_map') {
-            navigate('/onboarding/map', { replace: true });
-        } else {
-            navigate('/discover', { state: { targetStage: option.value }, replace: true });
-        }
-      } else if (option.action === 'finish_and_recommend') {
-        navigate('/discover', { replace: true });
-      }
-    };
-
-    if (!enrollment || !sprint) return <div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
-
-    const dayContent = sprint.dailyContent.find(dc => dc.day === viewingDay);
-    const dayProgress = enrollment.progress.find(p => p.day === viewingDay);
-    const currentStep = activeSelector?.steps[currentStepIdx];
+    if (!enrollment || !sprint || !enrollment.progress) return <div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
 
     return (
         <div className="w-full bg-[#FAFAFA] flex flex-col font-sans text-dark animate-fade-in pb-24">
-            <ReflectionModal isOpen={isReflectionModalOpen} day={viewingDay} onClose={() => setIsReflectionModalOpen(false)} onFinish={handleFinishDay} isSubmitting={isSubmitting} />
+            <ReflectionModal 
+                isOpen={isReflectionModalOpen} 
+                day={viewingDay} 
+                question={dayContent?.reflectionQuestion}
+                onClose={() => setIsReflectionModalOpen(false)} 
+                onFinish={handleFinishDay} 
+                isSubmitting={isSubmitting} 
+            />
 
             <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
                 <div className="flex items-center justify-between">
@@ -243,14 +271,12 @@ const SprintView: React.FC = () => {
             </header>
 
             <div className="px-6 max-w-2xl mx-auto w-full space-y-6 mt-4">
-                {/* Day Navigation Strip */}
                 <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1">
                     {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => {
                         const isActive = viewingDay === day;
                         const prog = enrollment.progress.find(p => p.day === day);
                         const isCompleted = prog?.completed;
                         
-                        // Accessibility: Can only click if it's the current day, a completed day, or the first incomplete day
                         const firstIncomplete = enrollment.progress.find(p => !p.completed)?.day || sprint.duration;
                         const isDisabled = day > firstIncomplete;
 
@@ -277,9 +303,8 @@ const SprintView: React.FC = () => {
                     })}
                 </div>
 
-                {/* Main Content Card */}
                 <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden min-h-[400px]">
-                    {dayLockDetails.isLocked ? (
+                    {dayLockDetails.isLocked && (
                         <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-md flex flex-col items-center justify-center text-center p-8 animate-fade-in">
                             <div className="mb-6 opacity-20">
                                 <LocalLogo type="favicon" className="w-32 h-32" />
@@ -298,18 +323,21 @@ const SprintView: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                    ) : null}
+                    )}
 
                     <div className={dayLockDetails.isLocked ? 'blur-sm pointer-events-none opacity-20' : ''}>
                         <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day {viewingDay}</h2>
                         
-                        <div className="prose max-w-none text-gray-700 font-medium text-sm md:text-base leading-relaxed mb-10">
-                            <FormattedText text={dayContent?.lessonText || ""} />
+                        <div className="space-y-2 mb-10">
+                            <SectionHeading>Today's Insight</SectionHeading>
+                            <div className="prose max-w-none text-gray-700 font-medium text-sm md:text-base leading-relaxed">
+                                <FormattedText text={dayContent?.lessonText || ""} />
+                            </div>
                         </div>
 
                         <div className="space-y-6">
                             <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                                <p className="text-[7px] font-black text-primary uppercase tracking-[0.2em] mb-3">Today's Mission</p>
+                                <SectionHeading>Today's Action Step</SectionHeading>
                                 <p className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
                                     <FormattedText text={dayContent?.taskPrompt || ""} />
                                 </p>
@@ -318,62 +346,104 @@ const SprintView: React.FC = () => {
 
                             {dayContent?.coachInsight && (
                                 <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
-                                    <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Coach's Insight</p>
-                                    <p className="text-gray-600 italic font-medium text-xs md:text-sm leading-relaxed">
-                                        "{dayContent.coachInsight}"
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="mt-12 space-y-6">
-                            <button 
-                              onClick={handleQuickComplete}
-                              disabled={isSubmitting || dayProgress?.completed}
-                              className="w-full py-5 bg-[#159E5B] text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] shadow-xl shadow-primary/10 active:scale-95 disabled:opacity-50 transition-all"
-                            >
-                              {dayProgress?.completed ? 'Mission Complete' : 'Mark Task Complete'}
-                            </button>
-
-                            {dayProgress?.completed && dayProgress.reflection && (
-                                <div className="animate-fade-in pt-4 border-t border-gray-50">
-                                    <p className="text-[7px] font-black text-primary uppercase tracking-[0.2em] mb-4">Your Breakthrough</p>
-                                    <div className="bg-primary/5 rounded-[1.5rem] p-6 border border-primary/10">
-                                        <p className="text-gray-800 italic font-medium text-sm leading-relaxed">
-                                            "{dayProgress.reflection}"
-                                        </p>
+                                    <SectionHeading color="gray-400">Coach Insight</SectionHeading>
+                                    <div className="text-gray-600 italic font-medium text-xs md:text-sm leading-relaxed">
+                                        <FormattedText text={dayContent.coachInsight} />
                                     </div>
                                 </div>
                             )}
                         </div>
+
+                        {!dayProgress?.completed && (
+                            <div className="mt-12 space-y-6 animate-fade-in">
+                                {dayContent?.proofType === 'picker' && (
+                                    <div className="space-y-3">
+                                        <SectionHeading>Proof of Action</SectionHeading>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {dayContent.proofOptions?.map(opt => (
+                                                <button 
+                                                    key={opt}
+                                                    onClick={() => setProofSelected(opt)}
+                                                    className={`w-full text-left p-4 rounded-xl border transition-all text-xs font-bold uppercase tracking-tight ${proofSelected === opt ? 'bg-primary text-white border-primary shadow-md scale-[1.02]' : 'bg-gray-50 border-gray-100 text-gray-400 hover:bg-white hover:border-primary/20'}`}
+                                                >
+                                                    {opt}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {dayContent?.proofType === 'note' && (
+                                    <div className="space-y-3">
+                                        <SectionHeading>Submit Today's Response</SectionHeading>
+                                        <textarea 
+                                            value={proofInput}
+                                            onChange={e => setProofInput(e.target.value)}
+                                            placeholder="Enter your response here..."
+                                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-5 text-sm font-medium min-h-[120px] focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all"
+                                        />
+                                    </div>
+                                )}
+
+                                <button 
+                                  onClick={handleQuickComplete}
+                                  disabled={isSubmitting || !isProofMet}
+                                  className={`w-full py-5 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] shadow-xl transition-all ${isProofMet ? 'bg-[#159E5B] text-white shadow-primary/10 active:scale-95' : 'bg-gray-100 text-gray-300 cursor-not-allowed grayscale'}`}
+                                >
+                                  {dayContent?.proofType === 'note' ? 'Send Submission' : "Today's task completed"}
+                                </button>
+                            </div>
+                        )}
+
+                        {dayProgress?.completed && (
+                            <div className="mt-12 space-y-6">
+                                <div className="w-full py-5 bg-gray-50 text-gray-400 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] text-center border border-gray-100">
+                                    Mission Complete
+                                </div>
+
+                                {dayProgress.submission && (
+                                    <div className="animate-fade-in pt-4 border-t border-gray-50">
+                                        <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Your Submission</p>
+                                        <div className="bg-gray-50 rounded-[1.5rem] p-6 border border-gray-100">
+                                            <p className="text-gray-700 font-bold text-sm leading-relaxed">
+                                                {dayProgress.submission}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {dayProgress.proofSelection && (
+                                    <div className="animate-fade-in pt-4 border-t border-gray-50">
+                                        <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Confirmed Outcome</p>
+                                        <div className="bg-gray-50 rounded-[1.5rem] p-4 border border-gray-100 flex items-center gap-3">
+                                            <div className="w-2 h-2 rounded-full bg-primary"></div>
+                                            <p className="text-xs font-black uppercase text-gray-700">{dayProgress.proofSelection}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {dayProgress.reflection && (
+                                    <div className="animate-fade-in pt-4 border-t border-gray-50">
+                                        <p className="text-[7px] font-black text-primary uppercase tracking-[0.2em] mb-4">Your Breakthrough</p>
+                                        <div className="bg-primary/5 rounded-[1.5rem] p-6 border border-primary/10">
+                                            <p className="text-gray-800 italic font-medium text-sm leading-relaxed">
+                                                "{dayProgress.reflection}"
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
-
-            {showMicroSelector && activeSelector && currentStep && (
-              <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-dark/95 backdrop-blur-md animate-fade-in">
-                <div className="bg-white rounded-[2.5rem] p-8 md:p-12 w-full max-w-sm shadow-2xl relative animate-slide-up">
-                  <header className="text-center mb-10">
-                    <LocalLogo type="favicon" className="h-10 w-auto mx-auto mb-6 opacity-40" />
-                    <h2 className="text-lg md:text-xl font-black text-gray-900 tracking-tight italic leading-tight px-2">{currentStep.question}</h2>
-                  </header>
-                  <div className="space-y-3">
-                    {currentStep.options.map((opt, idx) => (
-                      <button key={idx} onClick={() => handleOptionClick(opt)} className="w-full py-4 px-6 bg-gray-50 border border-gray-100 rounded-2xl font-black text-[9px] uppercase tracking-widest text-gray-500 hover:bg-primary hover:text-white transition-all cursor-pointer">
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
 
             <style>{`
                 .no-scrollbar::-webkit-scrollbar { display: none; }
                 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
                 .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-                @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes slideUp { from { opacity: 0; transform: translateY(0); } to { opacity: 1; transform: translateY(0); } }
                 .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
             `}</style>
         </div>

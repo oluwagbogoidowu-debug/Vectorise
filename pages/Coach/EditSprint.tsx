@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Sprint, DailyContent, SprintDifficulty, UserRole, Coach } from '../../types';
 import { sprintService } from '../../services/sprintService';
@@ -67,6 +66,81 @@ const DiffHighlight: React.FC<{ original: any; updated: any; label: string }> = 
     );
 };
 
+const FormattingToolbar: React.FC<{ 
+    textareaRef: React.RefObject<HTMLTextAreaElement | null>; 
+    onUpdate: (value: string) => void;
+}> = ({ textareaRef, onUpdate }) => {
+    const handleFormat = (type: 'bold' | 'italic' | 'bullet' | 'number') => {
+        const textarea = textareaRef.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        const before = text.substring(0, start);
+        const selected = text.substring(start, end);
+        const after = text.substring(end);
+
+        let newContent = '';
+        let newCursorPos = start;
+
+        switch (type) {
+            case 'bold':
+                newContent = `${before}*${selected || 'bold text'}*${after}`;
+                newCursorPos = selected ? end + 2 : start + 1;
+                break;
+            case 'italic':
+                newContent = `${before}_${selected || 'italic text'}_${after}`;
+                newCursorPos = selected ? end + 2 : start + 1;
+                break;
+            case 'bullet':
+                newContent = `${before}${before.endsWith('\n') || before === '' ? '' : '\n'}- ${selected || 'list item'}${after}`;
+                newCursorPos = newContent.length - after.length;
+                break;
+            case 'number':
+                newContent = `${before}${before.endsWith('\n') || before === '' ? '' : '\n'}1. ${selected || 'list item'}${after}`;
+                newCursorPos = newContent.length - after.length;
+                break;
+        }
+
+        onUpdate(newContent);
+        
+        // Refocus and set cursor
+        setTimeout(() => {
+            textarea.focus();
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+        }, 0);
+    };
+
+    const Btn = ({ onClick, children, title }: { onClick: () => void, children?: React.ReactNode, title: string }) => (
+        <button
+            type="button"
+            onClick={onClick}
+            title={title}
+            className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-gray-100 text-gray-400 hover:text-primary hover:border-primary/20 hover:shadow-sm transition-all active:scale-90"
+        >
+            {children}
+        </button>
+    );
+
+    return (
+        <div className="flex gap-1 mb-2">
+            <Btn onClick={() => handleFormat('bold')} title="Bold">
+                <span className="font-black text-xs">B</span>
+            </Btn>
+            <Btn onClick={() => handleFormat('italic')} title="Italic">
+                <span className="italic font-serif text-sm">I</span>
+            </Btn>
+            <Btn onClick={() => handleFormat('bullet')} title="Bullet List">
+                <span className="text-base leading-none">•</span>
+            </Btn>
+            <Btn onClick={() => handleFormat('number')} title="Numbered List">
+                <span className="text-[10px] font-black leading-none">1.</span>
+            </Btn>
+        </div>
+    );
+};
+
 const SubmissionSuccessModal: React.FC<{ onClose: () => void }> = ({ onClose }) => (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-dark/95 backdrop-blur-sm animate-fade-in">
         <div className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl relative overflow-hidden animate-slide-up flex flex-col p-10 text-center">
@@ -109,6 +183,11 @@ const EditSprint: React.FC = () => {
   const [editSettings, setEditSettings] = useState<Partial<Sprint>>({});
   const [reviewFeedback, setReviewFeedback] = useState<Record<string, string>>({});
 
+  // Input Refs for toolbars
+  const lessonTextRef = useRef<HTMLTextAreaElement>(null);
+  const taskPromptRef = useRef<HTMLTextAreaElement>(null);
+  const coachInsightRef = useRef<HTMLTextAreaElement>(null);
+
   const isAdmin = user?.role === UserRole.ADMIN;
   
   const isFoundational = useMemo(() => {
@@ -118,7 +197,6 @@ const EditSprint: React.FC = () => {
 
   const canEditDirectly = !isAdmin || (isAdmin && isFoundational);
 
-  // Added logic to track if registry or curriculum is incomplete for submission validation
   const registryIncomplete = useMemo(() => sprint ? isRegistryIncomplete(sprint) : true, [sprint]);
   const curriculumIncomplete = useMemo(() => sprint ? isSprintIncomplete(sprint) : true, [sprint]);
 
@@ -171,9 +249,14 @@ const EditSprint: React.FC = () => {
     fetchData();
   }, [sprintId, navigate, user]);
 
-  const currentContent = (sprint?.dailyContent.find(c => c.day === selectedDay)) || {
-    day: selectedDay, lessonText: '', taskPrompt: '', proofType: 'confirmation', proofOptions: []
-  };
+  const currentContent = useMemo(() => {
+    if (!sprint) return {
+      day: selectedDay, lessonText: '', taskPrompt: '', coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: ''
+    };
+    return (sprint.dailyContent.find(c => c.day === selectedDay)) || {
+      day: selectedDay, lessonText: '', taskPrompt: '', coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: ''
+    };
+  }, [sprint, selectedDay]);
 
   const handleContentChange = (field: keyof DailyContent, value: any) => {
     if (!sprint || !canEditDirectly) return;
@@ -184,7 +267,16 @@ const EditSprint: React.FC = () => {
       if (existingContentIndex >= 0) {
         updatedDailyContent[existingContentIndex] = { ...updatedDailyContent[existingContentIndex], [field]: value };
       } else {
-        updatedDailyContent.push({ day: selectedDay, lessonText: '', taskPrompt: '', [field]: value });
+        updatedDailyContent.push({ 
+          day: selectedDay, 
+          lessonText: '', 
+          taskPrompt: '', 
+          coachInsight: '', 
+          proofType: 'confirmation', 
+          proofOptions: [], 
+          reflectionQuestion: '', 
+          [field]: value 
+        });
       }
       return { ...prev, dailyContent: updatedDailyContent };
     });
@@ -278,6 +370,7 @@ const EditSprint: React.FC = () => {
   const labelClasses = "text-[11px] font-black text-gray-400 uppercase tracking-widest";
 
   const isDayComplete = (day: number) => {
+    if (!sprint) return false;
     const content = sprint.dailyContent.find(c => c.day === day);
     return !!(content && content.lessonText?.trim() && content.taskPrompt?.trim());
   };
@@ -297,7 +390,7 @@ const EditSprint: React.FC = () => {
               <h1 className="text-3xl font-black text-gray-900 tracking-tight">{sprint.title}</h1>
               <div className="flex items-center gap-2">
                 <button onClick={() => setShowSettings(true)} className="p-2 bg-white text-primary rounded-xl border border-primary/10 hover:bg-primary hover:text-white transition-all shadow-sm flex items-center gap-2 group cursor-pointer">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     <span className="text-[10px] font-black uppercase tracking-widest">{(isAdmin && !isFoundational) ? 'Audit Registry' : 'Registry'}</span>
                 </button>
                 <button onClick={() => setShowPreviewModal(true)} className="p-2 bg-white text-gray-400 rounded-xl border border-gray-100 hover:text-primary transition-all shadow-sm flex items-center gap-2 group cursor-pointer">
@@ -349,16 +442,25 @@ const EditSprint: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 gap-8 animate-fade-in" key={selectedDay}>
-            <div className="space-y-4">
-              <label className={labelClasses}>Lesson Material</label>
+            <div className="space-y-2">
+              <div className="flex justify-between items-end">
+                <label className={labelClasses}>Today's Insight</label>
+                {canEditDirectly && (
+                    <FormattingToolbar 
+                        textareaRef={lessonTextRef} 
+                        onUpdate={(v) => handleContentChange('lessonText', v)} 
+                    />
+                )}
+              </div>
               {isAdmin && !isFoundational ? (
                   <DiffHighlight 
-                    label="Lesson Text" 
+                    label="Today's Insight" 
                     original={originalSprint?.dailyContent.find(c => c.day === selectedDay)?.lessonText} 
                     updated={currentContent.lessonText} 
                   />
               ) : (
                   <textarea 
+                    ref={lessonTextRef}
                     value={currentContent.lessonText || ''} 
                     onChange={e => handleContentChange('lessonText', e.target.value)} 
                     rows={8} 
@@ -367,16 +469,26 @@ const EditSprint: React.FC = () => {
                   />
               )}
             </div>
-            <div className="space-y-4">
-              <label className={labelClasses}>Actionable Task</label>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-end">
+                <label className={labelClasses}>Today's Action Step</label>
+                {canEditDirectly && (
+                    <FormattingToolbar 
+                        textareaRef={taskPromptRef} 
+                        onUpdate={(v) => handleContentChange('taskPrompt', v)} 
+                    />
+                )}
+              </div>
               {isAdmin && !isFoundational ? (
                   <DiffHighlight 
-                    label="Task Prompt" 
+                    label="Today's Action Step" 
                     original={originalSprint?.dailyContent.find(c => c.day === selectedDay)?.taskPrompt} 
                     updated={currentContent.taskPrompt} 
                   />
               ) : (
                   <textarea 
+                    ref={taskPromptRef}
                     value={currentContent.taskPrompt || ''} 
                     onChange={e => handleContentChange('taskPrompt', e.target.value)} 
                     rows={4} 
@@ -384,6 +496,88 @@ const EditSprint: React.FC = () => {
                     placeholder="Daily task prompt..." 
                   />
               )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-end">
+                <label className={labelClasses}>Coach Insight</label>
+                {canEditDirectly && (
+                    <FormattingToolbar 
+                        textareaRef={coachInsightRef} 
+                        onUpdate={(v) => handleContentChange('coachInsight', v)} 
+                    />
+                )}
+              </div>
+              {isAdmin && !isFoundational ? (
+                  <DiffHighlight 
+                    label="Coach Insight" 
+                    original={originalSprint?.dailyContent.find(c => c.day === selectedDay)?.coachInsight} 
+                    updated={currentContent.coachInsight} 
+                  />
+              ) : (
+                  <textarea 
+                    ref={coachInsightRef}
+                    value={currentContent.coachInsight || ''} 
+                    onChange={e => handleContentChange('coachInsight', e.target.value)} 
+                    rows={3} 
+                    className={editorInputClasses} 
+                    placeholder="A nugget of wisdom to ground the user..." 
+                  />
+              )}
+            </div>
+
+            {/* COMPLETION PROTOCOL CURATION */}
+            <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-8">
+               <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.3em] border-b border-gray-50 pb-4">Day {selectedDay} Completion Protocol</h3>
+               
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   <div className="space-y-4">
+                       <label className={labelClasses}>Proof Method</label>
+                       <div className="flex flex-col gap-2">
+                           {[
+                               { id: 'confirmation', label: 'Simple Button', d: '"Today\'s task completed"' },
+                               { id: 'picker', label: 'Micro Picker', d: 'Choose from options curated by you' },
+                               { id: 'note', label: 'Send Submission', d: 'User must write a response' }
+                           ].map(p => (
+                               <button 
+                                   key={p.id}
+                                   type="button"
+                                   onClick={() => handleContentChange('proofType', p.id)}
+                                   className={`text-left p-4 rounded-2xl border transition-all ${currentContent.proofType === p.id ? 'bg-primary/5 border-primary shadow-sm' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                               >
+                                   <p className={`text-xs font-black uppercase tracking-tight ${currentContent.proofType === p.id ? 'text-primary' : 'text-gray-500'}`}>{p.label}</p>
+                                   <p className="text-[10px] font-medium opacity-60 mt-1">{p.d}</p>
+                               </button>
+                           ))}
+                       </div>
+                   </div>
+
+                   <div className="space-y-6">
+                       {currentContent.proofType === 'picker' && (
+                           <div className="space-y-3 animate-fade-in">
+                               <label className={labelClasses}>Picker Options (comma separated)</label>
+                               <textarea 
+                                   value={currentContent.proofOptions?.join(', ') || ''}
+                                   onChange={e => handleContentChange('proofOptions', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
+                                   className={editorInputClasses + " h-24"}
+                                   placeholder="Completed first draft, Sent outreach emails, Updated LinkedIn profile..."
+                               />
+                               <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest italic">User must select one to mark day complete.</p>
+                           </div>
+                       )}
+
+                       <div className="space-y-3">
+                           <label className={labelClasses}>Reflection Question</label>
+                           <textarea 
+                               value={currentContent.reflectionQuestion || ''}
+                               onChange={e => handleContentChange('reflectionQuestion', e.target.value)}
+                               className={editorInputClasses + " h-24"}
+                               placeholder="e.g. One idea that shifted my thinking was..."
+                           />
+                           <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest italic">Curate the prompt for the end-of-day reflection modal.</p>
+                       </div>
+                   </div>
+               </div>
             </div>
           </div>
         </div>

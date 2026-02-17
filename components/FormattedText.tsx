@@ -6,29 +6,81 @@ interface FormattedTextProps {
 }
 
 /**
- * Parses text and converts *bold* syntax into <strong> tags.
- * Uses whitespace-pre-wrap to ensure newlines from textareas are preserved.
+ * Parses text and converts:
+ * - *bold* syntax into <strong> tags.
+ * - _italic_ syntax into <em> tags.
+ * - Lines starting with "- " into bullet points.
+ * - Lines starting with "1. " (or any digit) into numbered lists.
  */
 const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "" }) => {
   if (!text) return null;
 
-  // Regex to match text between single asterisks: *example*
-  // We use [^*] to ensure we don't match across other asterisks incorrectly
-  const parts = text.split(/(\*[^*]+\*)/g);
-
+  // Process line by line to handle lists correctly
+  const lines = text.split('\n');
+  
   return (
     <span className={`${className} whitespace-pre-wrap inline-block w-full`}>
-      {parts.map((part, index) => {
-        if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
-          // Remove the asterisks and render bold with extra weight
+      {lines.map((line, lineIdx) => {
+        let content: React.ReactNode = line;
+        let isBullet = false;
+        let isNumbered = false;
+        let listNumber = "";
+
+        // Check for Bullet List
+        if (line.trim().startsWith('- ')) {
+          isBullet = true;
+          content = line.trim().substring(2);
+        } 
+        // Check for Numbered List (e.g., "1. ")
+        else if (/^\d+\.\s/.test(line.trim())) {
+          isNumbered = true;
+          const match = line.trim().match(/^(\d+\.)\s(.*)/);
+          if (match) {
+            listNumber = match[1];
+            content = match[2];
+          }
+        }
+
+        // Inline parsing for Bold (*) and Italic (_)
+        const parseInline = (str: string) => {
+          const parts = str.split(/(\*[^*]+\*)|(_[^_]+_)/g);
+          return parts.map((part, i) => {
+            if (!part) return null;
+            if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+              return <strong key={i} className="font-black text-gray-900">{part.slice(1, -1)}</strong>;
+            }
+            if (part.startsWith('_') && part.endsWith('_') && part.length > 2) {
+              return <em key={i} className="italic text-gray-800">{part.slice(1, -1)}</em>;
+            }
+            return part;
+          });
+        };
+
+        const parsedContent = typeof content === 'string' ? parseInline(content) : content;
+
+        if (isBullet) {
           return (
-            <strong key={index} className="font-black text-gray-900">
-              {part.slice(1, -1)}
-            </strong>
+            <span key={lineIdx} className="flex gap-3 mb-1.5 last:mb-0 group/line">
+              <span className="text-primary font-black mt-1 flex-shrink-0 animate-fade-in">•</span>
+              <span className="flex-1">{parsedContent}</span>
+            </span>
           );
         }
-        // Return normal text
-        return part;
+
+        if (isNumbered) {
+          return (
+            <span key={lineIdx} className="flex gap-3 mb-1.5 last:mb-0">
+              <span className="text-primary font-black italic text-[10px] mt-1 flex-shrink-0 min-w-[18px]">{listNumber}</span>
+              <span className="flex-1">{parsedContent}</span>
+            </span>
+          );
+        }
+
+        return (
+          <span key={lineIdx} className="block min-h-[1em]">
+            {parsedContent}
+          </span>
+        );
       })}
     </span>
   );

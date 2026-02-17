@@ -143,6 +143,7 @@ export interface DailyContent {
   lessonText: string;
   taskPrompt: string;
   coachInsight?: string;
+  reflectionQuestion?: string;
   submissionType?: 'text' | 'file' | 'both' | 'none';
   proofType?: 'confirmation' | 'picker' | 'note';
   proofOptions?: string[];
@@ -175,7 +176,6 @@ export interface Participant extends User {
   savedSprintIds: string[];
   bio: string;
   persona: string;
-  /* Added missing occupation field */
   occupation?: string;
   createdAt: string;
   interests?: string[];
