@@ -1,9 +1,8 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { User, Coach, Participant, Admin, Permission, UserRole } from '../types';
 import { MOCK_USERS, MOCK_ROLES } from '../services/mockData';
 import { auth } from '../services/firebase';
-import { onAuthStateChanged, signOut, deleteUser as firebaseDeleteUser } from 'firebase/auth';
+import { onAuthStateChanged, signOut, deleteUser as firebaseDeleteUser, sendPasswordResetEmail } from 'firebase/auth';
 import { userService } from '../services/userService';
 
 type AuthContextType = {
@@ -13,6 +12,7 @@ type AuthContextType = {
   login: (userIdOrEmail: string) => boolean; // Kept for legacy/mock compatibility
   signup: (newUser: Participant | Coach) => void;
   logout: () => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
   hasPermission: (permission: Permission) => boolean;
   switchRole: (role: UserRole) => void;
   completeCoachOnboarding: (bio: string, niche: string) => void;
@@ -63,6 +63,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     following: 0,
                     savedSprintIds: [],
                     enrolledSprintIds: [],
+                    wishlistSprintIds: [],
                     shinePostIds: [],
                     shineCommentIds: [],
                     referralCode: firebaseUser.uid.substring(0, 8).toUpperCase(),
@@ -93,8 +94,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       } else {
         // Only clear if we don't have a demo user set (to prevent race conditions on startup)
-        // If setUser was called by demo login, auth.currentUser is null, so this fires.
-        // We use a small check or just let logout handle it.
       }
       
       setLoading(false);
@@ -133,21 +132,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     try {
-        // 1. Sign out from Firebase if applicable
         if (auth.currentUser) {
             await signOut(auth);
         }
-        
-        // 2. Clear local state and storage (Critical for Demo Accounts & instant UI response)
         setUser(null);
         setActiveRole(UserRole.PARTICIPANT);
         localStorage.removeItem('vectorise_user_id');
         localStorage.removeItem('vectorise_active_role');
-        
         console.log("Registry Access Revoked Successfully.");
     } catch (error) {
         console.error("Error during logout process:", error);
     }
+  };
+
+  const forgotPassword = async (email: string) => {
+    await sendPasswordResetEmail(auth, email.trim().toLowerCase());
   };
 
   const switchRole = (role: UserRole) => {
@@ -211,7 +210,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ user, activeRole, loading, login, signup, logout, hasPermission, switchRole, completeCoachOnboarding, updateProfile, deleteAccount }}>
+    <AuthContext.Provider value={{ user, activeRole, loading, login, signup, logout, forgotPassword, hasPermission, switchRole, completeCoachOnboarding, updateProfile, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext.tsx';
-import Button from '../../components/Button.tsx';
-import LocalLogo from '../../components/LocalLogo.tsx';
-import { auth } from '../../services/firebase.ts';
+import { useAuth } from '../../contexts/AuthContext';
+import Button from '../../components/Button';
+import LocalLogo from '../../components/LocalLogo';
+import { auth } from '../../services/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { sprintService } from '../../services/sprintService.ts';
-import { UserRole } from '../../types.ts';
+import { sprintService } from '../../services/sprintService';
+import { UserRole } from '../../types';
 
 const LoginPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, forgotPassword } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -19,6 +19,7 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState('');
+  const [resetSent, setResetSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Intent capture from payment success flow
@@ -53,8 +54,6 @@ const LoginPage: React.FC = () => {
                           navigate(`/participant/sprint/${active.id}`, { replace: true });
                           return;
                       }
-
-                      // 3. Fallback to dashboard
                   } catch (e) {
                       console.error("Redirect tracking error", e);
                   }
@@ -72,11 +71,30 @@ const LoginPage: React.FC = () => {
         return;
     }
     setIsLoading(true);
+    setEmailError('');
 
     try {
         await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
     } catch (error: any) {
         setEmailError('Authentication failed. Check your credentials.');
+        setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+        setEmailError("Enter your email address first.");
+        return;
+    }
+    try {
+        setIsLoading(true);
+        await forgotPassword(email);
+        setResetSent(true);
+        setEmailError('');
+        setTimeout(() => setResetSent(false), 5000);
+    } catch (err: any) {
+        setEmailError("Failed to send reset link. User not found?");
+    } finally {
         setIsLoading(false);
     }
   };
@@ -100,7 +118,7 @@ const LoginPage: React.FC = () => {
                       value={email} 
                       readOnly={!!initialEmail}
                       onChange={(e) => setEmail(e.target.value)} 
-                      className={`w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm transition-all ${initialEmail ? 'opacity-60 bg-gray-100' : 'focus:ring-4 focus:ring-primary/5'}`} 
+                      className={`w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm text-black transition-all ${initialEmail ? 'bg-gray-100' : 'focus:ring-4 focus:ring-primary/5'}`} 
                       placeholder="Email Address" 
                     />
                 </div>
@@ -111,7 +129,7 @@ const LoginPage: React.FC = () => {
                         type={showPassword ? 'text' : 'password'}
                         value={password} 
                         onChange={(e) => setPassword(e.target.value)} 
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none focus:ring-4 focus:ring-primary/5 font-bold text-sm pr-12" 
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none focus:ring-4 focus:ring-primary/5 font-bold text-sm text-black pr-12" 
                         placeholder="Password" 
                       />
                       <button 
@@ -134,12 +152,17 @@ const LoginPage: React.FC = () => {
                 </div>
 
                 <div className="flex justify-end pr-1">
-                    <Link to="#" className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline">
+                    <button 
+                      type="button" 
+                      onClick={handleForgotPassword}
+                      className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
+                    >
                       Forgot Password?
-                    </Link>
+                    </button>
                 </div>
                 
                 {emailError && <p className="text-[10px] text-red-600 font-black uppercase text-center">{emailError}</p>}
+                {resetSent && <p className="text-[10px] text-green-600 font-black uppercase text-center">Reset link sent to your inbox.</p>}
 
                 <Button type="submit" isLoading={isLoading} className="w-full py-4 bg-primary text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em]">
                     Log In & Resume
