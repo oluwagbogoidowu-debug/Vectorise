@@ -11,6 +11,7 @@ import { Sprint, Participant, GlobalOrchestrationSettings } from '../../types';
 const SprintPayment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  // Fixed typo: changed userAuth to useAuth
   const { user, updateProfile } = useAuth();
   
   const [guestEmail, setGuestEmail] = useState('');
@@ -87,7 +88,6 @@ const SprintPayment: React.FC = () => {
         return;
     }
     
-    // Use traceId for cross-session tracking
     const traceId = user?.id || `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
 
     setIsProcessing(true);
@@ -122,7 +122,6 @@ const SprintPayment: React.FC = () => {
 
   const handleHesitation = async () => {
     const traceId = user?.id || `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
-    // Log abandonment of the payment process
     await paymentService.logPaymentAttempt({
         user_id: traceId,
         sprint_id: selectedSprint?.id || 'clarity-sprint',
@@ -172,7 +171,7 @@ const SprintPayment: React.FC = () => {
                       onChange={(e) => setGuestEmail(e.target.value)} 
                       readOnly={!!user}
                       placeholder="your@email.com" 
-                      className={`w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-black text-gray-900 transition-all ${user ? 'cursor-not-allowed bg-gray-100' : ''}`} 
+                      className={`w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-black text-black transition-all ${user ? 'cursor-not-allowed bg-gray-100' : ''}`} 
                     />
                     {user && (
                       <p className="text-[8px] font-bold text-gray-300 uppercase tracking-widest mt-2 ml-1 italic">
