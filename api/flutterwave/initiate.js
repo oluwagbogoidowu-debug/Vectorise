@@ -35,17 +35,29 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Configuration Error: Missing Gateway Secret Key" });
     }
 
-    const { email, amount, sprintId, name, userId, currency = "NGN" } = req.body || {};
+    // Defensive parsing: ensure body is an object
+    let body = req.body;
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body);
+      } catch (parseError) {
+        return res.status(400).json({ error: "Malformed request body" });
+      }
+    }
+
+    const { email, amount, sprintId, name, userId, currency = "NGN" } = body || {};
     
-    // Requirement: Helpful error message specifying which field is missing
-    if (!email) {
-      return res.status(400).json({ error: "Registry identification required: Email is missing." });
-    }
-    if (!userId) {
-      return res.status(400).json({ error: "Identity validation required: User ID is missing." });
-    }
-    if (!sprintId) {
-      return res.status(400).json({ error: "Program selection required: Sprint ID is missing." });
+    // Strict validation to prevent 400 errors for missing mandatory fields
+    const missing = [];
+    if (!email) missing.push("email");
+    if (!userId) missing.push("userId");
+    if (!sprintId) missing.push("sprintId");
+
+    if (missing.length > 0) {
+      return res.status(400).json({ 
+        error: "Mandatory fields missing", 
+        details: `The following fields are required: ${missing.join(', ')}` 
+      });
     }
 
     const paymentAmount = Number(amount || 5000);
@@ -66,16 +78,11 @@ export default async function handler(req, res) {
       updatedAt: new Date().toISOString()
     });
 
-    // Determine origin dynamically
     const host = req.headers.host;
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const origin = `${protocol}://${host}`;
-
     const cleanEmail = email.trim().toLowerCase();
     
-    /**
-     * Flutterwave appends its own query string to the redirect_url.
-     */
     const redirectUrl = `${origin}/#/payment-success?sprintId=${sprintId}&transaction_id=${tx_ref}&email=${encodeURIComponent(cleanEmail)}`;
 
     // 2. Request Payment Link from Flutterwave
@@ -100,7 +107,6 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      // Update the intent record as failed
       await db.collection('payments').doc(tx_ref).update({ 
         status: 'failed', 
         failureReason: 'Gateway initialization failed: ' + errorText 

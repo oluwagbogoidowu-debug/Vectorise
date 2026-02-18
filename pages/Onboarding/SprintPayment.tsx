@@ -107,7 +107,7 @@ const SprintPayment: React.FC = () => {
     }
 
     if (!sprintId) {
-        setValidationError("Target program identifier is missing.");
+        setValidationError("Program selection error. Please return to discovery.");
         return;
     }
     
@@ -209,11 +209,6 @@ const SprintPayment: React.FC = () => {
                     {validationError && (
                         <p className="text-[9px] text-red-500 font-black uppercase mt-2 ml-1 animate-fade-in">{validationError}</p>
                     )}
-                    {user && (
-                      <p className="text-[8px] font-bold text-gray-300 uppercase tracking-widest mt-2 ml-1 italic">
-                        Connected to your active registry identity
-                      </p>
-                    )}
                  </div>
                </section>
             )}
@@ -234,12 +229,6 @@ const SprintPayment: React.FC = () => {
           </footer>
         </div>
       </div>
-      <style>{`
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-      `}</style>
     </div>
   );
 };

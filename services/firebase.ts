@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
-import { getFirestore, enableIndexedDbPersistence, initializeFirestore, terminate } from "firebase/firestore";
+import { initializeFirestore, enableIndexedDbPersistence, terminate } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDEijT9QTC6wTyv_u2BN_UTC3NeOmADkI8",
@@ -17,21 +17,20 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 /**
- * Initialize Firestore with optimized settings.
- * - experimentalAutoDetectLongPolling: Allows SDK to choose between WebSockets and Long Polling.
- * - ignoreUndefinedProperties: Prevents errors when saving objects with undefined fields.
- * - useFetchStreams: false: Avoids streaming issues in certain network environments.
+ * Initialize Firestore with forced long-polling.
+ * This is the most robust setting for AI Studio and restricted network environments 
+ * where WebSockets often fail or time out.
  */
 export const db = initializeFirestore(app, {
-  experimentalAutoDetectLongPolling: true, 
+  experimentalForceLongPolling: true, 
   ignoreUndefinedProperties: true,
   useFetchStreams: false, 
 });
 
-const analytics = getAnalytics(app);
 export const auth = getAuth(app);
+const analytics = getAnalytics(app);
 
-// Enable persistence with a check to prevent errors in environments that don't support it
+// Enable persistence for offline capability
 enableIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {
         console.warn("Persistence failed: Multiple tabs open.");
@@ -41,7 +40,7 @@ enableIndexedDbPersistence(db).catch((err) => {
 });
 
 /**
- * Utility to restart Firestore if it gets into a bad state (timeout loops)
+ * Utility to restart Firestore if connection is dropped
  */
 export const reconnectFirestore = async () => {
     try {
