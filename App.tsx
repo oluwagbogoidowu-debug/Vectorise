@@ -13,6 +13,7 @@ import DiscoverSprints from './pages/Participant/DiscoverSprints';
 import ParticipantDashboard from './pages/Participant/ParticipantDashboard';
 import SprintView from './pages/Participant/SprintView';
 import AdminDashboard from './pages/Admin/AdminDashboard';
+import UserAnalyticsDetail from './pages/Admin/UserAnalyticsDetail';
 import CreateFoundationalSprint from './pages/Admin/CreateFoundationalSprint';
 import { UserRole } from './types';
 import { Welcome } from './pages/Onboarding/Welcome';
@@ -244,6 +245,7 @@ const AppRoutes: React.FC = () => {
           <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route path="/sprint/:sprintId" element={<SprintLandingPage />} />
           <Route path="/admin/dashboard" element={<ProtectedRoute roles={[UserRole.ADMIN]}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/analytics/user/:identifier" element={<ProtectedRoute roles={[UserRole.ADMIN]}><UserAnalyticsDetail /></ProtectedRoute>} />
           <Route path="/admin/sprint/new" element={<ProtectedRoute roles={[UserRole.ADMIN]}><CreateFoundationalSprint /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
