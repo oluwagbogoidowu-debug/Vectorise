@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
-import { getFirestore, enableIndexedDbPersistence, initializeFirestore } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence, initializeFirestore, terminate } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDEijT9QTC6wTyv_u2BN_UTC3NeOmADkI8",
@@ -39,5 +39,17 @@ enableIndexedDbPersistence(db).catch((err) => {
         console.warn("Persistence failed: Browser doesn't support indexedDB.");
     }
 });
+
+/**
+ * Utility to restart Firestore if it gets into a bad state (timeout loops)
+ */
+export const reconnectFirestore = async () => {
+    try {
+        await terminate(db);
+        window.location.reload();
+    } catch (e) {
+        console.error("Firestore Reconnect failed");
+    }
+};
 
 export default app;
