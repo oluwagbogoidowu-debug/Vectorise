@@ -143,37 +143,33 @@ const ParticipantDashboard: React.FC = () => {
     <div className="flex flex-col h-full w-full bg-[#FDFDFD] font-sans overflow-hidden">
       <div className="h-20 flex-shrink-0"></div>
 
-      <div className="flex-1 overflow-y-auto px-4 pt-4 md:pt-6 pb-24 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto px-[13px] pt-4 md:pt-6 pb-24 custom-scrollbar">
           <div className="max-w-screen-md mx-auto w-full h-full flex flex-col">
             
             <div className="grid grid-cols-2 gap-3 mb-6 flex-shrink-0">
-                <div className="bg-[#0E7850] text-white p-3.5 rounded-3xl shadow-lg flex flex-col h-[96px] relative overflow-hidden transition-transform active:scale-[0.98]">
-                    <div className="flex justify-between items-start relative z-10">
-                        <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
-                            {allTasksDoneToday ? (
-                                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
-                            ) : (
-                                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.536 14.95a1 1 0 010-1.414l.707-.707a1 1 0 111.414 1.414l-.707.707a1 1 0 01-1.414 0zM6.464 14.95a1 1 0 01-1.414 0l-.707-.707a1 1 0 011.414-1.414l.707.707a1 1 0 010 1.414z" />
-                                </svg>
-                            )}
+                <div className={`bg-[#0E7850] text-white p-4 rounded-3xl shadow-lg flex flex-col h-[96px] relative overflow-hidden transition-transform active:scale-[0.98] ${allTasksDoneToday ? 'justify-center items-center text-center' : 'justify-between'}`}>
+                    {allTasksDoneToday ? (
+                        <div className="animate-fade-in relative z-10 w-full flex flex-col items-center">
+                            <h3 className="text-[13px] font-black leading-tight">Come back tomorrow</h3>
+                            <p className="text-[8px] font-black uppercase tracking-[0.15em] opacity-60 mt-1">to keep rising</p>
                         </div>
-                        <p className="text-[8px] font-black uppercase tracking-[0.15em] opacity-60 text-right">
-                            {allTasksDoneToday ? 'All Clear' : 'Tasks Ready'}
-                        </p>
-                    </div>
-                    <div className="mt-2 relative z-10">
-                        {allTasksDoneToday ? (
-                            <div className="animate-fade-in">
-                                <h3 className="text-[13px] font-black leading-tight">Come back tomorrow</h3>
-                                <p className="text-[8px] font-black uppercase tracking-[0.1em] opacity-60 mt-0.5">to keep rising</p>
+                    ) : (
+                        <>
+                            <div className="flex justify-between items-start relative z-10 w-full">
+                                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+                                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.536 14.95a1 1 0 010-1.414l.707-.707a1 1 0 111.414 1.414l-.707.707a1 1 0 01-1.414 0zM6.464 14.95a1 1 0 01-1.414 0l-.707-.707a1 1 0 011.414-1.414l.707.707a1 1 0 010 1.414z" />
+                                    </svg>
+                                </div>
+                                <p className="text-[8px] font-black uppercase tracking-[0.15em] opacity-60 text-right">
+                                    Tasks Ready
+                                </p>
                             </div>
-                        ) : (
-                            <h3 className="text-xl font-black leading-none">{tasksReady.length} Remaining</h3>
-                        )}
-                    </div>
+                            <div className="relative z-10">
+                                <h3 className="text-xl font-black leading-none">{tasksReady.length} Remaining</h3>
+                            </div>
+                        </>
+                    )}
                     <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                 </div>
 
@@ -217,7 +213,7 @@ const ParticipantDashboard: React.FC = () => {
                                     <div>
                                         <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-1">{mainTask.sprint.category}</p>
                                         <h3 className="text-lg md:text-xl font-black text-gray-900 leading-tight tracking-tight truncate max-w-[200px] mb-0.5">{mainTask.sprint.title}</h3>
-                                        {mainTask.sprint.subtitle && (
+                                        {!isMainTaskLocked && mainTask.sprint.subtitle && (
                                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest italic leading-none">{mainTask.sprint.subtitle}</p>
                                         )}
                                     </div>
