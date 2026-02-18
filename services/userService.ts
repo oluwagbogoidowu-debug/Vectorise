@@ -39,9 +39,7 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
                        constructorName.includes('Reference') ||
                        constructorName.includes('Firestore');
     
-    // Check for common SDK patterns (onSnapshot, getDoc, _methodName)
     const hasSDKSignatures = !!(val.onSnapshot || val.getDoc || val._methodName);
-
     if (isInternal || hasSDKSignatures || val instanceof Element) {
         return undefined;
     }
@@ -54,13 +52,9 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
     const cleaned: any = {};
     const keys = Object.keys(val);
     for (const key of keys) {
-        // Skip private/internal properties
         if (key.startsWith('_') || key.startsWith('$')) continue;
-        
         const sanitizedVal = sanitizeData(val[key], seen);
-        if (sanitizedVal !== undefined) {
-            cleaned[key] = sanitizedVal;
-        }
+        if (sanitizedVal !== undefined) cleaned[key] = sanitizedVal;
     }
     return cleaned;
 };
@@ -69,7 +63,6 @@ export const userService = {
   createUserDocument: async (uid: string, data: Partial<User | Participant | Coach>) => {
     try {
       const userRef = doc(db, 'users', uid);
-      
       const userData = sanitizeData({
         id: uid,
         createdAt: new Date().toISOString(),
@@ -86,7 +79,6 @@ export const userService = {
         isPartner: false,
         ...data
       });
-
       await setDoc(userRef, userData, { merge: true });
       return userData;
     } catch (error) {
@@ -99,7 +91,6 @@ export const userService = {
     try {
       const userRef = doc(db, 'users', uid);
       const userSnap = await getDoc(userRef);
-
       if (userSnap.exists()) {
         return sanitizeData(userSnap.data()) as User | Participant | Coach;
       } else {
@@ -117,7 +108,6 @@ export const userService = {
       const snap = await getDocs(q);
       return !snap.empty;
     } catch (error) {
-      console.error("Email check failed:", error);
       return false;
     }
   },
@@ -125,22 +115,14 @@ export const userService = {
   getUsersByIds: async (uids: string[]) => {
     const validIds = Array.from(new Set((uids || []).filter(id => !!id && typeof id === 'string' && id !== '')));
     if (validIds.length === 0) return [];
-
     try {
       const CHUNK_SIZE = 25;
       const results: Participant[] = [];
-      const chunks: string[][] = [];
-      
       for (let i = 0; i < validIds.length; i += CHUNK_SIZE) {
-        chunks.push(validIds.slice(i, i + CHUNK_SIZE));
-      }
-
-      for (const chunk of chunks) {
+        const chunk = validIds.slice(i, i + CHUNK_SIZE);
         const q = query(collection(db, 'users'), where("id", "in", chunk));
         const querySnapshot = await getDocs(q);
-        querySnapshot.forEach((doc) => {
-          results.push(sanitizeData(doc.data()) as Participant);
-        });
+        querySnapshot.forEach((doc) => results.push(sanitizeData(doc.data()) as Participant));
       }
       return results;
     } catch (error) {
@@ -154,25 +136,9 @@ export const userService = {
       const q = query(collection(db, 'users'), where("role", "==", UserRole.COACH));
       const querySnapshot = await getDocs(q);
       const coaches: Coach[] = [];
-      querySnapshot.forEach((doc) => {
-        coaches.push(sanitizeData(doc.data()) as Coach);
-      });
-
-      const q2 = query(collection(db, 'users'), where("hasCoachProfile", "==", true));
-      const querySnapshot2 = await getDocs(q2);
-      querySnapshot2.forEach((doc) => {
-          const data = sanitizeData(doc.data());
-          coaches.push({
-              ...data,
-              bio: data.coachBio || data.bio,
-              niche: data.coachNiche,
-              approved: data.coachApproved
-          } as any);
-      });
-
+      querySnapshot.forEach((doc) => coaches.push(sanitizeData(doc.data()) as Coach));
       return coaches;
     } catch (error) {
-      console.error("Error fetching coaches:", error);
       return [];
     }
   },
@@ -182,12 +148,9 @@ export const userService = {
       const q = query(collection(db, 'users'), where("role", "==", UserRole.PARTICIPANT));
       const querySnapshot = await getDocs(q);
       const participants: Participant[] = [];
-      querySnapshot.forEach((doc) => {
-        participants.push(sanitizeData(doc.data()) as Participant);
-      });
+      querySnapshot.forEach((doc) => participants.push(sanitizeData(doc.data()) as Participant));
       return participants;
     } catch (error) {
-      console.error("Error fetching participants:", error);
       return [];
     }
   },
@@ -202,32 +165,6 @@ export const userService = {
     }
   },
 
-  approveCoach: async (coachId: string) => {
-      try {
-          const userRef = doc(db, 'users', coachId);
-          await updateDoc(userRef, {
-              coachApproved: true,
-              role: UserRole.COACH
-          });
-      } catch (error) {
-          console.error("Error approving coach:", coachId, error);
-          throw error;
-      }
-  },
-
-  rejectCoach: async (coachId: string) => {
-      try {
-          const userRef = doc(db, 'users', coachId);
-          await updateDoc(userRef, {
-              coachApproved: false,
-              hasCoachProfile: false 
-          });
-      } catch (error) {
-          console.error("Error rejecting coach:", coachId, error);
-          throw error;
-      }
-  },
-
   processWalletTransaction: async (userId: string, trans: Omit<WalletTransaction, 'id' | 'userId' | 'timestamp'>) => {
       try {
           const transRef = collection(db, 'wallet_transactions');
@@ -237,11 +174,8 @@ export const userService = {
               timestamp: new Date().toISOString()
           });
           await addDoc(transRef, transactionData);
-
           const userRef = doc(db, 'users', userId);
-          await updateDoc(userRef, {
-              walletBalance: increment(trans.amount)
-          });
+          await updateDoc(userRef, { walletBalance: increment(trans.amount) });
       } catch (error) {
           console.error("Transaction Ledger Error:", error);
           throw error;
@@ -256,13 +190,9 @@ export const userService = {
               description: `Claimed milestone: ${milestoneId}`,
               auditId: milestoneId
           });
-
           const userRef = doc(db, 'users', uid);
-          await updateDoc(userRef, {
-              claimedMilestoneIds: arrayUnion(milestoneId)
-          });
+          await updateDoc(userRef, { claimedMilestoneIds: arrayUnion(milestoneId) });
       } catch (error) {
-          console.error("Error claiming milestone:", error);
           throw error;
       }
   },
@@ -272,7 +202,6 @@ export const userService = {
       const userRef = doc(db, 'users', uid);
       await deleteDoc(userRef);
     } catch (error) {
-      console.error("Error deleting user document:", error);
       throw error;
     }
   },
@@ -281,16 +210,11 @@ export const userService = {
       try {
           const userRef = doc(db, 'users', uid);
           if (isSaved) {
-              await updateDoc(userRef, {
-                  savedSprintIds: arrayUnion(sprintId)
-              });
+              await updateDoc(userRef, { savedSprintIds: arrayUnion(sprintId) });
           } else {
-              await updateDoc(userRef, {
-                  savedSprintIds: arrayRemove(sprintId)
-                });
+              await updateDoc(userRef, { savedSprintIds: arrayRemove(sprintId) });
           }
       } catch (error) {
-          console.error("Error toggling saved sprint:", error);
           throw error;
       }
   },
@@ -298,33 +222,21 @@ export const userService = {
   addUserEnrollment: async (uid: string, sprintId: string) => {
       try {
           const userRef = doc(db, 'users', uid);
-          await updateDoc(userRef, {
-              enrolledSprintIds: arrayUnion(sprintId)
-          });
-      } catch (error) {
-          console.error("Error adding user enrollment:", error);
-      }
+          await updateDoc(userRef, { enrolledSprintIds: arrayUnion(sprintId) });
+      } catch (error) {}
   },
 
   addUserPost: async (uid: string, postId: string) => {
       try {
           const userRef = doc(db, 'users', uid);
-          await updateDoc(userRef, {
-              shinePostIds: arrayUnion(postId)
-          });
-      } catch (error) {
-          console.error("Error adding user post:", error);
-      }
+          await updateDoc(userRef, { shinePostIds: arrayUnion(postId) });
+      } catch (error) {}
   },
 
   addUserComment: async (uid: string, commentId: string) => {
       try {
           const userRef = doc(db, 'users', uid);
-          await updateDoc(userRef, {
-              shineCommentIds: arrayUnion(commentId)
-          });
-      } catch (error) {
-          console.error("Error adding user comment:", error);
-      }
+          await updateDoc(userRef, { shineCommentIds: arrayUnion(commentId) });
+      } catch (error) {}
   }
 };

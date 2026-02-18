@@ -1,4 +1,3 @@
-
 export enum UserRole {
   COACH = 'COACH',
   PARTICIPANT = 'PARTICIPANT',
@@ -27,9 +26,42 @@ export type SprintType =
 export type EffortLevel = 'Low' | 'Medium' | 'High';
 export type EvidenceType = 'decision' | 'artifact' | 'habit';
 export type PaymentSource = 'direct' | 'influencer' | 'coin';
-export type PaymentAttemptStatus = 'initiated' | 'processing' | 'failed' | 'abandoned' | 'successful';
+export type PaymentAttemptStatus = 'pending' | 'success' | 'failed' | 'refunded' | 'abandoned';
 
 export type SprintDifficulty = 'Beginner' | 'Intermediate' | 'Advanced';
+
+export interface PaymentRecord {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  sprintId: string;
+  sprintTitle: string;
+  amount: number;
+  currency: string;
+  status: PaymentAttemptStatus;
+  paymentProvider: string;
+  txRef: string;
+  paymentMethod: string;
+  initiatedAt: string;
+  completedAt?: string | null;
+  failureReason?: string | null;
+  isTest: boolean;
+}
+
+export interface FinancialStats {
+  totalRevenue: number;
+  revenueToday: number;
+  revenueThisMonth: number;
+  successCount: number;
+  failedCount: number;
+  pendingCount: number;
+  totalRefunds: number;
+  successRate: number;
+  failureRate: number;
+  dropOffRate: number;
+  arpu: number;
+}
 
 export interface LifecycleSlot {
   id: string;

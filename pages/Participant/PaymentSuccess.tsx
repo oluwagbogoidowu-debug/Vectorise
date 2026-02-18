@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { paymentService } from '../../services/paymentService';
@@ -158,11 +159,12 @@ const PaymentSuccess: React.FC = () => {
                     setTimeout(() => navigate(`/participant/sprint/${enrollment.id}`, { replace: true }), 2000);
                 }
 
+                // FIX: Changed 'successful' to 'success' to match PaymentAttemptStatus type
                 await paymentService.logPaymentAttempt({
                     user_id: user.id,
                     sprint_id: paidSprintId,
                     amount: sprintMetadata?.price || 0,
-                    status: 'successful'
+                    status: 'success'
                 });
 
             } catch (err) {
