@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -32,6 +31,7 @@ import PartnerApply from './pages/Partner/PartnerApply';
 import PartnerDashboard from './pages/Partner/PartnerDashboard';
 import { sprintService } from './services/sprintService';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
+import { analyticsTracker } from './services/analyticsTracker';
 
 // Added missing imports for onboarding and coach-related pages
 import FocusSelector from './pages/Onboarding/FocusSelector';
@@ -112,6 +112,14 @@ const AppRoutes: React.FC = () => {
     });
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
+
+  // ANALYTICS: Track Route Changes & Handle Identification
+  useEffect(() => {
+    if (user) {
+        analyticsTracker.identify(user.id, user.email);
+    }
+    analyticsTracker.trackEvent('page_view', { path: location.pathname + location.hash }, user?.id, user?.email);
+  }, [location.pathname, location.hash, user?.id]);
 
   // GLOBAL REFERRAL TRACKER
   useEffect(() => {

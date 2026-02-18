@@ -32,8 +32,10 @@ export type SprintDifficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 
 export interface TrafficRecord {
   id: string;
+  anonymous_id: string;
   session_id: string;
   user_id?: string | null;
+  email?: string | null;
   source: string;
   medium: string;
   campaign?: string | null;
@@ -41,17 +43,50 @@ export interface TrafficRecord {
   landing_page: string;
   referrer_url: string;
   user_agent: string;
+  device_type: 'mobile' | 'desktop' | 'tablet';
+  geography?: string; // Approx from browser/IP
   created_at: string;
 }
 
 export interface AnalyticsEvent {
   id: string;
+  anonymous_id: string;
   session_id: string;
   user_id?: string | null;
+  email?: string | null;
   event_name: string;
   event_properties: any;
   page_url: string;
+  scroll_depth?: number; // percentage
+  dwell_time?: number; // seconds
   created_at: string;
+}
+
+export interface UserSessionReport {
+  anonymous_id: string;
+  session_id: string;
+  email?: string | null;
+  user_id?: string | null;
+  traffic: TrafficRecord;
+  events: AnalyticsEvent[];
+  totalDwellTime: number;
+  maxScrollDepth: number;
+  hasPaid: boolean;
+  conversionPath: string[]; // Sequential list of core events
+}
+
+export interface IdentityReport {
+  identifier: string; // email if available, else anonymous_id
+  anonymous_id: string;
+  email?: string | null;
+  user_id?: string | null;
+  firstTouch: TrafficRecord;
+  lastActiveAt: string;
+  totalSessions: number;
+  totalEvents: number;
+  hasPaid: boolean;
+  sessions: UserSessionReport[];
+  enrollments: ParticipantSprint[];
 }
 
 export interface FunnelStats {

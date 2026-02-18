@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 if (!pUser.enrolledSprintIds) updates.enrolledSprintIds = [];
                 if (!pUser.shinePostIds) updates.shinePostIds = [];
                 if (!pUser.shineCommentIds) updates.shineCommentIds = [];
-                if (!pUser.referralCode) updates.referralCode = firebaseUser.uid.substring(0, 8).toUpperCase();
+                if (!pUser.referralCode) updates.referralCode = (firebaseUser.uid || '').substring(0, 8).toUpperCase();
 
                 if (Object.keys(updates).length > 0) {
                     await userService.updateUserDocument(dbUser.id, updates);
@@ -66,7 +66,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     wishlistSprintIds: [],
                     shinePostIds: [],
                     shineCommentIds: [],
-                    referralCode: firebaseUser.uid.substring(0, 8).toUpperCase(),
+                    referralCode: (firebaseUser.uid || '').substring(0, 8).toUpperCase(),
                     walletBalance: 50, // Updated from 30 to 50
                     impactStats: { peopleHelped: 0, streak: 0 }
                 };
@@ -138,6 +138,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(null);
         setActiveRole(UserRole.PARTICIPANT);
         localStorage.removeItem('vectorise_user_id');
+        localStorage.removeItem('vectorise_last_sprint');
         localStorage.removeItem('vectorise_active_role');
         console.log("Registry Access Revoked Successfully.");
     } catch (error) {

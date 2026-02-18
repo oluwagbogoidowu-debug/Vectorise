@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
+import { sanitizeData } from '../../services/userService';
 
 type QuizQuestion = {
   title: string;
@@ -141,20 +142,15 @@ const Quiz: React.FC = () => {
 
   // Auto-persist state to localStorage on every change
   useEffect(() => {
-    // Ensure we only save strings/numbers to avoid circular dependencies in answers
-    const cleanAnswers: any = {};
-    Object.keys(answers).forEach(key => {
-        if (typeof answers[Number(key)] === 'string') {
-            cleanAnswers[key] = answers[Number(key)];
-        }
-    });
+    // FIXED: Using sanitizeData to strictly ensure no circular structures reach JSON.stringify
+    const cleanAnswers = sanitizeData(answers);
 
-    const stateToSave = {
+    const stateToSave = sanitizeData({
         step, 
         answers: cleanAnswers, 
-        selectedPersona: String(selectedPersona || ''), 
-        occupation: String(occupation || '')
-    };
+        selectedPersona, 
+        occupation
+    });
     
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
@@ -219,14 +215,14 @@ const Quiz: React.FC = () => {
     
     // Pass data through state to recommendations page
     navigate('/recommended', { 
-      state: { 
+      state: sanitizeData({ 
         persona: selectedPersona, 
         answers, 
         occupation, 
         recommendedPlan,
         targetSprintId,
         referrerId 
-      } 
+      }) 
     });
   };
 

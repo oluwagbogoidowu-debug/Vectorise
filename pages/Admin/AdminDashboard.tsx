@@ -11,7 +11,7 @@ import LifecycleOrchestrator from './LifecycleOrchestrator';
 import AdminEarnings from './AdminEarnings';
 import AdminAnalytics from './AdminAnalytics';
 
-type Tab = 'pulse' | 'orchestrator' | 'analytics' | 'earnings' | 'sprints' | 'partners' | 'quotes' | 'roles';
+type Tab = 'pulse' | 'orchestrator' | 'analytics' | 'earning' | 'sprints' | 'partners' | 'quotes' | 'roles';
 type SprintFilter = 'all' | 'active' | 'core' | 'pending' | 'rejected';
 
 export default function AdminDashboard() {
@@ -106,13 +106,13 @@ export default function AdminDashboard() {
                                 { id: 'pulse', label: 'Pulse' },
                                 { id: 'orchestrator', label: 'Orchestrator' },
                                 { id: 'analytics', label: 'Analytics' },
-                                { id: 'earnings', label: 'Earnings' },
+                                { id: 'earning', label: 'Earning' },
                                 { id: 'sprints', label: 'Sprints' },
                                 { id: 'partners', label: 'Partners' },
                                 { id: 'quotes', label: 'Quotes' },
                                 { id: 'roles', label: 'System' }
                             ].map(t => (
-                                <button key={t.id} onClick={() => setActiveTab(t.id as Tab)} className={`whitespace-nowrap py-8 px-1 border-b-4 font-black text-[11px] uppercase tracking-[0.2em] transition-all cursor-pointer ${activeTab === t.id ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>{t.label}</button>
+                                <button key={t.id} onClick={() => setActiveTab(t.id as Tab)} className={`whitespace-nowrap py-8 px-1 border-b-4 font-black text-[11px] uppercase tracking-widest transition-all cursor-pointer ${activeTab === t.id ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>{t.label}</button>
                             ))}
                         </nav>
                     </div>
@@ -133,7 +133,7 @@ export default function AdminDashboard() {
                         
                         {activeTab === 'analytics' && <AdminAnalytics />}
                         
-                        {activeTab === 'earnings' && <AdminEarnings />}
+                        {activeTab === 'earning' && <AdminEarnings />}
 
                         {activeTab === 'sprints' && (
                             <div className="animate-fade-in space-y-8">

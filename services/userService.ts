@@ -5,16 +5,16 @@ import { User, Participant, Coach, UserRole, WalletTransaction } from '../types'
 /**
  * Standardized utility to deeply clean objects for JSON serialization and Firestore safety.
  * Hardened to detect minified Firestore internal classes and break circular references.
+ * Critical for preventing "Converting circular structure to JSON" errors.
  */
 export const sanitizeData = (val: any, seen = new WeakSet()): any => {
     // 1. Handle null and primitives
     if (val === null || typeof val !== 'object') return val;
 
-    // 2. Break circular references
+    // 2. Break circular references immediately
     if (seen.has(val)) return undefined;
-    seen.add(val);
-
-    // 3. Handle Firestore Timestamps and Dates
+    
+    // 3. Handle specific non-serializable but non-circular common types
     if (val instanceof Date) return val.toISOString();
     if (typeof val.toDate === 'function') {
         try {
@@ -26,35 +26,47 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
 
     // 4. Handle Arrays
     if (Array.isArray(val)) {
+        seen.add(val);
         return val
             .map(item => sanitizeData(item, seen))
             .filter(i => i !== undefined);
     }
 
     // 5. Detect and Strip Firestore internal classes (References, Queries, Services)
-    // Common minified names in Firebase SDK: Sa (Firestore), Q$1 (Query), Fe (FieldValue)
+    // Common minified names in Firebase SDK: Sa (Firestore), Q$1 (Query), Fe (FieldValue), etc.
     const constructorName = val.constructor?.name || '';
     const isInternal = /^[A-Z]\$[0-9]$|^[A-Z][a-z]$/.test(constructorName) || 
                        constructorName.includes('Query') || 
                        constructorName.includes('Reference') ||
-                       constructorName.includes('Firestore');
+                       constructorName.includes('Firestore') ||
+                       constructorName.includes('Transaction') ||
+                       constructorName.includes('Firebase');
     
-    const hasSDKSignatures = !!(val.onSnapshot || val.getDoc || val._methodName);
+    // Check for common internal property markers if name check isn't enough
+    const hasSDKSignatures = !!(val.onSnapshot || val.getDoc || val._methodName || val.firestore || val.type === 'collection' || val.type === 'document');
+    
     if (isInternal || hasSDKSignatures || val instanceof Element) {
         return undefined;
     }
 
-    // 6. Only process "plain" objects
+    // 6. Only process "plain" objects or objects that look like data
     const proto = Object.getPrototypeOf(val);
     const isPlain = proto === null || proto === Object.prototype;
-    if (!isPlain) return undefined;
+    if (!isPlain) {
+        return undefined;
+    }
 
+    seen.add(val);
     const cleaned: any = {};
     const keys = Object.keys(val);
     for (const key of keys) {
+        // Strip internal-looking fields
         if (key.startsWith('_') || key.startsWith('$')) continue;
+        
         const sanitizedVal = sanitizeData(val[key], seen);
-        if (sanitizedVal !== undefined) cleaned[key] = sanitizedVal;
+        if (sanitizedVal !== undefined) {
+            cleaned[key] = sanitizedVal;
+        }
     }
     return cleaned;
 };
@@ -73,7 +85,7 @@ export const userService = {
         shinePostIds: [], 
         shineCommentIds: [], 
         claimedMilestoneIds: [],
-        referralCode: uid.substring(0, 8).toUpperCase(),
+        referralCode: (uid || '').substring(0, 8).toUpperCase(),
         walletBalance: 50,
         impactStats: { peopleHelped: 0, streak: 0 },
         isPartner: false,
