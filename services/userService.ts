@@ -21,27 +21,39 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
     // Check for Firestore Timestamp
     if (typeof val.toDate === 'function') {
         try {
-            return val.toDate().toISOString();
+            const date = val.toDate();
+            return date instanceof Date ? date.toISOString() : undefined;
         } catch (e) {
             return undefined;
         }
     }
 
-    // 4. Detect and Strip Firestore internal classes (References, Queries, Services)
-    // Common minified names in Firebase SDK: Sa (Firestore), Q$1 (Query), Fe (FieldValue), etc.
+    // 4. Detect and Strip Firestore/Firebase internal classes
+    // Firebase v10 minified names: Sa (Firestore), Q$1 (Query), etc.
     const constructorName = val.constructor?.name || '';
-    const isInternal = /^[A-Z]\$[0-9]$|^[A-Z][a-z]$/.test(constructorName) || 
-                       constructorName.includes('Query') || 
-                       constructorName.includes('Reference') ||
-                       constructorName.includes('Firestore') ||
-                       constructorName.includes('Transaction') ||
-                       constructorName.includes('Firebase') ||
-                       constructorName.includes('App');
+    const isFirebaseInternal = 
+        /^[A-Z]\$[0-9]$|^[A-Z][a-z]$/.test(constructorName) || 
+        constructorName.includes('Query') || 
+        constructorName.includes('Reference') ||
+        constructorName.includes('Firestore') ||
+        constructorName.includes('Transaction') ||
+        constructorName.includes('Firebase') ||
+        constructorName.includes('App') ||
+        constructorName.includes('Snapshot');
+
+    // Check for common internal property markers (Firebase often uses 'i', 'db', 'firestore')
+    // Specifically looking for the pattern 'i' -> 'src' mentioned in circular error
+    const hasSDKSignatures = !!(
+        val.onSnapshot || 
+        val.getDoc || 
+        val._methodName || 
+        val.firestore || 
+        val.type === 'collection' || 
+        val.type === 'document' ||
+        (val.i && val.src)
+    );
     
-    // Check for common internal property markers or native elements
-    const hasSDKSignatures = !!(val.onSnapshot || val.getDoc || val._methodName || val.firestore || val.type === 'collection' || val.type === 'document');
-    
-    if (isInternal || hasSDKSignatures || val instanceof Element) {
+    if (isFirebaseInternal || hasSDKSignatures || val instanceof Element) {
         return undefined;
     }
 
@@ -53,10 +65,11 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
             .filter(i => i !== undefined);
     }
 
-    // 6. Only process "plain" objects
+    // 6. Only process "plain" objects to avoid serializing complex class instances
     const proto = Object.getPrototypeOf(val);
     const isPlain = proto === null || proto === Object.prototype;
     if (!isPlain) {
+        // If it's a class instance but not a plain object, we don't want to risk cycles
         return undefined;
     }
 
