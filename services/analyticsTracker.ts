@@ -178,7 +178,7 @@ export const analyticsTracker = {
             const q = query(collection(db, TRAFFIC_COLLECTION), orderBy('created_at', 'desc'), limit(500));
             const trafficSnap = await getDocs(q);
             
-            const trafficRecords = trafficSnap.docs.map(d => ({ id: d.id, ...d.data() } as TrafficRecord));
+            const trafficRecords = trafficSnap.docs.map(d => ({ id: d.id, ...sanitizeData(d.data()) } as TrafficRecord));
             const identitiesMap = new Map<string, TrafficRecord[]>();
 
             trafficRecords.forEach(t => {
@@ -191,7 +191,7 @@ export const analyticsTracker = {
 
             for (const [idKey, records] of identitiesMap.entries()) {
                 const firstTouch = [...records].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0];
-                const lastActive = [...records].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+                const lastActive = [...records].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0];
                 
                 const uniqueSessionIds = Array.from(new Set(records.map(r => r.session_id)));
                 const sessions: UserSessionReport[] = [];
@@ -203,7 +203,7 @@ export const analyticsTracker = {
                     const eq = query(collection(db, EVENTS_COLLECTION), where('session_id', '==', sid));
                     const eSnap = await getDocs(eq);
                     const events = eSnap.docs
-                        .map(d => ({ id: d.id, ...d.data() } as AnalyticsEvent))
+                        .map(d => ({ id: d.id, ...sanitizeData(d.data()) } as AnalyticsEvent))
                         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
                     if (events.length === 0) continue;
@@ -240,7 +240,7 @@ export const analyticsTracker = {
                 if (userId) {
                     const uq = query(collection(db, ENROLLMENTS_COLLECTION), where('user_id', '==', userId));
                     const uSnap = await getDocs(uq);
-                    enrollments = uSnap.docs.map(d => ({ id: d.id, ...d.data() } as ParticipantSprint));
+                    enrollments = uSnap.docs.map(d => ({ id: d.id, ...sanitizeData(d.data()) } as ParticipantSprint));
                 }
 
                 ledger.push({
@@ -268,7 +268,7 @@ export const analyticsTracker = {
     subscribeToEvents: (callback: (events: AnalyticsEvent[]) => void) => {
         const q = query(collection(db, EVENTS_COLLECTION), orderBy('created_at', 'desc'), limit(50));
         return onSnapshot(q, (snap) => {
-            callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as AnalyticsEvent)));
+            callback(snap.docs.map(d => ({ id: d.id, ...sanitizeData(d.data()) } as AnalyticsEvent)));
         });
     },
 
@@ -276,7 +276,7 @@ export const analyticsTracker = {
         try {
             const q = query(collection(db, EVENTS_COLLECTION), limit(1000));
             const snap = await getDocs(q);
-            const events = snap.docs.map(d => d.data() as AnalyticsEvent);
+            const events = snap.docs.map(d => sanitizeData(d.data()) as AnalyticsEvent);
 
             return {
                 visitors: new Set(events.map(e => e.session_id)).size,
