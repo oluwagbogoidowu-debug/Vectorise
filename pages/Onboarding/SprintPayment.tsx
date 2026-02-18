@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
 import { paymentService } from '../../services/paymentService';
-import { userService } from '../../services/userService';
+import { userService, sanitizeData } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Sprint, Participant, GlobalOrchestrationSettings } from '../../types';
@@ -11,7 +11,6 @@ import { Sprint, Participant, GlobalOrchestrationSettings } from '../../types';
 const SprintPayment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  // Fixed typo: userAuth -> useAuth
   const { user, updateProfile } = useAuth();
   
   const [guestEmail, setGuestEmail] = useState('');
@@ -31,7 +30,6 @@ const SprintPayment: React.FC = () => {
     };
     loadSettings();
     
-    // If returning from a failed/cancelled payment, state might have guest email
     if (state.prefilledEmail && !guestEmail) {
       setGuestEmail(state.prefilledEmail);
     }
@@ -133,7 +131,8 @@ const SprintPayment: React.FC = () => {
         amount: Number(sprintPrice),
         status: 'abandoned'
     });
-    navigate('/onboarding/map', { state: { ...state } });
+    // Sanitize state to prevent circular structure errors during navigation
+    navigate('/onboarding/map', { state: sanitizeData({ ...state }) });
   };
 
   return (

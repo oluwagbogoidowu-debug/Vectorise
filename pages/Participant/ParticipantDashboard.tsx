@@ -147,7 +147,7 @@ const ParticipantDashboard: React.FC = () => {
           <div className="max-w-screen-md mx-auto w-full h-full flex flex-col">
             
             <div className="grid grid-cols-2 gap-3 mb-6 flex-shrink-0">
-                <div className={`bg-[#0E7850] text-white p-4 rounded-3xl shadow-lg flex flex-col h-[96px] relative overflow-hidden transition-transform active:scale-[0.98] ${allTasksDoneToday ? 'justify-center items-center text-center' : 'justify-between'}`}>
+                <div className={`bg-[#0E7850] text-white p-5 rounded-3xl shadow-lg flex flex-col h-[96px] relative overflow-hidden transition-transform active:scale-[0.98] ${allTasksDoneToday ? 'justify-center items-center text-center' : 'justify-between'}`}>
                     {allTasksDoneToday ? (
                         <div className="animate-fade-in relative z-10 w-full flex flex-col items-center">
                             <h3 className="text-[13px] font-black leading-tight">Come back tomorrow</h3>
@@ -208,7 +208,7 @@ const ParticipantDashboard: React.FC = () => {
                         <div className="bg-white rounded-[2rem] shadow-[0_15px_40px_-20px_rgba(0,0,0,0.06)] border border-gray-100 relative overflow-hidden flex flex-1 min-h-0 animate-fade-in group-hover:shadow-lg transition-all">
                             <div className={`w-2.5 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-gray-200' : 'bg-[#0E7850]'}`}></div>
                             
-                            <div className="flex-1 p-5 md:p-8 flex flex-col min-h-0">
+                            <div className="flex-1 pl-3.5 pr-6 py-6 md:px-8 md:py-8 flex flex-col min-h-0">
                                 <div className="flex justify-between items-start mb-4 flex-shrink-0">
                                     <div>
                                         <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-1">{mainTask.sprint.category}</p>

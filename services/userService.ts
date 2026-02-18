@@ -3,31 +3,18 @@ import { doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, col
 import { User, Participant, Coach, UserRole, WalletTransaction } from '../types';
 
 /**
- * Standardized utility to recursively remove non-serializable values and handle circularity.
- * Hardened to detect minified Firestore internal classes and prevent React state corruption.
+ * Standardized utility to deeply clean objects for JSON serialization and Firestore safety.
+ * Hardened to detect minified Firestore internal classes and break circular references.
  */
-export const sanitizeData = (val: any, depth = 0, seen = new WeakSet()): any => {
-    // 1. Handle null and undefined
-    if (val === null || val === undefined) return val;
+export const sanitizeData = (val: any, seen = new WeakSet()): any => {
+    // 1. Handle null and primitives
+    if (val === null || typeof val !== 'object') return val;
 
-    // 2. Depth safeguard to prevent runaway recursion in edge cases
-    if (depth > 10) return undefined;
+    // 2. Break circular references
+    if (seen.has(val)) return undefined;
+    seen.add(val);
 
-    // 3. Handle primitives
-    const type = typeof val;
-    if (type !== 'object' && type !== 'function') return val;
-    if (type === 'function') return undefined; // functions are not serializable
-
-    // 4. Circularity check - MUST happen before any property access
-    try {
-        if (seen.has(val)) return undefined;
-        seen.add(val);
-    } catch (e) {
-        // Fallback for objects that cannot be added to WeakSet
-        return undefined;
-    }
-
-    // 5. Handle Firestore Timestamps and Dates
+    // 3. Handle Firestore Timestamps and Dates
     if (val instanceof Date) return val.toISOString();
     if (typeof val.toDate === 'function') {
         try {
@@ -37,42 +24,40 @@ export const sanitizeData = (val: any, depth = 0, seen = new WeakSet()): any => 
         }
     }
 
-    // 6. Handle Arrays
+    // 4. Handle Arrays
     if (Array.isArray(val)) {
         return val
-            .map(item => sanitizeData(item, depth + 1, seen))
+            .map(item => sanitizeData(item, seen))
             .filter(i => i !== undefined);
     }
 
-    // 7. Handle Objects
-    // Check for Firestore FieldValues which are necessary for writes but problematic for UI
-    const isFieldValue = val._methodName || 
-                        (val.constructor && val.constructor.name && val.constructor.name.includes('FieldValue')) ||
-                        (val.constructor && val.constructor.name === 'Fe'); // Common minified FieldValue name
-
-    if (isFieldValue) {
-        return val;
-    }
-
-    // Identify plain objects vs internal classes or DOM elements
-    const proto = Object.getPrototypeOf(val);
-    const isPlain = proto === null || proto === Object.prototype;
-    
-    // Safety check for minified names (Q$1 is Query, Sa is Firestore, etc.)
+    // 5. Detect and Strip Firestore internal classes (References, Queries, Services)
+    // Common minified names in Firebase SDK: Sa (Firestore), Q$1 (Query), Fe (FieldValue)
     const constructorName = val.constructor?.name || '';
-    const isInternalClass = /^[A-Z]\$[0-9]$|^[A-Z][a-z]$/.test(constructorName);
+    const isInternal = /^[A-Z]\$[0-9]$|^[A-Z][a-z]$/.test(constructorName) || 
+                       constructorName.includes('Query') || 
+                       constructorName.includes('Reference') ||
+                       constructorName.includes('Firestore');
+    
+    // Check for common SDK patterns (onSnapshot, getDoc, _methodName)
+    const hasSDKSignatures = !!(val.onSnapshot || val.getDoc || val._methodName);
 
-    if (!isPlain || isInternalClass || val instanceof Element) {
+    if (isInternal || hasSDKSignatures || val instanceof Element) {
         return undefined;
     }
+
+    // 6. Only process "plain" objects
+    const proto = Object.getPrototypeOf(val);
+    const isPlain = proto === null || proto === Object.prototype;
+    if (!isPlain) return undefined;
 
     const cleaned: any = {};
     const keys = Object.keys(val);
     for (const key of keys) {
-        // Skip internal private properties starting with _ or $
+        // Skip private/internal properties
         if (key.startsWith('_') || key.startsWith('$')) continue;
         
-        const sanitizedVal = sanitizeData(val[key], depth + 1, seen);
+        const sanitizedVal = sanitizeData(val[key], seen);
         if (sanitizedVal !== undefined) {
             cleaned[key] = sanitizedVal;
         }

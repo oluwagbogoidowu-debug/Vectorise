@@ -23,14 +23,14 @@ const PaymentSuccess: React.FC = () => {
     
     /**
      * Resilient parameter extraction for HashRouter.
-     * External gateways often append ?params to the end of the URL, 
-     * creating a string like #/path?internal=1?external=2
+     * Narrow dependency to location.search/hash to prevent React from serializing 
+     * the whole location object if it contains circular state.
      */
     const queryParams = useMemo(() => {
         const fullUrl = window.location.href;
         const searchPart = fullUrl.includes('?') ? fullUrl.split('?').slice(1).join('&') : '';
         return new URLSearchParams(searchPart);
-    }, [location]);
+    }, [location.search, location.hash]);
     
     const reference = queryParams.get('reference') || queryParams.get('transaction_id');
     const paidSprintId = queryParams.get('sprintId');
@@ -39,13 +39,14 @@ const PaymentSuccess: React.FC = () => {
     // Fetch sprint metadata immediately for UI and fallback navigation
     useEffect(() => {
         if (paidSprintId && !sprintMetadata) {
-            sprintService.getSprintById(paidSprintId).then(setSprintMetadata);
+            sprintService.getSprintById(paidSprintId).then(data => {
+                if (data) setSprintMetadata(sanitizeData(data));
+            });
         }
     }, [paidSprintId, sprintMetadata]);
 
     // 1. Verify Payment Status with Secure Backend
     useEffect(() => {
-        // If we are already in a terminal state, don't verify again
         if (status !== 'verifying') return;
 
         if (!reference) {
@@ -62,30 +63,23 @@ const PaymentSuccess: React.FC = () => {
 
         const checkStatus = async () => {
             try {
-                console.log(`[Verification] Checking status for Ref: ${reference}...`);
                 const gateway = queryParams.get('reference') ? 'paystack' : 'flutterwave';
                 const data = await paymentService.verifyPayment(gateway, reference, paidSprintId || undefined);
                 
                 if (data.status === 'successful' || data.status === 'success') {
-                    console.log("[Verification] Success confirmed by backend.");
                     setStatus('success');
                 } else if (data.status === 'failed') {
-                    console.error("[Verification] Backend reported failure:", data.message);
                     setStatus('failed');
                     setErrorNote(data.message || "Payment not completed.");
                 } else {
-                    // Gateway might still be processing. Retry with backoff.
                     if (retries < 6) {
                         const delay = 1000 + (retries * 1000);
-                        console.log(`[Verification] Retrying in ${delay}ms... (Attempt ${retries + 1})`);
                         setTimeout(() => setRetries(prev => prev + 1), delay);
                     } else {
-                        console.warn("[Verification] Max retries reached. Sync delayed.");
                         setStatus('delay');
                     }
                 }
             } catch (err) {
-                console.error("[Verification] Network/Logic error:", err);
                 setStatus('error');
                 setErrorNote("The verification service is temporarily unreachable.");
             }
@@ -97,17 +91,14 @@ const PaymentSuccess: React.FC = () => {
     // 2. Fulfillment Logic
     useEffect(() => {
         const performFulfillment = async () => {
-            // Wait for auth to settle and payment to be verified
             if (loading || status !== 'success' || !paidSprintId || isFulfilling || fulfillmentAttempted.current) return;
             
             fulfillmentAttempted.current = true;
             setIsFulfilling(true);
 
             try {
-                // CASE A: USER IS NOT LOGGED IN
                 if (!user) {
                     if (rawEmail) {
-                        console.log("[Fulfillment] Guest detected. Redirecting to identity establishment...");
                         const emailExists = await userService.checkEmailExists(rawEmail);
                         const targetPath = emailExists ? '/login' : '/signup';
                         navigate(targetPath, { 
@@ -120,15 +111,11 @@ const PaymentSuccess: React.FC = () => {
                         });
                         return;
                     } else {
-                        console.warn("[Fulfillment] No user and no email in URL. Sending to login.");
                         navigate('/login', { state: { targetSprintId: paidSprintId }, replace: true });
                         return;
                     }
                 }
 
-                // CASE B: USER IS LOGGED IN
-                console.log("[Fulfillment] Processing for user:", user.id);
-                
                 const userRef = doc(db, 'users', user.id);
                 const userSnap = await getDoc(userRef);
                 if (!userSnap.exists()) throw new Error("User identity record missing.");
@@ -141,7 +128,6 @@ const PaymentSuccess: React.FC = () => {
                 const hasActive = userEnrollments.some(e => e.status === 'active' && e.progress.some(p => !p.completed));
 
                 if (hasActive) {
-                    console.log("[Fulfillment] Active sprint exists. Queuing new sprint.");
                     const currentQueue = userData.savedSprintIds || [];
                     if (!currentQueue.includes(paidSprintId)) {
                         await updateDoc(userRef, {
@@ -154,7 +140,6 @@ const PaymentSuccess: React.FC = () => {
                     setReadyToBegin(true);
                     setTimeout(() => navigate('/my-sprints', { replace: true }), 2000);
                 } else {
-                    console.log("[Fulfillment] Enrolling user in active sprint.");
                     const enrollment = await sprintService.enrollUser(user.id, paidSprintId, sprint.duration, {
                         coachId: sprint.coachId,
                         pricePaid: sprint.price || 0,
@@ -195,10 +180,10 @@ const PaymentSuccess: React.FC = () => {
     const handleReturnToPayment = () => {
         if (paidSprintId && sprintMetadata) {
             navigate('/onboarding/sprint-payment', { 
-                state: { 
-                  sprint: sanitizeData(sprintMetadata),
+                state: sanitizeData({ 
+                  sprint: sprintMetadata,
                   prefilledEmail: rawEmail
-                },
+                }),
                 replace: true 
             });
         } else {
@@ -222,9 +207,6 @@ const PaymentSuccess: React.FC = () => {
                             <div>
                                 <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">Validating Path</h1>
                                 <p className="text-xs text-gray-400 font-bold uppercase tracking-[0.2em] mt-3">Requesting Registry Clearance...</p>
-                                {retries > 1 && (
-                                    <p className="text-[10px] text-primary font-black uppercase mt-4 animate-pulse">Confirming with Gateway...</p>
-                                )}
                             </div>
                         </div>
                     )}
@@ -242,17 +224,6 @@ const PaymentSuccess: React.FC = () => {
                                 </div>
                                 <p className="text-xs text-gray-400 mt-4 italic">"Initializing your journey..."</p>
                             </div>
-                        </div>
-                    )}
-
-                    {status === 'delay' && (
-                        <div className="space-y-6 animate-fade-in">
-                            <div className="w-20 h-20 bg-orange-50 text-orange-600 rounded-[2rem] flex items-center justify-center mx-auto text-4xl shadow-inner border border-orange-100">⏳</div>
-                            <div>
-                                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">Sync Delayed</h1>
-                                <p className="text-sm text-gray-500 font-medium leading-relaxed mt-4 italic">"The payment was accepted, but the registry sync is taking longer than expected. We'll update your profile automatically."</p>
-                            </div>
-                            <button onClick={() => navigate('/dashboard')} className="w-full py-4 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all">Go to Dashboard</button>
                         </div>
                     )}
 
