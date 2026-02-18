@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Sprint, DailyContent, SprintDifficulty, UserRole, Coach } from '../../types';
@@ -8,6 +9,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
+
+const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 
 /**
  * Visual Diff Tool
@@ -229,6 +232,7 @@ const EditSprint: React.FC = () => {
             category: merged.category,
             difficulty: merged.difficulty,
             price: merged.price,
+            currency: merged.currency || 'NGN',
             pointCost: merged.pointCost,
             pricingType: merged.pricingType || 'cash',
             duration: merged.duration,
@@ -598,9 +602,19 @@ const EditSprint: React.FC = () => {
                         {/* FULL DIFF FOR ALL REGISTRY FIELDS */}
                         <div className="bg-primary/5 p-6 rounded-[2rem] border border-primary/10 mb-8">
                             <label className={labelClasses + " text-primary mb-4 block"}>Administrative Actions</label>
-                            <div className="space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Set Sprint Price (₦)</label>
+                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Currency</label>
+                                    <select 
+                                        value={editSettings.currency || 'NGN'} 
+                                        onChange={e => setEditSettings({...editSettings, currency: e.target.value})} 
+                                        className="w-full px-6 py-4 bg-white border border-primary/20 rounded-2xl text-lg font-black text-primary shadow-sm outline-none"
+                                    >
+                                        {SUPPORTED_CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Set Sprint Price</label>
                                     <input 
                                         type="number" 
                                         value={editSettings.price || 0} 
@@ -608,7 +622,7 @@ const EditSprint: React.FC = () => {
                                         className="w-full px-6 py-4 bg-white border border-primary/20 rounded-2xl text-lg font-black text-primary shadow-sm outline-none focus:ring-4 focus:ring-primary/5"
                                         placeholder="0"
                                     />
-                                    <p className="text-[8px] font-bold text-gray-400 mt-2 uppercase tracking-widest italic">Note: Only admins can set the final price before pushing live.</p>
+                                    <p className="text-[8px] font-bold text-gray-400 mt-2 uppercase tracking-widest italic">Note: Only admins can set the final price.</p>
                                 </div>
                             </div>
                         </div>
@@ -659,7 +673,7 @@ const EditSprint: React.FC = () => {
                         {/* 02 Transformation */}
                         <section className="space-y-6">
                             <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">02 Transformation Statement</h4>
-                            <textarea value={editSettings.transformation || ''} onChange={e => setEditSettings({...editSettings, transformation: e.target.value})} rows={3} className={registryInputClasses + " resize-none italic mt-2"} />
+                            <textarea value={editSettings.transformation || ''} onChange={e => setEditSettings({...editSettings, transformation: e.target.value})} rows={3} className={registryInputClasses + " resize-none mt-2"} />
                         </section>
 
                         {/* 03 Target Signals */}
@@ -705,10 +719,11 @@ const EditSprint: React.FC = () => {
                         <section className="space-y-6">
                             <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">06 Evidence of Completion</h4>
                             <div className="space-y-3">
-                                {(editSettings.outcomes || ['', '', '']).map((item, i) => (
+                                {/* Fixed undefined 'outcome' variable error by renaming 'item' to 'outcome' */}
+                                {(editSettings.outcomes || ['', '', '']).map((outcome, i) => (
                                     <div key={i} className="flex gap-4 items-center">
                                         <div className="w-6 h-6 bg-primary/10 text-primary rounded-full flex items-center justify-center text-[10px] font-black">✓</div>
-                                        <input type="text" value={item} onChange={(e) => handleArrayChange('outcomes', i, e.target.value)} className={registryInputClasses} placeholder="Projected outcome..." />
+                                        <input type="text" value={outcome} onChange={(e) => handleArrayChange('outcomes', i, e.target.value)} className={registryInputClasses} placeholder="Projected outcome..." />
                                     </div>
                                 ))}
                             </div>
@@ -740,12 +755,12 @@ const EditSprint: React.FC = () => {
                                 <div>
                                     <label className={labelClasses}>Archive Outcome Tag</label>
                                     <input type="text" value={editSettings.outcomeTag || ''} onChange={e => setEditSettings({...editSettings, outcomeTag: e.target.value})} className={registryInputClasses + " mt-2"} placeholder="e.g. Clarity gained" />
-                                    <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest italic leading-relaxed">This appears as the badge on completed sprint cards in the student profile.</p>
+                                    <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest italic leading-relaxed">This appears as the badge on completed sprint cards.</p>
                                 </div>
                                 <div>
                                     <label className={labelClasses}>The Outcome (Final Statement)</label>
                                     <input type="text" value={editSettings.outcomeStatement || ''} onChange={e => setEditSettings({...editSettings, outcomeStatement: e.target.value})} className={registryInputClasses + " mt-2 italic"} placeholder="Focus creates feedback. *Feedback creates clarity.*" />
-                                    <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest italic leading-relaxed">Appears at the bottom of the landing page. Use *text* for emphasis.</p>
+                                    <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest italic leading-relaxed">Appears at the bottom of the landing page.</p>
                                 </div>
                             </div>
                         </section>
@@ -772,7 +787,7 @@ const EditSprint: React.FC = () => {
             <header className="p-8 border-b border-gray-100 flex justify-between items-center bg-white flex-shrink-0">
                 <div>
                     <h3 className="text-2xl font-black text-gray-900 tracking-tight italic">Live Registry Preview</h3>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Reviewing both platform contexts</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Reviewing platform contexts</p>
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="bg-gray-100 p-1 rounded-xl flex gap-1">
@@ -807,12 +822,6 @@ const EditSprint: React.FC = () => {
                                     forceShowOutcomeTag={true} 
                                     isStatic={true}
                                 />
-                            </div>
-                            <div className="mt-20 p-8 bg-white border border-gray-100 rounded-3xl text-center shadow-sm">
-                                <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-4">Registry Logic</p>
-                                <p className="text-sm text-gray-500 font-medium italic leading-relaxed">
-                                    "The Archive Outcome Tag (<strong>{sprint.outcomeTag || 'Pending'}</strong>) will appear on this card once a participant successfully completes all {sprint.duration} days of the cycle."
-                                </p>
                             </div>
                         </div>
                     ) : (

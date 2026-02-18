@@ -144,6 +144,7 @@ const PaymentSuccess: React.FC = () => {
                     const enrollment = await sprintService.enrollUser(user.id, paidSprintId, sprint.duration, {
                         coachId: sprint.coachId,
                         pricePaid: sprint.price || 0,
+                        currency: sprint.currency || 'NGN', // Pass currency to enrollment
                         source: userData.referrerId ? 'influencer' : 'direct',
                         referral: userData.referrerId || null
                     });
@@ -159,11 +160,12 @@ const PaymentSuccess: React.FC = () => {
                     setTimeout(() => navigate(`/participant/sprint/${enrollment.id}`, { replace: true }), 2000);
                 }
 
-                // FIX: Changed 'successful' to 'success' to match PaymentAttemptStatus type
+                // Fixed missing 'currency' property in logPaymentAttempt call
                 await paymentService.logPaymentAttempt({
                     user_id: user.id,
                     sprint_id: paidSprintId,
                     amount: sprintMetadata?.price || 0,
+                    currency: sprintMetadata?.currency || 'NGN',
                     status: 'success'
                 });
 
@@ -195,7 +197,7 @@ const PaymentSuccess: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-[#FDFDFD] flex flex-col items-center justify-center p-6 text-center font-sans overflow-hidden">
-            <div className="max-w-md w-full bg-white rounded-[3rem] shadow-2xl border border-gray-100 p-12 relative overflow-hidden animate-fade-in">
+            <div className="max-md w-full bg-white rounded-[3rem] shadow-2xl border border-gray-100 p-12 relative overflow-hidden animate-fade-in">
                 <header className="mb-10">
                     <LocalLogo type="green" className="h-10 w-auto mx-auto mb-6" />
                     

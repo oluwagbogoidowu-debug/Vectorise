@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/Button';
@@ -94,6 +95,7 @@ const CreateSprint: React.FC = () => {
             proofOptions: []
         }));
 
+        // Added missing 'currency' property
         const newSprint: Sprint = {
             id: sprintId,
             coachId: user.id,
@@ -104,6 +106,7 @@ const CreateSprint: React.FC = () => {
             difficulty: formData.difficulty,
             duration: duration,
             price: 0,
+            currency: 'NGN',
             pointCost: 0,
             pricingType: 'cash',
             coverImageUrl: formData.coverImageUrl || `https://picsum.photos/seed/${sprintId}/800/400`,

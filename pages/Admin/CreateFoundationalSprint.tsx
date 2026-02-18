@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/Button';
@@ -8,6 +7,7 @@ import { Sprint, DailyContent } from '../../types';
 import SprintCard from '../../components/SprintCard';
 
 const PLATFORM_CATEGORIES = ["Core Platform Sprint", "Growth Fundamentals"];
+const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 
 const CreateFoundationalSprint: React.FC = () => {
     const navigate = useNavigate();
@@ -19,6 +19,8 @@ const CreateFoundationalSprint: React.FC = () => {
         category: PLATFORM_CATEGORIES[0],
         duration: 5,
         pointCost: '30',
+        price: '0',
+        currency: 'NGN',
         coverImageUrl: '',
         outcomes: ['', '', ''] 
     });
@@ -53,6 +55,7 @@ const CreateFoundationalSprint: React.FC = () => {
 
         const duration = Number(formData.duration);
         const pointValue = Number(formData.pointCost || 0);
+        const cashValue = Number(formData.price || 0);
         const sprintId = `foundational_${Date.now()}`;
 
         const dailyContent: DailyContent[] = Array.from({ length: duration }, (_, i) => ({
@@ -70,15 +73,15 @@ const CreateFoundationalSprint: React.FC = () => {
             category: formData.category,
             difficulty: 'Beginner', 
             duration: duration,
-            price: 0,
+            price: cashValue,
+            currency: formData.currency,
             pointCost: pointValue,
-            pricingType: 'credits',
+            pricingType: cashValue > 0 ? 'cash' : 'credits',
             coverImageUrl: formData.coverImageUrl || `https://picsum.photos/seed/${sprintId}/800/400`,
             published: false,
             approvalStatus: 'draft',
             dailyContent: dailyContent,
             outcomes: formData.outcomes.filter(o => o.trim() !== ''),
-            // Targeting omitted entirely for platform sprints
         };
 
         try {
@@ -100,9 +103,10 @@ const CreateFoundationalSprint: React.FC = () => {
         category: formData.category,
         difficulty: 'Beginner',
         duration: Number(formData.duration),
-        price: 0,
+        price: Number(formData.price),
+        currency: formData.currency,
         pointCost: Number(formData.pointCost),
-        pricingType: 'credits',
+        pricingType: Number(formData.price) > 0 ? 'cash' : 'credits',
         coverImageUrl: formData.coverImageUrl || 'https://images.unsplash.com/photo-1454165833767-027ff3902142?auto=format&fit=crop&w=1350&q=80',
         published: false,
         approvalStatus: 'draft',
@@ -123,7 +127,7 @@ const CreateFoundationalSprint: React.FC = () => {
                     </button>
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Create Foundational Sprint</h1>
-                        <p className="text-[10px] font-black text-primary uppercase tracking-widest">Platform Core Program (Coin Gated)</p>
+                        <p className="text-[10px] font-black text-primary uppercase tracking-widest">Platform Core Program</p>
                     </div>
                 </div>
 
@@ -158,7 +162,7 @@ const CreateFoundationalSprint: React.FC = () => {
                                         <div>
                                             <label className="block text-[11px] font-black text-gray-400 mb-2 uppercase tracking-widest">Duration (Days)</label>
                                             <select name="duration" value={formData.duration} onChange={handleChange} className={inputClasses}>
-                                                {[3, 5].map(d => <option key={d} value={d}>{d} Days</option>)}
+                                                {[3, 5, 7, 14].map(d => <option key={d} value={d}>{d} Days</option>)}
                                             </select>
                                         </div>
                                     </div>
@@ -181,9 +185,20 @@ const CreateFoundationalSprint: React.FC = () => {
 
                                 <div className="md:col-span-2 bg-gray-50/50 p-8 rounded-[2rem] border border-gray-100 mt-4">
                                     <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Access Control</h5>
-                                    <div>
-                                        <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Platform Point Cost</label>
-                                        <input type="number" name="pointCost" value={formData.pointCost} onChange={handleChange} className={inputClasses} />
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Platform Point Cost</label>
+                                            <input type="number" name="pointCost" value={formData.pointCost} onChange={handleChange} className={inputClasses} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-gray-400 mb-2 uppercase tracking-widest">Registry Cash Price</label>
+                                            <div className="flex gap-2">
+                                                <select name="currency" value={formData.currency} onChange={handleChange} className={inputClasses + " w-24"}>
+                                                    {SUPPORTED_CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                                </select>
+                                                <input type="number" name="price" value={formData.price} onChange={handleChange} className={inputClasses} placeholder="0" />
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 

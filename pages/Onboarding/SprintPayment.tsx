@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
@@ -75,6 +76,7 @@ const SprintPayment: React.FC = () => {
           const enrollment = await sprintService.enrollUser(user.id, selectedSprint.id, selectedSprint.duration, {
               coachId: selectedSprint.coachId,
               pricePaid: 0,
+              currency: selectedSprint.currency || 'NGN',
               source: 'coin'
           });
           navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
@@ -113,6 +115,7 @@ const SprintPayment: React.FC = () => {
         email: effectiveEmail.toLowerCase().trim(),
         sprintId: selectedSprint?.id || 'clarity-sprint',
         amount: Number(sprintPrice),
+        currency: selectedSprint?.currency || 'NGN',
         name: user?.name || 'Vectorise Guest'
       });
       
@@ -125,10 +128,12 @@ const SprintPayment: React.FC = () => {
 
   const handleHesitation = async () => {
     const traceId = user?.id || `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
+    // Fixed missing 'currency' property in logPaymentAttempt call
     await paymentService.logPaymentAttempt({
         user_id: traceId,
         sprint_id: selectedSprint?.id || 'clarity-sprint',
         amount: Number(sprintPrice),
+        currency: selectedSprint?.currency || 'NGN',
         status: 'abandoned'
     });
     // Sanitize state to prevent circular structure errors during navigation

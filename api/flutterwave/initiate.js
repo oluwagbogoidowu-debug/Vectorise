@@ -1,3 +1,18 @@
+import admin from 'firebase-admin';
+
+// Initialize Firebase Admin SDK if not already done
+if (!admin.apps.length) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}'))
+    });
+  } catch (e) {
+    admin.initializeApp();
+  }
+}
+
+const db = admin.firestore();
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -19,12 +34,29 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Missing FLW_SECRET_KEY" });
     }
 
-    const { email, amount, sprintId, name } = req.body || {};
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
+    const { email, amount, sprintId, name, userId, currency = "NGN" } = req.body || {};
+    
+    if (!email || !userId || !sprintId) {
+      return res.status(400).json({ error: "Email, User ID, and Sprint ID are required" });
     }
 
-    const paymentAmount = amount || "5000";
+    const paymentAmount = Number(amount || 5000);
+    const tx_ref = `tx-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    // 1. Create Pending Payment Record in Firestore
+    await db.collection('payments').doc(tx_ref).set({
+      userId,
+      email: email.trim().toLowerCase(),
+      userName: name || 'Vectorise User',
+      sprintId,
+      amount: paymentAmount,
+      currency,
+      status: "pending",
+      paymentProvider: "flutterwave",
+      txRef: tx_ref,
+      initiatedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
 
     // Determine origin dynamically
     const host = req.headers.host;
@@ -35,10 +67,10 @@ export default async function handler(req, res) {
     
     /**
      * Flutterwave appends its own query string to the redirect_url.
-     * By putting our internal params at the end, Flutterwave will append with '&'
      */
-    const redirectUrl = `${origin}/#/payment-success?sprintId=${sprintId || 'clarity-sprint'}&email=${encodeURIComponent(cleanEmail)}`;
+    const redirectUrl = `${origin}/#/payment-success?sprintId=${sprintId}&transaction_id=${tx_ref}&email=${encodeURIComponent(cleanEmail)}`;
 
+    // 2. Request Payment Link from Flutterwave
     const response = await fetch("https://api.flutterwave.com/v3/payments", {
       method: "POST",
       headers: {
@@ -46,20 +78,22 @@ export default async function handler(req, res) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        tx_ref: `tx-${Date.now()}`,
-        amount: paymentAmount,
-        currency: "NGN",
+        tx_ref: tx_ref,
+        amount: paymentAmount.toString(),
+        currency: currency,
         redirect_url: redirectUrl,
         customer: { email: cleanEmail, name: name || 'Vectorise User' },
         customizations: {
           title: "Vectorise Growth Cycle",
-          description: `Enrollment for ${sprintId || 'Sprint'}`
+          description: `Enrollment for ${sprintId}`
         }
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
+      // Clean up the failed intent record
+      await db.collection('payments').doc(tx_ref).update({ status: 'failed', failureReason: 'Gateway initialization failed' });
       return res.status(response.status).json({ error: errorText });
     }
 

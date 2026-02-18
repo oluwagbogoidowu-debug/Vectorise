@@ -44,10 +44,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).send('Event received but ignored.');
     }
 
-    const { tx_ref, amount, customer, id: flw_id } = payload.data;
+    const { tx_ref, amount, currency, customer, id: flw_id } = payload.data;
     const email = customer.email.toLowerCase().trim();
 
-    console.log(`[Webhook] Processing verified fulfillment: ${tx_ref} (₦${amount})`);
+    console.log(`[Webhook] Processing verified fulfillment: ${tx_ref} (${currency} ${amount})`);
 
     // 4. Find the payment record (Source of Truth)
     const paymentRef = db.collection('payments').doc(tx_ref);
@@ -60,10 +60,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const paymentData = paymentDoc.data();
 
-    // 5. Idempotency check: Don't process twice
+    // 5. Integrity & Idempotency Checks
     if (paymentData?.status === 'successful' || paymentData?.status === 'success') {
       console.log(`[Webhook] Transaction ${tx_ref} already processed. Returning 200.`);
       return res.status(200).send('Already Processed');
+    }
+
+    // STRICT MATCHING: Amount and Currency must match what we initiated
+    if (Number(amount) !== Number(paymentData?.amount) || currency !== paymentData?.currency) {
+      console.error(`[Webhook] INTEGRITY BREACH: Amount/Currency mismatch for ${tx_ref}. Webhook: ${currency} ${amount}, DB: ${paymentData?.currency} ${paymentData?.amount}`);
+      await paymentRef.update({ status: 'failed', failureReason: 'Integrity mismatch detected on webhook' });
+      return res.status(400).json({ error: "Integrity mismatch" });
     }
 
     const { userId, sprintId } = paymentData || {};
@@ -73,13 +80,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // 6. Secure Database Fulfillment Transaction
-    // We update payment, unlock user sprint, create enrollment, and update admin stats in one go.
     await db.runTransaction(async (transaction) => {
       // A. Update Payment Status
       transaction.update(paymentRef, {
-        status: 'successful',
+        status: 'success',
         paidAt: admin.firestore.FieldValue.serverTimestamp(),
-        amount: amount,
+        amount: Number(amount),
+        currency: currency,
         provider_transaction_id: flw_id,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
@@ -105,7 +112,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         user_id: userId,
         coach_id: sprintSnap.data()?.coachId || '',
         started_at: new Date().toISOString(),
-        price_paid: amount,
+        price_paid: Number(amount),
+        currency: currency,
         status: 'active',
         last_activity_at: new Date().toISOString(),
         progress: Array.from({ length: duration }, (_, i) => ({ 
@@ -124,13 +132,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         metadata: { method: 'flutterwave_webhook', tx_ref, flw_id }
       });
 
-      // E. Update Admin Global Stats
-      const statsRef = db.collection('admin_stats').doc('global');
-      transaction.set(statsRef, {
-        totalRevenue: admin.firestore.FieldValue.increment(amount),
-        totalSales: admin.firestore.FieldValue.increment(1),
-        lastSaleAt: admin.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+      // E. Update Admin Global Stats (Currently only revenue in NGN is tracked globally for simplicity)
+      if (currency === 'NGN') {
+        const statsRef = db.collection('admin_stats').doc('global');
+        transaction.set(statsRef, {
+          totalRevenue: admin.firestore.FieldValue.increment(Number(amount)),
+          totalSales: admin.firestore.FieldValue.increment(1),
+          lastSaleAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      }
     });
 
     // 7. Create In-App Notification (Outside transaction for speed)

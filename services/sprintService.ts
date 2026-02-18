@@ -1,3 +1,4 @@
+
 import { db } from './firebase';
 import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp } from 'firebase/firestore';
 import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review } from '../types';
@@ -152,6 +153,7 @@ export const sprintService = {
         commercial?: { 
             coachId?: string, 
             pricePaid?: number, 
+            currency?: string, // Added currency to commercial options
             source?: PaymentSource, 
             referral?: string | null 
         }
@@ -163,6 +165,7 @@ export const sprintService = {
         if (existing.exists()) return sanitizeData(existing.data()) as ParticipantSprint;
 
         const now = new Date().toISOString();
+        // Added missing 'currency' property to newEnrollment
         const newEnrollment: ParticipantSprint = {
             id: enrollmentId,
             sprint_id: sprintId,
@@ -170,6 +173,7 @@ export const sprintService = {
             coach_id: commercial?.coachId || '',
             started_at: now,
             price_paid: commercial?.pricePaid || 0,
+            currency: commercial?.currency || 'NGN',
             payment_source: commercial?.source || 'direct',
             referral_source: commercial?.referral || null,
             status: 'active',

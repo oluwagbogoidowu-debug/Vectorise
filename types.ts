@@ -173,6 +173,7 @@ export interface PaymentAttempt {
   user_id: string;
   sprint_id: string;
   amount: number;
+  currency: string;
   status: PaymentAttemptStatus;
   failure_reason?: string;
   timestamp: string;
@@ -185,6 +186,7 @@ export interface ParticipantSprint {
   coach_id: string;
   started_at: string;
   price_paid: number;
+  currency: string;
   payment_source: PaymentSource;
   status: 'active' | 'completed' | 'paused';
   completed_at?: string | null;
@@ -214,6 +216,7 @@ export interface Sprint {
   difficulty: SprintDifficulty;
   duration: number;
   price: number;
+  currency: string;
   pointCost?: number;
   pricingType?: 'cash' | 'credits';
   coverImageUrl: string;
