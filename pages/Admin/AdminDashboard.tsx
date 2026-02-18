@@ -9,8 +9,9 @@ import { partnerService } from '../../services/partnerService';
 import Button from '../../components/Button';
 import LifecycleOrchestrator from './LifecycleOrchestrator';
 import AdminEarnings from './AdminEarnings';
+import AdminAnalytics from './AdminAnalytics';
 
-type Tab = 'pulse' | 'orchestrator' | 'earnings' | 'sprints' | 'partners' | 'quotes' | 'roles';
+type Tab = 'pulse' | 'orchestrator' | 'analytics' | 'earnings' | 'sprints' | 'partners' | 'quotes' | 'roles';
 type SprintFilter = 'all' | 'active' | 'core' | 'pending' | 'rejected';
 
 export default function AdminDashboard() {
@@ -104,6 +105,7 @@ export default function AdminDashboard() {
                             {[
                                 { id: 'pulse', label: 'Pulse' },
                                 { id: 'orchestrator', label: 'Orchestrator' },
+                                { id: 'analytics', label: 'Analytics' },
                                 { id: 'earnings', label: 'Earnings' },
                                 { id: 'sprints', label: 'Sprints' },
                                 { id: 'partners', label: 'Partners' },
@@ -128,6 +130,8 @@ export default function AdminDashboard() {
                         )}
 
                         {activeTab === 'orchestrator' && <LifecycleOrchestrator allSprints={sprints} refreshKey={refreshKey} />}
+                        
+                        {activeTab === 'analytics' && <AdminAnalytics />}
                         
                         {activeTab === 'earnings' && <AdminEarnings />}
 

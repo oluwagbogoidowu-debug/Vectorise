@@ -30,6 +30,38 @@ export type PaymentAttemptStatus = 'pending' | 'success' | 'failed' | 'refunded'
 
 export type SprintDifficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 
+export interface TrafficRecord {
+  id: string;
+  session_id: string;
+  user_id?: string | null;
+  source: string;
+  medium: string;
+  campaign?: string | null;
+  partner_code?: string | null;
+  landing_page: string;
+  referrer_url: string;
+  user_agent: string;
+  created_at: string;
+}
+
+export interface AnalyticsEvent {
+  id: string;
+  session_id: string;
+  user_id?: string | null;
+  event_name: string;
+  event_properties: any;
+  page_url: string;
+  created_at: string;
+}
+
+export interface FunnelStats {
+  visitors: number;
+  sprintViews: number;
+  paymentIntents: number;
+  successPayments: number;
+  completions: number;
+}
+
 export interface PaymentRecord {
   id: string;
   userId: string;

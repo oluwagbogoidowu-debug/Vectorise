@@ -6,6 +6,7 @@ import { Coach, Sprint, Participant, ParticipantSprint } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { assetService } from '../../services/assetService';
+import { analyticsTracker } from '../../services/analyticsTracker';
 import FormattedText from '../../components/FormattedText';
 
 interface SectionHeadingProps {
@@ -45,6 +46,13 @@ const SprintLandingPage: React.FC = () => {
                 if (data) {
                     const dbCoach = await userService.getUserDocument(data.coachId);
                     setFetchedCoach(dbCoach as Coach);
+                    
+                    // Analytics: Track view
+                    analyticsTracker.trackEvent('landing_viewed', { 
+                        sprint_id: sprintId, 
+                        title: data.title,
+                        category: data.category
+                    }, user?.id);
                 }
 
                 if (user) {
@@ -78,6 +86,7 @@ const SprintLandingPage: React.FC = () => {
 
     const handleJoinClick = () => {
         if (!sprint) return;
+        analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId }, user?.id);
         navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus } });
     };
 
