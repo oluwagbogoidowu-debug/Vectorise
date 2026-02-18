@@ -17,128 +17,138 @@ const db = admin.firestore();
 
 /**
  * Flutterwave Webhook Handler
- * Verifies transaction integrity and fulfills product delivery.
+ * Secure backend-to-backend fulfillment for growth sprints.
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // 1. Accept only POST requests
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 
-  // 1. Verify Flutterwave Signature
-  // Flutterwave sends a secret hash in the 'verif-hash' header
+  // 2. Read and Verify Flutterwave Signature
   const secretHash = process.env.FLW_SECRET_HASH;
   const signature = req.headers['verif-hash'];
 
   if (!signature || signature !== secretHash) {
-    console.error("[Webhook] Authorization failed: Invalid or missing verif-hash.");
-    return res.status(401).end();
+    console.error("[Webhook] Unauthorized: Invalid verif-hash signature.");
+    return res.status(401).json({ error: "Unauthorized" });
   }
 
   try {
     const payload = req.body;
     
-    // 2. Filter for successful completed charges
-    if (payload.event === 'charge.completed' && payload.data.status === 'successful') {
-      const { tx_ref, amount, customer, id: flw_id, meta } = payload.data;
-      const email = customer.email.toLowerCase().trim();
-      const now = new Date().toISOString();
-
-      console.log(`[Webhook] Processing fulfillment for ${tx_ref} (${email})`);
-
-      // 3. Update Payment Record
-      // We assume tx_ref is the unique identifier for the payment attempt
-      const paymentRef = db.collection('payments').doc(tx_ref);
-      const paymentDoc = await paymentRef.get();
-
-      // Idempotency check: Don't process twice
-      if (paymentDoc.exists && paymentDoc.data()?.status === 'success') {
-        console.log(`[Webhook] Payment ${tx_ref} already fulfilled.`);
-        return res.status(200).send('Already Processed');
-      }
-
-      await paymentRef.set({
-        status: 'success',
-        completedAt: now,
-        provider_transaction_id: flw_id,
-        amount: amount,
-        email: email,
-        updatedAt: now
-      }, { merge: true });
-
-      // 4. Sprint Access Logic
-      // Find the user by verified email
-      const userSnap = await db.collection('users').where('email', '==', email).limit(1).get();
-      
-      if (!userSnap.empty) {
-        const userDoc = userSnap.docs[0];
-        const userId = userDoc.id;
-        const userData = userDoc.data();
-        
-        // Get Sprint ID from metadata or previous record
-        const sprintId = meta?.sprintId || paymentDoc.data()?.sprintId;
-        
-        if (sprintId) {
-          const enrollmentId = `enrollment_${userId}_${sprintId}`;
-          const enrollmentRef = db.collection('enrollments').doc(enrollmentId);
-          
-          // Get Sprint Duration for path initialization
-          const sprintSnap = await db.collection('sprints').doc(sprintId).get();
-          const sprintData = sprintSnap.data();
-          const duration = sprintData?.duration || 7;
-
-          // Create/Update Enrollment Record
-          await enrollmentRef.set({
-            id: enrollmentId,
-            sprint_id: sprintId,
-            user_id: userId,
-            coach_id: sprintData?.coachId || '',
-            started_at: now,
-            price_paid: amount,
-            payment_source: userData.referrerId ? 'influencer' : 'direct',
-            referral_source: userData.referrerId || null,
-            status: 'active',
-            last_activity_at: now,
-            progress: Array.from({ length: duration }, (_, i) => ({ 
-              day: i + 1, 
-              completed: false 
-            }))
-          }, { merge: true });
-
-          // Log Fulfillment Event for Analytics
-          await db.collection('user_events').add({
-            userId,
-            eventType: 'sprint_enrolled',
-            sprintId,
-            timestamp: now,
-            metadata: { method: 'webhook_fulfillment', tx_ref, flw_id }
-          });
-
-          // Create In-App Notification
-          await db.collection('notifications').add({
-            userId,
-            type: 'payment_success',
-            title: 'Path Authorized',
-            body: `Registry verified for your sprint. You can now begin Day 1.`,
-            isRead: false,
-            createdAt: now,
-            actionUrl: `/participant/sprint/${enrollmentId}?day=1`
-          });
-
-          console.log(`[Webhook] Fulfillment successful for User ${userId}, Sprint ${sprintId}`);
-        } else {
-          console.warn(`[Webhook] Fulfillment aborted: Missing sprintId in metadata for ${tx_ref}`);
-        }
-      } else {
-        console.warn(`[Webhook] User record not found for ${email}. Manual identity merge required.`);
-        // Note: In Vectorise, if email isn't found, the PaymentSuccess page handles 
-        // identity establishment by redirecting the user to signup with the prefilled email.
-      }
+    // 3. Filter for successful completed charges only
+    if (payload.event !== 'charge.completed' || payload.data.status !== 'successful') {
+      console.log(`[Webhook] Event ignored: ${payload.event} with status ${payload.data?.status}`);
+      return res.status(200).send('Event received but ignored.');
     }
 
-    return res.status(200).send('Webhook Received');
+    const { tx_ref, amount, customer, id: flw_id } = payload.data;
+    const email = customer.email.toLowerCase().trim();
+
+    console.log(`[Webhook] Processing verified fulfillment: ${tx_ref} (₦${amount})`);
+
+    // 4. Find the payment record (Source of Truth)
+    const paymentRef = db.collection('payments').doc(tx_ref);
+    const paymentDoc = await paymentRef.get();
+
+    if (!paymentDoc.exists) {
+      console.error(`[Webhook] Payment record ${tx_ref} not found in registry.`);
+      return res.status(404).json({ error: "Payment record not found" });
+    }
+
+    const paymentData = paymentDoc.data();
+
+    // 5. Idempotency check: Don't process twice
+    if (paymentData?.status === 'successful' || paymentData?.status === 'success') {
+      console.log(`[Webhook] Transaction ${tx_ref} already processed. Returning 200.`);
+      return res.status(200).send('Already Processed');
+    }
+
+    const { userId, sprintId } = paymentData || {};
+    if (!userId || !sprintId) {
+      console.error(`[Webhook] Corrupt payment record: Missing userId/sprintId for ${tx_ref}`);
+      return res.status(400).json({ error: "Corrupt record" });
+    }
+
+    // 6. Secure Database Fulfillment Transaction
+    // We update payment, unlock user sprint, create enrollment, and update admin stats in one go.
+    await db.runTransaction(async (transaction) => {
+      // A. Update Payment Status
+      transaction.update(paymentRef, {
+        status: 'successful',
+        paidAt: admin.firestore.FieldValue.serverTimestamp(),
+        amount: amount,
+        provider_transaction_id: flw_id,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      // B. Update User Profile (Unlock Sprint)
+      const userRef = db.collection('users').doc(userId);
+      transaction.update(userRef, {
+        unlockedSprints: admin.firestore.FieldValue.arrayUnion(sprintId),
+        enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sprintId)
+      });
+
+      // C. Initialize Enrollment Protocol
+      const enrollmentId = `enrollment_${userId}_${sprintId}`;
+      const enrollmentRef = db.collection('enrollments').doc(enrollmentId);
+      
+      // Fetch sprint metadata for duration
+      const sprintSnap = await transaction.get(db.collection('sprints').doc(sprintId));
+      const duration = sprintSnap.data()?.duration || 7;
+
+      transaction.set(enrollmentRef, {
+        id: enrollmentId,
+        sprint_id: sprintId,
+        user_id: userId,
+        coach_id: sprintSnap.data()?.coachId || '',
+        started_at: new Date().toISOString(),
+        price_paid: amount,
+        status: 'active',
+        last_activity_at: new Date().toISOString(),
+        progress: Array.from({ length: duration }, (_, i) => ({ 
+          day: i + 1, 
+          completed: false 
+        }))
+      }, { merge: true });
+
+      // D. Log Analytics Event
+      const eventRef = db.collection('user_events').doc();
+      transaction.set(eventRef, {
+        userId,
+        eventType: 'sprint_enrolled',
+        sprintId,
+        timestamp: new Date().toISOString(),
+        metadata: { method: 'flutterwave_webhook', tx_ref, flw_id }
+      });
+
+      // E. Update Admin Global Stats
+      const statsRef = db.collection('admin_stats').doc('global');
+      transaction.set(statsRef, {
+        totalRevenue: admin.firestore.FieldValue.increment(amount),
+        totalSales: admin.firestore.FieldValue.increment(1),
+        lastSaleAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    });
+
+    // 7. Create In-App Notification (Outside transaction for speed)
+    await db.collection('notifications').add({
+      userId,
+      type: 'payment_success',
+      title: 'Growth Path Authorized',
+      body: `Registry verified. Your journey into '${sprintId}' has begun.`,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+      actionUrl: `/participant/sprint/enrollment_${userId}_${sprintId}?day=1`
+    });
+
+    console.log(`[Webhook] Success: Fulfillment complete for User ${userId}, Sprint ${sprintId}`);
+    return res.status(200).send('Webhook Processed Successfully');
+
   } catch (error: any) {
-    console.error("[Webhook] Critical fulfillment failure:", error);
-    return res.status(500).json({ error: error.message });
+    console.error("[Webhook] Critical processing failure:", error);
+    return res.status(500).json({ error: "Internal processing error" });
   }
 }
