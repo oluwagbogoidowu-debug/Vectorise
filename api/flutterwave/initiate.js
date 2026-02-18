@@ -7,6 +7,7 @@ if (!admin.apps.length) {
       credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}'))
     });
   } catch (e) {
+    // Fallback for environments with automatic auth
     admin.initializeApp();
   }
 }
@@ -31,13 +32,20 @@ export default async function handler(req, res) {
 
     if (!FLW_SECRET_KEY) {
       console.error("[Backend] Missing FLW_SECRET_KEY");
-      return res.status(500).json({ error: "Missing FLW_SECRET_KEY" });
+      return res.status(500).json({ error: "Configuration Error: Missing Gateway Secret Key" });
     }
 
     const { email, amount, sprintId, name, userId, currency = "NGN" } = req.body || {};
     
-    if (!email || !userId || !sprintId) {
-      return res.status(400).json({ error: "Email, User ID, and Sprint ID are required" });
+    // Requirement: Helpful error message specifying which field is missing
+    if (!email) {
+      return res.status(400).json({ error: "Registry identification required: Email is missing." });
+    }
+    if (!userId) {
+      return res.status(400).json({ error: "Identity validation required: User ID is missing." });
+    }
+    if (!sprintId) {
+      return res.status(400).json({ error: "Program selection required: Sprint ID is missing." });
     }
 
     const paymentAmount = Number(amount || 5000);
@@ -92,8 +100,11 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      // Clean up the failed intent record
-      await db.collection('payments').doc(tx_ref).update({ status: 'failed', failureReason: 'Gateway initialization failed' });
+      // Update the intent record as failed
+      await db.collection('payments').doc(tx_ref).update({ 
+        status: 'failed', 
+        failureReason: 'Gateway initialization failed: ' + errorText 
+      });
       return res.status(response.status).json({ error: errorText });
     }
 
@@ -102,6 +113,6 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error("[Backend] Internal Error:", error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: "System encountered an unexpected processing error." });
   }
 }

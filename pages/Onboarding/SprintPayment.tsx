@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
@@ -18,6 +17,7 @@ const SprintPayment: React.FC = () => {
   const [finalCommitment, setFinalCommitment] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   
   const [globalSettings, setGlobalSettings] = useState<GlobalOrchestrationSettings | null>(null);
 
@@ -39,6 +39,7 @@ const SprintPayment: React.FC = () => {
   const isCreditSprint = selectedSprint?.pricingType === 'credits';
   const sprintPrice = isCreditSprint ? (selectedSprint?.pointCost ?? 0) : (selectedSprint?.price ?? 5000);
   const sprintTitle = selectedSprint?.title ?? "Sprint";
+  const sprintId = selectedSprint?.id;
 
   const userParticipant = user as Participant;
   const userBalance = userParticipant?.walletBalance || 0;
@@ -47,12 +48,16 @@ const SprintPayment: React.FC = () => {
   const effectiveEmail = user?.email || guestEmail;
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(effectiveEmail);
 
-  const canPay = finalCommitment && (isCreditSprint ? (!!user && hasEnoughCredits) : isEmailValid) && !isProcessing;
+  // Requirement: Validate all required fields
+  const isFormValid = isEmailValid && !!sprintId && (isCreditSprint ? (!!user && hasEnoughCredits) : true);
+  const canPay = finalCommitment && isFormValid && !isProcessing;
 
   const handleCoinPayment = async () => {
     if (!user || !selectedSprint) return;
     setIsProcessing(true);
     setErrorMessage(null);
+    setValidationError(null);
+
     try {
       await userService.processWalletTransaction(user.id, {
         amount: -sprintPrice,
@@ -88,15 +93,41 @@ const SprintPayment: React.FC = () => {
   };
 
   const startCashPayment = async () => {
+    setValidationError(null);
+    setErrorMessage(null);
+
+    if (!effectiveEmail.trim()) {
+        setValidationError("Email address is required to proceed.");
+        return;
+    }
+
     if (!isEmailValid) {
-        setErrorMessage("Please enter a valid email address to secure your registry.");
+        setValidationError("Please enter a valid email address.");
+        return;
+    }
+
+    if (!sprintId) {
+        setValidationError("Target program identifier is missing.");
         return;
     }
     
     const traceId = user?.id || `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
 
     setIsProcessing(true);
-    setErrorMessage(null);
+
+    const payload = {
+        userId: traceId,
+        email: effectiveEmail.toLowerCase().trim(),
+        sprintId: sprintId,
+        amount: Number(sprintPrice),
+        currency: "NGN",
+        name: user?.name || 'Vectorise Guest'
+    };
+
+    // Requirement: Log outgoing payload to console for debugging (development only)
+    if (process.env.NODE_ENV === 'development') {
+        console.log("[Payment] Dispatching initialization payload:", payload);
+    }
 
     try {
       if (!user) {
@@ -104,21 +135,13 @@ const SprintPayment: React.FC = () => {
           if (emailExists) {
               setErrorMessage("Email already in registry. Log in to continue.");
               setTimeout(() => {
-                  navigate('/login', { state: { prefilledEmail: effectiveEmail, targetSprintId: selectedSprint?.id } });
+                  navigate('/login', { state: { prefilledEmail: effectiveEmail, targetSprintId: sprintId } });
               }, 2000);
               return;
           }
       }
 
-      const checkoutUrl = await paymentService.initializeFlutterwave({
-        userId: traceId,
-        email: effectiveEmail.toLowerCase().trim(),
-        sprintId: selectedSprint?.id || 'clarity-sprint',
-        amount: Number(sprintPrice),
-        currency: selectedSprint?.currency || 'NGN',
-        name: user?.name || 'Vectorise Guest'
-      });
-      
+      const checkoutUrl = await paymentService.initializeFlutterwave(payload);
       window.location.href = checkoutUrl;
     } catch (error: any) {
       setErrorMessage(error.message || "Unable to reach the payment gateway. Please try again.");
@@ -128,7 +151,6 @@ const SprintPayment: React.FC = () => {
 
   const handleHesitation = async () => {
     const traceId = user?.id || `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
-    // Fixed missing 'currency' property in logPaymentAttempt call
     await paymentService.logPaymentAttempt({
         user_id: traceId,
         sprint_id: selectedSprint?.id || 'clarity-sprint',
@@ -136,7 +158,6 @@ const SprintPayment: React.FC = () => {
         currency: selectedSprint?.currency || 'NGN',
         status: 'abandoned'
     });
-    // Sanitize state to prevent circular structure errors during navigation
     navigate('/onboarding/map', { state: sanitizeData({ ...state }) });
   };
 
@@ -177,11 +198,17 @@ const SprintPayment: React.FC = () => {
                     <input 
                       type="email" 
                       value={user?.email || guestEmail} 
-                      onChange={(e) => setGuestEmail(e.target.value)} 
+                      onChange={(e) => {
+                          setGuestEmail(e.target.value);
+                          if (validationError) setValidationError(null);
+                      }} 
                       readOnly={!!user}
                       placeholder="your@email.com" 
-                      className={`w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-black text-black transition-all ${user ? 'cursor-not-allowed bg-gray-100' : ''}`} 
+                      className={`w-full px-6 py-4 bg-gray-50 border rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-black text-black transition-all ${user ? 'cursor-not-allowed bg-gray-100' : 'border-gray-100'} ${validationError ? 'border-red-500 ring-2 ring-red-50' : ''}`} 
                     />
+                    {validationError && (
+                        <p className="text-[9px] text-red-500 font-black uppercase mt-2 ml-1 animate-fade-in">{validationError}</p>
+                    )}
                     {user && (
                       <p className="text-[8px] font-bold text-gray-300 uppercase tracking-widest mt-2 ml-1 italic">
                         Connected to your active registry identity

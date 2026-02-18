@@ -1,4 +1,3 @@
-
 import { db } from './firebase';
 import { collection, addDoc, getDocs, query, orderBy, where, onSnapshot } from 'firebase/firestore';
 import { PaymentAttempt, PaymentRecord, FinancialStats } from '../types';
@@ -9,7 +8,7 @@ interface PaymentPayload {
   email: string;
   sprintId: string;
   amount: number;
-  currency?: string; // Added currency to PaymentPayload
+  currency?: string; 
   name?: string;
 }
 
@@ -39,7 +38,6 @@ export const paymentService = {
   initializeFlutterwave: async (payload: PaymentPayload): Promise<string> => {
     console.log("[Registry] Initializing Flutterwave session for:", payload.email);
     
-    // Fixed missing 'currency' property in logPaymentAttempt call
     await paymentService.logPaymentAttempt({
         user_id: payload.userId,
         sprint_id: payload.sprintId,
@@ -54,8 +52,10 @@ export const paymentService = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: payload.email,
+          userId: payload.userId,
           sprintId: payload.sprintId,
           amount: payload.amount.toString(),
+          currency: payload.currency || 'NGN',
           name: payload.name || 'Vectorise User'
         })
       });
@@ -71,7 +71,6 @@ export const paymentService = {
       if (checkoutUrl) return checkoutUrl;
       throw new Error("Registry returned an incomplete response (Missing Link).");
     } catch (error: any) {
-      // Fixed missing 'currency' property in logPaymentAttempt call
       await paymentService.logPaymentAttempt({
           user_id: payload.userId,
           sprint_id: payload.sprintId,
