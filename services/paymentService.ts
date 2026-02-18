@@ -61,8 +61,16 @@ export const paymentService = {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText);
+        let errorMessage = "Gateway initialization failed.";
+        try {
+            const errorJson = await response.json();
+            errorMessage = errorJson.error || errorJson.message || errorMessage;
+            if (errorJson.details) console.error("[Payment API Details]:", errorJson.details);
+        } catch (e) {
+            const text = await response.text();
+            errorMessage = text || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();

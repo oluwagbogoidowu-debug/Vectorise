@@ -1,14 +1,20 @@
 import admin from 'firebase-admin';
 
-// Initialize Firebase Admin SDK if not already done
+// Initialize Firebase Admin SDK
 if (!admin.apps.length) {
   try {
-    admin.initializeApp({
-      credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}'))
-    });
+    const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    if (serviceAccountVar) {
+        admin.initializeApp({
+            credential: admin.credential.cert(JSON.parse(serviceAccountVar))
+        });
+        console.log("[Backend] Firebase Admin initialized with Service Account.");
+    } else {
+        admin.initializeApp();
+        console.log("[Backend] Firebase Admin initialized with Default Credentials.");
+    }
   } catch (e) {
-    // Fallback for environments with automatic auth
-    admin.initializeApp();
+    console.error("[Backend] Firebase Init Error:", e.message);
   }
 }
 
@@ -29,25 +35,23 @@ export default async function handler(req, res) {
 
   try {
     const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY;
-
     if (!FLW_SECRET_KEY) {
-      console.error("[Backend] Missing FLW_SECRET_KEY");
-      return res.status(500).json({ error: "Configuration Error: Missing Gateway Secret Key" });
+      throw new Error("Configuration Error: Missing FLW_SECRET_KEY in environment.");
     }
 
-    // Defensive parsing: ensure body is an object
+    // Resilience for different body formats
     let body = req.body;
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body);
-      } catch (parseError) {
-        return res.status(400).json({ error: "Malformed request body" });
+      } catch (pErr) {
+        return res.status(400).json({ error: "Malformed JSON body" });
       }
     }
 
     const { email, amount, sprintId, name, userId, currency = "NGN" } = body || {};
     
-    // Strict validation to prevent 400 errors for missing mandatory fields
+    // Explicit Validation
     const missing = [];
     if (!email) missing.push("email");
     if (!userId) missing.push("userId");
@@ -56,29 +60,34 @@ export default async function handler(req, res) {
     if (missing.length > 0) {
       return res.status(400).json({ 
         error: "Mandatory fields missing", 
-        details: `The following fields are required: ${missing.join(', ')}` 
+        details: `Missing: ${missing.join(', ')}` 
       });
     }
 
     const paymentAmount = Number(amount || 5000);
     const tx_ref = `tx-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-    // 1. Create Pending Payment Record in Firestore
-    await db.collection('payments').doc(tx_ref).set({
-      userId,
-      email: email.trim().toLowerCase(),
-      userName: name || 'Vectorise User',
-      sprintId,
-      amount: paymentAmount,
-      currency,
-      status: "pending",
-      paymentProvider: "flutterwave",
-      txRef: tx_ref,
-      initiatedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
+    // 1. Attempt to Create Pending Record (Non-blocking fallback)
+    try {
+        await db.collection('payments').doc(tx_ref).set({
+            userId,
+            email: email.trim().toLowerCase(),
+            userName: name || 'Vectorise User',
+            sprintId,
+            amount: paymentAmount,
+            currency,
+            status: "pending",
+            paymentProvider: "flutterwave",
+            txRef: tx_ref,
+            initiatedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        });
+    } catch (dbErr) {
+        console.error("[Backend] Firestore Write Failed:", dbErr.message);
+        // We continue anyway so the user can pay, assuming verification will catch it later.
+    }
 
-    const host = req.headers.host;
+    const host = req.headers.host || 'vectorise.online';
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const origin = `${protocol}://${host}`;
     const cleanEmail = email.trim().toLowerCase();
@@ -86,7 +95,7 @@ export default async function handler(req, res) {
     const redirectUrl = `${origin}/#/payment-success?sprintId=${sprintId}&transaction_id=${tx_ref}&email=${encodeURIComponent(cleanEmail)}`;
 
     // 2. Request Payment Link from Flutterwave
-    const response = await fetch("https://api.flutterwave.com/v3/payments", {
+    const flwResponse = await fetch("https://api.flutterwave.com/v3/payments", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${FLW_SECRET_KEY}`,
@@ -97,7 +106,10 @@ export default async function handler(req, res) {
         amount: paymentAmount.toString(),
         currency: currency,
         redirect_url: redirectUrl,
-        customer: { email: cleanEmail, name: name || 'Vectorise User' },
+        customer: { 
+            email: cleanEmail, 
+            name: name || 'Vectorise User' 
+        },
         customizations: {
           title: "Vectorise Growth Cycle",
           description: `Enrollment for ${sprintId}`
@@ -105,20 +117,23 @@ export default async function handler(req, res) {
       })
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      await db.collection('payments').doc(tx_ref).update({ 
-        status: 'failed', 
-        failureReason: 'Gateway initialization failed: ' + errorText 
+    const data = await flwResponse.json();
+
+    if (!flwResponse.ok) {
+      console.error("[Backend] Flutterwave Error:", data);
+      return res.status(flwResponse.status).json({ 
+          error: data.message || "Gateway rejection", 
+          details: data 
       });
-      return res.status(response.status).json({ error: errorText });
     }
 
-    const data = await response.json();
     return res.status(200).json(data);
 
   } catch (error) {
-    console.error("[Backend] Internal Error:", error);
-    return res.status(500).json({ error: "System encountered an unexpected processing error." });
+    console.error("[Backend] Critical Process Error:", error.message);
+    return res.status(500).json({ 
+        error: error.message || "System encountered an unexpected processing error.",
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 }
