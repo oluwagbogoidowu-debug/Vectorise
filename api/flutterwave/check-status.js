@@ -1,33 +1,31 @@
-import admin from "firebase-admin";
+const admin = require('firebase-admin');
 
-export default async function handler(req, res) {
+let serviceAccount;
+try {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+  }
+} catch (err) {
+  console.error("Firebase key parse failed:", err);
+}
+
+if (!admin.apps.length && serviceAccount) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    projectId: serviceAccount.project_id || 'vectorise-f19d4'
+  });
+}
+
+const db = admin.firestore();
+
+module.exports = async (req, res) => {
   const { tx_ref } = req.query;
   if (!tx_ref) return res.status(400).json({ error: "Missing tx_ref" });
 
   try {
-    let serviceAccount;
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-      try {
-        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-        if (serviceAccount.private_key) {
-          serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-        }
-      } catch (err) {
-        console.error("Firebase key parse failed:", err);
-      }
-    }
-
-    if (!admin.apps.length) {
-      if (!serviceAccount) {
-        return res.status(500).json({ error: "Registry Configuration Missing: FIREBASE_SERVICE_ACCOUNT_KEY" });
-      }
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        projectId: serviceAccount.project_id || 'vectorise-f19d4'
-      });
-    }
-
-    const db = admin.firestore();
     const paymentRef = db.collection('payments').doc(tx_ref);
     let paymentDoc = await paymentRef.get();
     
@@ -103,4 +101,4 @@ export default async function handler(req, res) {
     console.error("[StatusCheck Error]", e);
     return res.status(500).json({ error: "Internal lookup error" });
   }
-}
+};

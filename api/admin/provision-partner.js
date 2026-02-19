@@ -1,31 +1,28 @@
-import admin from "firebase-admin"
+const admin = require('firebase-admin');
 
-let serviceAccount
-
+let serviceAccount;
 try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-    serviceAccount = JSON.parse(
-      process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-    )
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
     if (serviceAccount.private_key) {
       serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
     }
   }
 } catch (err) {
-  console.error("Firebase key parse failed:", err)
+  console.error("Firebase key parse failed:", err);
 }
 
 if (!admin.apps.length && serviceAccount) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     projectId: serviceAccount.project_id || 'vectorise-f19d4'
-  })
+  });
 }
 
 const db = admin.firestore();
 const auth = admin.auth();
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -77,4 +74,4 @@ export default async function handler(req, res) {
     console.error("[Backend] Partner Provisioning Error:", error);
     return res.status(500).json({ error: error.message });
   }
-}
+};

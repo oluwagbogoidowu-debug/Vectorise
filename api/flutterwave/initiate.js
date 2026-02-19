@@ -1,6 +1,27 @@
-import admin from "firebase-admin";
+const admin = require('firebase-admin');
 
-export default async function handler(req, res) {
+let serviceAccount;
+try {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+  }
+} catch (err) {
+  console.error("Firebase key parse failed:", err);
+}
+
+if (!admin.apps.length && serviceAccount) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    projectId: serviceAccount.project_id || 'vectorise-f19d4'
+  });
+}
+
+const db = admin.firestore();
+
+module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -9,35 +30,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    let serviceAccount;
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-      try {
-        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-        if (serviceAccount.private_key) {
-          serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-        }
-      } catch (err) {
-        console.error("Firebase key parse failed:", err);
-      }
-    }
-
-    if (!admin.apps.length) {
-      if (!serviceAccount) {
-        return res.status(500).json({ error: "Registry Configuration Missing: FIREBASE_SERVICE_ACCOUNT_KEY" });
-      }
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        projectId: serviceAccount.project_id || 'vectorise-f19d4'
-      });
-    }
-
-    const db = admin.firestore();
     const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY;
-    
-    if (!FLW_SECRET_KEY) {
-      return res.status(500).json({ error: "Registry Configuration Missing: FLW_SECRET_KEY" });
-    }
-
     const { email, amount, sprintId, name, userId, currency = "NGN" } = req.body || {};
     
     if (!email || !userId || !sprintId) {
@@ -92,4 +85,4 @@ export default async function handler(req, res) {
     console.error("[Initiate Error]", error);
     return res.status(500).json({ error: error.message });
   }
-}
+};
