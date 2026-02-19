@@ -12,8 +12,9 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
     if (val === null || typeof val === 'undefined') return undefined;
     
     // Primitives are safe
-    if (typeof val !== 'object' && typeof val !== 'function') return val;
-    if (typeof val === 'function') return undefined;
+    const type = typeof val;
+    if (type !== 'object' && type !== 'function') return val;
+    if (type === 'function') return undefined;
 
     // 2. Break circular references immediately
     if (seen.has(val)) return undefined;
@@ -31,11 +32,9 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
         }
     }
 
-    // 4. Detect and Strip Firestore/Firebase internal classes
-    // Firebase v10 minified names often follow patterns like Q$1 (Query), Sa (Firestore)
-    // and internal properties like .i or .src
+    // 4. Aggressively Strip Firestore/Firebase/SDK internal classes
     const constructorName = val.constructor?.name || '';
-    const isFirebaseInternal = 
+    const isInternalClass = 
         /^[A-Z]\$[0-9]$|^[A-Z][a-z]$/.test(constructorName) || 
         constructorName.includes('Query') || 
         constructorName.includes('Reference') ||
@@ -44,10 +43,22 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
         constructorName.includes('Firebase') ||
         constructorName.includes('App') ||
         constructorName.includes('Snapshot') ||
-        constructorName.includes('Observer');
+        constructorName.includes('Observer') ||
+        constructorName === 'DocumentReference' ||
+        constructorName === 'CollectionReference';
 
-    // Pattern matching for the specific error: object with 'i' property that references back
-    if (isFirebaseInternal || val.onSnapshot || val.getDoc || val._database || (val.i && val.i.constructor?.name === 'Sa')) {
+    // Property check for hidden circular SDK markers
+    const hasSDKMarkers = !!(
+        val.onSnapshot || 
+        val.getDoc || 
+        val.firestore || 
+        val._database ||
+        val._path ||
+        val._methodName ||
+        (val.i && (val.src || val.i.src))
+    );
+    
+    if (isInternalClass || hasSDKMarkers || val instanceof Element) {
         return undefined;
     }
 
@@ -60,7 +71,7 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
         return result;
     }
 
-    // 6. Only process "plain" objects to avoid serializing complex class instances
+    // 6. Only process "plain" objects
     const proto = Object.getPrototypeOf(val);
     const isPlain = proto === null || proto === Object.prototype;
     
@@ -74,6 +85,7 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
     const keys = Object.keys(val);
     
     for (const key of keys) {
+        // Strip internal fields
         if (key.startsWith('_') || key.startsWith('$')) continue;
         
         try {

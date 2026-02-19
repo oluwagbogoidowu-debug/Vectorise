@@ -1,46 +1,45 @@
 const admin = require('firebase-admin');
 
-let serviceAccount;
-
-try {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-    serviceAccount = JSON.parse(
-      process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-    );
-    if (serviceAccount.private_key) {
-      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-    }
-  }
-} catch (err) {
-  console.error("Firebase key parse failed:", err);
-}
-
-if (!admin.apps.length && serviceAccount) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: serviceAccount.project_id || 'vectorise-f19d4'
-  });
-}
-
-const db = admin.firestore();
-
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
-  const secretHash = process.env.FLW_SECRET_HASH;
-  const signature = req.headers['verif-hash'];
+  try {
+    let serviceAccount;
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+        if (serviceAccount.private_key) {
+          serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+        }
+      } catch (err) {
+        console.error("Firebase key parse failed:", err);
+      }
+    }
 
-  if (!signature || signature !== secretHash) {
-    console.error("[Webhook] Signature verification failed.");
-    return res.status(401).send('Unauthorized');
-  }
+    if (!admin.apps.length) {
+      if (!serviceAccount) {
+        return res.status(500).send('Registry Config Missing');
+      }
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id || 'vectorise-f19d4'
+      });
+    }
 
-  const payload = req.body;
+    const db = admin.firestore();
+    const secretHash = process.env.FLW_SECRET_HASH;
+    const signature = req.headers['verif-hash'];
 
-  if (payload.event === 'charge.completed' && payload.data.status === 'successful') {
-    const { tx_ref, amount, currency, id: flw_id } = payload.data;
-    
-    try {
+    if (!signature || signature !== secretHash) {
+      console.error("[Webhook] Signature verification failed.");
+      return res.status(401).send('Unauthorized');
+    }
+
+    const payload = req.body;
+
+    if (payload.event === 'charge.completed' && payload.data.status === 'successful') {
+      const { tx_ref, amount, currency, id: flw_id } = payload.data;
+      
       const paymentRef = db.collection('payments').doc(tx_ref);
 
       await db.runTransaction(async (transaction) => {
@@ -88,11 +87,11 @@ module.exports = async (req, res) => {
       });
       
       return res.status(200).send('Webhook Processed');
-    } catch (err) {
-      console.error("[Webhook] Processing Error:", err.message);
-      return res.status(500).send('Internal Error');
     }
-  }
 
-  res.status(200).end();
+    res.status(200).end();
+  } catch (err) {
+    console.error("[Webhook] Processing Error:", err.message);
+    return res.status(500).send('Internal Error');
+  }
 };
