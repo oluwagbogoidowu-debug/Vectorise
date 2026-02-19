@@ -1,28 +1,38 @@
 const admin = require('firebase-admin');
 
-let serviceAccount;
-try {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-    if (serviceAccount.private_key) {
-      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+/**
+ * Initializes Firebase Admin in a way that is safe for serverless environments.
+ */
+function getDb() {
+  if (admin.apps.length > 0) return admin.firestore();
+
+  let serviceAccount;
+  try {
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+      
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id || 'vectorise-f19d4'
+      });
+      return admin.firestore();
     }
+  } catch (err) {
+    console.error("[Registry] Firebase Admin key parsing failed:", err);
   }
-} catch (err) {
-  console.error("Firebase key parse failed:", err);
-}
 
-if (!admin.apps.length && serviceAccount) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: serviceAccount.project_id || 'vectorise-f19d4'
-  });
-} else if (!admin.apps.length) {
-    // Fallback for local development or simplified environments
+  // Fallback to default initialization (only works if on GCP/Firebase hosting)
+  try {
     admin.initializeApp();
+    return admin.firestore();
+  } catch (e) {
+    console.error("[Registry] Default Firebase Admin init failed:", e);
+    return null;
+  }
 }
-
-const db = admin.firestore();
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -33,9 +43,14 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: "Method not allowed" });
 
   try {
+    const db = getDb();
+    if (!db) {
+      return res.status(500).json({ error: "Registry Configuration Error: Database unreachable." });
+    }
+
     const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY;
     if (!FLW_SECRET_KEY) {
-        return res.status(500).json({ error: "Gateway Configuration Error: Missing Secret Key" });
+      return res.status(500).json({ error: "Gateway Configuration Error: Missing Secret Key." });
     }
 
     const { email, amount, sprintId, name, userId, currency = "NGN" } = req.body || {};
@@ -47,6 +62,7 @@ module.exports = async (req, res) => {
     const tx_ref = `vec-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const paymentAmount = Number(amount);
 
+    // Save pending payment record
     await db.collection('payments').doc(tx_ref).set({
         userId,
         email: email.toLowerCase().trim(),
@@ -65,6 +81,7 @@ module.exports = async (req, res) => {
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const redirectUrl = `${protocol}://${host}/#/payment-success?tx_ref=${tx_ref}`;
 
+    // Initialize Flutterwave payment
     const flwResponse = await fetch("https://api.flutterwave.com/v3/payments", {
       method: "POST",
       headers: {
@@ -85,11 +102,14 @@ module.exports = async (req, res) => {
     });
 
     const data = await flwResponse.json();
-    if (!flwResponse.ok) return res.status(flwResponse.status).json(data);
+    if (!flwResponse.ok) {
+        console.error("[Registry] Flutterwave error:", data);
+        return res.status(flwResponse.status).json(data);
+    }
 
     return res.status(200).json(data);
   } catch (error) {
-    console.error("[Initiate Error]", error);
-    return res.status(500).json({ error: error.message });
+    console.error("[Registry] Initiate Error:", error);
+    return res.status(500).json({ error: error.message || "Internal server error during payment initiation." });
   }
 };

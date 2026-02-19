@@ -1,33 +1,45 @@
 const admin = require('firebase-admin');
 
-let serviceAccount;
-try {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-    if (serviceAccount.private_key) {
-      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+/**
+ * Initializes Firebase Admin in a way that is safe for serverless environments.
+ */
+function getDb() {
+  if (admin.apps.length > 0) return admin.firestore();
+
+  let serviceAccount;
+  try {
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+      
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id || 'vectorise-f19d4'
+      });
+      return admin.firestore();
     }
+  } catch (err) {
+    console.error("[Status] Firebase Admin key parsing failed:", err);
   }
-} catch (err) {
-  console.error("Firebase key parse failed:", err);
-}
 
-if (!admin.apps.length && serviceAccount) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: serviceAccount.project_id || 'vectorise-f19d4'
-  });
-} else if (!admin.apps.length) {
+  try {
     admin.initializeApp();
+    return admin.firestore();
+  } catch (e) {
+    return null;
+  }
 }
-
-const db = admin.firestore();
 
 module.exports = async (req, res) => {
   const { tx_ref } = req.query;
   if (!tx_ref) return res.status(400).json({ error: "Missing tx_ref" });
 
   try {
+    const db = getDb();
+    if (!db) return res.status(500).json({ error: "Database unreachable" });
+
     const paymentRef = db.collection('payments').doc(tx_ref);
     let paymentDoc = await paymentRef.get();
     
@@ -35,6 +47,7 @@ module.exports = async (req, res) => {
 
     let data = paymentDoc.data();
 
+    // If still pending, proactively verify with Flutterwave to overcome possible webhook delays
     if (data.status === 'pending') {
       const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY;
       if (FLW_SECRET_KEY) {
@@ -89,7 +102,7 @@ module.exports = async (req, res) => {
             data.status = 'successful';
           }
         } catch (verifyErr) {
-          console.error("[Proactive Verify Error]", verifyErr.message);
+          console.warn("[Registry] Proactive Verify Warning:", verifyErr.message);
         }
       }
     }
@@ -100,7 +113,7 @@ module.exports = async (req, res) => {
         userId: data.userId
     });
   } catch (e) {
-    console.error("[StatusCheck Error]", e);
-    return res.status(500).json({ error: "Internal lookup error" });
+    console.error("[Registry] Status Check Error:", e);
+    return res.status(500).json({ error: "Internal registry error during status check." });
   }
 };
