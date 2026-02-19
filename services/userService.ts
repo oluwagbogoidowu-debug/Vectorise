@@ -3,23 +3,20 @@ import { doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, col
 import { User, Participant, Coach, UserRole, WalletTransaction } from '../types';
 
 /**
- * Standardized utility to deeply clean objects for JSON serialization and Firestore safety.
- * Hardened to detect minified Firestore internal classes and break circular references.
- * Critical for preventing "Converting circular structure to JSON" errors.
+ * Hardened utility to deeply clean objects for JSON serialization and Firestore safety.
+ * Detects minified Firestore internal classes and breaks circular references.
+ * Specifically handles the "Q$1" / "Sa" internal constructors seen in error logs.
  */
 export const sanitizeData = (val: any, seen = new WeakSet()): any => {
-    // 1. Handle null and primitives
+    // 1. Handle primitives and nulls
     if (val === null || typeof val === 'undefined') return undefined;
-    
-    // Primitives are safe
-    const type = typeof val;
-    if (type !== 'object' && type !== 'function') return val;
-    if (type === 'function') return undefined;
+    if (typeof val !== 'object' && typeof val !== 'function') return val;
+    if (typeof val === 'function') return undefined;
 
-    // 2. Break circular references immediately
+    // 2. Break circular references
     if (seen.has(val)) return undefined;
     
-    // 3. Handle specific non-serializable but non-circular common types
+    // 3. Handle common safe non-plain objects
     if (val instanceof Date) return val.toISOString();
     
     // Handle Firestore Timestamps
@@ -32,14 +29,14 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
         }
     }
 
-    // 4. Aggressively Strip Firestore/Firebase/SDK internal classes
+    // 4. STRIP SDK INTERNALS (Fixes "Converting circular structure to JSON")
+    // Detects minified names like Q$1, Sa, and standard SDK names
     const constructorName = val.constructor?.name || '';
-    const isInternalClass = 
+    const isInternal = 
         /^[A-Z]\$[0-9]$|^[A-Z][a-z]$/.test(constructorName) || 
         constructorName.includes('Query') || 
         constructorName.includes('Reference') ||
         constructorName.includes('Firestore') ||
-        constructorName.includes('Transaction') ||
         constructorName.includes('Firebase') ||
         constructorName.includes('App') ||
         constructorName.includes('Snapshot') ||
@@ -47,7 +44,7 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
         constructorName === 'DocumentReference' ||
         constructorName === 'CollectionReference';
 
-    // Property check for hidden circular SDK markers
+    // Property-based detection for minified SDK objects
     const hasSDKMarkers = !!(
         val.onSnapshot || 
         val.getDoc || 
@@ -55,10 +52,10 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
         val._database ||
         val._path ||
         val._methodName ||
-        (val.i && (val.src || val.i.src))
+        (val.i && (val.src || (val.i && val.i.src))) // Matches the error log pattern
     );
     
-    if (isInternalClass || hasSDKMarkers || val instanceof Element) {
+    if (isInternal || hasSDKMarkers || val instanceof Element) {
         return undefined;
     }
 
@@ -71,21 +68,19 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
         return result;
     }
 
-    // 6. Only process "plain" objects
+    // 6. Only process plain objects to avoid serializing complex class instances
     const proto = Object.getPrototypeOf(val);
-    const isPlain = proto === null || proto === Object.prototype;
-    
-    if (!isPlain) {
+    if (proto !== null && proto !== Object.prototype) {
         return undefined;
     }
 
-    // 7. Process plain object keys
+    // 7. Recurse into plain object keys
     seen.add(val);
     const cleaned: any = {};
     const keys = Object.keys(val);
     
     for (const key of keys) {
-        // Strip internal fields
+        // Skip internal-looking properties
         if (key.startsWith('_') || key.startsWith('$')) continue;
         
         try {
@@ -94,6 +89,7 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
                 cleaned[key] = sanitizedVal;
             }
         } catch (e) {
+            // Handle inaccessible properties
             continue;
         }
     }
