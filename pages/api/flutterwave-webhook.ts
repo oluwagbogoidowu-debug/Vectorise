@@ -1,28 +1,30 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import admin from 'firebase-admin';
 
-// Initialize Firebase Admin SDK for backend fulfillment
-if (!admin.apps.length) {
-  try {
+function getDb() {
+  if (!admin.apps.length) {
     const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    const projectId = 'vectorise-f19d4';
-
-    if (serviceAccountVar) {
-      admin.initializeApp({
-        credential: admin.credential.cert(JSON.parse(serviceAccountVar)),
-        projectId: projectId
-      });
-    } else {
-      admin.initializeApp({
-        projectId: projectId
-      });
+    if (!serviceAccountVar) {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY environment variable is missing");
     }
-  } catch (e: any) {
-    console.error("[WebhookV2] Firebase Init Error:", e.message);
-  }
-}
 
-const db = admin.firestore();
+    try {
+      const serviceAccount = JSON.parse(serviceAccountVar);
+      if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id || 'vectorise-f19d4'
+      });
+    } catch (e: any) {
+      console.error("[WebhookV2 Firebase Init Error]", e.message);
+      throw e;
+    }
+  }
+  return admin.firestore();
+}
 
 /**
  * Flutterwave Webhook Handler
@@ -45,6 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    const db = getDb();
     const payload = req.body;
     
     // 3. Filter for successful completed charges only

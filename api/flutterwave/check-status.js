@@ -1,32 +1,36 @@
 import admin from 'firebase-admin';
 
-if (!admin.apps.length) {
-  try {
+function getDb() {
+  if (!admin.apps.length) {
     const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    const projectId = 'vectorise-f19d4';
-    
-    if (serviceAccountVar) {
-      admin.initializeApp({
-        credential: admin.credential.cert(JSON.parse(serviceAccountVar)),
-        projectId: projectId
-      });
-    } else {
-      admin.initializeApp({
-        projectId: projectId
-      });
+    if (!serviceAccountVar) {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY environment variable is missing");
     }
-  } catch (e) {
-    console.error("[StatusCheck] Firebase Init Error:", e.message);
-  }
-}
 
-const db = admin.firestore();
+    try {
+      const serviceAccount = JSON.parse(serviceAccountVar);
+      if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id || 'vectorise-f19d4'
+      });
+    } catch (e) {
+      console.error("[StatusCheck Firebase Init Error]", e.message);
+      throw e;
+    }
+  }
+  return admin.firestore();
+}
 
 export default async function handler(req, res) {
   const { tx_ref } = req.query;
   if (!tx_ref) return res.status(400).json({ error: "Missing tx_ref" });
 
   try {
+    const db = getDb();
     const paymentDoc = await db.collection('payments').doc(tx_ref).get();
     if (!paymentDoc.exists) return res.status(200).json({ status: "pending" });
 
@@ -37,6 +41,7 @@ export default async function handler(req, res) {
         userId: data.userId
     });
   } catch (e) {
+    console.error("[StatusCheck Error]", e);
     return res.status(500).json({ error: "Internal lookup error" });
   }
 }

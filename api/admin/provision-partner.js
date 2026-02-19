@@ -5,19 +5,33 @@ import admin from 'firebase-admin';
  * Securely creates a Firebase Authentication user and Firestore profile.
  */
 
-if (!admin.apps.length) {
-  try {
-    admin.initializeApp({
-      credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}'))
-    });
-  } catch (e) {
-    // Fallback for environments with automatic auth (like GCP)
-    admin.initializeApp();
-  }
-}
+function getServices() {
+  if (!admin.apps.length) {
+    const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    if (!serviceAccountVar) {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY environment variable is missing");
+    }
 
-const db = admin.firestore();
-const auth = admin.auth();
+    try {
+      const serviceAccount = JSON.parse(serviceAccountVar);
+      if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id || 'vectorise-f19d4'
+      });
+    } catch (e) {
+      console.error("[Provision Firebase Init Error]", e.message);
+      throw e;
+    }
+  }
+  return {
+    db: admin.firestore(),
+    auth: admin.auth()
+  };
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -33,6 +47,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    const { db, auth } = getServices();
     const { email, password, fullName, country, primaryPlatform } = req.body;
 
     if (!email || !password || !fullName) {

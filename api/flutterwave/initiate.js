@@ -1,26 +1,30 @@
 import admin from 'firebase-admin';
 
-if (!admin.apps.length) {
-  try {
+function getDb() {
+  if (!admin.apps.length) {
     const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    const projectId = 'vectorise-f19d4';
-    
-    if (serviceAccountVar) {
-        admin.initializeApp({
-            credential: admin.credential.cert(JSON.parse(serviceAccountVar)),
-            projectId: projectId
-        });
-    } else {
-        admin.initializeApp({
-            projectId: projectId
-        });
+    if (!serviceAccountVar) {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY environment variable is missing");
     }
-  } catch (e) {
-    console.error("[Backend] Firebase Init Error:", e.message);
-  }
-}
 
-const db = admin.firestore();
+    try {
+      const serviceAccount = JSON.parse(serviceAccountVar);
+      if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id || 'vectorise-f19d4'
+      });
+      console.log("[Firebase] Successfully initialized Admin SDK");
+    } catch (e) {
+      console.error("[Firebase] Initialization failed:", e.message);
+      throw e;
+    }
+  }
+  return admin.firestore();
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -31,6 +35,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: "Method not allowed" });
 
   try {
+    const db = getDb();
     const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY;
     const { email, amount, sprintId, name, userId, currency = "NGN" } = req.body || {};
     
@@ -85,6 +90,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json(data);
   } catch (error) {
+    console.error("[Initiate Error]", error);
     return res.status(500).json({ error: error.message });
   }
 }
