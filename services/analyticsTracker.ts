@@ -1,11 +1,10 @@
 import { db } from './firebase';
-import { collection, addDoc, query, where, getDocs, updateDoc, doc, limit, orderBy, onSnapshot, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, writeBatch, limit, orderBy, onSnapshot } from 'firebase/firestore';
 import { sanitizeData } from './userService';
 import { AnalyticsEvent, TrafficRecord, FunnelStats, UserSessionReport, IdentityReport, ParticipantSprint } from '../types';
 
-const ATTRIBUTION_KEY = 'vectorise_attribution';
-const SESSION_KEY = 'vectorise_session_id';
 const ANONYMOUS_KEY = 'vectorise_anonymous_id';
+const SESSION_KEY = 'vectorise_session_id';
 const TRAFFIC_COLLECTION = 'traffic_sources';
 const EVENTS_COLLECTION = 'analytics_events';
 const ENROLLMENTS_COLLECTION = 'enrollments';
@@ -28,26 +27,55 @@ const getDeviceType = () => {
     return 'desktop';
 };
 
+const setCookie = (name: string, value: string, days: number = 365) => {
+    const d = new Date();
+    d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+    const expires = "expires=" + d.toUTCString();
+    document.cookie = `${name}=${value};${expires};path=/;SameSite=Lax`;
+};
+
+const getCookie = (name: string) => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift();
+    return null;
+};
+
+/**
+ * Utility to fetch Firestore documents in chunks of 30 (Firestore limit for 'in' operator)
+ */
+const fetchChunked = async (collectionName: string, field: string, values: string[]) => {
+    const uniqueValues = Array.from(new Set(values.filter(v => !!v)));
+    if (uniqueValues.length === 0) return [];
+    
+    const results: any[] = [];
+    const CHUNK_SIZE = 30;
+    
+    for (let i = 0; i < uniqueValues.length; i += CHUNK_SIZE) {
+        const chunk = uniqueValues.slice(i, i + CHUNK_SIZE);
+        const q = query(collection(db, collectionName), where(field, 'in', chunk));
+        const snap = await getDocs(q);
+        snap.forEach(d => results.push({ id: d.id, ...sanitizeData(d.data()) }));
+    }
+    return results;
+};
+
 export const analyticsTracker = {
-    /**
-     * Initialization: Step 1 & 2. Runs on first load.
-     */
     init: async (userId?: string, userEmail?: string) => {
-        // 1. Manage Identifiers
-        let anonymousId = localStorage.getItem(ANONYMOUS_KEY);
-        if (!anonymousId) {
-            anonymousId = generateUUID();
-            localStorage.setItem(ANONYMOUS_KEY, anonymousId);
+        let anonId = localStorage.getItem(ANONYMOUS_KEY) || getCookie(ANONYMOUS_KEY);
+        if (!anonId) {
+            anonId = `anon_${generateUUID().replace(/-/g, '').substring(0, 12)}`;
+        }
+        localStorage.setItem(ANONYMOUS_KEY, anonId);
+        setCookie(ANONYMOUS_KEY, anonId);
+
+        let sessId = sessionStorage.getItem(SESSION_KEY);
+        if (!sessId) {
+            sessId = `sess_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+            sessionStorage.setItem(SESSION_KEY, sessId);
         }
 
-        let sessionId = localStorage.getItem(SESSION_KEY);
-        if (!sessionId) {
-            sessionId = generateUUID();
-            localStorage.setItem(SESSION_KEY, sessionId);
-        }
-
-        // 2. Capture First-Touch Source (Immutable)
-        const storedAttribution = localStorage.getItem(ATTRIBUTION_KEY);
+        const storedAttribution = localStorage.getItem('vectorise_attribution');
         if (!storedAttribution) {
             const params = new URLSearchParams(window.location.search);
             const attribution = {
@@ -58,11 +86,11 @@ export const analyticsTracker = {
                 timestamp: new Date().toISOString()
             };
 
-            localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(attribution));
+            localStorage.setItem('vectorise_attribution', JSON.stringify(attribution));
 
             const trafficRecord: Omit<TrafficRecord, 'id'> = {
-                anonymous_id: anonymousId,
-                session_id: sessionId,
+                anonymous_id: anonId,
+                session_id: sessId,
                 user_id: userId || null,
                 email: userEmail || null,
                 source: attribution.source,
@@ -83,45 +111,35 @@ export const analyticsTracker = {
             }
         }
 
-        // 3. Track Initial Landing
-        analyticsTracker.trackEvent('viewed_homepage', { is_first_visit: !storedAttribution }, userId, userEmail);
-
-        // 4. Setup Global Behavioral Listeners
         window.addEventListener('scroll', analyticsTracker.handleScroll, { passive: true });
-        
-        // Track dwell time on page exit or visibility change
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
                 const dwell = Math.floor((Date.now() - sessionStartTime) / 1000);
-                analyticsTracker.trackEvent('heartbeat_dwell', { seconds: dwell, scroll_depth: lastScrollDepth }, userId, userEmail);
+                if (dwell > 1) {
+                    analyticsTracker.trackEvent('dwell_pulse', { seconds: dwell, scroll_depth: lastScrollDepth }, userId, userEmail);
+                }
             } else {
-                sessionStartTime = Date.now(); // Reset on return
+                sessionStartTime = Date.now();
             }
         });
     },
 
     handleScroll: () => {
-        const h = document.documentElement, 
-              b = document.body,
-              st = 'scrollTop',
-              sh = 'scrollHeight';
+        const h = document.documentElement, b = document.body, st = 'scrollTop', sh = 'scrollHeight';
         const percent = Math.floor((h[st]||b[st]) / ((h[sh]||b[sh]) - h.clientHeight) * 100);
-        if (percent > lastScrollDepth + 10) { // Log significant scrolls
+        if (percent > lastScrollDepth + 5) {
             lastScrollDepth = percent;
         }
     },
 
-    /**
-     * Step 2: Track events with identifiers
-     */
     trackEvent: async (eventName: string, properties: any = {}, userId?: string, userEmail?: string) => {
-        const anonymousId = localStorage.getItem(ANONYMOUS_KEY);
-        const sessionId = localStorage.getItem(SESSION_KEY);
-        if (!anonymousId || !sessionId) return;
+        const anonId = localStorage.getItem(ANONYMOUS_KEY);
+        const sessId = sessionStorage.getItem(SESSION_KEY);
+        if (!anonId || !sessId) return;
 
         const eventData: Omit<AnalyticsEvent, 'id'> = {
-            anonymous_id: anonymousId,
-            session_id: sessionId,
+            anonymous_id: anonId,
+            session_id: sessId,
             user_id: userId || null,
             email: userEmail || null,
             event_name: eventName,
@@ -139,50 +157,50 @@ export const analyticsTracker = {
         }
     },
 
-    /**
-     * Step 3: Link Identity
-     */
     identify: async (userId: string, email: string) => {
-        const anonymousId = localStorage.getItem(ANONYMOUS_KEY);
-        if (!anonymousId) return;
+        const anonId = localStorage.getItem(ANONYMOUS_KEY);
+        if (!anonId || !userId) return;
 
         try {
-            const qT = query(collection(db, TRAFFIC_COLLECTION), where('anonymous_id', '==', anonymousId));
-            const snapT = await getDocs(qT);
             const batch = writeBatch(db);
-            
+            const qT = query(collection(db, TRAFFIC_COLLECTION), where('anonymous_id', '==', anonId));
+            const snapT = await getDocs(qT);
             snapT.forEach(d => {
-                batch.update(d.ref, { user_id: userId, email: email });
+                if (!d.data().user_id) batch.update(d.ref, { user_id: userId, email: email });
             });
 
-            const qE = query(collection(db, EVENTS_COLLECTION), where('anonymous_id', '==', anonymousId), limit(100));
+            const qE = query(collection(db, EVENTS_COLLECTION), where('anonymous_id', '==', anonId), limit(50));
             const snapE = await getDocs(qE);
             snapE.forEach(d => {
-                batch.update(d.ref, { user_id: userId, email: email });
+                if (!d.data().user_id) batch.update(d.ref, { user_id: userId, email: email });
             });
 
             await batch.commit();
-            analyticsTracker.trackEvent('user_identified', { method: 'login_signup' }, userId, email);
+            analyticsTracker.trackEvent('identity_merged', { method: 'auth_link' }, userId, email);
         } catch (err) {
             console.warn("[Analytics] Identity link failed", err);
         }
     },
 
-    /**
-     * Admin: Identity-Centric Ledger
-     * Groups all sessions and activity by Identifier (Email or Anonymous ID)
-     */
     getIdentityLedger: async (): Promise<IdentityReport[]> => {
         try {
-            // 1. Fetch all unique traffic records to establish identities
-            const q = query(collection(db, TRAFFIC_COLLECTION), orderBy('created_at', 'desc'), limit(500));
+            const q = query(collection(db, TRAFFIC_COLLECTION), orderBy('created_at', 'desc'), limit(150));
             const trafficSnap = await getDocs(q);
-            
             const trafficRecords = trafficSnap.docs.map(d => ({ id: d.id, ...sanitizeData(d.data()) } as TrafficRecord));
-            const identitiesMap = new Map<string, TrafficRecord[]>();
 
+            if (trafficRecords.length === 0) return [];
+
+            const allSessionIds = Array.from(new Set(trafficRecords.map(r => r.session_id))) as string[];
+            const allUserIds = Array.from(new Set(trafficRecords.map(r => r.user_id).filter(id => !!id))) as string[];
+
+            const [allEvents, allEnrollments] = await Promise.all([
+                fetchChunked(EVENTS_COLLECTION, 'session_id', allSessionIds),
+                fetchChunked(ENROLLMENTS_COLLECTION, 'user_id', allUserIds)
+            ]);
+
+            const identitiesMap = new Map<string, TrafficRecord[]>();
             trafficRecords.forEach(t => {
-                const idKey = t.email || t.anonymous_id;
+                const idKey = t.user_id || t.email || t.anonymous_id;
                 const existing = identitiesMap.get(idKey) || [];
                 identitiesMap.set(idKey, [...existing, t]);
             });
@@ -190,34 +208,26 @@ export const analyticsTracker = {
             const ledger: IdentityReport[] = [];
 
             for (const [idKey, records] of identitiesMap.entries()) {
-                const firstTouch = [...records].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0];
-                const lastActive = [...records].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0];
+                const sortedRecords = [...records].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                const firstTouch = sortedRecords[0];
+                const lastActive = sortedRecords[sortedRecords.length - 1];
                 
                 const uniqueSessionIds = Array.from(new Set(records.map(r => r.session_id)));
                 const sessions: UserSessionReport[] = [];
-                let totalEventsCount = 0;
                 let hasPaidGlobal = false;
+                let totalEventCount = 0;
 
-                // For each session ID of this identity, fetch events
                 for (const sid of uniqueSessionIds) {
-                    const eq = query(collection(db, EVENTS_COLLECTION), where('session_id', '==', sid));
-                    const eSnap = await getDocs(eq);
-                    const events = eSnap.docs
-                        .map(d => ({ id: d.id, ...sanitizeData(d.data()) } as AnalyticsEvent))
-                        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                    const sessionEvents = allEvents
+                        .filter(e => e.session_id === sid)
+                        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-                    if (events.length === 0) continue;
+                    if (sessionEvents.length === 0) continue;
+                    totalEventCount += sessionEvents.length;
 
                     const traffic = records.find(r => r.session_id === sid) || firstTouch;
-                    const totalDwell = events.reduce((acc, e) => acc + (e.dwell_time || 0), 0);
-                    const maxScroll = Math.max(...events.map(e => e.scroll_depth || 0), 0);
-                    const hasPaid = events.some(e => e.event_name === 'payment_success');
+                    const hasPaid = sessionEvents.some(e => e.event_name === 'payment_success');
                     if (hasPaid) hasPaidGlobal = true;
-
-                    const coreEvents = ['viewed_homepage', 'opened_micro_picker', 'selected_path', 'payment_initiated', 'payment_success', 'sprint_enrolled'];
-                    const conversionPath = events
-                        .filter(e => coreEvents.includes(e.event_name))
-                        .map(e => e.event_name);
 
                     sessions.push({
                         anonymous_id: traffic.anonymous_id,
@@ -225,23 +235,16 @@ export const analyticsTracker = {
                         email: traffic.email,
                         user_id: traffic.user_id,
                         traffic,
-                        events,
-                        totalDwellTime: totalDwell,
-                        maxScrollDepth: maxScroll,
+                        events: sessionEvents,
+                        totalDwellTime: sessionEvents.reduce((acc, e) => acc + (e.dwell_time || 0), 0),
+                        maxScrollDepth: Math.max(...sessionEvents.map(e => e.scroll_depth || 0), 0),
                         hasPaid,
-                        conversionPath
+                        conversionPath: sessionEvents.filter(e => ['selected_path', 'payment_initiated', 'payment_success'].includes(e.event_name)).map(e => e.event_name)
                     });
-                    totalEventsCount += events.length;
                 }
 
-                // Fetch real-time progress if user is identified
-                let enrollments: ParticipantSprint[] = [];
                 const userId = firstTouch.user_id || records.find(r => !!r.user_id)?.user_id;
-                if (userId) {
-                    const uq = query(collection(db, ENROLLMENTS_COLLECTION), where('user_id', '==', userId));
-                    const uSnap = await getDocs(uq);
-                    enrollments = uSnap.docs.map(d => ({ id: d.id, ...sanitizeData(d.data()) } as ParticipantSprint));
-                }
+                const userEnrollments = allEnrollments.filter(e => e.user_id === userId);
 
                 ledger.push({
                     identifier: idKey,
@@ -251,16 +254,16 @@ export const analyticsTracker = {
                     firstTouch,
                     lastActiveAt: lastActive.created_at,
                     totalSessions: uniqueSessionIds.length,
-                    totalEvents: totalEventsCount,
+                    totalEvents: totalEventCount,
                     hasPaid: hasPaidGlobal,
                     sessions: sessions.sort((a, b) => new Date(b.traffic.created_at).getTime() - new Date(a.traffic.created_at).getTime()),
-                    enrollments
+                    enrollments: userEnrollments
                 });
             }
 
             return ledger.sort((a, b) => new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime());
         } catch (err) {
-            console.error("[Analytics] Identity ledger fetch failed", err);
+            console.error("[Analytics] Ledger assembly failed", err);
             return [];
         }
     },
@@ -274,25 +277,40 @@ export const analyticsTracker = {
 
     getFunnelMetrics: async (): Promise<FunnelStats> => {
         try {
-            const q = query(collection(db, EVENTS_COLLECTION), limit(1000));
+            const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            const q = query(collection(db, EVENTS_COLLECTION), where('created_at', '>=', twentyFourHoursAgo));
             const snap = await getDocs(q);
             const events = snap.docs.map(d => sanitizeData(d.data()) as AnalyticsEvent);
+            
+            // Build unique active user identities for the Pulse list
+            const activeUserMap = new Map<string, { id: string; label: string; lastActive: string }>();
+            events.filter(e => !!e.user_id).forEach(e => {
+                const existing = activeUserMap.get(e.user_id!);
+                if (!existing || new Date(e.created_at) > new Date(existing.lastActive)) {
+                    activeUserMap.set(e.user_id!, {
+                        id: e.user_id!,
+                        label: e.email || e.user_id!,
+                        lastActive: e.created_at
+                    });
+                }
+            });
 
             return {
-                visitors: new Set(events.map(e => e.session_id)).size,
+                visitors: new Set(events.map(e => e.anonymous_id)).size,
                 sprintViews: events.filter(e => e.event_name === 'landing_viewed').length,
                 paymentIntents: events.filter(e => e.event_name === 'payment_initiated').length,
                 successPayments: events.filter(e => e.event_name === 'payment_success').length,
                 completions: events.filter(e => e.event_name === 'sprint_completed').length,
+                activeUserList: Array.from(activeUserMap.values()).sort((a, b) => new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime())
             };
         } catch (err) {
-            return { visitors: 0, sprintViews: 0, paymentIntents: 0, successPayments: 0, completions: 0 };
+            return { visitors: 0, sprintViews: 0, paymentIntents: 0, successPayments: 0, completions: 0, activeUserList: [] };
         }
     },
 
     getTrafficBreakdown: async (): Promise<Record<string, number>> => {
         try {
-            const q = query(collection(db, TRAFFIC_COLLECTION), limit(500));
+            const q = query(collection(db, TRAFFIC_COLLECTION), limit(250));
             const snap = await getDocs(q);
             const map: Record<string, number> = {};
             snap.forEach(d => {

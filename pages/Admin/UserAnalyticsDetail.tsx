@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { IdentityReport, UserSessionReport } from '../../types';
+import { IdentityReport, UserSessionReport, AnalyticsEvent } from '../../types';
 import { analyticsTracker } from '../../services/analyticsTracker';
 import LocalLogo from '../../components/LocalLogo';
 
@@ -34,6 +34,14 @@ const UserAnalyticsDetail: React.FC = () => {
         fetchUserIdentity();
     }, [identifier, navigate]);
 
+    // DERIVED: Most recent to least recent
+    const sortedGranularEvents = useMemo(() => {
+        if (!activeSession?.events) return [];
+        return [...activeSession.events].sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+    }, [activeSession]);
+
     if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
@@ -44,9 +52,14 @@ const UserAnalyticsDetail: React.FC = () => {
 
     if (!identity) return null;
 
+    const isLive = (timestamp: string) => {
+        const diff = Date.now() - new Date(timestamp).getTime();
+        return diff < 1000 * 60 * 60; // Live if in the last hour
+    };
+
     return (
         <div className="min-h-screen bg-[#FAFAFA] flex flex-col font-sans animate-fade-in">
-            {/* Header: Exact design from modal but adapted to page */}
+            {/* Header */}
             <header className="p-8 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-50">
                 <div className="flex items-center gap-6">
                     <div className="w-16 h-16 bg-gray-50 rounded-[2rem] shadow-sm border border-gray-100 flex items-center justify-center text-3xl">
@@ -130,7 +143,7 @@ const UserAnalyticsDetail: React.FC = () => {
                     </section>
                 </aside>
 
-                {/* Right Panel: Detailed Behavioral Analytics for Selected Time */}
+                {/* Right Panel: Detailed Behavioral Analytics */}
                 <main className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-white">
                     {activeSession ? (
                         <div className="space-y-12 animate-fade-in max-w-4xl mx-auto">
@@ -153,48 +166,41 @@ const UserAnalyticsDetail: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Funnel Conversion Path */}
-                            <section>
-                                <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em] mb-10 text-center">Path Progression (This Session)</h5>
-                                <div className="flex flex-wrap justify-center gap-4">
-                                    {activeSession.conversionPath.length > 0 ? activeSession.conversionPath.map((step, i) => (
-                                        <div key={i} className="flex items-center gap-4">
-                                            <div className="px-4 py-2 bg-primary/5 border border-primary/10 rounded-xl shadow-sm">
-                                                <span className="text-[9px] font-black text-primary uppercase tracking-widest">{step.replace(/_/g, ' ')}</span>
-                                            </div>
-                                            {i < activeSession.conversionPath.length - 1 && (
-                                                <svg className="w-4 h-4 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
-                                            )}
-                                        </div>
-                                    )) : (
-                                        <div className="py-4 px-10 border border-dashed border-gray-100 rounded-3xl">
-                                            <p className="text-[9px] text-gray-300 font-black uppercase tracking-[0.2em]">Passive Browsing - No Funnel Progression</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </section>
-
-                            {/* Granular Action Ledger */}
+                            {/* Granular Action Ledger: Most Recent to Least Recent */}
                             <section className="space-y-6">
-                                <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em] mb-8">Granular Action Ledger</h5>
-                                <div className="relative pl-10 border-l border-gray-50 space-y-12">
-                                    {activeSession.events.map((e, idx) => (
+                                <div className="flex justify-between items-center mb-8">
+                                    <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em]">Granular Action Ledger</h5>
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-[7px] font-black text-primary uppercase tracking-widest bg-primary/5 px-2 py-1 rounded-md">Newest Signal at Top</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                                            <p className="text-[7px] font-black text-gray-400 uppercase">Live Updates Enabled</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="relative pl-10 border-l border-gray-50 space-y-12 pb-12">
+                                    {sortedGranularEvents.map((e, idx) => (
                                         <div key={e.id} className="relative group/event">
-                                            <div className="absolute -left-[49px] top-1 w-4 h-4 rounded-full bg-white border-4 border-primary shadow-sm z-10 transition-transform group-hover/event:scale-125"></div>
+                                            {/* Pulsing indicator */}
+                                            <div className={`absolute -left-[49px] top-1 w-4 h-4 rounded-full bg-white border-4 shadow-sm z-10 transition-transform group-hover/event:scale-125 ${idx === 0 ? 'border-primary animate-pulse shadow-primary/30' : isLive(e.created_at) ? 'border-primary/40' : 'border-gray-200'}`}></div>
+                                            
                                             <div className="flex justify-between items-start mb-3">
                                                 <div>
                                                     <p className="text-[11px] font-black text-gray-900 uppercase tracking-tight">{e.event_name.replace(/_/g, ' ')}</p>
                                                     <p className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">{e.page_url.split('#')[1] || 'Home Core'}</p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-[9px] font-black text-gray-900 uppercase tabular-nums">
-                                                        {new Date(e.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                                                    </p>
+                                                    <div className="flex items-center gap-2 justify-end">
+                                                        {isLive(e.created_at) && <span className="bg-primary/10 text-primary text-[6px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-widest">Recent</span>}
+                                                        <p className="text-[9px] font-black text-gray-900 uppercase tabular-nums">
+                                                            {new Date(e.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                        </p>
+                                                    </div>
                                                     <p className="text-[7px] font-black text-primary uppercase mt-0.5">T+{e.dwell_time}s into session</p>
                                                 </div>
                                             </div>
                                             
-                                            <div className="bg-gray-50/50 rounded-[1.5rem] p-5 border border-gray-100/50 hover:bg-white hover:border-primary/10 transition-all">
+                                            <div className="bg-gray-50/50 rounded-[1.5rem] p-5 border border-gray-100/50 hover:bg-white hover:border-primary/10 transition-all shadow-sm group-hover/event:shadow-md">
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                                                     <div>
                                                         <p className="text-[7px] font-black text-gray-300 uppercase mb-1">Scroll Depth</p>
@@ -226,16 +232,14 @@ const UserAnalyticsDetail: React.FC = () => {
             </div>
 
             <footer className="p-8 border-t border-gray-50 bg-gray-50/30 text-center flex-shrink-0">
-                <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.5em]">Behavioral Audit Engine v5.3 • Identity Ledger Dedicated View</p>
+                <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.5em]">Behavioral Audit Engine v5.4 • Identity Ledger Dedicated View</p>
             </footer>
 
             <style>{`
                 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.05); border-radius: 10px; }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-fade-in { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-                @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+                .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
             `}</style>
         </div>
     );

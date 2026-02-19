@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { UserRole, Coach, Sprint, PartnerApplication, PlatformPulse, Quote } from '../../types';
+import { UserRole, Coach, Sprint, PartnerApplication, PlatformPulse, Quote, FunnelStats } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { analyticsService } from '../../services/analyticsService';
 import { quoteService } from '../../services/quoteService';
 import { partnerService } from '../../services/partnerService';
+import { analyticsTracker } from '../../services/analyticsTracker';
 import Button from '../../components/Button';
 import LifecycleOrchestrator from './LifecycleOrchestrator';
 import AdminEarnings from './AdminEarnings';
@@ -26,10 +27,13 @@ export default function AdminDashboard() {
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0); 
     const [platformPulse, setPlatformPulse] = useState<PlatformPulse | null>(null);
+    const [behavioralStats, setBehavioralStats] = useState<FunnelStats | null>(null);
 
     const fetchPulse = async () => {
         const pulse = await analyticsService.getPlatformPulse();
         setPlatformPulse(pulse);
+        const bStats = await analyticsTracker.getFunnelMetrics();
+        setBehavioralStats(bStats);
     };
 
     const fetchSprints = async () => {
@@ -121,11 +125,44 @@ export default function AdminDashboard() {
                         {activeTab === 'pulse' && (
                             <div className="animate-fade-in space-y-12">
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                    <MetricBlock label="Active Users (24h)" value={platformPulse?.activeUsers24h || 0} color="blue" />
+                                    <MetricBlock label="Logged-in Users (24h)" value={behavioralStats?.activeUserList?.length || 0} color="blue" />
                                     <MetricBlock label="Live Programs" value={sprints.filter(s => s.published).length} color="primary" />
                                     <MetricBlock label="At Risk" value={platformPulse?.atRiskCount || 0} color="red" />
                                     <MetricBlock label="Partner Apps" value={partnerApps.filter(a => a.status === 'pending').length} color="orange" />
                                 </div>
+
+                                <section className="bg-gray-50/50 rounded-[2.5rem] p-10 border border-gray-100">
+                                    <div className="flex justify-between items-center mb-8">
+                                        <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.3em]">Active Identities (Last 24h)</h4>
+                                        <span className="text-[8px] font-black text-primary uppercase tracking-widest bg-primary/5 px-2 py-1 rounded-md">Live behavioral Audit</span>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                        {behavioralStats?.activeUserList && behavioralStats.activeUserList.length > 0 ? (
+                                            behavioralStats.activeUserList.map((user, idx) => (
+                                                <div 
+                                                  key={user.id} 
+                                                  onClick={() => navigate(`/admin/analytics/user/${encodeURIComponent(user.id)}`)}
+                                                  className="bg-white px-5 py-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between group hover:border-primary/20 transition-all cursor-pointer"
+                                                >
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-2 mb-0.5">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                                                            <p className="text-[11px] font-bold text-gray-700 truncate">{user.label}</p>
+                                                        </div>
+                                                        <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest pl-3">
+                                                            Last: {new Date(user.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </p>
+                                                    </div>
+                                                    <svg className="h-3 w-3 text-gray-200 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7"/></svg>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="col-span-full py-12 text-center">
+                                                <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">No authentications recorded in the last cycle.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </section>
                             </div>
                         )}
 

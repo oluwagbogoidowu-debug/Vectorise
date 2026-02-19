@@ -95,6 +95,7 @@ export interface FunnelStats {
   paymentIntents: number;
   successPayments: number;
   completions: number;
+  activeUserList?: { id: string; label: string; lastActive: string }[];
 }
 
 export interface PaymentRecord {

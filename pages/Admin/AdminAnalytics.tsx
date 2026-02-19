@@ -19,6 +19,7 @@ const AdminAnalytics: React.FC = () => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
+                // Bulk fetch overview data
                 const [funnelData, breakdown, identityData] = await Promise.all([
                     analyticsTracker.getFunnelMetrics(),
                     analyticsTracker.getTrafficBreakdown(),
@@ -42,8 +43,8 @@ const AdminAnalytics: React.FC = () => {
         if (!funnel) return [];
         return [
             { label: 'Visitors', value: funnel.visitors, color: 'bg-blue-500' },
-            { label: 'Sprint Views', value: funnel.sprintViews, color: 'bg-indigo-500' },
-            { label: 'Intent (Pay)', value: funnel.paymentIntents, color: 'bg-purple-500' },
+            { label: 'Views', value: funnel.sprintViews, color: 'bg-indigo-500' },
+            { label: 'Intent', value: funnel.paymentIntents, color: 'bg-purple-500' },
             { label: 'Success', value: funnel.successPayments, color: 'bg-primary' },
             { label: 'Mastered', value: funnel.completions, color: 'bg-green-600' }
         ];
@@ -53,7 +54,12 @@ const AdminAnalytics: React.FC = () => {
         navigate(`/admin/analytics/user/${encodeURIComponent(id.identifier)}`);
     };
 
-    if (isLoading) return <div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
+    if (isLoading) return (
+        <div className="flex flex-col items-center justify-center h-96 space-y-4">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest animate-pulse">Compiling Global Identity Ledger...</p>
+        </div>
+    );
 
     return (
         <div className="space-y-12 animate-fade-in pb-20 font-sans">

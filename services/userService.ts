@@ -42,7 +42,7 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
         constructorName.includes('Snapshot');
 
     // Check for common internal property markers (Firebase often uses 'i', 'db', 'firestore')
-    // Specifically looking for the pattern 'i' -> 'src' mentioned in circular error
+    // Target pattern: 'i' -> 'src' cycle from error log
     const hasSDKSignatures = !!(
         val.onSnapshot || 
         val.getDoc || 
@@ -69,7 +69,6 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
     const proto = Object.getPrototypeOf(val);
     const isPlain = proto === null || proto === Object.prototype;
     if (!isPlain) {
-        // If it's a class instance but not a plain object, we don't want to risk cycles
         return undefined;
     }
 
