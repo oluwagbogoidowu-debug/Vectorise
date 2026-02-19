@@ -3,12 +3,17 @@ import admin from 'firebase-admin';
 if (!admin.apps.length) {
   try {
     const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    const projectId = 'vectorise-f19d4';
+    
     if (serviceAccountVar) {
         admin.initializeApp({
-            credential: admin.credential.cert(JSON.parse(serviceAccountVar))
+            credential: admin.credential.cert(JSON.parse(serviceAccountVar)),
+            projectId: projectId
         });
     } else {
-        admin.initializeApp();
+        admin.initializeApp({
+            projectId: projectId
+        });
     }
   } catch (e) {
     console.error("[Backend] Firebase Init Error:", e.message);

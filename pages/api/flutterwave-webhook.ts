@@ -4,12 +4,21 @@ import admin from 'firebase-admin';
 // Initialize Firebase Admin SDK for backend fulfillment
 if (!admin.apps.length) {
   try {
-    admin.initializeApp({
-      credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}'))
-    });
-  } catch (e) {
-    // Fallback for environments with automatic auth
-    admin.initializeApp();
+    const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    const projectId = 'vectorise-f19d4';
+
+    if (serviceAccountVar) {
+      admin.initializeApp({
+        credential: admin.credential.cert(JSON.parse(serviceAccountVar)),
+        projectId: projectId
+      });
+    } else {
+      admin.initializeApp({
+        projectId: projectId
+      });
+    }
+  } catch (e: any) {
+    console.error("[WebhookV2] Firebase Init Error:", e.message);
   }
 }
 

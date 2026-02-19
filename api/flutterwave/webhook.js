@@ -2,11 +2,21 @@ const admin = require('firebase-admin');
 
 if (!admin.apps.length) {
   try {
-    admin.initializeApp({
-      credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY))
-    });
+    const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    const projectId = 'vectorise-f19d4';
+    
+    if (serviceAccountVar) {
+      admin.initializeApp({
+        credential: admin.credential.cert(JSON.parse(serviceAccountVar)),
+        projectId: projectId
+      });
+    } else {
+      admin.initializeApp({
+        projectId: projectId
+      });
+    }
   } catch (e) {
-    admin.initializeApp();
+    console.error("[Webhook] Firebase Init Error:", e.message);
   }
 }
 
