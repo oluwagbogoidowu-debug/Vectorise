@@ -1,53 +1,36 @@
-import admin from 'firebase-admin';
+import admin from "firebase-admin";
 
-/**
- * Provision Partner API
- * Securely creates a Firebase Authentication user and Firestore profile.
- */
-
-function getServices() {
-  if (!admin.apps.length) {
-    const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    if (!serviceAccountVar) {
-      throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY environment variable is missing");
-    }
-
-    try {
-      const serviceAccount = JSON.parse(serviceAccountVar);
-      if (serviceAccount.private_key) {
-        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-      }
-
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        projectId: serviceAccount.project_id || 'vectorise-f19d4'
-      });
-    } catch (e) {
-      console.error("[Provision Firebase Init Error]", e.message);
-      throw e;
+let serviceAccount;
+try {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
     }
   }
-  return {
-    db: admin.firestore(),
-    auth: admin.auth()
-  };
+} catch (err) {
+  console.error("Firebase key parse failed:", err);
 }
+
+if (!admin.apps.length && serviceAccount) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    projectId: serviceAccount.project_id || 'vectorise-f19d4'
+  });
+}
+
+const db = admin.firestore();
+const auth = admin.auth();
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { db, auth } = getServices();
     const { email, password, fullName, country, primaryPlatform } = req.body;
 
     if (!email || !password || !fullName) {
@@ -56,7 +39,6 @@ export default async function handler(req, res) {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // 1. Create the Auth User
     const userRecord = await auth.createUser({
       email: cleanEmail,
       password: password,
@@ -66,7 +48,6 @@ export default async function handler(req, res) {
 
     const uid = userRecord.uid;
 
-    // 2. Create the User Document in Firestore
     await db.collection('users').doc(uid).set({
       id: uid,
       name: fullName,

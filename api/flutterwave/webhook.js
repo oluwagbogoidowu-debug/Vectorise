@@ -1,34 +1,29 @@
 const admin = require('firebase-admin');
 
-function getDb() {
-  if (!admin.apps.length) {
-    const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    if (!serviceAccountVar) {
-      throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY environment variable is missing");
-    }
-
-    try {
-      const serviceAccount = JSON.parse(serviceAccountVar);
-      if (serviceAccount.private_key) {
-        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-      }
-
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        projectId: serviceAccount.project_id || 'vectorise-f19d4'
-      });
-    } catch (e) {
-      console.error("[Webhook Firebase Init Error]", e.message);
-      throw e;
+let serviceAccount;
+try {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
     }
   }
-  return admin.firestore();
+} catch (err) {
+  console.error("Firebase key parse failed:", err);
 }
+
+if (!admin.apps.length && serviceAccount) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    projectId: serviceAccount.project_id || 'vectorise-f19d4'
+  });
+}
+
+const db = admin.firestore();
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
-  // 1. Verify Signature (Source of Truth)
   const secretHash = process.env.FLW_SECRET_HASH;
   const signature = req.headers['verif-hash'];
 
@@ -39,12 +34,10 @@ module.exports = async (req, res) => {
 
   const payload = req.body;
 
-  // 2. Only process successful charges
   if (payload.event === 'charge.completed' && payload.data.status === 'successful') {
     const { tx_ref, amount, currency, id: flw_id } = payload.data;
     
     try {
-      const db = getDb();
       const paymentRef = db.collection('payments').doc(tx_ref);
 
       await db.runTransaction(async (transaction) => {
@@ -53,13 +46,8 @@ module.exports = async (req, res) => {
         if (!paymentDoc.exists) throw new Error("Payment record not found");
         const paymentData = paymentDoc.data();
 
-        // Idempotency check
-        if (paymentData.status === 'successful') {
-          console.log(`[Webhook] ${tx_ref} already processed.`);
-          return;
-        }
+        if (paymentData.status === 'successful') return;
 
-        // Integrity Check: Match amount and currency
         if (Number(amount) < Number(paymentData.amount) || currency !== paymentData.currency) {
           console.error(`[Webhook] Integrity mismatch for ${tx_ref}`);
           transaction.update(paymentRef, { status: 'failed', failureReason: 'Integrity mismatch' });
@@ -68,7 +56,6 @@ module.exports = async (req, res) => {
 
         const { userId, sprintId } = paymentData;
 
-        // Atomic Fulfillment
         transaction.update(paymentRef, {
           status: 'successful',
           flw_transaction_id: flw_id,
@@ -76,7 +63,6 @@ module.exports = async (req, res) => {
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        // Create Enrollment
         const enrollmentId = `enrollment_${userId}_${sprintId}`;
         const sprintSnap = await transaction.get(db.collection('sprints').doc(sprintId));
         const duration = sprintSnap.exists() ? (sprintSnap.data().duration || 7) : 7;
@@ -91,7 +77,6 @@ module.exports = async (req, res) => {
           progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
         }, { merge: true });
 
-        // Update User Profile
         transaction.update(db.collection('users').doc(userId), {
             enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sprintId)
         });
