@@ -43,20 +43,24 @@ export const paymentService = {
         })
       });
 
+      // To avoid "body stream already read" error, we read the response as text once.
+      const responseText = await response.text();
+
       if (!response.ok) {
         let errorMsg = "Gateway initialization failed.";
         try {
-          const errorJson = await response.json();
+          // Attempt to parse JSON from the text we already read
+          const errorJson = JSON.parse(responseText);
           errorMsg = errorJson.error || errorMsg;
         } catch (parseError) {
-          const text = await response.text();
-          console.error("[Registry] Server returned non-JSON response:", text);
+          console.error("[Registry] Server returned non-JSON response:", responseText);
           errorMsg = `Registry Server Error (${response.status})`;
         }
         throw new Error(errorMsg);
       }
 
-      const data = await response.json();
+      // If successful, parse the text as JSON
+      const data = JSON.parse(responseText);
       const checkoutUrl = data.data?.link || data.link;
       if (checkoutUrl) return checkoutUrl;
       throw new Error("Registry returned an incomplete response (Missing Link).");
