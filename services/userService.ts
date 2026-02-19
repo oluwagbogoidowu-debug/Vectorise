@@ -33,6 +33,7 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
 
     // 4. Detect and Strip Firestore/Firebase internal classes
     // Firebase v10 minified names often follow patterns like Q$1 (Query), Sa (Firestore)
+    // and internal properties like .i or .src
     const constructorName = val.constructor?.name || '';
     const isFirebaseInternal = 
         /^[A-Z]\$[0-9]$|^[A-Z][a-z]$/.test(constructorName) || 
@@ -45,19 +46,8 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
         constructorName.includes('Snapshot') ||
         constructorName.includes('Observer');
 
-    // Check for common internal property markers (Firebase often uses 'i', 'db', 'firestore')
-    // Target pattern: 'i' -> 'src' cycle mentioned in error log
-    const hasSDKSignatures = !!(
-        val.onSnapshot || 
-        val.getDoc || 
-        val._methodName || 
-        val.firestore || 
-        val._database ||
-        val._path ||
-        (val.i && (val.src || val.i.src))
-    );
-    
-    if (isFirebaseInternal || hasSDKSignatures || val instanceof Element) {
+    // Pattern matching for the specific error: object with 'i' property that references back
+    if (isFirebaseInternal || val.onSnapshot || val.getDoc || val._database || (val.i && val.i.constructor?.name === 'Sa')) {
         return undefined;
     }
 
@@ -71,13 +61,10 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
     }
 
     // 6. Only process "plain" objects to avoid serializing complex class instances
-    // This is the most effective guard against complex SDK objects
     const proto = Object.getPrototypeOf(val);
     const isPlain = proto === null || proto === Object.prototype;
     
     if (!isPlain) {
-        // If not plain, but we really want the data, we'd need a whitelist. 
-        // For now, returning undefined for non-plain objects is safest.
         return undefined;
     }
 
@@ -87,7 +74,6 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
     const keys = Object.keys(val);
     
     for (const key of keys) {
-        // Strip internal-looking fields
         if (key.startsWith('_') || key.startsWith('$')) continue;
         
         try {
@@ -96,7 +82,6 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
                 cleaned[key] = sanitizedVal;
             }
         } catch (e) {
-            // If property access fails (e.g. on some specialized proxy)
             continue;
         }
     }
