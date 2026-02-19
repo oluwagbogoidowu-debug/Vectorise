@@ -44,8 +44,18 @@ export const paymentService = {
       });
 
       if (!response.ok) {
-        const errorJson = await response.json();
-        throw new Error(errorJson.error || "Gateway initialization failed.");
+        let errorMsg = "Gateway initialization failed.";
+        try {
+            // Try to parse JSON error
+            const errorJson = await response.json();
+            errorMsg = errorJson.error || errorMsg;
+        } catch (parseError) {
+            // If parsing fails, it's likely an HTML error page (the source of "Unexpected token A")
+            const text = await response.text();
+            console.error("[Registry] Server returned non-JSON response:", text);
+            errorMsg = `Registry Server Error (${response.status})`;
+        }
+        throw new Error(errorMsg);
       }
 
       const data = await response.json();

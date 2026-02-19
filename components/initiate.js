@@ -17,9 +17,6 @@ if (!admin.apps.length && serviceAccount) {
     credential: admin.credential.cert(serviceAccount),
     projectId: serviceAccount.project_id || 'vectorise-f19d4'
   });
-} else if (!admin.apps.length) {
-    // Fallback for local development or simplified environments
-    admin.initializeApp();
 }
 
 const db = admin.firestore();
@@ -34,10 +31,6 @@ module.exports = async (req, res) => {
 
   try {
     const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY;
-    if (!FLW_SECRET_KEY) {
-        return res.status(500).json({ error: "Gateway Configuration Error: Missing Secret Key" });
-    }
-
     const { email, amount, sprintId, name, userId, currency = "NGN" } = req.body || {};
     
     if (!email || !userId || !sprintId) {

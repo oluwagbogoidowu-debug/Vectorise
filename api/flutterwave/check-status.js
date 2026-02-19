@@ -17,6 +17,8 @@ if (!admin.apps.length && serviceAccount) {
     credential: admin.credential.cert(serviceAccount),
     projectId: serviceAccount.project_id || 'vectorise-f19d4'
   });
+} else if (!admin.apps.length) {
+    admin.initializeApp();
 }
 
 const db = admin.firestore();
