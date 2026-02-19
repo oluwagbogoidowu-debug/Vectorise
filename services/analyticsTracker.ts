@@ -220,7 +220,7 @@ export const analyticsTracker = {
                 for (const sid of uniqueSessionIds) {
                     const sessionEvents = allEvents
                         .filter(e => e.session_id === sid)
-                        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
                     if (sessionEvents.length === 0) continue;
                     totalEventCount += sessionEvents.length;
