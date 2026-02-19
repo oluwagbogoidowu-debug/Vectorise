@@ -142,7 +142,6 @@ const Quiz: React.FC = () => {
 
   // Auto-persist state to localStorage on every change
   useEffect(() => {
-    // FIXED: Using sanitizeData to strictly ensure no circular structures reach JSON.stringify
     const cleanAnswers = sanitizeData(answers);
 
     const stateToSave = sanitizeData({
@@ -152,10 +151,13 @@ const Quiz: React.FC = () => {
         occupation
     });
     
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
-    } catch (err) {
-        console.warn("LocalStorage save failed", err);
+    if (stateToSave) {
+        try {
+            const stringified = JSON.stringify(stateToSave);
+            localStorage.setItem(STORAGE_KEY, stringified);
+        } catch (err) {
+            console.warn("LocalStorage JSON serialization failed", err);
+        }
     }
   }, [step, answers, selectedPersona, occupation]);
 

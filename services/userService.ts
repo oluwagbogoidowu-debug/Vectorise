@@ -10,7 +10,10 @@ import { User, Participant, Coach, UserRole, WalletTransaction } from '../types'
 export const sanitizeData = (val: any, seen = new WeakSet()): any => {
     // 1. Handle null and primitives
     if (val === null || typeof val === 'undefined') return undefined;
-    if (typeof val !== 'object') return val;
+    
+    // Primitives are safe
+    if (typeof val !== 'object' && typeof val !== 'function') return val;
+    if (typeof val === 'function') return undefined;
 
     // 2. Break circular references immediately
     if (seen.has(val)) return undefined;
@@ -18,7 +21,7 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
     // 3. Handle specific non-serializable but non-circular common types
     if (val instanceof Date) return val.toISOString();
     
-    // Check for Firestore Timestamp
+    // Handle Firestore Timestamps
     if (typeof val.toDate === 'function') {
         try {
             const date = val.toDate();
@@ -29,7 +32,7 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
     }
 
     // 4. Detect and Strip Firestore/Firebase internal classes
-    // Firebase v10 minified names: Sa (Firestore), Q$1 (Query), etc.
+    // Firebase v10 minified names often follow patterns like Q$1 (Query), Sa (Firestore)
     const constructorName = val.constructor?.name || '';
     const isFirebaseInternal = 
         /^[A-Z]\$[0-9]$|^[A-Z][a-z]$/.test(constructorName) || 
@@ -39,18 +42,19 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
         constructorName.includes('Transaction') ||
         constructorName.includes('Firebase') ||
         constructorName.includes('App') ||
-        constructorName.includes('Snapshot');
+        constructorName.includes('Snapshot') ||
+        constructorName.includes('Observer');
 
     // Check for common internal property markers (Firebase often uses 'i', 'db', 'firestore')
-    // Target pattern: 'i' -> 'src' cycle from error log
+    // Target pattern: 'i' -> 'src' cycle mentioned in error log
     const hasSDKSignatures = !!(
         val.onSnapshot || 
         val.getDoc || 
         val._methodName || 
         val.firestore || 
-        val.type === 'collection' || 
-        val.type === 'document' ||
-        (val.i && val.src)
+        val._database ||
+        val._path ||
+        (val.i && (val.src || val.i.src))
     );
     
     if (isFirebaseInternal || hasSDKSignatures || val instanceof Element) {
@@ -60,28 +64,40 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
     // 5. Handle Arrays
     if (Array.isArray(val)) {
         seen.add(val);
-        return val
+        const result = val
             .map(item => sanitizeData(item, seen))
             .filter(i => i !== undefined);
+        return result;
     }
 
     // 6. Only process "plain" objects to avoid serializing complex class instances
+    // This is the most effective guard against complex SDK objects
     const proto = Object.getPrototypeOf(val);
     const isPlain = proto === null || proto === Object.prototype;
+    
     if (!isPlain) {
+        // If not plain, but we really want the data, we'd need a whitelist. 
+        // For now, returning undefined for non-plain objects is safest.
         return undefined;
     }
 
+    // 7. Process plain object keys
     seen.add(val);
     const cleaned: any = {};
     const keys = Object.keys(val);
+    
     for (const key of keys) {
         // Strip internal-looking fields
         if (key.startsWith('_') || key.startsWith('$')) continue;
         
-        const sanitizedVal = sanitizeData(val[key], seen);
-        if (sanitizedVal !== undefined) {
-            cleaned[key] = sanitizedVal;
+        try {
+            const sanitizedVal = sanitizeData(val[key], seen);
+            if (sanitizedVal !== undefined) {
+                cleaned[key] = sanitizedVal;
+            }
+        } catch (e) {
+            // If property access fails (e.g. on some specialized proxy)
+            continue;
         }
     }
     return cleaned;
