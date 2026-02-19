@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, addDoc, getDocs, query, orderBy, where, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { PaymentAttempt, PaymentRecord, FinancialStats } from '../types';
 import { sanitizeData } from './userService';
 
@@ -46,14 +46,12 @@ export const paymentService = {
       if (!response.ok) {
         let errorMsg = "Gateway initialization failed.";
         try {
-            // Try to parse JSON error
-            const errorJson = await response.json();
-            errorMsg = errorJson.error || errorMsg;
+          const errorJson = await response.json();
+          errorMsg = errorJson.error || errorMsg;
         } catch (parseError) {
-            // If parsing fails, it's likely an HTML error page (the source of "Unexpected token A")
-            const text = await response.text();
-            console.error("[Registry] Server returned non-JSON response:", text);
-            errorMsg = `Registry Server Error (${response.status})`;
+          const text = await response.text();
+          console.error("[Registry] Server returned non-JSON response:", text);
+          errorMsg = `Registry Server Error (${response.status})`;
         }
         throw new Error(errorMsg);
       }
@@ -63,31 +61,19 @@ export const paymentService = {
       if (checkoutUrl) return checkoutUrl;
       throw new Error("Registry returned an incomplete response (Missing Link).");
     } catch (error: any) {
+      console.error("[Payment] Init failure:", error);
       throw error;
     }
   },
 
-  checkPaymentStatus: async (txRef: string): Promise<{ status: string, sprintId?: string }> => {
+  checkPaymentStatus: async (txRef: string): Promise<{ status: string, sprintId?: string, userId?: string }> => {
     try {
       const response = await fetch(`/api/flutterwave/check-status?tx_ref=${txRef}`);
       if (!response.ok) return { status: 'pending' };
       return await response.json();
     } catch (e) {
+      console.warn("[Payment] Status check warning:", e);
       return { status: 'pending' };
-    }
-  },
-
-  verifyPayment: async (gateway: string, reference: string, sprintId?: string): Promise<{ status: string; email?: string; message?: string }> => {
-    const url = gateway === 'paystack'
-      ? `https://us-central1-vectorise-f19d4.cloudfunctions.net/verifyPayment?reference=${reference}`
-      : `/api/flutterwave/verify?transaction_id=${reference}${sprintId ? `&sprintId=${sprintId}` : ''}`;
-
-    try {
-      const response = await fetch(url);
-      if (!response.ok) return { status: 'error', message: 'Network validation failed' };
-      return await response.json();
-    } catch (error) {
-      return { status: 'error', message: 'Verification service unavailable' };
     }
   },
 
@@ -105,20 +91,20 @@ export const paymentService = {
   },
 
   calculateFinancialStats: (ledger: PaymentRecord[]): FinancialStats => {
-    const success = ledger.filter(p => p.status === 'success');
-    const totalRevenue = success.reduce((acc, p) => acc + (p.amount || 0), 0);
+    const success = ledger.filter(p => p.status === 'success' || p.status === 'successful');
+    const totalRevenue = success.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
     return {
       totalRevenue,
       revenueToday: 0,
       revenueThisMonth: 0,
       successCount: success.length,
-      failedCount: 0,
-      pendingCount: 0,
+      failedCount: ledger.filter(p => p.status === 'failed').length,
+      pendingCount: ledger.filter(p => p.status === 'pending').length,
       totalRefunds: 0,
-      successRate: 0,
-      failureRate: 0,
+      successRate: ledger.length > 0 ? (success.length / ledger.length) * 100 : 0,
+      failureRate: ledger.length > 0 ? (ledger.filter(p => p.status === 'failed').length / ledger.length) * 100 : 0,
       dropOffRate: 0,
-      arpu: 0
+      arpu: ledger.length > 0 ? totalRevenue / ledger.length : 0
     };
   }
 };

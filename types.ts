@@ -1,3 +1,4 @@
+
 export enum UserRole {
   COACH = 'COACH',
   PARTICIPANT = 'PARTICIPANT',
@@ -26,7 +27,8 @@ export type SprintType =
 export type EffortLevel = 'Low' | 'Medium' | 'High';
 export type EvidenceType = 'decision' | 'artifact' | 'habit';
 export type PaymentSource = 'direct' | 'influencer' | 'coin';
-export type PaymentAttemptStatus = 'pending' | 'success' | 'failed' | 'refunded' | 'abandoned';
+// Added 'successful' to match backend usage and fix comparison errors in services/paymentService.ts
+export type PaymentAttemptStatus = 'pending' | 'success' | 'successful' | 'failed' | 'refunded' | 'abandoned';
 
 export type SprintDifficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 
@@ -325,7 +327,7 @@ export interface Notification {
   createdAt: string;
   actionUrl?: string | null;
   expiresAt?: string | null;
-  readAt?: string | null;
+  readAt?: null | string;
   context?: any;
 }
 

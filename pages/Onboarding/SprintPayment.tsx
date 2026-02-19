@@ -48,7 +48,6 @@ const SprintPayment: React.FC = () => {
   const effectiveEmail = user?.email || guestEmail;
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(effectiveEmail);
 
-  // Requirement: Validate all required fields
   const isFormValid = isEmailValid && !!sprintId && (isCreditSprint ? (!!user && hasEnoughCredits) : true);
   const canPay = finalCommitment && isFormValid && !isProcessing;
 
@@ -123,11 +122,6 @@ const SprintPayment: React.FC = () => {
         currency: "NGN",
         name: user?.name || 'Vectorise Guest'
     };
-
-    // Requirement: Log outgoing payload to console for debugging (development only)
-    if (process.env.NODE_ENV === 'development') {
-        console.log("[Payment] Dispatching initialization payload:", payload);
-    }
 
     try {
       if (!user) {

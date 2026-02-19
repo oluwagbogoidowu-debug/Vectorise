@@ -1,6 +1,4 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { MOCK_USERS } from '../../services/mockData';
 import { Participant, Sprint, ParticipantSprint, CoachingComment } from '../../types';
@@ -26,7 +24,6 @@ const CoachParticipants: React.FC = () => {
     const [mySprints, setMySprints] = useState<Sprint[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
-    // Detail Modal States
     const [viewingSubmission, setViewingSubmission] = useState<{enrollment: ExtendedEnrollment, day: number} | null>(null);
     const [isContentExpanded, setIsContentExpanded] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -49,7 +46,7 @@ const CoachParticipants: React.FC = () => {
 
                 const mySprintIds = approvedSprints
                     .map(s => s.id)
-                    .filter(id => id !== undefined && id !== null && id !== '');
+                    .filter(id => !!id);
 
                 if (mySprintIds.length === 0) {
                     setAllEnrollments([]);
@@ -58,16 +55,13 @@ const CoachParticipants: React.FC = () => {
                 }
 
                 const enrollments = await sprintService.getEnrollmentsForSprints(mySprintIds);
-                // Fix: Property 'participantId' replaced with 'user_id' and added explicit string array casting
                 const uniqueParticipantIds = Array.from(new Set(enrollments.map(e => e.user_id))) as string[];
                 const dbParticipants = await userService.getUsersByIds(uniqueParticipantIds);
 
                 const now = new Date();
                 const enriched = enrollments.map(ps => {
-                    // Fix: Property 'participantId' replaced with 'user_id'
                     const student = dbParticipants.find(u => u.id === ps.user_id) || 
                                    MOCK_USERS.find(u => u.id === ps.user_id) as Participant;
-                    // Fix: Property 'sprintId' replaced with 'sprint_id'
                     const sprint = approvedSprints.find(s => s.id === ps.sprint_id) as Sprint;
                     
                     if (!sprint || !student) return null;
@@ -104,7 +98,6 @@ const CoachParticipants: React.FC = () => {
         fetchData();
     }, [user]);
 
-    // Fetch and Sync Chat for Modal
     useEffect(() => {
         if (!viewingSubmission || !user) {
             setDayComments([]);
@@ -112,7 +105,6 @@ const CoachParticipants: React.FC = () => {
         }
 
         const fetchChat = async () => {
-            // Fix: Property 'sprintId' replaced with 'sprint_id' and 'participantId' replaced with 'user_id'
             const allMessages = await chatService.getConversation(
                 viewingSubmission.enrollment.sprint_id, 
                 viewingSubmission.enrollment.user_id
@@ -125,7 +117,6 @@ const CoachParticipants: React.FC = () => {
         return () => clearInterval(interval);
     }, [viewingSubmission, user]);
 
-    // Scroll chat to bottom
     useEffect(() => {
         if (chatScrollRef.current && isChatOpen) {
             chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
@@ -134,7 +125,6 @@ const CoachParticipants: React.FC = () => {
 
     const filteredEnrollments = useMemo(() => {
         return allEnrollments.filter(e => {
-            // Fix: Property 'sprintId' replaced with 'sprint_id'
             const matchesSprint = selectedSprintId === 'all' || e.sprint_id === selectedSprintId;
             const matchesSearch = e.student.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                                  e.sprint.title.toLowerCase().includes(searchTerm.toLowerCase());
@@ -152,7 +142,6 @@ const CoachParticipants: React.FC = () => {
         if (!content || !user || !viewingSubmission) return;
 
         setIsSendingFeedback(true);
-        // Fix: Property 'sprintId' replaced with 'sprint_id' and 'participantId' replaced with 'user_id'
         const newMessage: Omit<CoachingComment, 'id'> = {
             sprintId: viewingSubmission.enrollment.sprint_id,
             day: viewingSubmission.day,
@@ -166,8 +155,6 @@ const CoachParticipants: React.FC = () => {
         try {
             await chatService.sendMessage(newMessage);
             
-            // Fix: Corrected positional arguments for createNotification and used valid type 'coach_message'.
-            // Fix: Property 'participantId' replaced with 'user_id'
             await notificationService.createNotification(
                 viewingSubmission.enrollment.user_id, 
                 'coach_message',
@@ -263,7 +250,6 @@ const CoachParticipants: React.FC = () => {
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-bold text-gray-900">{e.student.name}</p>
-                                                    {/* Fix: Property 'startDate' replaced with 'started_at' */}
                                                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">Started {formatTimeAgo(e.started_at)}</p>
                                                 </div>
                                             </div>
@@ -374,7 +360,6 @@ const CoachParticipants: React.FC = () => {
                         <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
                             {!isChatOpen ? (
                                 <>
-                                    {/* COLLAPSIBLE DAY CONTENT */}
                                     <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-300">
                                         <button 
                                             onClick={() => setIsContentExpanded(!isContentExpanded)}
@@ -406,7 +391,6 @@ const CoachParticipants: React.FC = () => {
                                         )}
                                     </div>
 
-                                    {/* STUDENT WORK */}
                                     <div className="space-y-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
@@ -445,7 +429,6 @@ const CoachParticipants: React.FC = () => {
                                     </div>
                                 </>
                             ) : (
-                                /* PRIVATE COACHING CHAT (Exclusive View) */
                                 <div className="space-y-4 animate-fade-in flex flex-col h-full">
                                     <div className="flex items-center gap-3">
                                         <div className="w-1.5 h-6 bg-primary rounded-full"></div>
@@ -488,10 +471,8 @@ const CoachParticipants: React.FC = () => {
                             )}
                         </div>
 
-                        {/* FEEDBACK FORM / CHAT INPUT */}
                         <div className="p-8 border-t border-gray-50 bg-gray-50/30 flex-shrink-0">
                             {isChatOpen ? (
-                                /* Standard Chat Input Bar (Like Participants) */
                                 <div className="space-y-4">
                                     <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-2">Message Participant</h4>
                                     <form onSubmit={handleSendFeedback} className="flex gap-2 items-center">
@@ -521,7 +502,6 @@ const CoachParticipants: React.FC = () => {
                                     </button>
                                 </div>
                             ) : (
-                                /* Initial Feedback Interface */
                                 <>
                                     <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-4">
                                         {hasAlreadySentFeedback ? "Today's Guidance Sent" : 'Send Direct Feedback'}

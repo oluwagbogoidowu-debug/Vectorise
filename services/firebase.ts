@@ -13,42 +13,43 @@ const firebaseConfig = {
   measurementId: "G-M7NVQD0H7B"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
 /**
- * Initialize Firestore with forced long-polling.
- * This is the most robust setting for AI Studio and restricted network environments 
- * where WebSockets often fail or time out.
+ * Hardened Firestore configuration.
+ * experimentalForceLongPolling: true is required for environments where WebSockets are blocked.
+ * useFetchStreams: false prevents connectivity issues in browsers with restrictive streaming policies.
  */
 export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true, 
-  ignoreUndefinedProperties: true,
-  useFetchStreams: false, 
+  experimentalForceLongPolling: true,
+  useFetchStreams: false,
+  ignoreUndefinedProperties: true
 });
 
 export const auth = getAuth(app);
 const analytics = getAnalytics(app);
 
-// Enable persistence for offline capability
-enableIndexedDbPersistence(db).catch((err) => {
+// Enable persistence for offline capability with more robust error checking
+if (typeof window !== 'undefined') {
+  enableIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {
-        console.warn("Persistence failed: Multiple tabs open.");
+      console.warn("[Firestore] Persistence failed: Multiple tabs open.");
     } else if (err.code === 'unimplemented') {
-        console.warn("Persistence failed: Browser doesn't support indexedDB.");
+      console.warn("[Firestore] Persistence failed: Browser doesn't support indexedDB.");
     }
-});
+  });
+}
 
 /**
  * Utility to restart Firestore if connection is dropped
  */
 export const reconnectFirestore = async () => {
-    try {
-        await terminate(db);
-        window.location.reload();
-    } catch (e) {
-        console.error("Firestore Reconnect failed");
-    }
+  try {
+    await terminate(db);
+    window.location.reload();
+  } catch (e) {
+    console.error("[Firestore] Reconnect failed", e);
+  }
 };
 
 export default app;

@@ -34,7 +34,6 @@ import { sprintService } from './services/sprintService';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import { analyticsTracker } from './services/analyticsTracker';
 
-// Added missing imports for onboarding and coach-related pages
 import FocusSelector from './pages/Onboarding/FocusSelector';
 import ProgramDescription from './pages/Onboarding/ProgramDescription';
 import CommitmentFraming from './pages/Onboarding/CommitmentFraming';
@@ -51,7 +50,6 @@ import CoachParticipants from './pages/Coach/CoachParticipants';
 import CoachEarnings from './pages/Coach/CoachEarnings';
 import CoachImpact from './pages/Coach/CoachImpact';
 
-// Added missing imports for impact dashboard and success pages
 import ImpactDashboard from './pages/Participant/Impact/ImpactDashboard';
 import ReferralShare from './pages/Participant/Impact/ReferralShare';
 import RippleEffect from './pages/Participant/Impact/RippleEffect';
@@ -69,27 +67,24 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
   const { user, activeRole, loading } = useAuth();
 
   if (loading) {
-      return (
-          <div className="min-h-screen flex items-center justify-center bg-light">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          </div>
-      );
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-light">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
   }
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  const roleMatches = roles.includes(activeRole) || roles.includes(user.role);
+  // Admins bypass role checks
+  if (user.role === UserRole.ADMIN) return <>{children}</>;
 
-  if (!roleMatches) {
-      if (roles.includes(UserRole.COACH) && activeRole === UserRole.PARTICIPANT) {
-          return <Navigate to="/dashboard" replace />;
-      }
-      if (roles.includes(UserRole.PARTICIPANT) && activeRole === UserRole.COACH) {
-           return <Navigate to="/coach/dashboard" replace />;
-      }
-      return <Navigate to="/dashboard" replace />;
+  const hasAccess = roles.includes(user.role as UserRole) || roles.includes(activeRole);
+
+  if (!hasAccess) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -100,29 +95,22 @@ const AppRoutes: React.FC = () => {
   const location = useLocation();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
-  // Capture PWA Install Prompt event
   useEffect(() => {
     const handler = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
     };
     window.addEventListener('beforeinstallprompt', handler);
-    window.addEventListener('appinstalled', () => {
-      localStorage.setItem('vec_pwa_installed', 'true');
-      setDeferredPrompt(null);
-    });
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  // ANALYTICS: Track Route Changes & Handle Identification
   useEffect(() => {
     if (user) {
-        analyticsTracker.identify(user.id, user.email);
+      analyticsTracker.identify(user.id, user.email);
     }
     analyticsTracker.trackEvent('page_view', { path: location.pathname + location.hash }, user?.id, user?.email);
   }, [location.pathname, location.hash, user?.id]);
 
-  // GLOBAL REFERRAL TRACKER
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const refFromUrl = urlParams.get('ref');
@@ -191,6 +179,8 @@ const AppRoutes: React.FC = () => {
           <Route path="/partner" element={<PartnerPage />} />
           <Route path="/partner/apply" element={<PartnerApply />} />
           <Route path="/partner/dashboard" element={<ProtectedRoute roles={[UserRole.PARTNER, UserRole.ADMIN]}><PartnerDashboard /></ProtectedRoute>} />
+          
+          {/* Consolidated Onboarding Paths */}
           <Route path="/onboarding/welcome" element={<Welcome />} />
           <Route path="/onboarding/focus-selector" element={<FocusSelector />} />
           <Route path="/onboarding/description/:sprintId" element={<ProgramDescription />} />
@@ -199,19 +189,25 @@ const AppRoutes: React.FC = () => {
           <Route path="/onboarding/map" element={<TheMap />} />
           <Route path="/onboarding/intro" element={<QuizIntro />} />
           <Route path="/onboarding/quiz" element={<Quiz />} />
+          
+          {/* Coach Specific Onboarding */}
           <Route path="/onboarding/coach/welcome" element={<CoachWelcome />} />
           <Route path="/onboarding/coach/intro" element={<CoachQuizIntro />} />
           <Route path="/onboarding/coach/quiz" element={<CoachQuiz />} />
           <Route path="/coach/onboarding/complete" element={<CoachOnboardingComplete />} />
           <Route path="/join/:referralCode/:sprintId" element={<SprintInviteLanding />} />
+          
+          {/* Authenticated Dashboard Core */}
           <Route path="/dashboard" element={
             <ProtectedRoute roles={[UserRole.COACH, UserRole.PARTICIPANT, UserRole.ADMIN, UserRole.PARTNER]}>
-              {activeRole === UserRole.COACH && <Navigate to="/coach/dashboard" />}
-              {activeRole === UserRole.ADMIN && <Navigate to="/admin/dashboard" />}
-              {activeRole === UserRole.PARTNER && <Navigate to="/partner/dashboard" />}
+              {activeRole === UserRole.COACH && <Navigate to="/coach/dashboard" replace />}
+              {activeRole === UserRole.ADMIN && <Navigate to="/admin/dashboard" replace />}
+              {activeRole === UserRole.PARTNER && <Navigate to="/partner/dashboard" replace />}
               {(activeRole === UserRole.PARTICIPANT || activeRole === UserRole.PARTNER) && <ParticipantLayout><ParticipantDashboard /></ParticipantLayout>}
             </ProtectedRoute>
           } />
+          
+          {/* Coach Track */}
           <Route element={<ProtectedRoute roles={[UserRole.COACH]}><CoachLayout /></ProtectedRoute>}>
              <Route path="/coach/dashboard" element={<CoachDashboard />} />
              <Route path="/coach/sprints" element={<CoachSprints />} />
@@ -222,6 +218,8 @@ const AppRoutes: React.FC = () => {
           </Route>
           <Route path="/coach/sprint/new" element={<ProtectedRoute roles={[UserRole.COACH]}><CreateSprint /></ProtectedRoute>} />
           <Route path="/coach/sprint/edit/:sprintId" element={<ProtectedRoute roles={[UserRole.COACH, UserRole.ADMIN]}><EditSprint /></ProtectedRoute>} />
+          
+          {/* Participant Track */}
           <Route element={<ProtectedRoute roles={[UserRole.PARTICIPANT, UserRole.PARTNER]}><ParticipantLayout /></ProtectedRoute>}>
              <Route path="/discover" element={<DiscoverSprints />} />
              <Route path="/my-sprints" element={<MySprints />} />
@@ -234,6 +232,7 @@ const AppRoutes: React.FC = () => {
              <Route path="/impact/rewards" element={<GrowthRewards />} />
              <Route path="/impact/badges" element={<Badges />} />
           </Route>
+          
           <Route path="/participant/sprint/:enrollmentId" element={
               <ProtectedRoute roles={[UserRole.PARTICIPANT, UserRole.COACH, UserRole.ADMIN, UserRole.PARTNER]}>
                   <ParticipantLayout>
@@ -241,13 +240,17 @@ const AppRoutes: React.FC = () => {
                   </ParticipantLayout>
               </ProtectedRoute>
           } />
+          
           <Route path="/impact/success" element={<ReferralSuccess />} />
           <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route path="/sprint/:sprintId" element={<SprintLandingPage />} />
+          
+          {/* Admin Track */}
           <Route path="/admin/dashboard" element={<ProtectedRoute roles={[UserRole.ADMIN]}><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/analytics/user/:identifier" element={<ProtectedRoute roles={[UserRole.ADMIN]}><UserAnalyticsDetail /></ProtectedRoute>} />
           <Route path="/admin/sprint/new" element={<ProtectedRoute roles={[UserRole.ADMIN]}><CreateFoundationalSprint /></ProtectedRoute>} />
-          <Route path="*" element={<Navigate to="/" />} />
+          
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
       {showParticipantNav && <BottomNavigation />}
