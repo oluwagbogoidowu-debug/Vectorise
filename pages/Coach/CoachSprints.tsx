@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext.tsx';
-import { Sprint } from '../../types.ts';
-import { sprintService } from '../../services/sprintService.ts';
-import { assetService } from '../../services/assetService.ts';
-import Button from '../../components/Button.tsx';
+import { useAuth } from '../../contexts/AuthContext';
+import { Sprint } from '../../types';
+import { sprintService } from '../../services/sprintService';
+import { assetService } from '../../services/assetService';
+import Button from '../../components/Button';
 
 const DeleteConfirmationModal: React.FC<{
     sprint: Sprint;

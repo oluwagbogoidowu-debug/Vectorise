@@ -30,7 +30,7 @@ const Profile: React.FC = () => {
           return { enrollment: en, sprint, coach: (coachData as Coach) || null };
         }));
         
-        setEnrollments(enriched.filter((x): x is { enrollment: ParticipantSprint; sprint: Sprint; coach: Coach | null } => x !== null));
+        setEnrollments(enriched.filter((x) => x !== null) as any);
         setIntentInput((user as Participant).intention || '');
       } catch (err) {
         console.error("Profile sync failed:", err);

@@ -1,28 +1,38 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import admin from 'firebase-admin';
+const admin = require('firebase-admin');
 
-let serviceAccount: any;
-try {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string);
-    if (serviceAccount.private_key) {
-      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+/**
+ * Initializes Firebase Admin in a way that is safe for serverless environments.
+ */
+function getDb() {
+  if (admin.apps.length > 0) return admin.firestore();
+
+  let serviceAccount;
+  try {
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+      
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id || 'vectorise-f19d4'
+      });
+      return admin.firestore();
     }
+  } catch (err) {
+    console.error("[Webhook] Firebase Admin key parsing failed:", err);
   }
-} catch (err) {
-  console.error("Firebase key parse failed:", err);
+
+  try {
+    admin.initializeApp();
+    return admin.firestore();
+  } catch (e) {
+    return null;
+  }
 }
 
-if (!admin.apps.length && serviceAccount) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: serviceAccount.project_id || 'vectorise-f19d4'
-  });
-}
-
-const db = admin.firestore();
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: `Method ${req.method} not allowed` });
@@ -37,6 +47,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    const db = getDb();
+    if (!db) return res.status(500).json({ error: "Database unreachable" });
+
     const payload = req.body;
     
     if (payload.event !== 'charge.completed' || payload.data.status !== 'successful') {
@@ -113,8 +126,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     return res.status(200).send('Webhook Processed Successfully');
-  } catch (error: any) {
+  } catch (error) {
     console.error("[Webhook] Critical failure:", error);
     return res.status(500).json({ error: "Internal processing error" });
   }
-}
+};

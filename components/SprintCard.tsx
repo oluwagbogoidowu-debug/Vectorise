@@ -96,7 +96,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
             )}
 
             <CardContainer 
-                {...containerProps} 
+                {...(containerProps as any)} 
                 className={`bg-white rounded-[3rem] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] transition-all duration-700 flex flex-col border border-gray-100/60 overflow-hidden h-full group ${!isStatic ? 'hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-2 cursor-pointer' : 'cursor-default'}`}
             >
                 <div className="relative h-60 overflow-hidden bg-gray-100">

@@ -32,7 +32,7 @@ const CoachDashboard: React.FC = () => {
               if (sprintIds.length > 0) {
                   // 1. Get student counts
                   const enrollments = await sprintService.getEnrollmentsForSprints(sprintIds);
-                  setTotalStudentsCount(new Set(enrollments.map(e => e.participantId)).size);
+                  setTotalStudentsCount(new Set(enrollments.map(e => e.user_id)).size);
 
                   // 2. Subscribe to real-time reviews for impact score
                   unsubscribeReviews = sprintService.subscribeToReviewsForSprints(sprintIds, (updatedReviews) => {
