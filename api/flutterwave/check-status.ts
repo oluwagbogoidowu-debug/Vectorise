@@ -1,4 +1,4 @@
-import admin from '../../lib/firebaseAdmin';
+import admin from '../../lib/firebaseAdmin.js';
 
 export default async (req: any, res: any) => {
   const { tx_ref } = req.query;
