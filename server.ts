@@ -7,6 +7,8 @@ import { fileURLToPath } from 'url';
 // @ts-ignore
 import provisionPartner from './api/admin/provision-partner.js';
 // @ts-ignore
+import paymentSuccess from './api/payment-success.js';
+// @ts-ignore
 import initiatePayment from './api/flutterwave/initiate.js';
 // @ts-ignore
 import checkStatus from './api/flutterwave/check-status.js';
@@ -28,12 +30,8 @@ async function startServer() {
   app.post('/api/flutterwave/initiate', initiatePayment);
   app.get('/api/flutterwave/check-status', checkStatus);
   app.post('/api/flutterwave/webhook', webhook);
-
-  // Redirect for payment success to handle HashRouter
-  app.get('/payment-success', (req, res) => {
-    const query = new URLSearchParams(req.query as any).toString();
-    res.redirect(`/#/payment-success?${query}`);
-  });
+  app.get('/api/payment-success', paymentSuccess);
+  app.get('/payment-success', paymentSuccess);
 
   // Health check
   app.get('/api/health', (req, res) => {
