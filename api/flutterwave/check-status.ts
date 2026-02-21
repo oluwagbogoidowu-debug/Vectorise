@@ -1,43 +1,11 @@
-import admin from 'firebase-admin';
-
-/**
- * Initializes Firebase Admin in a way that is safe for serverless environments.
- */
-function getDb() {
-  if (admin.apps.length > 0) return admin.firestore();
-
-  let serviceAccount: any;
-  try {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-      if (serviceAccount.private_key) {
-        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-      }
-      
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        projectId: serviceAccount.project_id || 'vectorise-f19d4'
-      });
-      return admin.firestore();
-    }
-  } catch (err) {
-    console.error("[Status] Firebase Admin key parsing failed:", err);
-  }
-
-  try {
-    admin.initializeApp();
-    return admin.firestore();
-  } catch (e) {
-    return null;
-  }
-}
+import admin from '../../lib/firebaseAdmin';
 
 export default async (req: any, res: any) => {
   const { tx_ref } = req.query;
   if (!tx_ref) return res.status(400).json({ error: "Missing tx_ref" });
 
   try {
-    const db = getDb();
+    const db = admin.firestore();
     if (!db) return res.status(500).json({ error: "Database unreachable" });
 
     const paymentRef = db.collection('payments').doc(tx_ref as string);
