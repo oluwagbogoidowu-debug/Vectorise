@@ -1,6 +1,6 @@
-const admin = require('firebase-admin');
+import admin from 'firebase-admin';
 
-let serviceAccount;
+let serviceAccount: any;
 try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
     serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
@@ -22,7 +22,7 @@ if (!admin.apps.length && serviceAccount) {
 const db = admin.firestore();
 const auth = admin.auth();
 
-module.exports = async (req, res) => {
+export default async (req: any, res: any) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -70,7 +70,7 @@ module.exports = async (req, res) => {
     });
 
     return res.status(200).json({ status: 'success', uid });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Backend] Partner Provisioning Error:", error);
     return res.status(500).json({ error: error.message });
   }

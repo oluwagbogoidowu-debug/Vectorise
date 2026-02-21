@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+import admin from 'firebase-admin';
 
 /**
  * Initializes Firebase Admin in a way that is safe for serverless environments.
@@ -6,7 +6,7 @@ const admin = require('firebase-admin');
 function getDb() {
   if (admin.apps.length > 0) return admin.firestore();
 
-  let serviceAccount;
+  let serviceAccount: any;
   try {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
       serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
@@ -32,7 +32,7 @@ function getDb() {
   }
 }
 
-module.exports = async (req, res) => {
+export default async (req: any, res: any) => {
   const { tx_ref } = req.query;
   if (!tx_ref) return res.status(400).json({ error: "Missing tx_ref" });
 
@@ -40,12 +40,12 @@ module.exports = async (req, res) => {
     const db = getDb();
     if (!db) return res.status(500).json({ error: "Database unreachable" });
 
-    const paymentRef = db.collection('payments').doc(tx_ref);
+    const paymentRef = db.collection('payments').doc(tx_ref as string);
     let paymentDoc = await paymentRef.get();
     
     if (!paymentDoc.exists) return res.status(200).json({ status: "pending" });
 
-    let data = paymentDoc.data();
+    let data = paymentDoc.data() as any;
 
     // If still pending, proactively verify with Flutterwave to overcome possible webhook delays
     if (data.status === 'pending') {
@@ -65,7 +65,7 @@ module.exports = async (req, res) => {
             
             await db.runTransaction(async (transaction) => {
               const freshSnap = await transaction.get(paymentRef);
-              const freshData = freshSnap.data();
+              const freshData = freshSnap.data() as any;
               
               if (freshData.status === 'successful' || freshData.status === 'success') return;
 
@@ -81,8 +81,8 @@ module.exports = async (req, res) => {
 
               const enrollmentId = `enrollment_${userId}_${sprintId}`;
               const sprintSnap = await transaction.get(db.collection('sprints').doc(sprintId));
-              const duration = sprintSnap.exists() ? (sprintSnap.data().duration || 7) : 7;
-              const coachId = sprintSnap.exists() ? sprintSnap.data().coachId : '';
+              const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
+              const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
 
               transaction.set(db.collection('enrollments').doc(enrollmentId), {
                 id: enrollmentId,
@@ -101,7 +101,7 @@ module.exports = async (req, res) => {
 
             data.status = 'successful';
           }
-        } catch (verifyErr) {
+        } catch (verifyErr: any) {
           console.warn("[Registry] Proactive Verify Warning:", verifyErr.message);
         }
       }

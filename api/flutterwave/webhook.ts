@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+import admin from 'firebase-admin';
 
 /**
  * Initializes Firebase Admin in a way that is safe for serverless environments.
@@ -6,7 +6,7 @@ const admin = require('firebase-admin');
 function getDb() {
   if (admin.apps.length > 0) return admin.firestore();
 
-  let serviceAccount;
+  let serviceAccount: any;
   try {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
       serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
@@ -32,7 +32,7 @@ function getDb() {
   }
 }
 
-module.exports = async (req, res) => {
+export default async (req: any, res: any) => {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: `Method ${req.method} not allowed` });
@@ -126,7 +126,7 @@ module.exports = async (req, res) => {
     });
 
     return res.status(200).send('Webhook Processed Successfully');
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Webhook] Critical failure:", error);
     return res.status(500).json({ error: "Internal processing error" });
   }

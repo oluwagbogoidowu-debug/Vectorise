@@ -5,13 +5,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 // @ts-ignore
-import provisionPartner from './api/admin/provision-partner.js';
+import provisionPartner from './api/admin/provision-partner';
 // @ts-ignore
-import initiatePayment from './api/flutterwave/initiate.js';
+import initiatePayment from './api/flutterwave/initiate';
 // @ts-ignore
-import checkStatus from './api/flutterwave/check-status.js';
+import checkStatus from './api/flutterwave/check-status';
 // @ts-ignore
-import webhook from './api/flutterwave/webhook.js';
+import webhook from './api/flutterwave/webhook';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

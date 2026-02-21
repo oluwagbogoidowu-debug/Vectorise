@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+import admin from 'firebase-admin';
 
 /**
  * Initializes Firebase Admin in a way that is safe for serverless environments.
@@ -6,7 +6,7 @@ const admin = require('firebase-admin');
 function getDb() {
   if (admin.apps.length > 0) return admin.firestore();
 
-  let serviceAccount;
+  let serviceAccount: any;
   try {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
       serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
@@ -34,7 +34,7 @@ function getDb() {
   }
 }
 
-module.exports = async (req, res) => {
+export default async (req: any, res: any) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -108,7 +108,7 @@ module.exports = async (req, res) => {
     }
 
     return res.status(200).json(data);
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Registry] Initiate Error:", error);
     return res.status(500).json({ error: error.message || "Internal server error during payment initiation." });
   }
