@@ -8,70 +8,95 @@ const PaymentSuccess: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { user } = useAuth();
-    const [status, setStatus] = useState<'verifying' | 'successful' | 'failed' | 'pending'>('verifying');
+    const [status, setStatus] = useState<'verifying' | 'successful' | 'failed' | 'pending' | 'cancelled'>('verifying');
     const [retryCount, setRetryCount] = useState(0);
 
-    const tx_ref = useMemo(() => {
+    const queryParams = useMemo(() => {
         const params = new URLSearchParams(location.search || window.location.hash.split('?')[1]);
-        return params.get('tx_ref') || params.get('transaction_id');
+        return {
+            tx_ref: params.get('tx_ref') || params.get('transaction_id'),
+            status: params.get('status')
+        };
     }, [location]);
 
+    const { tx_ref, status: urlStatus } = queryParams;
+
     useEffect(() => {
+        // 1. Handle missing reference
         if (!tx_ref) {
             setStatus('failed');
             return;
         }
 
-        // Use any to avoid NodeJS namespace issue in browser environment
+        // 2. Handle explicit cancellation from URL
+        if (urlStatus === 'cancelled') {
+            setStatus('cancelled');
+            return;
+        }
+
+        // 3. Polling logic for successful or pending payments
         let pollInterval: any;
+        let timeoutFallback: any;
 
         const checkStatus = async () => {
-            const data = await paymentService.checkPaymentStatus(tx_ref);
-            
-            if (data.status === 'successful' || data.status === 'success') {
-                setStatus('successful');
-                clearInterval(pollInterval);
+            try {
+                const data = await paymentService.checkPaymentStatus(tx_ref);
                 
-                // Redirect logic
-                setTimeout(() => {
-                    if (!user && data.userId?.startsWith('guest_')) {
-                        // Guest flow: Redirect to signup to establish identity
-                        navigate('/signup', { 
-                            state: { 
-                                fromPayment: true, 
-                                targetSprintId: data.sprintId,
-                                prefilledEmail: data.email || '', // We might need to ensure email is returned
-                                tx_ref: tx_ref
-                            },
-                            replace: true 
-                        });
-                    } else {
-                        // Logged in flow: Redirect to sprint view or dashboard
-                        const finalUserId = user?.id || data.userId;
-                        const enrollmentId = `enrollment_${finalUserId}_${data.sprintId}`;
-                        navigate(`/participant/sprint/${enrollmentId}`, { replace: true });
-                    }
-                }, 2000);
-            } else if (data.status === 'failed') {
-                setStatus('failed');
-                clearInterval(pollInterval);
-            } else {
-                setStatus('pending');
-                setRetryCount(prev => prev + 1);
+                if (data.status === 'successful' || data.status === 'success') {
+                    setStatus('successful');
+                    clearInterval(pollInterval);
+                    clearTimeout(timeoutFallback);
+                    
+                    // Redirect logic
+                    setTimeout(() => {
+                        if (!user && data.userId?.startsWith('guest_')) {
+                            // Guest flow: Redirect to signup to establish identity
+                            navigate('/signup', { 
+                                state: { 
+                                    fromPayment: true, 
+                                    targetSprintId: data.sprintId,
+                                    prefilledEmail: data.email || '',
+                                    tx_ref: tx_ref
+                                },
+                                replace: true 
+                            });
+                        } else {
+                            // Logged in flow: Redirect to sprint view or dashboard
+                            const finalUserId = user?.id || data.userId;
+                            const enrollmentId = `enrollment_${finalUserId}_${data.sprintId}`;
+                            navigate(`/participant/sprint/${enrollmentId}`, { replace: true });
+                        }
+                    }, 2000);
+                } else if (data.status === 'failed') {
+                    setStatus('failed');
+                    clearInterval(pollInterval);
+                    clearTimeout(timeoutFallback);
+                } else {
+                    setStatus('pending');
+                    setRetryCount(prev => prev + 1);
+                }
+            } catch (err) {
+                console.error("Status check failed:", err);
             }
         };
 
+        // Start polling
         checkStatus();
-        pollInterval = setInterval(checkStatus, 3000); // Poll every 3 seconds
+        pollInterval = setInterval(checkStatus, 3000);
 
-        // Stop polling after 2 minutes to prevent infinite loops
-        const timeout = setTimeout(() => clearInterval(pollInterval), 120000);
+        // 4. Timeout fallback (60 seconds)
+        timeoutFallback = setTimeout(() => {
+            clearInterval(pollInterval);
+            if (status === 'verifying' || status === 'pending') {
+                setStatus('failed');
+            }
+        }, 60000);
 
         return () => {
             clearInterval(pollInterval);
-            clearTimeout(timeout);
+            clearTimeout(timeoutFallback);
         };
-    }, [tx_ref, navigate, user]);
+    }, [tx_ref, urlStatus, navigate, user]);
 
     return (
         <div className="min-h-screen bg-[#FDFDFD] flex flex-col items-center justify-center p-6 text-center font-sans">
@@ -115,6 +140,22 @@ const PaymentSuccess: React.FC = () => {
                                 <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mt-3">Registry identity updated.</p>
                             </div>
                             <p className="text-sm text-gray-500 font-medium italic mt-6">"Authorizing your journey..."</p>
+                        </div>
+                    ) : status === 'cancelled' ? (
+                        <div className="space-y-6 animate-fade-in">
+                            <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-[2rem] flex items-center justify-center mx-auto text-4xl shadow-inner border border-amber-100">!</div>
+                            <div>
+                                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">Cancelled</h1>
+                                <p className="text-sm text-gray-500 font-medium leading-relaxed mt-4 italic">
+                                    Your payment was cancelled. No charges were made.
+                                </p>
+                            </div>
+                            <button 
+                                onClick={() => navigate('/onboarding/focus-selector', { replace: true })} 
+                                className="w-full py-4 bg-gray-900 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all"
+                            >
+                                Return to Registry
+                            </button>
                         </div>
                     ) : (
                         <div className="space-y-6 animate-fade-in">
