@@ -55,6 +55,7 @@ const ParticipantDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [mySprints, setMySprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
+  const [queuedSprints, setQueuedSprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
   const [timeToMidnight, setTimeToMidnight] = useState<string>('00:00:00');
@@ -70,10 +71,17 @@ const ParticipantDashboard: React.FC = () => {
                 const sprint = await sprintService.getSprintById(enrollment.sprint_id);
                 return (sprint && enrollment) ? { enrollment, sprint } : null;
             }));
+            
             const activeOnly = enriched.filter((item): item is { enrollment: ParticipantSprint; sprint: Sprint } => {
                 return item !== null && item.enrollment.status === 'active';
             });
+            
+            const queuedOnly = enriched.filter((item): item is { enrollment: ParticipantSprint; sprint: Sprint } => {
+                return item !== null && item.enrollment.status === 'queued';
+            });
+
             setMySprints(activeOnly);
+            setQueuedSprints(queuedOnly);
         } catch (err) {
             console.error(err);
         } finally {
@@ -276,6 +284,34 @@ const ParticipantDashboard: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {queuedSprints.length > 0 && (
+                <div className="mb-6 animate-fade-in">
+                    <div className="flex justify-between items-center mb-3 px-1">
+                        <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Next in Queue</h2>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2">
+                        {queuedSprints.map(({ enrollment, sprint }) => (
+                            <Link key={enrollment.id} to={`/participant/sprint/${enrollment.id}`} className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm flex items-center justify-between group hover:border-primary/20 transition-all">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100">
+                                        <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 className="text-[11px] font-black text-gray-900 leading-tight group-hover:text-primary transition-colors">{sprint.title}</h4>
+                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{sprint.duration} Days • {sprint.category}</p>
+                                    </div>
+                                </div>
+                                <div className="px-2 py-1 bg-primary/5 rounded-lg border border-primary/10">
+                                    <span className="text-[7px] font-black text-primary uppercase tracking-widest">Queued</span>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center flex-shrink-0 animate-fade-in">
                 <p className="text-gray-600 font-bold italic text-xs mb-1">

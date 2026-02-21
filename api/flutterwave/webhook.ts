@@ -56,6 +56,9 @@ export default async (req: any, res: any) => {
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
+      // If it's a guest, we don't create the enrollment yet.
+      if (userId.startsWith('guest_')) return;
+
       const userRef = db.collection('users').doc(userId);
       transaction.update(userRef, {
         enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sprintId)
@@ -63,6 +66,15 @@ export default async (req: any, res: any) => {
 
       const enrollmentId = `enrollment_${userId}_${sprintId}`;
       const enrollmentRef = db.collection('enrollments').doc(enrollmentId);
+      
+      // Check for active enrollments
+      const activeEnrollments = await db.collection('enrollments')
+        .where('user_id', '==', userId)
+        .where('status', '==', 'active')
+        .get();
+      
+      const hasActive = !activeEnrollments.empty;
+
       const sprintSnap = await transaction.get(db.collection('sprints').doc(sprintId));
       const duration = sprintSnap.data()?.duration || 7;
 
@@ -74,7 +86,7 @@ export default async (req: any, res: any) => {
         started_at: new Date().toISOString(),
         price_paid: Number(amount),
         currency: currency,
-        status: 'active',
+        status: hasActive ? 'queued' : 'active',
         last_activity_at: new Date().toISOString(),
         progress: Array.from({ length: duration }, (_, i) => ({ 
           day: i + 1, 

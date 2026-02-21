@@ -31,10 +31,26 @@ const PaymentSuccess: React.FC = () => {
             if (data.status === 'successful' || data.status === 'success') {
                 setStatus('successful');
                 clearInterval(pollInterval);
-                // Redirect into the sprint experience
+                
+                // Redirect logic
                 setTimeout(() => {
-                    const enrollmentId = `enrollment_${user?.id}_${data.sprintId}`;
-                    navigate(`/participant/sprint/${enrollmentId}`, { replace: true });
+                    if (!user && data.userId?.startsWith('guest_')) {
+                        // Guest flow: Redirect to signup to establish identity
+                        navigate('/signup', { 
+                            state: { 
+                                fromPayment: true, 
+                                targetSprintId: data.sprintId,
+                                prefilledEmail: data.email || '', // We might need to ensure email is returned
+                                tx_ref: tx_ref
+                            },
+                            replace: true 
+                        });
+                    } else {
+                        // Logged in flow: Redirect to sprint view or dashboard
+                        const finalUserId = user?.id || data.userId;
+                        const enrollmentId = `enrollment_${finalUserId}_${data.sprintId}`;
+                        navigate(`/participant/sprint/${enrollmentId}`, { replace: true });
+                    }
                 }, 2000);
             } else if (data.status === 'failed') {
                 setStatus('failed');
@@ -75,6 +91,20 @@ const PaymentSuccess: React.FC = () => {
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-4">
                                     Checking Registry source of truth...
                                 </p>
+                                
+                                {retryCount > 10 && (
+                                    <div className="mt-8 animate-fade-in">
+                                        <p className="text-[10px] text-gray-400 font-bold italic mb-4">
+                                            Verification is taking longer than expected...
+                                        </p>
+                                        <button 
+                                            onClick={() => window.location.reload()}
+                                            className="px-6 py-3 bg-gray-50 border border-gray-100 rounded-xl text-[9px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-all"
+                                        >
+                                            Force Refresh
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ) : status === 'successful' ? (

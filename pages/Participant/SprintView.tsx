@@ -299,6 +299,24 @@ const SprintView: React.FC = () => {
                 </div>
 
                 <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden min-h-[400px]">
+                    {enrollment.status === 'queued' && (
+                        <div className="absolute inset-0 z-20 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center text-center p-8 animate-fade-in">
+                            <div className="mb-6 opacity-20">
+                                <LocalLogo type="favicon" className="w-32 h-32" />
+                            </div>
+                            <h2 className="text-2xl font-black text-gray-900 tracking-tight italic mb-2">In the Queue.</h2>
+                            <p className="text-sm text-gray-500 font-medium mb-10 max-w-xs">
+                                You have an active sprint running. This journey will automatically unlock once your current focus is complete.
+                            </p>
+                            <button 
+                                onClick={() => navigate('/dashboard')}
+                                className="px-8 py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95"
+                            >
+                                Return to Active Focus
+                            </button>
+                        </div>
+                    )}
+
                     {dayLockDetails.isLocked && (
                         <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-md flex flex-col items-center justify-center text-center p-8 animate-fade-in">
                             <div className="mb-6 opacity-20">

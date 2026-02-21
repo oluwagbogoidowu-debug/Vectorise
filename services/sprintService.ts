@@ -153,7 +153,7 @@ export const sprintService = {
         commercial?: { 
             coachId?: string, 
             pricePaid?: number, 
-            currency?: string, // Added currency to commercial options
+            currency?: string,
             source?: PaymentSource, 
             referral?: string | null 
         }
@@ -164,8 +164,16 @@ export const sprintService = {
         
         if (existing.exists()) return sanitizeData(existing.data()) as ParticipantSprint;
 
+        // Check for active enrollments to determine if this should be queued
+        const activeQuery = query(
+            collection(db, ENROLLMENTS_COLLECTION), 
+            where("user_id", "==", userId), 
+            where("status", "==", "active")
+        );
+        const activeSnap = await getDocs(activeQuery);
+        const hasActive = !activeSnap.empty;
+
         const now = new Date().toISOString();
-        // Added missing 'currency' property to newEnrollment
         const newEnrollment: ParticipantSprint = {
             id: enrollmentId,
             sprint_id: sprintId,
@@ -176,7 +184,7 @@ export const sprintService = {
             currency: commercial?.currency || 'NGN',
             payment_source: commercial?.source || 'direct',
             referral_source: commercial?.referral || null,
-            status: 'active',
+            status: hasActive ? 'queued' : 'active',
             last_activity_at: now,
             sentNudges: [],
             progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))

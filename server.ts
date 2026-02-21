@@ -29,6 +29,12 @@ async function startServer() {
   app.get('/api/flutterwave/check-status', checkStatus);
   app.post('/api/flutterwave/webhook', webhook);
 
+  // Redirect for payment success to handle HashRouter
+  app.get('/payment-success', (req, res) => {
+    const query = new URLSearchParams(req.query as any).toString();
+    res.redirect(`/#/payment-success?${query}`);
+  });
+
   // Health check
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });

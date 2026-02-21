@@ -45,7 +45,8 @@ export default async (req: any, res: any) => {
 
     const host = req.headers.host || 'vectorise.online';
     const protocol = host.includes('localhost') ? 'http' : 'https';
-    const redirectUrl = `${protocol}://${host}/#/payment-success?tx_ref=${tx_ref}`;
+    const baseUrl = process.env.APP_URL || `${protocol}://${host}`;
+    const redirectUrl = `${baseUrl}/payment-success?tx_ref=${tx_ref}`;
 
     // Initialize Flutterwave payment
     const flwResponse = await fetch("https://api.flutterwave.com/v3/payments", {

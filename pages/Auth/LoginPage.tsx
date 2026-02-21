@@ -3,8 +3,9 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/Button';
 import LocalLogo from '../../components/LocalLogo';
-import { auth } from '../../services/firebase';
+import { auth, db } from '../../services/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, updateDoc } from 'firebase/firestore';
 import { sprintService } from '../../services/sprintService';
 import { UserRole } from '../../types';
 
@@ -24,6 +25,7 @@ const LoginPage: React.FC = () => {
 
   // Intent capture from payment success flow
   const targetSprintId = location.state?.targetSprintId;
+  const tx_ref = location.state?.tx_ref;
 
   useEffect(() => {
       // Sync state if initialEmail changes
@@ -37,6 +39,19 @@ const LoginPage: React.FC = () => {
           if (user) {
               if (user.role === UserRole.PARTICIPANT) {
                   try {
+                      // 0. Claim payment if applicable
+                      if (tx_ref) {
+                          try {
+                              const paymentRef = doc(db, 'payments', tx_ref);
+                              await updateDoc(paymentRef, {
+                                  userId: user.id,
+                                  claimedAt: new Date().toISOString()
+                              });
+                          } catch (claimError) {
+                              console.error("Failed to claim payment:", claimError);
+                          }
+                      }
+
                       // 1. Check for payment-driven enrollment intent - Use replace: true
                       if (targetSprintId) {
                           const sprint = await sprintService.getSprintById(targetSprintId);

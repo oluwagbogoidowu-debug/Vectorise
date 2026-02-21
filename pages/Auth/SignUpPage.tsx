@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { auth } from '../../services/firebase';
+import { auth, db } from '../../services/firebase';
 import { createUserWithEmailAndPassword, updateProfile as updateFbProfile, sendEmailVerification } from 'firebase/auth';
+import { doc, updateDoc } from 'firebase/firestore';
 import { userService } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { UserRole, Participant } from '../../types';
@@ -38,6 +39,7 @@ const SignUpPage: React.FC = () => {
     prefilledLastName,
     fromPayment, 
     targetSprintId = savedSprint,
+    tx_ref,
     isPartnerApplication,
     partnerData 
   } = onboardingState;
@@ -94,12 +96,25 @@ const SignUpPage: React.FC = () => {
       
       await userService.createUserDocument(firebaseUser.uid, newUser);
 
-      // 3. Clean up used tracking data
+      // 3. Claim Payment if applicable
+      if (tx_ref) {
+          try {
+              const paymentRef = doc(db, 'payments', tx_ref);
+              await updateDoc(paymentRef, {
+                  userId: firebaseUser.uid,
+                  claimedAt: new Date().toISOString()
+              });
+          } catch (claimError) {
+              console.error("Failed to claim payment:", claimError);
+          }
+      }
+
+      // 4. Clean up used tracking data
       localStorage.removeItem('vectorise_ref');
       localStorage.removeItem('vectorise_last_sprint');
       document.cookie = "vectorise_ref=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
-      // 4. Post-Payment Fulfillment
+      // 5. Post-Payment Fulfillment
       if (fromPayment && targetSprintId) {
           try {
               const sprint = await sprintService.getSprintById(targetSprintId);
@@ -176,7 +191,7 @@ const SignUpPage: React.FC = () => {
             </form>
 
             <p className="mt-8 text-center text-[9px] font-black text-gray-300 uppercase tracking-widest">
-                Already have an account? <Link to="/login" state={{ targetSprintId, prefilledEmail: email }} className="text-primary hover:underline">Log in</Link>
+                Already have an account? <Link to="/login" state={{ targetSprintId, prefilledEmail: email, tx_ref }} className="text-primary hover:underline">Log in</Link>
             </p>
         </div>
       </div>

@@ -47,13 +47,14 @@ const MySprints: React.FC = () => {
             return sprint ? { enrollment: enrol, sprint } : null;
         }).filter((item): item is { enrollment: ParticipantSprint; sprint: Sprint } => item !== null);
 
-        const inProgress = enriched.filter(e => e.enrollment.progress.some(p => !p.completed));
-        const archived = enriched.filter(e => e.enrollment.progress.every(p => p.completed));
+        const inProgress = enriched.filter(e => e.enrollment.status === 'active');
+        const archived = enriched.filter(e => e.enrollment.status === 'completed');
+        const queuedEnrollments = enriched.filter(e => e.enrollment.status === 'queued');
 
         const p = user as Participant;
         const activeIds = new Set(enriched.map(e => e.sprint.id));
         
-        const queued = (p.savedSprintIds || [])
+        const saved = (p.savedSprintIds || [])
             .filter(id => !activeIds.has(id))
             .map(id => allSprints.find(s => s.id === id))
             .filter((s): s is Sprint => !!s);
@@ -63,7 +64,7 @@ const MySprints: React.FC = () => {
             .map(id => allSprints.find(s => s.id === id))
             .filter((s): s is Sprint => !!s);
 
-        return { inProgress, archived, queued, waitlist };
+        return { inProgress, archived, queued: queuedEnrollments, waitlist, saved };
     }, [enrollments, allSprints, user]);
 
     const calculateProgress = (enrollment: ParticipantSprint) => {
@@ -173,9 +174,9 @@ const MySprints: React.FC = () => {
                                 <div className="h-px bg-gray-100 flex-1"></div>
                             </div>
                             <div className="grid grid-cols-1 gap-2.5">
-                                {(isQueuedExpanded ? queued : queued.slice(0, 2)).map((sprint, idx) => (
-                                    <div key={sprint.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3 hover:shadow-sm transition-all group animate-fade-in">
-                                        <Link to={`/sprint/${sprint.id}`} className="flex-shrink-0">
+                                {(isQueuedExpanded ? queued : queued.slice(0, 2)).map(({ enrollment, sprint }, idx) => (
+                                    <div key={enrollment.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3 hover:shadow-sm transition-all group animate-fade-in">
+                                        <Link to={`/participant/sprint/${enrollment.id}`} className="flex-shrink-0">
                                             <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50">
                                                 <img 
                                                     src={sprint.coverImageUrl || fallbackUrl} 
@@ -185,20 +186,16 @@ const MySprints: React.FC = () => {
                                                 />
                                             </div>
                                         </Link>
-                                        <Link to={`/sprint/${sprint.id}`} className="min-w-0 flex-1">
+                                        <Link to={`/participant/sprint/${enrollment.id}`} className="min-w-0 flex-1">
                                             <h3 className="font-bold text-gray-900 text-[12px] truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
                                             <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">{sprint.duration} Days • {sprint.category}</p>
                                         </Link>
                                         <div className="flex items-center gap-1">
-                                            <div className="flex flex-col gap-0.5 mr-1">
-                                                <button onClick={(e) => { e.preventDefault(); handleReorder(idx, 'up'); }} disabled={idx === 0} className={`p-1 rounded-md border transition-all ${idx === 0 ? 'opacity-20 cursor-not-allowed border-gray-50' : 'text-primary border-primary/5 hover:bg-primary/5 active:scale-90'}`}>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
-                                                </button>
-                                                <button onClick={(e) => { e.preventDefault(); handleReorder(idx, 'down'); }} disabled={idx === queued.length - 1} className={`p-1 rounded-md border transition-all ${idx === queued.length - 1 ? 'opacity-20 cursor-not-allowed border-gray-50' : 'text-primary border-primary/5 hover:bg-primary/5 active:scale-90'}`}>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
-                                                </button>
-                                            </div>
-                                            <Link to={`/sprint/${sprint.id}`} className="p-2 text-gray-300 hover:text-primary transition-colors"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg></Link>
+                                            <Link to={`/participant/sprint/${enrollment.id}`} className="p-2 text-gray-300 hover:text-primary transition-colors">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </Link>
                                         </div>
                                     </div>
                                 ))}
