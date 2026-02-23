@@ -6,6 +6,8 @@ import { Participant, ParticipantSprint, Sprint, Coach } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import LocalLogo from '../../components/LocalLogo';
+import ArchetypeAvatar from '../../components/ArchetypeAvatar';
+import { ARCHETYPES } from '../../constants';
 
 const Profile: React.FC = () => {
   const { user, logout, updateProfile } = useAuth();
@@ -14,8 +16,11 @@ const Profile: React.FC = () => {
   const [enrollments, setEnrollments] = useState<{ enrollment: ParticipantSprint; sprint: Sprint; coach: Coach | null }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditingIntent, setIsEditingIntent] = useState(false);
+  const [isSelectingAvatar, setIsSelectingAvatar] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [intentInput, setIntentInput] = useState('');
   const [reflectionSearch, setReflectionSearch] = useState('');
+  const [editName, setEditName] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -32,6 +37,7 @@ const Profile: React.FC = () => {
         
         setEnrollments(enriched.filter((x) => x !== null) as any);
         setIntentInput((user as Participant).intention || '');
+        setEditName(user.name);
       } catch (err) {
         console.error("Profile sync failed:", err);
       } finally {
@@ -43,6 +49,11 @@ const Profile: React.FC = () => {
 
   if (!user) return null;
   const p = user as Participant;
+
+  const currentArchetype = useMemo(() => {
+    const p = user as Participant;
+    return ARCHETYPES.find(a => a.id === p.archetype);
+  }, [user]);
 
   const activeEntry = useMemo(() => enrollments.find(e => e.enrollment.progress.some(p => !p.completed)), [enrollments]);
   const completedEntries = useMemo(() => enrollments.filter(e => e.enrollment.progress.every(p => p.completed)), [enrollments]);
@@ -104,6 +115,24 @@ const Profile: React.FC = () => {
     }
   };
 
+  const handleSelectArchetype = async (archetypeId: string) => {
+    try {
+      await updateProfile({ archetype: archetypeId });
+      setIsSelectingAvatar(false);
+    } catch (e) {
+      alert("Failed to update archetype.");
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      await updateProfile({ name: editName });
+      setIsEditingProfile(false);
+    } catch (e) {
+      alert("Failed to update profile.");
+    }
+  };
+
   const SectionLabel = ({ text }: { text: string }) => (
     <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2 px-1">
       {text}
@@ -113,37 +142,80 @@ const Profile: React.FC = () => {
   return (
     <div className="bg-[#FDFDFD] h-screen w-full font-sans overflow-hidden flex flex-col animate-fade-in">
       
-      <header className="flex-shrink-0 bg-white border-b border-gray-50 px-5 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="w-11 h-11 rounded-2xl overflow-hidden border-2 border-white shadow-md bg-gray-50">
-              <img src={p.profileImageUrl} className="w-full h-full object-cover" alt="" />
-            </div>
-            <div className="absolute -bottom-1 -right-1 bg-primary text-white w-4 h-4 rounded-md flex items-center justify-center shadow-md text-[7px] font-black italic">V</div>
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-sm font-black text-gray-900 tracking-tight leading-none italic">{p.name}</h1>
-            <div className="mt-1">
-              {isEditingIntent ? (
-                <input 
-                  autoFocus
-                  value={intentInput}
-                  onChange={(e) => setIntentInput(e.target.value)}
-                  onBlur={handleSaveIntent}
-                  className="text-[10px] font-bold text-primary bg-gray-50 rounded px-1 outline-none w-32"
-                />
+      <div className="bg-white px-6 pt-8 pb-6 border-b border-gray-50 flex-shrink-0">
+        <div className="flex items-start justify-between mb-6">
+          <div className="flex items-center gap-5">
+            <button 
+              onClick={() => setIsSelectingAvatar(true)}
+              className="relative group"
+            >
+              <ArchetypeAvatar 
+                archetypeId={p.archetype} 
+                profileImageUrl={p.profileImageUrl} 
+                size="xl" 
+              />
+              <div className="absolute -bottom-1 -right-1 bg-gray-900 text-white w-6 h-6 rounded-lg flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+              </div>
+            </button>
+            <div>
+              {isEditingProfile ? (
+                <div className="space-y-2">
+                  <input 
+                    autoFocus
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="text-lg font-black text-gray-900 bg-gray-50 rounded-xl px-3 py-1 outline-none w-full border border-gray-100"
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={handleSaveProfile} className="text-[8px] font-black text-primary uppercase tracking-widest">Save</button>
+                    <button onClick={() => setIsEditingProfile(false)} className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Cancel</button>
+                  </div>
+                </div>
               ) : (
-                <button onClick={() => setIsEditingIntent(true)} className="text-[10px] text-gray-500 font-medium italic truncate block max-w-[160px]">
-                  "{p.intention || 'Defining my next right move.'}"
-                </button>
+                <>
+                  <h1 className="text-2xl font-black text-gray-900 tracking-tight italic leading-none mb-1">{p.name}</h1>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{p.email}</p>
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">Joined</span>
+                      <span className="text-[9px] font-bold text-gray-600 italic">{new Date(p.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                    </div>
+                    <div className="w-1 h-1 rounded-full bg-gray-200"></div>
+                    <button 
+                      onClick={() => setIsEditingProfile(true)}
+                      className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
+                    >
+                      Edit Profile
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           </div>
+          <button onClick={logout} className="p-2 text-gray-200 hover:text-red-400 transition-all active:scale-90">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+          </button>
         </div>
-        <button onClick={logout} className="p-2 text-gray-300 hover:text-red-400 transition-all active:scale-90">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-        </button>
-      </header>
+        
+        <div className="bg-gray-50/50 rounded-2xl p-3 border border-gray-100/50">
+          <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em] mb-1 px-1">Current Intention</p>
+          {isEditingIntent ? (
+            <input 
+              autoFocus
+              value={intentInput}
+              onChange={(e) => setIntentInput(e.target.value)}
+              onBlur={handleSaveIntent}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveIntent()}
+              className="text-xs font-bold text-gray-900 bg-white border border-gray-100 rounded-xl px-3 py-2 outline-none w-full shadow-sm"
+            />
+          ) : (
+            <button onClick={() => setIsEditingIntent(true)} className="text-xs text-gray-600 font-medium italic px-1 text-left w-full hover:text-primary transition-colors">
+              "{p.intention || 'Defining my next right move.'}"
+            </button>
+          )}
+        </div>
+      </div>
 
       <main className="flex-1 overflow-y-auto custom-scrollbar px-4 py-4 space-y-5">
         
@@ -274,6 +346,48 @@ const Profile: React.FC = () => {
         </footer>
 
       </main>
+
+      {/* Avatar Selection Modal */}
+      {isSelectingAvatar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsSelectingAvatar(false)}></div>
+          <div className="relative w-full max-w-sm bg-white rounded-[3rem] shadow-2xl overflow-hidden animate-slide-up">
+            <div className="p-8">
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight italic mb-2">Choose Archetype</h2>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-8">Select the energy you want to embody.</p>
+              
+              <div className="grid grid-cols-1 gap-3">
+                {ARCHETYPES.map((arch) => (
+                  <button 
+                    key={arch.id}
+                    onClick={() => handleSelectArchetype(arch.id)}
+                    className={`flex items-center gap-4 p-4 rounded-3xl border transition-all active:scale-95 ${p.archetype === arch.id ? 'bg-primary/5 border-primary/20' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}
+                  >
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl bg-gradient-to-br ${arch.color} shadow-lg`}>
+                      {arch.icon}
+                    </div>
+                    <div className="text-left">
+                      <h4 className="text-xs font-black text-gray-900 italic">{arch.name}</h4>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{arch.energy}</p>
+                    </div>
+                    {p.archetype === arch.id && (
+                      <div className="ml-auto w-5 h-5 bg-primary text-white rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button 
+              onClick={() => setIsSelectingAvatar(false)}
+              className="w-full py-5 bg-gray-900 text-white font-black uppercase tracking-[0.3em] text-[10px]"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }

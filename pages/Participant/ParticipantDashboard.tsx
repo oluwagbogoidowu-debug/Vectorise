@@ -5,6 +5,9 @@ import { ParticipantSprint, Sprint, Notification } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { notificationService } from '../../services/notificationService';
 import LocalLogo from '../../components/LocalLogo';
+import ArchetypeAvatar from '../../components/ArchetypeAvatar';
+import { ARCHETYPES } from '../../constants';
+import { Participant } from '../../types';
 
 /**
  * Calculates if a day is locked based on the "Next Midnight" protocol.
@@ -147,8 +150,29 @@ const ParticipantDashboard: React.FC = () => {
   const hasActiveSprints = mySprints.length > 0;
   const allTasksDoneToday = hasActiveSprints && tasksReady.length === 0;
 
+  const p = user as Participant;
+  const currentArchetype = ARCHETYPES.find(a => a.id === p.archetype);
+
   return (
     <div className="flex flex-col h-full w-full bg-[#FDFDFD] font-sans overflow-hidden">
+      <header className="h-20 flex-shrink-0 px-6 flex items-center justify-between bg-white/80 backdrop-blur-md border-b border-gray-50 fixed top-0 left-0 right-0 z-40">
+        <div className="flex items-center gap-3">
+          <Link to="/profile" className="relative group">
+            <ArchetypeAvatar 
+              archetypeId={p.archetype} 
+              profileImageUrl={p.profileImageUrl} 
+              size="md" 
+            />
+            <div className="absolute -bottom-1 -right-1 bg-primary text-white w-3.5 h-3.5 rounded-md flex items-center justify-center shadow-md text-[6px] font-black italic">V</div>
+          </Link>
+          <div>
+            <h2 className="text-xs font-black text-gray-900 tracking-tight italic leading-none">{p.name}</h2>
+            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{currentArchetype?.name || 'Initiate'}</p>
+          </div>
+        </div>
+        <LocalLogo type="favicon" className="w-6 h-6 opacity-20" />
+      </header>
+
       <div className="h-20 flex-shrink-0"></div>
 
       <div className="flex-1 overflow-y-auto px-[13px] pt-4 md:pt-6 pb-24 custom-scrollbar">

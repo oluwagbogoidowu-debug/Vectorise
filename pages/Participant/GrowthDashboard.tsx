@@ -3,7 +3,8 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
-import { ParticipantSprint, Sprint } from '../../types';
+import { ParticipantSprint, Sprint, Participant } from '../../types';
+import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 
 const GrowthDashboard: React.FC = () => {
     const { user } = useAuth();
@@ -29,6 +30,7 @@ const GrowthDashboard: React.FC = () => {
     }, [enrollments]);
 
     if (!user) return null;
+    const p = user as Participant;
 
     return (
         <div className="h-full w-full overflow-y-auto custom-scrollbar">
@@ -39,8 +41,11 @@ const GrowthDashboard: React.FC = () => {
                         <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
                         Dashboard
                     </button>
-                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-dark tracking-tighter leading-none mb-4 italic">Visible Progress.</h1>
-                    <p className="text-gray-500 font-medium">Growth analysis and catalytic metrics derived from your cycle history.</p>
+                    <div className="flex items-center justify-between gap-4">
+                        <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-dark tracking-tighter leading-none italic">Visible Progress.</h1>
+                        <ArchetypeAvatar archetypeId={p.archetype} profileImageUrl={p.profileImageUrl} size="lg" className="flex-shrink-0" />
+                    </div>
+                    <p className="text-gray-500 font-medium mt-4">Growth analysis and catalytic metrics derived from your cycle history.</p>
                 </header>
 
                 {isLoading ? (
