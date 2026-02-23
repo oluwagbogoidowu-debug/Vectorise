@@ -245,9 +245,6 @@ const ParticipantDashboard: React.FC = () => {
                                     <div>
                                         <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-1">{mainTask.sprint.category}</p>
                                         <h3 className="text-lg md:text-xl font-black text-gray-900 leading-tight tracking-tight truncate max-w-[200px] mb-0.5">{mainTask.sprint.title}</h3>
-                                        {!isMainTaskLocked && mainTask.sprint.subtitle && (
-                                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest italic leading-none">{mainTask.sprint.subtitle}</p>
-                                        )}
                                     </div>
                                     <div className="px-2 py-1 bg-gray-100 rounded-lg">
                                         <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">
@@ -270,12 +267,12 @@ const ParticipantDashboard: React.FC = () => {
                                         </div>
                                     ) : (
                                         <div className="flex-1 flex flex-col min-h-0">
-                                            <p className="text-[8px] font-black text-gray-200 uppercase tracking-[0.2em] mb-2 flex-shrink-0">Action for Today</p>
-                                            <div className="bg-[#FAFAFA] rounded-xl p-4 border border-gray-100 shadow-inner overflow-y-auto flex-1 custom-scrollbar">
-                                                <p className="text-gray-700 font-bold text-sm md:text-base leading-relaxed italic">
-                                                    "{mainTask.status.content?.taskPrompt || "Your task for today is being generated..."}"
-                                                </p>
-                                            </div>
+                                            <p className="text-sm md:text-base font-black text-gray-900 leading-tight mb-1">
+                                                Day {mainTask.status.day} unlocked.
+                                            </p>
+                                            <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest">
+                                                You have {100 - mainTaskProgress}% more to complete your {mainTask.sprint.title} sprint
+                                            </p>
                                         </div>
                                     )}
                                 </div>
