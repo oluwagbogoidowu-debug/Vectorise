@@ -58,6 +58,11 @@ import Badges from './pages/Participant/Impact/Badges';
 import ReferralSuccess from './pages/Participant/Impact/ReferralSuccess';
 import PaymentSuccess from './pages/Participant/PaymentSuccess';
 
+import AccountSettings from './pages/Participant/Profile/AccountSettings';
+import EditProfile from './pages/Participant/Profile/EditProfile';
+import IdentitySettings from './pages/Participant/Profile/IdentitySettings';
+import RiseArchive from './pages/Participant/Profile/RiseArchive';
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
   roles: UserRole[];
@@ -224,6 +229,10 @@ const AppRoutes: React.FC = () => {
              <Route path="/discover" element={<DiscoverSprints />} />
              <Route path="/my-sprints" element={<MySprints />} />
              <Route path="/profile" element={<Profile />} />
+             <Route path="/profile/settings" element={<AccountSettings />} />
+             <Route path="/profile/settings/edit" element={<EditProfile />} />
+             <Route path="/profile/settings/identity" element={<IdentitySettings />} />
+             <Route path="/profile/archive" element={<RiseArchive />} />
              <Route path="/profile/:userId" element={<PublicProfile />} />
              <Route path="/growth" element={<GrowthDashboard />} />
              <Route path="/impact" element={<ImpactDashboard />} />

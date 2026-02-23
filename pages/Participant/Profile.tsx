@@ -15,16 +15,9 @@ const Profile: React.FC = () => {
   
   const [enrollments, setEnrollments] = useState<{ enrollment: ParticipantSprint; sprint: Sprint; coach: Coach | null }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isEditingIntent, setIsEditingIntent] = useState(false);
-  const [isSelectingAvatar, setIsSelectingAvatar] = useState(false);
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [isEditingIdentity, setIsEditingIdentity] = useState(false);
-  const [intentInput, setIntentInput] = useState('');
-  const [reflectionSearch, setReflectionSearch] = useState('');
-  const [editName, setEditName] = useState('');
-  const [showArchive, setShowArchive] = useState(false);
 
   // Identity Task States
+  const [currentTaskGroupIdx, setCurrentTaskGroupIdx] = useState(0);
   const [tempGrowthAreas, setTempGrowthAreas] = useState<string[]>([]);
   const [tempRisePathway, setTempRisePathway] = useState<string>('');
   const [isSavingIdentity, setIsSavingIdentity] = useState(false);
@@ -43,8 +36,6 @@ const Profile: React.FC = () => {
         }));
         
         setEnrollments(enriched.filter((x) => x !== null) as any);
-        setIntentInput((user as Participant).intention || '');
-        setEditName(user.name);
         setTempGrowthAreas((user as Participant).growthAreas || []);
         setTempRisePathway((user as Participant).risePathway || '');
       } catch (err) {
@@ -67,86 +58,22 @@ const Profile: React.FC = () => {
   const activeEntry = useMemo(() => enrollments.find(e => e.enrollment.progress.some(p => !p.completed)), [enrollments]);
   const completedEntries = useMemo(() => enrollments.filter(e => e.enrollment.progress.every(p => p.completed)), [enrollments]);
 
-  const allReflections = useMemo(() => {
-    return enrollments.flatMap(e => 
-      e.enrollment.progress
-        .filter(p => p.reflection && p.reflection.trim() !== '')
-        .map(p => ({
-          sprintTitle: e.sprint.title,
-          day: p.day,
-          text: p.reflection || '',
-          date: p.completedAt || e.enrollment.started_at
-        }))
-    ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [enrollments]);
-
-  const filteredReflections = useMemo(() => {
-    if (!reflectionSearch.trim()) return allReflections;
-    return allReflections.filter(r => 
-      r.text.toLowerCase().includes(reflectionSearch.toLowerCase()) || 
-      r.sprintTitle.toLowerCase().includes(reflectionSearch.toLowerCase())
-    );
-  }, [allReflections, reflectionSearch]);
-
-  const microDecisions = useMemo(() => {
-    return enrollments.flatMap(e => 
-      e.enrollment.progress
-        .filter(p => p.proofSelection)
-        .map(p => ({
-          sprintTitle: e.sprint.title,
-          day: p.day,
-          choice: p.proofSelection,
-          date: p.completedAt
-        }))
-    ).sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
-  }, [enrollments]);
-
-  const uniqueCoaches = useMemo(() => {
-    const map = new Map<string, { coach: Coach; sprints: string[] }>();
-    enrollments.forEach(e => {
-      if (e.coach) {
-        const existing = map.get(e.coach.id) || { coach: e.coach, sprints: [] };
-        if (!existing.sprints.includes(e.sprint.title)) {
-          existing.sprints.push(e.sprint.title);
-        }
-        map.set(e.coach.id, existing);
-      }
-    });
-    return Array.from(map.values());
-  }, [enrollments]);
-
-  const handleSaveIntent = async () => {
-    try {
-      await updateProfile({ intention: intentInput });
-      setIsEditingIntent(false);
-    } catch (e) {
-      alert("Failed to update intent.");
-    }
-  };
-
-  const handleSelectArchetype = async (archetypeId: string) => {
-    try {
-      await updateProfile({ archetype: archetypeId });
-      setIsSelectingAvatar(false);
-    } catch (e) {
-      alert("Failed to update archetype.");
-    }
-  };
-
-  const handleSaveProfile = async () => {
-    try {
-      await updateProfile({ name: editName });
-      setIsEditingProfile(false);
-    } catch (e) {
-      alert("Failed to update profile.");
-    }
-  };
-
   const handleToggleGrowthArea = (area: string) => {
     setTempGrowthAreas(prev => {
-      if (prev.includes(area)) return prev.filter(a => a !== area);
-      if (prev.length >= 5) return prev;
-      return [...prev, area];
+      // If we're in the progressive flow, we just replace or add for the current group
+      // But the user said "First one appear you pick one then the second one appear"
+      // So we pick one per group.
+      const currentGroup = GROWTH_AREAS[currentTaskGroupIdx];
+      const otherAreas = prev.filter(a => !currentGroup.options.includes(a));
+      
+      const newAreas = [...otherAreas, area];
+      
+      // Move to next group if not at the end
+      if (currentTaskGroupIdx < GROWTH_AREAS.length - 1) {
+        setCurrentTaskGroupIdx(prevIdx => prevIdx + 1);
+      }
+      
+      return newAreas;
     });
   };
 
@@ -157,7 +84,6 @@ const Profile: React.FC = () => {
         growthAreas: tempGrowthAreas,
         risePathway: tempRisePathway
       });
-      setIsEditingIdentity(false);
     } catch (e) {
       alert("Failed to save identity settings.");
     } finally {
@@ -171,126 +97,115 @@ const Profile: React.FC = () => {
     </h2>
   );
 
+  const growthAreaColors = [
+    "bg-emerald-50 text-emerald-800 border-emerald-100",
+    "bg-indigo-50 text-indigo-800 border-indigo-100",
+    "bg-orange-50 text-orange-800 border-orange-100",
+    "bg-rose-50 text-rose-800 border-rose-100",
+    "bg-amber-50 text-amber-800 border-amber-100"
+  ];
+
   return (
     <div className="bg-[#FDFDFD] h-screen w-full font-sans overflow-hidden flex flex-col animate-fade-in">
       
       <div className="bg-white px-6 pt-8 pb-6 border-b border-gray-50 flex-shrink-0">
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-5">
-            <button 
-              onClick={() => setIsSelectingAvatar(true)}
-              className="relative group"
-            >
+            <div className="relative group">
               <ArchetypeAvatar 
                 archetypeId={p.archetype} 
                 profileImageUrl={p.profileImageUrl} 
                 size="xl" 
               />
-              <div className="absolute -bottom-1 -right-1 bg-gray-900 text-white w-6 h-6 rounded-lg flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-              </div>
-            </button>
+            </div>
             <div>
-              {isEditingProfile ? (
-                <div className="space-y-2">
-                  <input 
-                    autoFocus
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="text-lg font-black text-gray-900 bg-gray-50 rounded-xl px-3 py-1 outline-none w-full border border-gray-100"
-                  />
-                  <div className="flex gap-2">
-                    <button onClick={handleSaveProfile} className="text-[8px] font-black text-primary uppercase tracking-widest">Save</button>
-                    <button onClick={() => setIsEditingProfile(false)} className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Cancel</button>
-                  </div>
+              <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">{p.name}</h1>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{p.email}</p>
+              <div className="mt-3 flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">Joined</span>
+                  <span className="text-[9px] font-bold text-gray-600">{new Date(p.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
                 </div>
-              ) : (
-                <>
-                  <h1 className="text-2xl font-black text-gray-900 tracking-tight italic leading-none mb-1">{p.name}</h1>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{p.email}</p>
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">Joined</span>
-                      <span className="text-[9px] font-bold text-gray-600 italic">{new Date(p.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
-                    </div>
-                    <div className="w-1 h-1 rounded-full bg-gray-200"></div>
-                    <button 
-                      onClick={() => setIsEditingProfile(true)}
-                      className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
-                    >
-                      Edit Profile
-                    </button>
-                    <div className="w-1 h-1 rounded-full bg-gray-200"></div>
-                    <button 
-                      onClick={() => setIsEditingIdentity(true)}
-                      className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
-                    >
-                      Identity Settings
-                    </button>
-                  </div>
-                </>
-              )}
+                <div className="w-1 h-1 rounded-full bg-gray-200"></div>
+                <Link 
+                  to="/profile/settings"
+                  className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
+                >
+                  Account Settings
+                </Link>
+              </div>
             </div>
           </div>
           <button onClick={logout} className="p-2 text-gray-200 hover:text-red-400 transition-all active:scale-90">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
           </button>
         </div>
-        
-        <div className="bg-gray-50/50 rounded-2xl p-3 border border-gray-100/50">
-          <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em] mb-1 px-1">Current Intention</p>
-          {isEditingIntent ? (
-            <input 
-              autoFocus
-              value={intentInput}
-              onChange={(e) => setIntentInput(e.target.value)}
-              onBlur={handleSaveIntent}
-              onKeyDown={(e) => e.key === 'Enter' && handleSaveIntent()}
-              className="text-xs font-bold text-gray-900 bg-white border border-gray-100 rounded-xl px-3 py-2 outline-none w-full shadow-sm"
-            />
-          ) : (
-            <button onClick={() => setIsEditingIntent(true)} className="text-xs text-gray-600 font-medium italic px-1 text-left w-full hover:text-primary transition-colors">
-              "{p.intention || 'Defining my next right move.'}"
-            </button>
-          )}
+
+        {/* Rise and Impact Cards Moved Up */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-dark rounded-3xl p-4 text-white relative overflow-hidden flex flex-col justify-center">
+             <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 mb-1">Rise</p>
+             <div className="flex items-end gap-1">
+               <h3 className="text-2xl font-black tracking-tighter">{p.walletBalance || 0}</h3>
+               <span className="text-[10px] mb-1 opacity-40">🪙</span>
+             </div>
+          </div>
+
+          <Link to="/impact" className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col justify-center">
+            <p className="text-[7px] font-black uppercase tracking-[0.3em] text-gray-400 mb-1">Impact</p>
+            <h3 className="text-2xl font-black text-gray-900 tracking-tighter">{p.impactStats?.peopleHelped || 0}</h3>
+          </Link>
         </div>
       </div>
 
       <main className="flex-1 overflow-y-auto custom-scrollbar px-4 py-4 space-y-5">
         
         {/* Progressive Identity Tasks */}
-        {(!p.growthAreas || p.growthAreas.length === 0 || !p.risePathway) && !isEditingIdentity && (
+        {(!p.growthAreas || p.growthAreas.length === 0 || !p.risePathway) && (
           <div className="space-y-3 animate-fade-in">
             <SectionLabel text="Identity Setup" />
             
-            {/* Task 1: Growth Areas */}
+            {/* Task 1: Growth Areas (Progressive) */}
             {(!p.growthAreas || p.growthAreas.length === 0) ? (
               <div className="bg-white rounded-[2rem] p-6 border border-primary/10 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10">
                   <svg className="w-12 h-12 text-primary" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" /></svg>
                 </div>
-                <h3 className="text-sm font-black text-gray-900 italic mb-1">Where do you want to grow next?</h3>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Pick up to 5 areas of focus.</p>
+                <h3 className="text-sm font-black text-gray-900 mb-1">Where do you want to grow next?</h3>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Pick one from each group ({currentTaskGroupIdx + 1}/5)</p>
                 
-                <div className="flex flex-wrap gap-1.5 mb-6">
-                  {GROWTH_AREAS.flatMap(g => g.options).map(area => (
-                    <button
-                      key={area}
-                      onClick={() => handleToggleGrowthArea(area)}
-                      className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${tempGrowthAreas.includes(area) ? 'bg-primary text-white shadow-md scale-105' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
-                    >
-                      {area}
-                    </button>
-                  ))}
+                <div className="mb-6">
+                  <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-3">{GROWTH_AREAS[currentTaskGroupIdx].group}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {GROWTH_AREAS[currentTaskGroupIdx].options.map(area => (
+                      <button
+                        key={area}
+                        onClick={() => handleToggleGrowthArea(area)}
+                        className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${tempGrowthAreas.includes(area) ? 'bg-primary text-white shadow-md scale-105' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                      >
+                        {area}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 
-                <button 
-                  onClick={handleSaveIdentity}
-                  disabled={tempGrowthAreas.length === 0 || isSavingIdentity}
-                  className="w-full py-3 bg-primary text-white rounded-xl font-black uppercase tracking-[0.2em] text-[9px] shadow-md disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
-                >
-                  {isSavingIdentity ? 'Saving...' : 'Confirm Growth Areas'}
-                </button>
+                <div className="flex gap-2">
+                  {currentTaskGroupIdx > 0 && (
+                    <button 
+                      onClick={() => setCurrentTaskGroupIdx(prev => prev - 1)}
+                      className="flex-1 py-3 bg-gray-50 text-gray-400 rounded-xl font-black uppercase tracking-widest text-[9px] border border-gray-100"
+                    >
+                      Back
+                    </button>
+                  )}
+                  <button 
+                    onClick={handleSaveIdentity}
+                    disabled={tempGrowthAreas.length === 0 || isSavingIdentity}
+                    className="flex-[2] py-3 bg-primary text-white rounded-xl font-black uppercase tracking-[0.2em] text-[9px] shadow-md disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
+                  >
+                    {isSavingIdentity ? 'Saving...' : currentTaskGroupIdx < 4 ? 'Next Group' : 'Confirm Growth Areas'}
+                  </button>
+                </div>
               </div>
             ) : !p.risePathway ? (
               /* Task 2: Rise Pathway */
@@ -298,7 +213,7 @@ const Profile: React.FC = () => {
                 <div className="absolute top-0 right-0 p-4 opacity-10">
                   <svg className="w-12 h-12 text-primary" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd" /></svg>
                 </div>
-                <h3 className="text-sm font-black text-gray-900 italic mb-1">What best describes your current focus?</h3>
+                <h3 className="text-sm font-black text-gray-900 mb-1">What best describes your current focus?</h3>
                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your Rise Pathway.</p>
                 
                 <div className="space-y-2 mb-6">
@@ -308,8 +223,8 @@ const Profile: React.FC = () => {
                       onClick={() => setTempRisePathway(path.id)}
                       className={`w-full text-left p-3 rounded-2xl border transition-all ${tempRisePathway === path.id ? 'bg-primary/5 border-primary/20 scale-[1.02] shadow-sm' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}
                     >
-                      <h4 className="text-[10px] font-black text-gray-900 italic">{path.name}</h4>
-                      <p className="text-[8px] text-gray-400 font-medium italic mt-0.5">{path.description}</p>
+                      <h4 className="text-[10px] font-black text-gray-900">{path.name}</h4>
+                      <p className="text-[8px] text-gray-400 font-medium mt-0.5">{path.description}</p>
                     </button>
                   ))}
                 </div>
@@ -326,81 +241,56 @@ const Profile: React.FC = () => {
           </div>
         )}
 
-        {/* Collapsed Identity Summary (if completed) */}
-        {p.growthAreas && p.growthAreas.length > 0 && p.risePathway && !isEditingIdentity && (
-          <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex items-center justify-between animate-fade-in">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-sm flex-shrink-0">🧬</div>
-              <div className="min-w-0">
-                <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Identity Profile</p>
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <span className="text-[9px] font-black text-gray-900 italic truncate">
-                    {RISE_PATHWAYS.find(r => r.id === p.risePathway)?.name.split(' ').slice(1).join(' ')}
-                  </span>
-                  <div className="w-1 h-1 rounded-full bg-gray-200 flex-shrink-0"></div>
-                  <div className="flex gap-1 overflow-hidden">
-                    {p.growthAreas.slice(0, 2).map(area => (
-                      <span key={area} className="text-[8px] font-bold text-primary whitespace-nowrap">#{area}</span>
-                    ))}
-                    {p.growthAreas.length > 2 && <span className="text-[8px] font-bold text-gray-300">+{p.growthAreas.length - 2}</span>}
+        {/* Active Path Section */}
+        <section>
+          <SectionLabel text="Active Path" />
+          {activeEntry ? (
+            <Link to={`/participant/sprint/${activeEntry.enrollment.id}`} className="block">
+              <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm relative overflow-hidden flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-primary/5 flex items-center justify-center flex-shrink-0 text-xl">🎯</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[7px] font-black text-primary uppercase tracking-widest mb-0.5">{p.currentStage || 'Active Path'}</p>
+                  <h3 className="text-xs font-black text-gray-900 truncate">{activeEntry.sprint.title}</h3>
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex-1 h-1 bg-gray-50 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary rounded-full transition-all" 
+                        style={{ width: `${(activeEntry.enrollment.progress.filter(x => x.completed).length / activeEntry.sprint.duration) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-[8px] font-bold text-gray-400">Day {activeEntry.enrollment.progress.filter(x => x.completed).length + 1}</span>
                   </div>
                 </div>
               </div>
+            </Link>
+          ) : (
+            <div className="p-4 bg-gray-50 rounded-3xl border border-dashed border-gray-100 text-center">
+              <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">No active cycles</p>
             </div>
-            <button 
-              onClick={() => setIsEditingIdentity(true)}
-              className="p-2 text-gray-300 hover:text-primary transition-colors"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-            </button>
-          </div>
+          )}
+        </section>
+
+        {/* Growth Areas Display (Below Active Path) */}
+        {p.growthAreas && p.growthAreas.length > 0 && (
+          <section className="animate-fade-in">
+            <SectionLabel text="Growth Focus" />
+            <div className="flex flex-wrap gap-2 px-1">
+              {p.growthAreas.map((area, i) => (
+                <div 
+                  key={i} 
+                  className={`${growthAreaColors[i % growthAreaColors.length]} px-4 py-2 rounded-full border font-black italic text-[10px] shadow-sm`}
+                >
+                  {area}.
+                </div>
+              ))}
+            </div>
+          </section>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            {activeEntry ? (
-              <Link to={`/participant/sprint/${activeEntry.enrollment.id}`} className="block">
-                <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm relative overflow-hidden flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-primary/5 flex items-center justify-center flex-shrink-0 text-xl">🎯</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[7px] font-black text-primary uppercase tracking-widest mb-0.5">{p.currentStage || 'Active Path'}</p>
-                    <h3 className="text-xs font-black text-gray-900 truncate italic">{activeEntry.sprint.title}</h3>
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="flex-1 h-1 bg-gray-50 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-primary rounded-full transition-all" 
-                          style={{ width: `${(activeEntry.enrollment.progress.filter(x => x.completed).length / activeEntry.sprint.duration) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-[8px] font-bold text-gray-400">Day {activeEntry.enrollment.progress.filter(x => x.completed).length + 1}</span>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ) : (
-              <div className="p-4 bg-gray-50 rounded-3xl border border-dashed border-gray-100 text-center">
-                <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">No active cycles</p>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-dark rounded-3xl p-4 text-white relative overflow-hidden flex flex-col justify-center">
-             <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 mb-1">Rise</p>
-             <div className="flex items-end gap-1">
-               <h3 className="text-2xl font-black italic tracking-tighter">{p.walletBalance || 0}</h3>
-               <span className="text-[10px] mb-1 opacity-40">🪙</span>
-             </div>
-          </div>
-
-          <Link to="/impact" className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col justify-center">
-            <p className="text-[7px] font-black uppercase tracking-[0.3em] text-gray-400 mb-1">Impact</p>
-            <h3 className="text-2xl font-black text-gray-900 tracking-tighter italic">{p.impactStats?.peopleHelped || 0}</h3>
-          </Link>
-        </div>
-
-        <div className="px-1">
-          <button 
-            onClick={() => setShowArchive(!showArchive)}
+        {/* Rise Archive Click-through Button */}
+        <div className="px-1 pt-2">
+          <Link 
+            to="/profile/archive"
             className="w-full py-4 bg-white border border-gray-100 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
           >
             <div className="flex items-center gap-3">
@@ -408,212 +298,19 @@ const Profile: React.FC = () => {
               <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Rise Archive</span>
             </div>
             <svg 
-              className={`w-4 h-4 text-gray-300 transition-transform duration-300 ${showArchive ? 'rotate-180' : ''}`} 
+              className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" 
               fill="none" stroke="currentColor" viewBox="0 0 24 24"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
             </svg>
-          </button>
+          </Link>
         </div>
 
-        {showArchive && (
-          <div className="space-y-5 animate-slide-up">
-            <section>
-              <SectionLabel text="Sprint Archive" />
-              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
-                {completedEntries.length > 0 ? (
-                  completedEntries.map(({ enrollment, sprint }) => (
-                    <div key={enrollment.id} className="flex-shrink-0 w-36 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm">
-                      <div className="w-full h-20 rounded-xl overflow-hidden mb-2 grayscale opacity-60">
-                        <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
-                      </div>
-                      <h4 className="font-black text-gray-900 text-[9px] tracking-tight leading-tight line-clamp-2 italic mb-1">{sprint.title}</h4>
-                      <span className="text-[7px] font-black bg-primary/5 text-primary px-1.5 py-0.5 rounded uppercase">{sprint.outcomeTag || 'Clarity gained'}</span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="w-full py-4 text-center text-gray-300 italic text-[9px]">Empty Archive</div>
-                )}
-              </div>
-            </section>
-
-            <section>
-              <div className="flex justify-between items-center mb-2 px-1">
-                <SectionLabel text="Reflections" />
-                <input 
-                  type="text"
-                  value={reflectionSearch}
-                  onChange={(e) => setReflectionSearch(e.target.value)}
-                  placeholder="Search..."
-                  className="text-[8px] font-bold bg-gray-50 border-none rounded-lg px-2 py-1 outline-none w-20 focus:w-32 transition-all"
-                />
-              </div>
-              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
-                {filteredReflections.length > 0 ? (
-                  filteredReflections.map((ref, idx) => (
-                    <div key={idx} className="flex-shrink-0 w-48 bg-white rounded-2xl p-4 border border-gray-100 shadow-sm relative overflow-hidden">
-                      <div className="flex justify-between items-center mb-2">
-                        <p className="text-[7px] font-black text-primary uppercase tracking-widest truncate max-w-[100px]">{ref.sprintTitle}</p>
-                        <p className="text-[6px] font-bold text-gray-300 uppercase">D{ref.day}</p>
-                      </div>
-                      <p className="text-[10px] text-gray-600 font-medium leading-relaxed italic line-clamp-3">"{ref.text}"</p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="w-full py-4 text-center text-gray-300 italic text-[9px]">No Patterns Found</div>
-                )}
-              </div>
-            </section>
-
-            <section>
-              <SectionLabel text="Micro Decisions" />
-              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
-                {microDecisions.length > 0 ? (
-                  microDecisions.map((dec, idx) => (
-                    <div key={idx} className="flex-shrink-0 w-40 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between h-20">
-                      <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest truncate">{dec.sprintTitle}</p>
-                      <p className="text-[10px] font-black text-gray-800 leading-tight italic">"{dec.choice}"</p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="w-full py-4 text-center text-gray-300 italic text-[9px]">No Decisions Logged</div>
-                )}
-              </div>
-            </section>
-
-            <section className="pb-4">
-              <SectionLabel text="Coach Registry" />
-              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
-                {uniqueCoaches.length > 0 ? (
-                  uniqueCoaches.map(({ coach }) => (
-                    <div key={coach.id} className="flex-shrink-0 w-28 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center text-center">
-                      <img src={coach.profileImageUrl} className="w-8 h-8 rounded-xl object-cover mb-2 border border-gray-50 shadow-sm" alt="" />
-                      <h4 className="font-black text-gray-900 text-[8px] tracking-tight truncate w-full">{coach.name}</h4>
-                      <p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest truncate w-full">{coach.niche}</p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="w-full py-4 text-center text-gray-300 italic text-[9px]">No Connections</div>
-                )}
-              </div>
-            </section>
-          </div>
-        )}
-
-        <footer className="text-center pt-2">
-            <p className="text-[7px] font-black text-gray-200 uppercase tracking-[0.4em]">Vectorise • Profile 4.1 Dense</p>
+        <footer className="text-center pt-10">
+            <p className="text-[7px] font-black text-gray-200 uppercase tracking-[0.4em]">Vectorise • Profile 5.0 Progressive</p>
         </footer>
 
       </main>
-
-      {/* Identity Settings Modal */}
-      {isEditingIdentity && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsEditingIdentity(false)}></div>
-          <div className="relative w-full max-w-sm bg-white rounded-[3rem] shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[90vh]">
-            <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight italic mb-2">Identity Settings</h2>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-8">Refine your growth trajectory.</p>
-              
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-lg bg-primary/10 flex items-center justify-center text-[10px]">1</span>
-                    Growth Areas (Max 5)
-                  </h3>
-                  <div className="flex flex-wrap gap-1.5">
-                    {GROWTH_AREAS.flatMap(g => g.options).map(area => (
-                      <button
-                        key={area}
-                        onClick={() => handleToggleGrowthArea(area)}
-                        className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${tempGrowthAreas.includes(area) ? 'bg-primary text-white shadow-md' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
-                      >
-                        {area}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-lg bg-primary/10 flex items-center justify-center text-[10px]">2</span>
-                    Rise Pathway
-                  </h3>
-                  <div className="space-y-2">
-                    {RISE_PATHWAYS.map(path => (
-                      <button
-                        key={path.id}
-                        onClick={() => setTempRisePathway(path.id)}
-                        className={`w-full text-left p-3 rounded-2xl border transition-all ${tempRisePathway === path.id ? 'bg-primary/5 border-primary/20 shadow-sm' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}
-                      >
-                        <h4 className="text-[10px] font-black text-gray-900 italic">{path.name}</h4>
-                        <p className="text-[8px] text-gray-400 font-medium italic mt-0.5">{path.description}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
-              <button 
-                onClick={() => setIsEditingIdentity(false)}
-                className="flex-1 py-4 bg-white border border-gray-200 text-gray-400 font-black uppercase tracking-widest text-[10px] rounded-2xl active:scale-95 transition-all"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleSaveIdentity}
-                disabled={tempGrowthAreas.length === 0 || !tempRisePathway || isSavingIdentity}
-                className="flex-[2] py-4 bg-gray-900 text-white font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all disabled:opacity-50"
-              >
-                {isSavingIdentity ? 'Saving...' : 'Save Settings'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Avatar Selection Modal */}
-      {isSelectingAvatar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsSelectingAvatar(false)}></div>
-          <div className="relative w-full max-w-sm bg-white rounded-[3rem] shadow-2xl overflow-hidden animate-slide-up">
-            <div className="p-8">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight italic mb-2">Choose Archetype</h2>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-8">Select the energy you want to embody.</p>
-              
-              <div className="grid grid-cols-1 gap-3">
-                {ARCHETYPES.map((arch) => (
-                  <button 
-                    key={arch.id}
-                    onClick={() => handleSelectArchetype(arch.id)}
-                    className={`flex items-center gap-4 p-4 rounded-3xl border transition-all active:scale-95 ${p.archetype === arch.id ? 'bg-primary/5 border-primary/20' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}
-                  >
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl bg-gradient-to-br ${arch.color} shadow-lg`}>
-                      {arch.icon}
-                    </div>
-                    <div className="text-left">
-                      <h4 className="text-xs font-black text-gray-900 italic">{arch.name}</h4>
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{arch.energy}</p>
-                    </div>
-                    {p.archetype === arch.id && (
-                      <div className="ml-auto w-5 h-5 bg-primary text-white rounded-full flex items-center justify-center">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button 
-              onClick={() => setIsSelectingAvatar(false)}
-              className="w-full py-5 bg-gray-900 text-white font-black uppercase tracking-[0.3em] text-[10px]"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
 
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -622,6 +319,8 @@ const Profile: React.FC = () => {
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.03); border-radius: 10px; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}</style>
     </div>
   );
