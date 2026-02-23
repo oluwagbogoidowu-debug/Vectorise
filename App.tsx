@@ -54,7 +54,6 @@ import ImpactDashboard from './pages/Participant/Impact/ImpactDashboard';
 import ReferralShare from './pages/Participant/Impact/ReferralShare';
 import RippleEffect from './pages/Participant/Impact/RippleEffect';
 import GrowthRewards from './pages/Participant/Impact/GrowthRewards';
-import Badges from './pages/Participant/Impact/Badges';
 import ReferralSuccess from './pages/Participant/Impact/ReferralSuccess';
 import PaymentSuccess from './pages/Participant/PaymentSuccess';
 
@@ -62,6 +61,7 @@ import AccountSettings from './pages/Participant/Profile/AccountSettings';
 import EditProfile from './pages/Participant/Profile/EditProfile';
 import IdentitySettings from './pages/Participant/Profile/IdentitySettings';
 import HallOfRise from './pages/Participant/Profile/HallOfRise';
+import RiseArchive from './pages/Participant/Profile/RiseArchive';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
