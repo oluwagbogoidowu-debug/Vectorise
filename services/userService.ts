@@ -30,10 +30,10 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
     }
 
     // 4. Detect and Strip Firestore/Firebase internal classes and DOM elements
-    // Minified names often follow patterns like Q$1 (Query), Sa (Firestore)
+    // Minified names often follow patterns like Q$1, Sa, Y2, Ka, etc.
     const constructorName = val.constructor?.name || '';
     const isFirebaseInternal = 
-        /^[A-Z]\$[0-9]$|^[A-Z][a-z]$/.test(constructorName) || 
+        /^[A-Z][a-z0-9]$|^[A-Z]\$[0-9]$/.test(constructorName) || 
         constructorName.includes('Query') || 
         constructorName.includes('Reference') ||
         constructorName.includes('Firestore') ||
@@ -41,7 +41,8 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
         constructorName.includes('Firebase') ||
         constructorName.includes('App') ||
         constructorName.includes('Snapshot') ||
-        constructorName.includes('Observer');
+        constructorName.includes('Observer') ||
+        constructorName.includes('Collection');
 
     // Pattern matching for specific SDK circular structures (e.g., Query.i.src)
     // The 'i' and 'src' properties are common markers in minified Firestore SDK internals.
@@ -51,7 +52,8 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
         val.firestore || 
         val._database ||
         val._path ||
-        (val.i && (val.src || (val.i && val.i.src)))
+        (val.i && (val.src || (val.i && val.i.src) || (val.i && val.i.i))) ||
+        (val.src && (val.src.i || val.src.src))
     );
 
     if (isFirebaseInternal || hasSDKMarkers || val instanceof Element) {
