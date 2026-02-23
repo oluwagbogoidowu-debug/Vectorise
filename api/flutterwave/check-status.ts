@@ -39,59 +39,71 @@ export default async (req: any, res: any) => {
           const verifyData = await verifyRes.json();
           console.log(`[Registry] Flutterwave verify response for ${tx_ref}:`, verifyData.status, verifyData.data?.status);
           
-          if (verifyData.status === 'success' && verifyData.data && verifyData.data.status === 'successful') {
+          if (verifyData.status === 'success' && verifyData.data) {
             const flw_tx = verifyData.data;
-            
-            await db.runTransaction(async (transaction) => {
-              const freshSnap = await transaction.get(paymentRef);
-              const freshData = freshSnap.data() as any;
-              
-              if (freshData.status === 'successful' || freshData.status === 'success') return;
+            const flwStatus = flw_tx.status; // 'successful', 'failed', 'pending'
 
-              const { userId, sprintId } = freshData;
+            if (flwStatus === 'successful') {
+              await db.runTransaction(async (transaction) => {
+                const freshSnap = await transaction.get(paymentRef);
+                const freshData = freshSnap.data() as any;
+                
+                if (freshData.status === 'successful' || freshData.status === 'success') return;
 
-              transaction.update(paymentRef, {
-                status: 'successful',
-                flw_transaction_id: flw_tx.id,
-                payment_method: flw_tx.payment_type,
-                completedAt: admin.firestore.FieldValue.serverTimestamp(),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                const { userId, sprintId } = freshData;
+
+                transaction.update(paymentRef, {
+                  status: 'successful',
+                  flw_transaction_id: flw_tx.id,
+                  payment_method: flw_tx.payment_type,
+                  completedAt: admin.firestore.FieldValue.serverTimestamp(),
+                  updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+
+                if (userId.startsWith('guest_')) return;
+
+                const enrollmentId = `enrollment_${userId}_${sprintId}`;
+                const activeEnrollments = await db.collection('enrollments')
+                  .where('user_id', '==', userId)
+                  .where('status', '==', 'active')
+                  .get();
+                
+                const hasActive = !activeEnrollments.empty;
+                const sprintSnap = await transaction.get(db.collection('sprints').doc(sprintId));
+                const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
+                const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
+
+                transaction.set(db.collection('enrollments').doc(enrollmentId), {
+                  id: enrollmentId,
+                  sprint_id: sprintId,
+                  user_id: userId,
+                  coach_id: coachId,
+                  started_at: new Date().toISOString(),
+                  status: hasActive ? 'queued' : 'active',
+                  progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
+                }, { merge: true });
+
+                transaction.update(db.collection('users').doc(userId), {
+                    enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sprintId)
+                });
               });
-
-              // If it's a guest, we don't create the enrollment yet.
-              // They will be redirected to signup where they will claim this payment.
-              if (userId.startsWith('guest_')) return;
-
-              const enrollmentId = `enrollment_${userId}_${sprintId}`;
-              
-              // Check for active enrollments
-              const activeEnrollments = await db.collection('enrollments')
-                .where('user_id', '==', userId)
-                .where('status', '==', 'active')
-                .get();
-              
-              const hasActive = !activeEnrollments.empty;
-
-              const sprintSnap = await transaction.get(db.collection('sprints').doc(sprintId));
-              const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
-              const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
-
-              transaction.set(db.collection('enrollments').doc(enrollmentId), {
-                id: enrollmentId,
-                sprint_id: sprintId,
-                user_id: userId,
-                coach_id: coachId,
-                started_at: new Date().toISOString(),
-                status: hasActive ? 'queued' : 'active',
-                progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
-              }, { merge: true });
-
-              transaction.update(db.collection('users').doc(userId), {
-                  enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sprintId)
+              data.status = 'successful';
+            } else if (flwStatus === 'failed') {
+              await paymentRef.update({ 
+                status: 'failed', 
+                updatedAt: admin.firestore.FieldValue.serverTimestamp() 
               });
-            });
-
-            data.status = 'successful';
+              data.status = 'failed';
+            }
+          } else if (verifyData.status === 'error' && verifyData.message?.toLowerCase().includes('no transaction found')) {
+            // This might happen if the user cancelled before even starting the payment process on FLW side
+            // or if the reference is truly invalid. We keep it as pending for a while or mark as failed if it's old.
+            const initiatedAt = new Date(data.initiatedAt).getTime();
+            const now = Date.now();
+            if (now - initiatedAt > 10 * 60 * 1000) { // 10 minutes timeout
+                await paymentRef.update({ status: 'failed', failureReason: 'Transaction not found after 10 mins' });
+                data.status = 'failed';
+            }
           }
         } catch (verifyErr: any) {
           console.warn("[Registry] Proactive Verify Warning:", verifyErr.message);

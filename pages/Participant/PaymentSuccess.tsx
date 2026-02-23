@@ -71,9 +71,22 @@ const PaymentSuccess: React.FC = () => {
                     setStatus('failed');
                     clearInterval(pollInterval);
                     clearTimeout(timeoutFallback);
+                } else if (data.status === 'cancelled') {
+                    setStatus('cancelled');
+                    clearInterval(pollInterval);
+                    clearTimeout(timeoutFallback);
                 } else {
                     setStatus('pending');
-                    setRetryCount(prev => prev + 1);
+                    setRetryCount(prev => {
+                        const next = prev + 1;
+                        // Max retries (20 * 3s = 60s)
+                        if (next >= 20) {
+                            clearInterval(pollInterval);
+                            clearTimeout(timeoutFallback);
+                            setStatus('failed');
+                        }
+                        return next;
+                    });
                 }
             } catch (err) {
                 console.error("Status check failed:", err);
