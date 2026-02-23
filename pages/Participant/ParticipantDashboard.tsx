@@ -193,8 +193,8 @@ const ParticipantDashboard: React.FC = () => {
                                         <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.536 14.95a1 1 0 010-1.414l.707-.707a1 1 0 111.414 1.414l-.707.707a1 1 0 01-1.414 0zM6.464 14.95a1 1 0 01-1.414 0l-.707-.707a1 1 0 011.414-1.414l.707.707a1 1 0 010 1.414z" />
                                     </svg>
                                 </div>
-                                <p className="text-[8px] font-black uppercase tracking-[0.15em] opacity-60 text-right">
-                                    Tasks Ready
+                                <p className="text-[8px] font-black uppercase tracking-[0.15em] text-right">
+                                    Task<br/>Ready
                                 </p>
                             </div>
                             <div className="relative z-10">
