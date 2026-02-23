@@ -61,7 +61,7 @@ import PaymentSuccess from './pages/Participant/PaymentSuccess';
 import AccountSettings from './pages/Participant/Profile/AccountSettings';
 import EditProfile from './pages/Participant/Profile/EditProfile';
 import IdentitySettings from './pages/Participant/Profile/IdentitySettings';
-import RiseArchive from './pages/Participant/Profile/RiseArchive';
+import HallOfRise from './pages/Participant/Profile/HallOfRise';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -232,7 +232,7 @@ const AppRoutes: React.FC = () => {
              <Route path="/profile/settings" element={<AccountSettings />} />
              <Route path="/profile/settings/edit" element={<EditProfile />} />
              <Route path="/profile/settings/identity" element={<IdentitySettings />} />
-             <Route path="/profile/archive" element={<RiseArchive />} />
+              <Route path="/profile/hall-of-rise" element={<HallOfRise />} />
              <Route path="/profile/:userId" element={<PublicProfile />} />
              <Route path="/growth" element={<GrowthDashboard />} />
              <Route path="/impact" element={<ImpactDashboard />} />

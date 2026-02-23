@@ -126,13 +126,6 @@ const Profile: React.FC = () => {
                   <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">Joined</span>
                   <span className="text-[9px] font-bold text-gray-600">{new Date(p.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
                 </div>
-                <div className="w-1 h-1 rounded-full bg-gray-200"></div>
-                <Link 
-                  to="/profile/settings"
-                  className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
-                >
-                  Account Settings
-                </Link>
               </div>
             </div>
           </div>
@@ -143,16 +136,16 @@ const Profile: React.FC = () => {
 
         {/* Rise and Impact Cards Moved Up */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-dark rounded-3xl p-4 text-white relative overflow-hidden flex flex-col justify-center">
-             <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 mb-1">Rise</p>
+          <Link to="/profile/hall-of-rise" className="bg-dark rounded-3xl p-4 text-white relative overflow-hidden flex flex-col justify-center active:scale-[0.98] transition-all">
+             <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 mb-1">Rise Score</p>
              <div className="flex items-end gap-1">
                <h3 className="text-2xl font-black tracking-tighter">{p.walletBalance || 0}</h3>
                <span className="text-[10px] mb-1 opacity-40">🪙</span>
              </div>
-          </div>
+          </Link>
 
-          <Link to="/impact" className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col justify-center">
-            <p className="text-[7px] font-black uppercase tracking-[0.3em] text-gray-400 mb-1">Impact</p>
+          <Link to="/impact" className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col justify-center active:scale-[0.98] transition-all">
+            <p className="text-[7px] font-black uppercase tracking-[0.3em] text-gray-400 mb-1">Lives Impacted</p>
             <h3 className="text-2xl font-black text-gray-900 tracking-tighter">{p.impactStats?.peopleHelped || 0}</h3>
           </Link>
         </div>
@@ -270,7 +263,33 @@ const Profile: React.FC = () => {
           )}
         </section>
 
-        {/* Growth Areas Display (Below Active Path) */}
+        {/* Hall of Rise Preview */}
+        {completedEntries.length > 0 && (
+          <section className="animate-fade-in">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <SectionLabel text="Hall of Rise" />
+              <Link to="/profile/hall-of-rise" className="text-[8px] font-black text-primary uppercase tracking-widest hover:underline">See more</Link>
+            </div>
+            <div className="space-y-2">
+              {completedEntries.slice(0, 3).map(({ enrollment, sprint }) => (
+                <div key={enrollment.id} className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 grayscale opacity-40">
+                    <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-[9px] font-black text-gray-900 truncate">{sprint.title}</h4>
+                    <div className="mt-1.5 h-1 bg-gray-50 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-400 w-full" />
+                    </div>
+                  </div>
+                  <div className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Done</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Growth Areas Display (Below Hall of Rise) */}
         {p.growthAreas && p.growthAreas.length > 0 && (
           <section className="animate-fade-in">
             <SectionLabel text="Growth Focus" />
@@ -287,15 +306,34 @@ const Profile: React.FC = () => {
           </section>
         )}
 
-        {/* Rise Archive Click-through Button */}
+        {/* Account Settings Button */}
         <div className="px-1 pt-2">
           <Link 
-            to="/profile/archive"
+            to="/profile/settings"
             className="w-full py-4 bg-white border border-gray-100 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-sm">📂</div>
-              <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Rise Archive</span>
+              <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-sm">⚙️</div>
+              <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Account Settings</span>
+            </div>
+            <svg 
+              className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" 
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
+
+        {/* Hall of Rise Link (formerly Rise Archive) */}
+        <div className="px-1">
+          <Link 
+            to="/profile/hall-of-rise"
+            className="w-full py-4 bg-white border border-gray-100 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-sm">🏛️</div>
+              <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Hall of Rise</span>
             </div>
             <svg 
               className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" 
