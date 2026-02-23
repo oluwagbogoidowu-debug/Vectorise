@@ -7,7 +7,7 @@ import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
-import { ARCHETYPES } from '../../constants';
+import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
 
 const Profile: React.FC = () => {
   const { user, logout, updateProfile } = useAuth();
@@ -18,10 +18,16 @@ const Profile: React.FC = () => {
   const [isEditingIntent, setIsEditingIntent] = useState(false);
   const [isSelectingAvatar, setIsSelectingAvatar] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isEditingIdentity, setIsEditingIdentity] = useState(false);
   const [intentInput, setIntentInput] = useState('');
   const [reflectionSearch, setReflectionSearch] = useState('');
   const [editName, setEditName] = useState('');
   const [showArchive, setShowArchive] = useState(false);
+
+  // Identity Task States
+  const [tempGrowthAreas, setTempGrowthAreas] = useState<string[]>([]);
+  const [tempRisePathway, setTempRisePathway] = useState<string>('');
+  const [isSavingIdentity, setIsSavingIdentity] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -39,6 +45,8 @@ const Profile: React.FC = () => {
         setEnrollments(enriched.filter((x) => x !== null) as any);
         setIntentInput((user as Participant).intention || '');
         setEditName(user.name);
+        setTempGrowthAreas((user as Participant).growthAreas || []);
+        setTempRisePathway((user as Participant).risePathway || '');
       } catch (err) {
         console.error("Profile sync failed:", err);
       } finally {
@@ -134,6 +142,29 @@ const Profile: React.FC = () => {
     }
   };
 
+  const handleToggleGrowthArea = (area: string) => {
+    setTempGrowthAreas(prev => {
+      if (prev.includes(area)) return prev.filter(a => a !== area);
+      if (prev.length >= 5) return prev;
+      return [...prev, area];
+    });
+  };
+
+  const handleSaveIdentity = async () => {
+    setIsSavingIdentity(true);
+    try {
+      await updateProfile({ 
+        growthAreas: tempGrowthAreas,
+        risePathway: tempRisePathway
+      });
+      setIsEditingIdentity(false);
+    } catch (e) {
+      alert("Failed to save identity settings.");
+    } finally {
+      setIsSavingIdentity(false);
+    }
+  };
+
   const SectionLabel = ({ text }: { text: string }) => (
     <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2 px-1">
       {text}
@@ -189,6 +220,13 @@ const Profile: React.FC = () => {
                     >
                       Edit Profile
                     </button>
+                    <div className="w-1 h-1 rounded-full bg-gray-200"></div>
+                    <button 
+                      onClick={() => setIsEditingIdentity(true)}
+                      className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
+                    >
+                      Identity Settings
+                    </button>
                   </div>
                 </>
               )}
@@ -220,6 +258,104 @@ const Profile: React.FC = () => {
 
       <main className="flex-1 overflow-y-auto custom-scrollbar px-4 py-4 space-y-5">
         
+        {/* Progressive Identity Tasks */}
+        {(!p.growthAreas || p.growthAreas.length === 0 || !p.risePathway) && !isEditingIdentity && (
+          <div className="space-y-3 animate-fade-in">
+            <SectionLabel text="Identity Setup" />
+            
+            {/* Task 1: Growth Areas */}
+            {(!p.growthAreas || p.growthAreas.length === 0) ? (
+              <div className="bg-white rounded-[2rem] p-6 border border-primary/10 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                  <svg className="w-12 h-12 text-primary" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" /></svg>
+                </div>
+                <h3 className="text-sm font-black text-gray-900 italic mb-1">Where do you want to grow next?</h3>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Pick up to 5 areas of focus.</p>
+                
+                <div className="flex flex-wrap gap-1.5 mb-6">
+                  {GROWTH_AREAS.flatMap(g => g.options).map(area => (
+                    <button
+                      key={area}
+                      onClick={() => handleToggleGrowthArea(area)}
+                      className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${tempGrowthAreas.includes(area) ? 'bg-primary text-white shadow-md scale-105' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                    >
+                      {area}
+                    </button>
+                  ))}
+                </div>
+                
+                <button 
+                  onClick={handleSaveIdentity}
+                  disabled={tempGrowthAreas.length === 0 || isSavingIdentity}
+                  className="w-full py-3 bg-primary text-white rounded-xl font-black uppercase tracking-[0.2em] text-[9px] shadow-md disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
+                >
+                  {isSavingIdentity ? 'Saving...' : 'Confirm Growth Areas'}
+                </button>
+              </div>
+            ) : !p.risePathway ? (
+              /* Task 2: Rise Pathway */
+              <div className="bg-white rounded-[2rem] p-6 border border-primary/10 shadow-sm relative overflow-hidden animate-slide-up">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                  <svg className="w-12 h-12 text-primary" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd" /></svg>
+                </div>
+                <h3 className="text-sm font-black text-gray-900 italic mb-1">What best describes your current focus?</h3>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your Rise Pathway.</p>
+                
+                <div className="space-y-2 mb-6">
+                  {RISE_PATHWAYS.map(path => (
+                    <button
+                      key={path.id}
+                      onClick={() => setTempRisePathway(path.id)}
+                      className={`w-full text-left p-3 rounded-2xl border transition-all ${tempRisePathway === path.id ? 'bg-primary/5 border-primary/20 scale-[1.02] shadow-sm' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}
+                    >
+                      <h4 className="text-[10px] font-black text-gray-900 italic">{path.name}</h4>
+                      <p className="text-[8px] text-gray-400 font-medium italic mt-0.5">{path.description}</p>
+                    </button>
+                  ))}
+                </div>
+                
+                <button 
+                  onClick={handleSaveIdentity}
+                  disabled={!tempRisePathway || isSavingIdentity}
+                  className="w-full py-3 bg-primary text-white rounded-xl font-black uppercase tracking-[0.2em] text-[9px] shadow-md disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
+                >
+                  {isSavingIdentity ? 'Saving...' : 'Complete Setup'}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {/* Collapsed Identity Summary (if completed) */}
+        {p.growthAreas && p.growthAreas.length > 0 && p.risePathway && !isEditingIdentity && (
+          <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex items-center justify-between animate-fade-in">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-sm flex-shrink-0">🧬</div>
+              <div className="min-w-0">
+                <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Identity Profile</p>
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <span className="text-[9px] font-black text-gray-900 italic truncate">
+                    {RISE_PATHWAYS.find(r => r.id === p.risePathway)?.name.split(' ').slice(1).join(' ')}
+                  </span>
+                  <div className="w-1 h-1 rounded-full bg-gray-200 flex-shrink-0"></div>
+                  <div className="flex gap-1 overflow-hidden">
+                    {p.growthAreas.slice(0, 2).map(area => (
+                      <span key={area} className="text-[8px] font-bold text-primary whitespace-nowrap">#{area}</span>
+                    ))}
+                    {p.growthAreas.length > 2 && <span className="text-[8px] font-bold text-gray-300">+{p.growthAreas.length - 2}</span>}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button 
+              onClick={() => setIsEditingIdentity(true)}
+              className="p-2 text-gray-300 hover:text-primary transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
             {activeEntry ? (
@@ -369,6 +505,73 @@ const Profile: React.FC = () => {
         </footer>
 
       </main>
+
+      {/* Identity Settings Modal */}
+      {isEditingIdentity && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsEditingIdentity(false)}></div>
+          <div className="relative w-full max-w-sm bg-white rounded-[3rem] shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[90vh]">
+            <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight italic mb-2">Identity Settings</h2>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-8">Refine your growth trajectory.</p>
+              
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-lg bg-primary/10 flex items-center justify-center text-[10px]">1</span>
+                    Growth Areas (Max 5)
+                  </h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {GROWTH_AREAS.flatMap(g => g.options).map(area => (
+                      <button
+                        key={area}
+                        onClick={() => handleToggleGrowthArea(area)}
+                        className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${tempGrowthAreas.includes(area) ? 'bg-primary text-white shadow-md' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                      >
+                        {area}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-lg bg-primary/10 flex items-center justify-center text-[10px]">2</span>
+                    Rise Pathway
+                  </h3>
+                  <div className="space-y-2">
+                    {RISE_PATHWAYS.map(path => (
+                      <button
+                        key={path.id}
+                        onClick={() => setTempRisePathway(path.id)}
+                        className={`w-full text-left p-3 rounded-2xl border transition-all ${tempRisePathway === path.id ? 'bg-primary/5 border-primary/20 shadow-sm' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}
+                      >
+                        <h4 className="text-[10px] font-black text-gray-900 italic">{path.name}</h4>
+                        <p className="text-[8px] text-gray-400 font-medium italic mt-0.5">{path.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+              <button 
+                onClick={() => setIsEditingIdentity(false)}
+                className="flex-1 py-4 bg-white border border-gray-200 text-gray-400 font-black uppercase tracking-widest text-[10px] rounded-2xl active:scale-95 transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveIdentity}
+                disabled={tempGrowthAreas.length === 0 || !tempRisePathway || isSavingIdentity}
+                className="flex-[2] py-4 bg-gray-900 text-white font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all disabled:opacity-50"
+              >
+                {isSavingIdentity ? 'Saving...' : 'Save Settings'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Avatar Selection Modal */}
       {isSelectingAvatar && (

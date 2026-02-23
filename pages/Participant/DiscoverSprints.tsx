@@ -39,6 +39,8 @@ const LockedStageCard: React.FC<{
     </div>
 );
 
+import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
+
 const DiscoverSprints: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -47,6 +49,7 @@ const DiscoverSprints: React.FC = () => {
     const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
     const [orchestration, setOrchestration] = useState<Record<string, LifecycleSlotAssignment>>({});
     const [isLoading, setIsLoading] = useState(true);
+    const [recommendationReason, setRecommendationReason] = useState<string>('');
 
     useEffect(() => {
         // Subscribe to published sprints in real-time
@@ -95,6 +98,60 @@ const DiscoverSprints: React.FC = () => {
         if (sprints.length === 0) return null;
         
         const participant = user as Participant;
+        
+        // Priority 1: Observed Behavior (already enrolled/completed)
+        // If they just finished a sprint, the currentStage is updated.
+        
+        // Priority 2: Selected Growth Areas
+        const growthAreas = participant?.growthAreas || [];
+        if (growthAreas.length > 0) {
+            // Find which group these areas belong to
+            const matchedGroups = GROWTH_AREAS.filter(g => 
+                g.options.some(opt => growthAreas.includes(opt))
+            );
+            
+            if (matchedGroups.length > 0) {
+                // Get all possible sprint titles from matched groups
+                const targetSprintTitles = matchedGroups.flatMap(g => g.sprints);
+                // Find a sprint that matches one of these titles and isn't the active one
+                const matchedSprint = sprints.find(s => 
+                    targetSprintTitles.includes(s.title) && s.id !== activeSprintId
+                );
+                
+                if (matchedSprint) {
+                    setRecommendationReason(`Based on your interest in ${growthAreas[0].toLowerCase()}`);
+                    return matchedSprint;
+                }
+            }
+        }
+
+        // Priority 3: Rise Pathway
+        const pathwayId = participant?.risePathway;
+        if (pathwayId) {
+            const pathway = RISE_PATHWAYS.find(p => p.id === pathwayId);
+            if (pathway) {
+                // Simple mapping for demo purposes - in real app this would be more complex
+                const pathwaySprintMap: Record<string, string[]> = {
+                    'student': ['Clarity Sprint', 'Direction Sprint'],
+                    'early_career': ['Direction Sprint', 'Skill Sprint', 'Confidence Sprint'],
+                    'growth_pro': ['Leadership Sprint', 'Visibility Sprint', 'Execution Sprint'],
+                    'builder': ['Execution Sprint', 'Positioning Sprint', 'Focus Sprint'],
+                    'transition': ['Clarity Sprint', 'Confidence Sprint', 'Consistency Sprint']
+                };
+                
+                const targetTitles = pathwaySprintMap[pathwayId] || [];
+                const matchedSprint = sprints.find(s => 
+                    targetTitles.includes(s.title) && s.id !== activeSprintId
+                );
+                
+                if (matchedSprint) {
+                    setRecommendationReason(`Optimized for the ${pathway.name}`);
+                    return matchedSprint;
+                }
+            }
+        }
+
+        // Fallback: Onboarding Focus
         const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
                          Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
 
@@ -107,25 +164,30 @@ const DiscoverSprints: React.FC = () => {
                     const matchedSprintId = Object.keys(focusMap).find(sId => focusMap[sId]?.includes(userFocus));
                     
                     if (matchedSprintId) {
-                        const matchedSprint = sprints.find(s => s.id === matchedSprintId);
-                        if (matchedSprint) return matchedSprint;
-                    }
-
-                    if (mapping.focusCriteria?.includes(userFocus)) {
-                        const pool = mapping.sprintIds || (mapping.sprintId ? [mapping.sprintId] : []);
-                        const matchedSprint = sprints.find(s => pool.includes(s.id));
-                        if (matchedSprint) return matchedSprint;
+                        const matchedSprint = sprints.find(s => s.id === matchedSprintId && s.id !== activeSprintId);
+                        if (matchedSprint) {
+                            setRecommendationReason(`Aligned with your focus on ${userFocus}`);
+                            return matchedSprint;
+                        }
                     }
                 }
             }
         }
 
         const targetStage = participant?.currentStage || 'Direction';
-        return sprints.find(s => 
+        const stageSprint = sprints.find(s => 
             CATEGORY_TO_STAGE_MAP[s.category] === targetStage && 
-            s.pricingType === 'cash'
-        ) || sprints.find(s => s.pricingType === 'cash');
-    }, [sprints, user, orchestration]);
+            s.pricingType === 'cash' &&
+            s.id !== activeSprintId
+        );
+        
+        if (stageSprint) {
+            setRecommendationReason(`Perfect for your current ${targetStage} stage`);
+            return stageSprint;
+        }
+
+        return sprints.find(s => s.pricingType === 'cash' && s.id !== activeSprintId) || sprints[0];
+    }, [sprints, user, orchestration, activeSprintId]);
 
     const recommendedCoach = useMemo(() => {
         if (!recommendedSprint) return null;
@@ -170,7 +232,14 @@ const DiscoverSprints: React.FC = () => {
                 {recommendedSprint && (
                     <section className="mb-16">
                         <div className="mb-6 px-2">
-                            <h2 className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-1">Recommended for you</h2>
+                            <div className="flex items-center gap-2 mb-1">
+                                <h2 className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Recommended for you</h2>
+                                {recommendationReason && (
+                                    <span className="px-2 py-0.5 bg-primary/5 text-primary text-[7px] font-black uppercase rounded-md border border-primary/10 animate-pulse">
+                                        {recommendationReason}
+                                    </span>
+                                )}
+                            </div>
                             <p className="text-xs text-gray-400 font-medium italic">Based on where you are right now.</p>
                         </div>
 

@@ -273,6 +273,8 @@ export interface Participant extends User {
   onboardingAnswers?: Record<string, any>;
   intention?: string;
   archetype?: string;
+  growthAreas?: string[];
+  risePathway?: string;
   partnerCommissionClosed?: boolean;
   impactStats?: { peopleHelped: number; streak: number };
   enrolledSprintIds: string[];

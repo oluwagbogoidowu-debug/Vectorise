@@ -46,3 +46,64 @@ export const ARCHETYPES = [
     bg: 'bg-emerald-50'
   }
 ];
+
+export const GROWTH_AREAS = [
+  {
+    group: '🧠 Get Clear',
+    sprints: ['Clarity Sprint', 'Direction Sprint', 'Decision Sprint'],
+    options: ['Clarity', 'Direction', 'Decision-making', 'Strategic thinking', 'Critical thinking', 'Problem-solving', 'Self-awareness']
+  },
+  {
+    group: '⚡ Get Into Motion',
+    sprints: ['Focus Sprint', 'Consistency Sprint', 'Execution Sprint'],
+    options: ['Focus', 'Consistency', 'Execution', 'Discipline', 'Productivity', 'Time management', 'Follow-through', 'Accountability']
+  },
+  {
+    group: '💬 Communicate & Show Up',
+    sprints: ['Communication Sprint', 'Visibility Sprint', 'Positioning Sprint'],
+    options: ['Communication', 'Public speaking', 'Writing', 'Personal branding', 'Positioning', 'Storytelling', 'Visibility', 'Influence']
+  },
+  {
+    group: '🚀 Build Your Edge',
+    sprints: ['Career Clarity Sprint', 'Leadership Sprint', 'Skill Sprint'],
+    options: ['Skill-building', 'Leadership', 'Career clarity', 'Entrepreneurship', 'Innovation', 'Opportunity spotting', 'Networking', 'Confidence']
+  },
+  {
+    group: '🧱 Strengthen Yourself',
+    sprints: ['Confidence Sprint', 'Resilience Sprint', 'Discipline Sprint'],
+    options: ['Resilience', 'Courage', 'Emotional intelligence', 'Self-discipline', 'Adaptability', 'Initiative', 'Growth mindset']
+  }
+];
+
+export const RISE_PATHWAYS = [
+  {
+    id: 'student',
+    name: '🎓 Student Path',
+    description: 'Secondary school student, University student, NYSC',
+    routes: 'Clarity-first progression, Exploration-heavy sprints, Lower time intensity'
+  },
+  {
+    id: 'early_career',
+    name: '🧭 Early Career Path',
+    description: 'Early career professional, Exploring career direction',
+    routes: 'Direction + Skill-building, Positioning + Confidence'
+  },
+  {
+    id: 'growth_pro',
+    name: '🏢 Growth Professional Path',
+    description: 'Mid-career professional, Transitioning to a new field, Seeking promotion',
+    routes: 'Strategic thinking, Leadership, Visibility, Execution intensity higher'
+  },
+  {
+    id: 'builder',
+    name: '🚀 Builder Path',
+    description: 'Building a business, Preparing to start a business',
+    routes: 'Execution, Positioning, Focus, Decision-making, Higher accountability pacing'
+  },
+  {
+    id: 'transition',
+    name: '🔄 Transition Path',
+    description: 'Taking a break, Resetting direction, Rebuilding momentum',
+    routes: 'Clarity, Confidence, Consistency'
+  }
+];
