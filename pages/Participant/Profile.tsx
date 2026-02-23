@@ -21,6 +21,7 @@ const Profile: React.FC = () => {
   const [intentInput, setIntentInput] = useState('');
   const [reflectionSearch, setReflectionSearch] = useState('');
   const [editName, setEditName] = useState('');
+  const [showArchive, setShowArchive] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -261,85 +262,107 @@ const Profile: React.FC = () => {
           </Link>
         </div>
 
-        <section>
-          <SectionLabel text="Sprint Archive" />
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
-            {completedEntries.length > 0 ? (
-              completedEntries.map(({ enrollment, sprint }) => (
-                <div key={enrollment.id} className="flex-shrink-0 w-36 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm">
-                  <div className="w-full h-20 rounded-xl overflow-hidden mb-2 grayscale opacity-60">
-                    <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
-                  </div>
-                  <h4 className="font-black text-gray-900 text-[9px] tracking-tight leading-tight line-clamp-2 italic mb-1">{sprint.title}</h4>
-                  <span className="text-[7px] font-black bg-primary/5 text-primary px-1.5 py-0.5 rounded uppercase">{sprint.outcomeTag || 'Clarity gained'}</span>
-                </div>
-              ))
-            ) : (
-              <div className="w-full py-4 text-center text-gray-300 italic text-[9px]">Empty Archive</div>
-            )}
-          </div>
-        </section>
+        <div className="px-1">
+          <button 
+            onClick={() => setShowArchive(!showArchive)}
+            className="w-full py-4 bg-white border border-gray-100 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-sm">📂</div>
+              <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Rise Archive</span>
+            </div>
+            <svg 
+              className={`w-4 h-4 text-gray-300 transition-transform duration-300 ${showArchive ? 'rotate-180' : ''}`} 
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
 
-        <section>
-          <div className="flex justify-between items-center mb-2 px-1">
-            <SectionLabel text="Reflections" />
-            <input 
-              type="text"
-              value={reflectionSearch}
-              onChange={(e) => setReflectionSearch(e.target.value)}
-              placeholder="Search..."
-              className="text-[8px] font-bold bg-gray-50 border-none rounded-lg px-2 py-1 outline-none w-20 focus:w-32 transition-all"
-            />
-          </div>
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
-            {filteredReflections.length > 0 ? (
-              filteredReflections.map((ref, idx) => (
-                <div key={idx} className="flex-shrink-0 w-48 bg-white rounded-2xl p-4 border border-gray-100 shadow-sm relative overflow-hidden">
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-[7px] font-black text-primary uppercase tracking-widest truncate max-w-[100px]">{ref.sprintTitle}</p>
-                    <p className="text-[6px] font-bold text-gray-300 uppercase">D{ref.day}</p>
-                  </div>
-                  <p className="text-[10px] text-gray-600 font-medium leading-relaxed italic line-clamp-3">"{ref.text}"</p>
-                </div>
-              ))
-            ) : (
-              <div className="w-full py-4 text-center text-gray-300 italic text-[9px]">No Patterns Found</div>
-            )}
-          </div>
-        </section>
+        {showArchive && (
+          <div className="space-y-5 animate-slide-up">
+            <section>
+              <SectionLabel text="Sprint Archive" />
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
+                {completedEntries.length > 0 ? (
+                  completedEntries.map(({ enrollment, sprint }) => (
+                    <div key={enrollment.id} className="flex-shrink-0 w-36 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm">
+                      <div className="w-full h-20 rounded-xl overflow-hidden mb-2 grayscale opacity-60">
+                        <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                      </div>
+                      <h4 className="font-black text-gray-900 text-[9px] tracking-tight leading-tight line-clamp-2 italic mb-1">{sprint.title}</h4>
+                      <span className="text-[7px] font-black bg-primary/5 text-primary px-1.5 py-0.5 rounded uppercase">{sprint.outcomeTag || 'Clarity gained'}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="w-full py-4 text-center text-gray-300 italic text-[9px]">Empty Archive</div>
+                )}
+              </div>
+            </section>
 
-        <section>
-          <SectionLabel text="Micro Decisions" />
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
-            {microDecisions.length > 0 ? (
-              microDecisions.map((dec, idx) => (
-                <div key={idx} className="flex-shrink-0 w-40 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between h-20">
-                  <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest truncate">{dec.sprintTitle}</p>
-                  <p className="text-[10px] font-black text-gray-800 leading-tight italic">"{dec.choice}"</p>
-                </div>
-              ))
-            ) : (
-              <div className="w-full py-4 text-center text-gray-300 italic text-[9px]">No Decisions Logged</div>
-            )}
-          </div>
-        </section>
+            <section>
+              <div className="flex justify-between items-center mb-2 px-1">
+                <SectionLabel text="Reflections" />
+                <input 
+                  type="text"
+                  value={reflectionSearch}
+                  onChange={(e) => setReflectionSearch(e.target.value)}
+                  placeholder="Search..."
+                  className="text-[8px] font-bold bg-gray-50 border-none rounded-lg px-2 py-1 outline-none w-20 focus:w-32 transition-all"
+                />
+              </div>
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
+                {filteredReflections.length > 0 ? (
+                  filteredReflections.map((ref, idx) => (
+                    <div key={idx} className="flex-shrink-0 w-48 bg-white rounded-2xl p-4 border border-gray-100 shadow-sm relative overflow-hidden">
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="text-[7px] font-black text-primary uppercase tracking-widest truncate max-w-[100px]">{ref.sprintTitle}</p>
+                        <p className="text-[6px] font-bold text-gray-300 uppercase">D{ref.day}</p>
+                      </div>
+                      <p className="text-[10px] text-gray-600 font-medium leading-relaxed italic line-clamp-3">"{ref.text}"</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="w-full py-4 text-center text-gray-300 italic text-[9px]">No Patterns Found</div>
+                )}
+              </div>
+            </section>
 
-        <section className="pb-4">
-          <SectionLabel text="Coach Registry" />
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
-            {uniqueCoaches.length > 0 ? (
-              uniqueCoaches.map(({ coach }) => (
-                <div key={coach.id} className="flex-shrink-0 w-28 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center text-center">
-                  <img src={coach.profileImageUrl} className="w-8 h-8 rounded-xl object-cover mb-2 border border-gray-50 shadow-sm" alt="" />
-                  <h4 className="font-black text-gray-900 text-[8px] tracking-tight truncate w-full">{coach.name}</h4>
-                  <p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest truncate w-full">{coach.niche}</p>
-                </div>
-              ))
-            ) : (
-              <div className="w-full py-4 text-center text-gray-300 italic text-[9px]">No Connections</div>
-            )}
+            <section>
+              <SectionLabel text="Micro Decisions" />
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
+                {microDecisions.length > 0 ? (
+                  microDecisions.map((dec, idx) => (
+                    <div key={idx} className="flex-shrink-0 w-40 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between h-20">
+                      <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest truncate">{dec.sprintTitle}</p>
+                      <p className="text-[10px] font-black text-gray-800 leading-tight italic">"{dec.choice}"</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="w-full py-4 text-center text-gray-300 italic text-[9px]">No Decisions Logged</div>
+                )}
+              </div>
+            </section>
+
+            <section className="pb-4">
+              <SectionLabel text="Coach Registry" />
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
+                {uniqueCoaches.length > 0 ? (
+                  uniqueCoaches.map(({ coach }) => (
+                    <div key={coach.id} className="flex-shrink-0 w-28 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center text-center">
+                      <img src={coach.profileImageUrl} className="w-8 h-8 rounded-xl object-cover mb-2 border border-gray-50 shadow-sm" alt="" />
+                      <h4 className="font-black text-gray-900 text-[8px] tracking-tight truncate w-full">{coach.name}</h4>
+                      <p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest truncate w-full">{coach.niche}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="w-full py-4 text-center text-gray-300 italic text-[9px]">No Connections</div>
+                )}
+              </div>
+            </section>
           </div>
-        </section>
+        )}
 
         <footer className="text-center pt-2">
             <p className="text-[7px] font-black text-gray-200 uppercase tracking-[0.4em]">Vectorise • Profile 4.1 Dense</p>
