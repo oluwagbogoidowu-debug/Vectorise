@@ -154,8 +154,8 @@ const ParticipantDashboard: React.FC = () => {
   const currentArchetype = ARCHETYPES.find(a => a.id === p.archetype);
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-[#FDFDFD] font-sans overflow-x-hidden">
-      <header className="h-20 flex-shrink-0 px-6 flex items-center justify-between bg-white border-b border-gray-50 shadow-md fixed top-0 left-0 right-0 z-40">
+    <div className="flex flex-col h-screen w-full bg-[#FDFDFD] font-sans overflow-hidden">
+      <header className="h-20 flex-shrink-0 px-6 flex items-center justify-between bg-white border-b border-gray-50 shadow-sm fixed top-0 left-0 right-0 z-40">
         <div className="flex items-center gap-3">
           <Link to="/profile" className="relative group">
             <ArchetypeAvatar 
@@ -237,12 +237,10 @@ const ParticipantDashboard: React.FC = () => {
                             <div className={`w-2 md:w-3 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-gray-200' : 'bg-[#0E7850]'}`}></div>
                             
                             <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col">
-                                <div className="flex justify-between items-start mb-6 md:mb-8">
-                                    <div className="pr-4">
-                                        <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">{mainTask.sprint.category}</p>
-                                        <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight mt-1">{mainTask.sprint.title}</h3>
-                                    </div>
-                                    <div className="bg-gray-100 text-gray-500 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">Day {mainTask.status.day}</div>
+                                <div className="mb-6 md:mb-8">
+                                    <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">{mainTask.sprint.category}</p>
+                                    <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight mt-1">{mainTask.sprint.title}</h3>
+                                    <p className="text-[9px] md:text-[10px] font-black text-gray-500 uppercase tracking-widest mt-2">Day {mainTask.status.day} of {mainTask.sprint.duration}</p>
                                 </div>
 
                                 <div className="mt-auto pt-8">
