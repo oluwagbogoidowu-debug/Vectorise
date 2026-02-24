@@ -254,7 +254,7 @@ const DiscoverSprints: React.FC = () => {
                 {otherOptions.length > 0 && (
                     <section className="mb-16">
                         <div className="mb-6 px-2">
-                            <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em] mb-1">Other options you can explore</h2>
+                            <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em] mb-1">Other options you can explore (Swipe left to view)</h2>
                             <p className="text-xs text-gray-400 font-medium italic">Save for later to build your future waitlist (Max 3).</p>
                         </div>
                         

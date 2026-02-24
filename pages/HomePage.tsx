@@ -183,6 +183,7 @@ const HomePage: React.FC = () => {
           </div>
 
           <div className="mt-20 max-w-4xl mx-auto bg-gray-50 rounded-[2rem] p-10 md:p-14 text-center border border-gray-100 shadow-inner">
+            <p className="text-xs md:text-sm text-gray-400 font-medium mb-4">Other options you can explore (Swipe left to view)</p>
              <p className="text-lg md:text-2xl text-gray-900 font-black italic">
                 "Vectorise exists so others don’t have to <br className="hidden md:block" />
                 <span className="text-primary underline decoration-primary/20 underline-offset-8">learn this late.</span>"

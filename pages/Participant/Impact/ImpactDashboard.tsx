@@ -15,6 +15,7 @@ const ImpactDashboard: React.FC = () => {
     const navigate = useNavigate();
     const [referrals, setReferrals] = useState<Referral[]>([]);
     const [leaders, setLeaders] = useState<Participant[]>([]);
+    const [fullLeaderboard, setFullLeaderboard] = useState<Participant[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -30,7 +31,11 @@ const ImpactDashboard: React.FC = () => {
         const qLead = query(collection(db, 'users'), where('role', '==', 'PARTICIPANT'));
         const unsubLead = onSnapshot(qLead, (snap) => {
             const data = snap.docs.map(d => sanitizeData(d.data()) as Participant);
-            setLeaders(data.sort((a, b) => (b.impactStats?.peopleHelped || 0) - (a.impactStats?.peopleHelped || 0)).slice(0, 5));
+            const sortedLeaders = data.sort((a, b) => (b.impactStats?.peopleHelped || 0) - (a.impactStats?.peopleHelped || 0));
+            setFullLeaderboard(sortedLeaders);
+            const myRank = sortedLeaders.findIndex(p => p.id === user.id);
+            const focusedLeaders = sortedLeaders.slice(Math.max(0, myRank - 1), myRank + 2);
+            setLeaders(focusedLeaders);
             setIsLoading(false);
         });
 
@@ -70,10 +75,9 @@ const ImpactDashboard: React.FC = () => {
                 <div className="bg-[#0E7850] rounded-[2rem] p-5 text-white shadow-lg relative overflow-hidden flex items-center justify-between">
                     <div className="relative z-10 space-y-1">
                         <div className="flex items-end gap-1">
-                            <span className="text-lg mb-1 opacity-50">🪙</span>
-                            <h2 className="text-4xl font-black italic tracking-tighter leading-none">{impactCredits}</h2>
+                            <h2 className="text-4xl font-black italic tracking-tighter leading-none">{p.impactStats?.peopleHelped || 0}</h2>
                         </div>
-                        <p className="text-[8px] font-black uppercase tracking-widest text-white/50">Credits Earned</p>
+                        <p className="text-[8px] font-black uppercase tracking-widest text-white/50">Lives Impacted</p>
                     </div>
                     
                     <div className="relative z-10 flex gap-1.5">
@@ -86,6 +90,46 @@ const ImpactDashboard: React.FC = () => {
                     </div>
                     <div className="absolute -top-6 -right-6 w-20 h-20 bg-white/5 rounded-full blur-2xl"></div>
                 </div>
+
+                <section className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 space-y-4">
+                    <div>
+                        <h3 className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em]">Invite Protocol</h3>
+                        <p className="text-sm font-black text-gray-900 tracking-tight leading-none italic">Catalyst</p>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                        <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2">Personal Message</p>
+                        <p className="text-xs text-gray-600 leading-relaxed">
+                            {`"I found a platform that helps me stay consistent with my growth. Join me on this path: https://www.vectorise.online/?ref=${p.referralCode}#/"`}
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <a 
+                            href={`https://wa.me/?text=I found a platform that helps me stay consistent with my growth. Join me on this path: https://www.vectorise.online/?ref=${p.referralCode}#/`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2 bg-white border border-gray-100 shadow-sm rounded-xl py-3 text-center text-[10px] font-black text-gray-900 uppercase tracking-widest active:scale-95 transition-transform"
+                        >
+                            <span>💬</span>
+                            <span>WhatsApp</span>
+                        </a>
+                        <a 
+                            href={`mailto:?subject=Join me on Vectorise&body=I found a platform that helps me stay consistent with my growth. Join me on this path: https://www.vectorise.online/?ref=${p.referralCode}#/`}
+                            className="flex items-center justify-center gap-2 bg-white border border-gray-100 shadow-sm rounded-xl py-3 text-center text-[10px] font-black text-gray-900 uppercase tracking-widest active:scale-95 transition-transform"
+                        >
+                            <span>✉️</span>
+                            <span>Email</span>
+                        </a>
+                    </div>
+
+                    <div>
+                        <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2">🔗 Unified Invite Link</p>
+                        <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 text-center">
+                            <p className="text-xs text-primary font-mono break-all">{`https://www.vectorise.online/?ref=${p.referralCode}#/`}</p>
+                        </div>
+                    </div>
+                </section>
 
                 {/* HORIZONTAL HISTORY */}
                 <section>
@@ -120,7 +164,7 @@ const ImpactDashboard: React.FC = () => {
                             const isMe = user.id === leader.id;
                             return (
                                 <div key={leader.id} className={`flex items-center gap-3 p-3 border-b border-gray-50 last:border-0 ${isMe ? 'bg-primary/[0.02]' : ''}`}>
-                                    <span className="text-[8px] font-black text-gray-300 w-3">{index + 1}</span>
+                                    <span className="text-[8px] font-black text-gray-300 w-3">{fullLeaderboard.findIndex(l => l.id === leader.id) + 1}</span>
                                     <img src={leader.profileImageUrl} className="w-6 h-6 rounded-lg object-cover border border-gray-100" />
                                     <p className={`text-[10px] font-bold truncate flex-1 ${isMe ? 'text-primary' : 'text-gray-900'}`}>{leader.name}</p>
                                     <div className="text-right">
