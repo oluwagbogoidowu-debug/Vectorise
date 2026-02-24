@@ -6,7 +6,7 @@ import { sprintService } from '../../../services/sprintService';
 import { userService } from '../../../services/userService';
 import { ParticipantSprint, Sprint, Coach } from '../../../types';
 
-const HallOfRise: React.FC = () => {
+const RiseArchive: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [enrollments, setEnrollments] = useState<{ enrollment: ParticipantSprint; sprint: Sprint; coach: Coach | null }[]>([]);
@@ -105,7 +105,7 @@ const HallOfRise: React.FC = () => {
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-gray-400 hover:text-gray-900 transition-colors">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         </button>
-        <h1 className="text-lg font-black text-gray-900 uppercase tracking-widest">Hall of Rise</h1>
+        <h1 className="text-lg font-black text-gray-900 uppercase tracking-widest">Rise Archive</h1>
         <div className="w-10"></div>
       </header>
 
@@ -194,4 +194,4 @@ const HallOfRise: React.FC = () => {
   );
 };
 
-export default HallOfRise;
+export default RiseArchive;

@@ -5,15 +5,18 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Participant, ParticipantSprint, Sprint, Coach } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
+import { shineService } from '../../services/shineService';
 import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
+import { ShinePost } from '../../types';
 
 const Profile: React.FC = () => {
   const { user, logout, updateProfile } = useAuth();
   const navigate = useNavigate();
   
   const [enrollments, setEnrollments] = useState<{ enrollment: ParticipantSprint; sprint: Sprint; coach: Coach | null }[]>([]);
+  const [reflections, setReflections] = useState<ShinePost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Identity Task States
@@ -28,6 +31,9 @@ const Profile: React.FC = () => {
       setIsLoading(true);
       try {
         const userEnrollments = await sprintService.getUserEnrollments(user.id);
+        const allPosts = await shineService.getPosts();
+        setReflections(allPosts.filter(p => p.userId === user.id));
+        
         const enriched = await Promise.all(userEnrollments.map(async (en) => {
           const sprint = await sprintService.getSprintById(en.sprint_id);
           if (!sprint) return null;
@@ -57,6 +63,23 @@ const Profile: React.FC = () => {
 
   const activeEntry = useMemo(() => enrollments.find(e => e.enrollment.progress.some(p => !p.completed)), [enrollments]);
   const completedEntries = useMemo(() => enrollments.filter(e => e.enrollment.progress.every(p => p.completed)), [enrollments]);
+
+  const milestones = useMemo(() => {
+    if (!user) return [];
+    const p = user as Participant;
+    const completedSprints = enrollments.filter(e => e.enrollment.progress.every(day => day.completed));
+    const peopleHelped = p.impactStats?.peopleHelped || 0;
+    const reflectionsCount = reflections.length;
+    
+    const list = [
+      { id: 's1', title: 'First Spark', icon: '🚀', currentValue: enrollments.length, targetValue: 1 },
+      { id: 's2', title: 'The Closer', icon: '🏁', currentValue: completedSprints.length, targetValue: 1 },
+      { id: 'i1', title: 'Impact 1 Degree', icon: '🌱', currentValue: peopleHelped, targetValue: 1 },
+      { id: 'c1', title: 'The Start', icon: '💡', currentValue: reflectionsCount, targetValue: 1 },
+    ];
+    
+    return list.map(m => ({ ...m, progress: Math.min(100, (m.currentValue / m.targetValue) * 100) }));
+  }, [user, enrollments, reflections]);
 
   const handleToggleGrowthArea = (area: string) => {
     setTempGrowthAreas(prev => {
@@ -263,33 +286,31 @@ const Profile: React.FC = () => {
           )}
         </section>
 
-        {/* Hall of Rise Preview */}
-        {completedEntries.length > 0 && (
-          <section className="animate-fade-in">
-            <div className="flex items-center justify-between mb-2 px-1">
-              <SectionLabel text="Hall of Rise" />
-              <Link to="/profile/hall-of-rise" className="text-[8px] font-black text-primary uppercase tracking-widest hover:underline">See more</Link>
-            </div>
-            <div className="space-y-2">
-              {completedEntries.slice(0, 3).map(({ enrollment, sprint }) => (
-                <div key={enrollment.id} className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 grayscale opacity-40">
-                    <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-[9px] font-black text-gray-900 truncate">{sprint.title}</h4>
-                    <div className="mt-1.5 h-1 bg-gray-50 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-400 w-full" />
-                    </div>
-                  </div>
-                  <div className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Done</div>
+        {/* Hall of Rise Preview (Badges) */}
+        <section className="animate-fade-in">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <SectionLabel text="Hall of Rise" />
+            <Link to="/profile/hall-of-rise" className="text-[8px] font-black text-primary uppercase tracking-widest hover:underline">See more</Link>
+          </div>
+          <div className="space-y-2">
+            {milestones.slice(0, 3).map((m) => (
+              <div key={m.id} className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center text-lg flex-shrink-0">
+                  {m.icon}
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-[9px] font-black text-gray-900 truncate uppercase tracking-tight">{m.title}</h4>
+                  <div className="mt-1.5 h-1 bg-gray-50 rounded-full overflow-hidden">
+                    <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${m.progress}%` }} />
+                  </div>
+                </div>
+                <div className="text-[7px] font-black text-gray-400 uppercase tracking-widest">{m.progress === 100 ? 'Unlocked' : `${m.progress.toFixed(0)}%`}</div>
+              </div>
+            ))}
+          </div>
+        </section>
 
-        {/* Growth Areas Display (Below Hall of Rise) */}
+        {/* Growth Focus Display */}
         {p.growthAreas && p.growthAreas.length > 0 && (
           <section className="animate-fade-in">
             <SectionLabel text="Growth Focus" />
@@ -325,15 +346,15 @@ const Profile: React.FC = () => {
           </Link>
         </div>
 
-        {/* Hall of Rise Link (formerly Rise Archive) */}
+        {/* Rise Archive Link */}
         <div className="px-1">
           <Link 
-            to="/profile/hall-of-rise"
+            to="/profile/archive"
             className="w-full py-4 bg-white border border-gray-100 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
           >
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-sm">🏛️</div>
-              <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Hall of Rise</span>
+              <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Rise Archive</span>
             </div>
             <svg 
               className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" 
