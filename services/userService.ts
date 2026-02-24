@@ -18,6 +18,7 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
     
     // 3. Handle common non-serializable but safe common types
     if (val instanceof Date) return val.toISOString();
+    if (val instanceof Map || val instanceof Set || val instanceof WeakMap || val instanceof WeakSet) return undefined;
     
     // Handle Firestore Timestamps
     if (typeof val.toDate === 'function') {
@@ -46,14 +47,16 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
 
     // Pattern matching for specific SDK circular structures (e.g., Query.i.src)
     // The 'i' and 'src' properties are common markers in minified Firestore SDK internals.
+    // We use a more robust check to catch these even if they are nested differently.
     const hasSDKMarkers = !!(
         val.onSnapshot || 
         val.getDoc || 
         val.firestore || 
         val._database ||
         val._path ||
-        (val.i && (val.src || (val.i && val.i.src) || (val.i && val.i.i))) ||
-        (val.src && (val.src.i || val.src.src))
+        (val.i && val.src) || // Direct circular marker in some minified versions
+        (val.i && typeof val.i === 'object' && (val.src || val.i.src || val.i.i)) ||
+        (val.src && typeof val.src === 'object' && (val.src.i || val.src.src))
     );
 
     if (isFirebaseInternal || hasSDKMarkers || val instanceof Element) {

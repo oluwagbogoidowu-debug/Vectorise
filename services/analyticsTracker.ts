@@ -78,13 +78,13 @@ export const analyticsTracker = {
         const storedAttribution = localStorage.getItem('vectorise_attribution');
         if (!storedAttribution) {
             const params = new URLSearchParams(window.location.search);
-            const attribution = {
+            const attribution = sanitizeData({
                 source: params.get('utm_source') || 'direct',
                 medium: params.get('utm_medium') || 'none',
                 campaign: params.get('utm_campaign') || null,
                 partner_code: params.get('ref') || null,
                 timestamp: new Date().toISOString()
-            };
+            });
 
             localStorage.setItem('vectorise_attribution', JSON.stringify(attribution));
 

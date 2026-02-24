@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -122,7 +121,7 @@ const Badges: React.FC = () => {
                     shineService.getPosts()
                 ]);
                 
-                const sprintIds = Array.from(new Set(userEnrollments.map(e => e.sprintId)));
+                const sprintIds = Array.from(new Set(userEnrollments.map(e => e.sprint_id)));
                 const sprints = await Promise.all(sprintIds.map(id => sprintService.getSprintById(id)));
                 
                 setEnrollments(userEnrollments);
@@ -142,13 +141,13 @@ const Badges: React.FC = () => {
         const p = user as Participant;
         const completedSprints = enrollments.filter(e => e.progress.every(day => day.completed));
         const completedPaidSprintsCount = completedSprints.filter(e => {
-            const s = allSprintData.find(ms => ms.id === e.sprintId);
+            const s = allSprintData.find(ms => ms.id === e.sprint_id);
             return s?.pricingType === 'cash' || (s?.price && s.price > 0);
         }).length;
         const finishedEarlyCount = completedSprints.filter(e => {
             const lastTask = [...e.progress].sort((a,b) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime())[0];
             if (!lastTask || !lastTask.completedAt) return false;
-            const diffDays = (new Date(lastTask.completedAt).getTime() - new Date(e.startDate).getTime()) / (1000 * 60 * 60 * 24);
+            const diffDays = (new Date(lastTask.completedAt).getTime() - new Date(e.started_at).getTime()) / (1000 * 60 * 60 * 24);
             return diffDays < (e.progress.length - 1);
         }).length;
         const daysSinceJoin = Math.max(1, Math.ceil((Date.now() - new Date(p.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));

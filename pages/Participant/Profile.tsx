@@ -310,23 +310,6 @@ const Profile: React.FC = () => {
           </div>
         </section>
 
-        {/* Growth Focus Display */}
-        {p.growthAreas && p.growthAreas.length > 0 && (
-          <section className="animate-fade-in">
-            <SectionLabel text="Growth Focus" />
-            <div className="flex flex-wrap gap-2 px-1">
-              {p.growthAreas.map((area, i) => (
-                <div 
-                  key={i} 
-                  className={`${growthAreaColors[i % growthAreaColors.length]} px-4 py-2 rounded-full border font-black italic text-[10px] shadow-sm`}
-                >
-                  {area}.
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* Account Settings Button */}
         <div className="px-1 pt-2">
           <Link 
@@ -346,15 +329,32 @@ const Profile: React.FC = () => {
           </Link>
         </div>
 
-        {/* Rise Archive Link */}
+        {/* Growth Focus Display */}
+        {p.growthAreas && p.growthAreas.length > 0 && (
+          <section className="animate-fade-in">
+            <SectionLabel text="Growth Focus" />
+            <div className="flex flex-wrap gap-2 px-1">
+              {p.growthAreas.map((area, i) => (
+                <div 
+                  key={i} 
+                  className={`${growthAreaColors[i % growthAreaColors.length]} px-4 py-2 rounded-full border font-black italic text-[10px] shadow-sm`}
+                >
+                  {area}.
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Hall of Rise Link (Replaced Rise Archive) */}
         <div className="px-1">
           <Link 
-            to="/profile/archive"
+            to="/profile/hall-of-rise"
             className="w-full py-4 bg-white border border-gray-100 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-sm">🏛️</div>
-              <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Rise Archive</span>
+              <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-sm">🏆</div>
+              <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Hall of Rise</span>
             </div>
             <svg 
               className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" 
