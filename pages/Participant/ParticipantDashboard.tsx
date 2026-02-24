@@ -155,7 +155,7 @@ const ParticipantDashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#FDFDFD] font-sans overflow-hidden">
-      <header className="h-20 flex-shrink-0 px-6 flex items-center justify-between bg-white border-b border-gray-50 shadow-sm fixed top-0 left-0 right-0 z-40">
+      <header className="h-20 flex-shrink-0 px-6 flex items-center justify-between fixed top-0 left-0 right-0 z-40">
         <div className="flex items-center gap-3">
           <Link to="/profile" className="relative group">
             <ArchetypeAvatar 
