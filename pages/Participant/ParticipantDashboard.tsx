@@ -239,29 +239,26 @@ const ParticipantDashboard: React.FC = () => {
                             <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col">
                                 <div className="flex justify-between items-start mb-6 md:mb-8">
                                     <div className="pr-4">
-                                        <p className="text-lg md:text-xl font-black text-gray-900 uppercase tracking-widest">Day {mainTask.status.day} unlocked.</p>
+                                        <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">{mainTask.sprint.category}</p>
+                                        <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight mt-1">{mainTask.sprint.title}</h3>
                                     </div>
+                                    <div className="bg-gray-100 text-gray-500 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">Day {mainTask.status.day}</div>
                                 </div>
 
-                                <div className="mb-8">
-                                    {isMainTaskLocked ? (
-                                        <div className="bg-[#F9FAFB] rounded-[2rem] md:rounded-[2.5rem] p-8 md:p-10 flex flex-col items-center justify-center text-center relative overflow-hidden border border-gray-100/50">
-                                            <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 relative z-10">Next Lesson In</p>
-                                            <h4 className="text-3xl md:text-5xl lg:text-6xl font-black text-gray-800 tracking-tighter tabular-nums relative z-10 leading-none">
-                                                {timeToMidnight}
-                                            </h4>
-                                            <p className="text-[10px] md:text-[11px] font-bold text-[#0E7850] uppercase mt-6 md:mt-8 animate-pulse relative z-10 italic tracking-widest">Integrate your wins...</p>
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col">
-                                            <div className="bg-[#F8F9FA] rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 border border-gray-50 shadow-inner flex flex-col justify-center">
-                                                <p className="text-gray-700 font-bold text-sm md:text-base lg:text-lg leading-relaxed italic mb-4">
-                                                    "{mainTask.status.content?.taskPrompt || "Your task for today is being generated..."}"
-                                                </p>
-                                                <p className="text-[8px] md:text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                                                    You have {100 - Math.round((mainTask.status.day / mainTask.sprint.duration) * 100)}% more to complete your {mainTask.sprint.title} sprint
-                                                </p>
-                                            </div>
+                                <div className="mt-auto pt-8">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Progress</p>
+                                        <p className="text-xs font-black text-gray-900">{mainTaskProgress}%</p>
+                                    </div>
+                                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden mb-6">
+                                        <div className="h-full bg-[#0E7850] rounded-full" style={{ width: `${mainTaskProgress}%` }}></div>
+                                    </div>
+                                    {!isMainTaskLocked && (
+                                        <div className="w-full py-4 md:py-5 bg-[#0E7850] text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.3em] text-[10px] md:text-[12px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-3 md:gap-4 group-hover:scale-[1.02] transition-transform active:scale-[0.98]">
+                                            Open Task 
+                                            <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                            </svg>
                                         </div>
                                     )}
                                 </div>
