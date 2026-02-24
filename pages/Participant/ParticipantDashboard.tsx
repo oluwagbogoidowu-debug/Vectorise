@@ -178,26 +178,24 @@ const ParticipantDashboard: React.FC = () => {
       <div className="flex-1 overflow-y-auto px-[13px] pt-4 md:pt-6 pb-24 custom-scrollbar">
           <div className="max-w-screen-md mx-auto w-full h-full flex flex-col">
             
-            <div className="grid grid-cols-2 gap-3 mb-6 flex-shrink-0">
-                <div className={`bg-[#0E7850] text-white p-5 rounded-3xl shadow-lg flex flex-col h-[96px] relative overflow-hidden transition-transform active:scale-[0.98] ${allTasksDoneToday ? 'justify-center items-center text-center' : 'justify-between'}`}>
+            <div className="grid grid-cols-2 gap-4 mb-8 flex-shrink-0">
+                <div className={`bg-[#0E7850] text-white p-6 rounded-[2rem] shadow-lg flex flex-col h-[140px] relative overflow-hidden transition-transform active:scale-[0.98] ${allTasksDoneToday ? 'justify-center items-center text-center' : 'justify-between'}`}>
                     {allTasksDoneToday ? (
                         <div className="animate-fade-in relative z-10 w-full flex flex-col items-center">
-                            <h3 className="text-[13px] font-black leading-tight">Come back tomorrow</h3>
-                            <p className="text-[8px] font-black uppercase tracking-[0.15em] opacity-60 mt-1">to keep rising</p>
+                            <h3 className="text-[15px] font-black leading-tight">Come back tomorrow</h3>
+                            <p className="text-[9px] font-black uppercase tracking-[0.15em] opacity-60 mt-1">to keep rising</p>
                         </div>
                     ) : (
                         <>
-                            <div className="flex justify-between items-start relative z-10 w-full">
-                                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
-                                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.536 14.95a1 1 0 010-1.414l.707-.707a1 1 0 111.414 1.414l-.707.707a1 1 0 01-1.414 0zM6.464 14.95a1 1 0 01-1.414 0l-.707-.707a1 1 0 011.414-1.414l.707.707a1 1 0 010 1.414z" />
-                                    </svg>
-                                </div>
-                                <p className="text-[8px] font-black uppercase tracking-[0.15em] text-right">
-                                    Task<br/>Ready
-                                </p>
+                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-2">
+                                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                                </svg>
                             </div>
                             <div className="relative z-10">
+                                <p className="text-[9px] font-black uppercase tracking-[0.15em] opacity-70 mb-1">
+                                    Tasks Ready
+                                </p>
                                 <h3 className="text-xl font-black leading-none">{tasksReady.length} Remaining</h3>
                             </div>
                         </>
@@ -205,93 +203,82 @@ const ParticipantDashboard: React.FC = () => {
                     <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                 </div>
 
-                <Link to="/growth" className="bg-white border border-gray-100 p-3.5 rounded-3xl shadow-sm flex flex-col h-[96px] hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
+                <Link to="/growth" className="bg-white border border-gray-100 p-6 rounded-[2rem] shadow-sm flex flex-col h-[140px] hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
                     <div className="flex justify-between items-start relative z-10">
-                        <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center border border-gray-100 group-hover:bg-primary/5 transition-colors">
-                            <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100 group-hover:bg-primary/5 transition-colors">
+                            <svg className="w-5 h-5 text-[#0E7850]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                             </svg>
                         </div>
-                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.15em] text-right group-hover:text-primary transition-colors">Growth<br/>Analysis</p>
+                        <p className="text-xl font-black text-gray-900 leading-none">{overallProgress}%</p>
                     </div>
-                    <div className="mt-1.5 relative z-10">
-                        <p className="text-xl font-black text-gray-900 leading-none mb-1">{overallProgress}%</p>
-                        <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
+                    <div className="mt-auto relative z-10">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2 group-hover:text-primary transition-colors">Growth Analysis</p>
+                        <div className="h-1.5 w-full bg-gray-50 rounded-full overflow-hidden">
+                            <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
                         </div>
                     </div>
                 </Link>
             </div>
 
-            <div className="flex justify-between items-center mb-4 px-1 flex-shrink-0">
-                <h2 className="text-xl font-black text-gray-900 tracking-tight">
+            <div className="flex justify-between items-end mb-6 px-1 flex-shrink-0">
+                <h2 className="text-3xl font-black text-gray-900 tracking-tight">
                     {allTasksDoneToday ? 'Integrate & Rest' : "Today's Focus"}
                 </h2>
-                <Link to="/my-sprints" className="text-[8px] font-black text-primary uppercase tracking-[0.2em] hover:opacity-80 transition-opacity">
+                <Link to="/my-sprints" className="text-[10px] font-black text-[#0E7850] uppercase tracking-[0.15em] hover:opacity-80 transition-opacity mb-1">
                     View Journey
                 </Link>
             </div>
 
-            <div className="flex-1 flex flex-col min-h-0 mb-6">
+            <div className="flex-1 flex flex-col min-h-0 mb-8">
                 {isLoading ? (
-                    <div className="bg-white rounded-3xl flex-1 animate-pulse border border-gray-100 shadow-sm"></div>
+                    <div className="bg-white rounded-[2.5rem] flex-1 animate-pulse border border-gray-100 shadow-sm"></div>
                 ) : mainTask && mainTask.sprint ? (
                     <Link to={`/participant/sprint/${mainTask.enrollment.id}`} className="flex flex-1 min-h-0 group">
-                        <div className="bg-white rounded-[2rem] shadow-[0_15px_40px_-20px_rgba(0,0,0,0.06)] border border-gray-100 relative overflow-hidden flex flex-1 min-h-0 animate-fade-in group-hover:shadow-lg transition-all">
-                            <div className={`w-2.5 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-gray-200' : 'bg-[#0E7850]'}`}></div>
+                        <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-100 relative overflow-hidden flex flex-1 min-h-0 animate-fade-in group-hover:shadow-xl transition-all duration-500">
+                            <div className={`w-3 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-gray-200' : 'bg-[#0E7850]'}`}></div>
                             
-                            <div className="flex-1 pl-3.5 pr-6 py-6 md:px-8 md:py-8 flex flex-col min-h-0">
-                                <div className="flex justify-between items-start mb-4 flex-shrink-0">
+                            <div className="flex-1 px-8 py-10 md:px-12 md:py-12 flex flex-col min-h-0">
+                                <div className="flex justify-between items-start mb-8 flex-shrink-0">
                                     <div>
-                                        <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-1">{mainTask.sprint.category}</p>
-                                        <h3 className="text-lg md:text-xl font-black text-gray-900 leading-tight tracking-tight truncate max-w-[200px] mb-0.5">{mainTask.sprint.title}</h3>
+                                        <p className="text-[11px] font-black text-gray-200 uppercase tracking-[0.3em] mb-2">{mainTask.sprint.category}</p>
+                                        <h3 className="text-3xl md:text-4xl font-black text-gray-900 leading-tight tracking-tight mb-1">{mainTask.sprint.title}</h3>
                                     </div>
-                                    <div className="px-2 py-1 bg-gray-100 rounded-lg">
-                                        <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">
-                                            {isMainTaskLocked ? `Completed Day ${mainTask.status.day}` : `Day ${mainTask.status.day}`}
+                                    <div className="px-4 py-2 bg-white border border-gray-100 rounded-xl shadow-sm">
+                                        <span className="text-[11px] font-black text-[#0E7850] uppercase tracking-widest">
+                                            {isMainTaskLocked ? `Day ${mainTask.status.day}` : `Day ${mainTask.status.day}`}
                                         </span>
                                     </div>
                                 </div>
 
-                                <div className="flex-1 min-w-0 overflow-hidden flex flex-col mb-4">
+                                <div className="flex-1 min-w-0 overflow-hidden flex flex-col mb-10">
                                     {isMainTaskLocked ? (
-                                        <div className="bg-[#F9FAFB] rounded-[1.5rem] p-6 flex-1 flex flex-col items-center justify-center text-center relative overflow-hidden border border-gray-100/50">
-                                            <div className="absolute right-[-10%] top-1/2 -translate-y-1/2 opacity-[0.02] scale-[2] pointer-events-none">
-                                                <LocalLogo type="favicon" className="w-48 h-48" />
-                                            </div>
-                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2 relative z-10">Next Lesson In</p>
-                                            <h4 className="text-3xl md:text-5xl font-black text-gray-800 tracking-tighter tabular-nums relative z-10 leading-none">
+                                        <div className="bg-[#F9FAFB] rounded-[2.5rem] p-10 flex-1 flex flex-col items-center justify-center text-center relative overflow-hidden border border-gray-100/50">
+                                            <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 relative z-10">Next Lesson In</p>
+                                            <h4 className="text-5xl md:text-7xl font-black text-gray-800 tracking-tighter tabular-nums relative z-10 leading-none">
                                                 {timeToMidnight}
                                             </h4>
-                                            <p className="text-[10px] font-bold text-primary uppercase mt-4 animate-pulse relative z-10 italic">Integrate your wins...</p>
+                                            <p className="text-[12px] font-bold text-[#0E7850] uppercase mt-8 animate-pulse relative z-10 italic tracking-widest">Integrate your wins...</p>
                                         </div>
                                     ) : (
                                         <div className="flex-1 flex flex-col min-h-0">
-                                            <p className="text-sm md:text-base font-black text-gray-900 leading-tight mb-1">
-                                                Day {mainTask.status.day} unlocked.
-                                            </p>
-                                            <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest">
-                                                You have {100 - mainTaskProgress}% more to complete your {mainTask.sprint.title} sprint
-                                            </p>
+                                            <p className="text-[11px] font-black text-gray-200 uppercase tracking-[0.3em] mb-6 flex-shrink-0">Action for Today</p>
+                                            <div className="bg-[#F8F9FA] rounded-3xl p-8 border border-gray-50 shadow-inner overflow-y-auto flex-1 custom-scrollbar">
+                                                <p className="text-gray-700 font-bold text-lg md:text-xl leading-relaxed italic">
+                                                    "{mainTask.status.content?.taskPrompt || "Your task for today is being generated..."}"
+                                                </p>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
 
                                 <div className="flex-shrink-0">
-                                    <div className="flex justify-between items-end mb-1.5">
-                                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Progress</span>
-                                        <span className="text-[8px] font-black text-gray-400">{mainTaskProgress}%</span>
-                                    </div>
-                                    <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                                        <div 
-                                            className={`h-full rounded-full transition-all duration-1000 ${isMainTaskLocked ? 'bg-primary/40' : 'bg-primary'}`} 
-                                            style={{ width: `${mainTaskProgress}%` }}
-                                        ></div>
-                                    </div>
-                                    
                                     {!isMainTaskLocked && (
-                                        <div className="mt-4 w-full py-3.5 bg-[#0E7850] text-white rounded-xl font-black uppercase tracking-[0.2em] text-[8px] shadow-md flex items-center justify-center gap-2 group-hover:scale-[1.02] transition-transform">
-                                            Open Task &rarr;
+                                        <div className="w-full py-6 bg-[#0E7850] text-white rounded-3xl font-black uppercase tracking-[0.3em] text-[13px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-4 group-hover:scale-[1.02] transition-transform active:scale-[0.98]">
+                                            Open Task 
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                            </svg>
                                         </div>
                                     )}
                                 </div>
