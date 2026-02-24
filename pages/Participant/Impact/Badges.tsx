@@ -4,7 +4,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { Participant, ParticipantSprint, ShinePost, Sprint } from '../../../types';
 import { sprintService } from '../../../services/sprintService';
 import { shineService } from '../../../services/shineService';
-import { userService } from '../../../services/userService';
+import { userService, sanitizeData } from '../../../services/userService';
 
 interface Milestone {
     id: string;
@@ -118,15 +118,17 @@ const Badges: React.FC = () => {
         const unsubscribes: (() => void)[] = [];
 
         const sub1 = sprintService.subscribeToUserEnrollments(user.id, (enrollments) => {
-            setEnrollments(enrollments);
-            const sprintIds = Array.from(new Set(enrollments.map(e => e.sprint_id)));
+            const sanitizedEnrollments = enrollments.map(e => sanitizeData(e));
+            setEnrollments(sanitizedEnrollments);
+            const sprintIds = Array.from(new Set(sanitizedEnrollments.map(e => e.sprint_id)));
             Promise.all(sprintIds.map(id => sprintService.getSprintById(id)))
-                .then(sprints => setAllSprintData(sprints.filter((s): s is Sprint => s !== null)));
+                .then(sprints => setAllSprintData(sprints.filter((s): s is Sprint => s !== null).map(s => sanitizeData(s))));
         });
         unsubscribes.push(sub1);
 
         const sub2 = shineService.subscribeToPosts((posts: ShinePost[]) => {
-            setReflections(posts.filter(p => p.userId === user.id));
+            const sanitizedPosts = posts.map(p => sanitizeData(p));
+            setReflections(sanitizedPosts.filter(p => p.userId === user.id));
         });
         unsubscribes.push(sub2);
 

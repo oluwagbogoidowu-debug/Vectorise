@@ -161,7 +161,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!user) return;
       try {
           await userService.updateUserDocument(user.id, data);
-          setUser(prev => prev ? { ...prev, ...data } as any : null);
+          setUser(prev => prev ? sanitizeData({ ...prev, ...data }) as any : null);
       } catch (error) {
           console.error("Failed to update profile", error);
           throw error;

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { GROWTH_AREAS, RISE_PATHWAYS } from '../../../constants';
 import { Participant } from '../../../types';
+import { sanitizeData } from '../../../services/userService';
 
 const IdentitySettings: React.FC = () => {
   const navigate = useNavigate();
@@ -27,10 +28,10 @@ const IdentitySettings: React.FC = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await updateProfile({ 
+      await updateProfile(sanitizeData({ 
         growthAreas,
         risePathway
-      });
+      }));
       navigate(-1);
     } catch (err) {
       alert("Failed to save identity settings");

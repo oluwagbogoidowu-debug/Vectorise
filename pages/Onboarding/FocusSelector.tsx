@@ -6,6 +6,7 @@ import { FOCUS_OPTIONS } from '../../services/mockData';
 import { sprintService } from '../../services/sprintService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Participant, LifecycleSlotAssignment, OrchestrationTrigger } from '../../types';
+import { sanitizeData } from '../../services/userService';
 
 const FocusSelector: React.FC = () => {
   const navigate = useNavigate();
@@ -62,12 +63,12 @@ const FocusSelector: React.FC = () => {
 
     if (user) {
       try {
-        await updateProfile({
+        await updateProfile(sanitizeData({
           onboardingAnswers: {
             ...(user as Participant).onboardingAnswers || {},
             selected_focus: option
           }
-        });
+        }));
       } catch (err) {
         console.error("Profile sync failed:", err);
       }

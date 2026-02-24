@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { ARCHETYPES } from '../../../constants';
 import { Participant } from '../../../types';
+import { sanitizeData } from '../../../services/userService';
 import ArchetypeAvatar from '../../../components/ArchetypeAvatar';
 
 const EditProfile: React.FC = () => {
@@ -20,7 +21,7 @@ const EditProfile: React.FC = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await updateProfile({ name });
+      await updateProfile(sanitizeData({ name }));
       navigate(-1);
     } catch (err) {
       alert("Failed to update profile");
@@ -31,7 +32,7 @@ const EditProfile: React.FC = () => {
 
   const handleSelectArchetype = async (archetypeId: string) => {
     try {
-      await updateProfile({ archetype: archetypeId });
+      await updateProfile(sanitizeData({ archetype: archetypeId }));
       setIsSelectingAvatar(false);
     } catch (e) {
       alert("Failed to update archetype.");

@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Participant, ParticipantSprint, Sprint, Coach } from '../../types';
 import { sprintService } from '../../services/sprintService';
-import { userService } from '../../services/userService';
+import { userService, sanitizeData } from '../../services/userService';
 import { shineService } from '../../services/shineService';
 import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
@@ -103,10 +103,10 @@ const Profile: React.FC = () => {
   const handleSaveIdentity = async () => {
     setIsSavingIdentity(true);
     try {
-      await updateProfile({ 
+      await updateProfile(sanitizeData({ 
         growthAreas: tempGrowthAreas,
         risePathway: tempRisePathway
-      });
+      }));
     } catch (e) {
       alert("Failed to save identity settings.");
     } finally {

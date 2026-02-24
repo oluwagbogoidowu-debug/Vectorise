@@ -6,7 +6,7 @@ import { ParticipantSprint, Sprint, Participant } from '../../types';
 import ProgressBar from '../../components/ProgressBar';
 import Button from '../../components/Button';
 import { sprintService } from '../../services/sprintService';
-import { userService } from '../../services/userService';
+import { userService, sanitizeData } from '../../services/userService';
 import { assetService } from '../../services/assetService';
 
 const MySprints: React.FC = () => {
@@ -82,7 +82,7 @@ const MySprints: React.FC = () => {
         [newIds[index], newIds[targetIndex]] = [newIds[targetIndex], newIds[index]];
         try {
             await userService.updateUserDocument(user.id, { savedSprintIds: newIds });
-            await updateProfile({ savedSprintIds: newIds });
+            await updateProfile(sanitizeData({ savedSprintIds: newIds }));
         } catch (error) {
             console.error("Failed to reorder sprints:", error);
         }
@@ -94,7 +94,7 @@ const MySprints: React.FC = () => {
             const p = user as Participant;
             const newWishlist = (p.wishlistSprintIds || []).filter(id => id !== sprintId);
             await userService.updateUserDocument(user.id, { wishlistSprintIds: newWishlist });
-            await updateProfile({ wishlistSprintIds: newWishlist });
+            await updateProfile(sanitizeData({ wishlistSprintIds: newWishlist }));
         } catch (err) {
             console.error(err);
         }

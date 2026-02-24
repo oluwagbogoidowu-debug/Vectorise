@@ -64,7 +64,7 @@ const SprintPayment: React.FC = () => {
         description: `Unlocked ${sprintTitle} via Credits`,
         auditId: selectedSprint.id
       });
-      await updateProfile({ walletBalance: userBalance - sprintPrice });
+      await updateProfile(sanitizeData({ walletBalance: userBalance - sprintPrice }));
       
       const enrollments = await sprintService.getUserEnrollments(user.id);
       const hasActive = enrollments.some(e => e.status === 'active' && e.progress.some(p => !p.completed));
@@ -73,7 +73,7 @@ const SprintPayment: React.FC = () => {
           const currentQueue = userParticipant.savedSprintIds || [];
           if (!currentQueue.includes(selectedSprint.id)) {
               await userService.updateUserDocument(user.id, { savedSprintIds: [...currentQueue, selectedSprint.id] });
-              await updateProfile({ savedSprintIds: [...currentQueue, selectedSprint.id] });
+              await updateProfile(sanitizeData({ savedSprintIds: [...currentQueue, selectedSprint.id] }));
           }
           navigate('/my-sprints', { replace: true });
       } else {

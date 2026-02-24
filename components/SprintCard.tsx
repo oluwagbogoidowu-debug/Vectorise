@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Sprint, Coach, UserRole, Participant } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { MOCK_PARTICIPANT_SPRINTS } from '../services/mockData';
-import { userService } from '../services/userService';
+import { userService, sanitizeData } from '../services/userService';
 import { assetService } from '../services/assetService';
 
 interface SprintCardProps {
@@ -58,7 +58,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                 : [...currentWishlist, sprint.id];
 
             await userService.updateUserDocument(user.id, { wishlistSprintIds: newWishlist });
-            await updateProfile({ wishlistSprintIds: newWishlist });
+            await updateProfile(sanitizeData({ wishlistSprintIds: newWishlist }));
         } catch (err) {
             console.error("Save toggle error", err);
         } finally {
