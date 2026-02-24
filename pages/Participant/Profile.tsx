@@ -310,25 +310,6 @@ const Profile: React.FC = () => {
           </div>
         </section>
 
-        {/* Account Settings Button */}
-        <div className="px-1 pt-2">
-          <Link 
-            to="/profile/settings"
-            className="w-full py-4 bg-white border border-gray-100 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-sm">⚙️</div>
-              <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Account Settings</span>
-            </div>
-            <svg 
-              className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" 
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
-        </div>
-
         {/* Growth Focus Display */}
         {p.growthAreas && p.growthAreas.length > 0 && (
           <section className="animate-fade-in">
@@ -346,7 +327,7 @@ const Profile: React.FC = () => {
           </section>
         )}
 
-        {/* Hall of Rise Link (Replaced Rise Archive) */}
+        {/* Hall of Rise Link */}
         <div className="px-1">
           <Link 
             to="/profile/hall-of-rise"
@@ -355,6 +336,44 @@ const Profile: React.FC = () => {
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-sm">🏆</div>
               <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Hall of Rise</span>
+            </div>
+            <svg 
+              className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" 
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
+
+        {/* Rise Archive Link */}
+        <div className="px-1">
+          <Link 
+            to="/profile/archive"
+            className="w-full py-4 bg-white border border-gray-100 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-sm">🏛️</div>
+              <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Rise Archive</span>
+            </div>
+            <svg 
+              className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" 
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
+
+        {/* Account Settings Button */}
+        <div className="px-1">
+          <Link 
+            to="/profile/settings"
+            className="w-full py-4 bg-white border border-gray-100 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-sm">⚙️</div>
+              <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Account Settings</span>
             </div>
             <svg 
               className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" 

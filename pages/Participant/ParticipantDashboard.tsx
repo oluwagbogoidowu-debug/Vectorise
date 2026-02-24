@@ -154,7 +154,7 @@ const ParticipantDashboard: React.FC = () => {
   const currentArchetype = ARCHETYPES.find(a => a.id === p.archetype);
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#FDFDFD] font-sans overflow-hidden">
+    <div className="flex flex-col min-h-screen w-full bg-[#FDFDFD] font-sans overflow-x-hidden">
       <header className="h-20 flex-shrink-0 px-6 flex items-center justify-between bg-white/80 backdrop-blur-md border-b border-gray-50 fixed top-0 left-0 right-0 z-40">
         <div className="flex items-center gap-3">
           <Link to="/profile" className="relative group">
@@ -175,45 +175,45 @@ const ParticipantDashboard: React.FC = () => {
 
       <div className="h-20 flex-shrink-0"></div>
 
-      <div className="flex-1 overflow-y-auto px-[13px] pt-4 md:pt-6 pb-24 custom-scrollbar">
-          <div className="max-w-screen-md mx-auto w-full h-full flex flex-col">
+      <div className="flex-1 px-4 md:px-6 pt-4 md:pt-6 pb-24">
+          <div className="max-w-screen-md mx-auto w-full flex flex-col">
             
-            <div className="grid grid-cols-2 gap-4 mb-8 flex-shrink-0">
-                <div className={`bg-[#0E7850] text-white p-6 rounded-[2rem] shadow-lg flex flex-col h-[140px] relative overflow-hidden transition-transform active:scale-[0.98] ${allTasksDoneToday ? 'justify-center items-center text-center' : 'justify-between'}`}>
+            <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
+                <div className={`bg-[#0E7850] text-white p-5 md:p-6 rounded-[2rem] shadow-lg flex flex-col min-h-[120px] md:min-h-[140px] relative overflow-hidden transition-transform active:scale-[0.98] ${allTasksDoneToday ? 'justify-center items-center text-center' : 'justify-between'}`}>
                     {allTasksDoneToday ? (
                         <div className="animate-fade-in relative z-10 w-full flex flex-col items-center">
-                            <h3 className="text-[15px] font-black leading-tight">Come back tomorrow</h3>
-                            <p className="text-[9px] font-black uppercase tracking-[0.15em] opacity-60 mt-1">to keep rising</p>
+                            <h3 className="text-sm md:text-[15px] font-black leading-tight">Come back tomorrow</h3>
+                            <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.15em] opacity-60 mt-1">to keep rising</p>
                         </div>
                     ) : (
                         <>
-                            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-2">
-                                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <div className="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-xl flex items-center justify-center mb-2">
+                                <svg className="w-4 h-4 md:w-5 md:h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                                 </svg>
                             </div>
                             <div className="relative z-10">
-                                <p className="text-[9px] font-black uppercase tracking-[0.15em] opacity-70 mb-1 leading-tight">
+                                <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.15em] opacity-70 mb-1 leading-tight">
                                     Task<br />Ready
                                 </p>
-                                <h3 className="text-xl font-black leading-none">{tasksReady.length} Remaining</h3>
+                                <h3 className="text-lg md:text-xl font-black leading-none">{tasksReady.length} Remaining</h3>
                             </div>
                         </>
                     )}
                     <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                 </div>
 
-                <Link to="/growth" className="bg-white border border-gray-100 p-6 rounded-[2rem] shadow-sm flex flex-col h-[140px] hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
+                <Link to="/growth" className="bg-white border border-gray-100 p-5 md:p-6 rounded-[2rem] shadow-sm flex flex-col min-h-[120px] md:min-h-[140px] hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
                     <div className="flex justify-between items-start relative z-10">
-                        <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100 group-hover:bg-primary/5 transition-colors">
-                            <svg className="w-5 h-5 text-[#0E7850]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100 group-hover:bg-primary/5 transition-colors">
+                            <svg className="w-4 h-4 md:w-5 md:h-5 text-[#0E7850]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                             </svg>
                         </div>
-                        <p className="text-xl font-black text-gray-900 leading-none">{overallProgress}%</p>
+                        <p className="text-lg md:text-xl font-black text-gray-900 leading-none">{overallProgress}%</p>
                     </div>
                     <div className="mt-auto relative z-10">
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2 group-hover:text-primary transition-colors">Growth Analysis</p>
+                        <p className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2 group-hover:text-primary transition-colors">Growth Analysis</p>
                         <div className="h-1.5 w-full bg-gray-50 rounded-full overflow-hidden">
                             <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
                         </div>
@@ -221,47 +221,47 @@ const ParticipantDashboard: React.FC = () => {
                 </Link>
             </div>
 
-            <div className="flex justify-between items-end mb-6 px-1 flex-shrink-0">
-                <h2 className="text-3xl font-black text-gray-900 tracking-tight">
+            <div className="flex justify-between items-end mb-6 px-1">
+                <h2 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
                     {allTasksDoneToday ? 'Integrate & Rest' : "Today's Focus"}
                 </h2>
-                <Link to="/my-sprints" className="text-[10px] font-black text-[#0E7850] uppercase tracking-[0.15em] hover:opacity-80 transition-opacity mb-1">
+                <Link to="/my-sprints" className="text-[9px] md:text-[10px] font-black text-[#0E7850] uppercase tracking-[0.15em] hover:opacity-80 transition-opacity mb-1">
                     View Journey
                 </Link>
             </div>
 
-            <div className="flex-1 flex flex-col min-h-0 mb-8">
+            <div className="mb-8">
                 {isLoading ? (
-                    <div className="bg-white rounded-[2.5rem] flex-1 animate-pulse border border-gray-100 shadow-sm"></div>
+                    <div className="bg-white rounded-[2.5rem] h-64 animate-pulse border border-gray-100 shadow-sm"></div>
                 ) : mainTask && mainTask.sprint ? (
-                    <Link to={`/participant/sprint/${mainTask.enrollment.id}`} className="flex flex-1 min-h-0 group">
-                        <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-100 relative overflow-hidden flex flex-1 min-h-0 animate-fade-in group-hover:shadow-xl transition-all duration-500">
-                            <div className={`w-3 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-gray-200' : 'bg-[#0E7850]'}`}></div>
+                    <Link to={`/participant/sprint/${mainTask.enrollment.id}`} className="block group">
+                        <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-100 relative overflow-hidden flex animate-fade-in group-hover:shadow-xl transition-all duration-500">
+                            <div className={`w-2 md:w-3 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-gray-200' : 'bg-[#0E7850]'}`}></div>
                             
-                            <div className="flex-1 px-8 py-10 md:px-12 md:py-12 flex flex-col min-h-0">
-                                <div className="flex justify-between items-start mb-4 flex-shrink-0">
-                                    <div>
-                                        <h3 className="text-3xl md:text-4xl font-black text-gray-900 leading-tight tracking-tight mb-2">{mainTask.sprint.title}</h3>
-                                        <p className="text-[11px] font-black text-[#0E7850] uppercase tracking-[0.1em]">Day {mainTask.status.day} unlocked.</p>
+                            <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col">
+                                <div className="flex justify-between items-start mb-6 md:mb-8">
+                                    <div className="pr-4">
+                                        <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-gray-900 leading-tight tracking-tight mb-2">{mainTask.sprint.title}</h3>
+                                        <p className="text-[10px] md:text-[11px] font-black text-[#0E7850] uppercase tracking-[0.1em]">Day {mainTask.status.day} unlocked.</p>
                                     </div>
                                 </div>
 
-                                <div className="flex-1 min-w-0 overflow-hidden flex flex-col mb-10">
+                                <div className="mb-8">
                                     {isMainTaskLocked ? (
-                                        <div className="bg-[#F9FAFB] rounded-[2.5rem] p-10 flex-1 flex flex-col items-center justify-center text-center relative overflow-hidden border border-gray-100/50">
-                                            <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 relative z-10">Next Lesson In</p>
-                                            <h4 className="text-5xl md:text-7xl font-black text-gray-800 tracking-tighter tabular-nums relative z-10 leading-none">
+                                        <div className="bg-[#F9FAFB] rounded-[2rem] md:rounded-[2.5rem] p-8 md:p-10 flex flex-col items-center justify-center text-center relative overflow-hidden border border-gray-100/50">
+                                            <p className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 relative z-10">Next Lesson In</p>
+                                            <h4 className="text-4xl md:text-6xl lg:text-7xl font-black text-gray-800 tracking-tighter tabular-nums relative z-10 leading-none">
                                                 {timeToMidnight}
                                             </h4>
-                                            <p className="text-[12px] font-bold text-[#0E7850] uppercase mt-8 animate-pulse relative z-10 italic tracking-widest">Integrate your wins...</p>
+                                            <p className="text-[11px] md:text-[12px] font-bold text-[#0E7850] uppercase mt-6 md:mt-8 animate-pulse relative z-10 italic tracking-widest">Integrate your wins...</p>
                                         </div>
                                     ) : (
-                                        <div className="flex-1 flex flex-col min-h-0">
-                                            <div className="bg-[#F8F9FA] rounded-[2.5rem] p-8 border border-gray-50 shadow-inner overflow-y-auto flex-1 custom-scrollbar flex flex-col justify-center">
-                                                <p className="text-gray-700 font-bold text-lg md:text-xl leading-relaxed italic mb-4">
+                                        <div className="flex flex-col">
+                                            <div className="bg-[#F8F9FA] rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 border border-gray-50 shadow-inner flex flex-col justify-center">
+                                                <p className="text-gray-700 font-bold text-base md:text-lg lg:text-xl leading-relaxed italic mb-4">
                                                     "{mainTask.status.content?.taskPrompt || "Your task for today is being generated..."}"
                                                 </p>
-                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                                <p className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                                                     You have {100 - Math.round((mainTask.status.day / mainTask.sprint.duration) * 100)}% more to complete your {mainTask.sprint.title} sprint
                                                 </p>
                                             </div>
@@ -269,11 +269,11 @@ const ParticipantDashboard: React.FC = () => {
                                     )}
                                 </div>
 
-                                <div className="flex-shrink-0">
+                                <div className="mt-auto">
                                     {!isMainTaskLocked && (
-                                        <div className="w-full py-6 bg-[#0E7850] text-white rounded-3xl font-black uppercase tracking-[0.3em] text-[13px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-4 group-hover:scale-[1.02] transition-transform active:scale-[0.98]">
+                                        <div className="w-full py-4 md:py-6 bg-[#0E7850] text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.3em] text-[11px] md:text-[13px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-3 md:gap-4 group-hover:scale-[1.02] transition-transform active:scale-[0.98]">
                                             Open Task 
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                                             </svg>
                                         </div>
@@ -283,7 +283,7 @@ const ParticipantDashboard: React.FC = () => {
                         </div>
                     </Link>
                 ) : (
-                    <div className="py-12 text-center bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex-1 flex flex-col items-center justify-center">
+                    <div className="py-12 text-center bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center">
                         <p className="text-gray-400 font-bold uppercase tracking-widest text-[8px]">No Active Focus. Explore Sprints to begin.</p>
                         <Link to="/discover" className="mt-2 inline-block text-primary font-black uppercase text-[8px] tracking-widest border-b-2 border-primary/20 pb-0.5">Discover Sprints</Link>
                     </div>
