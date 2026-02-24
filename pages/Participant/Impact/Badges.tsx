@@ -52,7 +52,7 @@ const MilestoneCard: React.FC<{ milestone: Milestone; onClaim: (m: Milestone) =>
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start mb-1">
-                        <h3 className="font-black text-gray-900 text-sm uppercase tracking-tight truncate">{milestone.title}</h3>
+                        <h3 className="font-black text-gray-900 text-sm uppercase tracking-tight truncate" style={{fontStyle: 'normal'}}>{milestone.title}</h3>
                         {milestone.isClaimed && (
                             <span className="bg-gray-100 text-gray-400 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Collected</span>
                         )}
@@ -158,40 +158,39 @@ const Badges: React.FC = () => {
     }, [user, enrollments, reflections, allSprintData]);
 
     const milestonesByType = useMemo(() => {
-        if (!stats || !user) return { sprint: [], consistency: [], commitment: [], reflection: [], impact: [] };
+        if (!stats || !user) return { coreProgress: [], dailyDiscipline: [], longGame: [], innerWork: [], influence: [] };
         const p = user as Participant;
         const claimed = p.claimedMilestoneIds || [];
         const categories = {
-            sprint: [
-                { id: 's1', title: 'First Spark', description: 'Enrolled in your first growth sprint.', icon: '🚀', currentValue: stats.started, targetValue: 1, points: 5 },
-                { id: 's2', title: 'The Closer', description: 'Successfully finished your first sprint program.', icon: '🏁', currentValue: stats.completed, targetValue: 1, points: 15 },
-                { id: 's4', title: 'Growth Habit', description: 'Completed 3 high-impact sprints.', icon: '🏗️', currentValue: stats.completed, targetValue: 3, points: 50 },
-                { id: 'ps5', title: 'Paid Pioneer', description: 'Completed 5 paid sprints.', icon: '💳', currentValue: stats.completedPaid, targetValue: 5, points: 100 }
+            coreProgress: [
+                { id: 's1', title: 'First Spark', description: 'You started your rise.', icon: '🚀', currentValue: stats.started, targetValue: 1, points: 5 },
+                { id: 's2', title: 'The Closer', description: 'You finished what you started.', icon: '🏁', currentValue: stats.completed, targetValue: 1, points: 15 },
+                { id: 's4', title: 'Growth Habit', description: 'Consistency is becoming your default.', icon: '🏗️', currentValue: stats.completed, targetValue: 3, points: 50 },
             ],
-            impact: [
-                { id: 'i1', title: 'Impact 1 Degree', description: 'Helped 1 person start their growth journey.', icon: '🌱', currentValue: stats.peopleHelped, targetValue: 1, points: 5, color: 'teal' },
-                { id: 'i10', title: 'Impact 10 Degree', description: 'Influential guide: 10 people catalyzed.', icon: '🌳', currentValue: stats.peopleHelped, targetValue: 10, points: 50, color: 'teal' }
+            dailyDiscipline: [
+                { id: 'c1', title: 'The Start', description: 'You chose reflection over reaction.', icon: '💡', currentValue: stats.reflectionsCount, targetValue: 1, points: 5 },
+                { id: 'c2', title: 'Momentum', description: 'You built momentum.', icon: '🔥', currentValue: stats.streak, targetValue: 3, points: 10 }
             ],
-            consistency: [
-                { id: 'c1', title: 'The Start', description: 'Wrote your first learning reflection.', icon: '💡', currentValue: stats.reflectionsCount, targetValue: 1, points: 5 },
-                { id: 'c2', title: 'Momentum', description: 'Maintained a 3-day completion streak.', icon: '🔥', currentValue: stats.streak, targetValue: 3, points: 10 }
+            longGame: [
+                { id: 'cm1', title: 'Rooted', description: '60 days of intentional growth.', icon: '🌱', currentValue: stats.daysActive, targetValue: 60, points: 20 },
+                { id: 'cm2', title: 'Quarter Builder', description: '90 days of structured rise.', icon: '🏢', currentValue: stats.daysActive, targetValue: 90, points: 50 }
             ],
-            commitment: [
-                { id: 'cm1', title: 'Settling In', description: '60 days since you started your rise.', icon: '🌱', currentValue: stats.daysActive, targetValue: 60, points: 20 },
-                { id: 'cm2', title: 'The Quarter', description: '90 days of intentional growth tracking.', icon: '🏢', currentValue: stats.daysActive, targetValue: 90, points: 50 }
+            innerWork: [
+                { id: 'r1', title: 'Deep Diver', description: 'You went beyond surface-level growth.', icon: '🌊', currentValue: stats.meaningfulReflections, targetValue: 1, points: 10 },
+                { id: 'r2', title: 'Self-Aware', description: 'You turned reflection into clarity.', icon: '💎', currentValue: stats.meaningfulReflections, targetValue: 5, points: 30 }
             ],
-            reflection: [
-                { id: 'r1', title: 'Deep Diver', description: 'First reflection exceeding surface-level updates.', icon: '🌊', currentValue: stats.meaningfulReflections, targetValue: 1, points: 10 },
-                { id: 'r2', title: 'Self-Aware', description: 'Shared 5 deep, meaningful breakthroughs.', icon: '💎', currentValue: stats.meaningfulReflections, targetValue: 5, points: 30 }
+            influence: [
+                { id: 'i1', title: 'Catalyst', description: 'You helped someone start their rise.', icon: '🌱', currentValue: stats.peopleHelped, targetValue: 1, points: 5, color: 'teal' },
+                { id: 'i10', title: 'Multiplier', description: 'You ignited growth in 10 people.', icon: '🌳', currentValue: stats.peopleHelped, targetValue: 10, points: 50, color: 'teal' }
             ]
         };
         const mapToMilestone = (m: any): Milestone => ({ ...m, isUnlocked: m.currentValue >= m.targetValue, isClaimed: claimed.includes(m.id) });
         return {
-            sprint: categories.sprint.map(mapToMilestone),
-            consistency: categories.consistency.map(mapToMilestone),
-            commitment: categories.commitment.map(mapToMilestone),
-            reflection: categories.reflection.map(mapToMilestone),
-            impact: categories.impact.map(mapToMilestone)
+            coreProgress: categories.coreProgress.map(mapToMilestone),
+            dailyDiscipline: categories.dailyDiscipline.map(mapToMilestone),
+            longGame: categories.longGame.map(mapToMilestone),
+            innerWork: categories.innerWork.map(mapToMilestone),
+            influence: categories.influence.map(mapToMilestone)
         };
     }, [stats, user]);
 
@@ -258,11 +257,11 @@ const Badges: React.FC = () => {
                 </div>
             ) : (
                 <div className="space-y-16">
-                    <CategorySection title="Impact Degrees" type="impact" milestones={milestonesByType.impact} color="teal" />
-                    <CategorySection title="Sprint Milestones" type="sprint" milestones={milestonesByType.sprint} color="primary" />
-                    <CategorySection title="Consistency" type="consistency" milestones={milestonesByType.consistency} color="orange" />
-                    <CategorySection title="Commitment" type="commitment" milestones={milestonesByType.commitment} color="blue" />
-                    <CategorySection title="Self-Awareness" type="reflection" milestones={milestonesByType.reflection} color="yellow" />
+                    <CategorySection title="Core Progress" type="coreProgress" milestones={milestonesByType.coreProgress} color="primary" />
+                    <CategorySection title="Daily Discipline" type="dailyDiscipline" milestones={milestonesByType.dailyDiscipline} color="orange" />
+                    <CategorySection title="Long Game" type="longGame" milestones={milestonesByType.longGame} color="blue" />
+                    <CategorySection title="Inner Work" type="innerWork" milestones={milestonesByType.innerWork} color="yellow" />
+                    <CategorySection title="Influence" type="influence" milestones={milestonesByType.influence} color="teal" />
                 </div>
             )}
             <style>{`

@@ -24,7 +24,7 @@ const ImpactDashboard: React.FC = () => {
         // Subscribe to my referrals
         const qRef = query(collection(db, 'referrals'), where('referrerId', '==', user.id));
         const unsubRef = onSnapshot(qRef, (snap) => {
-            setReferrals(snap.docs.map(d => ({ id: d.id, ...sanitizeData(d.data()) } as Referral)));
+            setReferrals(snap.docs.map(d => sanitizeData({ id: d.id, ...d.data() }) as Referral));
         });
 
         // Fetch top leaders
@@ -36,6 +36,9 @@ const ImpactDashboard: React.FC = () => {
             const myRank = sortedLeaders.findIndex(p => p.id === user.id);
             const focusedLeaders = sortedLeaders.slice(Math.max(0, myRank - 1), myRank + 2);
             setLeaders(focusedLeaders);
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Error fetching leaders: ", error);
             setIsLoading(false);
         });
 

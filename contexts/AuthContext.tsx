@@ -3,7 +3,7 @@ import { User, Coach, Participant, Admin, Permission, UserRole } from '../types'
 import { MOCK_USERS, MOCK_ROLES } from '../services/mockData';
 import { auth } from '../services/firebase';
 import { onAuthStateChanged, signOut, deleteUser as firebaseDeleteUser, sendPasswordResetEmail } from 'firebase/auth';
-import { userService } from '../services/userService';
+import { userService, sanitizeData } from '../services/userService';
 
 type AuthContextType = {
   user: User | Coach | Participant | Admin | null;
@@ -29,16 +29,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Listen for Firebase Auth changes
   useEffect(() => {
-    const makeSerializable = (user: any) => {
-        if (!user) return null;
-        const newUser = { ...user };
-        for (const key in newUser) {
-            if (newUser[key]?.toDate) { // Firestore Timestamp check
-                newUser[key] = newUser[key].toDate().toISOString();
-            }
-        }
-        return newUser;
-    };
+
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
@@ -85,7 +76,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 dbUser = newUserProfile as Participant;
             }
 
-            const serializableUser = makeSerializable(dbUser);
+            const serializableUser = sanitizeData(dbUser);
             setUser(serializableUser);
             
             const storedRole = localStorage.getItem('vectorise_active_role');
@@ -99,7 +90,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error("Auth State Sync Error", err);
             let foundUser = MOCK_USERS.find(u => u.email.toLowerCase() === firebaseUser.email?.toLowerCase());
             if (foundUser) {
-                setUser(makeSerializable(foundUser));
+                setUser(sanitizeData(foundUser));
             }
         }
 
