@@ -114,27 +114,28 @@ const Badges: React.FC = () => {
     useEffect(() => {
         if (!user) return;
         setIsLoading(true);
-        const fetchData = async () => {
-            try {
-                const [userEnrollments, allPosts] = await Promise.all([
-                    sprintService.getUserEnrollments(user.id),
-                    shineService.getPosts()
-                ]);
-                
-                const sprintIds = Array.from(new Set(userEnrollments.map(e => e.sprint_id)));
-                const sprints = await Promise.all(sprintIds.map(id => sprintService.getSprintById(id)));
-                
-                setEnrollments(userEnrollments);
-                setAllSprintData(sprints.filter((s): s is Sprint => s !== null));
-                setReflections(allPosts.filter(p => p.userId === user.id));
-            } catch (err) {
-                console.error("Achievement fetch error", err);
-            } finally {
-                setIsLoading(false);
-            }
+
+        const unsubscribes: (() => void)[] = [];
+
+        const sub1 = sprintService.subscribeToUserEnrollments(user.id, (enrollments) => {
+            setEnrollments(enrollments);
+            const sprintIds = Array.from(new Set(enrollments.map(e => e.sprint_id)));
+            Promise.all(sprintIds.map(id => sprintService.getSprintById(id)))
+                .then(sprints => setAllSprintData(sprints.filter((s): s is Sprint => s !== null)));
+        });
+        unsubscribes.push(sub1);
+
+        const sub2 = shineService.subscribeToPosts((posts: ShinePost[]) => {
+            setReflections(posts.filter(p => p.userId === user.id));
+        });
+        unsubscribes.push(sub2);
+
+        setIsLoading(false);
+
+        return () => {
+            unsubscribes.forEach(unsub => unsub());
         };
-        fetchData();
-    }, [user]);
+    }, [user?.id]);
 
     const stats = useMemo(() => {
         if (!user) return null;
