@@ -29,17 +29,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Listen for Firebase Auth changes
   useEffect(() => {
+    const makeSerializable = (user: any) => {
+        if (!user) return null;
+        const newUser = { ...user };
+        for (const key in newUser) {
+            if (newUser[key]?.toDate) { // Firestore Timestamp check
+                newUser[key] = newUser[key].toDate().toISOString();
+            }
+        }
+        return newUser;
+    };
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
         try {
-            // 1. Try to get data from Firestore first
             let dbUser = await userService.getUserDocument(firebaseUser.uid);
 
             if (dbUser) {
                 const updates: any = {};
                 const pUser = dbUser as Participant;
-
                 if (!pUser.enrolledSprintIds) updates.enrolledSprintIds = [];
                 if (!pUser.shinePostIds) updates.shinePostIds = [];
                 if (!pUser.shineCommentIds) updates.shineCommentIds = [];
@@ -67,20 +76,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     shinePostIds: [],
                     shineCommentIds: [],
                     referralCode: (firebaseUser.uid || '').substring(0, 8).toUpperCase(),
-                    walletBalance: 50, // Updated from 30 to 50
-                    impactStats: { peopleHelped: 0, streak: 0 }
+                    walletBalance: 50,
+                    impactStats: { peopleHelped: 0, streak: 0 },
+                    createdAt: new Date().toISOString(),
                 };
                 
                 await userService.createUserDocument(firebaseUser.uid, newUserProfile);
                 dbUser = newUserProfile as Participant;
             }
 
-            setUser(dbUser);
+            const serializableUser = makeSerializable(dbUser);
+            setUser(serializableUser);
             
             const storedRole = localStorage.getItem('vectorise_active_role');
             if (storedRole) {
                 setActiveRole(storedRole as UserRole);
-            } else {
+            } else if (dbUser) {
                 setActiveRole(dbUser.role);
             }
 
@@ -88,12 +99,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error("Auth State Sync Error", err);
             let foundUser = MOCK_USERS.find(u => u.email.toLowerCase() === firebaseUser.email?.toLowerCase());
             if (foundUser) {
-                setUser(foundUser);
+                setUser(makeSerializable(foundUser));
             }
         }
 
       } else {
-        // Only clear if we don't have a demo user set (to prevent race conditions on startup)
+        // User is signed out
+        setUser(null);
       }
       
       setLoading(false);

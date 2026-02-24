@@ -239,8 +239,7 @@ const ParticipantDashboard: React.FC = () => {
                             <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col">
                                 <div className="flex justify-between items-start mb-6 md:mb-8">
                                     <div className="pr-4">
-                                        <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight mb-2">{mainTask.sprint.title}</h3>
-                                        <p className="text-[9px] md:text-[10px] font-black text-[#0E7850] uppercase tracking-[0.1em]">Day {mainTask.status.day} unlocked.</p>
+                                        <p className="text-lg md:text-xl font-black text-gray-900 uppercase tracking-widest">Day {mainTask.status.day} unlocked.</p>
                                     </div>
                                 </div>
 
