@@ -192,7 +192,7 @@ const ParticipantDashboard: React.FC = () => {
                                 </svg>
                             </div>
                             <div className="relative z-10 min-w-0">
-                                <p className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.1em] opacity-70 leading-tight">
+                                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] opacity-70 leading-tight">
                                     Task<br/>Ready
                                 </p>
                             </div>
@@ -209,7 +209,7 @@ const ParticipantDashboard: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-center mb-1">
-                            <p className="text-[7px] md:text-[8px] font-black text-gray-400 uppercase tracking-[0.1em] group-hover:text-primary transition-colors">Growth<br/>Analysis</p>
+                            <p className="text-[6px] md:text-[7px] font-black text-gray-400 uppercase tracking-[0.1em] group-hover:text-primary transition-colors">Growth<br/>Analysis</p>
                             <p className="text-xs md:text-sm font-black text-gray-900 leading-none">{overallProgress}%</p>
                         </div>
                         <div className="h-1 w-full bg-gray-50 rounded-full overflow-hidden">
@@ -263,16 +263,7 @@ const ParticipantDashboard: React.FC = () => {
                                     )}
                                 </div>
 
-                                <div className="mt-auto">
-                                    {!isMainTaskLocked && (
-                                        <div className="w-full py-4 md:py-6 bg-[#0E7850] text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.3em] text-[10px] md:text-[12px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-3 md:gap-4 group-hover:scale-[1.02] transition-transform active:scale-[0.98]">
-                                            Open Task 
-                                            <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                            </svg>
-                                        </div>
-                                    )}
-                                </div>
+
                             </div>
                         </div>
                     </Link>
