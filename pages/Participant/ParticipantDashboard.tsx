@@ -192,9 +192,9 @@ const ParticipantDashboard: React.FC = () => {
                                 </svg>
                             </div>
                             <div className="relative z-10 min-w-0">
-                                <h3 className="text-xs md:text-sm font-black leading-tight truncate">
-                                    Today's Task Ready
-                                </h3>
+                                <p className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.1em] opacity-70 leading-tight">
+                                    Task<br/>Ready
+                                </p>
                             </div>
                         </>
                     )}
@@ -209,7 +209,7 @@ const ParticipantDashboard: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-center mb-1">
-                            <p className="text-[7px] md:text-[8px] font-black text-gray-400 uppercase tracking-[0.1em] group-hover:text-primary transition-colors truncate">Growth Analysis</p>
+                            <p className="text-[7px] md:text-[8px] font-black text-gray-400 uppercase tracking-[0.1em] group-hover:text-primary transition-colors">Growth<br/>Analysis</p>
                             <p className="text-xs md:text-sm font-black text-gray-900 leading-none">{overallProgress}%</p>
                         </div>
                         <div className="h-1 w-full bg-gray-50 rounded-full overflow-hidden">
