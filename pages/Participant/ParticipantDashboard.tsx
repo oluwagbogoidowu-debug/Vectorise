@@ -178,43 +178,42 @@ const ParticipantDashboard: React.FC = () => {
       <div className="flex-1 px-4 md:px-6 pt-4 md:pt-6 pb-24">
           <div className="max-w-screen-md mx-auto w-full flex flex-col">
             
-            <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                <div className={`bg-[#0E7850] text-white p-5 md:p-6 rounded-[2rem] shadow-lg flex flex-col min-h-[120px] md:min-h-[140px] relative overflow-hidden transition-transform active:scale-[0.98] ${allTasksDoneToday ? 'justify-center items-center text-center' : 'justify-between'}`}>
+            <div className="grid grid-cols-2 gap-3 md:gap-4 mb-6">
+                <div className={`bg-[#0E7850] text-white p-4 md:p-5 rounded-[1.5rem] shadow-lg flex flex-col min-h-[100px] md:min-h-[120px] relative overflow-hidden transition-transform active:scale-[0.98] ${allTasksDoneToday ? 'justify-center items-center text-center' : 'justify-between'}`}>
                     {allTasksDoneToday ? (
                         <div className="animate-fade-in relative z-10 w-full flex flex-col items-center">
-                            <h3 className="text-sm md:text-[15px] font-black leading-tight">Come back tomorrow</h3>
-                            <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.15em] opacity-60 mt-1">to keep rising</p>
+                            <h3 className="text-xs md:text-sm font-black leading-tight">Come back tomorrow</h3>
                         </div>
                     ) : (
                         <>
-                            <div className="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-xl flex items-center justify-center mb-2">
-                                <svg className="w-4 h-4 md:w-5 md:h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <div className="w-7 h-7 md:w-8 md:h-8 bg-white/20 rounded-lg flex items-center justify-center mb-1">
+                                <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                                 </svg>
                             </div>
                             <div className="relative z-10">
-                                <p className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.15em] opacity-70 mb-1 leading-tight">
-                                    Task<br />Ready
+                                <p className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.1em] opacity-70 mb-0.5">
+                                    Today's Task Ready
                                 </p>
-                                <h3 className="text-base md:text-lg font-black leading-none">{tasksReady.length} Remaining</h3>
+                                <h3 className="text-sm md:text-base font-black leading-none">{tasksReady.length} Remaining</h3>
                             </div>
                         </>
                     )}
-                    <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
+                    <div className="absolute -bottom-10 -right-10 w-20 h-20 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
                 </div>
 
-                <Link to="/growth" className="bg-white border border-gray-100 p-5 md:p-6 rounded-[2rem] shadow-sm flex flex-col min-h-[120px] md:min-h-[140px] hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
+                <Link to="/growth" className="bg-white border border-gray-100 p-4 md:p-5 rounded-[1.5rem] shadow-sm flex flex-col min-h-[100px] md:min-h-[120px] hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
                     <div className="flex justify-between items-start relative z-10">
-                        <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100 group-hover:bg-primary/5 transition-colors">
-                            <svg className="w-4 h-4 md:w-5 md:h-5 text-[#0E7850]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-7 h-7 md:w-8 md:h-8 bg-emerald-50 rounded-lg flex items-center justify-center border border-emerald-100 group-hover:bg-primary/5 transition-colors">
+                            <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#0E7850]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                             </svg>
                         </div>
-                        <p className="text-base md:text-lg font-black text-gray-900 leading-none">{overallProgress}%</p>
+                        <p className="text-sm md:text-base font-black text-gray-900 leading-none">{overallProgress}%</p>
                     </div>
                     <div className="mt-auto relative z-10">
-                        <p className="text-[7px] md:text-[8px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2 group-hover:text-primary transition-colors">Growth Analysis</p>
-                        <div className="h-1.5 w-full bg-gray-50 rounded-full overflow-hidden">
+                        <p className="text-[7px] md:text-[8px] font-black text-gray-400 uppercase tracking-[0.1em] mb-1.5 group-hover:text-primary transition-colors">Growth Analysis</p>
+                        <div className="h-1 w-full bg-gray-50 rounded-full overflow-hidden">
                             <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
                         </div>
                     </div>
