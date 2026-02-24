@@ -53,7 +53,7 @@ const BottomNavigation: React.FC = () => {
 
   return (
     <nav className="fixed bottom-0 left-0 z-50 w-full bg-white border-t border-gray-50 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] safe-area-pb">
-      <div className="flex justify-around items-center h-20 max-w-lg mx-auto px-4">
+      <div className="flex justify-around items-center h-16 max-w-lg mx-auto px-4">
         {navItems.map((item) => (
           <NavLink
             key={item.path}
