@@ -193,10 +193,10 @@ const ParticipantDashboard: React.FC = () => {
                                 </svg>
                             </div>
                             <div className="relative z-10">
-                                <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.15em] opacity-70 mb-1 leading-tight">
+                                <p className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.15em] opacity-70 mb-1 leading-tight">
                                     Task<br />Ready
                                 </p>
-                                <h3 className="text-lg md:text-xl font-black leading-none">{tasksReady.length} Remaining</h3>
+                                <h3 className="text-base md:text-lg font-black leading-none">{tasksReady.length} Remaining</h3>
                             </div>
                         </>
                     )}
@@ -210,10 +210,10 @@ const ParticipantDashboard: React.FC = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                             </svg>
                         </div>
-                        <p className="text-lg md:text-xl font-black text-gray-900 leading-none">{overallProgress}%</p>
+                        <p className="text-base md:text-lg font-black text-gray-900 leading-none">{overallProgress}%</p>
                     </div>
                     <div className="mt-auto relative z-10">
-                        <p className="text-[8px] md:text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2 group-hover:text-primary transition-colors">Growth Analysis</p>
+                        <p className="text-[7px] md:text-[8px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2 group-hover:text-primary transition-colors">Growth Analysis</p>
                         <div className="h-1.5 w-full bg-gray-50 rounded-full overflow-hidden">
                             <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
                         </div>
@@ -222,10 +222,10 @@ const ParticipantDashboard: React.FC = () => {
             </div>
 
             <div className="flex justify-between items-end mb-6 px-1">
-                <h2 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
+                <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">
                     {allTasksDoneToday ? 'Integrate & Rest' : "Today's Focus"}
                 </h2>
-                <Link to="/my-sprints" className="text-[9px] md:text-[10px] font-black text-[#0E7850] uppercase tracking-[0.15em] hover:opacity-80 transition-opacity mb-1">
+                <Link to="/my-sprints" className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] hover:opacity-80 transition-opacity mb-1">
                     View Journey
                 </Link>
             </div>
@@ -241,27 +241,27 @@ const ParticipantDashboard: React.FC = () => {
                             <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col">
                                 <div className="flex justify-between items-start mb-6 md:mb-8">
                                     <div className="pr-4">
-                                        <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-gray-900 leading-tight tracking-tight mb-2">{mainTask.sprint.title}</h3>
-                                        <p className="text-[10px] md:text-[11px] font-black text-[#0E7850] uppercase tracking-[0.1em]">Day {mainTask.status.day} unlocked.</p>
+                                        <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight mb-2">{mainTask.sprint.title}</h3>
+                                        <p className="text-[9px] md:text-[10px] font-black text-[#0E7850] uppercase tracking-[0.1em]">Day {mainTask.status.day} unlocked.</p>
                                     </div>
                                 </div>
 
                                 <div className="mb-8">
                                     {isMainTaskLocked ? (
                                         <div className="bg-[#F9FAFB] rounded-[2rem] md:rounded-[2.5rem] p-8 md:p-10 flex flex-col items-center justify-center text-center relative overflow-hidden border border-gray-100/50">
-                                            <p className="text-[10px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 relative z-10">Next Lesson In</p>
-                                            <h4 className="text-4xl md:text-6xl lg:text-7xl font-black text-gray-800 tracking-tighter tabular-nums relative z-10 leading-none">
+                                            <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4 relative z-10">Next Lesson In</p>
+                                            <h4 className="text-3xl md:text-5xl lg:text-6xl font-black text-gray-800 tracking-tighter tabular-nums relative z-10 leading-none">
                                                 {timeToMidnight}
                                             </h4>
-                                            <p className="text-[11px] md:text-[12px] font-bold text-[#0E7850] uppercase mt-6 md:mt-8 animate-pulse relative z-10 italic tracking-widest">Integrate your wins...</p>
+                                            <p className="text-[10px] md:text-[11px] font-bold text-[#0E7850] uppercase mt-6 md:mt-8 animate-pulse relative z-10 italic tracking-widest">Integrate your wins...</p>
                                         </div>
                                     ) : (
                                         <div className="flex flex-col">
                                             <div className="bg-[#F8F9FA] rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 border border-gray-50 shadow-inner flex flex-col justify-center">
-                                                <p className="text-gray-700 font-bold text-base md:text-lg lg:text-xl leading-relaxed italic mb-4">
+                                                <p className="text-gray-700 font-bold text-sm md:text-base lg:text-lg leading-relaxed italic mb-4">
                                                     "{mainTask.status.content?.taskPrompt || "Your task for today is being generated..."}"
                                                 </p>
-                                                <p className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                                <p className="text-[8px] md:text-[9px] font-bold text-gray-400 uppercase tracking-widest">
                                                     You have {100 - Math.round((mainTask.status.day / mainTask.sprint.duration) * 100)}% more to complete your {mainTask.sprint.title} sprint
                                                 </p>
                                             </div>
@@ -271,7 +271,7 @@ const ParticipantDashboard: React.FC = () => {
 
                                 <div className="mt-auto">
                                     {!isMainTaskLocked && (
-                                        <div className="w-full py-4 md:py-6 bg-[#0E7850] text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.3em] text-[11px] md:text-[13px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-3 md:gap-4 group-hover:scale-[1.02] transition-transform active:scale-[0.98]">
+                                        <div className="w-full py-4 md:py-6 bg-[#0E7850] text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.3em] text-[10px] md:text-[12px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-3 md:gap-4 group-hover:scale-[1.02] transition-transform active:scale-[0.98]">
                                             Open Task 
                                             <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -293,7 +293,7 @@ const ParticipantDashboard: React.FC = () => {
             {queuedSprints.length > 0 && (
                 <div className="mb-6 animate-fade-in">
                     <div className="flex justify-between items-center mb-3 px-1">
-                        <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Next in Queue</h2>
+                        <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Next in Queue</h2>
                     </div>
                     <div className="grid grid-cols-1 gap-2">
                         {queuedSprints.map(({ enrollment, sprint }) => (
@@ -305,12 +305,12 @@ const ParticipantDashboard: React.FC = () => {
                                         </svg>
                                     </div>
                                     <div>
-                                        <h4 className="text-[11px] font-black text-gray-900 leading-tight group-hover:text-primary transition-colors">{sprint.title}</h4>
-                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{sprint.duration} Days • {sprint.category}</p>
+                                        <h4 className="text-[10px] font-black text-gray-900 leading-tight group-hover:text-primary transition-colors">{sprint.title}</h4>
+                                        <p className="text-[7px] font-bold text-gray-400 uppercase tracking-widest">{sprint.duration} Days • {sprint.category}</p>
                                     </div>
                                 </div>
                                 <div className="px-2 py-1 bg-primary/5 rounded-lg border border-primary/10">
-                                    <span className="text-[7px] font-black text-primary uppercase tracking-widest">Queued</span>
+                                    <span className="text-[6px] font-black text-primary uppercase tracking-widest">Queued</span>
                                 </div>
                             </Link>
                         ))}
@@ -319,10 +319,10 @@ const ParticipantDashboard: React.FC = () => {
             )}
 
             <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center flex-shrink-0 animate-fade-in">
-                <p className="text-gray-600 font-bold italic text-xs mb-1">
+                <p className="text-gray-600 font-bold italic text-[11px] mb-1">
                     {allTasksDoneToday ? '"Rest is as productive as action."' : '"The future depends on what you do today."'}
                 </p>
-                <p className="text-[8px] font-black text-[#0E7850] uppercase tracking-[0.3em]">
+                <p className="text-[7px] font-black text-[#0E7850] uppercase tracking-[0.3em]">
                     {allTasksDoneToday ? 'PLATFORM PROTOCOL' : 'MAHATMA GANDHI'}
                 </p>
             </div>
