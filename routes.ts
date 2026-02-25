@@ -26,6 +26,7 @@ import RecommendedSprints from './pages/Participant/RecommendedSprints';
 import ParticipantLayout from './components/ParticipantLayout';
 import Profile from './pages/Participant/Profile';
 import CoachProfile from './pages/Coach/CoachProfile';
+import CoachProfilePage from './pages/Coach/Profile';
 import PublicProfile from './pages/Participant/PublicProfile';
 import MySprints from './pages/Participant/MySprints';
 import GrowthDashboard from './pages/Participant/GrowthDashboard';
@@ -139,7 +140,7 @@ export const AppRoutes: React.FC = () => {
          <Route path="/coach/participants" element={<CoachParticipants />} />
          <Route path="/coach/earnings" element={<CoachEarnings />} />
          <Route path="/coach/impact" element={<CoachImpact />} />
-         <Route path="/coach/profile" element={<CoachProfile />} />
+         <Route path="/coach/profile" element={<CoachProfilePage />} />
          <Route path="/coach/profile/settings" element={<CoachAccountSettings />} />
          <Route path="/coach/profile/settings/edit" element={<CoachEditProfile />} />
       </Route>
