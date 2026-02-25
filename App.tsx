@@ -22,6 +22,7 @@ import Quiz from './pages/Onboarding/Quiz';
 import RecommendedSprints from './pages/Participant/RecommendedSprints';
 import ParticipantLayout from './components/ParticipantLayout';
 import Profile from './pages/Participant/Profile';
+import CoachProfile from './pages/Coach/CoachProfile';
 import PublicProfile from './pages/Participant/PublicProfile';
 import MySprints from './pages/Participant/MySprints';
 import GrowthDashboard from './pages/Participant/GrowthDashboard';
@@ -219,7 +220,7 @@ const AppRoutes: React.FC = () => {
              <Route path="/coach/participants" element={<CoachParticipants />} />
              <Route path="/coach/earnings" element={<CoachEarnings />} />
              <Route path="/coach/impact" element={<CoachImpact />} />
-             <Route path="/coach/profile" element={<Profile />} />
+             <Route path="/coach/profile" element={<CoachProfile />} />
           </Route>
           <Route path="/coach/sprint/new" element={<ProtectedRoute roles={[UserRole.COACH]}><CreateSprint /></ProtectedRoute>} />
           <Route path="/coach/sprint/edit/:sprintId" element={<ProtectedRoute roles={[UserRole.COACH, UserRole.ADMIN]}><EditSprint /></ProtectedRoute>} />
