@@ -44,14 +44,7 @@ const AdminCoachDetail: React.FC = () => {
       </button>
       <h3 className="text-2xl font-black text-gray-900 italic">{coach.name}'s Application</h3>
       <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-10">
-        <p><strong>Email:</strong> {coach.email}</p>
-        <p><strong>Application Status:</strong> {coach.approved ? 'Approved' : 'Pending'}</p>
-        {coach.applicationDetails && (
-          <div className="mt-4">
-            <h4 className="text-lg font-bold mb-2">Application Details</h4>
-            <pre className="bg-gray-100 p-4 rounded-lg">{JSON.stringify(coach.applicationDetails, null, 2)}</pre>
-          </div>
-        )}
+        <pre className="bg-gray-100 p-4 rounded-lg">{JSON.stringify(coach, null, 2)}</pre>
         {!coach.approved && (
           <button 
             onClick={async () => {
