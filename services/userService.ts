@@ -289,6 +289,16 @@ export const userService = {
       } catch (error) {}
   },
 
+  approveCoach: async (uid: string) => {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, { approved: true });
+    } catch (error) {
+      console.error("Error approving coach:", error);
+      throw error;
+    }
+  },
+
   addUserComment: async (uid: string, commentId: string) => {
       try {
           const userRef = doc(db, 'users', uid);
