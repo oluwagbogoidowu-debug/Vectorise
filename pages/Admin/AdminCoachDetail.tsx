@@ -44,7 +44,44 @@ const AdminCoachDetail: React.FC = () => {
       </button>
       <h3 className="text-2xl font-black text-gray-900 italic">{coach.name}'s Application</h3>
       <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-10">
-        <pre className="bg-gray-100 p-4 rounded-lg">{JSON.stringify(coach, null, 2)}</pre>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <h4 className="text-lg font-bold mb-4">Personal Information</h4>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-500">Name</p>
+                <p className="font-semibold">{coach.name}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Email</p>
+                <p className="font-semibold">{coach.email}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Bio</p>
+                <p className="font-semibold">{coach.bio}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Niche</p>
+                <p className="font-semibold">{coach.niche}</p>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h4 className="text-lg font-bold mb-4">Application Details</h4>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-500">Application Status</p>
+                <p className={`font-semibold ${coach.approved ? 'text-green-600' : 'text-orange-600'}`}>{coach.approved ? 'Approved' : 'Pending'}</p>
+              </div>
+              {coach.applicationDetails && Object.entries(coach.applicationDetails).map(([key, value]) => (
+                <div key={key}>
+                  <p className="text-sm text-gray-500 capitalize">{key.replace(/([A-Z])/g, ' $1')}</p>
+                  <p className="font-semibold">{String(value)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
         {!coach.approved && (
           <button 
             onClick={async () => {
