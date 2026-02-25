@@ -7,7 +7,9 @@ import { User, Participant, Coach, UserRole, WalletTransaction } from '../types'
  * Specifically targets minified Firestore internal classes (Q$1, Sa, etc.) 
  * and breaks circular references to prevent "Converting circular structure to JSON" errors.
  */
-export const sanitizeData = (val: any, seen = new WeakSet()): any => {
+export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any => {
+    // 0. Depth check to prevent infinite recursion
+    if (maxDepth < 0) return undefined;
     // 1. Handle null and primitives
     if (val === null || typeof val === 'undefined') return undefined;
     if (typeof val !== 'object' && typeof val !== 'function') return val;
@@ -67,7 +69,7 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
     if (Array.isArray(val)) {
         seen.add(val);
         const result = val
-            .map(item => sanitizeData(item, seen))
+            .map(item => sanitizeData(item, seen, maxDepth - 1))
             .filter(i => i !== undefined);
         return result;
     }
@@ -92,7 +94,7 @@ export const sanitizeData = (val: any, seen = new WeakSet()): any => {
         if (key.startsWith('_') || key.startsWith('$')) continue;
         
         try {
-            const sanitizedVal = sanitizeData(val[key], seen);
+            const sanitizedVal = sanitizeData(val[key], seen, maxDepth - 1);
             if (sanitizedVal !== undefined) {
                 cleaned[key] = sanitizedVal;
             }

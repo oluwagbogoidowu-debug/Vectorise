@@ -51,7 +51,9 @@ const CreateSprint: React.FC = () => {
         ],
         outcomes: ['', '', ''],
         sprintType: 'Execution' as 'Foundational' | 'Execution' | 'Skill',
-        protocol: 'One action per day' as 'One action per day' | 'Guided task' | 'Challenge-based'
+        protocol: 'One action per day' as 'One action per day' | 'Guided task' | 'Challenge-based',
+        difficulty: 'Beginner' as SprintDifficulty, // Added this line
+        category: ALL_CATEGORIES[0] // Added this line
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -219,6 +221,128 @@ const CreateSprint: React.FC = () => {
                                     placeholder="You know you want to do something meaningful, but you can’t clearly name it yet..." 
                                     required 
                                 />
+                            </section>
+
+                            {/* 03 Target Signals */}
+                            <section>
+                                <div className="flex items-center gap-3 mb-8">
+                                    <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">03</div>
+                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Target Signals (Who it's for)</h4>
+                                </div>
+                                <div className="space-y-3">
+                                    {formData.forWho.map((item, i) => (
+                                        <div key={i} className="flex gap-4 items-center">
+                                            <span className="text-[10px] font-black text-gray-300 w-4">0{i+1}</span>
+                                            <input type="text" value={item} onChange={(e) => handleArrayChange('forWho', i, e.target.value)} className={inputClasses} placeholder="You feel capable but directionless..." />
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            {/* 04 Exclusions */}
+                            <section>
+                                <div className="flex items-center gap-3 mb-8">
+                                    <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">04</div>
+                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Exclusions (Who it's not for)</h4>
+                                </div>
+                                <div className="space-y-3">
+                                    {formData.notForWho.map((item, i) => (
+                                        <div key={i} className="flex gap-4 items-center">
+                                            <span className="text-[10px] font-black text-gray-300 w-4">0{i+1}</span>
+                                            <input type="text" value={item} onChange={(e) => handleArrayChange('notForWho', i, e.target.value)} className={inputClasses} placeholder="You want results without acting..." />
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            {/* 05 Method Snapshot */}
+                            <section>
+                                <div className="flex items-center gap-3 mb-8">
+                                    <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">05</div>
+                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Method Snapshot</h4>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {formData.methodSnapshot.map((item, i) => (
+                                        <div key={i} className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col items-center gap-4 transition-all">
+                                            <input type="text" value={item.verb} onChange={(e) => handleMethodChange(i, 'verb', e.target.value)} className={inputClasses + " text-center uppercase tracking-widest text-[10px] py-2"} placeholder="VERB" />
+                                            <textarea value={item.description} onChange={(e) => handleMethodChange(i, 'description', e.target.value)} rows={2} className={inputClasses + " text-center text-xs font-medium bg-transparent border-none shadow-none resize-none p-0"} placeholder="One-line explanation of action." />
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            {/* 06 Outcomes */}
+                            <section>
+                                <div className="flex items-center gap-3 mb-8">
+                                    <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">06</div>
+                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Evidence of Completion</h4>
+                                </div>
+                                <div className="space-y-3">
+                                    {formData.outcomes.map((outcome, i) => (
+                                        <div key={i} className="flex gap-4 items-center">
+                                            <div className="w-6 h-6 bg-primary/10 text-primary rounded-full flex items-center justify-center text-[10px] font-black">✓</div>
+                                            <input type="text" value={outcome} onChange={(e) => handleArrayChange('outcomes', i, e.target.value)} className={inputClasses} placeholder="Projected outcome..." />
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            {/* 07 Metadata */}
+                            <section>
+                                <div className="flex items-center gap-3 mb-8">
+                                    <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">07</div>
+                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Metadata</h4>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div>
+                                        <label className={labelClasses}>Duration (Days)</label>
+                                        <select name="duration" value={formData.duration} onChange={handleChange} className={inputClasses + " mt-2"}>
+                                            {[3, 5, 7, 10, 14, 21, 30].map(d => <option key={d} value={d}>{d} Continuous Days</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className={labelClasses}>Discovery Category</label>
+                                        <select name="category" value={formData.category} onChange={handleChange} className={inputClasses + " mt-2"}>
+                                            {ALL_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className={labelClasses}>Difficulty</label>
+                                        <select name="difficulty" value={formData.difficulty} onChange={handleChange} className={inputClasses + " mt-2"}>
+                                            <option value="Beginner">Beginner</option>
+                                            <option value="Intermediate">Intermediate</option>
+                                            <option value="Advanced">Advanced</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className={labelClasses}>Protocol</label>
+                                        <select name="protocol" value={formData.protocol} onChange={handleChange} className={inputClasses + " mt-2"}>
+                                            <option value="One action per day">One action per day</option>
+                                            <option value="Guided task">Guided task</option>
+                                            <option value="Challenge-based">Challenge-based</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {/* 08 Completion Assets */}
+                            <section>
+                                <div className="flex items-center gap-3 mb-8">
+                                    <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">08</div>
+                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Completion Assets</h4>
+                                </div>
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className={labelClasses}>Archive Outcome Tag</label>
+                                        <input type="text" name="outcomeTag" value={formData.outcomeTag} onChange={handleChange} className={inputClasses + " mt-2"} placeholder="e.g. Clarity gained" />
+                                        <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest italic leading-relaxed">This appears as the badge on completed sprint cards.</p>
+                                    </div>
+                                    <div>
+                                        <label className={labelClasses}>The Outcome (Final Statement)</label>
+                                        <input type="text" name="outcomeStatement" value={formData.outcomeStatement} onChange={handleChange} className={inputClasses + " mt-2 italic"} placeholder="Focus creates feedback. *Feedback creates clarity.*" />
+                                        <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest italic leading-relaxed">Appears at the bottom of the landing page.</p>
+                                    </div>
+                                </div>
                             </section>
 
                             <div className="flex justify-end gap-4 pt-10 border-t border-gray-50">
