@@ -15,6 +15,7 @@ import SprintView from './pages/Participant/SprintView';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import UserAnalyticsDetail from './pages/Admin/UserAnalyticsDetail';
 import CreateFoundationalSprint from './pages/Admin/CreateFoundationalSprint';
+import AdminCoachDetail from './pages/Admin/AdminCoachDetail';
 import { UserRole } from './types';
 import { Welcome } from './pages/Onboarding/Welcome';
 import QuizIntro from './pages/Onboarding/QuizIntro';
@@ -50,6 +51,8 @@ import CoachSprints from './pages/Coach/CoachSprints';
 import CoachParticipants from './pages/Coach/CoachParticipants';
 import CoachEarnings from './pages/Coach/CoachEarnings';
 import CoachImpact from './pages/Coach/CoachImpact';
+import CoachAccountSettings from './pages/Coach/Profile/AccountSettings';
+import CoachEditProfile from './pages/Coach/Profile/EditProfile';
 
 import ImpactDashboard from './pages/Participant/Impact/ImpactDashboard';
 import ReferralShare from './pages/Participant/Impact/ReferralShare';
@@ -221,6 +224,8 @@ const AppRoutes: React.FC = () => {
              <Route path="/coach/earnings" element={<CoachEarnings />} />
              <Route path="/coach/impact" element={<CoachImpact />} />
              <Route path="/coach/profile" element={<CoachProfile />} />
+             <Route path="/coach/profile/settings" element={<CoachAccountSettings />} />
+             <Route path="/coach/profile/settings/edit" element={<CoachEditProfile />} />
           </Route>
           <Route path="/coach/sprint/new" element={<ProtectedRoute roles={[UserRole.COACH]}><CreateSprint /></ProtectedRoute>} />
           <Route path="/coach/sprint/edit/:sprintId" element={<ProtectedRoute roles={[UserRole.COACH, UserRole.ADMIN]}><EditSprint /></ProtectedRoute>} />
@@ -260,6 +265,7 @@ const AppRoutes: React.FC = () => {
           <Route path="/admin/dashboard" element={<ProtectedRoute roles={[UserRole.ADMIN]}><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/analytics/user/:identifier" element={<ProtectedRoute roles={[UserRole.ADMIN]}><UserAnalyticsDetail /></ProtectedRoute>} />
           <Route path="/admin/sprint/new" element={<ProtectedRoute roles={[UserRole.ADMIN]}><CreateFoundationalSprint /></ProtectedRoute>} />
+          <Route path="/admin/coach/:coachId" element={<ProtectedRoute roles={[UserRole.ADMIN]}><AdminCoachDetail /></ProtectedRoute>} />
           
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

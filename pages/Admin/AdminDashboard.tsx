@@ -11,8 +11,9 @@ import Button from '../../components/Button';
 import LifecycleOrchestrator from './LifecycleOrchestrator';
 import AdminEarnings from './AdminEarnings';
 import AdminAnalytics from './AdminAnalytics';
+import AdminCoaches from './AdminCoaches';
 
-type Tab = 'pulse' | 'orchestrator' | 'analytics' | 'earning' | 'sprints' | 'partners' | 'quotes' | 'roles';
+type Tab = 'pulse' | 'orchestrator' | 'analytics' | 'earning' | 'sprints' | 'coaches' | 'partners' | 'quotes' | 'roles';
 type SprintFilter = 'all' | 'active' | 'core' | 'pending' | 'rejected';
 
 export default function AdminDashboard() {
@@ -112,6 +113,7 @@ export default function AdminDashboard() {
                                 { id: 'analytics', label: 'Analytics' },
                                 { id: 'earning', label: 'Earning' },
                                 { id: 'sprints', label: 'Sprints' },
+                                { id: 'coaches', label: 'Coaches' },
                                 { id: 'partners', label: 'Partners' },
                                 { id: 'quotes', label: 'Quotes' },
                                 { id: 'roles', label: 'System' }
@@ -203,6 +205,8 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
                         )}
+
+                        {activeTab === 'coaches' && <AdminCoaches />}
 
                         {activeTab === 'partners' && (
                             <div className="animate-fade-in space-y-8">

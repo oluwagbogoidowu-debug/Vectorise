@@ -132,7 +132,8 @@ const CoachProfile: React.FC = () => {
       
       <div className="bg-white px-6 pt-8 pb-6 border-b border-gray-50 flex-shrink-0">
         <div className="flex items-start justify-between mb-6">
-          <div className="flex items-center gap-5">
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-5">
             <div className="relative group">
               <ArchetypeAvatar 
  
@@ -150,6 +151,10 @@ const CoachProfile: React.FC = () => {
                 </div>
               </div>
             </div>
+            </div>
+            <Link to="/coach/profile/settings" className="p-3.5 bg-white text-gray-400 hover:text-primary rounded-2xl shadow-sm border border-gray-100 transition-all active:scale-90 cursor-pointer">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </Link>
           </div>
 
         </div>
@@ -198,24 +203,7 @@ const CoachProfile: React.FC = () => {
 
 
 
-        {/* Account Settings Button */}
-        <div className="px-1">
-          <Link 
-            to="/profile/settings"
-            className="w-full py-4 bg-white border border-gray-100 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-sm">⚙️</div>
-              <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Account Settings</span>
-            </div>
-            <svg 
-              className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" 
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
-        </div>
+
 
         <footer className="text-center pt-10">
             <p className="text-[7px] font-black text-gray-200 uppercase tracking-[0.4em]">Vectorise • Profile 5.0 Progressive</p>

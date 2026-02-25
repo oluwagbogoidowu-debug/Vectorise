@@ -175,6 +175,18 @@ export const userService = {
     }
   },
 
+  getAllCoaches: async () => {
+    try {
+      const q = query(collection(db, 'users'), where("role", "==", UserRole.COACH));
+      const querySnapshot = await getDocs(q);
+      const coaches: Coach[] = [];
+      querySnapshot.forEach((doc) => coaches.push(sanitizeData(doc.data()) as Coach));
+      return coaches;
+    } catch (error) {
+      return [];
+    }
+  },
+
   getCoaches: async () => {
     try {
       const q = query(collection(db, 'users'), where("role", "==", UserRole.COACH));

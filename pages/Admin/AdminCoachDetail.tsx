@@ -1,0 +1,55 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Coach } from '../../types';
+import { userService } from '../../services/userService';
+
+const AdminCoachDetail: React.FC = () => {
+  const { coachId } = useParams<{ coachId: string }>();
+  const [coach, setCoach] = useState<Coach | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchCoach = async () => {
+      if (!coachId) return;
+      setIsLoading(true);
+      try {
+        const fetchedCoach = await userService.getUserDocument(coachId);
+        setCoach(fetchedCoach as Coach);
+      } catch (err) {
+        console.error("Failed to fetch coach:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchCoach();
+  }, [coachId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!coach) {
+    return <div>Coach not found</div>;
+  }
+
+  return (
+    <div className="animate-fade-in space-y-8 p-10">
+      <button onClick={() => navigate(-1)} className="p-3.5 bg-white text-gray-400 hover:text-primary rounded-2xl shadow-sm border border-gray-100 transition-all active:scale-90 cursor-pointer">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+      </button>
+      <h3 className="text-2xl font-black text-gray-900 italic">{coach.name}'s Application</h3>
+      <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-10">
+        <p><strong>Email:</strong> {coach.email}</p>
+        <p><strong>Application Status:</strong> {coach.approved ? 'Approved' : 'Pending'}</p>
+        {/* Add more coach details here as needed */}
+      </div>
+    </div>
+  );
+};
+
+export default AdminCoachDetail;
