@@ -9,7 +9,7 @@ import SignUpPage from './pages/Auth/SignUpPage';
 import VerifyEmailPage from './pages/Auth/VerifyEmailPage';
 import HomePage from './pages/HomePage';
 import CreateSprint from './pages/Coach/CreateSprint';
-import EditSprint from './pages/Coach/EditSprint';
+import EditSprint from './pages/Coach/EditSprintNew';
 import SprintPreview from './pages/Sprint/SprintPreview';
 import SprintLandingPage from './pages/Participant/SprintLandingPage';
 import DiscoverSprints from './pages/Participant/DiscoverSprints';
