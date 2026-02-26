@@ -49,7 +49,7 @@ const SprintPreviewPage: React.FC = () => {
                         </svg>
                     </button>
                     <div>
-                        <h1 className="text-3xl font-black text-gray-900 tracking-tight italic">Sprint Preview</h1>
+                        <h1 className="text-3xl font-black text-gray-900 tracking-tight">Sprint Preview</h1>
                         <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{sprint.title}</p>
                     </div>
                 </header>
@@ -91,8 +91,17 @@ const SprintPreviewPage: React.FC = () => {
                     )}
 
                     {previewType === 'landing' && (
-                        <div className="animate-fade-in">
-                            <LandingPreview sprint={sprint} coach={coach} />
+                        <div className="animate-fade-in text-left">
+                            <div className="space-y-8">
+                                {sprint.dynamicSections && sprint.dynamicSections.map((section, index) => (
+                                    <section key={index} className="bg-white rounded-[2.5rem] p-10 md:p-14 border border-gray-100 shadow-sm">
+                                        <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">{section.title}</h2>
+                                        <div className="prose prose-sm max-w-none text-gray-800 font-medium leading-relaxed">
+                                            <p>{section.body}</p>
+                                        </div>
+                                    </section>
+                                ))}
+                            </div>
                         </div>
                     )}
 
