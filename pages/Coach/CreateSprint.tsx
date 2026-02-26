@@ -1,34 +1,20 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
-import { Sprint, SprintDifficulty, DailyContent, Coach } from '../../types';
+import { Sprint, SprintDifficulty, DailyContent, Coach, DynamicSection } from '../../types';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import { ALL_CATEGORIES } from '../../services/mockData';
 
-const HelpGuidance: React.FC<{ rule: string; isOpen: boolean }> = ({ rule, isOpen }) => {
-    if (!isOpen) return null;
-    return (
-        <div className="mb-4 p-5 bg-primary/5 border border-primary/10 rounded-[1.5rem] animate-slide-up shadow-inner relative overflow-hidden group">
-            <div className="flex items-center gap-2 mb-2 relative z-10">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em]">Mandatory Constraint</p>
-            </div>
-            <p className="text-[11px] text-gray-600 font-medium italic leading-relaxed relative z-10">
-                "{rule}"
-            </p>
-            <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl -mr-12 -mt-12 pointer-events-none group-hover:bg-primary/10 transition-colors"></div>
-        </div>
-    );
-};
+
 
 const CreateSprint: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const [helpOpen, setHelpOpen] = useState<Record<string, boolean>>({});
+
     const [previewType, setPreviewType] = useState<'card' | 'landing'>('card');
 
     const [formData, setFormData] = useState({
@@ -56,9 +42,7 @@ const CreateSprint: React.FC = () => {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const toggleHelp = (key: string) => {
-        setHelpOpen(prev => ({ ...prev, [key]: !prev[key] }));
-    };
+
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -154,24 +138,51 @@ const CreateSprint: React.FC = () => {
         }
     };
 
-    const previewSprint: Partial<Sprint> = {
-        id: 'preview',
-        coachId: user?.id || '',
-        title: formData.title || 'Untitled Sprint',
-        subtitle: formData.subtitle,
-        coverImageUrl: formData.coverImageUrl || 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80',
-        dynamicSections: formData.dynamicSections,
-        category: formData.category,
-        difficulty: formData.difficulty,
-        duration: Number(formData.duration),
-        price: 0,
-        coverImageUrl: formData.coverImageUrl || 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80',
-        published: false,
-        approvalStatus: 'draft',
-        dailyContent: [],
-        outcomeTag: formData.outcomeTag,
-        outcomeStatement: formData.outcomeStatement,
-    };
+    const previewSprint: Partial<Sprint> = useMemo(() => {
+        const sprint: Partial<Sprint> = {
+            id: 'preview',
+            coachId: user?.id || '',
+            title: formData.title || 'Untitled Sprint',
+            subtitle: formData.subtitle,
+            coverImageUrl: formData.coverImageUrl || 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80',
+            dynamicSections: formData.dynamicSections,
+            category: formData.category,
+            difficulty: formData.difficulty,
+            duration: Number(formData.duration),
+            price: 0,
+            published: false,
+            approvalStatus: 'draft',
+            dailyContent: [],
+            outcomeTag: formData.outcomeTag,
+            outcomeStatement: formData.outcomeStatement,
+        };
+
+        formData.dynamicSections?.forEach(section => {
+            switch (section.id) {
+                case 'transformation':
+                    sprint.transformation = section.body;
+                    sprint.description = section.body;
+                    break;
+                case 'forWho':
+                    sprint.forWho = section.body.split('\n').map(s => s.trim()).filter(s => s);
+                    break;
+                case 'notForWho':
+                    sprint.notForWho = section.body.split('\n').map(s => s.trim()).filter(s => s);
+                    break;
+                case 'methodSnapshot':
+                    sprint.methodSnapshot = section.body.split('\n').map(line => {
+                        const [verb, description] = line.split(':').map(s => s.trim());
+                        return { verb: verb || '', description: description || '' };
+                    }).filter(m => m.verb || m.description);
+                    break;
+                case 'outcomes':
+                    sprint.outcomes = section.body.split('\n').map(s => s.trim()).filter(s => s);
+                    break;
+            }
+        });
+
+        return sprint;
+    }, [formData, user]);
 
     const inputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all placeholder-gray-300";
     const labelClasses = "text-[11px] font-black text-gray-400 uppercase tracking-widest";
@@ -197,7 +208,7 @@ const CreateSprint: React.FC = () => {
                             <section>
                                 <div className="flex items-center gap-3 mb-8">
                                     <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">01</div>
-                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Registry Identity</h4>
+                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Sprint Identity</h4>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="md:col-span-2">
@@ -215,91 +226,54 @@ const CreateSprint: React.FC = () => {
                                 </div>
                             </section>
 
-                            <section>
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">02</div>
-                                        <label className={labelClasses}>Transformation Statement</label>
+                            {/* Dynamic Sections */}
+                            {formData.dynamicSections?.map((section, index) => (
+                                <section key={section.id} className="space-y-6 bg-gray-50 p-6 rounded-3xl border border-gray-100 shadow-sm">
+                                    <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
+                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{section.title}</h4>
+                                        <button 
+                                            type="button"
+                                            onClick={() => {
+                                                const newSections = formData.dynamicSections?.filter(s => s.id !== section.id);
+                                                setFormData({ ...formData, dynamicSections: newSections });
+                                            }}
+                                            className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full"
+                                            title="Remove section"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
                                     </div>
-                                    <button type="button" onClick={() => toggleHelp('transformation')} className={`p-2 rounded-xl transition-all ${helpOpen.transformation ? 'bg-primary text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:text-primary'}`} title="View Rules">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    </button>
-                                </div>
-                                <HelpGuidance isOpen={helpOpen.transformation} rule="No benefits list. No how-to. Emotional truth only. Describe the before-and-after state. Mandatory, 3–4 lines max." />
-                                <textarea 
-                                    name="transformation" 
-                                    value={formData.transformation} 
-                                    onChange={handleChange} 
-                                    rows={4} 
-                                    className={inputClasses + " resize-none italic font-medium leading-relaxed p-6 text-lg"} 
-                                    placeholder="You know you want to do something meaningful, but you can’t clearly name it yet..." 
-                                    required 
-                                />
-                            </section>
+                                    <label className={labelClasses}>Section Title</label>
+                                    <input 
+                                        type="text" 
+                                        value={section.title} 
+                                        onChange={e => handleDynamicSectionChange(index, 'title', e.target.value)}
+                                        className={inputClasses + " mt-2"} 
+                                    />
+                                    <label className={labelClasses + " mt-4 block"}>Section Body</label>
+                                    <textarea 
+                                        value={section.body} 
+                                        onChange={e => handleDynamicSectionChange(index, 'body', e.target.value)}
+                                        rows={6} 
+                                        className={inputClasses + " resize-none mt-2"} 
+                                    />
+                                </section>
+                            ))}
 
-                            {/* 03 Target Signals */}
-                            <section>
-                                <div className="flex items-center gap-3 mb-8">
-                                    <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">03</div>
-                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Target Signals (Who it's for)</h4>
-                                </div>
-                                <div className="space-y-3">
-                                    {formData.forWho.map((item, i) => (
-                                        <div key={i} className="flex gap-4 items-center">
-                                            <span className="text-[10px] font-black text-gray-300 w-4">0{i+1}</span>
-                                            <input type="text" value={item} onChange={(e) => handleArrayChange('forWho', i, e.target.value)} className={inputClasses} placeholder="You feel capable but directionless..." />
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-
-                            {/* 04 Exclusions */}
-                            <section>
-                                <div className="flex items-center gap-3 mb-8">
-                                    <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">04</div>
-                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Exclusions (Who it's not for)</h4>
-                                </div>
-                                <div className="space-y-3">
-                                    {formData.notForWho.map((item, i) => (
-                                        <div key={i} className="flex gap-4 items-center">
-                                            <span className="text-[10px] font-black text-gray-300 w-4">0{i+1}</span>
-                                            <input type="text" value={item} onChange={(e) => handleArrayChange('notForWho', i, e.target.value)} className={inputClasses} placeholder="You want results without acting..." />
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-
-                            {/* 05 Method Snapshot */}
-                            <section>
-                                <div className="flex items-center gap-3 mb-8">
-                                    <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">05</div>
-                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Method Snapshot</h4>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    {formData.methodSnapshot.map((item, i) => (
-                                        <div key={i} className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col items-center gap-4 transition-all">
-                                            <input type="text" value={item.verb} onChange={(e) => handleMethodChange(i, 'verb', e.target.value)} className={inputClasses + " text-center uppercase tracking-widest text-[10px] py-2"} placeholder="VERB" />
-                                            <textarea value={item.description} onChange={(e) => handleMethodChange(i, 'description', e.target.value)} rows={2} className={inputClasses + " text-center text-xs font-medium bg-transparent border-none shadow-none resize-none p-0"} placeholder="One-line explanation of action." />
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-
-                            {/* 06 Outcomes */}
-                            <section>
-                                <div className="flex items-center gap-3 mb-8">
-                                    <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">06</div>
-                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Evidence of Completion</h4>
-                                </div>
-                                <div className="space-y-3">
-                                    {formData.outcomes.map((outcome, i) => (
-                                        <div key={i} className="flex gap-4 items-center">
-                                            <div className="w-6 h-6 bg-primary/10 text-primary rounded-full flex items-center justify-center text-[10px] font-black">✓</div>
-                                            <input type="text" value={outcome} onChange={(e) => handleArrayChange('outcomes', i, e.target.value)} className={inputClasses} placeholder="Projected outcome..." />
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
+                            <Button 
+                                type="button"
+                                onClick={() => {
+                                    const newSection: DynamicSection = {
+                                        id: `custom-${Date.now()}`,
+                                        title: 'New Custom Section',
+                                        body: 'Content for your new section.'
+                                    };
+                                    setFormData({ ...formData, dynamicSections: [...(formData.dynamicSections || []), newSection] });
+                                }}
+                                className="w-full py-4 text-primary border-primary/20 hover:bg-primary/5 border rounded-[1.5rem]"
+                            >
+                                + Add New Section
+                            </Button>
 
                             {/* 07 Metadata */}
                             <section>
