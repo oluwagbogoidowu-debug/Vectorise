@@ -52,72 +52,14 @@ const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint, coach }) => {
         </div>
 
         <div className="px-6 py-6 space-y-8">
-          {/* Transformation */}
-          <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-fade-in">
-            <div className="flex justify-between items-start mb-4">
-              <SectionHeading>The Transformation</SectionHeading>
-              {sprint.outcomeTag && (
-                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest italic">{sprint.outcomeTag}</span>
-              )}
-            </div>
-            <div className="space-y-4 text-gray-600 leading-relaxed font-medium">
-              <p className="text-gray-900 font-bold text-sm leading-tight italic">
-                <FormattedText text={sprint.transformation || sprint.description || 'Enter transformation statement...'} />
-              </p>
-              
-              <div className="h-px bg-gray-50 my-4"></div>
-
-              <div className="grid grid-cols-1 gap-4">
-                {sprint.forWho && sprint.forWho.filter(s => s.trim()).length > 0 && (
-                  <div>
-                    <h4 className="text-[8px] font-black text-gray-900 uppercase tracking-widest mb-2">Ideal for you if:</h4>
-                    <ul className="space-y-1.5">
-                      {sprint.forWho.filter(s => s.trim()).map((item, i) => (
-                        <li key={i} className="flex gap-2 items-start">
-                          <span className="text-primary text-[8px] mt-0.5">●</span>
-                          <p className="text-[9px] italic font-medium leading-snug">{item}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-
-          {/* Method Snapshot */}
-          {sprint.methodSnapshot && sprint.methodSnapshot.some(m => m.verb.trim()) && (
-            <section className="bg-dark text-white rounded-2xl p-6 relative overflow-hidden">
-              <SectionHeading>How It Works</SectionHeading>
-              <div className="relative z-10 space-y-4">
-                <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
-                  <div className="grid grid-cols-1 gap-4">
-                    {sprint.methodSnapshot.filter(m => m.verb.trim()).map((item, i) => (
-                      <div key={i} className="space-y-1">
-                        <p className="text-primary font-black uppercase text-[7px] tracking-widest">{item.verb}</p>
-                        <p className="text-[8px] text-white/40 leading-tight">{item.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+          {sprint.dynamicSections?.map((section) => (
+            <section key={section.id} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-fade-in">
+              <SectionHeading>{section.title}</SectionHeading>
+              <div className="space-y-4 text-gray-600 leading-relaxed font-medium">
+                <FormattedText text={section.body} />
               </div>
             </section>
-          )}
-
-          {/* Outcomes */}
-          {sprint.outcomes && sprint.outcomes.filter(o => o.trim()).length > 0 && (
-            <section className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-              <SectionHeading>Evidence of Completion</SectionHeading>
-              <div className="space-y-4 mt-2">
-                {sprint.outcomes.filter(o => o.trim()).map((outcome, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className="w-4 h-4 bg-primary/10 text-primary rounded-full flex items-center justify-center flex-shrink-0 text-[7px] mt-0.5 shadow-sm">✓</div>
-                    <p className="font-bold text-gray-700 leading-snug text-[10px]">{outcome}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+          ))}
 
           {/* Final Outcome Statement */}
           <section className="py-8 text-center border-t border-gray-100">

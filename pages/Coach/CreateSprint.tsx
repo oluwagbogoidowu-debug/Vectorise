@@ -34,25 +34,24 @@ const CreateSprint: React.FC = () => {
     const [formData, setFormData] = useState({
         title: '',
         subtitle: '',
+        coverImageUrl: '',
+        dynamicSections: [
+            { id: 'transformation', title: 'Transformation Statement', body: '' },
+            { id: 'forWho', title: 'Target Signals (Who it\'s for)', body: '' },
+            { id: 'notForWho', title: 'Exclusions (Who it\'s not for)', body: '' },
+            { id: 'methodSnapshot', title: 'Method Snapshot', body: '' },
+            { id: 'outcomes', title: 'Evidence of Completion', body: '' },
+            { id: 'metadata', title: 'Metadata', body: '' },
+            { id: 'completionAssets', title: 'Completion Assets', body: '' }
+        ],
         category: ALL_CATEGORIES[0],
         difficulty: 'Beginner' as SprintDifficulty,
         duration: 7,
         price: '0',
-        coverImageUrl: '',
-        transformation: '',
         outcomeTag: '',
         outcomeStatement: 'Focus creates feedback. *Feedback creates clarity.*',
-        forWho: ['', '', '', ''],
-        notForWho: ['', '', ''],
-        methodSnapshot: [
-            { verb: '', description: '' },
-            { verb: '', description: '' },
-            { verb: '', description: '' }
-        ],
-        outcomes: ['', '', ''],
         sprintType: 'Execution' as 'Foundational' | 'Execution' | 'Skill',
         protocol: 'One action per day' as 'One action per day' | 'Guided task' | 'Challenge-based',
-
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,17 +65,13 @@ const CreateSprint: React.FC = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleArrayChange = (field: 'forWho' | 'notForWho' | 'outcomes', index: number, value: string) => {
-        const newArr = [...formData[field]];
-        newArr[index] = value;
-        setFormData({ ...formData, [field]: newArr });
+    const handleDynamicSectionChange = (index: number, field: 'title' | 'body', value: string) => {
+        const newSections = [...(formData.dynamicSections || [])];
+        newSections[index] = { ...newSections[index], [field]: value };
+        setFormData({ ...formData, dynamicSections: newSections });
     };
 
-    const handleMethodChange = (index: number, key: 'verb' | 'description', value: string) => {
-        const newMethod = [...formData.methodSnapshot];
-        newMethod[index] = { ...newMethod[index], [key]: value };
-        setFormData({ ...formData, methodSnapshot: newMethod });
-    };
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -97,12 +92,15 @@ const CreateSprint: React.FC = () => {
         }));
 
         // Added missing 'currency' property
-        const newSprint: Sprint = {
+        let newSprint: Sprint = {
             id: sprintId,
             coachId: user.id,
             title: formData.title,
             subtitle: formData.subtitle,
-            description: formData.transformation,
+            coverImageUrl: formData.coverImageUrl || `https://picsum.photos/seed/${sprintId}/800/400`,
+            published: false,
+            approvalStatus: 'draft',
+            dailyContent: dailyContent,
             category: formData.category,
             difficulty: formData.difficulty,
             duration: duration,
@@ -110,20 +108,40 @@ const CreateSprint: React.FC = () => {
             currency: 'NGN',
             pointCost: 0,
             pricingType: 'cash',
-            coverImageUrl: formData.coverImageUrl || `https://picsum.photos/seed/${sprintId}/800/400`,
-            published: false,
-            approvalStatus: 'draft',
-            dailyContent: dailyContent,
-            transformation: formData.transformation,
             outcomeTag: formData.outcomeTag || 'Clarity gained',
             outcomeStatement: formData.outcomeStatement,
-            forWho: formData.forWho.filter(s => s.trim()),
-            notForWho: formData.notForWho.filter(s => s.trim()),
-            methodSnapshot: formData.methodSnapshot,
-            outcomes: formData.outcomes.filter(s => s.trim()),
             sprintType: formData.sprintType,
-            protocol: formData.protocol
+            protocol: formData.protocol,
+            dynamicSections: formData.dynamicSections,
         };
+
+        formData.dynamicSections?.forEach(section => {
+            switch (section.id) {
+                case 'transformation':
+                    newSprint.transformation = section.body;
+                    newSprint.description = section.body;
+                    break;
+                case 'forWho':
+                    newSprint.forWho = section.body.split('\n').map(s => s.trim()).filter(s => s);
+                    break;
+                case 'notForWho':
+                    newSprint.notForWho = section.body.split('\n').map(s => s.trim()).filter(s => s);
+                    break;
+                case 'methodSnapshot':
+                    newSprint.methodSnapshot = section.body.split('\n').map(line => {
+                        const [verb, description] = line.split(':').map(s => s.trim());
+                        return { verb: verb || '', description: description || '' };
+                    }).filter(m => m.verb || m.description);
+                    break;
+                case 'outcomes':
+                    newSprint.outcomes = section.body.split('\n').map(s => s.trim()).filter(s => s);
+                    break;
+                case 'metadata':
+                    break;
+                case 'completionAssets':
+                    break;
+            }
+        });
 
         try {
             await sprintService.createSprint(newSprint);
@@ -141,7 +159,8 @@ const CreateSprint: React.FC = () => {
         coachId: user?.id || '',
         title: formData.title || 'Untitled Sprint',
         subtitle: formData.subtitle,
-        description: formData.transformation || 'A transformation focused journey...',
+        coverImageUrl: formData.coverImageUrl || 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80',
+        dynamicSections: formData.dynamicSections,
         category: formData.category,
         difficulty: formData.difficulty,
         duration: Number(formData.duration),
@@ -150,12 +169,8 @@ const CreateSprint: React.FC = () => {
         published: false,
         approvalStatus: 'draft',
         dailyContent: [],
-        outcomes: formData.outcomes.filter(o => o.trim() !== ''),
         outcomeTag: formData.outcomeTag,
         outcomeStatement: formData.outcomeStatement,
-        transformation: formData.transformation,
-        forWho: formData.forWho,
-        methodSnapshot: formData.methodSnapshot
     };
 
     const inputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all placeholder-gray-300";
