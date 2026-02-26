@@ -130,115 +130,29 @@ const SprintLandingPage: React.FC = () => {
                                         {isFoundational ? 'FOUNDATIONAL PATH' : 'PREMIUM SPRINT'}
                                     </span>
                                 </div>
-                                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-[1] mb-2 italic">
+                                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-[1] mb-2">
                                     <FormattedText text={sprint.title} />
                                 </h1>
                                 {sprint.subtitle && (
-                                    <p className="text-white/70 text-[10px] font-black uppercase tracking-[0.4em] mb-4 italic leading-none">{sprint.subtitle}</p>
+                                    <p className="text-white/70 text-[10px] font-black uppercase tracking-[0.4em] mb-4 leading-none">{sprint.subtitle}</p>
                                 )}
                                 <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.4em]">{sprint.duration} DAY PROTOCOL</p>
                             </div>
                         </div>
 
-                        {/* TRANSFORMATION & TARGET SIGNALS */}
-                        <section className="bg-white rounded-[2.5rem] p-10 md:p-14 border border-gray-100 shadow-sm animate-fade-in relative overflow-hidden">
-                            <div className="relative z-10">
-                                <SectionHeading>The Transformation</SectionHeading>
-                                <div className="space-y-10 text-gray-600 leading-relaxed text-[12px] font-medium">
-                                    <p className="text-gray-900 font-bold text-sm leading-relaxed italic">
-                                        <FormattedText text={sprint.transformation || sprint.description} />
-                                    </p>
-                                    <div className="h-px bg-gray-50 w-24"></div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                        {sprint.forWho && sprint.forWho.length > 0 && (
-                                            <div>
-                                                <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-5 flex items-center gap-2">
-                                                   <span className="w-1 h-3 bg-primary rounded-full"></span>
-                                                   Ideal For You If
-                                                </h4>
-                                                <ul className="space-y-4">
-                                                    {sprint.forWho.map((item, i) => (
-                                                        <li key={i} className="flex gap-4 items-start">
-                                                            <span className="text-primary mt-1 flex-shrink-0">
-                                                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                                                            </span>
-                                                            <p className="text-sm italic font-semibold text-gray-600 leading-snug">{item}</p>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                        {sprint.notForWho && sprint.notForWho.length > 0 && (
-                                            <div>
-                                                <h4 className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-5 flex items-center gap-2">
-                                                   <span className="w-1 h-3 bg-red-400 rounded-full"></span>
-                                                   Not For You If
-                                                </h4>
-                                                <ul className="space-y-4 opacity-70">
-                                                    {sprint.notForWho.map((item, i) => (
-                                                        <li key={i} className="flex gap-4 items-start">
-                                                            <span className="text-red-400 mt-1 flex-shrink-0">
-                                                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                                            </span>
-                                                            <p className="text-sm italic font-semibold text-gray-500 leading-snug">{item}</p>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* METHOD SNAPSHOT (HOW IT WORKS) */}
-                        {sprint.methodSnapshot && sprint.methodSnapshot.some(m => m.verb.trim()) && (
-                            <section className="bg-primary text-white rounded-[3rem] p-10 md:p-16 relative overflow-hidden shadow-2xl border border-white/5 group">
-                                <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-white/10 rounded-full blur-[100px] -mr-48 -mt-48 opacity-60"></div>
-                                <div className="relative z-10">
-                                    <SectionHeading color="white/40">The Method</SectionHeading>
-                                    <div className="mt-8 space-y-10">
-                                        <p className="text-2xl md:text-3xl font-black text-white italic tracking-tighter leading-tight mb-12">
-                                            For {sprint.duration} days, you’ll follow this <span className="text-[#0FB881]">specific protocol.</span>
-                                        </p>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                            {sprint.methodSnapshot.map((item, i) => (
-                                                <div key={i} className="space-y-3">
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-[10px] font-black text-white/20 italic">0{i+1}</span>
-                                                        <p className="text-white font-black uppercase text-[11px] tracking-[0.25em]">{item.verb}</p>
-                                                    </div>
-                                                    <p className="text-white/60 text-[12px] font-medium leading-relaxed italic">"{item.description}"</p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                        {sprint.dynamicSections && sprint.dynamicSections.map((section, index) => (
+                            <section key={index} className="bg-white rounded-[2.5rem] p-10 md:p-14 border border-gray-100 shadow-sm animate-fade-in">
+                                <SectionHeading>{section.title}</SectionHeading>
+                                <div className="prose prose-sm max-w-none text-gray-800 font-medium leading-relaxed">
+                                    <FormattedText text={section.body} />
                                 </div>
                             </section>
-                        )}
-
-                        {/* EVIDENCE OF COMPLETION (OUTCOMES) */}
-                        {sprint.outcomes && sprint.outcomes.length > 0 && (
-                            <section className="bg-white rounded-[2.5rem] p-10 md:p-14 border border-gray-100 shadow-xl animate-fade-in relative overflow-hidden">
-                                <div className="relative z-10">
-                                    <SectionHeading>Evidence of Completion</SectionHeading>
-                                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-10">By Day {sprint.duration}, You'll Have:</p>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
-                                        {sprint.outcomes.map((outcome, i) => (
-                                            <div key={i} className="flex items-start gap-5">
-                                                <div className="w-5 h-5 bg-primary text-white rounded-full flex items-center justify-center flex-shrink-0 text-[9px] shadow-md mt-0.5">✓</div>
-                                                <p className="font-black text-gray-800 leading-tight text-sm italic">{outcome}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </section>
-                        )}
+                        ))}
 
                         {/* FINAL OUTCOME STATEMENT */}
                         <section className="py-20 text-center border-t border-gray-100">
                             <SectionHeading color="gray-300">The Path Ahead</SectionHeading>
-                            <h3 className="text-3xl md:text-5xl font-black text-gray-900 leading-tight tracking-tighter px-6 italic max-w-2xl mx-auto">
+                            <h3 className="text-3xl md:text-5xl font-black text-gray-900 leading-tight tracking-tighter px-6 max-w-2xl mx-auto">
                                 <FormattedText text={sprint.outcomeStatement || "Focus creates feedback. *Feedback creates clarity.*"} />
                             </h3>
                         </section>
