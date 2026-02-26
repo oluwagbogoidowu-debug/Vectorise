@@ -24,13 +24,34 @@ export const getSprintOutcomes = (sprint: Sprint | string) => {
  * Checks if the core landing page info is missing.
  */
 export const isRegistryIncomplete = (sprint: Sprint): boolean => {
-    return !sprint.title?.trim() || 
-           !sprint.description?.trim() || 
-           !sprint.category?.trim() || 
-           !sprint.coverImageUrl?.trim() ||
-           !sprint.outcomes || 
-           sprint.outcomes.length === 0 || 
-           sprint.outcomes.some(o => !o.trim());
+    // Check core sprint identity fields
+    if (!sprint.title?.trim() || !sprint.subtitle?.trim() || !sprint.coverImageUrl?.trim()) {
+        return true;
+    }
+
+    // Check dynamic sections
+    if (!sprint.dynamicSections || sprint.dynamicSections.length === 0) {
+        return true;
+    }
+
+    for (const section of sprint.dynamicSections) {
+        if (!section.title?.trim() || !section.body?.trim()) {
+            return true;
+        }
+    }
+
+    // Also check the metadata fields that are still separate for now
+    if (!sprint.category?.trim() || 
+        !sprint.difficulty?.trim() || 
+        !sprint.duration || 
+        !sprint.protocol?.trim() ||
+        !sprint.outcomeTag?.trim() ||
+        !sprint.outcomeStatement?.trim()
+    ) {
+        return true;
+    }
+
+    return false;
 };
 
 /**

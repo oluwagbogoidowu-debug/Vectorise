@@ -209,6 +209,12 @@ export interface ParticipantSprint {
   }[];
 }
 
+export interface DynamicSection {
+  id: string;
+  title: string;
+  body: string;
+}
+
 export interface Sprint {
   id: string;
   coachId: string;
@@ -241,6 +247,7 @@ export interface Sprint {
   reviewFeedback?: Record<string, string>;
   pendingChanges?: Partial<Sprint>;
   targeting?: any;
+  dynamicSections?: DynamicSection[];
 }
 
 export interface DailyContent {

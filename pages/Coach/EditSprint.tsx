@@ -202,10 +202,18 @@ const EditSprint: React.FC = () => {
           setEditSettings({
             title: merged.title,
             subtitle: merged.subtitle,
-            description: merged.description,
-            transformation: merged.transformation || merged.description,
-            outcomeTag: merged.outcomeTag || '',
-            outcomeStatement: merged.outcomeStatement || 'Focus creates feedback. *Feedback creates clarity.*',
+            coverImageUrl: merged.coverImageUrl,
+            // Initialize dynamic sections from existing sprint data
+            dynamicSections: merged.dynamicSections || [
+              { id: 'transformation', title: 'Transformation Statement', body: merged.transformation || merged.description },
+              { id: 'forWho', title: 'Target Signals (Who it\'s for)', body: (merged.forWho || ['', '', '', '']).join('\n') },
+              { id: 'notForWho', title: 'Exclusions (Who it\'s not for)', body: (merged.notForWho || ['', '', '']).join('\n') },
+              { id: 'methodSnapshot', title: 'Method Snapshot', body: (merged.methodSnapshot || [{ verb: '', description: '' }, { verb: '', description: '' }, { verb: '', description: '' }]).map(m => `${m.verb}: ${m.description}`).join('\n') },
+              { id: 'outcomes', title: 'Evidence of Completion', body: (merged.outcomes && merged.outcomes.length > 0 ? merged.outcomes : ['', '', '']).join('\n') },
+              { id: 'metadata', title: 'Metadata', body: `Category: ${merged.category}\nDifficulty: ${merged.difficulty}\nDuration: ${merged.duration} Days\nProtocol: ${merged.protocol}` },
+              { id: 'completionAssets', title: 'Completion Assets', body: `Archive Outcome Tag: ${merged.outcomeTag || ''}\nOutcome Statement: ${merged.outcomeStatement || 'Focus creates feedback. *Feedback creates clarity.*'}` }
+            ],
+            // Keep other settings for now, will integrate into dynamic sections or fixed identity later
             category: merged.category,
             difficulty: merged.difficulty,
             price: merged.price,
@@ -214,15 +222,8 @@ const EditSprint: React.FC = () => {
             pricingType: merged.pricingType || 'cash',
             duration: merged.duration,
             protocol: merged.protocol || 'One action per day',
-            coverImageUrl: merged.coverImageUrl,
-            outcomes: merged.outcomes && merged.outcomes.length > 0 ? merged.outcomes : ['', '', ''],
-            forWho: merged.forWho || ['', '', '', ''],
-            notForWho: merged.notForWho || ['', '', ''],
-            methodSnapshot: merged.methodSnapshot || [
-                { verb: '', description: '' },
-                { verb: '', description: '' },
-                { verb: '', description: '' }
-            ]
+            outcomeTag: merged.outcomeTag || '',
+            outcomeStatement: merged.outcomeStatement || 'Focus creates feedback. *Feedback creates clarity.*'
           });
         } else { navigate('/dashboard'); }
       } catch (err) { navigate('/dashboard'); }
@@ -323,11 +324,58 @@ const EditSprint: React.FC = () => {
 
   const handleApplySettings = async () => {
     if (!sprint) return;
-    const finalSettings = {
-        ...editSettings,
-        description: editSettings.transformation || editSettings.description,
+
+    let updatedSprintData: Partial<Sprint> = {
+      title: editSettings.title,
+      subtitle: editSettings.subtitle,
+      coverImageUrl: editSettings.coverImageUrl,
+      dynamicSections: editSettings.dynamicSections,
+      // Keep other metadata fields for now, as they are still directly editable in the modal
+      category: editSettings.category,
+      difficulty: editSettings.difficulty,
+      price: editSettings.price,
+      currency: editSettings.currency,
+      pointCost: editSettings.pointCost,
+      pricingType: editSettings.pricingType,
+      duration: editSettings.duration,
+      protocol: editSettings.protocol,
+      outcomeTag: editSettings.outcomeTag,
+      outcomeStatement: editSettings.outcomeStatement,
     };
-    const updatedLocalSprint = { ...sprint, ...finalSettings as any };
+
+    // Parse dynamic sections back into sprint properties
+    editSettings.dynamicSections?.forEach(section => {
+      switch (section.id) {
+        case 'transformation':
+          updatedSprintData.transformation = section.body;
+          updatedSprintData.description = section.body; // Transformation is also the main description
+          break;
+        case 'forWho':
+          updatedSprintData.forWho = section.body.split('\n').map(s => s.trim()).filter(s => s);
+          break;
+        case 'notForWho':
+          updatedSprintData.notForWho = section.body.split('\n').map(s => s.trim()).filter(s => s);
+          break;
+        case 'methodSnapshot':
+          updatedSprintData.methodSnapshot = section.body.split('\n').map(line => {
+            const [verb, description] = line.split(':').map(s => s.trim());
+            return { verb: verb || '', description: description || '' };
+          }).filter(m => m.verb || m.description);
+          break;
+        case 'outcomes':
+          updatedSprintData.outcomes = section.body.split('\n').map(s => s.trim()).filter(s => s);
+          break;
+        case 'metadata':
+          // Metadata is handled by direct editSettings fields for now
+          // Will need to parse if we move these into the dynamic section body for editing
+          break;
+        case 'completionAssets':
+          // Completion Assets are handled by direct editSettings fields for now
+          break;
+      }
+    });
+
+    const updatedLocalSprint = { ...sprint, ...updatedSprintData as any };
     setSprint(updatedLocalSprint);
     setShowSettings(false);
   };
@@ -571,7 +619,7 @@ const EditSprint: React.FC = () => {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-8 border-b border-gray-100 bg-gray-50/50 flex-shrink-0">
-              <h3 className="text-2xl font-black text-gray-900 tracking-tight italic">{(isAdmin && !isFoundational) ? 'Registry Audit Diff' : 'Registry Settings'}</h3>
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight italic">{(isAdmin && !isFoundational) ? 'Sprint Audit Diff' : 'Sprint Settings'}</h3>
               <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-white rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
             <div className="p-10 overflow-y-auto space-y-12 custom-scrollbar">
@@ -630,9 +678,9 @@ const EditSprint: React.FC = () => {
                     </section>
                 ) : (
                     <>
-                        {/* 01 Identity */}
+                        {/* 01 Sprint Identity (Fixed Part) */}
                         <section className="space-y-6">
-                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">01 Registry Identity</h4>
+                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">01 Sprint Identity</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="md:col-span-2">
                                     <label className={labelClasses}>Sprint Title</label>
@@ -649,67 +697,65 @@ const EditSprint: React.FC = () => {
                             </div>
                         </section>
 
-                        {/* 02 Transformation */}
-                        <section className="space-y-6">
-                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">02 Transformation Statement</h4>
-                            <textarea value={editSettings.transformation || ''} onChange={e => setEditSettings({...editSettings, transformation: e.target.value})} rows={3} className={registryInputClasses + " resize-none mt-2"} />
-                        </section>
+                        {/* Dynamic Sections */}
+                        {editSettings.dynamicSections?.map((section, index) => (
+                            <section key={section.id} className="space-y-6 bg-gray-50 p-6 rounded-3xl border border-gray-100 shadow-sm">
+                                <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
+                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{section.title}</h4>
+                                    <button 
+                                        onClick={() => {
+                                            const newSections = editSettings.dynamicSections?.filter(s => s.id !== section.id);
+                                            setEditSettings({ ...editSettings, dynamicSections: newSections });
+                                        }}
+                                        className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full"
+                                        title="Remove section"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+                                <label className={labelClasses}>Section Title</label>
+                                <input 
+                                    type="text" 
+                                    value={section.title} 
+                                    onChange={e => {
+                                        const newSections = [...(editSettings.dynamicSections || [])];
+                                        newSections[index] = { ...newSections[index], title: e.target.value };
+                                        setEditSettings({ ...editSettings, dynamicSections: newSections });
+                                    }}
+                                    className={registryInputClasses + " mt-2"} 
+                                />
+                                <label className={labelClasses + " mt-4 block"}>Section Body</label>
+                                <textarea 
+                                    value={section.body} 
+                                    onChange={e => {
+                                        const newSections = [...(editSettings.dynamicSections || [])];
+                                        newSections[index] = { ...newSections[index], body: e.target.value };
+                                        setEditSettings({ ...editSettings, dynamicSections: newSections });
+                                    }}
+                                    rows={6} 
+                                    className={registryInputClasses + " resize-none mt-2"} 
+                                />
+                            </section>
+                        ))}
 
-                        {/* 03 Target Signals */}
-                        <section className="space-y-6">
-                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">03 Target Signals (Who it's for)</h4>
-                            <div className="space-y-3">
-                                {(editSettings.forWho || ['', '', '', '']).map((item, i) => (
-                                    <div key={i} className="flex gap-4 items-center">
-                                        <span className="text-[10px] font-black text-gray-300 w-4">0{i+1}</span>
-                                        <input type="text" value={item} onChange={(e) => handleArrayChange('forWho', i, e.target.value)} className={registryInputClasses} placeholder="You feel capable but directionless..." />
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
+                        <Button 
+                            onClick={() => {
+                                const newSection: DynamicSection = {
+                                    id: `custom-${Date.now()}`,
+                                    title: 'New Custom Section',
+                                    body: 'Content for your new section.'
+                                };
+                                setEditSettings({ ...editSettings, dynamicSections: [...(editSettings.dynamicSections || []), newSection] });
+                            }}
+                            variant="secondary"
+                            className="w-full py-4 text-primary border-primary/20 hover:bg-primary/5"
+                        >
+                            + Add New Section
+                        </Button>
 
-                        {/* 04 Exclusions */}
+                        {/* Metadata and Completion Assets (still fixed for now, will integrate into dynamic sections if needed) */}
                         <section className="space-y-6">
-                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">04 Exclusions (Who it's not for)</h4>
-                            <div className="space-y-3">
-                                {(editSettings.notForWho || ['', '', '']).map((item, i) => (
-                                    <div key={i} className="flex gap-4 items-center">
-                                        <span className="text-[10px] font-black text-gray-300 w-4">0{i+1}</span>
-                                        <input type="text" value={item} onChange={(e) => handleArrayChange('notForWho', i, e.target.value)} className={registryInputClasses + " border-red-50 focus:border-red-200"} placeholder="You want results without acting..." />
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-
-                        {/* 05 Method Snapshot */}
-                        <section className="space-y-6">
-                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">05 Method Snapshot</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                {(editSettings.methodSnapshot || [{verb:'', description:''}, {verb:'', description:''}, {verb:'', description:''}]).map((item, i) => (
-                                    <div key={i} className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col items-center gap-4 transition-all">
-                                        <input type="text" value={item.verb} onChange={(e) => handleMethodChange(i, 'verb', e.target.value)} className={registryInputClasses + " text-center uppercase tracking-widest text-[10px] py-2"} placeholder="VERB" />
-                                        <textarea value={item.description} onChange={(e) => handleMethodChange(i, 'description', e.target.value)} rows={2} className={registryInputClasses + " text-center text-xs font-medium bg-transparent border-none shadow-none resize-none p-0"} placeholder="One-line explanation of action." />
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-
-                        {/* 06 Outcomes */}
-                        <section className="space-y-6">
-                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">06 Evidence of Completion</h4>
-                            <div className="space-y-3">
-                                {(editSettings.outcomes || ['', '', '']).map((outcome, i) => (
-                                    <div key={i} className="flex gap-4 items-center">
-                                        <div className="w-6 h-6 bg-primary/10 text-primary rounded-full flex items-center justify-center text-[10px] font-black">✓</div>
-                                        <input type="text" value={outcome} onChange={(e) => handleArrayChange('outcomes', i, e.target.value)} className={registryInputClasses} placeholder="Projected outcome..." />
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-
-                        {/* 07 Metadata */}
-                        <section className="space-y-6">
-                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">07 Metadata</h4>
+                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Metadata</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div>
                                     <label className={labelClasses}>Duration (Days)</label>
@@ -742,9 +788,8 @@ const EditSprint: React.FC = () => {
                             </div>
                         </section>
 
-                        {/* 08 Completion Assets */}
                         <section className="space-y-6">
-                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">08 Completion Assets</h4>
+                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Completion Assets</h4>
                             <div className="space-y-6">
                                 <div>
                                     <label className={labelClasses}>Archive Outcome Tag</label>

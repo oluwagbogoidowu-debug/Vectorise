@@ -52,8 +52,7 @@ const CreateSprint: React.FC = () => {
         outcomes: ['', '', ''],
         sprintType: 'Execution' as 'Foundational' | 'Execution' | 'Skill',
         protocol: 'One action per day' as 'One action per day' | 'Guided task' | 'Challenge-based',
-        difficulty: 'Beginner' as SprintDifficulty, // Added this line
-        category: ALL_CATEGORIES[0] // Added this line
+
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);

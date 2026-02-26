@@ -104,7 +104,8 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                         src={sprint.coverImageUrl || fallbackUrl} 
                         alt="" 
                         className={`w-full h-full object-cover transition-transform duration-1000 ${!isStatic ? 'group-hover:scale-110 group-hover:rotate-1' : ''}`} 
-                        onError={(e) => { e.currentTarget.src = fallbackUrl }}
+                        onError={(e) => { e.currentTarget.src = fallbackUrl; }} 
+                        referrerPolicy="no-referrer"
                     />
                     <div className={`absolute inset-0 bg-gradient-to-t from-dark/40 to-transparent transition-opacity duration-700 ${!isStatic ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}></div>
                     <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black text-primary shadow-lg uppercase tracking-[0.2em]">{sprint.duration} Days</div>
