@@ -107,7 +107,7 @@ export const AppRoutes: React.FC = () => {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignUpPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
-      <Route path="/" element={(user && !hasRefParam) ? <Navigate to="/dashboard" /> : <HomePage />} />
+      <Route path="/" element={(user && !hasRefParam) ? <ParticipantLayout><HomePage /></ParticipantLayout> : <HomePage />} />
       <Route path="/recommended" element={<RecommendedSprints />} />
       <Route path="/partner" element={<PartnerPage />} />
       <Route path="/partner/apply" element={<PartnerApply />} />
