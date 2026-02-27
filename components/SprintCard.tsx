@@ -129,13 +129,13 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
 
                     <h3 className={`text-2xl font-black text-gray-900 mb-1 transition-colors leading-[1.1] tracking-tight ${!isStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>
                     {sprint.subtitle && (
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3 leading-none italic">{sprint.subtitle}</p>
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3 leading-none">{sprint.subtitle}</p>
                     )}
-                    <p className="text-[13px] text-gray-500 line-clamp-2 mb-8 flex-grow font-medium leading-relaxed italic opacity-80">"{sprint.description}"</p>
+                    <p className="text-[13px] text-gray-500 line-clamp-2 mb-8 flex-grow font-medium leading-relaxed opacity-80">"{sprint.description}"</p>
                     
                     <div className="pt-6 border-t border-gray-50 mt-auto">
                         <div className="flex items-center gap-4 mb-6">
-                            <img src={coach.profileImageUrl} alt="" className="w-10 h-10 rounded-[1.25rem] object-cover border-2 border-white shadow-md ring-1 ring-gray-100" />
+                            <img src={coach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE} alt="" className="w-10 h-10 rounded-[1.25rem] object-cover border-2 border-white shadow-md ring-1 ring-gray-100" />
                             <div className="min-w-0">
                                 <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Guided By</p>
                                 <p className="text-xs font-black text-gray-900 uppercase tracking-tight truncate">{coach.name}</p>

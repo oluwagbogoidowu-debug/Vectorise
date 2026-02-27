@@ -55,6 +55,7 @@ export const assetService = {
     // Icon version for specific usage (Onboarding descriptions)
     FAVICON: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd',
     // Global standard fallback for sprint covers
-    DEFAULT_SPRINT_COVER: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80'
+    DEFAULT_SPRINT_COVER: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80',
+    DEFAULT_COACH_PROFILE: 'https://picsum.photos/seed/coach/100/100'
   }
 };

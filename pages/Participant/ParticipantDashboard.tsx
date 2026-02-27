@@ -155,25 +155,9 @@ const ParticipantDashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#FDFDFD] font-sans overflow-hidden">
-      <header className="h-20 flex-shrink-0 px-6 flex items-center justify-between fixed top-0 left-0 right-0 z-40">
-        <div className="flex items-center gap-3">
-          <Link to="/profile" className="relative group">
-            <ArchetypeAvatar 
-              archetypeId={p.archetype} 
-              profileImageUrl={p.profileImageUrl} 
-              size="md" 
-            />
-            <div className="absolute -bottom-1 -right-1 bg-primary text-white w-3.5 h-3.5 rounded-md flex items-center justify-center shadow-md text-[6px] font-black italic">V</div>
-          </Link>
-          <div>
-            <h2 className="text-xs font-black text-gray-900 tracking-tight italic leading-none">{p.name}</h2>
-            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{currentArchetype?.name || 'Initiate'}</p>
-          </div>
-        </div>
-        <LocalLogo type="favicon" className="w-6 h-6 opacity-20" />
-      </header>
 
-      <div className="h-20 flex-shrink-0"></div>
+
+
 
       <div className="flex-1 px-4 md:px-6 pt-4 md:pt-6 pb-24">
           <div className="max-w-screen-md mx-auto w-full flex flex-col">
@@ -301,14 +285,7 @@ const ParticipantDashboard: React.FC = () => {
                 </div>
             )}
 
-            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center flex-shrink-0 animate-fade-in">
-                <p className="text-gray-600 font-bold italic text-[11px] mb-1">
-                    {allTasksDoneToday ? '"Rest is as productive as action."' : '"The future depends on what you do today."'}
-                </p>
-                <p className="text-[7px] font-black text-[#0E7850] uppercase tracking-[0.3em]">
-                    {allTasksDoneToday ? 'PLATFORM PROTOCOL' : 'MAHATMA GANDHI'}
-                </p>
-            </div>
+
           </div>
       </div>
 
