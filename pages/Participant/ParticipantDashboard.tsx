@@ -159,7 +159,7 @@ const ParticipantDashboard: React.FC = () => {
 
 
 
-      <div className="flex-1 px-4 md:px-6 pt-4 md:pt-6 pb-24">
+      <div className="flex-1 px-4 md:px-6 pt-4 md:pt-6">
           <div className="max-w-screen-md mx-auto w-full flex flex-col">
             
             <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
