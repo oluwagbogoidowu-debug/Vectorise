@@ -197,7 +197,7 @@ const CreateSprint: React.FC = () => {
                         </svg>
                     </button>
                     <div>
-                        <h1 className="text-3xl font-black text-gray-900 tracking-tight italic">Design Your Cycle.</h1>
+                        <h1 className="text-3xl font-black text-gray-900 tracking-tight">Design Your Cycle.</h1>
                         <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Coach Registry System</p>
                     </div>
                 </header>
@@ -228,7 +228,7 @@ const CreateSprint: React.FC = () => {
 
                             {/* Dynamic Sections */}
                             {formData.dynamicSections?.map((section, index) => (
-                                <section key={section.id} className="space-y-6 bg-gray-50 p-6 rounded-3xl border border-gray-100 shadow-sm">
+                                <section key={section.id} className="space-y-6 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                                     <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
                                         <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{section.title}</h4>
                                         <button 
@@ -257,6 +257,12 @@ const CreateSprint: React.FC = () => {
                                         rows={6} 
                                         className={inputClasses + " resize-none mt-2"} 
                                     />
+                                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                                        <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Preview:</h5>
+                                        <div className="prose prose-sm max-w-none text-gray-800 font-medium leading-relaxed">
+                                            <FormattedText text={section.body} />
+                                        </div>
+                                    </div>
                                 </section>
                             ))}
 
@@ -323,12 +329,12 @@ const CreateSprint: React.FC = () => {
                                     <div>
                                         <label className={labelClasses}>Archive Outcome Tag</label>
                                         <input type="text" name="outcomeTag" value={formData.outcomeTag} onChange={handleChange} className={inputClasses + " mt-2"} placeholder="e.g. Clarity gained" />
-                                        <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest italic leading-relaxed">This appears as the badge on completed sprint cards.</p>
+                                        <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">This appears as the badge on completed sprint cards.</p>
                                     </div>
                                     <div>
                                         <label className={labelClasses}>The Outcome (Final Statement)</label>
-                                        <input type="text" name="outcomeStatement" value={formData.outcomeStatement} onChange={handleChange} className={inputClasses + " mt-2 italic"} placeholder="Focus creates feedback. *Feedback creates clarity.*" />
-                                        <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest italic leading-relaxed">Appears at the bottom of the landing page.</p>
+                                        <input type="text" name="outcomeStatement" value={formData.outcomeStatement} onChange={handleChange} className={inputClasses + " mt-2"} placeholder="Focus creates feedback. *Feedback creates clarity.*" />
+                                        <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">Appears at the bottom of the landing page.</p>
                                     </div>
                                 </div>
                             </section>
@@ -345,7 +351,7 @@ const CreateSprint: React.FC = () => {
                     <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-12">
                          <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm text-center">
                             <p className="text-[9px] font-black text-primary uppercase tracking-[0.4em] mb-4">Registry Guidance</p>
-                            <h5 className="text-sm font-black text-gray-900 leading-tight mb-4 italic">Clarity over Selling.</h5>
+                            <h5 className="text-sm font-black text-gray-900 leading-tight mb-4">Clarity over Selling.</h5>
                             
                             <div className="bg-gray-100 p-1 rounded-xl flex gap-1 mb-8">
                                 <button 

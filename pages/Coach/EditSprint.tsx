@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
+import FormattedText from '../../components/FormattedText';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 
@@ -593,7 +594,7 @@ const EditSprint: React.FC = () => {
                                    className={editorInputClasses + " h-24"}
                                    placeholder="Completed first draft, Sent outreach emails, Updated LinkedIn profile..."
                                />
-                               <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest italic">User must select one to mark day complete.</p>
+                               <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">User must select one to mark day complete.</p>
                            </div>
                        )}
 
@@ -605,7 +606,7 @@ const EditSprint: React.FC = () => {
                                className={editorInputClasses + " h-24"}
                                placeholder="e.g. One idea that shifted my thinking was..."
                            />
-                           <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest italic">Curate the prompt for the end-of-day reflection modal.</p>
+                           <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Curate the prompt for the end-of-day reflection modal.</p>
                        </div>
                    </div>
                </div>
@@ -619,7 +620,7 @@ const EditSprint: React.FC = () => {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-8 border-b border-gray-100 bg-gray-50/50 flex-shrink-0">
-              <h3 className="text-2xl font-black text-gray-900 tracking-tight italic">{(isAdmin && !isFoundational) ? 'Sprint Audit Diff' : 'Sprint Settings'}</h3>
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight">{(isAdmin && !isFoundational) ? 'Sprint Audit Diff' : 'Sprint Settings'}</h3>
               <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-white rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
             <div className="p-10 overflow-y-auto space-y-12 custom-scrollbar">
@@ -649,7 +650,7 @@ const EditSprint: React.FC = () => {
                                         className="w-full px-6 py-4 bg-white border border-primary/20 rounded-2xl text-lg font-black text-primary shadow-sm outline-none focus:ring-4 focus:ring-primary/5"
                                         placeholder="0"
                                     />
-                                    <p className="text-[8px] font-bold text-gray-400 mt-2 uppercase tracking-widest italic">Note: Only admins can set the final price.</p>
+                                    <p className="text-[8px] font-bold text-gray-400 mt-2 uppercase tracking-widest">Note: Only admins can set the final price.</p>
                                 </div>
                             </div>
                         </div>
@@ -699,7 +700,7 @@ const EditSprint: React.FC = () => {
 
                         {/* Dynamic Sections */}
                         {editSettings.dynamicSections?.map((section, index) => (
-                            <section key={section.id} className="space-y-6 bg-gray-50 p-6 rounded-3xl border border-gray-100 shadow-sm">
+                            <section key={section.id} className="space-y-6 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                                 <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
                                     <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{section.title}</h4>
                                     <button 
@@ -735,6 +736,12 @@ const EditSprint: React.FC = () => {
                                     rows={6} 
                                     className={registryInputClasses + " resize-none mt-2"} 
                                 />
+                                <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                                    <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Preview:</h5>
+                                    <div className="prose prose-sm max-w-none text-gray-800 font-medium leading-relaxed">
+                                        <FormattedText text={section.body} />
+                                    </div>
+                                </div>
                             </section>
                         ))}
 
@@ -794,12 +801,12 @@ const EditSprint: React.FC = () => {
                                 <div>
                                     <label className={labelClasses}>Archive Outcome Tag</label>
                                     <input type="text" value={editSettings.outcomeTag || ''} onChange={e => setEditSettings({...editSettings, outcomeTag: e.target.value})} className={registryInputClasses + " mt-2"} placeholder="e.g. Clarity gained" />
-                                    <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest italic leading-relaxed">This appears as the badge on completed sprint cards.</p>
+                                    <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">This appears as the badge on completed sprint cards.</p>
                                 </div>
                                 <div>
                                     <label className={labelClasses}>The Outcome (Final Statement)</label>
-                                    <input type="text" value={editSettings.outcomeStatement || ''} onChange={e => setEditSettings({...editSettings, outcomeStatement: e.target.value})} className={registryInputClasses + " mt-2 italic"} placeholder="Focus creates feedback. *Feedback creates clarity.*" />
-                                    <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest italic leading-relaxed">Appears at the bottom of the landing page.</p>
+                                    <input type="text" value={editSettings.outcomeStatement || ''} onChange={e => setEditSettings({...editSettings, outcomeStatement: e.target.value})} className={registryInputClasses + " mt-2"} placeholder="Focus creates feedback. *Feedback creates clarity.*" />
+                                    <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">Appears at the bottom of the landing page.</p>
                                 </div>
                             </div>
                         </section>
