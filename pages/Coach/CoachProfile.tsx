@@ -16,7 +16,7 @@ const CoachProfile: React.FC = () => {
             if (!user) return;
             setIsLoading(true);
             try {
-                const coachSprints = await sprintService.getSprintsByCoach(user.id);
+                const coachSprints = await sprintService.getCoachSprints(user.id);
                 setSprints(coachSprints);
             } catch (err) {
                 console.error("Profile sync failed:", err);
@@ -50,7 +50,6 @@ const CoachProfile: React.FC = () => {
                     <div className="flex items-center gap-5">
                         <div className="relative group">
                             <ArchetypeAvatar 
-                                archetypeId={c.archetype} 
                                 profileImageUrl={c.profileImageUrl} 
                                 size="xl" 
                             />
@@ -61,7 +60,7 @@ const CoachProfile: React.FC = () => {
                             <div className="mt-3 flex items-center gap-3">
                                 <div className="flex items-center gap-1.5">
                                     <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">Joined</span>
-                                    <span className="text-[9px] font-bold text-gray-600">{new Date(c.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                                    <span className="text-[9px] font-bold text-gray-600">Coach</span>
                                 </div>
                             </div>
                         </div>

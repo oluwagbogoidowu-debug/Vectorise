@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Sprint, Coach } from '../../types';
+import { Sprint, Coach, UserRole } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import LandingPreview from '../../components/LandingPreview';
 import SprintCard from '../../components/SprintCard';
@@ -24,7 +24,16 @@ const SprintPreviewPage: React.FC = () => {
                 // For now, using a placeholder or fetching from sprint.coachId
                 if (fetchedSprint?.coachId) {
                     // In a real app, you'd fetch the coach details here
-                    setCoach({ id: fetchedSprint.coachId, name: 'Coach Name', email: 'coach@example.com', bio: 'A dedicated coach.', profileImageUrl: 'https://picsum.photos/seed/coach/100/100', role: 'coach', createdAt: '' });
+                    setCoach({ 
+                        id: fetchedSprint.coachId, 
+                        name: 'Coach Name', 
+                        email: 'coach@example.com', 
+                        bio: 'A dedicated coach.', 
+                        profileImageUrl: 'https://picsum.photos/seed/coach/100/100', 
+                        role: UserRole.COACH,
+                        niche: 'General',
+                        approved: true
+                    });
                 }
             } catch (error) {
                 console.error("Failed to fetch sprint for preview:", error);

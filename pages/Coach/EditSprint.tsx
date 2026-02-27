@@ -148,6 +148,68 @@ const FormattingToolbar: React.FC<{
 
 
 
+const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> => {
+    const changes: Partial<Sprint> = {};
+
+    // Compare top-level fields
+    if (original.title !== updated.title) changes.title = updated.title;
+    if (original.subtitle !== updated.subtitle) changes.subtitle = updated.subtitle;
+    if (original.coverImageUrl !== updated.coverImageUrl) changes.coverImageUrl = updated.coverImageUrl;
+    if (original.transformation !== updated.transformation) changes.transformation = updated.transformation;
+    if (original.description !== updated.description) changes.description = updated.description;
+    if (original.category !== updated.category) changes.category = updated.category;
+    if (original.difficulty !== updated.difficulty) changes.difficulty = updated.difficulty;
+    if (original.price !== updated.price) changes.price = updated.price;
+    if (original.currency !== updated.currency) changes.currency = updated.currency;
+    if (original.pointCost !== updated.pointCost) changes.pointCost = updated.pointCost;
+    if (original.pricingType !== updated.pricingType) changes.pricingType = updated.pricingType;
+    if (original.duration !== updated.duration) changes.duration = updated.duration;
+    if (original.protocol !== updated.protocol) changes.protocol = updated.protocol;
+    if (original.outcomeTag !== updated.outcomeTag) changes.outcomeTag = updated.outcomeTag;
+    if (original.outcomeStatement !== updated.outcomeStatement) changes.outcomeStatement = updated.outcomeStatement;
+
+    // Compare array fields (simple string arrays)
+    if (JSON.stringify(original.forWho) !== JSON.stringify(updated.forWho)) changes.forWho = updated.forWho;
+    if (JSON.stringify(original.notForWho) !== JSON.stringify(updated.notForWho)) changes.notForWho = updated.notForWho;
+    if (JSON.stringify(original.outcomes) !== JSON.stringify(updated.outcomes)) changes.outcomes = updated.outcomes;
+
+    // Compare methodSnapshot (array of objects)
+    if (JSON.stringify(original.methodSnapshot) !== JSON.stringify(updated.methodSnapshot)) changes.methodSnapshot = updated.methodSnapshot;
+
+    // Compare dailyContent
+    const changedDailyContent: DailyContent[] = [];
+    updated.dailyContent.forEach(updatedDay => {
+        const originalDay = original.dailyContent.find(d => d.day === updatedDay.day);
+        if (!originalDay || 
+            originalDay.lessonText !== updatedDay.lessonText ||
+            originalDay.taskPrompt !== updatedDay.taskPrompt ||
+            originalDay.coachInsight !== updatedDay.coachInsight ||
+            originalDay.proofType !== updatedDay.proofType ||
+            JSON.stringify(originalDay.proofOptions) !== JSON.stringify(updatedDay.proofOptions) ||
+            originalDay.reflectionQuestion !== updatedDay.reflectionQuestion
+        ) {
+            changedDailyContent.push(updatedDay);
+        }
+    });
+    if (changedDailyContent.length > 0) {
+        changes.dailyContent = changedDailyContent;
+    }
+
+    // Compare dynamicSections
+    const changedDynamicSections = updated.dynamicSections?.filter(updatedSection => {
+        const originalSection = original.dynamicSections?.find(s => s.id === updatedSection.id);
+        return !originalSection || 
+               originalSection.title !== updatedSection.title || 
+               originalSection.body !== updatedSection.body;
+    });
+    if (changedDynamicSections && changedDynamicSections.length > 0) {
+        changes.dynamicSections = changedDynamicSections;
+    }
+
+    return changes;
+};
+
+
 const EditSprint: React.FC = () => {
   const { sprintId } = useParams();
   const navigate = useNavigate();
@@ -267,31 +329,37 @@ const EditSprint: React.FC = () => {
   };
 
   const handleSaveDraft = async () => {
-    if (!sprint) return;
+    if (!sprint || !originalSprint) return;
     setSaveStatus('saving');
     try {
-      const updatedSprint = { ...sprint };
+      const changes = getPendingChanges(originalSprint, sprint);
+      const updatedSprintData: Partial<Sprint> = {
+          pendingChanges: changes,
+      };
+
       if (isAdmin && isFoundational) {
-          updatedSprint.published = true;
-          updatedSprint.approvalStatus = 'approved';
-      } else if (!isAdmin && updatedSprint.approvalStatus === 'rejected') {
-          updatedSprint.approvalStatus = 'draft';
+          updatedSprintData.published = true;
+          updatedSprintData.approvalStatus = 'approved';
+      } else if (!isAdmin && sprint.approvalStatus === 'rejected') {
+          updatedSprintData.approvalStatus = 'draft';
       }
-      await sprintService.updateSprint(sprint.id, updatedSprint, isAdmin);
+
+      await sprintService.updateSprint(sprint.id, updatedSprintData, isAdmin);
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (err) { setSaveStatus('idle'); alert("Save failed."); }
   };
 
   const handleSubmitForReview = async () => {
-      if (!sprint || isSubmittingReview) return;
+      if (!sprint || !originalSprint || isSubmittingReview) return;
       setIsSubmittingReview(true);
       try {
-          await sprintService.updateSprint(sprint.id, { 
-              ...sprint, 
-              approvalStatus: 'pending_approval' 
+          const changes = getPendingChanges(originalSprint, sprint);
+          await sprintService.updateSprint(sprint.id, {
+              pendingChanges: changes,
+              approvalStatus: 'pending_approval'
           });
-
+          alert("Sprint submitted for review.");
       } catch (err) {
           alert("Submission failed. Please check your connection.");
       } finally {

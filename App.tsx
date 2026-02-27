@@ -6,7 +6,7 @@ import BottomNavigation from './components/BottomNavigation';
 import { sprintService } from './services/sprintService';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import { analyticsTracker } from './services/analyticsTracker';
-import { AppRoutes } from './routes.tsx';
+import { AppRoutes } from './routes';
 import { UserRole } from './types';
 
 const AppContent: React.FC = () => {

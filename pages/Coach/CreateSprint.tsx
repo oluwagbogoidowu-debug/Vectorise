@@ -7,6 +7,7 @@ import { sprintService } from '../../services/sprintService';
 import { Sprint, SprintDifficulty, DailyContent, Coach, DynamicSection } from '../../types';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
+import FormattedText from '../../components/FormattedText';
 import { ALL_CATEGORIES } from '../../services/mockData';
 
 
@@ -105,6 +106,7 @@ const CreateSprint: React.FC = () => {
             difficulty: formData.difficulty,
             duration: duration,
             price: 0,
+            description: formData.subtitle || formData.title,
             currency: 'NGN',
             pointCost: 0,
             pricingType: 'cash',
