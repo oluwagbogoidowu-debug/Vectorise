@@ -164,7 +164,7 @@ const SprintLandingPage: React.FC = () => {
                             <div className="text-center mb-12">
                                 <SectionHeading>Sprint Status</SectionHeading>
                                 {enrollmentStatus === 'none' && (
-                                    <h3 className="text-3xl font-black text-dark tracking-tighter italic leading-none">
+                                    <h3 className="text-3xl font-black text-dark tracking-tighter leading-none">
                                         {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost}` : `₦${sprint.price.toLocaleString()}`}
                                     </h3>
                                 )}

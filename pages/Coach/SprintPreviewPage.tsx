@@ -4,6 +4,7 @@ import { Sprint, Coach } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import LandingPreview from '../../components/LandingPreview';
 import SprintCard from '../../components/SprintCard';
+import FormattedText from '../../components/FormattedText';
 
 const SprintPreviewPage: React.FC = () => {
     const { sprintId } = useParams<{ sprintId: string }>();
@@ -97,7 +98,7 @@ const SprintPreviewPage: React.FC = () => {
                                     <section key={index} className="bg-white rounded-[2.5rem] p-10 md:p-14 border border-gray-100 shadow-sm">
                                         <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">{section.title}</h2>
                                         <div className="prose prose-sm max-w-none text-gray-800 font-medium leading-relaxed">
-                                            <p>{section.body}</p>
+                                            <FormattedText text={section.body} />
                                         </div>
                                     </section>
                                 ))}
