@@ -13,7 +13,23 @@ import { ALL_CATEGORIES } from '../../services/mockData';
 
 const CreateSprint: React.FC = () => {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, loading } = useAuth();
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <p className="text-gray-400 font-bold uppercase tracking-widest text-sm">Loading Registry...</p>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <p className="text-red-400 font-bold uppercase tracking-widest text-sm">Access Denied: Please log in.</p>
+            </div>
+        );
+    }
 
     const [previewType, setPreviewType] = useState<'card' | 'landing'>('card');
 
