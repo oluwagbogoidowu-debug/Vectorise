@@ -10,7 +10,10 @@ interface DynamicSectionRendererProps {
 
 const DynamicSectionRenderer: React.FC<DynamicSectionRendererProps> = ({ section }) => {
   const isList = section.type === 'list';
-  const items = isList ? section.body.split('\n').filter(item => item.trim() !== '') : [];
+  // If type is missing, we can try to infer it from the ID for legacy data
+  const effectiveIsList = isList || (['forWho', 'notForWho', 'methodSnapshot', 'outcomes'].includes(section.id) && !section.type);
+  
+  const items = effectiveIsList ? section.body.split('\n').filter(item => item.trim() !== '') : [];
 
   const getIcon = () => {
     const title = section.title.toLowerCase();
@@ -21,7 +24,7 @@ const DynamicSectionRenderer: React.FC<DynamicSectionRendererProps> = ({ section
     return <Info className="w-4 h-4 text-gray-400" />;
   };
 
-  if (!isList) {
+  if (!effectiveIsList) {
     return (
       <div className="text-gray-700 font-medium text-sm md:text-base leading-relaxed max-w-none prose prose-sm prose-primary">
         <FormattedText text={section.body} />

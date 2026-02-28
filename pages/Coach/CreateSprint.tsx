@@ -8,8 +8,9 @@ import { Sprint, SprintDifficulty, DailyContent, Coach, DynamicSection } from '.
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import FormattedText from '../../components/FormattedText';
+import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import { ALL_CATEGORIES } from '../../services/mockData';
-import { List, Plus, Trash2, Type as TypeIcon } from 'lucide-react';
+import { List, Plus, Trash2, Type as TypeIcon, Clock } from 'lucide-react';
 
 
 const CreateSprint: React.FC = () => {
@@ -356,9 +357,9 @@ const CreateSprint: React.FC = () => {
                                         />
                                     )}
                                     <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                                        <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Preview:</h5>
-                                        <div className="prose prose-sm max-w-none text-gray-800 font-medium leading-relaxed">
-                                            <FormattedText text={section.body} />
+                                        <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Preview:</h5>
+                                        <div className="bg-white rounded-xl p-4 border border-gray-100">
+                                            <DynamicSectionRenderer section={section} />
                                         </div>
                                     </div>
                                 </section>
@@ -370,7 +371,8 @@ const CreateSprint: React.FC = () => {
                                     const newSection: DynamicSection = {
                                         id: `custom-${Date.now()}`,
                                         title: 'New Custom Section',
-                                        body: 'Content for your new section.'
+                                        body: 'Content for your new section.',
+                                        type: 'text'
                                     };
                                     setFormData({ ...formData, dynamicSections: [...(formData.dynamicSections || []), newSection] });
                                 }}

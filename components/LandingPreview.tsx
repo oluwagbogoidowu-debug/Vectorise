@@ -58,7 +58,7 @@ const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint, coach }) => {
 
         <div className="px-6 py-6 space-y-8">
           {sprint.dynamicSections?.map((section) => (
-            <section key={section.id} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-fade-in">
+            <section key={`${section.id}-${section.type}`} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-fade-in">
               <SectionHeading>{section.title}</SectionHeading>
               <DynamicSectionRenderer section={section} />
             </section>
