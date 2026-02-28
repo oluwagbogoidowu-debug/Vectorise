@@ -73,9 +73,7 @@ const AppContent: React.FC = () => {
     location.pathname === '/verify-email' ||
     location.pathname === '/payment-success';
 
-  const showGlobalHeader = 
-    location.pathname === '/dashboard' || 
-    (user && activeRole === UserRole.PARTICIPANT && (location.pathname === '/my-sprints' || location.pathname === '/profile'));
+  const showGlobalHeader = location.pathname === '/dashboard';
 
   const showParticipantNav = 
     user && 
