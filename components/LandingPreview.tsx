@@ -2,6 +2,7 @@
 import React from 'react';
 import { Sprint, Coach } from '../types';
 import FormattedText from './FormattedText';
+import DynamicSectionRenderer from './DynamicSectionRenderer';
 
 interface LandingPreviewProps {
   sprint: Partial<Sprint>;
@@ -55,19 +56,9 @@ const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint, coach }) => {
           {sprint.dynamicSections?.map((section) => (
             <section key={section.id} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-fade-in">
               <SectionHeading>{section.title}</SectionHeading>
-              <div className="space-y-4 text-gray-600 leading-relaxed font-medium">
-                <FormattedText text={section.body} />
-              </div>
+              <DynamicSectionRenderer section={section} />
             </section>
           ))}
-
-          {/* Final Outcome Statement */}
-          <section className="py-8 text-center border-t border-gray-100">
-            <p className="text-[7px] font-black text-primary uppercase tracking-[0.3em] mb-4">The Outcome</p>
-            <h3 className="text-lg font-black text-gray-900 leading-tight tracking-tight px-4">
-              <FormattedText text={sprint.outcomeStatement || "Focus creates feedback. *Feedback creates clarity.*"} inline />
-            </h3>
-          </section>
         </div>
       </div>
       

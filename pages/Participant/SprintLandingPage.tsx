@@ -8,6 +8,7 @@ import { userService } from '../../services/userService';
 import { assetService } from '../../services/assetService';
 import { analyticsTracker } from '../../services/analyticsTracker';
 import FormattedText from '../../components/FormattedText';
+import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 
 import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, ShieldCheck } from 'lucide-react';
 
@@ -145,19 +146,9 @@ const SprintLandingPage: React.FC = () => {
                         {sprint.dynamicSections && sprint.dynamicSections.map((section, index) => (
                             <section key={index} className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">
                                 <SectionHeading>{section.title}</SectionHeading>
-                                <div className="text-gray-800 font-medium leading-relaxed max-w-none">
-                                    <FormattedText text={section.body} />
-                                </div>
+                                <DynamicSectionRenderer section={section} />
                             </section>
                         ))}
-
-                        {/* FINAL OUTCOME STATEMENT */}
-                        <section className="py-20 text-center border-t border-gray-100">
-                            <SectionHeading color="gray-300">The Path Ahead</SectionHeading>
-                            <h3 className="text-3xl md:text-5xl font-black text-gray-900 leading-tight tracking-tighter px-6 max-w-3xl mx-auto">
-                                <FormattedText text={sprint.outcomeStatement || "Focus creates feedback. *Feedback creates clarity.*"} inline />
-                            </h3>
-                        </section>
                     </div>
 
                     <aside className="lg:col-span-4 space-y-6">

@@ -213,6 +213,7 @@ export interface DynamicSection {
   id: string;
   title: string;
   body: string;
+  type?: 'text' | 'list';
 }
 
 export interface Sprint {
