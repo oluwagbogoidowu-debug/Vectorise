@@ -9,6 +9,8 @@ import { assetService } from '../../services/assetService';
 import { analyticsTracker } from '../../services/analyticsTracker';
 import FormattedText from '../../components/FormattedText';
 
+import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, ShieldCheck } from 'lucide-react';
+
 interface SectionHeadingProps {
   children: React.ReactNode;
   color?: string;
@@ -159,51 +161,87 @@ const SprintLandingPage: React.FC = () => {
                     </div>
 
                     <aside className="lg:col-span-4 space-y-6">
-                        <div className="bg-white rounded-[3rem] p-12 border border-gray-100 shadow-xl lg:sticky lg:top-8 overflow-hidden relative">
-                            <div className="absolute top-0 left-0 w-full h-2 bg-primary/20"></div>
-                            <div className="text-center mb-12">
+                        <div className="bg-white rounded-[3rem] p-10 md:p-12 border border-gray-100 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] lg:sticky lg:top-8 overflow-hidden relative group/card">
+                            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary/40 via-primary to-primary/40"></div>
+                            
+                            {/* Decorative Background Element */}
+                            <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl group-hover/card:bg-primary/10 transition-colors duration-700"></div>
+
+                            <div className="text-center mb-10 relative z-10">
                                 <SectionHeading>Sprint Status</SectionHeading>
                                 {enrollmentStatus === 'none' && (
-                                    <h3 className="text-3xl font-black text-dark tracking-tighter leading-none">
-                                        {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost}` : `₦${sprint.price.toLocaleString()}`}
-                                    </h3>
+                                    <div className="flex flex-col items-center">
+                                        <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1">
+                                            {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost}` : `₦${sprint.price.toLocaleString()}`}
+                                        </h3>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Authorized Access</p>
+                                    </div>
                                 )}
                                 {enrollmentStatus === 'active' && (
-                                    <div className="bg-green-50 text-green-600 px-4 py-2 rounded-2xl border border-green-100 inline-block font-black uppercase text-[10px] tracking-widest animate-pulse">In Progress</div>
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="bg-emerald-50 text-emerald-600 px-5 py-2.5 rounded-2xl border border-emerald-100 flex items-center gap-2 font-black uppercase text-[10px] tracking-widest animate-pulse shadow-sm">
+                                            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                                            In Progress
+                                        </div>
+                                    </div>
                                 )}
                                 {enrollmentStatus === 'queued' && (
-                                    <div className="bg-blue-50 text-blue-600 px-4 py-2 rounded-2xl border border-blue-100 inline-block font-black uppercase text-[10px] tracking-widest">In Upcoming Queue</div>
+                                    <div className="bg-blue-50 text-blue-600 px-5 py-2.5 rounded-2xl border border-blue-100 inline-flex items-center gap-2 font-black uppercase text-[10px] tracking-widest shadow-sm">
+                                        <Clock className="w-3 h-3" />
+                                        In Upcoming Queue
+                                    </div>
                                 )}
                                 {enrollmentStatus === 'completed' && (
-                                    <div className="bg-gray-50 text-gray-400 px-4 py-2 rounded-2xl border border-gray-100 inline-block font-black uppercase text-[10px] tracking-widest">Mastered</div>
+                                    <div className="bg-gray-50 text-gray-400 px-5 py-2.5 rounded-2xl border border-gray-100 inline-flex items-center gap-2 font-black uppercase text-[10px] tracking-widest shadow-sm">
+                                        <CheckCircle2 className="w-3 h-3" />
+                                        Mastered
+                                    </div>
                                 )}
                             </div>
 
-                            <div className="space-y-6 mb-12">
-                                <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-[2rem] border border-gray-100 group transition-all hover:bg-white hover:border-primary/20 hover:shadow-md">
-                                    <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-sm border border-gray-100 transition-transform group-hover:scale-110">📅</div>
+                            <div className="space-y-4 mb-10 relative z-10">
+                                <div className="flex items-center gap-5 p-5 bg-gray-50/50 rounded-[2rem] border border-gray-100 group/item transition-all hover:bg-white hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5">
+                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm border border-gray-100 transition-all group-hover/item:scale-110 group-hover/item:bg-primary group-hover/item:text-white">
+                                        <Calendar className="w-6 h-6" />
+                                    </div>
                                     <div>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Timeline</p>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Timeline</p>
                                         <p className="text-sm font-black text-gray-900 leading-none">{sprint.duration} Continuous Days</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-[2rem] border border-gray-100 group transition-all hover:bg-white hover:border-primary/20 hover:shadow-md">
-                                    <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-sm border border-gray-100 transition-transform group-hover:scale-110">⚡</div>
+                                <div className="flex items-center gap-5 p-5 bg-gray-50/50 rounded-[2rem] border border-gray-100 group/item transition-all hover:bg-white hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5">
+                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm border border-gray-100 transition-all group-hover/item:scale-110 group-hover/item:bg-primary group-hover/item:text-white">
+                                        <Zap className="w-6 h-6" />
+                                    </div>
                                     <div>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Execution</p>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Execution</p>
                                         <p className="text-sm font-black text-gray-900 leading-none">{sprint.protocol || 'One action per day'}</p>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div className="space-y-6">
+                            <div className="space-y-4 relative z-10">
                                 {enrollmentStatus === 'none' ? (
-                                    <Button onClick={handleJoinClick} className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black">Authorize Path &rarr;</Button>
+                                    <Button onClick={handleJoinClick} className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black group/btn">
+                                        Authorize Path 
+                                        <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                                    </Button>
                                 ) : enrollmentStatus === 'active' ? (
-                                    <Button onClick={() => navigate(`/participant/sprint/${activeEnrollmentId}`)} className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black bg-green-600 border-none">Back to Sprint &rarr;</Button>
+                                    <Button onClick={() => navigate(`/participant/sprint/${activeEnrollmentId}`)} className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black bg-emerald-600 border-none group/btn">
+                                        Back to Sprint 
+                                        <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                                    </Button>
                                 ) : (
-                                    <Button onClick={() => navigate('/my-sprints')} className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black bg-blue-600 border-none">View in My Sprints &rarr;</Button>
+                                    <Button onClick={() => navigate('/my-sprints')} className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black bg-blue-600 border-none group/btn">
+                                        View in My Sprints 
+                                        <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                                    </Button>
                                 )}
+                                
+                                <div className="flex items-center justify-center gap-2 pt-2 opacity-40 group-hover/card:opacity-60 transition-opacity">
+                                    <ShieldCheck className="w-3 h-3 text-gray-400" />
+                                    <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Secure Protocol</span>
+                                </div>
                             </div>
                         </div>
                     </aside>
