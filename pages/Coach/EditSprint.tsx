@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Sprint, DailyContent, SprintDifficulty, UserRole, Coach } from '../../types';
+import { Sprint, DailyContent, SprintDifficulty, UserRole, Coach, DynamicSection } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
 import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtils';

@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/Header';
+import BottomNavigation from './components/BottomNavigation';
 
 import { sprintService } from './services/sprintService';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import { analyticsTracker } from './services/analyticsTracker';
-import { AppRoutes } from './routes.tsx';
+import { AppRoutes } from './routes';
 import { UserRole } from './types';
 
 const AppContent: React.FC = () => {
@@ -72,7 +73,9 @@ const AppContent: React.FC = () => {
     location.pathname === '/verify-email' ||
     location.pathname === '/payment-success';
 
-  const showGlobalHeader = location.pathname === '/dashboard';
+  const showGlobalHeader = 
+    location.pathname === '/dashboard' || 
+    (user && activeRole === UserRole.PARTICIPANT && (location.pathname === '/my-sprints' || location.pathname === '/profile'));
 
   const showParticipantNav = 
     user && 
@@ -88,6 +91,7 @@ const AppContent: React.FC = () => {
       <main className={showGlobalHeader ? "container mx-auto px-4 md:px-6 lg:px-8" : ""}>
         <AppRoutes />
       </main>
+      {showParticipantNav && <BottomNavigation />}
       <PWAInstallPrompt deferredPrompt={deferredPrompt} />
     </div>
   );

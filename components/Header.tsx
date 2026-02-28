@@ -61,11 +61,11 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="fixed top-0 left-0 w-full z-[100] px-4 pt-4 pointer-events-none">
+    <header className="relative w-full z-[100] px-4 pt-4 pointer-events-none">
       <div className="max-w-md mx-auto bg-white rounded-full border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between px-6 py-2.5 pointer-events-auto relative">
         
         {/* LOGO */}
-        <Link to="/" className="flex-shrink-0 transition-transform active:scale-95">
+        <Link to={user ? "/dashboard" : "/"} className="flex-shrink-0 transition-transform active:scale-95">
           <LocalLogo type="green" className="h-[2.125rem] w-auto object-contain" />
         </Link>
 

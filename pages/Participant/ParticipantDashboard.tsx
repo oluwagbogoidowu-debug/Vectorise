@@ -154,7 +154,7 @@ const ParticipantDashboard: React.FC = () => {
   const currentArchetype = ARCHETYPES.find(a => a.id === p.archetype);
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#FDFDFD] font-sans overflow-hidden">
+    <div className="flex flex-col min-h-screen w-full bg-[#FDFDFD] font-sans">
 
 
 
