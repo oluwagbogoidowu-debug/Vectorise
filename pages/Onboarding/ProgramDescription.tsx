@@ -132,17 +132,17 @@ const ProgramDescription: React.FC = () => {
                     {isFoundational ? 'FOUNDATIONAL PATH' : 'FOUNDATION PATH'}
                   </span>
                 </div>
-                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-[1] mb-2">
-                  <FormattedText text={sprint.title} />
+                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-2">
+                  <FormattedText text={sprint.title} inline />
                 </h1>
                 <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.4em]">{sprint.duration} DAY PROTOCOL</p>
               </div>
             </div>
 
             {sprint.dynamicSections && sprint.dynamicSections.map((section, index) => (
-                <section key={index} className="bg-white rounded-[2.5rem] p-10 md:p-14 border border-gray-100 shadow-sm animate-fade-in">
+                <section key={index} className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">
                     <SectionHeading>{section.title}</SectionHeading>
-                    <div className="prose prose-sm max-w-none text-gray-800 font-medium leading-relaxed">
+                    <div className="text-gray-800 font-medium leading-relaxed max-w-none">
                         <FormattedText text={section.body} />
                     </div>
                 </section>
@@ -150,8 +150,8 @@ const ProgramDescription: React.FC = () => {
 
             {/* FINAL STATEMENT */}
             <section className="py-16 text-center border-t border-gray-100">
-                <h3 className="text-3xl md:text-5xl font-black text-gray-900 leading-tight tracking-tighter px-6 max-w-2xl mx-auto">
-                    <FormattedText text={sprint.outcomeStatement || "Focus creates feedback. *Feedback creates clarity.*"} />
+                <h3 className="text-3xl md:text-5xl font-black text-gray-900 leading-tight tracking-tighter px-6 max-w-3xl mx-auto">
+                    <FormattedText text={sprint.outcomeStatement || "Focus creates feedback. *Feedback creates clarity.*"} inline />
                 </h3>
             </section>
           </div>

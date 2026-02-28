@@ -130,8 +130,8 @@ const ClaritySprintDescription: React.FC = () => {
                 <div className="mb-4">
                   <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg">FOUNDATIONAL PATH</span>
                 </div>
-                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-[1] mb-2 italic">
-                  <FormattedText text={sprint.title} />
+                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-2 italic">
+                  <FormattedText text={sprint.title} inline />
                 </h1>
                 {sprint.subtitle && (
                     <p className="text-white/70 text-[10px] font-black uppercase tracking-[0.4em] mb-4 italic leading-none">{sprint.subtitle}</p>
@@ -161,12 +161,12 @@ const ClaritySprintDescription: React.FC = () => {
             )}
 
             {/* Transformation Section - Normalized Text Size, No Italics */}
-            <section className="bg-white rounded-[2.5rem] p-10 md:p-14 border border-gray-100 shadow-sm animate-fade-in relative overflow-hidden">
+            <section className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in relative overflow-hidden">
               <div className="relative z-10">
                 <div className="space-y-10">
-                  <p className="text-gray-900 font-bold text-sm leading-relaxed">
+                  <div className="text-gray-900 font-medium text-sm leading-relaxed max-w-none">
                     <FormattedText text={sprint.transformation || sprint.description} />
-                  </p>
+                  </div>
                   <div className="h-px bg-gray-50 w-24"></div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                     {sprint.forWho && sprint.forWho.length > 0 && (
@@ -248,7 +248,7 @@ const ClaritySprintDescription: React.FC = () => {
 
             <section className="py-12 text-center border-t border-gray-100">
                 <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-[1.15] tracking-tighter px-4 italic max-w-xl mx-auto">
-                    <FormattedText text={sprint.outcomeStatement || "Focus creates feedback. *Feedback creates clarity.*"} />
+                    <FormattedText text={sprint.outcomeStatement || "Focus creates feedback. *Feedback creates clarity.*"} inline />
                 </h3>
             </section>
           </div>

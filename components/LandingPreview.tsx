@@ -42,7 +42,7 @@ const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint, coach }) => {
               <span className="px-2 py-0.5 bg-primary rounded text-[6px] font-black uppercase tracking-widest border border-white/10">{sprint.category || 'Category'}</span>
             </div>
             <h1 className="text-xl font-black tracking-tight leading-none mb-1">
-              <FormattedText text={sprint.title || 'Untitled Sprint'} />
+              <FormattedText text={sprint.title || 'Untitled Sprint'} inline />
             </h1>
             {sprint.subtitle && (
                 <p className="text-[8px] font-black text-white/50 uppercase tracking-[0.2em] mb-2">{sprint.subtitle}</p>
@@ -65,7 +65,7 @@ const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint, coach }) => {
           <section className="py-8 text-center border-t border-gray-100">
             <p className="text-[7px] font-black text-primary uppercase tracking-[0.3em] mb-4">The Outcome</p>
             <h3 className="text-lg font-black text-gray-900 leading-tight tracking-tight px-4">
-              <FormattedText text={sprint.outcomeStatement || "Focus creates feedback. *Feedback creates clarity.*"} />
+              <FormattedText text={sprint.outcomeStatement || "Focus creates feedback. *Feedback creates clarity.*"} inline />
             </h3>
           </section>
         </div>
