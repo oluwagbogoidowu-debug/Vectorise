@@ -133,13 +133,18 @@ const SprintLandingPage: React.FC = () => {
                                         {isFoundational ? 'FOUNDATIONAL PATH' : 'PREMIUM SPRINT'}
                                     </span>
                                 </div>
-                                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-2">
+                                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-4">
                                     <FormattedText text={sprint.title} inline />
                                 </h1>
                                 {sprint.subtitle && (
-                                    <p className="text-white/70 text-[10px] font-black uppercase tracking-[0.4em] mb-4 leading-none">{sprint.subtitle}</p>
+                                    <p className="text-white/70 text-sm md:text-base font-medium italic tracking-tight mb-6 leading-snug max-w-xl">
+                                        {sprint.subtitle}
+                                    </p>
                                 )}
-                                <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.4em]">{sprint.duration} DAY PROTOCOL</p>
+                                <div className="flex items-center gap-2 text-white/40 text-[9px] font-black uppercase tracking-[0.2em]">
+                                    <Clock className="w-3 h-3" />
+                                    {sprint.duration} DAY PROTOCOL
+                                </div>
                             </div>
                         </div>
 

@@ -3,6 +3,7 @@ import React from 'react';
 import { Sprint, Coach } from '../types';
 import FormattedText from './FormattedText';
 import DynamicSectionRenderer from './DynamicSectionRenderer';
+import { Clock } from 'lucide-react';
 
 interface LandingPreviewProps {
   sprint: Partial<Sprint>;
@@ -42,13 +43,16 @@ const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint, coach }) => {
             <div className="flex gap-2 mb-2">
               <span className="px-2 py-0.5 bg-primary rounded text-[6px] font-black uppercase tracking-widest border border-white/10">{sprint.category || 'Category'}</span>
             </div>
-            <h1 className="text-xl font-black tracking-tight leading-none mb-1">
+            <h1 className="text-xl font-black tracking-tight leading-none mb-2">
               <FormattedText text={sprint.title || 'Untitled Sprint'} inline />
             </h1>
             {sprint.subtitle && (
-                <p className="text-[8px] font-black text-white/50 uppercase tracking-[0.2em] mb-2">{sprint.subtitle}</p>
+                <p className="text-white/60 text-[8px] font-medium italic tracking-tight mb-3 leading-snug max-w-[200px]">{sprint.subtitle}</p>
             )}
-            <p className="text-white/60 text-[6px] font-bold uppercase tracking-widest">{sprint.duration || 7} Day Protocol</p>
+            <div className="flex items-center gap-1.5 text-white/40 text-[6px] font-black uppercase tracking-widest">
+              <Clock className="w-2 h-2" />
+              {sprint.duration || 7} Day Protocol
+            </div>
           </div>
         </div>
 
