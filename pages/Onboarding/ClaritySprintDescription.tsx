@@ -15,7 +15,7 @@ interface SectionHeadingProps {
 }
 
 const SectionHeading: React.FC<SectionHeadingProps> = ({ children, color = "primary" }) => (
-  <h2 className={`text-[8px] font-black text-${color} uppercase tracking-[0.4em] mb-4`}>
+  <h2 className={`text-[11px] font-black text-${color} uppercase tracking-[0.4em] mb-4`}>
       {children}
   </h2>
 );
@@ -104,14 +104,14 @@ const ClaritySprintDescription: React.FC = () => {
         <div className="flex justify-between items-center mb-6">
           <button 
             onClick={() => navigate('/onboarding/focus-selector', { state: { trigger: activeTrigger } })} 
-            className="group flex items-center text-gray-400 hover:text-primary transition-all text-[10px] font-black uppercase tracking-widest"
+            className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-2 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
             Refine Focus
           </button>
-          <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[9px] font-black uppercase tracking-widest">
+          <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest">
             PHASE 01: CORE
           </div>
         </div>
@@ -130,7 +130,7 @@ const ClaritySprintDescription: React.FC = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
               <div className="absolute bottom-10 left-10 right-10 text-white">
                 <div className="mb-4">
-                  <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg">FOUNDATIONAL PATH</span>
+                  <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg">FOUNDATIONAL PATH</span>
                 </div>
                 <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-4 italic">
                   <FormattedText text={sprint.title} inline />
@@ -140,7 +140,7 @@ const ClaritySprintDescription: React.FC = () => {
                     {sprint.subtitle}
                   </p>
                 )}
-                <div className="flex items-center gap-2 text-white/40 text-[9px] font-black uppercase tracking-[0.2em]">
+                <div className="flex items-center gap-2 text-white/40 text-[11px] font-black uppercase tracking-[0.2em]">
                   <Clock className="w-3 h-3" />
                   {sprint.duration} DAY PROTOCOL
                 </div>
@@ -168,11 +168,11 @@ const ClaritySprintDescription: React.FC = () => {
                             </svg>
                           </div>
                           <div>
-                              <p className="text-[10px] font-black text-[#159E6A] uppercase tracking-[0.25em] mb-1">Optimized Match</p>
-                              <p className="text-[14px] font-bold text-gray-700 italic leading-none">"{selectedFocus}"</p>
+                              <p className="text-[11px] font-black text-[#159E6A] uppercase tracking-[0.25em] mb-1">Optimized Match</p>
+                              <p className="text-[15px] font-bold text-gray-700 italic leading-none">"{selectedFocus}"</p>
                           </div>
                       </div>
-                      <span className="text-[9px] font-black bg-white px-4 py-2 rounded-xl text-gray-400 uppercase tracking-widest shadow-sm">Validated</span>
+                      <span className="text-[11px] font-black bg-white px-4 py-2 rounded-xl text-gray-400 uppercase tracking-widest shadow-sm">Validated</span>
                   </div>
                 )}
 
@@ -187,26 +187,26 @@ const ClaritySprintDescription: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                         {sprint.forWho && sprint.forWho.length > 0 && (
                           <div>
-                            <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
                               <span className="w-1 h-3 bg-primary rounded-full"></span>
                               Ideal For You If
                             </h4>
                             <ul className="space-y-4">
                                 {sprint.forWho.map((item, i) => (
-                                    <li key={i} className="flex gap-4 items-start"><span className="text-primary mt-1 flex-shrink-0"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg></span><p className="text-sm italic font-semibold text-gray-600 leading-snug">{item}</p></li>
+                                    <li key={i} className="flex gap-4 items-start"><span className="text-primary mt-1 flex-shrink-0"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg></span><p className="text-base italic font-semibold text-gray-600 leading-snug">{item}</p></li>
                                 ))}
                             </ul>
                           </div>
                         )}
                         {sprint.notForWho && sprint.notForWho.length > 0 && (
                           <div>
-                            <h4 className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <h4 className="text-[11px] font-black text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                               <span className="w-1 h-3 bg-red-400 rounded-full"></span>
                               Not For You If
                             </h4>
                             <ul className="space-y-4 opacity-60">
                                 {sprint.notForWho.map((item, i) => (
-                                    <li key={i} className="flex gap-4 items-start"><span className="text-red-400 mt-1 flex-shrink-0"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></span><p className="text-sm font-semibold text-gray-500 leading-snug">{item}</p></li>
+                                    <li key={i} className="flex gap-4 items-start"><span className="text-red-400 mt-1 flex-shrink-0"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></span><p className="text-base font-semibold text-gray-500 leading-snug">{item}</p></li>
                                 ))}
                             </ul>
                           </div>
@@ -231,12 +231,12 @@ const ClaritySprintDescription: React.FC = () => {
                                     {sprint.methodSnapshot.map((item, i) => (
                                         <div key={i} className="space-y-3 group/item">
                                             <div className="flex items-center gap-3">
-                                              <span className="text-[10px] font-black text-white/20 italic">0{i+1}</span>
-                                              <p className="text-white font-black uppercase text-[11px] tracking-[0.25em]">
+                                              <span className="text-[11px] font-black text-white/20 italic">0{i+1}</span>
+                                              <p className="text-white font-black uppercase text-[12px] tracking-[0.25em]">
                                                   {item.verb}
                                               </p>
                                             </div>
-                                            <p className="text-white/60 text-[12px] font-medium leading-relaxed italic">
+                                            <p className="text-white/60 text-[14px] font-medium leading-relaxed italic">
                                                 {item.description}
                                             </p>
                                         </div>
@@ -250,12 +250,12 @@ const ClaritySprintDescription: React.FC = () => {
                 {/* Outcomes Section */}
                 {sprint.outcomes && sprint.outcomes.length > 0 && (
                     <section className="bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-xl animate-fade-in relative overflow-hidden">
-                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-10">By Day {sprint.duration}, You'll Have:</p>
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-10">By Day {sprint.duration}, You'll Have:</p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12 relative z-10">
                             {sprint.outcomes.map((outcome, i) => (
                                 <div key={i} className="flex items-start gap-5 group">
-                                    <div className="w-5 h-5 bg-primary text-white rounded-full flex items-center justify-center flex-shrink-0 text-[9px] shadow-md">✓</div>
-                                    <p className="font-black text-gray-800 leading-tight text-xs italic">{outcome}</p>
+                                    <div className="w-5 h-5 bg-primary text-white rounded-full flex items-center justify-center flex-shrink-0 text-[10px] shadow-md">✓</div>
+                                    <p className="font-black text-gray-800 leading-tight text-sm italic">{outcome}</p>
                                 </div>
                             ))}
                         </div>
@@ -279,7 +279,7 @@ const ClaritySprintDescription: React.FC = () => {
                 <SectionHeading>Sprint Status</SectionHeading>
                 <div className="flex flex-col items-center">
                     <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1 italic">Foundational</h3>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Core Protocol</p>
+                    <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Core Protocol</p>
                 </div>
               </div>
 
@@ -289,7 +289,7 @@ const ClaritySprintDescription: React.FC = () => {
                           <Calendar className="w-6 h-6" />
                       </div>
                       <div>
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Timeline</p>
+                          <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Timeline</p>
                           <p className="text-sm font-black text-gray-900 leading-none">{sprint.duration} Continuous Days</p>
                       </div>
                   </div>
@@ -298,7 +298,7 @@ const ClaritySprintDescription: React.FC = () => {
                           <Zap className="w-6 h-6" />
                       </div>
                       <div>
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Execution Mode</p>
+                          <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Execution Mode</p>
                           <p className="text-sm font-black text-gray-900 leading-none">{sprint.protocol || 'One action per day'}</p>
                       </div>
                   </div>
@@ -311,13 +311,13 @@ const ClaritySprintDescription: React.FC = () => {
                 </Button>
                 
                 <div className="text-center space-y-3 pt-2">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-4 leading-relaxed">Already clear on your direction?</p>
+                  <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-4 leading-relaxed">Already clear on your direction?</p>
                   <button onClick={handleSkipClarity} className="text-[11px] font-black text-primary hover:underline uppercase tracking-widest transition-all cursor-pointer bg-primary/5 px-6 py-3 rounded-2xl hover:bg-primary/10">Skip to Execution</button>
                 </div>
 
                 <div className="flex items-center justify-center gap-2 pt-4 opacity-40 group-hover/card:opacity-60 transition-opacity">
                     <ShieldCheck className="w-3 h-3 text-gray-400" />
-                    <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Secure Protocol</span>
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Secure Protocol</span>
                 </div>
               </div>
             </div>

@@ -62,12 +62,12 @@ const HomePage: React.FC = () => {
             <LocalLogo type="green" className="h-[2.125rem] w-auto" />
           </Link>
           <div className="flex gap-6 items-center">
-            <Link to="/onboarding/coach/welcome" className="hidden sm:block text-[9px] font-black text-gray-400 hover:text-primary uppercase tracking-[0.1em] transition-colors">
+            <Link to="/onboarding/coach/welcome" className="hidden sm:block text-[11px] font-black text-gray-400 hover:text-primary uppercase tracking-[0.1em] transition-colors">
               I'M A COACH
             </Link>
             <button 
               onClick={handleStartAction}
-              className="px-6 py-2.5 bg-primary text-white rounded-full text-[9px] font-black uppercase tracking-[0.1em] shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95 cursor-pointer"
+              className="px-6 py-2.5 bg-primary text-white rounded-full text-[11px] font-black uppercase tracking-[0.1em] shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95 cursor-pointer"
             >
               START SPRINT
             </button>
@@ -99,11 +99,11 @@ const HomePage: React.FC = () => {
           <div className="flex flex-col items-center gap-6">
             <button 
                 onClick={handleStartAction}
-                className="px-12 py-5 bg-primary text-white font-black uppercase tracking-[0.15em] text-[10px] md:text-xs rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
+                className="px-12 py-5 bg-primary text-white font-black uppercase tracking-[0.15em] text-[12px] md:text-sm rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
             >
                 START YOUR CLARITY SPRINT
             </button>
-            <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">
+            <p className="text-[11px] font-black text-gray-300 uppercase tracking-widest">
                 ALREADY HAVE AN ACCOUNT? <Link to="/login" className="text-primary hover:underline ml-1">CONTINUE YOUR RISE</Link>
             </p>
           </div>
@@ -130,7 +130,7 @@ const HomePage: React.FC = () => {
                 { text: "Endless content.", color: "bg-orange-50 text-orange-800 border-orange-100" },
                 { text: "No real traction.", color: "bg-rose-50 text-rose-800 border-rose-100" }
               ].map((item, i) => (
-                <div key={i} className={`${item.color} px-4 py-2 md:px-6 md:py-3 rounded-full border font-black italic text-[10px] md:text-xs shadow-sm`}>
+                <div key={i} className={`${item.color} px-4 py-2 md:px-6 md:py-3 rounded-full border font-black italic text-[12px] md:text-sm shadow-sm`}>
                   {item.text}
                 </div>
               ))}
@@ -178,7 +178,7 @@ const HomePage: React.FC = () => {
                     alt="Founder Story" 
                   />
                </div>
-               <p className="mt-6 text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] text-center leading-relaxed">BUILT BY SOMEONE WHO'S WALKED THE PATH FROM <br/> CONFUSION TO CLARITY.</p>
+               <p className="mt-6 text-[11px] font-black text-gray-400 uppercase tracking-[0.3em] text-center leading-relaxed">BUILT BY SOMEONE WHO'S WALKED THE PATH FROM <br/> CONFUSION TO CLARITY.</p>
             </div>
           </div>
 
@@ -211,9 +211,9 @@ const HomePage: React.FC = () => {
               { label: "SUPPORT", title: "Coach Guidance", desc: "Access when friction shows up." }
             ].map((item, i) => (
               <div key={i} className="bg-white/[0.03] border border-white/10 p-8 rounded-[1.5rem] group hover:bg-white/[0.05] transition-all">
-                <p className="text-[7px] font-black text-primary uppercase tracking-widest mb-4">{item.label}</p>
+                <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-4">{item.label}</p>
                 <h4 className="text-xl font-black mb-2 italic">{item.title}</h4>
-                <p className="text-xs text-white/40 font-medium italic">"{item.desc}"</p>
+                <p className="text-sm text-white/40 font-medium italic">"{item.desc}"</p>
               </div>
             ))}
           </div>
@@ -248,7 +248,7 @@ const HomePage: React.FC = () => {
                 ].map((text, i) => (
                     <div key={i} className="bg-gray-50 border border-gray-100 p-5 md:p-6 rounded-[1.5rem] flex items-center gap-6">
                         <span className="text-lg md:text-xl font-black text-gray-200 italic">0{i+1}</span>
-                        <p className="text-xs md:text-sm font-black text-gray-900 tracking-tight leading-none">{text}</p>
+                        <p className="text-sm md:text-base font-black text-gray-900 tracking-tight leading-none">{text}</p>
                     </div>
                 ))}
             </div>
@@ -269,8 +269,8 @@ const HomePage: React.FC = () => {
                 ].map((item, i) => (
                     <div key={i} className="bg-white p-8 rounded-[2rem] border border-gray-200 shadow-sm flex flex-col text-left h-full">
                         <h4 className="text-lg font-black text-gray-900 italic mb-1">{item.t}</h4>
-                        <p className="text-[8px] font-black text-primary uppercase tracking-[0.2em] mb-6">{item.s}</p>
-                        <p className="text-[11px] text-gray-500 font-medium leading-relaxed italic mt-auto">"{item.d}"</p>
+                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-6">{item.s}</p>
+                        <p className="text-[12px] text-gray-500 font-medium leading-relaxed italic mt-auto">"{item.d}"</p>
                     </div>
                 ))}
             </div>
@@ -298,7 +298,7 @@ const HomePage: React.FC = () => {
                 ].map((item, i) => (
                     <div key={i} className="space-y-2">
                         <h4 className="text-3xl md:text-4xl font-black text-primary italic leading-none">{item.t}</h4>
-                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em]">{item.s}</p>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">{item.s}</p>
                     </div>
                 ))}
             </div>
@@ -330,12 +330,12 @@ const HomePage: React.FC = () => {
             <div className="flex items-center gap-6">
                 <LocalLogo type="green" className="h-4 w-auto" />
                 <div className="h-5 w-px bg-gray-200"></div>
-                <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.4em] leading-none pt-0.5">VISIBLE PROGRESS SYSTEM</p>
+                <p className="text-[11px] font-black text-gray-300 uppercase tracking-[0.4em] leading-none pt-0.5">VISIBLE PROGRESS SYSTEM</p>
             </div>
             <div className="flex flex-wrap justify-center gap-8 md:gap-12">
-                <p className="text-[9px] font-black text-gray-300 uppercase tracking-[0.4em]">© 2026 VECTORISE</p>
-                <Link to="/onboarding/coach/welcome" className="text-[9px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">I'M A COACH</Link>
-                <Link to="/partner" className="text-[9px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">BE A PARTNER</Link>
+                <p className="text-[11px] font-black text-gray-300 uppercase tracking-[0.4em]">© 2026 VECTORISE</p>
+                <Link to="/onboarding/coach/welcome" className="text-[11px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">I'M A COACH</Link>
+                <Link to="/partner" className="text-[11px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">BE A PARTNER</Link>
             </div>
         </div>
       </footer>
@@ -351,11 +351,11 @@ const HomePage: React.FC = () => {
             <div className="space-y-3">
               {currentStep.options.map((opt, idx) => (
                 <button key={idx} onClick={() => handleOptionClick(opt)} className="w-full group relative overflow-hidden bg-gray-50 border border-gray-100 py-4 px-6 rounded-2xl transition-all duration-500 hover:bg-primary hover:border-primary hover:scale-[1.01] active:scale-95 text-center flex items-center justify-center cursor-pointer">
-                  <span className="relative z-10 text-[9px] font-black uppercase tracking-[0.15em] text-gray-500 group-hover:text-white transition-colors leading-relaxed block">{opt.label}</span>
+                  <span className="relative z-10 text-[11px] font-black uppercase tracking-[0.15em] text-gray-500 group-hover:text-white transition-colors leading-relaxed block">{opt.label}</span>
                 </button>
               ))}
             </div>
-            <button onClick={() => setShowMicroSelector(false)} className="w-full mt-8 py-2 text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-red-400 transition-colors cursor-pointer">Close</button>
+            <button onClick={() => setShowMicroSelector(false)} className="w-full mt-8 py-2 text-[11px] font-black text-gray-400 uppercase tracking-widest hover:text-red-400 transition-colors cursor-pointer">Close</button>
           </div>
         </div>
       )}

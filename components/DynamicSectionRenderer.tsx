@@ -26,7 +26,7 @@ const DynamicSectionRenderer: React.FC<DynamicSectionRendererProps> = ({ section
 
   if (!effectiveIsList) {
     return (
-      <div className="text-gray-700 font-medium text-sm md:text-base leading-relaxed max-w-none prose prose-sm prose-primary">
+      <div className="text-gray-700 font-medium text-base leading-relaxed max-w-none prose prose-primary">
         <FormattedText text={section.body} />
       </div>
     );
@@ -44,7 +44,7 @@ const DynamicSectionRenderer: React.FC<DynamicSectionRendererProps> = ({ section
             {getIcon()}
           </div>
           <div className="flex-1">
-            <p className="text-[14px] font-bold text-gray-800 leading-relaxed group-hover:text-gray-900 transition-colors">
+            <p className="text-[15px] font-bold text-gray-800 leading-relaxed group-hover:text-gray-900 transition-colors">
               {item}
             </p>
           </div>

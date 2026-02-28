@@ -18,7 +18,7 @@ interface SectionHeadingProps {
 }
 
 const SectionHeading: React.FC<SectionHeadingProps> = ({ children, color = "primary" }) => (
-  <h2 className={`text-[8px] font-black text-${color} uppercase tracking-[0.4em] mb-4`}>
+  <h2 className={`text-[10px] font-black text-${color} uppercase tracking-[0.4em] mb-4`}>
       {children}
   </h2>
 );
@@ -104,14 +104,14 @@ const SprintLandingPage: React.FC = () => {
                 <div className="flex justify-between items-center mb-6">
                     <button 
                         onClick={() => navigate('/discover')} 
-                        className="group flex items-center text-gray-400 hover:text-primary transition-all text-[10px] font-black uppercase tracking-widest"
+                        className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-2 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                         </svg>
                         Back to Registry
                     </button>
-                    <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[9px] font-black uppercase tracking-widest">
+                    <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest">
                         {isFoundational ? 'FOUNDATIONAL PATH' : 'FOUNDATION PATH'}
                     </div>
                 </div>
@@ -129,7 +129,7 @@ const SprintLandingPage: React.FC = () => {
                             <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
                             <div className="absolute bottom-10 left-10 right-10 text-white">
                                 <div className="mb-4">
-                                    <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg">
+                                    <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg">
                                         {isFoundational ? 'FOUNDATIONAL PATH' : 'PREMIUM SPRINT'}
                                     </span>
                                 </div>
@@ -141,7 +141,7 @@ const SprintLandingPage: React.FC = () => {
                                         {sprint.subtitle}
                                     </p>
                                 )}
-                                <div className="flex items-center gap-2 text-white/40 text-[9px] font-black uppercase tracking-[0.2em]">
+                                <div className="flex items-center gap-2 text-white/40 text-[11px] font-black uppercase tracking-[0.2em]">
                                     <Clock className="w-3 h-3" />
                                     {sprint.duration} DAY PROTOCOL
                                 </div>
@@ -170,25 +170,25 @@ const SprintLandingPage: React.FC = () => {
                                         <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1">
                                             {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost}` : `₦${sprint.price.toLocaleString()}`}
                                         </h3>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Authorized Access</p>
+                                        <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Authorized Access</p>
                                     </div>
                                 )}
                                 {enrollmentStatus === 'active' && (
                                     <div className="flex flex-col items-center gap-2">
-                                        <div className="bg-emerald-50 text-emerald-600 px-5 py-2.5 rounded-2xl border border-emerald-100 flex items-center gap-2 font-black uppercase text-[10px] tracking-widest animate-pulse shadow-sm">
+                                        <div className="bg-emerald-50 text-emerald-600 px-5 py-2.5 rounded-2xl border border-emerald-100 flex items-center gap-2 font-black uppercase text-[12px] tracking-widest animate-pulse shadow-sm">
                                             <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
                                             In Progress
                                         </div>
                                     </div>
                                 )}
                                 {enrollmentStatus === 'queued' && (
-                                    <div className="bg-blue-50 text-blue-600 px-5 py-2.5 rounded-2xl border border-blue-100 inline-flex items-center gap-2 font-black uppercase text-[10px] tracking-widest shadow-sm">
+                                    <div className="bg-blue-50 text-blue-600 px-5 py-2.5 rounded-2xl border border-blue-100 inline-flex items-center gap-2 font-black uppercase text-[12px] tracking-widest shadow-sm">
                                         <Clock className="w-3 h-3" />
                                         In Upcoming Queue
                                     </div>
                                 )}
                                 {enrollmentStatus === 'completed' && (
-                                    <div className="bg-gray-50 text-gray-400 px-5 py-2.5 rounded-2xl border border-gray-100 inline-flex items-center gap-2 font-black uppercase text-[10px] tracking-widest shadow-sm">
+                                    <div className="bg-gray-50 text-gray-400 px-5 py-2.5 rounded-2xl border border-gray-100 inline-flex items-center gap-2 font-black uppercase text-[12px] tracking-widest shadow-sm">
                                         <CheckCircle2 className="w-3 h-3" />
                                         Mastered
                                     </div>
@@ -201,7 +201,7 @@ const SprintLandingPage: React.FC = () => {
                                         <Calendar className="w-6 h-6" />
                                     </div>
                                     <div>
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Timeline</p>
+                                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Timeline</p>
                                         <p className="text-sm font-black text-gray-900 leading-none">{sprint.duration} Continuous Days</p>
                                     </div>
                                 </div>
@@ -210,7 +210,7 @@ const SprintLandingPage: React.FC = () => {
                                         <Zap className="w-6 h-6" />
                                     </div>
                                     <div>
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Execution</p>
+                                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Execution</p>
                                         <p className="text-sm font-black text-gray-900 leading-none">{sprint.protocol || 'One action per day'}</p>
                                     </div>
                                 </div>
@@ -236,7 +236,7 @@ const SprintLandingPage: React.FC = () => {
                                 
                                 <div className="flex items-center justify-center gap-2 pt-2 opacity-40 group-hover/card:opacity-60 transition-opacity">
                                     <ShieldCheck className="w-3 h-3 text-gray-400" />
-                                    <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Secure Protocol</span>
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Secure Protocol</span>
                                 </div>
                             </div>
                         </div>
