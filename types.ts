@@ -36,7 +36,8 @@ export interface TrafficRecord {
   id: string;
   anonymous_id: string | null;
   session_id: string;
-  user_id?: string | null;
+  user_id?: string | null; // This will be the email once identified
+  uid?: string | null; // The original Firebase UID
   email?: string | null;
   source: string;
   medium: string;
@@ -54,7 +55,8 @@ export interface AnalyticsEvent {
   id: string;
   anonymous_id: string | null;
   session_id: string;
-  user_id?: string | null;
+  user_id?: string | null; // This will be the email once identified
+  uid?: string | null; // The original Firebase UID
   email?: string | null;
   event_name: string;
   event_properties: any;

@@ -119,9 +119,10 @@ export const analyticsTracker = {
             localStorage.setItem('vectorise_attribution', JSON.stringify(attribution));
 
             const trafficRecord: Omit<TrafficRecord, 'id'> = {
-                anonymous_id: userId ? null : guestId,
+                anonymous_id: (userId || userEmail) ? null : guestId,
                 session_id: sessId,
-                user_id: userId || null,
+                user_id: userEmail || userId || null,
+                uid: userId || null,
                 email: userEmail || null,
                 source: attribution.source,
                 medium: attribution.medium,
@@ -189,9 +190,10 @@ export const analyticsTracker = {
         if (!guestId || !sessId) return;
 
         const eventData: Omit<AnalyticsEvent, 'id'> = {
-            anonymous_id: userId ? null : guestId, // Ignore guest ID if user is logged in
+            anonymous_id: (userId || userEmail) ? null : guestId, // Ignore guest ID if user is logged in
             session_id: sessId,
-            user_id: userId || null,
+            user_id: userEmail || userId || null, // Use email as primary user_id for tracking
+            uid: userId || null,
             email: userEmail || null,
             event_name: eventName,
             event_properties: sanitizeData(properties),
@@ -210,24 +212,35 @@ export const analyticsTracker = {
 
     identify: async (userId: string, email: string) => {
         const guestId = localStorage.getItem(GUEST_ID_KEY);
-        if (!guestId || !userId) return;
+        if (!guestId || !email) return;
 
         try {
             const batch = writeBatch(db);
             const qT = query(collection(db, TRAFFIC_COLLECTION), where('anonymous_id', '==', guestId));
             const snapT = await getDocs(qT);
             snapT.forEach(d => {
-                if (!d.data().user_id) batch.update(d.ref, { user_id: userId, email: email, anonymous_id: null });
+                // Use email as the stable user_id for analytics records, but keep uid for linking
+                if (!d.data().user_id) batch.update(d.ref, { 
+                    user_id: email, 
+                    uid: userId,
+                    email: email, 
+                    anonymous_id: null 
+                });
             });
 
             const qE = query(collection(db, EVENTS_COLLECTION), where('anonymous_id', '==', guestId), limit(50));
             const snapE = await getDocs(qE);
             snapE.forEach(d => {
-                if (!d.data().user_id) batch.update(d.ref, { user_id: userId, email: email, anonymous_id: null });
+                if (!d.data().user_id) batch.update(d.ref, { 
+                    user_id: email, 
+                    uid: userId,
+                    email: email, 
+                    anonymous_id: null 
+                });
             });
 
             await batch.commit();
-            analyticsTracker.trackEvent('identity_merged', { method: 'auth_link' }, userId, email);
+            analyticsTracker.trackEvent('identity_merged', { method: 'auth_link', original_uid: userId }, email, email);
         } catch (err) {
             console.warn("[Analytics] Identity link failed", err);
         }
@@ -245,16 +258,18 @@ export const analyticsTracker = {
             if (trafficRecords.length === 0) return [];
 
             const allSessionIds = Array.from(new Set(trafficRecords.map(r => r.session_id))) as string[];
-            const allUserIds = Array.from(new Set(trafficRecords.map(r => r.user_id).filter(id => !!id))) as string[];
+            // Fetch enrollments using the Firebase UID (uid field)
+            const allUids = Array.from(new Set(trafficRecords.map(r => r.uid).filter(id => !!id))) as string[];
 
             const [allEvents, allEnrollments] = await Promise.all([
                 fetchChunked(EVENTS_COLLECTION, 'session_id', allSessionIds),
-                fetchChunked(ENROLLMENTS_COLLECTION, 'user_id', allUserIds)
+                fetchChunked(ENROLLMENTS_COLLECTION, 'user_id', allUids)
             ]);
 
             const identitiesMap = new Map<string, TrafficRecord[]>();
             trafficRecords.forEach(t => {
-                const idKey = t.user_id || t.email || t.anonymous_id;
+                // Prioritize email as the global identifier
+                const idKey = t.email || t.user_id || t.anonymous_id;
                 if (!idKey) return;
                 const existing = identitiesMap.get(idKey) || [];
                 identitiesMap.set(idKey, [...existing, t]);
@@ -298,7 +313,7 @@ export const analyticsTracker = {
                     });
                 }
 
-                const userId = firstTouch.user_id || records.find(r => !!r.user_id)?.user_id;
+                const userId = firstTouch.uid || records.find(r => !!r.uid)?.uid;
                 const userEnrollments = allEnrollments.filter(e => e.user_id === userId);
 
                 ledger.push({
