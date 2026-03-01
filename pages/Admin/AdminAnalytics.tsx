@@ -10,6 +10,10 @@ const AdminAnalytics: React.FC = () => {
     const [trafficMap, setTrafficMap] = useState<Record<string, number>>({});
     const [identities, setIdentities] = useState<IdentityReport[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    
+    // Filters
+    const [dateFilter, setDateFilter] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [typeFilter, setTypeFilter] = useState<'all' | 'user' | 'guest'>('all');
 
     useEffect(() => {
         const unsubscribe = analyticsTracker.subscribeToEvents((data) => {
@@ -53,6 +57,22 @@ const AdminAnalytics: React.FC = () => {
     const handleSelectIdentity = (id: IdentityReport) => {
         navigate(`/admin/analytics/user/${encodeURIComponent(id.identifier)}`);
     };
+
+    const filteredIdentities = useMemo(() => {
+        return identities.filter(id => {
+            // Date filter: Check if last active or first touch matches the selected date
+            const lastActiveDate = new Date(id.lastActiveAt).toISOString().split('T')[0];
+            const firstTouchDate = new Date(id.firstTouch.created_at).toISOString().split('T')[0];
+            const matchesDate = lastActiveDate === dateFilter || firstTouchDate === dateFilter;
+
+            // Type filter
+            const matchesType = typeFilter === 'all' 
+                || (typeFilter === 'user' && !!id.user_id)
+                || (typeFilter === 'guest' && !id.user_id);
+
+            return matchesDate && matchesType;
+        });
+    }, [identities, dateFilter, typeFilter]);
 
     if (isLoading) return (
         <div className="flex flex-col items-center justify-center h-96 space-y-4">
@@ -99,15 +119,40 @@ const AdminAnalytics: React.FC = () => {
             {/* IDENTITY LEDGER - ONE ENTRY PER IDENTIFIER */}
             <section className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <div className="lg:col-span-8 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-                    <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/20">
+                    <div className="p-8 border-b border-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/20">
                         <div>
                             <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.3em]">Identity Registry</h4>
                             <p className="text-[8px] font-bold text-gray-400 uppercase mt-1">Unique entities tracked across multiple sessions</p>
                         </div>
-                        <span className="flex items-center gap-2">
-                             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                             <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Global Persistence</p>
-                        </span>
+                        
+                        <div className="flex items-center gap-3 self-end">
+                            <div className="flex bg-white p-1 rounded-xl border border-gray-100 shadow-sm">
+                                <button 
+                                    onClick={() => setTypeFilter('all')}
+                                    className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${typeFilter === 'all' ? 'bg-primary text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    All
+                                </button>
+                                <button 
+                                    onClick={() => setTypeFilter('user')}
+                                    className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${typeFilter === 'user' ? 'bg-primary text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    Users
+                                </button>
+                                <button 
+                                    onClick={() => setTypeFilter('guest')}
+                                    className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${typeFilter === 'guest' ? 'bg-primary text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    Guests
+                                </button>
+                            </div>
+                            <input 
+                                type="date" 
+                                value={dateFilter}
+                                onChange={(e) => setDateFilter(e.target.value)}
+                                className="px-3 py-2 bg-white border border-gray-100 rounded-xl text-[10px] font-black text-gray-600 uppercase tracking-widest shadow-sm outline-none focus:ring-2 focus:ring-primary/10"
+                            />
+                        </div>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
@@ -120,7 +165,7 @@ const AdminAnalytics: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
-                                {identities.map(id => (
+                                {filteredIdentities.length > 0 ? filteredIdentities.map(id => (
                                     <tr 
                                         key={id.identifier} 
                                         onClick={() => handleSelectIdentity(id)}
@@ -153,7 +198,13 @@ const AdminAnalytics: React.FC = () => {
                                             <p className="text-[7px] font-bold text-gray-400 uppercase">{new Date(id.lastActiveAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                                         </td>
                                     </tr>
-                                ))}
+                                )) : (
+                                    <tr>
+                                        <td colSpan={4} className="px-8 py-20 text-center">
+                                            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">No identities match the selected filters.</p>
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
