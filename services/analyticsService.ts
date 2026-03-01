@@ -8,10 +8,26 @@ const ANALYTICS_COLLECTION = 'user_analytics';
 const COACH_ANALYTICS_COLLECTION = 'coach_analytics';
 const FIRESTORE_IN_LIMIT = 30;
 
+// Simple In-Memory Cache for analytics service
+const serviceCache: Record<string, { data: any; timestamp: number }> = {};
+const CACHE_TTL = 30 * 1000; // 30 seconds
+
+const getCached = (key: string) => {
+    const entry = serviceCache[key];
+    if (entry && (Date.now() - entry.timestamp < CACHE_TTL)) {
+        return entry.data;
+    }
+    return null;
+};
+
+const setCache = (key: string, data: any) => {
+    serviceCache[key] = { data, timestamp: Date.now() };
+};
+
 export const analyticsService = {
   /**
    * Derives a coach's performance based on outcome and responsiveness rules.
-   * This logic handles scaling by chunking Firestore 'in' queries to 30 items per batch.
+   * Optimized with parallel fetching.
    */
   refreshCoachState: async (coachId: string): Promise<CoachAnalytics> => {
       const now = new Date();
@@ -25,23 +41,29 @@ export const analyticsService = {
       let allEvents: UserEvent[] = [];
 
       if (sprintIds.length > 0) {
-          // 2. Fetch enrollments in chunks of 30 to satisfy Firestore limits
+          // 2. Fetch enrollments in parallel chunks
+          const enrollmentPromises = [];
           for (let i = 0; i < sprintIds.length; i += FIRESTORE_IN_LIMIT) {
               const chunk = sprintIds.slice(i, i + FIRESTORE_IN_LIMIT);
               const enrollmentQ = query(collection(db, 'enrollments'), where('sprintId', 'in', chunk));
-              const enrollSnap = await getDocs(enrollmentQ);
-              const chunkEnrollments = enrollSnap.docs.map(d => d.data() as ParticipantSprint);
-              allEnrollments = [...allEnrollments, ...chunkEnrollments];
+              enrollmentPromises.push(getDocs(enrollmentQ));
           }
+          const enrollmentSnaps = await Promise.all(enrollmentPromises);
+          enrollmentSnaps.forEach(snap => {
+              allEnrollments = [...allEnrollments, ...snap.docs.map(d => d.data() as ParticipantSprint)];
+          });
 
-          // 3. Fetch all events related to these sprints in chunks of 30
+          // 3. Fetch events in parallel chunks
+          const eventPromises = [];
           for (let i = 0; i < sprintIds.length; i += FIRESTORE_IN_LIMIT) {
               const chunk = sprintIds.slice(i, i + FIRESTORE_IN_LIMIT);
               const eventQ = query(collection(db, 'user_events'), where('sprintId', 'in', chunk));
-              const eventSnap = await getDocs(eventQ);
-              const chunkEvents = eventSnap.docs.map(d => d.data() as UserEvent);
-              allEvents = [...allEvents, ...chunkEvents];
+              eventPromises.push(getDocs(eventQ));
           }
+          const eventSnaps = await Promise.all(eventPromises);
+          eventSnaps.forEach(snap => {
+              allEvents = [...allEvents, ...snap.docs.map(d => d.data() as UserEvent)];
+          });
       }
 
       // 4. RESPONSIVENESS CALCULATION
@@ -133,22 +155,26 @@ export const analyticsService = {
   },
 
   getPlatformPulse: async (): Promise<PlatformPulse> => {
+      const cached = getCached('platform_pulse');
+      if (cached) return cached;
+
       try {
           const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
           const eventQ = query(collection(db, 'user_events'), where('timestamp', '>=', dayAgo));
           const eventSnap = await getDocs(eventQ);
           const events = eventSnap.docs.map(d => d.data() as UserEvent);
           
-          // Small array, safe from the 30 limit
           const analyticsQ = query(collection(db, ANALYTICS_COLLECTION), where('riskLevel', 'in', ['high', 'churned']));
           const analyticsSnap = await getDocs(analyticsQ);
 
-          return {
+          const result = {
               activeUsers24h: new Set(events.map(e => e.userId)).size,
               totalEnrollments24h: events.filter(e => e.eventType === 'sprint_enrolled').length,
               atRiskCount: analyticsSnap.size,
               revenue24h: 0 
           };
+          setCache('platform_pulse', result);
+          return result;
       } catch (error) {
           console.error("Platform Pulse Error:", error);
           return { activeUsers24h: 0, totalEnrollments24h: 0, atRiskCount: 0, revenue24h: 0 };

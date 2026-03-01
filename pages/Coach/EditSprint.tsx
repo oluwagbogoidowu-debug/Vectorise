@@ -221,6 +221,7 @@ const EditSprint: React.FC = () => {
   const [sprint, setSprint] = useState<Sprint | null>(null);
   const [selectedDay, setSelectedDay] = useState(1);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [settingsSaveStatus, setSettingsSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [approvalStatus, setApprovalStatus] = useState<'idle' | 'processing'>('idle');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -394,14 +395,14 @@ const EditSprint: React.FC = () => {
   };
 
   const handleApplySettings = async () => {
-    if (!sprint) return;
+    if (!sprint || !originalSprint) return;
+    setSettingsSaveStatus('saving');
 
     let updatedSprintData: Partial<Sprint> = {
       title: editSettings.title,
       subtitle: editSettings.subtitle,
       coverImageUrl: editSettings.coverImageUrl,
       dynamicSections: editSettings.dynamicSections,
-      // Keep other metadata fields for now, as they are still directly editable in the modal
       category: editSettings.category,
       difficulty: editSettings.difficulty,
       price: editSettings.price,
@@ -419,7 +420,7 @@ const EditSprint: React.FC = () => {
       switch (section.id) {
         case 'transformation':
           updatedSprintData.transformation = section.body;
-          updatedSprintData.description = section.body; // Transformation is also the main description
+          updatedSprintData.description = section.body;
           break;
         case 'forWho':
           updatedSprintData.forWho = section.body.split('\n').map(s => s.trim()).filter(s => s);
@@ -436,19 +437,39 @@ const EditSprint: React.FC = () => {
         case 'outcomes':
           updatedSprintData.outcomes = section.body.split('\n').map(s => s.trim()).filter(s => s);
           break;
-        case 'metadata':
-          // Metadata is handled by direct editSettings fields for now
-          // Will need to parse if we move these into the dynamic section body for editing
-          break;
-        case 'completionAssets':
-          // Completion Assets are handled by direct editSettings fields for now
-          break;
       }
     });
 
-    const updatedLocalSprint = { ...sprint, ...updatedSprintData as any };
-    setSprint(updatedLocalSprint);
-    setShowSettings(false);
+    try {
+        const updatedLocalSprint = { ...sprint, ...updatedSprintData as any };
+        const changes = getPendingChanges(originalSprint, updatedLocalSprint);
+        
+        const persistenceData: Partial<Sprint> = {
+            pendingChanges: changes,
+            ...((isAdmin && isFoundational) ? updatedSprintData : {})
+        };
+
+        if (isAdmin && isFoundational) {
+            persistenceData.published = true;
+            persistenceData.approvalStatus = 'approved';
+        }
+
+        await sprintService.updateSprint(sprint.id, persistenceData, isAdmin);
+        
+        setSprint(updatedLocalSprint);
+        setSettingsSaveStatus('saved');
+        
+        // Confirmation Popup
+        setTimeout(() => {
+            alert("Sprint settings saved successfully.");
+            setSettingsSaveStatus('idle');
+            setShowSettings(false);
+        }, 500);
+    } catch (err) {
+        console.error("Settings save failed:", err);
+        setSettingsSaveStatus('idle');
+        alert("Failed to save settings. Please try again.");
+    }
   };
 
   const handleDynamicSectionChange = (index: number, field: 'title' | 'body' | 'type', value: any) => {
@@ -938,11 +959,21 @@ const EditSprint: React.FC = () => {
 
                 <div className="flex gap-4 pt-6 border-t border-gray-100 flex-shrink-0">
                     {(!isAdmin || isFoundational) && (
-                        <Button className="flex-1 py-4 font-black uppercase tracking-widest text-xs rounded-2xl" onClick={handleApplySettings}>
-                            Apply Settings
+                        <Button 
+                            className="flex-1 py-4 font-black uppercase tracking-widest text-xs rounded-2xl" 
+                            onClick={handleApplySettings}
+                            disabled={settingsSaveStatus === 'saving'}
+                        >
+                            {settingsSaveStatus === 'saving' ? 'Saving...' : settingsSaveStatus === 'saved' ? 'Saved!' : 'Save Settings'}
                         </Button>
                     )}
-                    <button className="flex-1 py-4 bg-white text-gray-400 font-black uppercase tracking-widest text-xs rounded-2xl border border-gray-100" onClick={() => setShowSettings(false)}>{isAdmin ? 'Close Audit' : 'Cancel'}</button>
+                    <button 
+                        className="flex-1 py-4 bg-white text-gray-400 font-black uppercase tracking-widest text-xs rounded-2xl border border-gray-100" 
+                        onClick={() => setShowSettings(false)}
+                        disabled={settingsSaveStatus === 'saving'}
+                    >
+                        {isAdmin ? 'Close Audit' : 'Cancel'}
+                    </button>
                 </div>
             </div>
           </div>

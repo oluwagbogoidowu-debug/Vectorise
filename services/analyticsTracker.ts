@@ -45,21 +45,43 @@ const getCookie = (name: string) => {
 
 /**
  * Utility to fetch Firestore documents in chunks of 30 (Firestore limit for 'in' operator)
+ * Optimized with Promise.all for parallel execution.
  */
 const fetchChunked = async (collectionName: string, field: string, values: string[]) => {
     const uniqueValues = Array.from(new Set(values.filter(v => !!v)));
     if (uniqueValues.length === 0) return [];
     
-    const results: any[] = [];
     const CHUNK_SIZE = 30;
+    const promises = [];
     
     for (let i = 0; i < uniqueValues.length; i += CHUNK_SIZE) {
         const chunk = uniqueValues.slice(i, i + CHUNK_SIZE);
         const q = query(collection(db, collectionName), where(field, 'in', chunk));
-        const snap = await getDocs(q);
-        snap.forEach(d => results.push({ id: d.id, ...sanitizeData(d.data()) }));
+        promises.push(getDocs(q));
     }
+    
+    const snapshots = await Promise.all(promises);
+    const results: any[] = [];
+    snapshots.forEach(snap => {
+        snap.forEach(d => results.push({ id: d.id, ...sanitizeData(d.data()) }));
+    });
     return results;
+};
+
+// Simple In-Memory Cache to speed up repeated navigations
+const analyticsCache: Record<string, { data: any; timestamp: number }> = {};
+const CACHE_TTL = 30 * 1000; // 30 seconds
+
+const getCached = (key: string) => {
+    const entry = analyticsCache[key];
+    if (entry && (Date.now() - entry.timestamp < CACHE_TTL)) {
+        return entry.data;
+    }
+    return null;
+};
+
+const setCache = (key: string, data: any) => {
+    analyticsCache[key] = { data, timestamp: Date.now() };
 };
 
 export const analyticsTracker = {
@@ -212,6 +234,9 @@ export const analyticsTracker = {
     },
 
     getIdentityLedger: async (): Promise<IdentityReport[]> => {
+        const cached = getCached('identity_ledger');
+        if (cached) return cached;
+
         try {
             const q = query(collection(db, TRAFFIC_COLLECTION), orderBy('created_at', 'desc'), limit(150));
             const trafficSnap = await getDocs(q);
@@ -291,7 +316,9 @@ export const analyticsTracker = {
                 });
             }
 
-            return ledger.sort((a, b) => new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime());
+            const result = ledger.sort((a, b) => new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime());
+            setCache('identity_ledger', result);
+            return result;
         } catch (err) {
             console.error("[Analytics] Ledger assembly failed", err);
             return [];
@@ -306,6 +333,9 @@ export const analyticsTracker = {
     },
 
     getFunnelMetrics: async (): Promise<FunnelStats> => {
+        const cached = getCached('funnel_metrics');
+        if (cached) return cached;
+
         try {
             const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             const q = query(collection(db, EVENTS_COLLECTION), where('created_at', '>=', twentyFourHoursAgo));
@@ -325,7 +355,7 @@ export const analyticsTracker = {
                 }
             });
 
-            return {
+            const result = {
                 visitors: new Set(events.map(e => e.user_id || e.anonymous_id)).size,
                 sprintViews: events.filter(e => e.event_name === 'landing_viewed').length,
                 paymentIntents: events.filter(e => e.event_name === 'payment_initiated').length,
@@ -333,12 +363,17 @@ export const analyticsTracker = {
                 completions: events.filter(e => e.event_name === 'sprint_completed').length,
                 activeUserList: Array.from(activeUserMap.values()).sort((a, b) => new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime())
             };
+            setCache('funnel_metrics', result);
+            return result;
         } catch (err) {
             return { visitors: 0, sprintViews: 0, paymentIntents: 0, successPayments: 0, completions: 0, activeUserList: [] };
         }
     },
 
     getTrafficBreakdown: async (): Promise<Record<string, number>> => {
+        const cached = getCached('traffic_breakdown');
+        if (cached) return cached;
+
         try {
             const q = query(collection(db, TRAFFIC_COLLECTION), limit(250));
             const snap = await getDocs(q);
@@ -347,6 +382,7 @@ export const analyticsTracker = {
                 const src = d.data().source || 'direct';
                 map[src] = (map[src] || 0) + 1;
             });
+            setCache('traffic_breakdown', map);
             return map;
         } catch (err) {
             return {};
