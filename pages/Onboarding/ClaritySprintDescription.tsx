@@ -180,7 +180,7 @@ const ClaritySprintDescription: React.FC = () => {
                 <section className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in relative overflow-hidden">
                   <div className="relative z-10">
                     <div className="space-y-10">
-                      <div className="text-gray-900 font-medium text-sm leading-relaxed max-w-none">
+                      <div className="text-gray-900 font-medium text-base leading-[1.6] max-w-[60ch]">
                         <FormattedText text={sprint.transformation || sprint.description} />
                       </div>
                       <div className="h-px bg-gray-50 w-24"></div>

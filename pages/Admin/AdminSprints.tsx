@@ -12,18 +12,12 @@ const AdminSprints: React.FC = () => {
   const [sprintFilter, setSprintFilter] = useState<SprintFilter>('all');
 
   useEffect(() => {
-    const fetchSprints = async () => {
-      setIsLoading(true);
-      try {
-        const fetchedSprints = await sprintService.getAdminSprints();
-        setSprints(fetchedSprints);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchSprints();
+    setIsLoading(true);
+    const unsubscribe = sprintService.subscribeToAdminSprints((data) => {
+      setSprints(data);
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
   const filteredSprints = useMemo(() => {

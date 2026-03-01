@@ -45,6 +45,12 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         fetchPulse();
+        const unsubscribeSprints = sprintService.subscribeToAdminSprints((data) => {
+            setSprints(data);
+        });
+        return () => {
+            unsubscribeSprints();
+        };
     }, [refreshKey]);
 
 

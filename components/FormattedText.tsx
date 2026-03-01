@@ -11,6 +11,10 @@ interface FormattedTextProps {
 const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inline = false }) => {
   if (!text) return null;
 
+  // Pre-process text to ensure single newlines are treated as paragraph breaks
+  // by converting them to double newlines, while avoiding excessive spacing.
+  const processedText = inline ? text : text.split('\n').map(line => line.trim()).join('\n\n').replace(/\n\n\n+/g, '\n\n');
+
   if (inline) {
     return (
       <ReactMarkdown
@@ -21,13 +25,13 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
           strong: ({ node, ...props }) => <strong className="font-black" {...props} />,
         }}
       >
-        {text}
+        {processedText}
       </ReactMarkdown>
     );
   }
 
   return (
-    <div className={`markdown-content whitespace-pre-wrap leading-[1.6] text-gray-800 max-w-[60ch] ${className}`}>
+    <div className={`markdown-content leading-[1.6] text-gray-800 max-w-[60ch] ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{

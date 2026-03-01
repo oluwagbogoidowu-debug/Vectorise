@@ -37,21 +37,14 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
     const [activeTriggerPicker, setActiveTriggerPicker] = useState<string | null>(null);
     const [activeSprintPicker, setActiveSprintPicker] = useState<string | null>(null);
 
-    const loadOrchestrationData = useCallback(async (isInitial: boolean = false) => {
-        if (isInitial) setIsInitialLoading(true);
-        try {
-            const liveMapping = await sprintService.getOrchestration();
-            setAssignments(liveMapping as Record<string, LifecycleSlotAssignment>);
-        } catch (err) {
-            console.error("Registry sync failed:", err);
-        } finally {
-            setIsInitialLoading(false);
-        }
-    }, []);
-
     useEffect(() => {
-        loadOrchestrationData(true);
-    }, [refreshKey, loadOrchestrationData]);
+        setIsInitialLoading(true);
+        const unsubscribe = sprintService.subscribeToOrchestration((liveMapping) => {
+            setAssignments(liveMapping as Record<string, LifecycleSlotAssignment>);
+            setIsInitialLoading(false);
+        });
+        return () => unsubscribe();
+    }, [refreshKey]);
 
     const usedTriggerStates = useMemo(() => {
         return new Set(

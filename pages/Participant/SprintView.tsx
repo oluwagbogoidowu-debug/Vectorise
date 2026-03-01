@@ -351,9 +351,9 @@ const SprintView: React.FC = () => {
                         <div className="space-y-6">
                             <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
                                 <SectionHeading>Today's Action Step</SectionHeading>
-                                <p className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
+                                <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
                                     <FormattedText text={dayContent?.taskPrompt || ""} />
-                                </p>
+                                </div>
                                 <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
                             </div>
 
