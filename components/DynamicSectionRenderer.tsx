@@ -26,7 +26,7 @@ const DynamicSectionRenderer: React.FC<DynamicSectionRendererProps> = ({ section
 
   if (!effectiveIsList) {
     return (
-      <div className="text-gray-700 font-medium text-base leading-relaxed max-w-none prose prose-primary">
+      <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch] prose prose-primary">
         <FormattedText text={section.body} />
       </div>
     );

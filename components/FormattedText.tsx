@@ -27,7 +27,7 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
   }
 
   return (
-    <div className={`markdown-content whitespace-pre-wrap leading-relaxed text-gray-800 ${className}`}>
+    <div className={`markdown-content whitespace-pre-wrap leading-[1.6] text-gray-800 max-w-[60ch] ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -41,7 +41,7 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
               <span className="flex-1">{props.children}</span>
             </li>
           ),
-          p: ({ node, ...props }) => <p className="mb-6 last:mb-0 leading-relaxed" {...props} />,
+          p: ({ node, ...props }) => <p className="mb-4 last:mb-0 leading-[1.6]" {...props} />,
           h1: ({ node, ...props }) => <h1 className="text-3xl font-black text-gray-900 mb-6 mt-8 tracking-tight" {...props} />,
           h2: ({ node, ...props }) => <h2 className="text-2xl font-black text-gray-900 mb-4 mt-6 tracking-tight" {...props} />,
           h3: ({ node, ...props }) => <h3 className="text-xl font-black text-gray-900 mb-3 mt-5 tracking-tight" {...props} />,

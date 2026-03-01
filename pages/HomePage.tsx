@@ -62,12 +62,12 @@ const HomePage: React.FC = () => {
             <LocalLogo type="green" className="h-[2.125rem] w-auto" />
           </Link>
           <div className="flex gap-6 items-center">
-            <Link to="/onboarding/coach/welcome" className="hidden sm:block text-[11px] font-black text-gray-400 hover:text-primary uppercase tracking-[0.1em] transition-colors">
+            <Link to="/onboarding/coach/welcome" className="hidden sm:block text-[8px] font-black text-gray-400 hover:text-primary uppercase tracking-[0.1em] transition-colors">
               I'M A COACH
             </Link>
             <button 
               onClick={handleStartAction}
-              className="px-6 py-2.5 bg-primary text-white rounded-full text-[11px] font-black uppercase tracking-[0.1em] shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95 cursor-pointer"
+              className="px-6 py-2.5 bg-primary text-white rounded-full text-[8px] font-black uppercase tracking-[0.1em] shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95 cursor-pointer"
             >
               START SPRINT
             </button>
@@ -91,7 +91,7 @@ const HomePage: React.FC = () => {
                     You lack clarity on what move actually matters now.
                 </p>
             </div>
-            <p className="text-xs md:text-base text-gray-400 font-medium max-w-lg mx-auto leading-relaxed">
+            <p className="text-[12px] text-gray-400 font-medium max-w-lg mx-auto leading-relaxed">
               Vectorise helps you gain clarity at critical transition points and turn it into focused action through short, guided sprints.
             </p>
           </div>
@@ -99,11 +99,11 @@ const HomePage: React.FC = () => {
           <div className="flex flex-col items-center gap-6">
             <button 
                 onClick={handleStartAction}
-                className="px-12 py-5 bg-primary text-white font-black uppercase tracking-[0.15em] text-[12px] md:text-sm rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
+                className="px-12 py-5 bg-primary text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
             >
                 START YOUR CLARITY SPRINT
             </button>
-            <p className="text-[11px] font-black text-gray-300 uppercase tracking-widest">
+            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest">
                 ALREADY HAVE AN ACCOUNT? <Link to="/login" className="text-primary hover:underline ml-1">CONTINUE YOUR RISE</Link>
             </p>
           </div>
@@ -119,7 +119,7 @@ const HomePage: React.FC = () => {
           </h2>
           
           <div className="max-w-3xl mx-auto mb-16">
-            <p className="text-xs md:text-sm text-gray-500 font-medium leading-relaxed mb-12">
+            <p className="text-[12px] text-gray-500 font-medium leading-relaxed mb-12">
               Most people don’t fail because they’re lazy. They fail because effort is scattered.
             </p>
             
@@ -161,7 +161,7 @@ const HomePage: React.FC = () => {
                  </p>
               </div>
               
-              <div className="space-y-6 text-sm md:text-base text-gray-500 font-medium leading-relaxed max-w-lg">
+              <div className="space-y-6 text-[12px] text-gray-500 font-medium leading-relaxed max-w-lg">
                 <p>I learned this the hard way.</p>
                 <p>I had vision. I had ambition. But no clear starting point. I kept moving, yet nothing compounded.</p>
                 <p className="text-gray-900 font-black">
@@ -178,7 +178,7 @@ const HomePage: React.FC = () => {
                     alt="Founder Story" 
                   />
                </div>
-               <p className="mt-6 text-[11px] font-black text-gray-400 uppercase tracking-[0.3em] text-center leading-relaxed">BUILT BY SOMEONE WHO'S WALKED THE PATH FROM <br/> CONFUSION TO CLARITY.</p>
+               <p className="mt-6 text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] text-center leading-relaxed">BUILT BY SOMEONE WHO'S WALKED THE PATH FROM <br/> CONFUSION TO CLARITY.</p>
             </div>
           </div>
 
@@ -213,7 +213,7 @@ const HomePage: React.FC = () => {
               <div key={i} className="bg-white/[0.03] border border-white/10 p-8 rounded-[1.5rem] group hover:bg-white/[0.05] transition-all">
                 <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-4">{item.label}</p>
                 <h4 className="text-xl font-black mb-2 italic">{item.title}</h4>
-                <p className="text-sm text-white/40 font-medium italic">"{item.desc}"</p>
+                <p className="text-[10px] text-white/40 font-medium italic">"{item.desc}"</p>
               </div>
             ))}
           </div>
@@ -270,7 +270,7 @@ const HomePage: React.FC = () => {
                     <div key={i} className="bg-white p-8 rounded-[2rem] border border-gray-200 shadow-sm flex flex-col text-left h-full">
                         <h4 className="text-lg font-black text-gray-900 italic mb-1">{item.t}</h4>
                         <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-6">{item.s}</p>
-                        <p className="text-[12px] text-gray-500 font-medium leading-relaxed italic mt-auto">"{item.d}"</p>
+                        <p className="text-[10px] text-gray-500 font-medium leading-relaxed italic mt-auto">"{item.d}"</p>
                     </div>
                 ))}
             </div>
@@ -286,7 +286,7 @@ const HomePage: React.FC = () => {
         <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-5xl md:text-[80px] font-black text-gray-900 tracking-tighter leading-none mb-10 italic">The Promise.</h2>
             <div className="space-y-2 mb-20">
-                <p className="text-xs md:text-base text-gray-400 font-medium italic">You don’t leave Vectorise with motivation.</p>
+                <p className="text-[12px] text-gray-400 font-medium italic">You don’t leave Vectorise with motivation.</p>
                 <p className="text-sm md:text-xl font-black text-gray-900 uppercase tracking-[0.3em] leading-none">You leave with:</p>
             </div>
 
@@ -311,12 +311,12 @@ const HomePage: React.FC = () => {
             <h2 className="text-4xl md:text-[80px] font-black text-white italic tracking-tighter leading-[1] mb-10">
                 Clarity on your <br className="hidden md:block" /> next move.
             </h2>
-            <p className="text-white/60 text-xs md:text-lg font-medium italic max-w-sm mx-auto mb-12 leading-relaxed">
+            <p className="text-white/60 text-[12px] font-medium italic max-w-sm mx-auto mb-12 leading-relaxed">
                 You don't need to figure out your whole future. <br className="hidden md:block" /> You just need to act today.
             </p>
             <button 
                 onClick={handleStartAction}
-                className="px-12 py-5 bg-white text-primary font-black uppercase tracking-[0.3em] text-[10px] md:text-xs rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all"
+                className="px-12 py-5 bg-white text-primary font-black uppercase tracking-[0.3em] text-[10px] rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all"
             >
                 START YOUR CLARITY SPRINT
             </button>
@@ -330,12 +330,12 @@ const HomePage: React.FC = () => {
             <div className="flex items-center gap-6">
                 <LocalLogo type="green" className="h-4 w-auto" />
                 <div className="h-5 w-px bg-gray-200"></div>
-                <p className="text-[11px] font-black text-gray-300 uppercase tracking-[0.4em] leading-none pt-0.5">VISIBLE PROGRESS SYSTEM</p>
+                <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em] leading-none pt-0.5">VISIBLE PROGRESS SYSTEM</p>
             </div>
             <div className="flex flex-wrap justify-center gap-8 md:gap-12">
-                <p className="text-[11px] font-black text-gray-300 uppercase tracking-[0.4em]">© 2026 VECTORISE</p>
-                <Link to="/onboarding/coach/welcome" className="text-[11px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">I'M A COACH</Link>
-                <Link to="/partner" className="text-[11px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">BE A PARTNER</Link>
+                <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em]">© 2026 VECTORISE</p>
+                <Link to="/onboarding/coach/welcome" className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">I'M A COACH</Link>
+                <Link to="/partner" className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">BE A PARTNER</Link>
             </div>
         </div>
       </footer>

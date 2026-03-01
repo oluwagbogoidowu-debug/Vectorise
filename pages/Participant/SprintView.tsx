@@ -343,7 +343,7 @@ const SprintView: React.FC = () => {
                         
                         <div className="space-y-2 mb-10">
                             <SectionHeading>Today's Insight</SectionHeading>
-                            <div className="text-gray-700 font-medium text-sm md:text-base leading-relaxed max-w-none">
+                            <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
                                 <FormattedText text={dayContent?.lessonText || ""} />
                             </div>
                         </div>
