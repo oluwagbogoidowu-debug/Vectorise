@@ -34,7 +34,7 @@ export type SprintDifficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 
 export interface TrafficRecord {
   id: string;
-  anonymous_id: string;
+  anonymous_id: string | null;
   session_id: string;
   user_id?: string | null;
   email?: string | null;
@@ -52,7 +52,7 @@ export interface TrafficRecord {
 
 export interface AnalyticsEvent {
   id: string;
-  anonymous_id: string;
+  anonymous_id: string | null;
   session_id: string;
   user_id?: string | null;
   email?: string | null;
@@ -65,7 +65,7 @@ export interface AnalyticsEvent {
 }
 
 export interface UserSessionReport {
-  anonymous_id: string;
+  anonymous_id: string | null;
   session_id: string;
   email?: string | null;
   user_id?: string | null;
@@ -79,7 +79,7 @@ export interface UserSessionReport {
 
 export interface IdentityReport {
   identifier: string; // email if available, else anonymous_id
-  anonymous_id: string;
+  anonymous_id: string | null;
   email?: string | null;
   user_id?: string | null;
   firstTouch: TrafficRecord;

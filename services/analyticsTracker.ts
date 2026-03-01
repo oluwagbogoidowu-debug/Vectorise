@@ -3,8 +3,10 @@ import { collection, addDoc, query, where, getDocs, writeBatch, limit, orderBy, 
 import { sanitizeData } from './userService';
 import { AnalyticsEvent, TrafficRecord, FunnelStats, UserSessionReport, IdentityReport, ParticipantSprint } from '../types';
 
-const ANONYMOUS_KEY = 'vectorise_anonymous_id';
-const SESSION_KEY = 'vectorise_session_id';
+const GUEST_ID_KEY = 'vectorise_guest_id';
+const SESSION_ID_KEY = 'vectorise_session_id';
+const LAST_ACTIVITY_KEY = 'vectorise_last_activity';
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const TRAFFIC_COLLECTION = 'traffic_sources';
 const EVENTS_COLLECTION = 'analytics_events';
 const ENROLLMENTS_COLLECTION = 'enrollments';
@@ -62,18 +64,24 @@ const fetchChunked = async (collectionName: string, field: string, values: strin
 
 export const analyticsTracker = {
     init: async (userId?: string, userEmail?: string) => {
-        let anonId = localStorage.getItem(ANONYMOUS_KEY) || getCookie(ANONYMOUS_KEY);
-        if (!anonId) {
-            anonId = `anon_${generateUUID().replace(/-/g, '').substring(0, 12)}`;
+        // 1. Guest ID Management
+        let guestId = localStorage.getItem(GUEST_ID_KEY);
+        if (!guestId) {
+            guestId = generateUUID();
+            localStorage.setItem(GUEST_ID_KEY, guestId);
         }
-        localStorage.setItem(ANONYMOUS_KEY, anonId);
-        setCookie(ANONYMOUS_KEY, anonId);
 
-        let sessId = sessionStorage.getItem(SESSION_KEY);
-        if (!sessId) {
-            sessId = `sess_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-            sessionStorage.setItem(SESSION_KEY, sessId);
+        // 2. Session Management (30 min inactivity)
+        const now = Date.now();
+        const lastActivity = parseInt(localStorage.getItem(LAST_ACTIVITY_KEY) || '0');
+        let sessId = localStorage.getItem(SESSION_ID_KEY);
+
+        if (!sessId || (now - lastActivity > SESSION_TIMEOUT)) {
+            sessId = `sess_${now}_${Math.floor(Math.random() * 1000)}`;
+            localStorage.setItem(SESSION_ID_KEY, sessId);
         }
+        
+        localStorage.setItem(LAST_ACTIVITY_KEY, now.toString());
 
         const storedAttribution = localStorage.getItem('vectorise_attribution');
         if (!storedAttribution) {
@@ -89,7 +97,7 @@ export const analyticsTracker = {
             localStorage.setItem('vectorise_attribution', JSON.stringify(attribution));
 
             const trafficRecord: Omit<TrafficRecord, 'id'> = {
-                anonymous_id: anonId,
+                anonymous_id: userId ? null : guestId,
                 session_id: sessId,
                 user_id: userId || null,
                 email: userEmail || null,
@@ -112,6 +120,9 @@ export const analyticsTracker = {
         }
 
         window.addEventListener('scroll', analyticsTracker.handleScroll, { passive: true });
+        window.addEventListener('click', () => localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString()));
+        window.addEventListener('keydown', () => localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString()));
+
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
                 const dwell = Math.floor((Date.now() - sessionStartTime) / 1000);
@@ -120,6 +131,14 @@ export const analyticsTracker = {
                 }
             } else {
                 sessionStartTime = Date.now();
+                // Check for session timeout on return
+                const returnNow = Date.now();
+                const lastAct = parseInt(localStorage.getItem(LAST_ACTIVITY_KEY) || '0');
+                if (returnNow - lastAct > SESSION_TIMEOUT) {
+                    const newSessId = `sess_${returnNow}_${Math.floor(Math.random() * 1000)}`;
+                    localStorage.setItem(SESSION_ID_KEY, newSessId);
+                }
+                localStorage.setItem(LAST_ACTIVITY_KEY, returnNow.toString());
             }
         });
     },
@@ -133,12 +152,22 @@ export const analyticsTracker = {
     },
 
     trackEvent: async (eventName: string, properties: any = {}, userId?: string, userEmail?: string) => {
-        const anonId = localStorage.getItem(ANONYMOUS_KEY);
-        const sessId = sessionStorage.getItem(SESSION_KEY);
-        if (!anonId || !sessId) return;
+        const guestId = localStorage.getItem(GUEST_ID_KEY);
+        let sessId = localStorage.getItem(SESSION_ID_KEY);
+        const now = Date.now();
+        const lastActivity = parseInt(localStorage.getItem(LAST_ACTIVITY_KEY) || '0');
+
+        // Session timeout check before tracking
+        if (!sessId || (now - lastActivity > SESSION_TIMEOUT)) {
+            sessId = `sess_${now}_${Math.floor(Math.random() * 1000)}`;
+            localStorage.setItem(SESSION_ID_KEY, sessId);
+        }
+        
+        localStorage.setItem(LAST_ACTIVITY_KEY, now.toString());
+        if (!guestId || !sessId) return;
 
         const eventData: Omit<AnalyticsEvent, 'id'> = {
-            anonymous_id: anonId,
+            anonymous_id: userId ? null : guestId, // Ignore guest ID if user is logged in
             session_id: sessId,
             user_id: userId || null,
             email: userEmail || null,
@@ -158,21 +187,21 @@ export const analyticsTracker = {
     },
 
     identify: async (userId: string, email: string) => {
-        const anonId = localStorage.getItem(ANONYMOUS_KEY);
-        if (!anonId || !userId) return;
+        const guestId = localStorage.getItem(GUEST_ID_KEY);
+        if (!guestId || !userId) return;
 
         try {
             const batch = writeBatch(db);
-            const qT = query(collection(db, TRAFFIC_COLLECTION), where('anonymous_id', '==', anonId));
+            const qT = query(collection(db, TRAFFIC_COLLECTION), where('anonymous_id', '==', guestId));
             const snapT = await getDocs(qT);
             snapT.forEach(d => {
-                if (!d.data().user_id) batch.update(d.ref, { user_id: userId, email: email });
+                if (!d.data().user_id) batch.update(d.ref, { user_id: userId, email: email, anonymous_id: null });
             });
 
-            const qE = query(collection(db, EVENTS_COLLECTION), where('anonymous_id', '==', anonId), limit(50));
+            const qE = query(collection(db, EVENTS_COLLECTION), where('anonymous_id', '==', guestId), limit(50));
             const snapE = await getDocs(qE);
             snapE.forEach(d => {
-                if (!d.data().user_id) batch.update(d.ref, { user_id: userId, email: email });
+                if (!d.data().user_id) batch.update(d.ref, { user_id: userId, email: email, anonymous_id: null });
             });
 
             await batch.commit();
@@ -201,6 +230,7 @@ export const analyticsTracker = {
             const identitiesMap = new Map<string, TrafficRecord[]>();
             trafficRecords.forEach(t => {
                 const idKey = t.user_id || t.email || t.anonymous_id;
+                if (!idKey) return;
                 const existing = identitiesMap.get(idKey) || [];
                 identitiesMap.set(idKey, [...existing, t]);
             });
@@ -296,7 +326,7 @@ export const analyticsTracker = {
             });
 
             return {
-                visitors: new Set(events.map(e => e.anonymous_id)).size,
+                visitors: new Set(events.map(e => e.user_id || e.anonymous_id)).size,
                 sprintViews: events.filter(e => e.event_name === 'landing_viewed').length,
                 paymentIntents: events.filter(e => e.event_name === 'payment_initiated').length,
                 successPayments: events.filter(e => e.event_name === 'payment_success').length,
