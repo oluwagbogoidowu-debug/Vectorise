@@ -152,61 +152,30 @@ const FormattingToolbar: React.FC<{
 
 const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> => {
     const changes: Partial<Sprint> = {};
+    
+    const isDifferent = (a: any, b: any) => JSON.stringify(a) !== JSON.stringify(b);
 
-    // Compare top-level fields
-    if (original.title !== updated.title) changes.title = updated.title;
-    if (original.subtitle !== updated.subtitle) changes.subtitle = updated.subtitle;
-    if (original.coverImageUrl !== updated.coverImageUrl) changes.coverImageUrl = updated.coverImageUrl;
-    if (original.transformation !== updated.transformation) changes.transformation = updated.transformation;
-    if (original.description !== updated.description) changes.description = updated.description;
-    if (original.category !== updated.category) changes.category = updated.category;
-    if (original.difficulty !== updated.difficulty) changes.difficulty = updated.difficulty;
-    if (original.price !== updated.price) changes.price = updated.price;
-    if (original.currency !== updated.currency) changes.currency = updated.currency;
-    if (original.pointCost !== updated.pointCost) changes.pointCost = updated.pointCost;
-    if (original.pricingType !== updated.pricingType) changes.pricingType = updated.pricingType;
-    if (original.duration !== updated.duration) changes.duration = updated.duration;
-    if (original.protocol !== updated.protocol) changes.protocol = updated.protocol;
-    if (original.outcomeTag !== updated.outcomeTag) changes.outcomeTag = updated.outcomeTag;
-    if (original.outcomeStatement !== updated.outcomeStatement) changes.outcomeStatement = updated.outcomeStatement;
+    // Top level fields
+    const fields: (keyof Sprint)[] = [
+        'title', 'subtitle', 'coverImageUrl', 'transformation', 'description', 
+        'category', 'difficulty', 'price', 'currency', 'pointCost', 
+        'pricingType', 'duration', 'protocol', 'outcomeTag', 'outcomeStatement'
+    ];
 
-    // Compare array fields (simple string arrays)
-    if (JSON.stringify(original.forWho) !== JSON.stringify(updated.forWho)) changes.forWho = updated.forWho;
-    if (JSON.stringify(original.notForWho) !== JSON.stringify(updated.notForWho)) changes.notForWho = updated.notForWho;
-    if (JSON.stringify(original.outcomes) !== JSON.stringify(updated.outcomes)) changes.outcomes = updated.outcomes;
-
-    // Compare methodSnapshot (array of objects)
-    if (JSON.stringify(original.methodSnapshot) !== JSON.stringify(updated.methodSnapshot)) changes.methodSnapshot = updated.methodSnapshot;
-
-    // Compare dailyContent
-    const changedDailyContent: DailyContent[] = [];
-    updated.dailyContent.forEach(updatedDay => {
-        const originalDay = original.dailyContent.find(d => d.day === updatedDay.day);
-        if (!originalDay || 
-            originalDay.lessonText !== updatedDay.lessonText ||
-            originalDay.taskPrompt !== updatedDay.taskPrompt ||
-            originalDay.coachInsight !== updatedDay.coachInsight ||
-            originalDay.proofType !== updatedDay.proofType ||
-            JSON.stringify(originalDay.proofOptions) !== JSON.stringify(updatedDay.proofOptions) ||
-            originalDay.reflectionQuestion !== updatedDay.reflectionQuestion
-        ) {
-            changedDailyContent.push(updatedDay);
+    fields.forEach(f => {
+        if (isDifferent(original[f], updated[f])) {
+            (changes as any)[f] = updated[f];
         }
     });
-    if (changedDailyContent.length > 0) {
-        changes.dailyContent = changedDailyContent;
-    }
 
-    // Compare dynamicSections
-    const changedDynamicSections = updated.dynamicSections?.filter(updatedSection => {
-        const originalSection = original.dynamicSections?.find(s => s.id === updatedSection.id);
-        return !originalSection || 
-               originalSection.title !== updatedSection.title || 
-               originalSection.body !== updatedSection.body;
+    // Array fields - ALWAYS return full array if any element changed to avoid clearing in Firestore
+    const arrayFields: (keyof Sprint)[] = ['forWho', 'notForWho', 'outcomes', 'methodSnapshot', 'dynamicSections', 'dailyContent'];
+    
+    arrayFields.forEach(f => {
+        if (isDifferent(original[f], updated[f])) {
+            (changes as any)[f] = updated[f];
+        }
     });
-    if (changedDynamicSections && changedDynamicSections.length > 0) {
-        changes.dynamicSections = changedDynamicSections;
-    }
 
     return changes;
 };
@@ -344,13 +313,28 @@ const EditSprint: React.FC = () => {
       const isDraft = sprint.approvalStatus === 'draft';
       const changes = getPendingChanges(originalSprint, sprint);
       
-      let updatedSprintData: Partial<Sprint> = {};
+      let updatedSprintData: any = {};
 
       if (isDraft) {
-          // If it's a draft, save all changes directly to the main fields
-          updatedSprintData = { ...changes };
+          // Flatten changes for granular updateDoc to satisfy "update only specific session"
+          // This uses Firestore dot notation to update individual array elements
+          Object.entries(changes).forEach(([key, value]) => {
+              if (key === 'dailyContent' && Array.isArray(value)) {
+                  value.forEach((day: DailyContent) => {
+                      const idx = sprint.dailyContent.findIndex((d: DailyContent) => d.day === day.day);
+                      if (idx !== -1) updatedSprintData[`dailyContent.${idx}`] = day;
+                  });
+              } else if (key === 'dynamicSections' && Array.isArray(value)) {
+                  value.forEach((section: DynamicSection) => {
+                      const idx = sprint.dynamicSections?.findIndex((s: DynamicSection) => s.id === section.id);
+                      if (idx !== -1) updatedSprintData[`dynamicSections.${idx}`] = section;
+                  });
+              } else {
+                  updatedSprintData[key] = value;
+              }
+          });
       } else {
-          // If it's already approved/pending, save to pendingChanges
+          // If it's already approved/pending, save to pendingChanges (full arrays required for merging)
           updatedSprintData = {
               pendingChanges: changes,
           };
@@ -372,7 +356,11 @@ const EditSprint: React.FC = () => {
 
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (err) { setSaveStatus('idle'); alert("Save failed."); }
+    } catch (err) { 
+        console.error("Save failed:", err);
+        setSaveStatus('idle'); 
+        alert("Save failed."); 
+    }
   };
 
   const handleSubmitForReview = async () => {
@@ -396,7 +384,8 @@ const EditSprint: React.FC = () => {
       if (!sprintId || !sprint || approvalStatus === 'processing') return;
       setApprovalStatus('processing');
       try {
-          await sprintService.approveSprint(sprintId, editSettings);
+          // Pass the full merged sprint to ensure all changes (registry + curriculum) are pushed live
+          await sprintService.approveSprint(sprintId, sprint);
           alert("Updates approved and pushed live.");
           navigate('/admin/dashboard');
       } catch (err: any) {
@@ -467,11 +456,20 @@ const EditSprint: React.FC = () => {
         const isDraft = sprint.approvalStatus === 'draft';
         const changes = getPendingChanges(originalSprint, updatedLocalSprint);
         
-        let persistenceData: Partial<Sprint> = {};
+        let persistenceData: any = {};
 
         if (isDraft) {
-            // If it's a draft, save all changes directly to the main fields
-            persistenceData = { ...updatedSprintData };
+            // Use granular dot notation for direct updates
+            Object.entries(updatedSprintData).forEach(([key, value]) => {
+                if (key === 'dynamicSections' && Array.isArray(value)) {
+                    value.forEach((section: DynamicSection) => {
+                        const idx = updatedLocalSprint.dynamicSections?.findIndex((s: DynamicSection) => s.id === section.id);
+                        if (idx !== -1) persistenceData[`dynamicSections.${idx}`] = section;
+                    });
+                } else {
+                    persistenceData[key] = value;
+                }
+            });
         } else {
             // If it's already approved/pending, save to pendingChanges
             persistenceData = {

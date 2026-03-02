@@ -254,9 +254,9 @@ const TheMap: React.FC = () => {
         <MapCard>
             <SectionLabel text="10 Logic" />
             <h2 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-10 italic">Where to <br/> begin?</h2>
-            <div className="space-y-4 text-xl font-medium text-gray-500 leading-relaxed italic">
+            <div className="space-y-8 text-xl font-medium text-gray-500 leading-relaxed italic">
                 <p>You don’t start everywhere.</p>
-                <div className="p-5 bg-primary/5 border-l-4 border-primary rounded-r-2xl">
+                <div className="p-8 bg-primary/5 border-l-4 border-primary rounded-r-2xl">
                     <p className="text-gray-900 font-black not-italic">"For most people, the system works best when you begin with clarity."</p>
                 </div>
                 <p>Without clarity, execution is just activity. We ensure you're acting on the right things first.</p>
@@ -275,7 +275,7 @@ const TheMap: React.FC = () => {
                     onClick={goBackToPayment}
                     className="w-full py-5 bg-primary text-white font-black uppercase tracking-[0.2em] text-xs rounded-full shadow-2xl active:scale-95 transition-all"
                 >
-                    Back to previous page
+                    Back to payment page
                 </button>
             </div>
 
