@@ -1,12 +1,22 @@
 
 import { db } from './firebase';
-import { doc, getDoc, setDoc, collection, query, where, getDocs, QuerySnapshot, DocumentData } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, QuerySnapshot, DocumentData, onSnapshot, DocumentSnapshot } from 'firebase/firestore';
 import { UserAnalytics, UserEvent, RiskLevel, PlatformPulse, CoachAnalytics, ParticipantSprint } from '../types';
 import { sanitizeData } from './userService';
 
 const ANALYTICS_COLLECTION = 'user_analytics';
 const COACH_ANALYTICS_COLLECTION = 'coach_analytics';
+const CONFIG_COLLECTION = 'system_config';
 const FIRESTORE_IN_LIMIT = 30;
+
+let isAnalyticsDisabled = false;
+
+// Listen for global analytics kill switch
+onSnapshot(doc(db, CONFIG_COLLECTION, 'analytics'), (snap: DocumentSnapshot) => {
+    if (snap.exists()) {
+        isAnalyticsDisabled = snap.data().disabled === true;
+    }
+});
 
 // Simple In-Memory Cache for analytics service
 const serviceCache: Record<string, { data: any; timestamp: number }> = {};
@@ -30,6 +40,7 @@ export const analyticsService = {
    * Optimized with parallel fetching.
    */
   refreshCoachState: async (coachId: string): Promise<CoachAnalytics> => {
+      if (isAnalyticsDisabled) throw new Error("Analytics is globally disabled");
       const now = new Date();
       
       // 1. Get all sprint IDs for this coach
@@ -117,11 +128,13 @@ export const analyticsService = {
   },
 
   getCoachAnalytics: async (coachId: string): Promise<CoachAnalytics | null> => {
+    if (isAnalyticsDisabled) return null;
     const snap = await getDoc(doc(db, COACH_ANALYTICS_COLLECTION, coachId));
     return snap.exists() ? sanitizeData(snap.data()) as CoachAnalytics : null;
   },
 
   refreshUserState: async (userId: string, events: UserEvent[]): Promise<UserAnalytics> => {
+    if (isAnalyticsDisabled) throw new Error("Analytics is globally disabled");
     const now = new Date();
     const lastEvent = events[0]; 
     
@@ -150,11 +163,13 @@ export const analyticsService = {
   },
 
   getAnalytics: async (userId: string): Promise<UserAnalytics | null> => {
+    if (isAnalyticsDisabled) return null;
     const snap = await getDoc(doc(db, ANALYTICS_COLLECTION, userId));
     return snap.exists() ? sanitizeData(snap.data()) as UserAnalytics : null;
   },
 
   getPlatformPulse: async (): Promise<PlatformPulse> => {
+      if (isAnalyticsDisabled) return { activeUsers24h: 0, totalEnrollments24h: 0, atRiskCount: 0, revenue24h: 0 };
       const cached = getCached('platform_pulse');
       if (cached) return cached;
 

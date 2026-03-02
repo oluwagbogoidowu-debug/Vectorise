@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnalyticsEvent, FunnelStats, IdentityReport } from '../../types';
 import { analyticsTracker } from '../../services/analyticsTracker';
+import { Settings, Shield, ShieldOff, AlertTriangle } from 'lucide-react';
 
 const AdminAnalytics: React.FC = () => {
     const navigate = useNavigate();
@@ -10,14 +11,21 @@ const AdminAnalytics: React.FC = () => {
     const [trafficMap, setTrafficMap] = useState<Record<string, number>>({});
     const [identities, setIdentities] = useState<IdentityReport[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isAnalyticsDisabled, setIsAnalyticsDisabled] = useState(false);
+    const [isToggling, setIsToggling] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
     
     // Filters
     const [dateFilter, setDateFilter] = useState<string>(new Date().toISOString().split('T')[0]);
     const [typeFilter, setTypeFilter] = useState<'all' | 'user' | 'guest'>('all');
 
     useEffect(() => {
-        const unsubscribe = analyticsTracker.subscribeToEvents((data) => {
+        const unsubscribeEvents = analyticsTracker.subscribeToEvents((data) => {
             setEvents(data);
+        });
+
+        analyticsTracker.onDisabledStateChange((disabled) => {
+            setIsAnalyticsDisabled(disabled);
         });
 
         const fetchData = async () => {
@@ -40,8 +48,19 @@ const AdminAnalytics: React.FC = () => {
         };
 
         fetchData();
-        return () => unsubscribe();
+        return () => unsubscribeEvents();
     }, []);
+
+    const handleToggleAnalytics = async () => {
+        setIsToggling(true);
+        try {
+            await analyticsTracker.toggleAnalytics(!isAnalyticsDisabled);
+        } catch (err) {
+            alert("Failed to toggle analytics state.");
+        } finally {
+            setIsToggling(false);
+        }
+    };
 
     const funnelStages = useMemo(() => {
         if (!funnel) return [];
@@ -85,8 +104,73 @@ const AdminAnalytics: React.FC = () => {
         <div className="space-y-12 animate-fade-in pb-20 font-sans">
             
             {/* CONVERSION FUNNEL - MACRO VIEW */}
-            <section className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-10">
-                <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.3em] mb-12">Registry Conversion Funnel</h4>
+            <section className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-10 relative">
+                <div className="flex justify-between items-center mb-12">
+                    <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.3em]">Registry Conversion Funnel</h4>
+                    <div className="relative">
+                        <button 
+                            onClick={() => setShowSettings(!showSettings)}
+                            className={`p-3 rounded-2xl transition-all ${showSettings ? 'bg-primary text-white shadow-lg' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                        >
+                            <Settings className={`w-4 h-4 ${isToggling ? 'animate-spin' : ''}`} />
+                        </button>
+
+                        {showSettings && (
+                            <div className="absolute right-0 mt-4 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100 p-6 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className={`p-2 rounded-xl ${isAnalyticsDisabled ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-500'}`}>
+                                        {isAnalyticsDisabled ? <ShieldOff className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Global Analytics</p>
+                                        <p className="text-[8px] font-bold text-gray-400 uppercase">{isAnalyticsDisabled ? 'Currently Disabled' : 'Currently Active'}</p>
+                                    </div>
+                                </div>
+
+                                <p className="text-[9px] text-gray-500 leading-relaxed mb-6 font-medium">
+                                    Disabling analytics will prevent all event tracking, traffic logging, and data fetching across the entire platform.
+                                </p>
+
+                                <button 
+                                    onClick={handleToggleAnalytics}
+                                    disabled={isToggling}
+                                    className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                                        isAnalyticsDisabled 
+                                        ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-200' 
+                                        : 'bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-200'
+                                    }`}
+                                >
+                                    {isToggling ? (
+                                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        isAnalyticsDisabled ? 'Enable Analytics' : 'Disable Analytics'
+                                    )}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {isAnalyticsDisabled && (
+                    <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 rounded-[2.5rem] flex items-center justify-center">
+                        <div className="bg-white p-8 rounded-[2rem] shadow-2xl border border-gray-100 flex flex-col items-center text-center max-w-xs">
+                            <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mb-4">
+                                <AlertTriangle className="w-6 h-6 text-red-500" />
+                            </div>
+                            <h5 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-2">Analytics Offline</h5>
+                            <p className="text-[9px] text-gray-500 font-medium leading-relaxed">
+                                The global analytics engine is currently disabled. No data is being recorded or retrieved.
+                            </p>
+                            <button 
+                                onClick={handleToggleAnalytics}
+                                className="mt-6 text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
+                            >
+                                Re-enable Engine
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 <div className="flex flex-col md:flex-row items-end gap-2 md:gap-4 h-64">
                     {funnelStages.map((stage, i) => {
                         const max = Math.max(...funnelStages.map(s => s.value), 1);

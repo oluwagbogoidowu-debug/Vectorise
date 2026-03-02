@@ -15,11 +15,13 @@ const CONFIG_COLLECTION = 'system_config';
 let lastScrollDepth = 0;
 let sessionStartTime = Date.now();
 let isAnalyticsDisabled = false;
+let onDisabledChange: ((disabled: boolean) => void) | null = null;
 
 // Listen for global analytics kill switch
 onSnapshot(doc(db, CONFIG_COLLECTION, 'analytics'), (snap: DocumentSnapshot) => {
     if (snap.exists()) {
         isAnalyticsDisabled = snap.data().disabled === true;
+        if (onDisabledChange) onDisabledChange(isAnalyticsDisabled);
     }
 });
 
@@ -94,6 +96,22 @@ const setCache = (key: string, data: any) => {
 };
 
 export const analyticsTracker = {
+    toggleAnalytics: async (disabled: boolean) => {
+        try {
+            await setDoc(doc(db, CONFIG_COLLECTION, 'analytics'), { disabled }, { merge: true });
+        } catch (e) {
+            console.error("[Analytics] Failed to toggle analytics", e);
+            throw e;
+        }
+    },
+
+    onDisabledStateChange: (callback: (disabled: boolean) => void) => {
+        onDisabledChange = callback;
+        callback(isAnalyticsDisabled);
+    },
+
+    isCurrentlyDisabled: () => isAnalyticsDisabled,
+
     init: async (userId?: string, userEmail?: string) => {
         // 1. Guest ID Management
         let guestId = localStorage.getItem(GUEST_ID_KEY);
@@ -353,8 +371,16 @@ export const analyticsTracker = {
     },
 
     subscribeToEvents: (callback: (events: AnalyticsEvent[]) => void) => {
+        if (isAnalyticsDisabled) {
+            callback([]);
+            return () => {};
+        }
         const q = query(collection(db, EVENTS_COLLECTION), orderBy('created_at', 'desc'), limit(50));
         return onSnapshot(q, (snap) => {
+            if (isAnalyticsDisabled) {
+                callback([]);
+                return;
+            }
             callback(snap.docs.map(d => ({ id: d.id, ...sanitizeData(d.data()) } as AnalyticsEvent)));
         });
     },
