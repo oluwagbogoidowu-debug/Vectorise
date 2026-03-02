@@ -56,10 +56,10 @@ const CreateSprint: React.FC = () => {
         coverImageUrl: '',
         dynamicSections: [
             { id: 'transformation', title: 'Transformation Statement', body: '', type: 'text' },
-            { id: 'forWho', title: 'Target Signals (Who it\'s for)', body: '', type: 'list' },
-            { id: 'notForWho', title: 'Exclusions (Who it\'s not for)', body: '', type: 'list' },
-            { id: 'methodSnapshot', title: 'Method Snapshot', body: '', type: 'list' },
-            { id: 'outcomes', title: 'Evidence of Completion', body: '', type: 'list' },
+            { id: 'forWho', title: 'Target Signals (Who it\'s for)', body: '', type: 'text' },
+            { id: 'notForWho', title: 'Exclusions (Who it\'s not for)', body: '', type: 'text' },
+            { id: 'methodSnapshot', title: 'Method Snapshot', body: '', type: 'text' },
+            { id: 'outcomes', title: 'Evidence of Completion', body: '', type: 'text' },
             { id: 'metadata', title: 'Metadata', body: '', type: 'text' },
             { id: 'completionAssets', title: 'Completion Assets', body: '', type: 'text' }
         ],
@@ -84,30 +84,10 @@ const CreateSprint: React.FC = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleDynamicSectionChange = (index: number, field: 'title' | 'body' | 'type', value: any) => {
+    const handleDynamicSectionChange = (index: number, field: 'title' | 'body', value: any) => {
         const newSections = [...(formData.dynamicSections || [])];
         newSections[index] = { ...newSections[index], [field]: value };
         setFormData({ ...formData, dynamicSections: newSections });
-    };
-
-    const handleListChange = (sectionIndex: number, itemIndex: number, value: string) => {
-        const section = formData.dynamicSections[sectionIndex];
-        const items = section.body.split('\n');
-        items[itemIndex] = value;
-        handleDynamicSectionChange(sectionIndex, 'body', items.join('\n'));
-    };
-
-    const addListItem = (sectionIndex: number) => {
-        const section = formData.dynamicSections[sectionIndex];
-        const items = section.body ? section.body.split('\n') : [];
-        handleDynamicSectionChange(sectionIndex, 'body', [...items, ''].join('\n'));
-    };
-
-    const removeListItem = (sectionIndex: number, itemIndex: number) => {
-        const section = formData.dynamicSections[sectionIndex];
-        const items = section.body.split('\n');
-        const newItems = items.filter((_, i) => i !== itemIndex);
-        handleDynamicSectionChange(sectionIndex, 'body', newItems.join('\n'));
     };
 
 
@@ -306,60 +286,17 @@ const CreateSprint: React.FC = () => {
                                         onChange={e => handleDynamicSectionChange(index, 'title', e.target.value)}
                                         className={inputClasses + " mt-2"} 
                                     />
-                                    <label className={labelClasses + " mt-4 flex items-center justify-between"}>
+                                    <label className={labelClasses + " mt-4"}>
                                         Section Body
-                                        <button 
-                                            type="button"
-                                            onClick={() => handleDynamicSectionChange(index, 'type', section.type === 'list' ? 'text' : 'list')}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-primary hover:bg-primary/5 transition-all border border-gray-100"
-                                            title={section.type === 'list' ? "Switch to Text" : "Switch to List"}
-                                        >
-                                            {section.type === 'list' ? <TypeIcon className="w-3 h-3" /> : <List className="w-3 h-3" />}
-                                            {section.type === 'list' ? "Text Mode" : "List Mode"}
-                                        </button>
                                     </label>
 
-                                    {section.type === 'list' ? (
-                                        <div className="space-y-3 mt-2">
-                                            {(section.body ? section.body.split('\n') : ['']).map((item, itemIdx) => (
-                                                <div key={itemIdx} className="flex gap-2 group/item">
-                                                    <div className="flex-1 relative">
-                                                        <input 
-                                                            type="text"
-                                                            value={item}
-                                                            onChange={(e) => handleListChange(index, itemIdx, e.target.value)}
-                                                            className={inputClasses}
-                                                            placeholder={`Item ${itemIdx + 1}...`}
-                                                        />
-                                                        <div className="absolute left-[-1.5rem] top-1/2 -translate-y-1/2 w-1 h-1 bg-primary/30 rounded-full group-hover/item:bg-primary transition-colors"></div>
-                                                    </div>
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => removeListItem(index, itemIdx)}
-                                                        className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            <button 
-                                                type="button"
-                                                onClick={() => addListItem(index)}
-                                                className="w-full py-3 border-2 border-dashed border-gray-100 rounded-2xl text-gray-400 hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest"
-                                            >
-                                                <Plus className="w-3 h-3" />
-                                                Add Item
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <textarea 
-                                            value={section.body} 
-                                            onChange={e => handleDynamicSectionChange(index, 'body', e.target.value)}
-                                            rows={6} 
-                                            className={inputClasses + " resize-none mt-2"} 
-                                            placeholder="Enter section content..."
-                                        />
-                                    )}
+                                    <textarea 
+                                        value={section.body} 
+                                        onChange={e => handleDynamicSectionChange(index, 'body', e.target.value)}
+                                        rows={6} 
+                                        className={inputClasses + " resize-none mt-2"} 
+                                        placeholder="Enter section content..."
+                                    />
                                     <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
                                         <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Preview:</h5>
                                         <div className="bg-white rounded-xl p-4 border border-gray-100">

@@ -278,10 +278,10 @@ const EditSprint: React.FC = () => {
             // Initialize dynamic sections from existing sprint data
             dynamicSections: merged.dynamicSections || [
               { id: 'transformation', title: 'Transformation Statement', body: merged.transformation || merged.description, type: 'text' as const },
-              { id: 'forWho', title: 'Target Signals (Who it\'s for)', body: (merged.forWho || ['', '', '', '']).join('\n'), type: 'list' as const },
-              { id: 'notForWho', title: 'Exclusions (Who it\'s not for)', body: (merged.notForWho || ['', '', '']).join('\n'), type: 'list' as const },
-              { id: 'methodSnapshot', title: 'Method Snapshot', body: (merged.methodSnapshot || [{ verb: '', description: '' }, { verb: '', description: '' }, { verb: '', description: '' }]).map(m => `${m.verb}: ${m.description}`).join('\n'), type: 'list' as const },
-              { id: 'outcomes', title: 'Evidence of Completion', body: (merged.outcomes && merged.outcomes.length > 0 ? merged.outcomes : ['', '', '']).join('\n'), type: 'list' as const },
+              { id: 'forWho', title: 'Target Signals (Who it\'s for)', body: (merged.forWho || ['', '', '', '']).join('\n'), type: 'text' as const },
+              { id: 'notForWho', title: 'Exclusions (Who it\'s not for)', body: (merged.notForWho || ['', '', '']).join('\n'), type: 'text' as const },
+              { id: 'methodSnapshot', title: 'Method Snapshot', body: (merged.methodSnapshot || [{ verb: '', description: '' }, { verb: '', description: '' }, { verb: '', description: '' }]).map(m => `${m.verb}: ${m.description}`).join('\n'), type: 'text' as const },
+              { id: 'outcomes', title: 'Evidence of Completion', body: (merged.outcomes && merged.outcomes.length > 0 ? merged.outcomes : ['', '', '']).join('\n'), type: 'text' as const },
               { id: 'metadata', title: 'Metadata', body: `Category: ${merged.category}\nDifficulty: ${merged.difficulty}\nDuration: ${merged.duration} Days\nProtocol: ${merged.protocol}`, type: 'text' as const },
               { id: 'completionAssets', title: 'Completion Assets', body: `Archive Outcome Tag: ${merged.outcomeTag || ''}\nOutcome Statement: ${merged.outcomeStatement || 'Focus creates feedback. *Feedback creates clarity.*'}`, type: 'text' as const }
             ],
@@ -478,30 +478,10 @@ const EditSprint: React.FC = () => {
     }
   };
 
-  const handleDynamicSectionChange = (index: number, field: 'title' | 'body' | 'type', value: any) => {
+  const handleDynamicSectionChange = (index: number, field: 'title' | 'body', value: any) => {
     const newSections = [...(editSettings.dynamicSections || [])];
     newSections[index] = { ...newSections[index], [field]: value };
     setEditSettings({ ...editSettings, dynamicSections: newSections });
-  };
-
-  const handleListChange = (sectionIndex: number, itemIndex: number, value: string) => {
-    const section = editSettings.dynamicSections![sectionIndex];
-    const items = section.body.split('\n');
-    items[itemIndex] = value;
-    handleDynamicSectionChange(sectionIndex, 'body', items.join('\n'));
-  };
-
-  const addListItem = (sectionIndex: number) => {
-    const section = editSettings.dynamicSections![sectionIndex];
-    const items = section.body ? section.body.split('\n') : [];
-    handleDynamicSectionChange(sectionIndex, 'body', [...items, ''].join('\n'));
-  };
-
-  const removeListItem = (sectionIndex: number, itemIndex: number) => {
-    const section = editSettings.dynamicSections![sectionIndex];
-    const items = section.body.split('\n');
-    const newItems = items.filter((_, i) => i !== itemIndex);
-    handleDynamicSectionChange(sectionIndex, 'body', newItems.join('\n'));
   };
 
   if (!sprint) return <div className="p-8 text-center text-gray-500">Loading Registry...</div>;
@@ -894,60 +874,17 @@ const EditSprint: React.FC = () => {
                                     }}
                                     className={registryInputClasses + " mt-2"} 
                                 />
-                                <label className={labelClasses + " mt-4 flex items-center justify-between"}>
+                                <label className={labelClasses + " mt-4"}>
                                     Section Body
-                                    <button 
-                                        type="button"
-                                        onClick={() => handleDynamicSectionChange(index, 'type', section.type === 'list' ? 'text' : 'list')}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-primary hover:bg-primary/5 transition-all border border-gray-100"
-                                        title={section.type === 'list' ? "Switch to Text" : "Switch to List"}
-                                    >
-                                        {section.type === 'list' ? <TypeIcon className="w-3 h-3" /> : <List className="w-3 h-3" />}
-                                        {section.type === 'list' ? "Text Mode" : "List Mode"}
-                                    </button>
                                 </label>
 
-                                {section.type === 'list' ? (
-                                    <div className="space-y-3 mt-2">
-                                        {(section.body ? section.body.split('\n') : ['']).map((item, itemIdx) => (
-                                            <div key={itemIdx} className="flex gap-2 group/item">
-                                                <div className="flex-1 relative">
-                                                    <input 
-                                                        type="text"
-                                                        value={item}
-                                                        onChange={(e) => handleListChange(index, itemIdx, e.target.value)}
-                                                        className={registryInputClasses}
-                                                        placeholder={`Item ${itemIdx + 1}...`}
-                                                    />
-                                                    <div className="absolute left-[-1.5rem] top-1/2 -translate-y-1/2 w-1 h-1 bg-primary/30 rounded-full group-hover/item:bg-primary transition-colors"></div>
-                                                </div>
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => removeListItem(index, itemIdx)}
-                                                    className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                        <button 
-                                            type="button"
-                                            onClick={() => addListItem(index)}
-                                            className="w-full py-3 border-2 border-dashed border-gray-100 rounded-2xl text-gray-400 hover:border-primary/30 hover:text-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest"
-                                        >
-                                            <Plus className="w-3 h-3" />
-                                            Add Item
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <textarea 
-                                        value={section.body} 
-                                        onChange={e => handleDynamicSectionChange(index, 'body', e.target.value)}
-                                        rows={6} 
-                                        className={registryInputClasses + " resize-none mt-2"} 
-                                        placeholder="Enter section content..."
-                                    />
-                                )}
+                                <textarea 
+                                    value={section.body} 
+                                    onChange={e => handleDynamicSectionChange(index, 'body', e.target.value)}
+                                    rows={6} 
+                                    className={registryInputClasses + " resize-none mt-2"} 
+                                    placeholder="Enter section content..."
+                                />
                                 <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
                                     <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Preview:</h5>
                                     <div className="bg-white rounded-xl p-4 border border-gray-100">
