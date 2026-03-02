@@ -62,7 +62,7 @@ const HomePage: React.FC = () => {
             <LocalLogo type="green" className="h-[2.125rem] w-auto" />
           </Link>
           <div className="flex gap-6 items-center">
-            <Link to="/onboarding/coach/welcome" className="hidden sm:block text-[10px] font-black text-gray-400 hover:text-primary uppercase tracking-[0.1em] transition-colors">
+            <Link to="/onboarding/coach/welcome" className="hidden sm:block text-[8px] font-black text-gray-400 hover:text-primary uppercase tracking-[0.1em] transition-colors">
               I'M A COACH
             </Link>
             <button 
@@ -76,7 +76,7 @@ const HomePage: React.FC = () => {
       </nav>
 
       {/* HERO SECTION */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-16 text-center animate-fade-in flex-shrink-0">
+      <section className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-32 text-center animate-fade-in flex-shrink-0">
         <div className="max-w-5xl mx-auto flex flex-col items-center">
           <h1 className="text-6xl md:text-[110px] font-black text-gray-900 tracking-tighter leading-[0.85] mb-12">
             Grow into who <br/> <span className="italic">you’re <span className="text-primary">becoming.</span></span>
@@ -91,7 +91,7 @@ const HomePage: React.FC = () => {
                     You lack clarity on what move actually matters now.
                 </p>
             </div>
-            <p className="text-[14px] text-gray-400 font-medium max-w-lg mx-auto leading-relaxed">
+            <p className="text-[12px] text-gray-400 font-medium max-w-lg mx-auto leading-relaxed">
               Vectorise helps you gain clarity at critical transition points and turn it into focused action through short, guided sprints.
             </p>
           </div>
@@ -161,7 +161,7 @@ const HomePage: React.FC = () => {
                  </p>
               </div>
               
-              <div className="space-y-6 text-[14px] text-gray-500 font-medium leading-relaxed max-w-lg">
+              <div className="space-y-6 text-[12px] text-gray-500 font-medium leading-relaxed max-w-lg">
                 <p>I learned this the hard way.</p>
                 <p>I had vision. I had ambition. But no clear starting point. I kept moving, yet nothing compounded.</p>
                 <p className="text-gray-900 font-black">
@@ -183,7 +183,8 @@ const HomePage: React.FC = () => {
           </div>
 
           <div className="mt-20 max-w-4xl mx-auto bg-gray-50 rounded-[2rem] p-10 md:p-14 text-center border border-gray-100 shadow-inner">
-            <p className="text-lg md:text-2xl text-gray-900 font-black italic">
+            <p className="text-xs md:text-sm text-gray-400 font-medium mb-4">Other options you can explore (Swipe left to view)</p>
+             <p className="text-lg md:text-2xl text-gray-900 font-black italic">
                 "Vectorise exists so others don’t have to <br className="hidden md:block" />
                 <span className="text-primary underline decoration-primary/20 underline-offset-8">learn this late.</span>"
              </p>
@@ -332,9 +333,9 @@ const HomePage: React.FC = () => {
                 <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em] leading-none pt-0.5">VISIBLE PROGRESS SYSTEM</p>
             </div>
             <div className="flex flex-wrap justify-center gap-8 md:gap-12">
-                <p className="text-[6px] font-black text-gray-300 uppercase tracking-[0.4em]">© 2026 VECTORISE</p>
-                <Link to="/onboarding/coach/welcome" className="text-[6px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">I'M A COACH</Link>
-                <Link to="/partner" className="text-[6px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">BE A PARTNER</Link>
+                <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em]">© 2026 VECTORISE</p>
+                <Link to="/onboarding/coach/welcome" className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">I'M A COACH</Link>
+                <Link to="/partner" className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">BE A PARTNER</Link>
             </div>
         </div>
       </footer>

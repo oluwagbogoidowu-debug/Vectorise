@@ -212,6 +212,12 @@ const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> =
 };
 
 
+const SectionHeading: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color = "primary" }) => (
+    <h2 className={`text-[8px] font-black text-${color} uppercase tracking-[0.4em] mb-4`}>
+        {children}
+    </h2>
+);
+
 const EditSprint: React.FC = () => {
   const { sprintId } = useParams();
   const navigate = useNavigate();
@@ -576,145 +582,196 @@ const EditSprint: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 animate-fade-in" key={selectedDay}>
-            <div className="space-y-2">
-              <div className="flex justify-between items-end">
-                <label className={labelClasses}>Today's Insight</label>
-                {canEditDirectly && (
-                    <FormattingToolbar 
-                        textareaRef={lessonTextRef} 
-                        onUpdate={(v) => handleContentChange('lessonText', v)} 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in" key={selectedDay}>
+            {/* EDITOR COLUMN */}
+            <div className="space-y-8">
+              <div className="space-y-2">
+                <div className="flex justify-between items-end">
+                  <label className={labelClasses}>Today's Insight</label>
+                  {canEditDirectly && (
+                      <FormattingToolbar 
+                          textareaRef={lessonTextRef} 
+                          onUpdate={(v) => handleContentChange('lessonText', v)} 
+                      />
+                  )}
+                </div>
+                {isAdmin && !isFoundational ? (
+                    <DiffHighlight 
+                      label="Today's Insight" 
+                      original={originalSprint?.dailyContent.find(c => c.day === selectedDay)?.lessonText} 
+                      updated={currentContent.lessonText} 
+                    />
+                ) : (
+                    <textarea 
+                      ref={lessonTextRef}
+                      value={currentContent.lessonText || ''} 
+                      onChange={e => handleContentChange('lessonText', e.target.value)} 
+                      rows={8} 
+                      className={editorInputClasses} 
+                      placeholder="Coach curriculum goes here..." 
                     />
                 )}
               </div>
-              {isAdmin && !isFoundational ? (
-                  <DiffHighlight 
-                    label="Today's Insight" 
-                    original={originalSprint?.dailyContent.find(c => c.day === selectedDay)?.lessonText} 
-                    updated={currentContent.lessonText} 
-                  />
-              ) : (
-                  <textarea 
-                    ref={lessonTextRef}
-                    value={currentContent.lessonText || ''} 
-                    onChange={e => handleContentChange('lessonText', e.target.value)} 
-                    rows={8} 
-                    className={editorInputClasses} 
-                    placeholder="Coach curriculum goes here..." 
-                  />
-              )}
-            </div>
 
-            <div className="space-y-2">
-              <div className="flex justify-between items-end">
-                <label className={labelClasses}>Today's Action Step</label>
-                {canEditDirectly && (
-                    <FormattingToolbar 
-                        textareaRef={taskPromptRef} 
-                        onUpdate={(v) => handleContentChange('taskPrompt', v)} 
+              <div className="space-y-2">
+                <div className="flex justify-between items-end">
+                  <label className={labelClasses}>Today's Action Step</label>
+                  {canEditDirectly && (
+                      <FormattingToolbar 
+                          textareaRef={taskPromptRef} 
+                          onUpdate={(v) => handleContentChange('taskPrompt', v)} 
+                      />
+                  )}
+                </div>
+                {isAdmin && !isFoundational ? (
+                    <DiffHighlight 
+                      label="Today's Action Step" 
+                      original={originalSprint?.dailyContent.find(c => c.day === selectedDay)?.taskPrompt} 
+                      updated={currentContent.taskPrompt} 
+                    />
+                ) : (
+                    <textarea 
+                      ref={taskPromptRef}
+                      value={currentContent.taskPrompt || ''} 
+                      onChange={e => handleContentChange('taskPrompt', e.target.value)} 
+                      rows={4} 
+                      className={editorInputClasses} 
+                      placeholder="Daily task prompt..." 
                     />
                 )}
               </div>
-              {isAdmin && !isFoundational ? (
-                  <DiffHighlight 
-                    label="Today's Action Step" 
-                    original={originalSprint?.dailyContent.find(c => c.day === selectedDay)?.taskPrompt} 
-                    updated={currentContent.taskPrompt} 
-                  />
-              ) : (
-                  <textarea 
-                    ref={taskPromptRef}
-                    value={currentContent.taskPrompt || ''} 
-                    onChange={e => handleContentChange('taskPrompt', e.target.value)} 
-                    rows={4} 
-                    className={editorInputClasses} 
-                    placeholder="Daily task prompt..." 
-                  />
-              )}
-            </div>
 
-            <div className="space-y-2">
-              <div className="flex justify-between items-end">
-                <label className={labelClasses}>Coach Insight</label>
-                {canEditDirectly && (
-                    <FormattingToolbar 
-                        textareaRef={coachInsightRef} 
-                        onUpdate={(v) => handleContentChange('coachInsight', v)} 
+              <div className="space-y-2">
+                <div className="flex justify-between items-end">
+                  <label className={labelClasses}>Coach Insight</label>
+                  {canEditDirectly && (
+                      <FormattingToolbar 
+                          textareaRef={coachInsightRef} 
+                          onUpdate={(v) => handleContentChange('coachInsight', v)} 
+                      />
+                  )}
+                </div>
+                {isAdmin && !isFoundational ? (
+                    <DiffHighlight 
+                      label="Coach Insight" 
+                      original={originalSprint?.dailyContent.find(c => c.day === selectedDay)?.coachInsight} 
+                      updated={currentContent.coachInsight} 
+                    />
+                ) : (
+                    <textarea 
+                      ref={coachInsightRef}
+                      value={currentContent.coachInsight || ''} 
+                      onChange={e => handleContentChange('coachInsight', e.target.value)} 
+                      rows={3} 
+                      className={editorInputClasses} 
+                      placeholder="A nugget of wisdom to ground the user..." 
                     />
                 )}
               </div>
-              {isAdmin && !isFoundational ? (
-                  <DiffHighlight 
-                    label="Coach Insight" 
-                    original={originalSprint?.dailyContent.find(c => c.day === selectedDay)?.coachInsight} 
-                    updated={currentContent.coachInsight} 
-                  />
-              ) : (
-                  <textarea 
-                    ref={coachInsightRef}
-                    value={currentContent.coachInsight || ''} 
-                    onChange={e => handleContentChange('coachInsight', e.target.value)} 
-                    rows={3} 
-                    className={editorInputClasses} 
-                    placeholder="A nugget of wisdom to ground the user..." 
-                  />
-              )}
+
+              {/* COMPLETION PROTOCOL CURATION */}
+              <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-8">
+                <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.3em] border-b border-gray-50 pb-4">Day {selectedDay} Completion Protocol</h3>
+                
+                <div className="grid grid-cols-1 gap-8">
+                    <div className="space-y-4">
+                        <label className={labelClasses}>Proof Method</label>
+                        <div className="flex flex-col gap-2">
+                            {[{
+                                  id: 'confirmation', label: 'Simple Button', d: '"Today\'s task completed"' 
+                            },{
+                                  id: 'picker', label: 'Micro Picker', d: 'Choose from options curated by you' 
+                            },{
+                                  id: 'note', label: 'Send Submission', d: 'User must write a response' 
+                            }].map(p => (
+                                <button 
+                                    key={p.id}
+                                    type="button"
+                                    onClick={() => handleContentChange('proofType', p.id)}
+                                    className={`text-left p-4 rounded-2xl border transition-all ${currentContent.proofType === p.id ? 'bg-primary/5 border-primary shadow-sm' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                                >
+                                    <p className={`text-xs font-black uppercase tracking-tight ${currentContent.proofType === p.id ? 'text-primary' : 'text-gray-500'}`}>{p.label}</p>
+                                    <p className="text-[10px] font-medium opacity-60 mt-1">{p.d}</p>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="space-y-6">
+                        {currentContent.proofType === 'picker' && (
+                            <div className="space-y-3 animate-fade-in">
+                                <label className={labelClasses}>Picker Options (comma separated)</label>
+                                <textarea 
+                                    value={currentContent.proofOptions?.join(', ') || ''}
+                                    onChange={e => handleContentChange('proofOptions', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
+                                    className={editorInputClasses + " h-24"}
+                                    placeholder="Completed first draft, Sent outreach emails, Updated LinkedIn profile..."
+                                />
+                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">User must select one to mark day complete.</p>
+                            </div>
+                        )}
+
+                        <div className="space-y-3">
+                            <label className={labelClasses}>Reflection Question</label>
+                            <textarea 
+                                value={currentContent.reflectionQuestion || ''}
+                                onChange={e => handleContentChange('reflectionQuestion', e.target.value)}
+                                className={editorInputClasses + " h-24"}
+                                placeholder="e.g. One idea that shifted my thinking was..."
+                            />
+                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Curate the prompt for the end-of-day reflection modal.</p>
+                        </div>
+                    </div>
+                </div>
+              </div>
             </div>
 
-            {/* COMPLETION PROTOCOL CURATION */}
-            <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-8">
-               <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.3em] border-b border-gray-50 pb-4">Day {selectedDay} Completion Protocol</h3>
-               
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                   <div className="space-y-4">
-                       <label className={labelClasses}>Proof Method</label>
-                       <div className="flex flex-col gap-2">
-                           {[{
-                                id: 'confirmation', label: 'Simple Button', d: '"Today\'s task completed"' 
-                           },{
-                                id: 'picker', label: 'Micro Picker', d: 'Choose from options curated by you' 
-                           },{
-                                id: 'note', label: 'Send Submission', d: 'User must write a response' 
-                           }].map(p => (
-                               <button 
-                                   key={p.id}
-                                   type="button"
-                                   onClick={() => handleContentChange('proofType', p.id)}
-                                   className={`text-left p-4 rounded-2xl border transition-all ${currentContent.proofType === p.id ? 'bg-primary/5 border-primary shadow-sm' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-200'}`}
-                               >
-                                   <p className={`text-xs font-black uppercase tracking-tight ${currentContent.proofType === p.id ? 'text-primary' : 'text-gray-500'}`}>{p.label}</p>
-                                   <p className="text-[10px] font-medium opacity-60 mt-1">{p.d}</p>
-                               </button>
-                           ))}
-                       </div>
-                   </div>
+            {/* PREVIEW COLUMN */}
+            <div className="lg:sticky lg:top-8 space-y-6 self-start">
+              <div className="flex items-center justify-between px-1">
+                <h2 className={labelClasses}>Daily Content Preview (Live)</h2>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                  <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Real-time</span>
+                </div>
+              </div>
 
-                   <div className="space-y-6">
-                       {currentContent.proofType === 'picker' && (
-                           <div className="space-y-3 animate-fade-in">
-                               <label className={labelClasses}>Picker Options (comma separated)</label>
-                               <textarea 
-                                   value={currentContent.proofOptions?.join(', ') || ''}
-                                   onChange={e => handleContentChange('proofOptions', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
-                                   className={editorInputClasses + " h-24"}
-                                   placeholder="Completed first draft, Sent outreach emails, Updated LinkedIn profile..."
-                               />
-                               <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">User must select one to mark day complete.</p>
-                           </div>
-                       )}
+              <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-gray-100 shadow-xl relative overflow-hidden min-h-[500px] animate-fade-in">
+                <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day {selectedDay}</h2>
+                
+                <div className="space-y-2 mb-10">
+                    <SectionHeading>Today's Insight</SectionHeading>
+                    <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
+                        <FormattedText text={currentContent.lessonText || "Lesson text will appear here..."} />
+                    </div>
+                </div>
 
-                       <div className="space-y-3">
-                           <label className={labelClasses}>Reflection Question</label>
-                           <textarea 
-                               value={currentContent.reflectionQuestion || ''}
-                               onChange={e => handleContentChange('reflectionQuestion', e.target.value)}
-                               className={editorInputClasses + " h-24"}
-                               placeholder="e.g. One idea that shifted my thinking was..."
-                           />
-                           <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Curate the prompt for the end-of-day reflection modal.</p>
-                       </div>
-                   </div>
-               </div>
+                <div className="space-y-6">
+                    <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
+                        <SectionHeading>Today's Action Step</SectionHeading>
+                        <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
+                            <FormattedText text={currentContent.taskPrompt || "Action step will appear here..."} />
+                        </div>
+                        <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                    </div>
+
+                    {currentContent.coachInsight && (
+                        <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
+                            <SectionHeading color="gray-400">Coach Insight</SectionHeading>
+                            <div className="text-gray-600 italic font-medium text-xs md:text-sm leading-relaxed">
+                                <FormattedText text={currentContent.coachInsight} />
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-12 space-y-4">
+                  <div className="w-full py-5 bg-gray-100 text-gray-300 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] text-center border border-gray-50">
+                    {currentContent.proofType === 'note' ? 'Send Submission' : "Today's task completed"}
+                  </div>
+                  <p className="text-center text-[8px] font-black text-gray-300 uppercase tracking-widest">Preview of completion button</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

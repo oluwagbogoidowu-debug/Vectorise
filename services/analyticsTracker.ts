@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, addDoc, query, where, getDocs, writeBatch, limit, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, writeBatch, limit, orderBy, onSnapshot, doc, setDoc, DocumentSnapshot } from 'firebase/firestore';
 import { sanitizeData } from './userService';
 import { AnalyticsEvent, TrafficRecord, FunnelStats, UserSessionReport, IdentityReport, ParticipantSprint } from '../types';
 
@@ -10,9 +10,18 @@ const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const TRAFFIC_COLLECTION = 'traffic_sources';
 const EVENTS_COLLECTION = 'analytics_events';
 const ENROLLMENTS_COLLECTION = 'enrollments';
+const CONFIG_COLLECTION = 'system_config';
 
 let lastScrollDepth = 0;
 let sessionStartTime = Date.now();
+let isAnalyticsDisabled = false;
+
+// Listen for global analytics kill switch
+onSnapshot(doc(db, CONFIG_COLLECTION, 'analytics'), (snap: DocumentSnapshot) => {
+    if (snap.exists()) {
+        isAnalyticsDisabled = snap.data().disabled === true;
+    }
+});
 
 const generateUUID = () => {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -175,6 +184,7 @@ export const analyticsTracker = {
     },
 
     trackEvent: async (eventName: string, properties: any = {}, userId?: string, userEmail?: string) => {
+        if (isAnalyticsDisabled) return;
         const guestId = localStorage.getItem(GUEST_ID_KEY);
         let sessId = localStorage.getItem(SESSION_ID_KEY);
         const now = Date.now();
@@ -211,6 +221,7 @@ export const analyticsTracker = {
     },
 
     identify: async (userId: string, email: string) => {
+        if (isAnalyticsDisabled) return;
         const guestId = localStorage.getItem(GUEST_ID_KEY);
         if (!guestId || !email) return;
 
@@ -247,6 +258,7 @@ export const analyticsTracker = {
     },
 
     getIdentityLedger: async (): Promise<IdentityReport[]> => {
+        if (isAnalyticsDisabled) return [];
         const cached = getCached('identity_ledger');
         if (cached) return cached;
 
@@ -348,6 +360,7 @@ export const analyticsTracker = {
     },
 
     getFunnelMetrics: async (): Promise<FunnelStats> => {
+        if (isAnalyticsDisabled) return { visitors: 0, sprintViews: 0, paymentIntents: 0, successPayments: 0, completions: 0, activeUserList: [] };
         const cached = getCached('funnel_metrics');
         if (cached) return cached;
 
@@ -386,6 +399,7 @@ export const analyticsTracker = {
     },
 
     getTrafficBreakdown: async (): Promise<Record<string, number>> => {
+        if (isAnalyticsDisabled) return {};
         const cached = getCached('traffic_breakdown');
         if (cached) return cached;
 
