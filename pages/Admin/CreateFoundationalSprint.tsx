@@ -13,6 +13,8 @@ const CreateFoundationalSprint: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     
+    const [sprintId] = useState(() => `foundational_${Date.now()}`);
+
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -56,7 +58,6 @@ const CreateFoundationalSprint: React.FC = () => {
         const duration = Number(formData.duration);
         const pointValue = Number(formData.pointCost || 0);
         const cashValue = Number(formData.price || 0);
-        const sprintId = `foundational_${Date.now()}`;
 
         const dailyContent: DailyContent[] = Array.from({ length: duration }, (_, i) => ({
             day: i + 1,

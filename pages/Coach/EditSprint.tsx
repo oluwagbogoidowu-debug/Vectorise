@@ -341,10 +341,20 @@ const EditSprint: React.FC = () => {
     if (!sprint || !originalSprint) return;
     setSaveStatus('saving');
     try {
+      const isDraft = sprint.approvalStatus === 'draft';
       const changes = getPendingChanges(originalSprint, sprint);
-      const updatedSprintData: Partial<Sprint> = {
-          pendingChanges: changes,
-      };
+      
+      let updatedSprintData: Partial<Sprint> = {};
+
+      if (isDraft) {
+          // If it's a draft, save all changes directly to the main fields
+          updatedSprintData = { ...changes };
+      } else {
+          // If it's already approved/pending, save to pendingChanges
+          updatedSprintData = {
+              pendingChanges: changes,
+          };
+      }
 
       if (isAdmin && isFoundational) {
           updatedSprintData.published = true;
@@ -354,6 +364,12 @@ const EditSprint: React.FC = () => {
       }
 
       await sprintService.updateSprint(sprint.id, updatedSprintData, isAdmin);
+      
+      // Update original sprint in state so subsequent saves in same session are correct
+      if (isDraft) {
+          setOriginalSprint({ ...sprint });
+      }
+
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (err) { setSaveStatus('idle'); alert("Save failed."); }
@@ -448,12 +464,21 @@ const EditSprint: React.FC = () => {
 
     try {
         const updatedLocalSprint = { ...sprint, ...updatedSprintData as any };
+        const isDraft = sprint.approvalStatus === 'draft';
         const changes = getPendingChanges(originalSprint, updatedLocalSprint);
         
-        const persistenceData: Partial<Sprint> = {
-            pendingChanges: changes,
-            ...((isAdmin && isFoundational) ? updatedSprintData : {})
-        };
+        let persistenceData: Partial<Sprint> = {};
+
+        if (isDraft) {
+            // If it's a draft, save all changes directly to the main fields
+            persistenceData = { ...updatedSprintData };
+        } else {
+            // If it's already approved/pending, save to pendingChanges
+            persistenceData = {
+                pendingChanges: changes,
+                ...((isAdmin && isFoundational) ? updatedSprintData : {})
+            };
+        }
 
         if (isAdmin && isFoundational) {
             persistenceData.published = true;
@@ -463,6 +488,9 @@ const EditSprint: React.FC = () => {
         await sprintService.updateSprint(sprint.id, persistenceData, isAdmin);
         
         setSprint(updatedLocalSprint);
+        if (isDraft) {
+            setOriginalSprint(updatedLocalSprint);
+        }
         setSettingsSaveStatus('saved');
         
         // Confirmation Popup

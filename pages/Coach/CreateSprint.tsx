@@ -17,6 +17,8 @@ const CreateSprint: React.FC = () => {
     const navigate = useNavigate();
     const { user, loading } = useAuth();
 
+    const [sprintId] = useState(() => `sprint_${Date.now()}`);
+
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -96,7 +98,6 @@ const CreateSprint: React.FC = () => {
         e.preventDefault();
         if (!user) return;
         setIsSubmitting(true);
-        const sprintId = `sprint_${Date.now()}`;
         const duration = Number(formData.duration);
 
         const dailyContent: DailyContent[] = Array.from({ length: duration }, (_, i) => ({
