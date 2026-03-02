@@ -837,6 +837,13 @@ const EditSprint: React.FC = () => {
                                 <DiffHighlight label="Duration" original={originalSprint?.duration} updated={editSettings.duration} />
                                 <DiffHighlight label="Protocol" original={originalSprint?.protocol} updated={editSettings.protocol} />
                             </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <DiffHighlight label="Sprint Type" original={originalSprint?.sprintType} updated={editSettings.sprintType} />
+                                <DiffHighlight label="Pricing Type" original={originalSprint?.pricingType} updated={editSettings.pricingType} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <DiffHighlight label="Point Cost" original={originalSprint?.pointCost} updated={editSettings.pointCost} />
+                            </div>
                         </div>
                     </section>
                 ) : (
@@ -998,6 +1005,39 @@ const EditSprint: React.FC = () => {
                                         <option value="Challenge-based">Challenge-based</option>
                                     </select>
                                 </div>
+                                <div>
+                                    <label className={labelClasses}>Sprint Type</label>
+                                    <select value={editSettings.sprintType || 'Execution'} onChange={e => setEditSettings({...editSettings, sprintType: e.target.value as 'Foundational' | 'Execution' | 'Skill'})} className={registryInputClasses + " mt-2"}>
+                                        <option value="Foundational">Foundational</option>
+                                        <option value="Execution">Execution</option>
+                                        <option value="Skill">Skill</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="space-y-6">
+                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Pricing & Economy</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div>
+                                    <label className={labelClasses}>Pricing Type</label>
+                                    <select value={editSettings.pricingType || 'cash'} onChange={e => setEditSettings({...editSettings, pricingType: e.target.value as 'cash' | 'credits'})} className={registryInputClasses + " mt-2"}>
+                                        <option value="cash">Cash (NGN/USD)</option>
+                                        <option value="credits">Credits (Points)</option>
+                                    </select>
+                                </div>
+                                {editSettings.pricingType === 'credits' ? (
+                                    <div>
+                                        <label className={labelClasses}>Point Cost</label>
+                                        <input type="number" value={editSettings.pointCost || 0} onChange={e => setEditSettings({...editSettings, pointCost: Number(e.target.value)})} className={registryInputClasses + " mt-2"} placeholder="0" />
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <label className={labelClasses}>Proposed Price (NGN)</label>
+                                        <input type="number" value={editSettings.price || 0} onChange={e => setEditSettings({...editSettings, price: Number(e.target.value)})} className={registryInputClasses + " mt-2"} placeholder="0" />
+                                        <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">Admins will review and set the final price.</p>
+                                    </div>
+                                )}
                             </div>
                         </section>
 
@@ -1008,6 +1048,17 @@ const EditSprint: React.FC = () => {
                                     <label className={labelClasses}>Archive Outcome Tag</label>
                                     <input type="text" value={editSettings.outcomeTag || ''} onChange={e => setEditSettings({...editSettings, outcomeTag: e.target.value})} className={registryInputClasses + " mt-2"} placeholder="e.g. Clarity gained" />
                                     <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">This appears as the badge on completed sprint cards.</p>
+                                </div>
+                                <div>
+                                    <label className={labelClasses}>The Outcome Statement</label>
+                                    <textarea 
+                                        value={editSettings.outcomeStatement || ''} 
+                                        onChange={e => setEditSettings({...editSettings, outcomeStatement: e.target.value})} 
+                                        className={registryInputClasses + " mt-2 resize-none"} 
+                                        rows={3}
+                                        placeholder="Focus creates feedback. *Feedback creates clarity.*" 
+                                    />
+                                    <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">The final message shown to participants upon completion.</p>
                                 </div>
                             </div>
                         </section>

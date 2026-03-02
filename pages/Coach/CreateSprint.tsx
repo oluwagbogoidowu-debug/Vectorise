@@ -48,6 +48,8 @@ const CreateSprint: React.FC = () => {
         outcomeStatement: string;
         sprintType: 'Foundational' | 'Execution' | 'Skill';
         protocol: 'One action per day' | 'Guided task' | 'Challenge-based';
+        pricingType: 'cash' | 'credits';
+        pointCost: number;
     }>({
         title: '',
         subtitle: '',
@@ -69,6 +71,8 @@ const CreateSprint: React.FC = () => {
         outcomeStatement: 'Focus creates feedback. *Feedback creates clarity.*',
         sprintType: 'Execution' as 'Foundational' | 'Execution' | 'Skill',
         protocol: 'One action per day' as 'One action per day' | 'Guided task' | 'Challenge-based',
+        pricingType: 'cash',
+        pointCost: 0,
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -139,11 +143,11 @@ const CreateSprint: React.FC = () => {
             category: formData.category,
             difficulty: formData.difficulty,
             duration: duration,
-            price: 0,
+            price: Number(formData.price) || 0,
             description: formData.subtitle || formData.title,
             currency: 'NGN',
-            pointCost: 0,
-            pricingType: 'cash',
+            pointCost: formData.pointCost || 0,
+            pricingType: formData.pricingType,
             outcomeTag: formData.outcomeTag || 'Clarity gained',
             outcomeStatement: formData.outcomeStatement,
             sprintType: formData.sprintType,
@@ -416,13 +420,50 @@ const CreateSprint: React.FC = () => {
                                             <option value="Challenge-based">Challenge-based</option>
                                         </select>
                                     </div>
+                                    <div>
+                                        <label className={labelClasses}>Sprint Type</label>
+                                        <select name="sprintType" value={formData.sprintType} onChange={handleChange} className={inputClasses + " mt-2"}>
+                                            <option value="Foundational">Foundational</option>
+                                            <option value="Execution">Execution</option>
+                                            <option value="Skill">Skill</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </section>
 
-                            {/* 08 Completion Assets */}
+                            {/* Pricing & Economy */}
                             <section>
                                 <div className="flex items-center gap-3 mb-8">
                                     <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">08</div>
+                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Pricing & Economy</h4>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div>
+                                        <label className={labelClasses}>Pricing Type</label>
+                                        <select name="pricingType" value={formData.pricingType} onChange={handleChange} className={inputClasses + " mt-2"}>
+                                            <option value="cash">Cash (NGN/USD)</option>
+                                            <option value="credits">Credits (Points)</option>
+                                        </select>
+                                    </div>
+                                    {formData.pricingType === 'credits' ? (
+                                        <div>
+                                            <label className={labelClasses}>Point Cost</label>
+                                            <input type="number" name="pointCost" value={formData.pointCost || 0} onChange={handleChange} className={inputClasses + " mt-2"} placeholder="0" />
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <label className={labelClasses}>Proposed Price (NGN)</label>
+                                            <input type="number" name="price" value={formData.price} onChange={handleChange} className={inputClasses + " mt-2"} placeholder="0" />
+                                            <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">Admins will review and set the final price.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </section>
+
+                            {/* 09 Completion Assets */}
+                            <section>
+                                <div className="flex items-center gap-3 mb-8">
+                                    <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">09</div>
                                     <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Completion Assets</h4>
                                 </div>
                                 <div className="space-y-6">
@@ -430,6 +471,18 @@ const CreateSprint: React.FC = () => {
                                         <label className={labelClasses}>Archive Outcome Tag</label>
                                         <input type="text" name="outcomeTag" value={formData.outcomeTag} onChange={handleChange} className={inputClasses + " mt-2"} placeholder="e.g. Clarity gained" />
                                         <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">This appears as the badge on completed sprint cards.</p>
+                                    </div>
+                                    <div>
+                                        <label className={labelClasses}>The Outcome Statement</label>
+                                        <textarea 
+                                            name="outcomeStatement"
+                                            value={formData.outcomeStatement} 
+                                            onChange={handleChange} 
+                                            className={inputClasses + " mt-2 resize-none"} 
+                                            rows={3}
+                                            placeholder="Focus creates feedback. *Feedback creates clarity.*" 
+                                        />
+                                        <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">The final message shown to participants upon completion.</p>
                                     </div>
                                 </div>
                             </section>
