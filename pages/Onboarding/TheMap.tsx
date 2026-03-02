@@ -254,7 +254,7 @@ const TheMap: React.FC = () => {
         <MapCard>
             <SectionLabel text="10 Logic" />
             <h2 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-10 italic">Where to <br/> begin?</h2>
-            <div className="space-y-8 text-xl font-medium text-gray-500 leading-relaxed italic">
+            <div className="space-y-4 text-xl font-medium text-gray-500 leading-relaxed italic">
                 <p>You don’t start everywhere.</p>
                 <div className="p-5 bg-primary/5 border-l-4 border-primary rounded-r-2xl">
                     <p className="text-gray-900 font-black not-italic">"For most people, the system works best when you begin with clarity."</p>
