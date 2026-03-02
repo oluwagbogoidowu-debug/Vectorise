@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import LocalLogo from '../components/LocalLogo';
 import { sprintService } from '../services/sprintService';
 import { GlobalOrchestrationSettings, MicroSelector, LifecycleSlotAssignment } from '../types';
+import { LIFECYCLE_SLOTS } from '../services/mockData';
 
 /**
  * HomePage component: The main landing page for the Vectorise platform.
@@ -53,6 +54,11 @@ const HomePage: React.FC = () => {
 
   const currentStep = activeSelector?.steps[currentStepIdx];
 
+  const claritySlotName = useMemo(() => {
+    const claritySlotDef = LIFECYCLE_SLOTS.find(s => s.id === 'slot_found_clarity');
+    return claritySlotDef ? claritySlotDef.name.toUpperCase() : 'CLARITY';
+  }, []);
+
   return (
     <div className="bg-white w-full font-sans selection:bg-primary/10 selection:text-primary overflow-x-hidden flex flex-col">
       {/* NAVIGATION */}
@@ -69,7 +75,7 @@ const HomePage: React.FC = () => {
               onClick={handleStartAction}
               className="px-6 py-2.5 bg-primary text-white rounded-full text-[8px] font-black uppercase tracking-[0.1em] shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95 cursor-pointer"
             >
-              START SPRINT
+              START {claritySlotName} SPRINT
             </button>
           </div>
         </div>
@@ -101,7 +107,7 @@ const HomePage: React.FC = () => {
                 onClick={handleStartAction}
                 className="px-12 py-5 bg-primary text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
             >
-                START YOUR CLARITY SPRINT
+                START YOUR {claritySlotName} SPRINT
             </button>
             <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest">
                 ALREADY HAVE AN ACCOUNT? <Link to="/login" className="text-primary hover:underline ml-1">CONTINUE YOUR RISE</Link>

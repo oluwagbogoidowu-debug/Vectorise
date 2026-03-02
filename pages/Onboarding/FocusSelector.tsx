@@ -20,6 +20,7 @@ const FocusSelector: React.FC = () => {
   const [pollQuestion, setPollQuestion] = useState<string>("What’s your biggest focus right now?");
   const [focusOptions, setFocusOptions] = useState<string[]>(FOCUS_OPTIONS);
   const [activeAssignment, setActiveAssignment] = useState<LifecycleSlotAssignment | null>(null);
+  const [activeSlotName, setActiveSlotName] = useState<string>("Growth Catalyst Mapping");
   const [lookupError, setLookupError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,12 +31,21 @@ const FocusSelector: React.FC = () => {
           sprintService.getOrchestration()
         ]);
 
-        const assignment = Object.values(orchestration).find(
-          (a: any) => a.stateTrigger === activeTrigger
-        ) as LifecycleSlotAssignment | undefined;
+        const assignmentEntry = Object.entries(orchestration).find(
+          ([_, a]: any) => a.stateTrigger === activeTrigger
+        );
+        const [slotId, assignment] = assignmentEntry || [null, null];
 
         if (assignment) {
-          setActiveAssignment(assignment);
+          setActiveAssignment(assignment as LifecycleSlotAssignment);
+          if (slotId === 'slot_found_clarity') {
+            setActiveSlotName("Foundation: Clarity");
+          } else if (slotId?.includes('found')) {
+            setActiveSlotName("Foundation Path");
+          } else {
+            setActiveSlotName("Growth Catalyst Mapping");
+          }
+
           if (assignment.availableFocusOptions && assignment.availableFocusOptions.length > 0) {
             setFocusOptions(assignment.availableFocusOptions);
           } else if (settings?.focusOptions) {
@@ -178,7 +188,7 @@ const FocusSelector: React.FC = () => {
                <LocalLogo type="white" className="h-5 w-auto mx-auto mb-8 opacity-40" />
                <h1 className="text-xl md:text-2xl font-black tracking-tight leading-tight italic">{pollQuestion}</h1>
                <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em] mt-4">
-                 {activeTrigger === 'skip_clarity' ? 'Execution Registry' : 'Growth Catalyst Mapping'}
+                 {activeTrigger === 'skip_clarity' ? 'Execution Registry' : activeSlotName}
                </p>
             </header>
             <div className="w-full space-y-3 animate-slide-up">

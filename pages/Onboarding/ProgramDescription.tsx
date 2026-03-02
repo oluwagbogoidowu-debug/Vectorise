@@ -3,7 +3,8 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
 import { sprintService } from '../../services/sprintService';
-import { Sprint, Participant, ParticipantSprint } from '../../types';
+import { Sprint, Participant, ParticipantSprint, LifecycleSlotAssignment } from '../../types';
+import { LIFECYCLE_SLOTS } from '../../services/mockData';
 import { useAuth } from '../../contexts/AuthContext';
 import FormattedText from '../../components/FormattedText';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
@@ -29,6 +30,7 @@ const ProgramDescription: React.FC = () => {
   const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+  const [orchestration, setOrchestration] = useState<Record<string, LifecycleSlotAssignment>>({});
 
   const selectedFocus = location.state?.selectedFocus;
   const activeTrigger = location.state?.trigger || 'after_homepage';
@@ -36,6 +38,48 @@ const ProgramDescription: React.FC = () => {
   const fallbackImage = "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80";
 
   useEffect(() => {
+    const unsubOrchestration = sprintService.subscribeToOrchestration((mapping) => {
+        const orchestrationMapping = mapping as Record<string, LifecycleSlotAssignment>;
+        setOrchestration(orchestrationMapping);
+
+        // REAL-TIME SYNC: If we have a focus and trigger, re-resolve the sprint
+        if (selectedFocus && activeTrigger) {
+            const slots = Object.entries(orchestrationMapping);
+            let resolvedSprintId: string | null = null;
+            
+            // 1. Priority check within the triggering slot
+            const triggerEntry = slots.find(([_, val]) => val.stateTrigger === activeTrigger);
+            if (triggerEntry && triggerEntry[1].sprintFocusMap) {
+                resolvedSprintId = Object.keys(triggerEntry[1].sprintFocusMap).find(
+                    sId => triggerEntry[1].sprintFocusMap?.[sId]?.includes(selectedFocus)
+                ) || null;
+            }
+            
+            // 2. Global registry check
+            if (!resolvedSprintId) {
+                for (const [_, mapping] of slots) {
+                    if (mapping.sprintFocusMap) {
+                        const match = Object.keys(mapping.sprintFocusMap).find(
+                            sId => mapping.sprintFocusMap?.[sId]?.includes(selectedFocus)
+                        );
+                        if (match) {
+                            resolvedSprintId = match;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (resolvedSprintId && resolvedSprintId !== sprintId) {
+                // The orchestrator has changed the mapping for this focus!
+                navigate(`/onboarding/description/${resolvedSprintId}`, { 
+                    state: { selectedFocus, trigger: activeTrigger },
+                    replace: true 
+                });
+            }
+        }
+    });
+
     const fetchData = async () => {
       if (!sprintId) return;
       setIsLoading(true);
@@ -53,7 +97,29 @@ const ProgramDescription: React.FC = () => {
       }
     };
     fetchData();
+
+    return () => unsubOrchestration();
   }, [sprintId, user]);
+
+  const slotInfo = useMemo(() => {
+    if (!sprintId || !orchestration) return null;
+    const entry = Object.entries(orchestration).find(([_, assignment]) => 
+        assignment.sprintId === sprintId || (assignment.sprintIds && assignment.sprintIds.includes(sprintId))
+    );
+    if (!entry) return null;
+    const [slotId, assignment] = entry;
+    
+    const slotDef = LIFECYCLE_SLOTS.find(s => s.id === slotId);
+    if (!slotDef) return null;
+
+    const isFoundation = slotDef.stage === 'Foundation';
+    
+    return {
+        slotId,
+        name: slotDef.name.toUpperCase(),
+        stage: isFoundation ? 'PHASE 01' : 'PHASE 02'
+    };
+  }, [sprintId, orchestration]);
 
   const enrollmentStatus = useMemo(() => {
       if (!user || !sprint) return 'none';
@@ -113,7 +179,7 @@ const ProgramDescription: React.FC = () => {
             Refine Focus
           </button>
           <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest">
-            PHASE 01: CORE
+            {slotInfo ? `${slotInfo.stage}: ${slotInfo.name}` : 'PHASE 01: CORE'}
           </div>
         </div>
 
@@ -131,7 +197,7 @@ const ProgramDescription: React.FC = () => {
               <div className="absolute bottom-10 left-10 right-10 text-white">
                 <div className="mb-4">
                   <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg">
-                    {isFoundational ? 'FOUNDATIONAL PATH' : 'FOUNDATION PATH'}
+                    {slotInfo?.name === 'CLARITY' ? 'CLARITY PATH' : (isFoundational ? 'FOUNDATIONAL PATH' : 'FOUNDATION PATH')}
                   </span>
                 </div>
                 <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-4">
