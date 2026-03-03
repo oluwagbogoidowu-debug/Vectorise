@@ -62,7 +62,14 @@ const PartnerDashboard: React.FC = () => {
     // B. Fetch available sprints
     const sprintsQuery = query(collection(db, 'sprints'), where('published', '==', true));
     const unsubscribeSprints = onSnapshot(sprintsQuery, (snapshot) => {
-      setRealTimeSprints(snapshot.docs.map(doc => sanitizeData(doc.data()) as Sprint));
+      const allSprints = snapshot.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+      const selectedIds = p?.partnerData?.selectedSprintIds;
+      
+      if (selectedIds && selectedIds.length > 0) {
+        setRealTimeSprints(allSprints.filter(s => selectedIds.includes(s.id)));
+      } else {
+        setRealTimeSprints(allSprints);
+      }
     });
 
     // C. Subscribe to Link Click Telemetry
