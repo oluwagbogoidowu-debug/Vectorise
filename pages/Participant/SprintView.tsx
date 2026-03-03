@@ -201,6 +201,8 @@ const SprintView: React.FC = () => {
             setIsReflectionModalOpen(false);
 
             if (isLastDay && updatedProgress.every(p => p.completed)) {
+                // Start the next queued sprint automatically
+                await sprintService.startNextQueuedSprint(user.id);
                 navigate('/discover', { replace: true });
             }
         } catch (err) {

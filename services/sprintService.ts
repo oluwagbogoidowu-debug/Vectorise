@@ -233,5 +233,50 @@ export const sprintService = {
         const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
         const finalData = { ...(data || {}), approvalStatus: 'approved', published: true, updatedAt: new Date().toISOString(), pendingChanges: deleteField() };
         await updateDoc(sprintRef, sanitizeData(finalData));
+    },
+
+    startNextQueuedSprint: async (userId: string) => {
+        try {
+            // 1. Check for any active enrollments
+            const activeQuery = query(
+                collection(db, ENROLLMENTS_COLLECTION), 
+                where("user_id", "==", userId), 
+                where("status", "==", "active")
+            );
+            const activeSnap = await getDocs(activeQuery);
+            
+            // If there's already an active sprint, don't start another one
+            if (!activeSnap.empty) return null;
+
+            // 2. Find the oldest queued enrollment
+            const queuedQuery = query(
+                collection(db, ENROLLMENTS_COLLECTION), 
+                where("user_id", "==", userId), 
+                where("status", "==", "queued")
+            );
+            const queuedSnap = await getDocs(queuedQuery);
+            
+            if (queuedSnap.empty) return null;
+
+            // Sort by started_at (oldest first)
+            const queued = queuedSnap.docs
+                .map(doc => sanitizeData(doc.data()) as ParticipantSprint)
+                .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime());
+
+            const nextSprint = queued[0];
+            const enrollmentRef = doc(db, ENROLLMENTS_COLLECTION, nextSprint.id);
+            
+            const now = new Date().toISOString();
+            await updateDoc(enrollmentRef, { 
+                status: 'active',
+                started_at: now, // Reset start time to now when it actually starts
+                last_activity_at: now
+            });
+
+            return nextSprint.id;
+        } catch (error) {
+            console.error("[SprintService] Failed to start next queued sprint:", error);
+            return null;
+        }
     }
 };

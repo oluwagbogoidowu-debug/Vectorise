@@ -65,11 +65,11 @@ const ParticipantDashboard: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
-    const fetchData = async () => {
-        if (!user) return;
-        setIsLoading(true);
+    if (!user) return;
+    
+    setIsLoading(true);
+    const unsubscribeEnrollments = sprintService.subscribeToUserEnrollments(user.id, async (enrollments) => {
         try {
-            const enrollments = await sprintService.getUserEnrollments(user.id);
             const enriched = await Promise.all(enrollments.map(async (enrollment) => {
                 const sprint = await sprintService.getSprintById(enrollment.sprint_id);
                 return (sprint && enrollment) ? { enrollment, sprint } : null;
@@ -85,29 +85,30 @@ const ParticipantDashboard: React.FC = () => {
 
             setMySprints(activeOnly);
             setQueuedSprints(queuedOnly);
+
+            // If no active sprints but there are queued ones, start the next one automatically
+            if (activeOnly.length === 0 && queuedOnly.length > 0) {
+                await sprintService.startNextQueuedSprint(user.id);
+            }
         } catch (err) {
             console.error(err);
         } finally {
             setIsLoading(false);
         }
-    };
-    
-    fetchData();
+    });
 
     const timerInterval = setInterval(() => {
         const currentTime = Date.now();
         setNow(currentTime);
     }, 1000);
 
-    let unsubscribeNotifs = () => {};
-    if (user) {
-        unsubscribeNotifs = notificationService.subscribeToNotifications(user.id, (newNotifs) => {
-            setNotifications(newNotifs);
-        });
-    }
+    const unsubscribeNotifs = notificationService.subscribeToNotifications(user.id, (newNotifs) => {
+        setNotifications(newNotifs);
+    });
 
     return () => {
         clearInterval(timerInterval);
+        unsubscribeEnrollments();
         unsubscribeNotifs();
     };
   }, [user]);
