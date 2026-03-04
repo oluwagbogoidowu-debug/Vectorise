@@ -99,15 +99,17 @@ export const AppRoutes: React.FC = () => {
   const { user, activeRole } = useAuth();
   const location = useLocation();
 
-  const hasRefParam = new URLSearchParams(window.location.search).has('ref') || 
-                      new URLSearchParams(window.location.hash.split('?')[1] || "").has('ref');
-
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignUpPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
-      <Route path="/" element={(user && !hasRefParam) ? <ParticipantLayout><HomePage /></ParticipantLayout> : <HomePage />} />
+      <Route path="/" element={
+        user 
+          ? <Navigate to={`/dashboard${location.search}`} replace /> 
+          : <Navigate to={`/login${location.search}`} replace />
+      } />
+      <Route path="/welcome" element={<HomePage />} />
       <Route path="/recommended" element={<RecommendedSprints />} />
       <Route path="/partner" element={<PartnerPage />} />
       <Route path="/partner/apply" element={<PartnerApply />} />

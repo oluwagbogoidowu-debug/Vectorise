@@ -185,7 +185,7 @@ const LoginPage: React.FC = () => {
             </form>
             
             <p className="mt-8 text-center text-[9px] font-black text-gray-300 uppercase tracking-widest leading-none">
-                New here? <Link to="/" className="text-primary hover:underline">Start your rise</Link>
+                New here? <Link to="/welcome" className="text-primary hover:underline">Start your rise</Link>
             </p>
         </div>
       </div>

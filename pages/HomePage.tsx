@@ -64,7 +64,7 @@ const HomePage: React.FC = () => {
       {/* NAVIGATION */}
       <nav className="fixed top-0 left-0 w-full z-[100] bg-white/95 backdrop-blur-md px-6 py-5">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="hover:scale-105 transition-transform duration-500">
+          <Link to="/welcome" className="hover:scale-105 transition-transform duration-500">
             <LocalLogo type="green" className="h-[2.125rem] w-auto" />
           </Link>
           <div className="flex gap-6 items-center">
