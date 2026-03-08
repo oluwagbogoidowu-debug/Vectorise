@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationService } from '../services/notificationService';
-import { Home, Package, User } from 'lucide-react';
+import { Home, Zap, User } from 'lucide-react';
 
 const BottomNavigation: React.FC = () => {
   const { user } = useAuth();
@@ -37,7 +37,7 @@ const BottomNavigation: React.FC = () => {
       label: 'My Sprints',
       path: '/my-sprints',
       icon: (active: boolean) => (
-        <Package className={`h-6 w-6 ${active ? 'text-[#0E7850]' : 'text-gray-400'}`} strokeWidth={active ? 2.5 : 2} />
+        <Zap className={`h-6 w-6 ${active ? 'text-[#0E7850]' : 'text-gray-400'}`} strokeWidth={active ? 2.5 : 2} />
       )
     },
     {

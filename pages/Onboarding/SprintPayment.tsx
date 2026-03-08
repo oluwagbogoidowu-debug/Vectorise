@@ -156,28 +156,28 @@ const SprintPayment: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#FAFAFA] flex flex-col items-center py-12 px-6 overflow-x-hidden selection:bg-primary/10 font-sans relative">
+    <div className="min-h-screen w-full bg-[#FAFAFA] flex flex-col items-center py-6 px-4 overflow-x-hidden selection:bg-primary/10 font-sans relative">
       <div className="max-w-xl w-full animate-fade-in">
-        <div className="flex flex-col items-center mb-10">
-          <LocalLogo type="green" className="h-6 w-auto mb-6 opacity-40" />
-          <div className="w-24 h-1 bg-gray-100 rounded-full overflow-hidden">
+        <div className="flex flex-col items-center mb-6">
+          <LocalLogo type="green" className="h-5 w-auto mb-4 opacity-40" />
+          <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
              <div className="h-full bg-primary rounded-full transition-all duration-1000 w-[75%]" style={{ width: '75%' }}></div>
           </div>
         </div>
 
-        <div className="bg-white rounded-[3rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col animate-slide-up">
-          <header className="p-8 md:p-12 text-center border-b border-gray-50">
-             <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-none mb-3 italic">Unlock {sprintTitle}</h1>
+        <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col animate-slide-up">
+          <header className="p-6 md:p-8 text-center border-b border-gray-50">
+             <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-none italic">Unlock {sprintTitle}</h1>
           </header>
-          <main className="p-8 md:p-12 space-y-10">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-               <section className="bg-gray-50 rounded-3xl p-8 border border-gray-100 text-center space-y-2 relative overflow-hidden">
-                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Investment</p>
-                  <h3 className="text-5xl font-black text-gray-900 tracking-tighter">{isCreditSprint ? '🪙' : '₦'}{sprintPrice.toLocaleString()}</h3>
+          <main className="p-6 md:p-8 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+               <section className="bg-gray-50 rounded-2xl p-6 border border-gray-100 text-center space-y-1 relative overflow-hidden">
+                  <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Investment</p>
+                  <h3 className="text-4xl font-black text-gray-900 tracking-tighter">{isCreditSprint ? '🪙' : '₦'}{sprintPrice.toLocaleString()}</h3>
                </section>
-               <section className="space-y-4 pt-4">
-                  <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">What's included</h2>
-                  <div className="text-[11px] md:text-xs font-bold text-gray-600 space-y-2">
+               <section className="space-y-3 pt-2">
+                  <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em]">What's included</h2>
+                  <div className="text-[10px] md:text-xs font-bold text-gray-600 space-y-1.5">
                     <p>✓ {selectedSprint?.duration || 5}-Day Guided Focus</p>
                     <p>✓ Daily Outcome Protocol</p>
                     <p>✓ Professional Coaching Access</p>
@@ -186,9 +186,9 @@ const SprintPayment: React.FC = () => {
             </div>
             
             {!isCreditSprint && (
-               <section className="pt-6 border-t border-gray-50 space-y-4">
+               <section className="pt-4 border-t border-gray-50 space-y-3">
                  <div className="max-w-sm mx-auto">
-                    <label className="block text-[8px] font-black text-gray-400 uppercase mb-2 ml-1">Email Address</label>
+                    <label className="block text-[7px] font-black text-gray-400 uppercase mb-1.5 ml-1">Email Address</label>
                     <input 
                       type="email" 
                       value={user?.email || guestEmail} 
@@ -198,27 +198,27 @@ const SprintPayment: React.FC = () => {
                       }} 
                       readOnly={!!user}
                       placeholder="your@email.com" 
-                      className={`w-full px-6 py-4 bg-gray-50 border rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-black text-black transition-all ${user ? 'cursor-not-allowed bg-gray-100' : 'border-gray-100'} ${validationError ? 'border-red-500 ring-2 ring-red-50' : ''}`} 
+                      className={`w-full px-5 py-3.5 bg-gray-50 border rounded-xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-black text-black transition-all ${user ? 'cursor-not-allowed bg-gray-100' : 'border-gray-100'} ${validationError ? 'border-red-500 ring-2 ring-red-50' : ''}`} 
                     />
                     {validationError && (
-                        <p className="text-[9px] text-red-500 font-black uppercase mt-2 ml-1 animate-fade-in">{validationError}</p>
+                        <p className="text-[8px] text-red-500 font-black uppercase mt-1.5 ml-1 animate-fade-in">{validationError}</p>
                     )}
                  </div>
                </section>
             )}
 
-            <section className="pt-6 border-t border-gray-50 space-y-6">
-               <label className="flex items-start gap-4 p-5 bg-primary/5 border border-primary/10 rounded-2xl cursor-pointer active:scale-[0.98] transition-all group hover:bg-primary/10">
-                <input type="checkbox" checked={finalCommitment} onChange={(e) => setFinalCommitment(e.target.checked)} className="w-5 h-5 bg-white border-gray-200 rounded focus:ring-primary text-primary" />
-                <span className="text-xs font-black text-primary uppercase tracking-widest leading-tight">I’m committing to complete this sprint.</span>
+            <section className="pt-4 border-t border-gray-50 space-y-4">
+               <label className="flex items-start gap-3 p-4 bg-primary/5 border border-primary/10 rounded-xl cursor-pointer active:scale-[0.98] transition-all group hover:bg-primary/10">
+                <input type="checkbox" checked={finalCommitment} onChange={(e) => setFinalCommitment(e.target.checked)} className="w-4 h-4 bg-white border-gray-200 rounded focus:ring-primary text-primary" />
+                <span className="text-[10px] font-black text-primary uppercase tracking-widest leading-tight">I’m committing to complete this sprint.</span>
               </label>
-              {errorMessage && <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-[10px] font-bold text-red-600 uppercase tracking-widest text-center animate-pulse">{errorMessage}</div>}
+              {errorMessage && <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-[9px] font-bold text-red-600 uppercase tracking-widest text-center animate-pulse">{errorMessage}</div>}
             </section>
           </main>
-          <footer className="p-8 md:p-12 pt-4 bg-gray-50/50 border-t border-gray-50">
-             <div className="space-y-6">
-                <Button onClick={isCreditSprint ? handleCoinPayment : startCashPayment} disabled={!canPay} isLoading={isProcessing} className="w-full py-5 rounded-full shadow-2xl text-sm uppercase font-black">{isProcessing ? "Authorizing..." : isCreditSprint ? `Redeem ${sprintPrice} Credits` : "Pay & Start Sprint"}</Button>
-                <div className="text-center"><button onClick={handleHesitation} className="text-[10px] font-black text-gray-400 hover:text-primary transition-colors underline underline-offset-4 decoration-gray-200 cursor-pointer">Not sure yet? See The Map</button></div>
+          <footer className="p-6 md:p-8 pt-3 bg-gray-50/50 border-t border-gray-50">
+             <div className="space-y-4">
+                <Button onClick={isCreditSprint ? handleCoinPayment : startCashPayment} disabled={!canPay} isLoading={isProcessing} className="w-full py-4 rounded-xl shadow-xl text-[11px] uppercase font-black">{isProcessing ? "Authorizing..." : isCreditSprint ? `Redeem ${sprintPrice} Credits` : "Pay & Start Sprint"}</Button>
+                <div className="text-center"><button onClick={handleHesitation} className="text-[9px] font-black text-gray-400 hover:text-primary transition-colors underline underline-offset-4 decoration-gray-200 cursor-pointer">Not sure yet? See The Map</button></div>
              </div>
           </footer>
         </div>
