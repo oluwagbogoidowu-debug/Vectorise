@@ -74,84 +74,84 @@ const CommitmentFraming: React.FC = () => {
       
       {/* Main Commitment Modal */}
       {!showEmailCapture && (
-        <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] animate-slide-up">
+        <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl relative overflow-hidden flex flex-col max-h-[95vh] animate-slide-up">
           
-          <header className="p-8 pb-4 text-center border-b border-gray-50 flex-shrink-0">
-             <LocalLogo type="green" className="h-6 w-auto mx-auto mb-4 opacity-80" />
-             <h1 className="text-2xl font-black text-gray-900 tracking-tighter italic">Before you start</h1>
-             <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mt-1 opacity-60">
+          <header className="p-6 pb-3 text-center border-b border-gray-50 flex-shrink-0">
+             <LocalLogo type="green" className="h-5 w-auto mx-auto mb-3 opacity-80" />
+             <h1 className="text-xl font-black text-gray-900 tracking-tighter italic">Before you start</h1>
+             <p className="text-[9px] font-black text-primary uppercase tracking-[0.3em] mt-0.5 opacity-60">
                  {hasActiveSprint ? 'Registry Queue Protocol' : 'Execution Protocol'}
              </p>
           </header>
 
-          <main className="flex-1 overflow-y-auto p-8 pt-6 custom-scrollbar space-y-8">
+          <main className="flex-1 overflow-y-auto p-6 pt-4 custom-scrollbar space-y-6">
             
             {hasActiveSprint && (
-                <div className="bg-blue-50 border border-blue-100 p-5 rounded-2xl animate-fade-in">
-                    <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
+                <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl animate-fade-in">
+                    <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest mb-1 flex items-center gap-2">
+                        <span className="w-1 h-1 bg-blue-600 rounded-full"></span>
                         Active Session Detected
                     </p>
-                    <p className="text-xs font-bold text-blue-800 leading-relaxed italic">
-                        "You’re already running a sprint. This program will be added to your <strong className="underline decoration-blue-200 underline-offset-2">Upcoming Queue</strong> and will activate automatically once your current cycle ends."
+                    <p className="text-[11px] font-bold text-blue-800 leading-relaxed italic">
+                        "You’re already running a sprint. This will be added to your <strong className="underline decoration-blue-200 underline-offset-2">Upcoming Queue</strong>."
                     </p>
                 </div>
             )}
 
-            <section className="space-y-4">
-              <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">Requirements</h2>
-              <div className="space-y-3">
+            <section className="space-y-3">
+              <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em]">Requirements</h2>
+              <div className="space-y-2">
                 {[
                   { t: "Daily action", d: `One focused task per day to create ${sprint?.title || 'clarity'}.` },
                   { t: "Honest reflection", d: "Notice what energizes or drains you." },
                   { t: "Completion mindset", d: "Finishing is where the value lives." }
                 ].map((item, i) => (
-                  <div key={i} className="bg-gray-50 border border-gray-100 p-4 rounded-2xl group transition-all hover:border-primary/20">
-                    <h3 className="text-xs font-black text-gray-900 mb-0.5">{item.t}</h3>
-                    <p className="text-[11px] text-gray-400 leading-snug font-medium">{item.d}</p>
+                  <div key={i} className="bg-gray-50 border border-gray-100 p-3 rounded-xl group transition-all hover:border-primary/20">
+                    <h3 className="text-[11px] font-black text-gray-900 mb-0.5">{item.t}</h3>
+                    <p className="text-[10px] text-gray-400 leading-snug font-medium">{item.d}</p>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="bg-primary/5 rounded-[1.5rem] p-6 text-center space-y-4 border border-primary/10">
-               <div className="flex justify-center items-center gap-6">
+            <section className="bg-primary/5 rounded-2xl p-4 text-center space-y-3 border border-primary/10">
+               <div className="flex justify-center items-center gap-4">
                   <div>
-                    <p className="text-2xl font-black text-primary leading-none">{sprint?.duration || 5}</p>
-                    <p className="text-[8px] font-black uppercase text-primary/60">Days</p>
+                    <p className="text-xl font-black text-primary leading-none">{sprint?.duration || 5}</p>
+                    <p className="text-[7px] font-black uppercase text-primary/60">Days</p>
                   </div>
-                  <div className="w-px h-6 bg-primary/10"></div>
+                  <div className="w-px h-4 bg-primary/10"></div>
                   <div>
-                    <p className="text-2xl font-black text-primary leading-none">15</p>
-                    <p className="text-[8px] font-black uppercase text-primary/60">Min/Day</p>
+                    <p className="text-xl font-black text-primary leading-none">15</p>
+                    <p className="text-[7px] font-black uppercase text-primary/60">Min/Day</p>
                   </div>
                </div>
-               <p className="text-[10px] font-medium text-primary/70 italic">"You don’t need more time. You need protected focus."</p>
+               <p className="text-[9px] font-medium text-primary/70 italic">"You don’t need more time. You need focus."</p>
             </section>
 
-            <section className="pt-2">
-              <label className="flex items-start gap-4 p-5 bg-gray-50 border border-gray-100 rounded-[1.5rem] cursor-pointer active:scale-[0.98] transition-all group hover:border-primary/20">
-                <div className="relative flex items-center h-5 mt-0.5">
+            <section className="pt-1">
+              <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer active:scale-[0.98] transition-all group hover:border-primary/20">
+                <div className="relative flex items-center h-4 mt-0.5">
                   <input 
                     type="checkbox" 
                     checked={isCommitted}
                     onChange={(e) => setIsCommitted(e.target.checked)}
-                    className="w-5 h-5 bg-white border-gray-200 rounded focus:ring-offset-white focus:ring-primary text-primary cursor-pointer transition-all"
+                    className="w-4 h-4 bg-white border-gray-200 rounded focus:ring-offset-white focus:ring-primary text-primary cursor-pointer transition-all"
                   />
                 </div>
-                <div className="text-xs font-bold text-gray-700 leading-tight select-none">
+                <div className="text-[11px] font-bold text-gray-700 leading-tight select-none">
                   I’m ready to commit to daily action for the next {sprint?.duration || 5} days.
                 </div>
               </label>
             </section>
           </main>
 
-          <footer className="p-8 pt-4 border-t border-gray-50 bg-white flex-shrink-0">
-            <div className="space-y-4">
+          <footer className="p-6 pt-3 border-t border-gray-50 bg-white flex-shrink-0">
+            <div className="space-y-3">
               <Button 
                 onClick={handleContinue}
                 disabled={!isCommitted}
-                className={`w-full py-4 rounded-full shadow-xl transition-all text-[11px] uppercase tracking-widest font-black ${
+                className={`w-full py-3.5 rounded-xl shadow-xl transition-all text-[10px] uppercase tracking-widest font-black ${
                   isCommitted ? 'bg-primary text-white active:scale-95' : 'bg-gray-100 text-gray-400 grayscale cursor-not-allowed border-none shadow-none'
                 }`}
               >
@@ -161,7 +161,7 @@ const CommitmentFraming: React.FC = () => {
               <div className="text-center">
                 <button 
                   onClick={() => setShowEmailCapture(true)}
-                  className="text-[9px] font-black text-gray-400 hover:text-red-400 transition-colors uppercase tracking-widest"
+                  className="text-[8px] font-black text-gray-400 hover:text-red-400 transition-colors uppercase tracking-widest"
                 >
                   Not ready yet
                 </button>

@@ -112,32 +112,32 @@ const PaymentSuccess: React.FC = () => {
     }, [tx_ref, urlStatus, navigate, user]);
 
     return (
-        <div className="min-h-screen bg-[#FDFDFD] flex flex-col items-center justify-center p-6 text-center font-sans">
-            <div className="max-w-md w-full bg-white rounded-[3rem] shadow-2xl border border-gray-100 p-12 relative overflow-hidden animate-fade-in">
-                <header className="mb-10">
-                    <LocalLogo type="green" className="h-10 w-auto mx-auto mb-8" />
+        <div className="min-h-screen bg-[#FDFDFD] flex flex-col items-center justify-center p-4 text-center font-sans overflow-hidden">
+            <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 p-8 md:p-12 relative overflow-hidden animate-fade-in">
+                <header className="mb-0">
+                    <LocalLogo type="green" className="h-8 w-auto mx-auto mb-6" />
                     
                     {status === 'verifying' || status === 'pending' ? (
-                        <div className="space-y-6">
-                            <div className="relative w-24 h-24 mx-auto">
-                                <div className="absolute inset-0 border-8 border-primary/5 rounded-full"></div>
-                                <div className="absolute inset-0 border-8 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                <div className="absolute inset-0 flex items-center justify-center text-3xl animate-pulse">🔒</div>
+                        <div className="space-y-4">
+                            <div className="relative w-20 h-20 mx-auto">
+                                <div className="absolute inset-0 border-6 border-primary/5 rounded-full"></div>
+                                <div className="absolute inset-0 border-6 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                <div className="absolute inset-0 flex items-center justify-center text-2xl animate-pulse">🔒</div>
                             </div>
                             <div>
-                                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">Validating Authorization</h1>
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-4">
+                                <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none italic">Validating Authorization</h1>
+                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mt-3">
                                     Checking Registry source of truth...
                                 </p>
                                 
                                 {retryCount > 10 && (
-                                    <div className="mt-8 animate-fade-in">
-                                        <p className="text-[10px] text-gray-400 font-bold italic mb-4">
-                                            Verification is taking longer than expected...
+                                    <div className="mt-6 animate-fade-in">
+                                        <p className="text-[9px] text-gray-400 font-bold italic mb-3">
+                                            Verification is taking longer...
                                         </p>
                                         <button 
                                             onClick={() => window.location.reload()}
-                                            className="px-6 py-3 bg-gray-50 border border-gray-100 rounded-xl text-[9px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-all"
+                                            className="px-5 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[8px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-all"
                                         >
                                             Force Refresh
                                         </button>
@@ -146,42 +146,42 @@ const PaymentSuccess: React.FC = () => {
                             </div>
                         </div>
                     ) : status === 'successful' ? (
-                        <div className="space-y-6 animate-slide-up">
-                            <div className="w-20 h-20 bg-green-50 text-green-600 rounded-[2rem] flex items-center justify-center mx-auto text-4xl shadow-inner border border-green-100">✓</div>
+                        <div className="space-y-4 animate-slide-up">
+                            <div className="w-16 h-16 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center mx-auto text-3xl shadow-inner border border-green-100">✓</div>
                             <div>
-                                <h1 className="text-3xl font-black text-gray-900 tracking-tight leading-none italic">Success.</h1>
-                                <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mt-3">Registry identity updated.</p>
+                                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">Success.</h1>
+                                <p className="text-[9px] font-black text-primary uppercase tracking-[0.3em] mt-2">Registry identity updated.</p>
                             </div>
-                            <p className="text-sm text-gray-500 font-medium italic mt-6">"Authorizing your journey..."</p>
+                            <p className="text-xs text-gray-500 font-medium italic mt-4">"Authorizing your journey..."</p>
                         </div>
                     ) : status === 'cancelled' ? (
-                        <div className="space-y-6 animate-fade-in">
-                            <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-[2rem] flex items-center justify-center mx-auto text-4xl shadow-inner border border-amber-100">!</div>
+                        <div className="space-y-4 animate-fade-in">
+                            <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto text-3xl shadow-inner border border-amber-100">!</div>
                             <div>
-                                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">Cancelled</h1>
-                                <p className="text-sm text-gray-500 font-medium leading-relaxed mt-4 italic">
+                                <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none italic">Cancelled</h1>
+                                <p className="text-xs text-gray-500 font-medium leading-relaxed mt-3 italic">
                                     Your payment was cancelled. No charges were made.
                                 </p>
                             </div>
                             <button 
                                 onClick={() => navigate('/onboarding/focus-selector', { replace: true })} 
-                                className="w-full py-4 bg-gray-900 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all"
+                                className="w-full py-3.5 bg-gray-900 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-xl active:scale-95 transition-all"
                             >
                                 Return to Registry
                             </button>
                         </div>
                     ) : (
-                        <div className="space-y-6 animate-fade-in">
-                            <div className="w-20 h-20 bg-red-50 text-red-500 rounded-[2rem] flex items-center justify-center mx-auto text-4xl shadow-inner border border-red-100">✕</div>
+                        <div className="space-y-4 animate-fade-in">
+                            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto text-3xl shadow-inner border border-red-100">✕</div>
                             <div>
-                                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">Failed</h1>
-                                <p className="text-sm text-gray-500 font-medium leading-relaxed mt-4 italic">
-                                    Your payment could not be verified by the Registry.
+                                <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none italic">Failed</h1>
+                                <p className="text-xs text-gray-500 font-medium leading-relaxed mt-3 italic">
+                                    Your payment could not be verified.
                                 </p>
                             </div>
                             <button 
                                 onClick={() => navigate('/onboarding/focus-selector', { replace: true })} 
-                                className="w-full py-4 bg-gray-900 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all"
+                                className="w-full py-3.5 bg-gray-900 text-white font-black uppercase tracking-widest text-[9px] rounded-xl shadow-xl active:scale-95 transition-all"
                             >
                                 Return to Registry
                             </button>
