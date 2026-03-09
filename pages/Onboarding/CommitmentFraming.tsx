@@ -76,12 +76,14 @@ const CommitmentFraming: React.FC = () => {
       {!showEmailCapture && (
         <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl relative overflow-hidden flex flex-col max-h-[95vh] animate-slide-up">
           
-          <header className="p-6 pb-3 text-center border-b border-gray-50 flex-shrink-0">
-             <LocalLogo type="green" className="h-5 w-auto mx-auto mb-3 opacity-80" />
-             <h1 className="text-xl font-black text-gray-900 tracking-tighter italic">Before you start</h1>
-             <p className="text-[9px] font-black text-primary uppercase tracking-[0.3em] mt-0.5 opacity-60">
-                 {hasActiveSprint ? 'Registry Queue Protocol' : 'Execution Protocol'}
-             </p>
+          <header className="p-6 pb-4 border-b border-gray-50 flex-shrink-0 flex items-center justify-between">
+             <LocalLogo type="green" className="h-5 w-auto opacity-80" />
+             <div className="text-right">
+                <h1 className="text-sm font-black text-gray-900 tracking-tighter leading-none">Before you start</h1>
+                <p className="text-[8px] font-black text-primary uppercase tracking-widest mt-1 opacity-60">
+                    {hasActiveSprint ? 'Registry Queue Protocol' : 'Execution Protocol'}
+                </p>
+             </div>
           </header>
 
           <main className="flex-1 overflow-y-auto p-6 pt-4 custom-scrollbar space-y-6">
