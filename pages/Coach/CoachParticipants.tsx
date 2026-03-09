@@ -28,6 +28,7 @@ const CoachParticipants: React.FC = () => {
     const [isContentExpanded, setIsContentExpanded] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [feedbackText, setFeedbackText] = useState('');
+    const [promptText, setPromptText] = useState('');
     const [chatMessage, setChatMessage] = useState('');
     const [isSendingFeedback, setIsSendingFeedback] = useState(false);
     const [feedbackSent, setFeedbackSent] = useState(false);
@@ -148,6 +149,7 @@ const CoachParticipants: React.FC = () => {
             participantId: viewingSubmission.enrollment.user_id,
             authorId: user.id,
             content: content,
+            prompt: promptText.trim() || undefined,
             timestamp: new Date().toISOString(),
             read: false
         };
@@ -167,6 +169,7 @@ const CoachParticipants: React.FC = () => {
 
             setFeedbackSent(true);
             setFeedbackText('');
+            setPromptText('');
             setChatMessage('');
             setTimeout(() => setFeedbackSent(false), 3000);
         } catch (error) {
@@ -457,6 +460,12 @@ const CoachParticipants: React.FC = () => {
                                                                     <span className="absolute -top-4 left-0 text-[8px] font-black text-gray-400 uppercase tracking-widest">Participant</span>
                                                                 )}
                                                                 <p className="font-medium leading-relaxed">{comment.content}</p>
+                                                                {comment.prompt && (
+                                                                    <div className="mt-2 pt-2 border-t border-white/20">
+                                                                        <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1">Next Step / Prompt:</p>
+                                                                        <p className="font-bold italic">"{comment.prompt}"</p>
+                                                                    </div>
+                                                                )}
                                                                 <span className={`text-[8px] block mt-1 text-right font-black uppercase tracking-tighter ${isMe ? 'text-white/60' : 'text-gray-400'}`}>
                                                                     {new Date(comment.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                                                 </span>
@@ -509,13 +518,28 @@ const CoachParticipants: React.FC = () => {
                                     
                                     {!hasAlreadySentFeedback ? (
                                         <form onSubmit={handleSendFeedback} className="space-y-4">
-                                            <textarea 
-                                                value={feedbackText}
-                                                onChange={(e) => setFeedbackText(e.target.value)}
-                                                placeholder="Share your thoughts or guidance with the student..."
-                                                className="w-full p-4 bg-white border border-gray-200 rounded-2xl text-sm focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all outline-none min-h-[100px] resize-none font-medium shadow-sm"
-                                                required
-                                            />
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Feedback / Thoughts</label>
+                                                <textarea 
+                                                    value={feedbackText}
+                                                    onChange={(e) => setFeedbackText(e.target.value)}
+                                                    placeholder="Share your thoughts or guidance with the student..."
+                                                    className="w-full p-4 bg-white border border-gray-200 rounded-2xl text-sm focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all outline-none min-h-[100px] resize-none font-medium shadow-sm"
+                                                    required
+                                                />
+                                            </div>
+                                            
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-primary uppercase tracking-widest ml-1">Next Step Prompt (Optional)</label>
+                                                <input 
+                                                    type="text"
+                                                    value={promptText}
+                                                    onChange={(e) => setPromptText(e.target.value)}
+                                                    placeholder="e.g. What's the one thing you'll do tomorrow?"
+                                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all outline-none font-bold shadow-sm"
+                                                />
+                                            </div>
+
                                             <div className="flex gap-4">
                                                 <Button 
                                                     type="submit"

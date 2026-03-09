@@ -373,7 +373,7 @@ const SprintView: React.FC = () => {
                             <div className="mt-12 space-y-6 animate-fade-in">
                                 {dayContent?.proofType === 'picker' && (
                                     <div className="space-y-4">
-                                        <SectionHeading>Proof of Action</SectionHeading>
+                                        <SectionHeading>Choose from options curated by you</SectionHeading>
                                         <div className="grid grid-cols-1 gap-3">
                                             {dayContent.proofOptions?.map((opt, idx) => (
                                                 <button 
@@ -406,11 +406,16 @@ const SprintView: React.FC = () => {
 
                                 {dayContent?.proofType === 'note' && (
                                     <div className="space-y-3">
-                                        <SectionHeading>Submit Today's Response</SectionHeading>
+                                        <SectionHeading>Send Submission</SectionHeading>
+                                        {dayContent.submissionPrompt && (
+                                            <p className="text-[10px] font-bold text-gray-400 italic mb-2">
+                                                {dayContent.submissionPrompt}
+                                            </p>
+                                        )}
                                         <textarea 
                                             value={proofInput}
                                             onChange={e => setProofInput(e.target.value)}
-                                            placeholder="Enter your response here..."
+                                            placeholder="User must write a response"
                                             className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-5 text-sm font-medium min-h-[120px] focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all"
                                         />
                                     </div>

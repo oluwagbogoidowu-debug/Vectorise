@@ -262,6 +262,7 @@ export interface DailyContent {
   submissionType?: 'text' | 'file' | 'both' | 'none';
   proofType?: 'confirmation' | 'picker' | 'note';
   proofOptions?: string[];
+  submissionPrompt?: string;
 }
 
 export interface User {

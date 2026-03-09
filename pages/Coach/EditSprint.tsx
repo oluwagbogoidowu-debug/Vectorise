@@ -277,7 +277,7 @@ const EditSprint: React.FC = () => {
       day: selectedDay, lessonText: '', taskPrompt: '', coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: ''
     };
     return (sprint.dailyContent.find(c => c.day === selectedDay)) || {
-      day: selectedDay, lessonText: '', taskPrompt: '', coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: ''
+      day: selectedDay, lessonText: '', taskPrompt: '', coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: '', submissionPrompt: ''
     };
   }, [sprint, selectedDay]);
 
@@ -298,6 +298,7 @@ const EditSprint: React.FC = () => {
           proofType: 'confirmation', 
           proofOptions: [], 
           reflectionQuestion: '', 
+          submissionPrompt: '',
           [field]: value 
         });
       }
@@ -704,6 +705,18 @@ const EditSprint: React.FC = () => {
                     </div>
 
                     <div className="space-y-6">
+                        {currentContent.proofType === 'note' && (
+                            <div className="space-y-3 animate-fade-in">
+                                <label className={labelClasses}>Submission Prompt (Coach's Instruction)</label>
+                                <textarea 
+                                    value={currentContent.submissionPrompt || ''}
+                                    onChange={e => handleContentChange('submissionPrompt', e.target.value)}
+                                    className={editorInputClasses + " h-24"}
+                                    placeholder="Tell the user exactly what to submit (e.g. 'List your top 3 goals')"
+                                />
+                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">This tells the user what response to submit in the text box.</p>
+                            </div>
+                        )}
                         {currentContent.proofType === 'picker' && (
                             <div className="space-y-6 animate-fade-in">
                                 <div className="flex justify-between items-center">

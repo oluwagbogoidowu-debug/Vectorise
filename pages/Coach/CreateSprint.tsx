@@ -108,7 +108,8 @@ const CreateSprint: React.FC = () => {
             reflectionQuestion: 'One idea that shifted my thinking was...',
             submissionType: 'text',
             proofType: 'confirmation',
-            proofOptions: []
+            proofOptions: [],
+            submissionPrompt: ''
         }));
 
         // Added missing 'currency' property
