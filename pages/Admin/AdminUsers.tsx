@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { userService } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { Participant, ParticipantSprint, Sprint } from '../../types';
 
 export default function AdminUsers() {
+    const navigate = useNavigate();
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [enrollments, setEnrollments] = useState<ParticipantSprint[]>([]);
     const [sprints, setSprints] = useState<Sprint[]>([]);
@@ -99,7 +101,11 @@ export default function AdminUsers() {
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {userStats.map(user => (
-                            <tr key={user.id} className="hover:bg-gray-50/30 transition-colors group">
+                            <tr 
+                                key={user.id} 
+                                onClick={() => navigate(`/admin/user/${user.id}`)}
+                                className="hover:bg-gray-50/30 transition-colors group cursor-pointer"
+                            >
                                 <td className="px-8 py-6">
                                     <div className="flex items-center gap-4">
                                         <div className="h-10 w-10 rounded-xl bg-gray-100 flex-shrink-0 overflow-hidden border border-gray-100">
@@ -169,7 +175,11 @@ export default function AdminUsers() {
             {/* Mobile List View */}
             <div className="lg:hidden space-y-4">
                 {userStats.map(user => (
-                    <div key={user.id} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-4">
+                    <div 
+                        key={user.id} 
+                        onClick={() => navigate(`/admin/user/${user.id}`)}
+                        className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-4 cursor-pointer active:scale-[0.98] transition-transform"
+                    >
                         <div className="flex items-center gap-4">
                             <div className="h-12 w-12 rounded-2xl bg-gray-100 flex-shrink-0 overflow-hidden border border-gray-100">
                                 {user.profileImageUrl ? (

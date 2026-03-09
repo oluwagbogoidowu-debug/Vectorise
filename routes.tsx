@@ -15,6 +15,7 @@ import AdminDashboard from './pages/Admin/AdminDashboard';
 import UserAnalyticsDetail from './pages/Admin/UserAnalyticsDetail';
 import CreateFoundationalSprint from './pages/Admin/CreateFoundationalSprint';
 import AdminCoachDetail from './pages/Admin/AdminCoachDetail';
+import AdminUserDetail from './pages/Admin/AdminUserDetail';
 import { UserRole } from './types';
 import { Welcome } from './pages/Onboarding/Welcome';
 import QuizIntro from './pages/Onboarding/QuizIntro';
@@ -190,6 +191,7 @@ export const AppRoutes: React.FC = () => {
       
       {/* Admin Track */}
       <Route path="/admin/dashboard" element={<ProtectedRoute roles={[UserRole.ADMIN]}><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/user/:userId" element={<ProtectedRoute roles={[UserRole.ADMIN]}><AdminUserDetail /></ProtectedRoute>} />
       <Route path="/admin/analytics/user/:identifier" element={<ProtectedRoute roles={[UserRole.ADMIN]}><UserAnalyticsDetail /></ProtectedRoute>} />
       <Route path="/admin/sprint/new" element={<ProtectedRoute roles={[UserRole.ADMIN]}><CreateFoundationalSprint /></ProtectedRoute>} />
       <Route path="/admin/coach/:coachId" element={<ProtectedRoute roles={[UserRole.ADMIN]}><AdminCoachDetail /></ProtectedRoute>} />
