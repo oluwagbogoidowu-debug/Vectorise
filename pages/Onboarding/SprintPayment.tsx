@@ -37,8 +37,8 @@ const SprintPayment: React.FC = () => {
   }, [state.prefilledEmail]);
 
   const isCreditSprint = selectedSprint?.pricingType === 'credits';
-  const sprintPrice = isCreditSprint ? (selectedSprint?.pointCost ?? 0) : (selectedSprint?.price ?? 5000);
-  const sprintTitle = selectedSprint?.title ?? "Sprint";
+  const sprintPrice = isCreditSprint ? (selectedSprint?.pointCost ?? 0) : (selectedSprint?.price ?? 3000);
+  const sprintTitle = selectedSprint?.title ?? "From Confusion to a Clear Path";
   const sprintId = selectedSprint?.id;
 
   const userParticipant = user as Participant;
@@ -167,23 +167,35 @@ const SprintPayment: React.FC = () => {
 
         <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col animate-slide-up">
           <header className="p-6 md:p-8 text-center border-b border-gray-50">
-             <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-none italic">Unlock {sprintTitle}</h1>
+             <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-none italic">{sprintTitle}</h1>
           </header>
           <main className="p-6 md:p-8 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                <section className="bg-gray-50 rounded-2xl p-6 border border-gray-100 text-center space-y-1 relative overflow-hidden">
                   <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Investment</p>
                   <h3 className="text-4xl font-black text-gray-900 tracking-tighter">{isCreditSprint ? '🪙' : '₦'}{sprintPrice.toLocaleString()}</h3>
+                  {!isCreditSprint && (
+                    <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mt-2">One-time payment for the {selectedSprint?.duration || 5}-day sprint.</p>
+                  )}
                </section>
                <section className="space-y-3 pt-2">
                   <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em]">What's included</h2>
                   <div className="text-[10px] md:text-xs font-bold text-gray-600 space-y-1.5">
-                    <p>✓ {selectedSprint?.duration || 5}-Day Guided Focus</p>
-                    <p>✓ Daily Outcome Protocol</p>
-                    <p>✓ Professional Coaching Access</p>
+                    <p>✓ {selectedSprint?.duration || 5}-Day Guided Clarity Sprint</p>
+                    <p>✓ Daily Action Protocol (15 minutes a day)</p>
+                    <p>✓ Coach Feedback During the Sprint</p>
                   </div>
                </section>
             </div>
+
+            <section className="pt-6 border-t border-gray-50">
+               <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4">What You’ll Walk Away With</h2>
+               <div className="text-[10px] md:text-xs font-bold text-gray-600 space-y-2">
+                 <p>✓ A clear direction to focus on next</p>
+                 <p>✓ A simple action plan for your next step</p>
+                 <p>✓ A decision you feel confident about</p>
+               </div>
+            </section>
             
             {!isCreditSprint && (
                <section className="pt-4 border-t border-gray-50 space-y-3">
@@ -210,7 +222,7 @@ const SprintPayment: React.FC = () => {
             <section className="pt-4 border-t border-gray-50 space-y-4">
                <label className="flex items-start gap-3 p-4 bg-primary/5 border border-primary/10 rounded-xl cursor-pointer active:scale-[0.98] transition-all group hover:bg-primary/10">
                 <input type="checkbox" checked={finalCommitment} onChange={(e) => setFinalCommitment(e.target.checked)} className="w-4 h-4 bg-white border-gray-200 rounded focus:ring-primary text-primary" />
-                <span className="text-[10px] font-black text-primary uppercase tracking-widest leading-tight">I’m committing to complete this sprint.</span>
+                <span className="text-[10px] font-black text-primary uppercase tracking-widest leading-tight">I commit to completing this {selectedSprint?.duration || 5}-day sprint.</span>
               </label>
               {errorMessage && <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-[9px] font-bold text-red-600 uppercase tracking-widest text-center animate-pulse">{errorMessage}</div>}
             </section>
@@ -218,7 +230,12 @@ const SprintPayment: React.FC = () => {
           <footer className="p-6 md:p-8 pt-3 bg-gray-50/50 border-t border-gray-50">
              <div className="space-y-4">
                 <Button onClick={isCreditSprint ? handleCoinPayment : startCashPayment} disabled={!canPay} isLoading={isProcessing} className="w-full py-4 rounded-xl shadow-xl text-[11px] uppercase font-black">{isProcessing ? "Authorizing..." : isCreditSprint ? `Redeem ${sprintPrice} Credits` : "Pay & Start Sprint"}</Button>
-                <div className="text-center"><button onClick={handleHesitation} className="text-[9px] font-black text-gray-400 hover:text-primary transition-colors underline underline-offset-4 decoration-gray-200 cursor-pointer">Not sure yet? See The Map</button></div>
+                <div className="text-center">
+                  <button onClick={handleHesitation} className="text-[9px] font-black text-gray-400 hover:text-primary transition-colors underline underline-offset-4 decoration-gray-200 cursor-pointer">Not sure yet? See The Map</button>
+                </div>
+                <div className="text-center pt-2">
+                    <p className="text-[9px] font-bold text-gray-400 italic">Trusted by young professionals seeking clarity.</p>
+                </div>
              </div>
           </footer>
         </div>
