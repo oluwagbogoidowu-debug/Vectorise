@@ -166,6 +166,19 @@ export default function AdminUserDetail() {
                                         <Clock className="w-5 h-5" />
                                     </div>
                                     <div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Last Login</p>
+                                        <p className="text-sm font-bold text-gray-900">
+                                            {user.lastLoginAt 
+                                                ? format(parseISO(user.lastLoginAt), 'MMM d, h:mm a')
+                                                : 'N/A'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                                        <Zap className="w-5 h-5" />
+                                    </div>
+                                    <div>
                                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Last Activity</p>
                                         <p className="text-sm font-bold text-gray-900">
                                             {enrollments[0]?.last_activity_at 
@@ -193,6 +206,16 @@ export default function AdminUserDetail() {
                                                 {interest}
                                             </span>
                                         )) || <p className="text-xs font-bold text-gray-400 italic">No interests selected</p>}
+                                    </div>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Growth Focus</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {user.growthAreas?.map((area, idx) => (
+                                            <span key={idx} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-emerald-100">
+                                                {area}
+                                            </span>
+                                        )) || <p className="text-xs font-bold text-gray-400 italic">No growth areas defined</p>}
                                     </div>
                                 </div>
                                 <div>

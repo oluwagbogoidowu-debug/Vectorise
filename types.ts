@@ -296,6 +296,7 @@ export interface Participant extends User {
   persona: string;
   occupation?: string;
   createdAt: string;
+  lastLoginAt?: string;
   interests?: string[];
   followers?: number;
   following?: number;
