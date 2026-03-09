@@ -372,16 +372,32 @@ const SprintView: React.FC = () => {
                         {!dayProgress?.completed && (
                             <div className="mt-12 space-y-6 animate-fade-in">
                                 {dayContent?.proofType === 'picker' && (
-                                    <div className="space-y-3">
+                                    <div className="space-y-4">
                                         <SectionHeading>Proof of Action</SectionHeading>
-                                        <div className="grid grid-cols-1 gap-2">
-                                            {dayContent.proofOptions?.map(opt => (
+                                        <div className="grid grid-cols-1 gap-3">
+                                            {dayContent.proofOptions?.map((opt, idx) => (
                                                 <button 
-                                                    key={opt}
+                                                    key={idx}
                                                     onClick={() => setProofSelected(opt)}
-                                                    className={`w-full text-left p-4 rounded-xl border transition-all text-xs font-bold uppercase tracking-tight ${proofSelected === opt ? 'bg-primary text-white border-primary shadow-md scale-[1.02]' : 'bg-gray-50 border-gray-100 text-gray-400 hover:bg-white hover:border-primary/20'}`}
+                                                    className={`w-full group relative overflow-hidden py-5 px-6 rounded-2xl transition-all duration-500 border text-center flex items-center justify-center active:scale-95 ${
+                                                        proofSelected === opt 
+                                                        ? 'bg-primary border-primary shadow-xl scale-[1.02]' 
+                                                        : 'bg-white border-gray-100 hover:border-primary/30 hover:bg-gray-50'
+                                                    }`}
                                                 >
-                                                    {opt}
+                                                    <div className="relative z-10 flex items-center gap-3">
+                                                        <span className={`text-[8px] font-black w-5 h-5 rounded-lg flex items-center justify-center transition-colors ${proofSelected === opt ? 'bg-white/20 text-white' : 'bg-gray-50 text-gray-300'}`}>
+                                                            {idx + 1}
+                                                        </span>
+                                                        <span className={`text-[10px] font-black uppercase tracking-[0.15em] transition-colors ${proofSelected === opt ? 'text-white' : 'text-gray-600'}`}>
+                                                            {opt}
+                                                        </span>
+                                                    </div>
+                                                    {proofSelected === opt && (
+                                                        <div className="absolute right-6 top-1/2 -translate-y-1/2">
+                                                            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                                        </div>
+                                                    )}
                                                 </button>
                                             ))}
                                         </div>

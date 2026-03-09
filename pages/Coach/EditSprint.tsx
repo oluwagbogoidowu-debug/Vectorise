@@ -705,14 +705,65 @@ const EditSprint: React.FC = () => {
 
                     <div className="space-y-6">
                         {currentContent.proofType === 'picker' && (
-                            <div className="space-y-3 animate-fade-in">
-                                <label className={labelClasses}>Picker Options (comma separated)</label>
-                                <textarea 
-                                    value={currentContent.proofOptions?.join(', ') || ''}
-                                    onChange={e => handleContentChange('proofOptions', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
-                                    className={editorInputClasses + " h-24"}
-                                    placeholder="Completed first draft, Sent outreach emails, Updated LinkedIn profile..."
-                                />
+                            <div className="space-y-6 animate-fade-in">
+                                <div className="flex justify-between items-center">
+                                    <label className={labelClasses}>Picker Options</label>
+                                    <button 
+                                        onClick={() => {
+                                            const current = currentContent.proofOptions || [];
+                                            handleContentChange('proofOptions', [...current, 'New Option']);
+                                        }}
+                                        className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1 hover:opacity-70 transition-all"
+                                    >
+                                        <Plus className="w-3 h-3" /> Add Option
+                                    </button>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 gap-3">
+                                    {(currentContent.proofOptions || []).map((opt, idx) => (
+                                        <div key={idx} className="flex items-center gap-3 group">
+                                            <div className="flex-1 relative">
+                                                <input 
+                                                    type="text"
+                                                    value={opt}
+                                                    onChange={(e) => {
+                                                        const newOpts = [...(currentContent.proofOptions || [])];
+                                                        newOpts[idx] = e.target.value;
+                                                        handleContentChange('proofOptions', newOpts);
+                                                    }}
+                                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold text-gray-700 focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all"
+                                                    placeholder={`Option ${idx + 1}`}
+                                                />
+                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-300">{idx + 1}</span>
+                                            </div>
+                                            <button 
+                                                onClick={() => {
+                                                    const newOpts = (currentContent.proofOptions || []).filter((_, i) => i !== idx);
+                                                    handleContentChange('proofOptions', newOpts);
+                                                }}
+                                                className="p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    
+                                    {(currentContent.proofOptions || []).length === 0 && (
+                                        <div className="py-8 border-2 border-dashed border-gray-100 rounded-2xl text-center">
+                                            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">No options defined</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="pt-4 border-t border-gray-50">
+                                    <label className={labelClasses}>Bulk Import (comma separated)</label>
+                                    <textarea 
+                                        value={currentContent.proofOptions?.join(', ') || ''}
+                                        onChange={e => handleContentChange('proofOptions', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
+                                        className={editorInputClasses + " h-20 mt-2 text-[10px]"}
+                                        placeholder="Paste comma separated options here..."
+                                    />
+                                </div>
                                 <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">User must select one to mark day complete.</p>
                             </div>
                         )}
