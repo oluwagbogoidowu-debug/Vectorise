@@ -104,9 +104,9 @@ const CommitmentFraming: React.FC = () => {
               <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em]">Requirements</h2>
               <div className="space-y-2">
                 {[
-                  { t: "Daily action", d: `One focused task per day to create ${sprint?.title || 'clarity'}.` },
-                  { t: "Honest reflection", d: "Notice what energizes or drains you." },
-                  { t: "Completion mindset", d: "Finishing is where the value lives." }
+                  { t: "Daily Action", d: "One focused task each day." },
+                  { t: "Honest Reflection", d: "Notice what energizes or drains you." },
+                  { t: "Finish What You Start", d: "The value is in finishing." }
                 ].map((item, i) => (
                   <div key={i} className="bg-gray-50 border border-gray-100 p-3 rounded-xl group transition-all hover:border-primary/20">
                     <h3 className="text-[11px] font-black text-gray-900 mb-0.5">{item.t}</h3>
