@@ -77,13 +77,13 @@ const CommitmentFraming: React.FC = () => {
         <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl relative overflow-hidden flex flex-col max-h-[95vh] animate-slide-up">
           
           <header className="p-6 pb-4 border-b border-gray-50 flex-shrink-0 flex items-center justify-between">
-             <LocalLogo type="green" className="h-5 w-auto opacity-80" />
-             <div className="text-right">
+             <div className="text-left">
                 <h1 className="text-sm font-black text-gray-900 tracking-tighter leading-none">Before you start</h1>
                 <p className="text-[8px] font-black text-primary uppercase tracking-widest mt-1 opacity-60">
-                    {hasActiveSprint ? 'Registry Queue Protocol' : 'Execution Protocol'}
+                    {hasActiveSprint ? 'This is the Registry Queue Protocol' : 'This is the Execution Protocol'}
                 </p>
              </div>
+             <LocalLogo type="green" className="h-5 w-auto opacity-80" />
           </header>
 
           <main className="flex-1 overflow-y-auto p-6 pt-4 custom-scrollbar space-y-6">
