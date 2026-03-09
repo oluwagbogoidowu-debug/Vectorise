@@ -15,8 +15,9 @@ import AdminCoaches from './AdminCoaches';
 import AdminSprints from './AdminSprints';
 import AdminPartners from './AdminPartners';
 import AdminQuotes from './AdminQuotes';
+import AdminUsers from './AdminUsers';
 
-type Tab = 'pulse' | 'orchestrator' | 'analytics' | 'earning' | 'sprints' | 'coaches' | 'partners' | 'quotes' | 'roles';
+type Tab = 'pulse' | 'orchestrator' | 'analytics' | 'earning' | 'sprints' | 'coaches' | 'partners' | 'quotes' | 'roles' | 'users';
 type SprintFilter = 'all' | 'active' | 'core' | 'pending' | 'rejected';
 
 export default function AdminDashboard() {
@@ -97,6 +98,7 @@ export default function AdminDashboard() {
                                 { id: 'earning', label: 'Earning' },
                                 { id: 'sprints', label: 'Sprints' },
                                 { id: 'coaches', label: 'Coaches' },
+                                { id: 'users', label: 'Users' },
                                 { id: 'partners', label: 'Partners' },
                                 { id: 'quotes', label: 'Quotes' },
                                 { id: 'roles', label: 'System' }
@@ -160,6 +162,8 @@ export default function AdminDashboard() {
                         {activeTab === 'sprints' && <AdminSprints />}
 
                         {activeTab === 'coaches' && <AdminCoaches />}
+
+                        {activeTab === 'users' && <AdminUsers />}
 
                         {activeTab === 'partners' && <AdminPartners />}
                         {activeTab === 'quotes' && <AdminQuotes />}

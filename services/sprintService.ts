@@ -220,6 +220,19 @@ export const sprintService = {
         });
     },
 
+    getAllEnrollments: async () => {
+        const q = query(collection(db, ENROLLMENTS_COLLECTION));
+        const snap = await getDocs(q);
+        return snap.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint);
+    },
+
+    subscribeToAllEnrollments: (callback: (enrollments: ParticipantSprint[]) => void) => {
+        const q = query(collection(db, ENROLLMENTS_COLLECTION));
+        return onSnapshot(q, (snapshot) => {
+            callback(snapshot.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint));
+        });
+    },
+
     updateSprint: async (sprintId: string, data: Partial<Sprint>, isDirect: boolean = false) => {
         const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
         await updateDoc(sprintRef, sanitizeData({ ...data, updatedAt: new Date().toISOString() }));
