@@ -146,7 +146,7 @@ const SignUpPage: React.FC = () => {
         <header className="text-center mb-8">
             <LocalLogo type="green" className="h-6 w-auto mx-auto mb-6 opacity-30" />
             <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">
-                {isPartnerApplication ? 'Establish Partner Identity' : fromPayment ? 'Establish your identity' : 'Join the Registry'}
+                {isPartnerApplication ? 'Establish Partner Identity' : fromPayment ? 'Establish your identity' : 'Start your Rise'}
             </h1>
             {referrerId && !isPartnerApplication && (
                 <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-3">
