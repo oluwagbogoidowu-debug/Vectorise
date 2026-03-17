@@ -54,10 +54,33 @@ const LoginPage: React.FC = () => {
 
                       // 1. Check for payment-driven enrollment intent - Use replace: true
                       if (targetSprintId) {
+                          const enrollments = await sprintService.getUserEnrollments(user.id);
+                          const existing = enrollments.find(e => e.sprint_id === targetSprintId);
+                          
+                          if (existing) {
+                              if (existing.status === 'active') {
+                                  navigate(`/participant/sprint/${existing.id}`, { replace: true });
+                                  return;
+                              } else if (existing.status === 'queued') {
+                                  navigate('/my-sprints', { replace: true });
+                                  return;
+                              }
+                              // If completed, maybe they want to pay again to repeat? 
+                              // For now, let's redirect to payment page if they don't have an ACTIVE or QUEUED enrollment
+                          }
+
                           const sprint = await sprintService.getSprintById(targetSprintId);
                           if (sprint) {
-                              const enrollment = await sprintService.enrollUser(user.id, targetSprintId, sprint.duration);
-                              navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
+                              // If it's a foundational/free sprint, we can enroll them
+                              const isFoundational = sprint.category === 'Core Platform Sprint' || sprint.category === 'Growth Fundamentals';
+                              if (isFoundational || sprint.price === 0) {
+                                  const enrollment = await sprintService.enrollUser(user.id, targetSprintId, sprint.duration);
+                                  navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
+                                  return;
+                              }
+                              
+                              // Otherwise, redirect to payment page
+                              navigate('/onboarding/sprint-payment', { state: { sprint: sprint, prefilledEmail: user.email } });
                               return;
                           }
                       }

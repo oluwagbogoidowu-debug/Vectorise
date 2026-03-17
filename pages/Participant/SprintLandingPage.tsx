@@ -87,8 +87,41 @@ const SprintLandingPage: React.FC = () => {
         return userEnrollments.find(e => e.sprint_id === sprint.id)?.id || null;
     }, [userEnrollments, sprint]);
 
-    const handleJoinClick = () => {
+    const [guestEmail, setGuestEmail] = useState('');
+    const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+    const [emailError, setEmailError] = useState('');
+
+    const handleJoinClick = async () => {
         if (!sprint) return;
+        
+        if (!user) {
+            if (!guestEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+                setEmailError("Please enter a valid email to continue.");
+                return;
+            }
+
+            setIsCheckingEmail(true);
+            setEmailError('');
+            try {
+                const emailExists = await userService.checkEmailExists(guestEmail);
+                if (emailExists) {
+                    // User exists, must login
+                    analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, existing_user: true }, undefined, guestEmail);
+                    navigate('/login', { state: { prefilledEmail: guestEmail, targetSprintId: sprint.id } });
+                } else {
+                    // New user, proceed to commitment
+                    analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, existing_user: false }, undefined, guestEmail);
+                    navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus, prefilledEmail: guestEmail } });
+                }
+            } catch (err) {
+                console.error("Error checking email:", err);
+                setEmailError("Something went wrong. Please try again.");
+            } finally {
+                setIsCheckingEmail(false);
+            }
+            return;
+        }
+
         analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId }, user?.id);
         navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus } });
     };
@@ -218,10 +251,32 @@ const SprintLandingPage: React.FC = () => {
                             
                             <div className="space-y-4 relative z-10">
                                 {enrollmentStatus === 'none' ? (
-                                    <Button onClick={handleJoinClick} className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black group/btn">
-                                        Authorize Path 
-                                        <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-                                    </Button>
+                                    <div className="space-y-4">
+                                        {!user && (
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Enter email to start</label>
+                                                <input 
+                                                    type="email" 
+                                                    value={guestEmail}
+                                                    onChange={(e) => {
+                                                        setGuestEmail(e.target.value);
+                                                        if (emailError) setEmailError('');
+                                                    }}
+                                                    placeholder="your@email.com"
+                                                    className={`w-full px-6 py-4 bg-gray-50 border rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-black text-black transition-all ${emailError ? 'border-red-500' : 'border-gray-100'}`}
+                                                />
+                                                {emailError && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{emailError}</p>}
+                                            </div>
+                                        )}
+                                        <Button 
+                                            onClick={handleJoinClick} 
+                                            isLoading={isCheckingEmail}
+                                            className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black group/btn"
+                                        >
+                                            Authorize Path 
+                                            <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                                        </Button>
+                                    </div>
                                 ) : enrollmentStatus === 'active' ? (
                                     <Button onClick={() => navigate(`/participant/sprint/${activeEnrollmentId}`)} className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black bg-emerald-600 border-none group/btn">
                                         Back to Sprint 

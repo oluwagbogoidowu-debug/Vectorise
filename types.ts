@@ -377,6 +377,7 @@ export interface CoachingComment {
   participantId: string;
   authorId: string;
   content: string;
+  prompt?: string;
   timestamp: string;
   read: boolean;
 }

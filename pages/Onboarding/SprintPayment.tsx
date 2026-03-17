@@ -23,8 +23,24 @@ const SprintPayment: React.FC = () => {
 
   const state = location.state || {};
   const selectedSprint: Sprint | null = state.sprint || null;
+  const sprintId = selectedSprint?.id;
   
   useEffect(() => {
+    const checkExistingEnrollment = async () => {
+      if (user && sprintId) {
+        const enrollments = await sprintService.getUserEnrollments(user.id);
+        const existing = enrollments.find(e => e.sprint_id === sprintId);
+        if (existing) {
+          if (existing.status === 'active') {
+            navigate(`/participant/sprint/${existing.id}`, { replace: true });
+          } else if (existing.status === 'queued') {
+            navigate('/my-sprints', { replace: true });
+          }
+        }
+      }
+    };
+    checkExistingEnrollment();
+    
     const loadSettings = async () => {
       const settings = await sprintService.getGlobalOrchestrationSettings();
       setGlobalSettings(settings);
@@ -34,12 +50,11 @@ const SprintPayment: React.FC = () => {
     if (state.prefilledEmail && !guestEmail) {
       setGuestEmail(state.prefilledEmail);
     }
-  }, [state.prefilledEmail]);
+  }, [state.prefilledEmail, user, sprintId]);
 
   const isCreditSprint = selectedSprint?.pricingType === 'credits';
   const sprintPrice = isCreditSprint ? (selectedSprint?.pointCost ?? 0) : (selectedSprint?.price ?? 3000);
   const sprintTitle = selectedSprint?.title ?? "From Confusion to a Clear Path";
-  const sprintId = selectedSprint?.id;
 
   const userParticipant = user as Participant;
   const userBalance = userParticipant?.walletBalance || 0;
