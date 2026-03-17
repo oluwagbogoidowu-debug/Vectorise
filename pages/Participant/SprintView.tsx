@@ -201,9 +201,15 @@ const SprintView: React.FC = () => {
             setIsReflectionModalOpen(false);
 
             if (isLastDay && updatedProgress.every(p => p.completed)) {
-                // Start the next queued sprint automatically
-                await sprintService.startNextQueuedSprint(user.id);
-                navigate('/discover', { replace: true });
+                // Check if there are queued sprints
+                const enrollments = await sprintService.getUserEnrollments(user.id);
+                const hasQueued = enrollments.some(e => e.status === 'queued');
+                
+                if (hasQueued) {
+                    navigate('/dashboard', { replace: true, state: { showNextSprintPopup: true } });
+                } else {
+                    navigate('/discover', { replace: true });
+                }
             }
         } catch (err) {
             console.error("Completion failed", err);

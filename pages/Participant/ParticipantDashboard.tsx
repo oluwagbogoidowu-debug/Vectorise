@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ParticipantSprint, Sprint, Notification } from '../../types';
 import { sprintService } from '../../services/sprintService';
@@ -8,6 +8,7 @@ import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { ARCHETYPES } from '../../constants';
 import { Participant } from '../../types';
+import NextSprintModal from '../../components/NextSprintModal';
 
 /**
  * Calculates if a day is locked based on the "Next Midnight" protocol.
@@ -57,12 +58,23 @@ const getDayStatus = (enrollment: ParticipantSprint, sprint: Sprint, now: number
 const ParticipantDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mySprints, setMySprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
   const [queuedSprints, setQueuedSprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
   const [timeToMidnight, setTimeToMidnight] = useState<string>('00:00:00');
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isNextSprintModalOpen, setIsNextSprintModalOpen] = useState(false);
+  const [isStartingNext, setIsStartingNext] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.showNextSprintPopup) {
+        setIsNextSprintModalOpen(true);
+        // Clear state to prevent re-opening on refresh
+        navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
 
   useEffect(() => {
     if (!user) return;
@@ -85,11 +97,6 @@ const ParticipantDashboard: React.FC = () => {
 
             setMySprints(activeOnly);
             setQueuedSprints(queuedOnly);
-
-            // If no active sprints but there are queued ones, start the next one automatically
-            if (activeOnly.length === 0 && queuedOnly.length > 0) {
-                await sprintService.startNextQueuedSprint(user.id);
-            }
         } catch (err) {
             console.error(err);
         } finally {
@@ -154,8 +161,33 @@ const ParticipantDashboard: React.FC = () => {
   const p = user as Participant;
   const currentArchetype = ARCHETYPES.find(a => a.id === p.archetype);
 
+  const handleStartNextSprint = async () => {
+    if (!user || queuedSprints.length === 0 || isStartingNext) return;
+    
+    setIsStartingNext(true);
+    try {
+        const nextEnrollmentId = await sprintService.startNextQueuedSprint(user.id);
+        if (nextEnrollmentId) {
+            navigate(`/participant/sprint/${nextEnrollmentId}`);
+        }
+    } catch (err) {
+        console.error("Failed to start next sprint", err);
+    } finally {
+        setIsStartingNext(false);
+        setIsNextSprintModalOpen(false);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen w-full bg-[#FDFDFD] font-sans">
+      {queuedSprints[0] && (
+          <NextSprintModal 
+            isOpen={isNextSprintModalOpen}
+            sprint={queuedSprints[0].sprint}
+            onStart={handleStartNextSprint}
+            onClose={() => setIsNextSprintModalOpen(false)}
+          />
+      )}
 
 
 

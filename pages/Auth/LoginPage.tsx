@@ -88,11 +88,22 @@ const LoginPage: React.FC = () => {
 
                       // 2. Resume active journey - Use replace: true
                       const enrollments = await sprintService.getUserEnrollments(user.id);
-                      const active = enrollments.find(e => e.progress.some(p => !p.completed));
+                      const active = enrollments.find(e => e.status === 'active' && e.progress.some(p => !p.completed));
                       if (active) {
                           navigate(`/participant/sprint/${active.id}`, { replace: true });
                           return;
                       }
+
+                      // 3. Check for queued sprints
+                      const queued = enrollments.find(e => e.status === 'queued');
+                      if (queued) {
+                          navigate('/dashboard', { replace: true, state: { showNextSprintPopup: true } });
+                          return;
+                      }
+
+                      // 4. No active or queued sprints - go to explore
+                      navigate('/discover', { replace: true });
+                      return;
                   } catch (e) {
                       console.error("Redirect tracking error", e);
                   }
