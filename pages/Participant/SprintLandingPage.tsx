@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/Button';
-import { Coach, Sprint, Participant, ParticipantSprint } from '../../types';
+import { Coach, Sprint, Participant, ParticipantSprint, UserRole } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { assetService } from '../../services/assetService';
@@ -34,6 +34,17 @@ const SprintLandingPage: React.FC = () => {
     const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [imageError, setImageError] = useState(false);
+
+    const vectoriseCoach: Coach = {
+        id: 'vectorise',
+        name: 'Vectorise',
+        profileImageUrl: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd',
+        role: UserRole.COACH,
+        email: 'hello@vectorise.life',
+        niche: 'AI Growth',
+        bio: 'Your guide to the Vectorise platform.',
+        approved: true
+    };
     
     const fallbackImage = assetService.URLS.DEFAULT_SPRINT_COVER;
     const selectedFocus = location.state?.selectedFocus;
@@ -48,7 +59,7 @@ const SprintLandingPage: React.FC = () => {
                 
                 if (data) {
                     const dbCoach = await userService.getUserDocument(data.coachId);
-                    setFetchedCoach(dbCoach as Coach);
+                    setFetchedCoach((dbCoach as Coach) || vectoriseCoach);
                     
                     // Analytics: Track view
                     analyticsTracker.trackEvent('landing_viewed', { 
@@ -129,7 +140,13 @@ const SprintLandingPage: React.FC = () => {
     if (isLoading) return <div className="flex items-center justify-center min-h-screen bg-light text-[8px] font-black uppercase tracking-[0.2em] text-gray-300">Synchronizing registry...</div>;
     if (!sprint) return <div className="min-h-screen flex flex-col items-center justify-center bg-light text-center px-4"><h2 className="text-base font-black mb-2">Registry item not found.</h2><Button onClick={() => navigate('/discover')}>Discover Paths</Button></div>;
 
-    const isFoundational = sprint.category === 'Core Platform Sprint' || sprint.category === 'Growth Fundamentals';
+    const isFoundational = sprint.sprintType === 'Foundational' || 
+                           sprint.category === 'Core Platform Sprint' || 
+                           sprint.category === 'Growth Fundamentals';
+
+    const displayDescription = sprint.description || sprint.subtitle || "This sprint is designed to help you build a solid foundation for your growth journey.";
+    const displayCoachName = isFoundational ? 'Vectorise' : (fetchedCoach?.name || 'Vectorise');
+    const displayCoachImage = isFoundational ? 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd' : (fetchedCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE);
 
     return (
         <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
@@ -158,6 +175,7 @@ const SprintLandingPage: React.FC = () => {
                                 className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
                                 alt={sprint.title} 
                                 onError={() => setImageError(true)}
+                                referrerPolicy="no-referrer"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
                             <div className="absolute bottom-10 left-10 right-10 text-white">
@@ -180,6 +198,14 @@ const SprintLandingPage: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {/* MAIN DESCRIPTION */}
+                        <section className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-sm animate-fade-in">
+                            <SectionHeading>The Protocol</SectionHeading>
+                            <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed italic">
+                                "{displayDescription}"
+                            </p>
+                        </section>
 
                         {sprint.dynamicSections && sprint.dynamicSections.map((section, index) => (
                             <section key={index} className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">
@@ -292,6 +318,24 @@ const SprintLandingPage: React.FC = () => {
                                 <div className="flex items-center justify-center gap-2 pt-2 opacity-40 group-hover/card:opacity-60 transition-opacity">
                                     <ShieldCheck className="w-3 h-3 text-gray-400" />
                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Secure Protocol</span>
+                                </div>
+                            </div>
+
+                            {/* COACH SECTION */}
+                            <div className="mt-6 pt-6 border-t border-gray-50 relative z-10">
+                                <div className="flex items-center gap-4">
+                                    <img 
+                                        src={displayCoachImage} 
+                                        alt="" 
+                                        className="w-12 h-12 rounded-2xl object-cover border-2 border-white shadow-md ring-1 ring-gray-100" 
+                                        referrerPolicy="no-referrer"
+                                    />
+                                    <div className="min-w-0">
+                                        <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Guided By</p>
+                                        <p className="text-sm font-black text-gray-900 uppercase tracking-tight truncate">
+                                            {displayCoachName}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>

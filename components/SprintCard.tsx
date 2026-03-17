@@ -71,6 +71,25 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
 
     const fallbackUrl = assetService.URLS.DEFAULT_SPRINT_COVER;
 
+    const displayDescription = useMemo(() => {
+        return sprint.description || sprint.subtitle || "No description available.";
+    }, [sprint.description, sprint.subtitle]);
+
+    const displayCoach = useMemo(() => {
+        const isFoundational = sprint.sprintType === 'Foundational' || 
+                              sprint.category === 'Growth Fundamentals' || 
+                              sprint.category === 'Core Platform Sprint';
+        
+        if (isFoundational) {
+            return {
+                ...coach,
+                name: 'Vectorise',
+                profileImageUrl: coach.profileImageUrl || 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd'
+            };
+        }
+        return coach;
+    }, [coach, sprint.sprintType, sprint.category]);
+
     return (
         <div className="relative group h-full w-full">
             {/* Sophisticated Bookmark Toggle */}
@@ -131,14 +150,14 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                     {sprint.subtitle && (
                         <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3 leading-none">{sprint.subtitle}</p>
                     )}
-                    <p className="text-[13px] text-gray-500 line-clamp-2 mb-8 flex-grow font-medium leading-relaxed opacity-80">"{sprint.description}"</p>
+                    <p className="text-[13px] text-gray-500 line-clamp-2 mb-8 flex-grow font-medium leading-relaxed opacity-80">"{displayDescription}"</p>
                     
                     <div className="pt-6 border-t border-gray-50 mt-auto">
                         <div className="flex items-center gap-4 mb-6">
-                            <img src={coach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE} alt="" className="w-10 h-10 rounded-[1.25rem] object-cover border-2 border-white shadow-md ring-1 ring-gray-100" />
+                            <img src={displayCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE} alt="" className="w-10 h-10 rounded-[1.25rem] object-cover border-2 border-white shadow-md ring-1 ring-gray-100" />
                             <div className="min-w-0">
                                 <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Guided By</p>
-                                <p className="text-xs font-black text-gray-900 uppercase tracking-tight truncate">{coach.name}</p>
+                                <p className="text-xs font-black text-gray-900 uppercase tracking-tight truncate">{displayCoach.name}</p>
                             </div>
                         </div>
 
