@@ -40,6 +40,8 @@ const LoginPage: React.FC = () => {
           if (user) {
               if (user.role === UserRole.PARTICIPANT) {
                   try {
+                      const enrollments = await sprintService.getUserEnrollments(user.id);
+
                       // 0. Claim payment if applicable
                       if (tx_ref) {
                           try {
@@ -55,7 +57,6 @@ const LoginPage: React.FC = () => {
 
                       // 1. Check for payment-driven enrollment intent - Use replace: true
                       if (targetSprintId) {
-                          const enrollments = await sprintService.getUserEnrollments(user.id);
                           const existing = enrollments.find(e => e.sprint_id === targetSprintId);
                           
                           if (existing) {
@@ -87,7 +88,6 @@ const LoginPage: React.FC = () => {
                       }
 
                       // 2. Resume active journey - Use replace: true
-                      const enrollments = await sprintService.getUserEnrollments(user.id);
                       const active = enrollments.find(e => e.status === 'active' && e.progress.some(p => !p.completed));
                       if (active) {
                           navigate(`/participant/sprint/${active.id}`, { replace: true });
@@ -116,6 +116,7 @@ const LoginPage: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     if (!email || !password) {
         setEmailError('Required fields empty.');
         return;
@@ -125,6 +126,9 @@ const LoginPage: React.FC = () => {
 
     try {
         await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+        // Success - AuthContext will update and trigger redirect
+        // We set isLoading to false so the button doesn't spin forever if redirect is slow
+        setIsLoading(false);
     } catch (error: any) {
         setEmailError('Authentication failed. Check your credentials.');
         setIsLoading(false);

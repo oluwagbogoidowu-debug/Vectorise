@@ -33,8 +33,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
-      if (firebaseUser) {
-        try {
+      try {
+        if (firebaseUser) {
             let dbUser = await userService.getUserDocument(firebaseUser.uid);
 
             if (dbUser) {
@@ -85,21 +85,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             } else if (dbUser) {
                 setActiveRole(dbUser.role);
             }
-
-        } catch (err) {
-            console.error("Auth State Sync Error", err);
-            let foundUser = MOCK_USERS.find(u => u.email.toLowerCase() === firebaseUser.email?.toLowerCase());
-            if (foundUser) {
-                setUser(sanitizeData(foundUser));
-            }
+        } else {
+            // User is signed out
+            setUser(null);
         }
-
-      } else {
-        // User is signed out
-        setUser(null);
+      } catch (err) {
+          console.error("Auth State Sync Error", err);
+          if (firebaseUser) {
+              let foundUser = MOCK_USERS.find(u => u.email.toLowerCase() === firebaseUser.email?.toLowerCase());
+              if (foundUser) {
+                  setUser(sanitizeData(foundUser));
+              }
+          }
+      } finally {
+          setLoading(false);
       }
-      
-      setLoading(false);
     });
 
     return () => unsubscribe();
