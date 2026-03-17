@@ -173,8 +173,8 @@ const SignUpPage: React.FC = () => {
                       type="email" 
                       required 
                       value={email} 
-                      readOnly={!!prefilledEmail} 
-                      className={`w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm transition-all ${prefilledEmail ? 'opacity-60 bg-gray-100' : 'focus:ring-4 focus:ring-primary/5'}`} 
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm transition-all focus:ring-4 focus:ring-primary/5" 
                       placeholder="Email Address" 
                     />
                 </div>

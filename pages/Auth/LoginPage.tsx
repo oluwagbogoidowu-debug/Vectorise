@@ -154,9 +154,8 @@ const LoginPage: React.FC = () => {
                     <input 
                       type="email" 
                       value={email} 
-                      readOnly={!!initialEmail}
                       onChange={(e) => setEmail(e.target.value)} 
-                      className={`w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm text-black transition-all ${initialEmail ? 'bg-gray-100' : 'focus:ring-4 focus:ring-primary/5'}`} 
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm text-black transition-all focus:ring-4 focus:ring-primary/5" 
                       placeholder="Email Address" 
                     />
                 </div>
