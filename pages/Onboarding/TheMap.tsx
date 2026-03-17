@@ -64,7 +64,7 @@ const TheMap: React.FC = () => {
 
         {/* Card 2 — How progression works */}
         <MapCard>
-            <SectionLabel text="02 Protocol" />
+            <SectionLabel text="02 System" />
             <h2 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-8 italic">How it <br/> works.</h2>
             <div className="space-y-8">
                 {[
@@ -286,7 +286,7 @@ const TheMap: React.FC = () => {
 
       {/* Helper Footer */}
       <footer className="px-8 py-6 text-center bg-white border-t border-gray-50">
-        <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.3em]">Vectorise Map Protocol • Swipe to Navigate</p>
+        <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.3em]">Vectorise Map • Swipe to Navigate</p>
       </footer>
 
       <style>{`

@@ -211,8 +211,8 @@ const SprintPayment: React.FC = () => {
                <section className="space-y-3 pt-2">
                   <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em]">What's included</h2>
                   <div className="text-[10px] md:text-xs font-bold text-gray-600 space-y-1.5">
-                    <p>✓ {selectedSprint?.duration || 5}-Day Guided Clarity Sprint</p>
-                    <p>✓ Daily Action Protocol (15 minutes a day)</p>
+                    <p>✓ {selectedSprint?.duration || 5}-Day Guided Clarity Journey</p>
+                    <p>✓ Daily Action System (15 minutes a day)</p>
                     <p>✓ Coach Feedback During the Sprint</p>
                   </div>
                </section>

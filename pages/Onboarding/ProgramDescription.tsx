@@ -329,7 +329,7 @@ const ProgramDescription: React.FC = () => {
                       </div>
                       <div>
                           <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Execution</p>
-                          <p className="text-sm font-black text-gray-900 leading-none">{sprint.protocol || 'One action per day'}</p>
+                          <p className="text-sm font-black text-gray-900 leading-none">One action per day</p>
                       </div>
                   </div>
               </div>

@@ -11,7 +11,7 @@ import { Participant } from '../../types';
 import NextSprintModal from '../../components/NextSprintModal';
 
 /**
- * Calculates if a day is locked based on the "Next Midnight" protocol.
+ * Calculates if a day is locked based on the "Next Midnight" logic.
  * A day is only accessible if the previous day is complete AND it is at least the next calendar day.
  */
 const getDayStatus = (enrollment: ParticipantSprint, sprint: Sprint, now: number) => {

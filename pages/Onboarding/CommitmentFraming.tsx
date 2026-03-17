@@ -80,7 +80,7 @@ const CommitmentFraming: React.FC = () => {
              <div className="text-left">
                 <h1 className="text-sm font-black text-gray-900 tracking-tighter leading-none">Before you start</h1>
                 <p className="text-[8px] font-black text-primary uppercase tracking-widest mt-1 opacity-60">
-                    {hasActiveSprint ? 'This is the Registry Queue Protocol' : 'This is the Execution Protocol'}
+                    {hasActiveSprint ? 'This is the Registry Queue' : 'This is the Execution Phase'}
                 </p>
              </div>
              <LocalLogo type="green" className="h-5 w-auto opacity-80" />

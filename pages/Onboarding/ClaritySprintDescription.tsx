@@ -142,7 +142,7 @@ const ClaritySprintDescription: React.FC = () => {
                 )}
                 <div className="flex items-center gap-2 text-white/40 text-[11px] font-black uppercase tracking-[0.2em]">
                   <Clock className="w-3 h-3" />
-                  {sprint.duration} DAY PROTOCOL
+                  {sprint.duration} DAY JOURNEY
                 </div>
               </div>
             </div>
@@ -279,7 +279,7 @@ const ClaritySprintDescription: React.FC = () => {
                 <SectionHeading>Sprint Status</SectionHeading>
                 <div className="flex flex-col items-center">
                     <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1 italic">Foundational</h3>
-                    <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Core Protocol</p>
+                    <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Core Journey</p>
                 </div>
               </div>
 
@@ -299,7 +299,7 @@ const ClaritySprintDescription: React.FC = () => {
                       </div>
                       <div>
                           <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Execution Mode</p>
-                          <p className="text-sm font-black text-gray-900 leading-none">{sprint.protocol || 'One action per day'}</p>
+                          <p className="text-sm font-black text-gray-900 leading-none">One action per day</p>
                       </div>
                   </div>
               </div>
@@ -317,7 +317,7 @@ const ClaritySprintDescription: React.FC = () => {
 
                 <div className="flex items-center justify-center gap-2 pt-4 opacity-40 group-hover/card:opacity-60 transition-opacity">
                     <ShieldCheck className="w-3 h-3 text-gray-400" />
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Secure Protocol</span>
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Secure Access</span>
                 </div>
               </div>
             </div>

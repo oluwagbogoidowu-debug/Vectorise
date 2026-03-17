@@ -105,7 +105,7 @@ const ClaritySprintPayment: React.FC = () => {
                   <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em]">What's included</h2>
                   <div className="text-[10px] md:text-xs font-bold text-gray-600 space-y-1.5">
                     <p>✓ {selectedSprint?.duration || 5}-Day Guided Focus</p>
-                    <p>✓ Daily Outcome Protocol</p>
+                    <p>✓ Daily Outcome Journey</p>
                     <p>✓ Registry Certification</p>
                     <p>✓ Professional Coaching Access</p>
                   </div>

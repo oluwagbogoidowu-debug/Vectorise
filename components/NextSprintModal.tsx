@@ -25,7 +25,7 @@ const NextSprintModal: React.FC<NextSprintModalProps> = ({ isOpen, sprint, onSta
                         Next Focus Ready
                     </h2>
                     <p className="text-xs text-gray-400 font-medium leading-relaxed mb-8">
-                        You've completed your last protocol. Your next journey is waiting in the queue.
+                        You've completed your last focus. Your next journey is waiting in the queue.
                     </p>
 
                     <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 mb-8 text-left">
@@ -34,7 +34,7 @@ const NextSprintModal: React.FC<NextSprintModalProps> = ({ isOpen, sprint, onSta
                         <div className="flex items-center gap-3">
                             <span className="text-[10px] font-bold text-gray-400">{sprint.duration} Days</span>
                             <div className="w-1 h-1 bg-gray-200 rounded-full"></div>
-                            <span className="text-[10px] font-bold text-gray-400">Execution Protocol</span>
+                            <span className="text-[10px] font-bold text-gray-400">Execution Journey</span>
                         </div>
                     </div>
 

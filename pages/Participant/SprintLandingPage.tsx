@@ -272,13 +272,13 @@ const SprintLandingPage: React.FC = () => {
                                         <p className="text-sm font-black text-gray-900 leading-none">{sprint.duration} Continuous Days</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-5 p-5 bg-gray-50/50 rounded-[2rem] border border-gray-100 group/item transition-all hover:bg-white hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5">
+                                    <div className="flex items-center gap-5 p-5 bg-gray-50/50 rounded-[2rem] border border-gray-100 group/item transition-all hover:bg-white hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5">
                                     <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm border border-gray-100 transition-all group-hover/item:scale-110 group-hover/item:bg-primary group-hover/item:text-white">
                                         <Zap className="w-6 h-6" />
                                     </div>
                                     <div>
                                         <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Execution</p>
-                                        <p className="text-sm font-black text-gray-900 leading-none">{sprint.protocol || 'One action per day'}</p>
+                                        <p className="text-sm font-black text-gray-900 leading-none">One action per day</p>
                                     </div>
                                 </div>
                             </div>

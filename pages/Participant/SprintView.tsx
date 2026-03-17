@@ -330,7 +330,7 @@ const SprintView: React.FC = () => {
                             <div className="mb-6 opacity-20">
                                 <LocalLogo type="favicon" className="w-32 h-32" />
                             </div>
-                            <h2 className="text-2xl font-black text-gray-900 tracking-tight italic mb-2">Protocol Locked.</h2>
+                            <h2 className="text-2xl font-black text-gray-900 tracking-tight italic mb-2">Access Locked.</h2>
                             <p className="text-sm text-gray-500 font-medium mb-10 max-w-xs">
                                 {dayLockDetails.unlockTime 
                                     ? `Next lesson unlocks at midnight.`

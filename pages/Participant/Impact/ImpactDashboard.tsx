@@ -96,7 +96,7 @@ const ImpactDashboard: React.FC = () => {
 
                 <section className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 space-y-4">
                     <div>
-                        <h3 className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em]">Invite Protocol</h3>
+                        <h3 className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em]">Invite System</h3>
                         <p className="text-sm font-black text-gray-900 tracking-tight leading-none italic">Catalyst</p>
                     </div>
 

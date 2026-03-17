@@ -65,7 +65,7 @@ const ReferralShare: React.FC = () => {
                     <h1 className="text-sm font-black text-gray-900 tracking-tight leading-none italic">Invite</h1>
                 </div>
                 <div className="text-right">
-                    <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest">Protocol</p>
+                    <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest">System</p>
                     <p className="text-[10px] font-bold text-primary italic">Catalyst</p>
                 </div>
             </header>
@@ -150,7 +150,7 @@ const ReferralShare: React.FC = () => {
             </main>
 
             <footer className="text-center pb-4 flex-shrink-0">
-                <p className="text-[7px] font-black text-gray-200 uppercase tracking-[0.4em]">Vectorise • Catalyst Protocol v4.2</p>
+                <p className="text-[7px] font-black text-gray-200 uppercase tracking-[0.4em]">Vectorise • Catalyst System v4.2</p>
             </footer>
 
             <style>{`
