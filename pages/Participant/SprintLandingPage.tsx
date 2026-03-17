@@ -194,18 +194,10 @@ const SprintLandingPage: React.FC = () => {
                                 )}
                                 <div className="flex items-center gap-2 text-white/40 text-[11px] font-black uppercase tracking-[0.2em]">
                                     <Clock className="w-3 h-3" />
-                                    {sprint.duration} DAY PROTOCOL
+                                    {sprint.duration} DAY JOURNEY
                                 </div>
                             </div>
                         </div>
-
-                        {/* MAIN DESCRIPTION */}
-                        <section className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-sm animate-fade-in">
-                            <SectionHeading>The Protocol</SectionHeading>
-                            <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed italic">
-                                "{displayDescription}"
-                            </p>
-                        </section>
 
                         {sprint.dynamicSections && sprint.dynamicSections.map((section, index) => (
                             <section key={index} className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">
@@ -317,7 +309,7 @@ const SprintLandingPage: React.FC = () => {
                                 
                                 <div className="flex items-center justify-center gap-2 pt-2 opacity-40 group-hover/card:opacity-60 transition-opacity">
                                     <ShieldCheck className="w-3 h-3 text-gray-400" />
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Secure Protocol</span>
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Secure Access</span>
                                 </div>
                             </div>
 

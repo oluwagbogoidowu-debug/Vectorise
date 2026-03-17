@@ -3,7 +3,10 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
 import { sprintService } from '../../services/sprintService';
-import { Sprint, Participant, ParticipantSprint, LifecycleSlotAssignment } from '../../types';
+import { userService } from '../../services/userService';
+import { assetService } from '../../services/assetService';
+import { analyticsTracker } from '../../services/analyticsTracker';
+import { Sprint, Participant, ParticipantSprint, LifecycleSlotAssignment, UserRole, Coach } from '../../types';
 import { LIFECYCLE_SLOTS } from '../../services/mockData';
 import { useAuth } from '../../contexts/AuthContext';
 import FormattedText from '../../components/FormattedText';
@@ -27,10 +30,22 @@ const ProgramDescription: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   const [sprint, setSprint] = useState<Sprint | null>(null);
+  const [fetchedCoach, setFetchedCoach] = useState<Coach | null>(null);
   const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [orchestration, setOrchestration] = useState<Record<string, LifecycleSlotAssignment>>({});
+
+  const vectoriseCoach: Coach = {
+    id: 'vectorise',
+    name: 'Vectorise',
+    profileImageUrl: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd',
+    role: UserRole.COACH,
+    email: 'hello@vectorise.life',
+    niche: 'AI Growth',
+    bio: 'Your guide to the Vectorise platform.',
+    approved: true
+  };
 
   const selectedFocus = location.state?.selectedFocus;
   const activeTrigger = location.state?.trigger || 'after_homepage';
@@ -86,6 +101,20 @@ const ProgramDescription: React.FC = () => {
       try {
         const data = await sprintService.getSprintById(sprintId);
         setSprint(data);
+        
+        if (data) {
+            const dbCoach = await userService.getUserDocument(data.coachId);
+            setFetchedCoach((dbCoach as Coach) || vectoriseCoach);
+
+            // Analytics: Track view
+            analyticsTracker.trackEvent('landing_viewed', { 
+                sprint_id: sprintId, 
+                title: data.title,
+                category: data.category,
+                onboarding: true
+            }, user?.id);
+        }
+
         if (user) {
             const enrollments = await sprintService.getUserEnrollments(user.id);
             setUserEnrollments(enrollments);
@@ -139,6 +168,7 @@ const ProgramDescription: React.FC = () => {
 
   const handleProceed = () => {
     if (!sprint) return;
+    analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, onboarding: true }, user?.id);
     navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus, trigger: activeTrigger } });
   };
 
@@ -163,7 +193,13 @@ const ProgramDescription: React.FC = () => {
     );
   }
 
-  const isFoundational = sprint.category === 'Core Platform Sprint' || sprint.category === 'Growth Fundamentals';
+  const isFoundational = sprint.sprintType === 'Foundational' || 
+                         sprint.category === 'Core Platform Sprint' || 
+                         sprint.category === 'Growth Fundamentals';
+
+  const displayDescription = sprint.description || sprint.subtitle || "This sprint is designed to help you build a solid foundation for your growth journey.";
+  const displayCoachName = isFoundational ? 'Vectorise' : (fetchedCoach?.name || 'Vectorise');
+  const displayCoachImage = isFoundational ? 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd' : (fetchedCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE);
 
   return (
     <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
@@ -186,18 +222,19 @@ const ProgramDescription: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8 space-y-8">
             {/* HERO SECTION */}
-            <div className="relative h-[260px] sm:h-[320px] lg:h-[400px] rounded-[2.5rem] overflow-hidden shadow-2xl group border-4 border-white bg-dark">
+            <div className="relative h-[280px] sm:h-[340px] lg:h-[440px] rounded-[3rem] overflow-hidden shadow-2xl group border-4 border-white bg-dark">
               <img 
                 src={imageError || !sprint.coverImageUrl ? fallbackImage : sprint.coverImageUrl} 
-                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
+                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
                 alt={sprint.title} 
                 onError={() => setImageError(true)}
+                referrerPolicy="no-referrer"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
               <div className="absolute bottom-10 left-10 right-10 text-white">
                 <div className="mb-4">
                   <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg">
-                    {slotInfo?.name === 'CLARITY' ? 'CLARITY PATH' : (isFoundational ? 'FOUNDATIONAL PATH' : 'FOUNDATION PATH')}
+                    {slotInfo?.name === 'CLARITY' ? 'CLARITY PATH' : (isFoundational ? 'FOUNDATIONAL PATH' : 'PREMIUM SPRINT')}
                   </span>
                 </div>
                 <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-4">
@@ -210,7 +247,7 @@ const ProgramDescription: React.FC = () => {
                 )}
                 <div className="flex items-center gap-2 text-white/40 text-[11px] font-black uppercase tracking-[0.2em]">
                   <Clock className="w-3 h-3" />
-                  {sprint.duration} DAY PROTOCOL
+                  {sprint.duration} DAY JOURNEY
                 </div>
               </div>
             </div>
@@ -301,8 +338,26 @@ const ProgramDescription: React.FC = () => {
                 
                 <div className="flex items-center justify-center gap-2 pt-2 opacity-40 group-hover/card:opacity-60 transition-opacity">
                     <ShieldCheck className="w-3 h-3 text-gray-400" />
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Secure Protocol</span>
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Secure Access</span>
                 </div>
+              </div>
+
+              {/* COACH SECTION */}
+              <div className="mt-6 pt-6 border-t border-gray-50 relative z-10">
+                  <div className="flex items-center gap-4">
+                      <img 
+                          src={displayCoachImage} 
+                          alt="" 
+                          className="w-12 h-12 rounded-2xl object-cover border-2 border-white shadow-md ring-1 ring-gray-100" 
+                          referrerPolicy="no-referrer"
+                      />
+                      <div className="min-w-0">
+                          <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Guided By</p>
+                          <p className="text-sm font-black text-gray-900 uppercase tracking-tight truncate">
+                              {displayCoachName}
+                          </p>
+                      </div>
+                  </div>
               </div>
             </div>
           </aside>
