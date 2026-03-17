@@ -51,13 +51,21 @@ const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint, coach }) => {
             )}
             <div className="flex items-center gap-1.5 text-white/40 text-[6px] font-black uppercase tracking-widest">
               <Clock className="w-2 h-2" />
-              {sprint.duration || 7} Day Protocol
+              {sprint.duration || 7} Day Journey
             </div>
           </div>
         </div>
 
         <div className="px-6 py-6 space-y-8">
-          {sprint.dynamicSections?.map((section) => (
+          {sprint.description && (!sprint.dynamicSections || sprint.dynamicSections.filter(s => s.body && s.body.trim()).length === 0) && (
+            <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-fade-in">
+              <p className="text-[9px] text-gray-600 font-medium leading-relaxed italic">
+                "{sprint.description}"
+              </p>
+            </section>
+          )}
+
+          {sprint.dynamicSections?.filter(s => s.body && s.body.trim()).map((section) => (
             <section key={`${section.id}-${section.type}`} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-fade-in">
               <SectionHeading>{section.title}</SectionHeading>
               <DynamicSectionRenderer section={section} />

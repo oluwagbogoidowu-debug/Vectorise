@@ -148,6 +148,8 @@ const SprintLandingPage: React.FC = () => {
     const displayCoachName = isFoundational ? 'Vectorise' : (fetchedCoach?.name || 'Vectorise');
     const displayCoachImage = isFoundational ? 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd' : (fetchedCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE);
 
+    const hasDynamicContent = sprint.dynamicSections?.some(s => s.body && s.body.trim().length > 0);
+
     return (
         <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
             <div className="max-w-screen-lg mx-auto px-4 pt-4">
@@ -199,12 +201,26 @@ const SprintLandingPage: React.FC = () => {
                             </div>
                         </div>
 
-                        {sprint.dynamicSections && sprint.dynamicSections.map((section, index) => (
-                            <section key={index} className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">
-                                <SectionHeading>{section.title}</SectionHeading>
-                                <DynamicSectionRenderer section={section} />
-                            </section>
-                        ))}
+                        {/* MAIN CONTENT */}
+                        <div className="space-y-8">
+                            {displayDescription && !hasDynamicContent && (
+                                <section className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-sm animate-fade-in">
+                                    <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed italic">
+                                        "{displayDescription}"
+                                    </p>
+                                </section>
+                            )}
+
+                            {sprint.dynamicSections && sprint.dynamicSections
+                                .filter(section => section.body && section.body.trim().length > 0)
+                                .map((section, index) => (
+                                    <section key={index} className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">
+                                        <SectionHeading>{section.title}</SectionHeading>
+                                        <DynamicSectionRenderer section={section} />
+                                    </section>
+                                ))
+                            }
+                        </div>
                     </div>
 
                     <aside className="lg:col-span-4 space-y-6">
