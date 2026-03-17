@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ParticipantSprint, Sprint, Notification } from '../../types';
@@ -67,14 +67,19 @@ const ParticipantDashboard: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isNextSprintModalOpen, setIsNextSprintModalOpen] = useState(false);
   const [isStartingNext, setIsStartingNext] = useState(false);
+  const autoOpenedRef = useRef(false);
 
   useEffect(() => {
     if (location.state?.showNextSprintPopup) {
         setIsNextSprintModalOpen(true);
         // Clear state to prevent re-opening on refresh
         navigate(location.pathname, { replace: true, state: {} });
+    } else if (!isLoading && mySprints.length === 0 && queuedSprints.length > 0 && !isNextSprintModalOpen && !autoOpenedRef.current) {
+        // Automatically show modal if no active sprint but queued exists
+        setIsNextSprintModalOpen(true);
+        autoOpenedRef.current = true;
     }
-  }, [location.state, navigate]);
+  }, [location.state, navigate, isLoading, mySprints.length, queuedSprints.length, isNextSprintModalOpen]);
 
   useEffect(() => {
     if (!user) return;
@@ -98,10 +103,13 @@ const ParticipantDashboard: React.FC = () => {
             setMySprints(activeOnly);
             setQueuedSprints(queuedOnly);
         } catch (err) {
-            console.error(err);
+            console.error("Error enriching enrollments:", err);
         } finally {
             setIsLoading(false);
         }
+    }, (error) => {
+        console.error("Enrollment subscription error:", error);
+        setIsLoading(false);
     });
 
     const timerInterval = setInterval(() => {

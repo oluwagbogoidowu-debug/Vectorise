@@ -56,6 +56,9 @@ const DiscoverSprints: React.FC = () => {
         const unsubSprints = sprintService.subscribeToPublishedSprints((data) => {
             setSprints(data);
             setIsLoading(false);
+        }, (error) => {
+            console.error("Error subscribing to sprints:", error);
+            setIsLoading(false);
         });
 
         const loadCoachesAndOrchestration = async () => {

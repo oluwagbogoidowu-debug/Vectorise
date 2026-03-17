@@ -87,10 +87,12 @@ export const sprintService = {
         return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
     },
 
-    subscribeToAdminSprints: (callback: (sprints: Sprint[]) => void) => {
+    subscribeToAdminSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("deleted", "==", false));
         return onSnapshot(q, (snap) => {
             callback(snap.docs.map(doc => sanitizeData(doc.data()) as Sprint));
+        }, (error) => {
+            if (onError) onError(error);
         });
     },
 
@@ -100,10 +102,12 @@ export const sprintService = {
         return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
     },
 
-    subscribeToPublishedSprints: (callback: (sprints: Sprint[]) => void) => {
+    subscribeToPublishedSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("published", "==", true), where("deleted", "==", false));
         return onSnapshot(q, (snap) => {
             callback(snap.docs.map(doc => sanitizeData(doc.data()) as Sprint));
+        }, (error) => {
+            if (onError) onError(error);
         });
     },
 
@@ -200,10 +204,12 @@ export const sprintService = {
         return snap.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint);
     },
 
-    subscribeToUserEnrollments: (userId: string, callback: (enrollments: ParticipantSprint[]) => void) => {
+    subscribeToUserEnrollments: (userId: string, callback: (enrollments: ParticipantSprint[]) => void, onError?: (error: any) => void) => {
         const q = query(collection(db, ENROLLMENTS_COLLECTION), where("user_id", "==", userId));
         return onSnapshot(q, (snapshot) => {
             callback(snapshot.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint));
+        }, (error) => {
+            if (onError) onError(error);
         });
     },
 
@@ -214,9 +220,11 @@ export const sprintService = {
         return snap.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint);
     },
 
-    subscribeToEnrollment: (enrollmentId: string, callback: (data: ParticipantSprint | null) => void) => {
+    subscribeToEnrollment: (enrollmentId: string, callback: (data: ParticipantSprint | null) => void, onError?: (error: any) => void) => {
         return onSnapshot(doc(db, ENROLLMENTS_COLLECTION, enrollmentId), (doc) => {
             callback(doc.exists() ? sanitizeData(doc.data()) as ParticipantSprint : null);
+        }, (error) => {
+            if (onError) onError(error);
         });
     },
 

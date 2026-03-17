@@ -26,12 +26,18 @@ const MySprints: React.FC = () => {
         // 1. Subscribe to enrollments in real-time
         const unsubEnrollments = sprintService.subscribeToUserEnrollments(user.id, (data) => {
             setEnrollments(data);
+        }, (error) => {
+            console.error("Enrollment subscription error:", error);
+            setIsLoading(false);
         });
 
         // 2. Subscribe to ALL active sprints for real-time metadata syncing (like unique images)
         // This ensures if a coach updates an image, it reflects on the enrollment card immediately.
         const unsubSprints = sprintService.subscribeToAdminSprints((data) => {
             setAllSprints(data);
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Sprints subscription error:", error);
             setIsLoading(false);
         });
 
