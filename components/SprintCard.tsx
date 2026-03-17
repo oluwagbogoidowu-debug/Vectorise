@@ -87,6 +87,15 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                 profileImageUrl: coach.profileImageUrl || 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd'
             };
         }
+        
+        if (!coach || !coach.name) {
+            return {
+                ...coach,
+                name: 'Vectorise',
+                profileImageUrl: coach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE
+            } as Coach;
+        }
+        
         return coach;
     }, [coach, sprint.sprintType, sprint.category]);
 

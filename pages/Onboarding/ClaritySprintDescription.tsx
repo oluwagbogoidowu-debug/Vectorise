@@ -4,10 +4,13 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
 import { sprintService } from '../../services/sprintService';
-import { Sprint, MicroSelector, MicroSelectorStep, GlobalOrchestrationSettings } from '../../types';
+import { Sprint, MicroSelector, MicroSelectorStep, GlobalOrchestrationSettings, Coach } from '../../types';
 import FormattedText from '../../components/FormattedText';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, ShieldCheck } from 'lucide-react';
+
+import { userService } from '../../services/userService';
+import { assetService } from '../../services/assetService';
 
 interface SectionHeadingProps {
   children: React.ReactNode;
@@ -28,6 +31,8 @@ const ClaritySprintDescription: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [globalSettings, setGlobalSettings] = useState<GlobalOrchestrationSettings | null>(null);
+  
+  const [fetchedCoach, setFetchedCoach] = useState<any>(null);
   
   const [showMicroSelector, setShowMicroSelector] = useState(false);
   const [activeSelector, setActiveSelector] = useState<MicroSelector | null>(null);
@@ -50,6 +55,11 @@ const ClaritySprintDescription: React.FC = () => {
         
         setSprint(sprintData);
         setGlobalSettings(settings);
+        
+        if (sprintData?.coachId) {
+            const coachData = await userService.getUserDocument(sprintData.coachId);
+            setFetchedCoach(coachData as Coach);
+        }
         
         if (settings?.microSelectors) {
             const foundationSelector = settings.microSelectors.find(ms => ms.stage === 'Foundation');
@@ -78,6 +88,12 @@ const ClaritySprintDescription: React.FC = () => {
           } 
       });
   };
+
+  const displayDescription = sprint?.description || sprint?.subtitle || "This sprint is designed to help you build a solid foundation for your growth journey.";
+  const displayCoachName = 'Vectorise';
+  const displayCoachImage = 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd';
+
+  const hasDynamicContent = sprint?.dynamicSections && sprint.dynamicSections.filter(s => s.body && s.body.trim().length > 0).length > 0;
 
   if (isLoading) {
     return (
@@ -147,124 +163,26 @@ const ClaritySprintDescription: React.FC = () => {
               </div>
             </div>
 
-            {sprint.dynamicSections ? (
-              sprint.dynamicSections.map((section, index) => (
-                <section key={index} className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">
-                  <SectionHeading>{section.title}</SectionHeading>
-                  <DynamicSectionRenderer section={section} />
+            {/* MAIN CONTENT */}
+            <div className="space-y-8">
+              {displayDescription && !hasDynamicContent && (
+                <section className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-sm animate-fade-in">
+                  <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed italic">
+                    "{displayDescription}"
+                  </p>
                 </section>
-              ))
-            ) : (
-              <>
-                {/* Optimized Match Card - Exact UI from Reference */}
-                {selectedFocus && (
-                  <div className="bg-[#E7F5F0] border border-[#D3EBE3] rounded-[2.5rem] px-8 py-6 flex items-center justify-between animate-fade-in shadow-sm">
-                      <div className="flex items-center gap-5">
-                          <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-[#159E6A]">
-                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5"/>
-                              <circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="2.5"/>
-                              <circle cx="12" cy="12" r="2" fill="currentColor"/>
-                            </svg>
-                          </div>
-                          <div>
-                              <p className="text-[11px] font-black text-[#159E6A] uppercase tracking-[0.25em] mb-1">Optimized Match</p>
-                              <p className="text-[15px] font-bold text-gray-700 italic leading-none">"{selectedFocus}"</p>
-                          </div>
-                      </div>
-                      <span className="text-[11px] font-black bg-white px-4 py-2 rounded-xl text-gray-400 uppercase tracking-widest shadow-sm">Validated</span>
-                  </div>
-                )}
+              )}
 
-                {/* Transformation Section - Normalized Text Size, No Italics */}
-                <section className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in relative overflow-hidden">
-                  <div className="relative z-10">
-                    <div className="space-y-10">
-                      <div className="text-gray-900 font-medium text-base leading-[1.6] max-w-[60ch]">
-                        <FormattedText text={sprint.transformation || sprint.description} />
-                      </div>
-                      <div className="h-px bg-gray-50 w-24"></div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                        {sprint.forWho && sprint.forWho.length > 0 && (
-                          <div>
-                            <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
-                              <span className="w-1 h-3 bg-primary rounded-full"></span>
-                              Ideal For You If
-                            </h4>
-                            <ul className="space-y-4">
-                                {sprint.forWho.map((item, i) => (
-                                    <li key={i} className="flex gap-4 items-start"><span className="text-primary mt-1 flex-shrink-0"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg></span><p className="text-base italic font-semibold text-gray-600 leading-snug">{item}</p></li>
-                                ))}
-                            </ul>
-                          </div>
-                        )}
-                        {sprint.notForWho && sprint.notForWho.length > 0 && (
-                          <div>
-                            <h4 className="text-[11px] font-black text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                              <span className="w-1 h-3 bg-red-400 rounded-full"></span>
-                              Not For You If
-                            </h4>
-                            <ul className="space-y-4 opacity-60">
-                                {sprint.notForWho.map((item, i) => (
-                                    <li key={i} className="flex gap-4 items-start"><span className="text-red-400 mt-1 flex-shrink-0"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></span><p className="text-base font-semibold text-gray-500 leading-snug">{item}</p></li>
-                                ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                {/* How This Sprint Works - Green Background */}
-                {sprint.methodSnapshot && sprint.methodSnapshot.length > 0 && (
-                    <section className="bg-primary text-white rounded-[3rem] p-10 md:p-16 relative overflow-hidden shadow-2xl border border-white/5 group">
-                        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-white/10 rounded-full blur-[100px] -mr-48 -mt-48 opacity-60"></div>
-                        
-                        <div className="relative z-10">
-                            <SectionHeading color="white/40">How This Sprint Works</SectionHeading>
-                            <div className="mt-6 space-y-10">
-                                <p className="text-2xl md:text-4xl font-black text-white italic tracking-tighter leading-[1.1] mb-12">
-                                    For {sprint.duration} days, you’ll complete one <span className="text-[#0FB881]">focused action</span> per day.
-                                </p>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                    {sprint.methodSnapshot.map((item, i) => (
-                                        <div key={i} className="space-y-3 group/item">
-                                            <div className="flex items-center gap-3">
-                                              <span className="text-[11px] font-black text-white/20 italic">0{i+1}</span>
-                                              <p className="text-white font-black uppercase text-[12px] tracking-[0.25em]">
-                                                  {item.verb}
-                                              </p>
-                                            </div>
-                                            <p className="text-white/60 text-[14px] font-medium leading-relaxed italic">
-                                                {item.description}
-                                            </p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                )}
-
-                {/* Outcomes Section */}
-                {sprint.outcomes && sprint.outcomes.length > 0 && (
-                    <section className="bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-xl animate-fade-in relative overflow-hidden">
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-10">By Day {sprint.duration}, You'll Have:</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12 relative z-10">
-                            {sprint.outcomes.map((outcome, i) => (
-                                <div key={i} className="flex items-start gap-5 group">
-                                    <div className="w-5 h-5 bg-primary text-white rounded-full flex items-center justify-center flex-shrink-0 text-[10px] shadow-md">✓</div>
-                                    <p className="font-black text-gray-800 leading-tight text-sm italic">{outcome}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
-                )}
-              </>
-            )}
-
-            {/* Removed Outcome Statement section */}
+              {sprint.dynamicSections && sprint.dynamicSections
+                .filter(section => section.body && section.body.trim().length > 0)
+                .map((section, index) => (
+                  <section key={index} className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">
+                    <SectionHeading>{section.title}</SectionHeading>
+                    <DynamicSectionRenderer section={section} />
+                  </section>
+                ))
+              }
+            </div>
           </div>
 
           {/* Sidebar Area */}
@@ -319,6 +237,24 @@ const ClaritySprintDescription: React.FC = () => {
                     <ShieldCheck className="w-3 h-3 text-gray-400" />
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Secure Access</span>
                 </div>
+              </div>
+
+              {/* COACH SECTION */}
+              <div className="mt-6 pt-6 border-t border-gray-50 relative z-10">
+                  <div className="flex items-center gap-4">
+                      <img 
+                          src={displayCoachImage} 
+                          alt="" 
+                          className="w-12 h-12 rounded-2xl object-cover border-2 border-white shadow-md ring-1 ring-gray-100" 
+                          referrerPolicy="no-referrer"
+                      />
+                      <div className="min-w-0">
+                          <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Guided By</p>
+                          <p className="text-sm font-black text-gray-900 uppercase tracking-tight truncate">
+                              {displayCoachName}
+                          </p>
+                      </div>
+                  </div>
               </div>
             </div>
           </aside>

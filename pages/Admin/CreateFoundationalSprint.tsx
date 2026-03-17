@@ -46,8 +46,10 @@ const CreateFoundationalSprint: React.FC = () => {
             { id: 'notForWho', title: 'Exclusions (Who it\'s not for)', body: '', type: 'text' },
             { id: 'methodSnapshot', title: 'Method Snapshot', body: '', type: 'text' },
             { id: 'outcomes', title: 'Evidence of Completion', body: '', type: 'text' },
-            { id: 'metadata', title: 'Metadata', body: '', type: 'text' },
-            { id: 'completionAssets', title: 'Completion Assets', body: '', type: 'text' }
+            { id: 'identity', title: 'Sprint Identity', body: '', type: 'identity' as any },
+            { id: 'metadata', title: 'Metadata', body: '', type: 'metadata' as any },
+            { id: 'pricing', title: 'Pricing & Economy', body: '', type: 'pricing' as any },
+            { id: 'completion', title: 'Completion Assets', body: '', type: 'completion' as any }
         ],
         category: PLATFORM_CATEGORIES[0],
         difficulty: 'Beginner' as SprintDifficulty,
@@ -349,7 +351,7 @@ const CreateFoundationalSprint: React.FC = () => {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className={labelClasses}>Protocol</label>
+                                        <label className={labelClasses}>Daily System</label>
                                         <select name="protocol" value={formData.protocol} onChange={handleChange} className={inputClasses + " mt-2"}>
                                             <option value="One action per day">One action per day</option>
                                             <option value="Guided task">Guided task</option>

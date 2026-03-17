@@ -20,13 +20,23 @@ const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
  * Highlights new/modified words in bright red.
  */
 const DiffHighlight: React.FC<{ original: any; updated: any; label: string }> = ({ original, updated, label }) => {
-    const origStr = Array.isArray(original) 
-        ? original.map(item => typeof item === 'object' ? `${item.verb}: ${item.description}` : item).join('\n')
-        : String(original || '').trim();
-        
-    const upStr = Array.isArray(updated)
-        ? updated.map(item => typeof item === 'object' ? `${item.verb}: ${item.description}` : item).join('\n')
-        : String(updated || '').trim();
+    const formatValue = (val: any) => {
+        if (Array.isArray(val)) {
+            return val.map(item => {
+                if (typeof item === 'object' && item !== null) {
+                    if ('verb' in item && 'description' in item) return `${item.verb}: ${item.description}`;
+                    if ('title' in item && 'body' in item) return `[${item.title}]\n${item.body}`;
+                    if ('day' in item) return `Day ${item.day}: ${item.lessonText?.substring(0, 30)}...`;
+                    return JSON.stringify(item);
+                }
+                return String(item);
+            }).join('\n---\n');
+        }
+        return String(val || '').trim();
+    };
+
+    const origStr = formatValue(original);
+    const upStr = formatValue(updated);
 
     const hasChanged = origStr !== upStr;
 
@@ -153,7 +163,11 @@ const FormattingToolbar: React.FC<{
 const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> => {
     const changes: Partial<Sprint> = {};
     
-    const isDifferent = (a: any, b: any) => JSON.stringify(a) !== JSON.stringify(b);
+    const isDifferent = (a: any, b: any) => {
+        if (a === b) return false;
+        if (!a || !b) return true;
+        return JSON.stringify(a) !== JSON.stringify(b);
+    };
 
     // Top level fields
     const fields: (keyof Sprint)[] = [
@@ -168,7 +182,7 @@ const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> =
         }
     });
 
-    // Array fields - ALWAYS return full array if any element changed to avoid clearing in Firestore
+    // Array fields
     const arrayFields: (keyof Sprint)[] = ['forWho', 'notForWho', 'outcomes', 'methodSnapshot', 'dynamicSections', 'dailyContent'];
     
     arrayFields.forEach(f => {
@@ -240,31 +254,25 @@ const EditSprint: React.FC = () => {
           
           setSprint(merged);
           setReviewFeedback(found.reviewFeedback || {});
+
+          // Ensure system sections exist in dynamicSections for unified editing
+          const systemSections = [
+            { id: 'identity', title: 'Sprint Identity', body: '', type: 'identity' as any },
+            { id: 'metadata', title: 'Metadata', body: '', type: 'metadata' as any },
+            { id: 'pricing', title: 'Pricing & Economy', body: '', type: 'pricing' as any },
+            { id: 'completion', title: 'Completion Assets', body: '', type: 'completion' as any }
+          ];
+          
+          const initialDynamicSections = [...(merged.dynamicSections || [])];
+          systemSections.forEach(sys => {
+              if (!initialDynamicSections.find(s => s.id === sys.id)) {
+                  initialDynamicSections.push(sys);
+              }
+          });
+
           setEditSettings({
-            title: merged.title,
-            subtitle: merged.subtitle,
-            coverImageUrl: merged.coverImageUrl,
-            // Initialize dynamic sections from existing sprint data
-            dynamicSections: merged.dynamicSections || [
-              { id: 'transformation', title: 'Transformation Statement', body: merged.transformation || merged.description, type: 'text' as const },
-              { id: 'forWho', title: 'Target Signals (Who it\'s for)', body: (merged.forWho || ['', '', '', '']).join('\n'), type: 'text' as const },
-              { id: 'notForWho', title: 'Exclusions (Who it\'s not for)', body: (merged.notForWho || ['', '', '']).join('\n'), type: 'text' as const },
-              { id: 'methodSnapshot', title: 'Method Snapshot', body: (merged.methodSnapshot || [{ verb: '', description: '' }, { verb: '', description: '' }, { verb: '', description: '' }]).map(m => `${m.verb}: ${m.description}`).join('\n'), type: 'text' as const },
-              { id: 'outcomes', title: 'Evidence of Completion', body: (merged.outcomes && merged.outcomes.length > 0 ? merged.outcomes : ['', '', '']).join('\n'), type: 'text' as const },
-              { id: 'metadata', title: 'Metadata', body: `Category: ${merged.category}\nDifficulty: ${merged.difficulty}\nDuration: ${merged.duration} Days\nProtocol: ${merged.protocol}`, type: 'text' as const },
-              { id: 'completionAssets', title: 'Completion Assets', body: `Archive Outcome Tag: ${merged.outcomeTag || ''}\nOutcome Statement: ${merged.outcomeStatement || 'Focus creates feedback. *Feedback creates clarity.*'}`, type: 'text' as const }
-            ],
-            // Keep other settings for now, will integrate into dynamic sections or fixed identity later
-            category: merged.category,
-            difficulty: merged.difficulty,
-            price: merged.price,
-            currency: merged.currency || 'NGN',
-            pointCost: merged.pointCost,
-            pricingType: merged.pricingType || 'cash',
-            duration: merged.duration,
-            protocol: merged.protocol || 'One action per day',
-            outcomeTag: merged.outcomeTag || '',
-            outcomeStatement: merged.outcomeStatement || 'Focus creates feedback. *Feedback creates clarity.*'
+            ...merged,
+            dynamicSections: initialDynamicSections
           });
         } else { navigate('/dashboard'); }
       } catch (err) { navigate('/dashboard'); }
@@ -312,13 +320,13 @@ const EditSprint: React.FC = () => {
     setSaveStatus('saving');
     try {
       const isDraft = sprint.approvalStatus === 'draft';
+      const isDirectPush = isDraft || (isAdmin && isFoundational);
       const changes = getPendingChanges(originalSprint, sprint);
       
       let updatedSprintData: any = {};
 
-      if (isDraft) {
-          // Flatten changes for granular updateDoc to satisfy "update only specific session"
-          // This uses Firestore dot notation to update individual array elements
+      if (isDirectPush) {
+          // Flatten changes for granular updateDoc
           Object.entries(changes).forEach(([key, value]) => {
               if (key === 'dailyContent' && Array.isArray(value)) {
                   value.forEach((day: DailyContent) => {
@@ -334,24 +342,25 @@ const EditSprint: React.FC = () => {
                   updatedSprintData[key] = value;
               }
           });
+
+          if (isAdmin && isFoundational) {
+              updatedSprintData.published = true;
+              updatedSprintData.approvalStatus = 'approved';
+          }
       } else {
-          // If it's already approved/pending, save to pendingChanges (full arrays required for merging)
+          // Review flow
           updatedSprintData = {
               pendingChanges: changes,
           };
       }
 
-      if (isAdmin && isFoundational) {
-          updatedSprintData.published = true;
-          updatedSprintData.approvalStatus = 'approved';
-      } else if (!isAdmin && sprint.approvalStatus === 'rejected') {
+      if (!isAdmin && sprint.approvalStatus === 'rejected') {
           updatedSprintData.approvalStatus = 'draft';
       }
 
       await sprintService.updateSprint(sprint.id, updatedSprintData, isAdmin);
       
-      // Update original sprint in state so subsequent saves in same session are correct
-      if (isDraft) {
+      if (isDirectPush) {
           setOriginalSprint({ ...sprint });
       }
 
@@ -455,11 +464,12 @@ const EditSprint: React.FC = () => {
     try {
         const updatedLocalSprint = { ...sprint, ...updatedSprintData as any };
         const isDraft = sprint.approvalStatus === 'draft';
+        const isDirectPush = isDraft || (isAdmin && isFoundational);
         const changes = getPendingChanges(originalSprint, updatedLocalSprint);
         
         let persistenceData: any = {};
 
-        if (isDraft) {
+        if (isDirectPush) {
             // Use granular dot notation for direct updates
             Object.entries(updatedSprintData).forEach(([key, value]) => {
                 if (key === 'dynamicSections' && Array.isArray(value)) {
@@ -471,23 +481,22 @@ const EditSprint: React.FC = () => {
                     persistenceData[key] = value;
                 }
             });
+
+            if (isAdmin && isFoundational) {
+                persistenceData.published = true;
+                persistenceData.approvalStatus = 'approved';
+            }
         } else {
             // If it's already approved/pending, save to pendingChanges
             persistenceData = {
-                pendingChanges: changes,
-                ...((isAdmin && isFoundational) ? updatedSprintData : {})
+                pendingChanges: changes
             };
-        }
-
-        if (isAdmin && isFoundational) {
-            persistenceData.published = true;
-            persistenceData.approvalStatus = 'approved';
         }
 
         await sprintService.updateSprint(sprint.id, persistenceData, isAdmin);
         
         setSprint(updatedLocalSprint);
-        if (isDraft) {
+        if (isDirectPush) {
             setOriginalSprint(updatedLocalSprint);
         }
         setSettingsSaveStatus('saved');
@@ -678,7 +687,7 @@ const EditSprint: React.FC = () => {
 
               {/* COMPLETION PROTOCOL CURATION */}
               <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-8">
-                <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.3em] border-b border-gray-50 pb-4">Day {selectedDay} Completion Protocol</h3>
+                <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.3em] border-b border-gray-50 pb-4">Day {selectedDay} Daily System</h3>
                 
                 <div className="grid grid-cols-1 gap-8">
                     <div className="space-y-4">
@@ -905,7 +914,7 @@ const EditSprint: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <DiffHighlight label="Duration" original={originalSprint?.duration} updated={editSettings.duration} />
-                                <DiffHighlight label="Protocol" original={originalSprint?.protocol} updated={editSettings.protocol} />
+                                <DiffHighlight label="Daily System" original={originalSprint?.protocol} updated={editSettings.protocol} />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <DiffHighlight label="Sprint Type" original={originalSprint?.sprintType} updated={editSettings.sprintType} />
@@ -914,75 +923,189 @@ const EditSprint: React.FC = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 <DiffHighlight label="Point Cost" original={originalSprint?.pointCost} updated={editSettings.pointCost} />
                             </div>
+                            <div className="mt-8 pt-8 border-t border-gray-100">
+                                <h4 className="text-[10px] font-black text-primary uppercase tracking-widest mb-6">Dynamic Sections Diff</h4>
+                                <DiffHighlight label="Dynamic Sections" original={originalSprint?.dynamicSections} updated={editSettings.dynamicSections} />
+                            </div>
+                            <div className="mt-8 pt-8 border-t border-gray-100">
+                                <h4 className="text-[10px] font-black text-primary uppercase tracking-widest mb-6">Curriculum Diff</h4>
+                                <DiffHighlight label="Daily Content" original={originalSprint?.dailyContent} updated={sprint?.dailyContent} />
+                            </div>
                         </div>
                     </section>
                 ) : (
                     <>
-                        {/* 01 Sprint Identity (Fixed Part) */}
-                        <section className="space-y-6">
-                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">01 Sprint Identity</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="md:col-span-2">
-                                    <label className={labelClasses}>Sprint Title</label>
-                                    <input type="text" value={editSettings.title || ''} onChange={e => setEditSettings({...editSettings, title: e.target.value})} className={registryInputClasses + " mt-2"} />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className={labelClasses}>Sprint Subtitle</label>
-                                    <input type="text" value={editSettings.subtitle || ''} onChange={e => setEditSettings({...editSettings, subtitle: e.target.value})} className={registryInputClasses + " mt-2"} />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className={labelClasses}>Cover Image URL</label>
-                                    <input type="url" value={editSettings.coverImageUrl || ''} onChange={e => setEditSettings({...editSettings, coverImageUrl: e.target.value})} className={registryInputClasses + " mt-2"} />
-                                </div>
-                            </div>
-                        </section>
+                        {/* Dynamic Sections Loop */}
+                        {editSettings.dynamicSections?.map((section, index) => {
+                            if (section.id === 'identity') {
+                                return (
+                                    <section key={section.id} className="space-y-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
+                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">01 Sprint Identity</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="md:col-span-2">
+                                                <label className={labelClasses}>Sprint Title</label>
+                                                <input type="text" value={editSettings.title || ''} onChange={e => setEditSettings({...editSettings, title: e.target.value})} className={registryInputClasses + " mt-2"} />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className={labelClasses}>Sprint Subtitle</label>
+                                                <input type="text" value={editSettings.subtitle || ''} onChange={e => setEditSettings({...editSettings, subtitle: e.target.value})} className={registryInputClasses + " mt-2"} />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className={labelClasses}>Cover Image URL</label>
+                                                <input type="url" value={editSettings.coverImageUrl || ''} onChange={e => setEditSettings({...editSettings, coverImageUrl: e.target.value})} className={registryInputClasses + " mt-2"} />
+                                            </div>
+                                        </div>
+                                    </section>
+                                );
+                            }
 
-                        {/* Dynamic Sections */}
-                        {editSettings.dynamicSections?.map((section, index) => (
-                            <section key={section.id} className="space-y-6 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                                <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
-                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{section.title}</h4>
-                                    <button 
-                                        onClick={() => {
-                                            const newSections = editSettings.dynamicSections?.filter(s => s.id !== section.id);
+                            if (section.id === 'metadata') {
+                                return (
+                                    <section key={section.id} className="space-y-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
+                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Metadata</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div>
+                                                <label className={labelClasses}>Duration (Days)</label>
+                                                <select value={editSettings.duration || 7} onChange={e => setEditSettings({...editSettings, duration: Number(e.target.value)})} className={registryInputClasses + " mt-2"}>
+                                                    {[3, 5, 7, 10, 14, 21, 30].map(d => <option key={d} value={d}>{d} Continuous Days</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className={labelClasses}>Discovery Category</label>
+                                                <select value={editSettings.category || ''} onChange={e => setEditSettings({...editSettings, category: e.target.value})} className={registryInputClasses + " mt-2"}>
+                                                    {ALL_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className={labelClasses}>Difficulty</label>
+                                                <select value={editSettings.difficulty || 'Beginner'} onChange={e => setEditSettings({...editSettings, difficulty: e.target.value as SprintDifficulty})} className={registryInputClasses + " mt-2"}>
+                                                    <option value="Beginner">Beginner</option>
+                                                    <option value="Intermediate">Intermediate</option>
+                                                    <option value="Advanced">Advanced</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className={labelClasses}>Daily System</label>
+                                                <select value={editSettings.protocol || 'One action per day'} onChange={e => setEditSettings({...editSettings, protocol: e.target.value as 'One action per day' | 'Guided task' | 'Challenge-based'})} className={registryInputClasses + " mt-2"}>
+                                                    <option value="One action per day">One action per day</option>
+                                                    <option value="Guided task">Guided task</option>
+                                                    <option value="Challenge-based">Challenge-based</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className={labelClasses}>Sprint Type</label>
+                                                <select value={editSettings.sprintType || 'Execution'} onChange={e => setEditSettings({...editSettings, sprintType: e.target.value as 'Foundational' | 'Execution' | 'Skill'})} className={registryInputClasses + " mt-2"}>
+                                                    <option value="Foundational">Foundational</option>
+                                                    <option value="Execution">Execution</option>
+                                                    <option value="Skill">Skill</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </section>
+                                );
+                            }
+
+                            if (section.id === 'pricing') {
+                                return (
+                                    <section key={section.id} className="space-y-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
+                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Pricing & Economy</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div>
+                                                <label className={labelClasses}>Pricing Type</label>
+                                                <select value={editSettings.pricingType || 'cash'} onChange={e => setEditSettings({...editSettings, pricingType: e.target.value as 'cash' | 'credits'})} className={registryInputClasses + " mt-2"}>
+                                                    <option value="cash">Cash (NGN/USD)</option>
+                                                    <option value="credits">Credits (Points)</option>
+                                                </select>
+                                            </div>
+                                            {editSettings.pricingType === 'credits' ? (
+                                                <div>
+                                                    <label className={labelClasses}>Point Cost</label>
+                                                    <input type="number" value={editSettings.pointCost || 0} onChange={e => setEditSettings({...editSettings, pointCost: Number(e.target.value)})} className={registryInputClasses + " mt-2"} placeholder="0" />
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <label className={labelClasses}>Proposed Price (NGN)</label>
+                                                    <input type="number" value={editSettings.price || 0} onChange={e => setEditSettings({...editSettings, price: Number(e.target.value)})} className={registryInputClasses + " mt-2"} placeholder="0" />
+                                                    <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">Admins will review and set the final price.</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </section>
+                                );
+                            }
+
+                            if (section.id === 'completion') {
+                                return (
+                                    <section key={section.id} className="space-y-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
+                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Completion Assets</h4>
+                                        <div className="space-y-6">
+                                            <div>
+                                                <label className={labelClasses}>Archive Outcome Tag</label>
+                                                <input type="text" value={editSettings.outcomeTag || ''} onChange={e => setEditSettings({...editSettings, outcomeTag: e.target.value})} className={registryInputClasses + " mt-2"} placeholder="e.g. Clarity gained" />
+                                                <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">This appears as the badge on completed sprint cards.</p>
+                                            </div>
+                                            <div>
+                                                <label className={labelClasses}>The Outcome Statement</label>
+                                                <textarea 
+                                                    value={editSettings.outcomeStatement || ''} 
+                                                    onChange={e => setEditSettings({...editSettings, outcomeStatement: e.target.value})} 
+                                                    className={registryInputClasses + " mt-2 resize-none"} 
+                                                    rows={3}
+                                                    placeholder="Focus creates feedback. *Feedback creates clarity.*" 
+                                                />
+                                                <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">The final message shown to participants upon completion.</p>
+                                            </div>
+                                        </div>
+                                    </section>
+                                );
+                            }
+
+                            return (
+                                <section key={section.id} className="space-y-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
+                                    <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
+                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{section.title}</h4>
+                                        <button 
+                                            onClick={() => {
+                                                const newSections = editSettings.dynamicSections?.filter(s => s.id !== section.id);
+                                                setEditSettings({ ...editSettings, dynamicSections: newSections });
+                                            }}
+                                            className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full"
+                                            title="Remove section"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                    <label className={labelClasses}>Section Title</label>
+                                    <input 
+                                        type="text" 
+                                        value={section.title} 
+                                        onChange={e => {
+                                            const newSections = [...(editSettings.dynamicSections || [])];
+                                            newSections[index] = { ...newSections[index], title: e.target.value };
                                             setEditSettings({ ...editSettings, dynamicSections: newSections });
                                         }}
-                                        className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full"
-                                        title="Remove section"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                    </button>
-                                </div>
-                                <label className={labelClasses}>Section Title</label>
-                                <input 
-                                    type="text" 
-                                    value={section.title} 
-                                    onChange={e => {
-                                        const newSections = [...(editSettings.dynamicSections || [])];
-                                        newSections[index] = { ...newSections[index], title: e.target.value };
-                                        setEditSettings({ ...editSettings, dynamicSections: newSections });
-                                    }}
-                                    className={registryInputClasses + " mt-2"} 
-                                />
-                                <label className={labelClasses + " mt-4"}>
-                                    Section Body
-                                </label>
+                                        className={registryInputClasses + " mt-2"} 
+                                    />
+                                    <label className={labelClasses + " mt-4"}>
+                                        Section Body
+                                    </label>
 
-                                <textarea 
-                                    value={section.body} 
-                                    onChange={e => handleDynamicSectionChange(index, 'body', e.target.value)}
-                                    rows={6} 
-                                    className={registryInputClasses + " resize-none mt-2"} 
-                                    placeholder="Enter section content..."
-                                />
-                                <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                                    <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Preview:</h5>
-                                    <div className="bg-white rounded-xl p-4 border border-gray-100">
-                                        <DynamicSectionRenderer section={section} />
+                                    <textarea 
+                                        value={section.body} 
+                                        onChange={e => handleDynamicSectionChange(index, 'body', e.target.value)}
+                                        rows={6} 
+                                        className={registryInputClasses + " resize-none mt-2"} 
+                                        placeholder="Enter section content..."
+                                    />
+                                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                                        <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Preview:</h5>
+                                        <div className="bg-white rounded-xl p-4 border border-gray-100">
+                                            <DynamicSectionRenderer section={section} />
+                                        </div>
                                     </div>
-                                </div>
-                            </section>
-                        ))}
+                                </section>
+                            );
+                        })}
 
                         <Button 
                             onClick={() => {
@@ -995,100 +1118,10 @@ const EditSprint: React.FC = () => {
                                 setEditSettings({ ...editSettings, dynamicSections: [...(editSettings.dynamicSections || []), newSection] });
                             }}
                             variant="secondary"
-                            className="w-full py-4 text-primary border-primary/20 hover:bg-primary/5"
+                            className="w-full py-4 text-primary border-primary/20 hover:bg-primary/5 rounded-[1.5rem]"
                         >
                             + Add New Section
                         </Button>
-
-                        {/* Metadata and Completion Assets (still fixed for now, will integrate into dynamic sections if needed) */}
-                        <section className="space-y-6">
-                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Metadata</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div>
-                                    <label className={labelClasses}>Duration (Days)</label>
-                                    <select value={editSettings.duration || 7} onChange={e => setEditSettings({...editSettings, duration: Number(e.target.value)})} className={registryInputClasses + " mt-2"}>
-                                        {[3, 5, 7, 10, 14, 21, 30].map(d => <option key={d} value={d}>{d} Continuous Days</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className={labelClasses}>Discovery Category</label>
-                                    <select value={editSettings.category || ''} onChange={e => setEditSettings({...editSettings, category: e.target.value})} className={registryInputClasses + " mt-2"}>
-                                        {ALL_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className={labelClasses}>Difficulty</label>
-                                    <select value={editSettings.difficulty || 'Beginner'} onChange={e => setEditSettings({...editSettings, difficulty: e.target.value as SprintDifficulty})} className={registryInputClasses + " mt-2"}>
-                                        <option value="Beginner">Beginner</option>
-                                        <option value="Intermediate">Intermediate</option>
-                                        <option value="Advanced">Advanced</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className={labelClasses}>Protocol</label>
-                                    <select value={editSettings.protocol || 'One action per day'} onChange={e => setEditSettings({...editSettings, protocol: e.target.value as 'One action per day' | 'Guided task' | 'Challenge-based'})} className={registryInputClasses + " mt-2"}>
-                                        <option value="One action per day">One action per day</option>
-                                        <option value="Guided task">Guided task</option>
-                                        <option value="Challenge-based">Challenge-based</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className={labelClasses}>Sprint Type</label>
-                                    <select value={editSettings.sprintType || 'Execution'} onChange={e => setEditSettings({...editSettings, sprintType: e.target.value as 'Foundational' | 'Execution' | 'Skill'})} className={registryInputClasses + " mt-2"}>
-                                        <option value="Foundational">Foundational</option>
-                                        <option value="Execution">Execution</option>
-                                        <option value="Skill">Skill</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section className="space-y-6">
-                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Pricing & Economy</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div>
-                                    <label className={labelClasses}>Pricing Type</label>
-                                    <select value={editSettings.pricingType || 'cash'} onChange={e => setEditSettings({...editSettings, pricingType: e.target.value as 'cash' | 'credits'})} className={registryInputClasses + " mt-2"}>
-                                        <option value="cash">Cash (NGN/USD)</option>
-                                        <option value="credits">Credits (Points)</option>
-                                    </select>
-                                </div>
-                                {editSettings.pricingType === 'credits' ? (
-                                    <div>
-                                        <label className={labelClasses}>Point Cost</label>
-                                        <input type="number" value={editSettings.pointCost || 0} onChange={e => setEditSettings({...editSettings, pointCost: Number(e.target.value)})} className={registryInputClasses + " mt-2"} placeholder="0" />
-                                    </div>
-                                ) : (
-                                    <div>
-                                        <label className={labelClasses}>Proposed Price (NGN)</label>
-                                        <input type="number" value={editSettings.price || 0} onChange={e => setEditSettings({...editSettings, price: Number(e.target.value)})} className={registryInputClasses + " mt-2"} placeholder="0" />
-                                        <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">Admins will review and set the final price.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </section>
-
-                        <section className="space-y-6">
-                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Completion Assets</h4>
-                            <div className="space-y-6">
-                                <div>
-                                    <label className={labelClasses}>Archive Outcome Tag</label>
-                                    <input type="text" value={editSettings.outcomeTag || ''} onChange={e => setEditSettings({...editSettings, outcomeTag: e.target.value})} className={registryInputClasses + " mt-2"} placeholder="e.g. Clarity gained" />
-                                    <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">This appears as the badge on completed sprint cards.</p>
-                                </div>
-                                <div>
-                                    <label className={labelClasses}>The Outcome Statement</label>
-                                    <textarea 
-                                        value={editSettings.outcomeStatement || ''} 
-                                        onChange={e => setEditSettings({...editSettings, outcomeStatement: e.target.value})} 
-                                        className={registryInputClasses + " mt-2 resize-none"} 
-                                        rows={3}
-                                        placeholder="Focus creates feedback. *Feedback creates clarity.*" 
-                                    />
-                                    <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">The final message shown to participants upon completion.</p>
-                                </div>
-                            </div>
-                        </section>
                     </>
                 )}
 
