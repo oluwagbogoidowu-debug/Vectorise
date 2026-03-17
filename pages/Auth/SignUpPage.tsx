@@ -41,7 +41,8 @@ const SignUpPage: React.FC = () => {
     targetSprintId = savedSprint,
     tx_ref,
     isPartnerApplication,
-    partnerData 
+    partnerData,
+    authMessage
   } = onboardingState;
 
   const [firstName, setFirstName] = useState(prefilledFirstName || '');
@@ -184,6 +185,11 @@ const SignUpPage: React.FC = () => {
                 </div>
 
                 {regError && <p className="text-[10px] text-red-600 font-black uppercase text-center mt-2">{regError}</p>}
+                {authMessage && !regError && (
+                    <div className="p-3 bg-primary/5 border border-primary/10 rounded-xl text-[10px] text-primary font-black uppercase tracking-widest text-center animate-pulse">
+                        {authMessage}
+                    </div>
+                )}
 
                 <Button type="submit" isLoading={isSubmitting} className="w-full py-4 bg-primary text-white rounded-full shadow-lg text-[10px] font-black uppercase tracking-[0.2em] mt-2">
                     {isPartnerApplication ? 'Secure Partner Access' : 'Create Account'} &rarr;

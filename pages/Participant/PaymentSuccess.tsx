@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { paymentService } from '../../services/paymentService';
+import { userService } from '../../services/userService';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -48,18 +49,34 @@ const PaymentSuccess: React.FC = () => {
                     clearTimeout(timeoutFallback);
                     
                     // Redirect logic
-                    setTimeout(() => {
+                    setTimeout(async () => {
                         if (!user && data.userId?.startsWith('guest_')) {
-                            // Guest flow: Redirect to signup to establish identity
-                            navigate('/signup', { 
-                                state: { 
-                                    fromPayment: true, 
-                                    targetSprintId: data.sprintId,
-                                    prefilledEmail: data.email || '',
-                                    tx_ref: tx_ref
-                                },
-                                replace: true 
-                            });
+                            // Guest flow: Check if user exists by email
+                            const existingUser = await userService.getUserByEmail(data.email || '');
+                            
+                            if (existingUser) {
+                                // Scenario 2: User has an account but just paid for a new sprint
+                                navigate('/login', { 
+                                    state: { 
+                                        prefilledEmail: data.email || '',
+                                        targetSprintId: data.sprintId,
+                                        tx_ref: tx_ref,
+                                        authMessage: "Payment successful! Please log in to your account to start your sprint."
+                                    },
+                                    replace: true 
+                                });
+                            } else {
+                                // Scenario 3: No account exists - redirect to signup
+                                navigate('/signup', { 
+                                    state: { 
+                                        fromPayment: true, 
+                                        targetSprintId: data.sprintId,
+                                        prefilledEmail: data.email || '',
+                                        tx_ref: tx_ref
+                                    },
+                                    replace: true 
+                                });
+                            }
                         } else {
                             // Logged in flow: Redirect to sprint view or dashboard
                             const finalUserId = user?.id || data.userId;

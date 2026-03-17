@@ -158,6 +158,17 @@ export const userService = {
     }
   },
 
+  getUserByEmail: async (email: string): Promise<User | Participant | Coach | null> => {
+    try {
+      const q = query(collection(db, 'users'), where("email", "==", email.toLowerCase().trim()));
+      const snap = await getDocs(q);
+      if (snap.empty) return null;
+      return sanitizeData(snap.docs[0].data()) as User | Participant | Coach;
+    } catch (error) {
+      return null;
+    }
+  },
+
   getUsersByIds: async (uids: string[]) => {
     const validIds = Array.from(new Set((uids || []).filter(id => !!id && typeof id === 'string' && id !== '')));
     if (validIds.length === 0) return [];

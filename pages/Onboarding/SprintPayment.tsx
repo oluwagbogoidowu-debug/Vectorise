@@ -140,14 +140,29 @@ const SprintPayment: React.FC = () => {
 
     try {
       if (!user) {
-          const emailExists = await userService.checkEmailExists(effectiveEmail);
-          if (emailExists) {
-              setErrorMessage("Email already in registry. Log in to continue.");
-              setTimeout(() => {
-                  navigate('/login', { state: { prefilledEmail: effectiveEmail, targetSprintId: sprintId } });
-              }, 2000);
-              return;
+          const existingUser = await userService.getUserByEmail(effectiveEmail);
+          if (existingUser) {
+              // Scenario 1 & 2: User has an account
+              const enrollments = await sprintService.getUserEnrollments(existingUser.id);
+              const existingEnrollment = enrollments.find(e => e.sprint_id === sprintId);
+              
+              if (existingEnrollment && (existingEnrollment.status === 'active' || existingEnrollment.status === 'queued')) {
+                  // Scenario 1: Active/Paid enrollment exists
+                  setErrorMessage("You are an active user with this sprint active. Log in to continue.");
+                  setTimeout(() => {
+                      navigate('/login', { 
+                          state: { 
+                              prefilledEmail: effectiveEmail, 
+                              targetSprintId: sprintId,
+                              authMessage: "You are an active user with this sprint active. Please log in to access it."
+                          } 
+                      });
+                  }, 2500);
+                  return;
+              }
+              // Scenario 2: Account exists but no active enrollment - proceed to payment
           }
+          // Scenario 3: No account - proceed to payment
       }
 
       const checkoutUrl = await paymentService.initializeFlutterwave(payload);
