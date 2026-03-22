@@ -16,6 +16,8 @@ import UserAnalyticsDetail from './pages/Admin/UserAnalyticsDetail';
 import CreateFoundationalSprint from './pages/Admin/CreateFoundationalSprint';
 import AdminCoachDetail from './pages/Admin/AdminCoachDetail';
 import AdminUserDetail from './pages/Admin/AdminUserDetail';
+import CreateTrack from './pages/Admin/CreateTrack';
+import TrackDescriptionPage from './pages/TrackDescriptionPage';
 import { UserRole } from './types';
 import { Welcome } from './pages/Onboarding/Welcome';
 import QuizIntro from './pages/Onboarding/QuizIntro';
@@ -195,6 +197,8 @@ export const AppRoutes: React.FC = () => {
       <Route path="/admin/analytics/user/:identifier" element={<ProtectedRoute roles={[UserRole.ADMIN]}><UserAnalyticsDetail /></ProtectedRoute>} />
       <Route path="/admin/sprint/new" element={<ProtectedRoute roles={[UserRole.ADMIN]}><CreateFoundationalSprint /></ProtectedRoute>} />
       <Route path="/admin/coach/:coachId" element={<ProtectedRoute roles={[UserRole.ADMIN]}><AdminCoachDetail /></ProtectedRoute>} />
+      <Route path="/admin/track/new" element={<ProtectedRoute roles={[UserRole.ADMIN]}><CreateTrack /></ProtectedRoute>} />
+      <Route path="/track/:trackId" element={<TrackDescriptionPage />} />
       
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

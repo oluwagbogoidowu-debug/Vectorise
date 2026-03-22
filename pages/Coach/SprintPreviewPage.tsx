@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Sprint, Coach, UserRole } from '../../types';
 import { sprintService } from '../../services/sprintService';
+import { userService } from '../../services/userService';
 import LandingPreview from '../../components/LandingPreview';
 import SprintCard from '../../components/SprintCard';
 import FormattedText from '../../components/FormattedText';
@@ -12,40 +13,84 @@ const SprintPreviewPage: React.FC = () => {
     const navigate = useNavigate();
     const [sprint, setSprint] = useState<Sprint | null>(null);
     const [coach, setCoach] = useState<Coach | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
     const [previewType, setPreviewType] = useState<'card' | 'landing' | 'daily'>('landing');
     const [selectedDay, setSelectedDay] = useState(1);
 
     useEffect(() => {
         const fetchSprint = async () => {
             if (!sprintId) return;
+            setIsLoading(true);
             try {
                 const fetchedSprint = await sprintService.getSprintById(sprintId);
-                setSprint(fetchedSprint);
-                // Assuming coach data is part of sprint or can be fetched separately
-                // For now, using a placeholder or fetching from sprint.coachId
-                if (fetchedSprint?.coachId) {
-                    // In a real app, you'd fetch the coach details here
-                    setCoach({ 
-                        id: fetchedSprint.coachId, 
-                        name: 'Coach Name', 
-                        email: 'coach@example.com', 
-                        bio: 'A dedicated coach.', 
-                        profileImageUrl: 'https://picsum.photos/seed/coach/100/100', 
-                        role: UserRole.COACH,
-                        niche: 'General',
-                        approved: true
-                    });
+                if (fetchedSprint) {
+                    // Merge pending changes for preview
+                    const mergedSprint: Sprint = {
+                        ...fetchedSprint,
+                        ...(fetchedSprint.pendingChanges || {}),
+                        dailyContent: fetchedSprint.pendingChanges?.dailyContent || fetchedSprint.dailyContent,
+                        outcomes: fetchedSprint.pendingChanges?.outcomes || fetchedSprint.outcomes,
+                        forWho: fetchedSprint.pendingChanges?.forWho || fetchedSprint.forWho,
+                        dynamicSections: fetchedSprint.pendingChanges?.dynamicSections || fetchedSprint.dynamicSections,
+                    };
+                    setSprint(mergedSprint);
+
+                    if (mergedSprint.coachId) {
+                        const coachData = await userService.getUserDocument(mergedSprint.coachId);
+                        if (coachData) {
+                            setCoach(coachData as Coach);
+                        } else {
+                            // Fallback if coach not found
+                            setCoach({
+                                id: mergedSprint.coachId,
+                                name: 'Platform Coach',
+                                email: 'support@vectorise.ai',
+                                bio: 'Vectorise Core Team',
+                                profileImageUrl: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd',
+                                role: UserRole.COACH,
+                                niche: 'Core Platform',
+                                approved: true
+                            });
+                        }
+                    } else {
+                        // Fallback for foundational sprints without coachId
+                        setCoach({
+                            id: 'platform',
+                            name: 'Vectorise',
+                            email: 'support@vectorise.ai',
+                            bio: 'The Vectorise Core Team',
+                            profileImageUrl: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd',
+                            role: UserRole.COACH,
+                            niche: 'Core Platform',
+                            approved: true
+                        });
+                    }
                 }
             } catch (error) {
                 console.error("Failed to fetch sprint for preview:", error);
-                navigate('/coach/sprints');
+            } finally {
+                setIsLoading(false);
             }
         };
         fetchSprint();
-    }, [sprintId, navigate]);
+    }, [sprintId]);
+
+    if (isLoading) {
+        return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500">
+            <div className="flex flex-col items-center gap-4">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-[10px] font-black uppercase tracking-widest">Loading preview...</p>
+            </div>
+        </div>;
+    }
 
     if (!sprint || !coach) {
-        return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500">Loading preview...</div>;
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500 gap-4">
+                <p className="text-[10px] font-black uppercase tracking-widest">Sprint not found or incomplete.</p>
+                <button onClick={() => navigate(-1)} className="text-primary font-black uppercase tracking-widest text-[10px] hover:underline">Go Back</button>
+            </div>
+        );
     }
 
     const currentDailyContent = sprint.dailyContent.find(content => content.day === selectedDay);

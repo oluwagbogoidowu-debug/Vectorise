@@ -501,6 +501,20 @@ export interface Referral {
   refereeAvatar?: string;
 }
 
+export interface Track {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  sprintIds: string[];
+  discountPercentage: number;
+  coverImageUrl: string;
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
+  currency: string;
+}
+
 export interface WalletTransaction {
   id: string;
   userId: string;
