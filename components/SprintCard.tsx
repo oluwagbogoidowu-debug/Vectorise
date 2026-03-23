@@ -125,9 +125,9 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
 
             <CardContainer 
                 {...(containerProps as any)} 
-                className={`bg-white rounded-[3rem] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] transition-all duration-700 flex flex-col border border-gray-100/60 overflow-hidden h-full group ${!isStatic ? 'hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-2 cursor-pointer' : 'cursor-default'}`}
+                className={`bg-white rounded-[2.5rem] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] transition-all duration-700 flex flex-col border border-gray-100/60 overflow-hidden h-full group ${!isStatic ? 'hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-2 cursor-pointer' : 'cursor-default'}`}
             >
-                <div className="relative h-60 overflow-hidden bg-gray-100">
+                <div className="relative h-48 overflow-hidden bg-gray-100">
                     <img 
                         src={sprint.coverImageUrl || fallbackUrl} 
                         alt="" 
@@ -136,7 +136,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                         referrerPolicy="no-referrer"
                     />
                     <div className={`absolute inset-0 bg-gradient-to-t from-dark/40 to-transparent transition-opacity duration-700 ${!isStatic ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}></div>
-                    <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black text-primary shadow-lg uppercase tracking-[0.2em]">{sprint.duration} Days</div>
+                    <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black text-primary shadow-lg uppercase tracking-[0.2em]">{sprint.duration} Days</div>
                     
                     {/* Archive Badge Preview */}
                     {forceShowOutcomeTag && sprint.outcomeTag && (
@@ -150,33 +150,33 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                     )}
                 </div>
                 
-                <div className="p-8 flex flex-col flex-grow">
-                    <div className="flex items-center gap-2 mb-4">
+                <div className="p-6 flex flex-col flex-grow">
+                    <div className="flex items-center gap-2 mb-3">
                         <span className="px-3 py-1 rounded-lg bg-gray-50 border border-gray-100 text-gray-400 text-[9px] font-black uppercase tracking-[0.25em]">{sprint.category}</span>
                     </div>
 
-                    <h3 className={`text-2xl font-black text-gray-900 mb-1 transition-colors leading-[1.1] tracking-tight ${!isStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>
+                    <h3 className={`text-xl font-black text-gray-900 mb-0.5 transition-colors leading-[1.1] tracking-tight ${!isStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>
                     {sprint.subtitle && (
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-6 leading-none">{sprint.subtitle}</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-4 leading-none">{sprint.subtitle}</p>
                     )}
                     
-                    <div className="pt-6 border-t border-gray-50 mt-auto">
-                        <div className="flex items-center gap-4 mb-6">
-                            <img src={displayCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE} alt="" className="w-10 h-10 rounded-[1.25rem] object-cover border-2 border-white shadow-md ring-1 ring-gray-100" />
+                    <div className="pt-4 border-t border-gray-50 mt-auto">
+                        <div className="flex items-center gap-3 mb-4">
+                            <img src={displayCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE} alt="" className="w-8 h-8 rounded-[1rem] object-cover border-2 border-white shadow-md ring-1 ring-gray-100" />
                             <div className="min-w-0">
-                                <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Guided By</p>
-                                <p className="text-xs font-black text-gray-900 uppercase tracking-tight truncate">{displayCoach.name}</p>
+                                <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Guided By</p>
+                                <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight truncate">{displayCoach.name}</p>
                             </div>
                         </div>
 
-                        <div className={`py-4 rounded-[1.5rem] font-black text-[11px] uppercase tracking-[0.3em] text-center shadow-sm transition-all duration-500 flex justify-center items-center gap-3 ${
+                        <div className={`py-3 rounded-[1.25rem] font-black text-[10px] uppercase tracking-[0.3em] text-center shadow-sm transition-all duration-500 flex justify-center items-center gap-3 ${
                             isEnrolled 
                             ? 'bg-green-50 text-green-700' 
                             : isQueued 
                             ? 'bg-blue-50 text-blue-700' 
                             : 'bg-primary text-white group-hover:bg-primary-hover shadow-primary/20'
                         }`}>
-                            {isEnrolled ? "Active Journey" : isQueued ? "Next in Queue" : sprint.pricingType === 'credits' ? (<><span className="text-lg">🪙</span> {sprint.pointCost}</>) : `₦${sprint.price.toLocaleString()}`}
+                            {isEnrolled ? "Active Journey" : isQueued ? "Next in Queue" : sprint.pricingType === 'credits' ? (<><span className="text-base">🪙</span> {sprint.pointCost}</>) : `₦${sprint.price.toLocaleString()}`}
                         </div>
                     </div>
                 </div>

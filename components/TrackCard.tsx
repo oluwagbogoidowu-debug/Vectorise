@@ -29,16 +29,6 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
 
                 {/* Image Section */}
                 <div className="h-60 relative overflow-hidden bg-gray-100">
-                    {/* Badges */}
-                    <div className="absolute top-6 left-6 z-20 flex items-center gap-2">
-                        <span className="px-3 py-1.5 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20">
-                            Bundle Save {track.discountPercentage}%
-                        </span>
-                        <span className="px-3 py-1.5 bg-white/95 backdrop-blur-md text-gray-900 text-[9px] font-black uppercase tracking-widest rounded-xl shadow-sm">
-                            {track.sprintIds.length} Sprints
-                        </span>
-                    </div>
-
                     <img 
                         src={track.coverImageUrl || `https://picsum.photos/seed/${track.id}/1200/600`} 
                         className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
@@ -47,6 +37,16 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
                         referrerPolicy="no-referrer"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-dark/40 to-transparent transition-opacity duration-700 opacity-0 group-hover:opacity-100"></div>
+
+                    {/* Badges - Moved to bottom-left */}
+                    <div className="absolute bottom-4 left-4 z-20 flex items-center gap-2">
+                        <span className="px-3 py-1.5 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20">
+                            Bundle Save {track.discountPercentage}%
+                        </span>
+                        <span className="px-3 py-1.5 bg-white/95 backdrop-blur-md text-gray-900 text-[9px] font-black uppercase tracking-widest rounded-xl shadow-sm">
+                            {track.sprintIds.length} Sprints
+                        </span>
+                    </div>
                 </div>
 
                 {/* Content Section */}
