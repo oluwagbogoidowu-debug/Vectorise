@@ -28,11 +28,13 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
                 </div>
 
                 {/* Image Section */}
-                <div className="aspect-[21/9] relative overflow-hidden">
+                <div className="h-60 relative overflow-hidden bg-gray-100">
                     <img 
                         src={track.coverImageUrl || `https://picsum.photos/seed/${track.id}/1200/600`} 
                         className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
                         alt={track.title} 
+                        onError={(e) => { e.currentTarget.src = `https://picsum.photos/seed/${track.id}/1200/600`; }} 
+                        referrerPolicy="no-referrer"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
                     

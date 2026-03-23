@@ -1,6 +1,6 @@
 
 import { db } from './firebase';
-import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { Track } from '../types';
 import { sanitizeData } from './userService';
 
@@ -44,7 +44,6 @@ export const trackService = {
     },
 
     deleteTrack: async (trackId: string) => {
-        // We could do a soft delete if needed
-        await updateDoc(doc(db, TRACKS_COLLECTION, trackId), { published: false });
+        await deleteDoc(doc(db, TRACKS_COLLECTION, trackId));
     }
 };
