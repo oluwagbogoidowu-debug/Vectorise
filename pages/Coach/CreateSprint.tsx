@@ -9,6 +9,7 @@ import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import FormattedText from '../../components/FormattedText';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
+import FormattingToolbar from '../../components/FormattingToolbar';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { List, Plus, Trash2, Type as TypeIcon, Clock } from 'lucide-react';
 
@@ -57,15 +58,7 @@ const CreateSprint: React.FC = () => {
         subtitle: '',
         coverImageUrl: '',
         dynamicSections: [
-            { id: 'transformation', title: 'Transformation Statement', body: '', type: 'text' },
-            { id: 'forWho', title: 'Target Signals (Who it\'s for)', body: '', type: 'text' },
-            { id: 'notForWho', title: 'Exclusions (Who it\'s not for)', body: '', type: 'text' },
-            { id: 'methodSnapshot', title: 'Method Snapshot', body: '', type: 'text' },
-            { id: 'outcomes', title: 'Evidence of Completion', body: '', type: 'text' },
-            { id: 'identity', title: 'Sprint Identity', body: '', type: 'identity' as any },
-            { id: 'metadata', title: 'Metadata', body: '', type: 'metadata' as any },
-            { id: 'pricing', title: 'Pricing & Economy', body: '', type: 'pricing' as any },
-            { id: 'completion', title: 'Completion Assets', body: '', type: 'completion' as any }
+            { id: 'overview', title: 'Sprint Overview', body: '', type: 'text' }
         ],
         category: ALL_CATEGORIES[0],
         difficulty: 'Beginner' as SprintDifficulty,
@@ -140,30 +133,9 @@ const CreateSprint: React.FC = () => {
         };
 
         formData.dynamicSections?.forEach(section => {
-            switch (section.id) {
-                case 'transformation':
-                    newSprint.transformation = section.body;
-                    newSprint.description = section.body;
-                    break;
-                case 'forWho':
-                    newSprint.forWho = section.body.split('\n').map(s => s.trim()).filter(s => s);
-                    break;
-                case 'notForWho':
-                    newSprint.notForWho = section.body.split('\n').map(s => s.trim()).filter(s => s);
-                    break;
-                case 'methodSnapshot':
-                    newSprint.methodSnapshot = section.body.split('\n').map(line => {
-                        const [verb, description] = line.split(':').map(s => s.trim());
-                        return { verb: verb || '', description: description || '' };
-                    }).filter(m => m.verb || m.description);
-                    break;
-                case 'outcomes':
-                    newSprint.outcomes = section.body.split('\n').map(s => s.trim()).filter(s => s);
-                    break;
-                case 'metadata':
-                    break;
-                case 'completionAssets':
-                    break;
+            if (section.id === 'overview') {
+                newSprint.description = section.body;
+                newSprint.transformation = section.body;
             }
         });
 
@@ -198,26 +170,9 @@ const CreateSprint: React.FC = () => {
         };
 
         formData.dynamicSections?.forEach(section => {
-            switch (section.id) {
-                case 'transformation':
-                    sprint.transformation = section.body;
-                    sprint.description = section.body;
-                    break;
-                case 'forWho':
-                    sprint.forWho = section.body.split('\n').map(s => s.trim()).filter(s => s);
-                    break;
-                case 'notForWho':
-                    sprint.notForWho = section.body.split('\n').map(s => s.trim()).filter(s => s);
-                    break;
-                case 'methodSnapshot':
-                    sprint.methodSnapshot = section.body.split('\n').map(line => {
-                        const [verb, description] = line.split(':').map(s => s.trim());
-                        return { verb: verb || '', description: description || '' };
-                    }).filter(m => m.verb || m.description);
-                    break;
-                case 'outcomes':
-                    sprint.outcomes = section.body.split('\n').map(s => s.trim()).filter(s => s);
-                    break;
+            if (section.id === 'overview') {
+                sprint.description = section.body;
+                sprint.transformation = section.body;
             }
         });
 
@@ -266,41 +221,41 @@ const CreateSprint: React.FC = () => {
                                 </div>
                             </section>
 
-                            {/* Dynamic Sections */}
-                            {formData.dynamicSections?.map((section, index) => (
+                            {/* Sprint Overview Section */}
+                            {formData.dynamicSections?.filter(s => s.id === 'overview').map((section, index) => (
                                 <section key={section.id} className="space-y-6 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                                     <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
-                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{section.title}</h4>
-                                        <button 
-                                            type="button"
-                                            onClick={() => {
-                                                const newSections = formData.dynamicSections?.filter(s => s.id !== section.id);
-                                                setFormData({ ...formData, dynamicSections: newSections });
-                                            }}
-                                            className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full"
-                                            title="Remove section"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                        </button>
+                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Sprint Overview</h4>
                                     </div>
-                                    <label className={labelClasses}>Section Title</label>
-                                    <input 
-                                        type="text" 
-                                        value={section.title} 
-                                        onChange={e => handleDynamicSectionChange(index, 'title', e.target.value)}
-                                        className={inputClasses + " mt-2"} 
-                                    />
-                                    <label className={labelClasses + " mt-4"}>
-                                        Section Body
-                                    </label>
-
-                                    <textarea 
-                                        value={section.body} 
-                                        onChange={e => handleDynamicSectionChange(index, 'body', e.target.value)}
-                                        rows={6} 
-                                        className={inputClasses + " resize-none mt-2"} 
-                                        placeholder="Enter section content..."
-                                    />
+                                    
+                                    <div className="space-y-2">
+                                        <FormattingToolbar 
+                                            onFormat={(prefix, suffix) => {
+                                                const textarea = document.getElementById(`section-body-${section.id}`) as HTMLTextAreaElement;
+                                                if (!textarea) return;
+                                                const start = textarea.selectionStart;
+                                                const end = textarea.selectionEnd;
+                                                const text = textarea.value;
+                                                const before = text.substring(0, start);
+                                                const selection = text.substring(start, end);
+                                                const after = text.substring(end);
+                                                const newValue = before + prefix + selection + suffix + after;
+                                                handleDynamicSectionChange(formData.dynamicSections.findIndex(s => s.id === 'overview'), 'body', newValue);
+                                                setTimeout(() => {
+                                                    textarea.focus();
+                                                    textarea.setSelectionRange(start + prefix.length, end + prefix.length);
+                                                }, 0);
+                                            }}
+                                        />
+                                        <textarea 
+                                            id={`section-body-${section.id}`}
+                                            value={section.body} 
+                                            onChange={e => handleDynamicSectionChange(formData.dynamicSections.findIndex(s => s.id === 'overview'), 'body', e.target.value)}
+                                            rows={12} 
+                                            className={inputClasses + " resize-none mt-2"} 
+                                            placeholder="Enter sprint overview content..."
+                                        />
+                                    </div>
                                     <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
                                         <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Preview:</h5>
                                         <div className="bg-white rounded-xl p-4 border border-gray-100">
@@ -309,22 +264,6 @@ const CreateSprint: React.FC = () => {
                                     </div>
                                 </section>
                             ))}
-
-                            <Button 
-                                type="button"
-                                onClick={() => {
-                                    const newSection: DynamicSection = {
-                                        id: `custom-${Date.now()}`,
-                                        title: 'New Custom Section',
-                                        body: 'Content for your new section.',
-                                        type: 'text'
-                                    };
-                                    setFormData({ ...formData, dynamicSections: [...(formData.dynamicSections || []), newSection] });
-                                }}
-                                className="w-full py-4 text-primary border-primary/20 hover:bg-primary/5 border rounded-[1.5rem]"
-                            >
-                                + Add New Section
-                            </Button>
 
                             {/* 07 Metadata */}
                             <section>

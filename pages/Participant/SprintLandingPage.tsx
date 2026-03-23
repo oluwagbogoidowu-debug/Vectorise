@@ -203,23 +203,29 @@ const SprintLandingPage: React.FC = () => {
 
                         {/* MAIN CONTENT */}
                         <div className="space-y-8">
-                            {displayDescription && !hasDynamicContent && (
-                                <section className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-sm animate-fade-in">
-                                    <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed italic">
-                                        "{displayDescription}"
-                                    </p>
+                            {(displayDescription || hasDynamicContent) && (
+                                <section className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">
+                                    <SectionHeading>Sprint Overview</SectionHeading>
+                                    
+                                    <div className="space-y-8">
+                                        {displayDescription && !hasDynamicContent && (
+                                            <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed italic">
+                                                "{displayDescription}"
+                                            </p>
+                                        )}
+
+                                        {sprint.dynamicSections && sprint.dynamicSections
+                                            .filter(section => section.body && section.body.trim().length > 0)
+                                            .map((section, index) => (
+                                                <div key={index} className="animate-fade-in">
+                                                    {section.id !== 'overview' && <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">{section.title}</h3>}
+                                                    <DynamicSectionRenderer section={section} />
+                                                </div>
+                                            ))
+                                        }
+                                    </div>
                                 </section>
                             )}
-
-                            {sprint.dynamicSections && sprint.dynamicSections
-                                .filter(section => section.body && section.body.trim().length > 0)
-                                .map((section, index) => (
-                                    <section key={index} className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">
-                                        <SectionHeading>{section.title}</SectionHeading>
-                                        <DynamicSectionRenderer section={section} />
-                                    </section>
-                                ))
-                            }
                         </div>
                     </div>
 

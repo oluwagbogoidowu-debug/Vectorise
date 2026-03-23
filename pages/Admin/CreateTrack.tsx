@@ -1,21 +1,19 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { trackService } from '../../services/trackService';
 import { Sprint, Track } from '../../types';
 import Button from '../../components/Button';
 import { List, Plus, Trash2, Search, Package } from 'lucide-react';
+import FormattingToolbar from '../../components/FormattingToolbar';
 
 const CreateTrack: React.FC = () => {
     const navigate = useNavigate();
-    const { trackId } = useParams<{ trackId: string }>();
-    const isEditing = !!trackId;
     const { user } = useAuth();
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [isLoadingSprints, setIsLoadingSprints] = useState(true);
-    const [isLoadingTrack, setIsLoadingTrack] = useState(isEditing);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -35,31 +33,6 @@ const CreateTrack: React.FC = () => {
         });
         return () => unsubscribe();
     }, []);
-
-    useEffect(() => {
-        if (isEditing && trackId) {
-            const fetchTrack = async () => {
-                try {
-                    const track = await trackService.getTrackById(trackId);
-                    if (track) {
-                        setFormData({
-                            title: track.title,
-                            subtitle: track.subtitle,
-                            description: track.description,
-                            discountPercentage: track.discountPercentage,
-                            coverImageUrl: track.coverImageUrl,
-                            sprintIds: track.sprintIds
-                        });
-                    }
-                } catch (error) {
-                    console.error("Error fetching track:", error);
-                } finally {
-                    setIsLoadingTrack(false);
-                }
-            };
-            fetchTrack();
-        }
-    }, [isEditing, trackId]);
 
     const filteredSprints = useMemo(() => {
         return sprints.filter(s => 
@@ -94,37 +67,27 @@ const CreateTrack: React.FC = () => {
         if (!user || formData.sprintIds.length === 0) return;
         setIsSubmitting(true);
 
+        const trackId = `track_${Date.now()}`;
+        const newTrack: Track = {
+            id: trackId,
+            title: formData.title,
+            subtitle: formData.subtitle,
+            description: formData.description,
+            sprintIds: formData.sprintIds,
+            discountPercentage: Number(formData.discountPercentage),
+            coverImageUrl: formData.coverImageUrl || `https://picsum.photos/seed/${trackId}/800/400`,
+            published: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            currency: selectedSprints[0]?.currency || 'NGN'
+        };
+
         try {
-            if (isEditing && trackId) {
-                await trackService.updateTrack(trackId, {
-                    title: formData.title,
-                    subtitle: formData.subtitle,
-                    description: formData.description,
-                    sprintIds: formData.sprintIds,
-                    discountPercentage: Number(formData.discountPercentage),
-                    coverImageUrl: formData.coverImageUrl || `https://picsum.photos/seed/${trackId}/800/400`,
-                    currency: selectedSprints[0]?.currency || 'NGN'
-                });
-            } else {
-                const newTrackId = `track_${Date.now()}`;
-                const newTrack: Track = {
-                    id: newTrackId,
-                    title: formData.title,
-                    subtitle: formData.subtitle,
-                    description: formData.description,
-                    sprintIds: formData.sprintIds,
-                    discountPercentage: Number(formData.discountPercentage),
-                    coverImageUrl: formData.coverImageUrl || `https://picsum.photos/seed/${newTrackId}/800/400`,
-                    published: true,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                    currency: selectedSprints[0]?.currency || 'NGN'
-                };
-                await trackService.createTrack(newTrack);
-            }
+            await trackService.createTrack(newTrack);
             navigate('/admin/dashboard');
         } catch (error) {
             console.error(error);
+            alert("Failed to create track.");
         } finally {
             setIsSubmitting(false);
         }
@@ -143,17 +106,12 @@ const CreateTrack: React.FC = () => {
                         </svg>
                     </button>
                     <div>
-                        <h1 className="text-3xl font-black text-gray-900 tracking-tight italic">{isEditing ? 'Edit Track.' : 'Curate Track.'}</h1>
-                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{isEditing ? 'Update Program Bundle' : 'Platform Bundle System'}</p>
+                        <h1 className="text-3xl font-black text-gray-900 tracking-tight italic">Curate Track.</h1>
+                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Platform Bundle System</p>
                     </div>
                 </header>
 
-                {isLoadingTrack ? (
-                    <div className="flex justify-center items-center py-20">
-                        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                ) : (
-                    <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
                     <div className="lg:col-span-7 space-y-8">
                         <div className="bg-white rounded-[3rem] shadow-sm border border-gray-100 p-10 space-y-8">
                             <section>
@@ -181,15 +139,35 @@ const CreateTrack: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className={labelClasses}>Track Description</label>
-                                        <textarea 
-                                            value={formData.description} 
-                                            onChange={e => setFormData({...formData, description: e.target.value})} 
-                                            className={inputClasses + " resize-none"} 
-                                            rows={5} 
-                                            placeholder="Explain the value of this bundle..." 
-                                            required 
-                                        />
+                                        <label className={labelClasses}>Track Overview</label>
+                                        <div className="space-y-2">
+                                            <FormattingToolbar 
+                                                onFormat={(prefix, suffix) => {
+                                                    const textarea = document.getElementById('track-description') as HTMLTextAreaElement;
+                                                    if (!textarea) return;
+                                                    const start = textarea.selectionStart;
+                                                    const end = textarea.selectionEnd;
+                                                    const text = textarea.value;
+                                                    const before = text.substring(0, start);
+                                                    const selection = text.substring(start, end);
+                                                    const after = text.substring(end);
+                                                    const newValue = before + prefix + selection + suffix + after;
+                                                    setFormData({ ...formData, description: newValue });
+                                                    setTimeout(() => {
+                                                        textarea.focus();
+                                                        textarea.setSelectionRange(start + prefix.length, end + prefix.length);
+                                                    }, 0);
+                                                }}
+                                            />
+                                            <textarea 
+                                                id="track-description"
+                                                value={formData.description} 
+                                                onChange={e => setFormData({...formData, description: e.target.value})} 
+                                                className={inputClasses + " resize-none min-h-[300px]"} 
+                                                placeholder="Explain the value of this bundle..." 
+                                                required 
+                                            />
+                                        </div>
                                     </div>
                                     <div>
                                         <label className={labelClasses}>Cover Image URL</label>
@@ -326,13 +304,12 @@ const CreateTrack: React.FC = () => {
                                     isLoading={isSubmitting}
                                     className="w-full py-5 rounded-[2rem] shadow-2xl shadow-primary/20 scale-105 active:scale-100"
                                 >
-                                    {isEditing ? 'Update Track Bundle' : 'Launch Track Bundle'}
+                                    Launch Track Bundle
                                 </Button>
                             </div>
                         </div>
                     </div>
                 </form>
-                )}
             </div>
             <style>{`
                 .no-scrollbar::-webkit-scrollbar { display: none; }

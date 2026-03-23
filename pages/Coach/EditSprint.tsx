@@ -12,6 +12,7 @@ import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import FormattedText from '../../components/FormattedText';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
+import FormattingToolbar from '../../components/FormattingToolbar';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 
@@ -81,84 +82,6 @@ const DiffHighlight: React.FC<{ original: any; updated: any; label: string }> = 
         </div>
     );
 };
-
-const FormattingToolbar: React.FC<{
-    textareaRef: React.RefObject<HTMLTextAreaElement | null>; 
-    onUpdate: (value: string) => void;
-}> = ({ textareaRef, onUpdate }) => {
-    const handleFormat = (type: 'bold' | 'italic' | 'bullet' | 'number') => {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
-
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const text = textarea.value;
-        const before = text.substring(0, start);
-        const selected = text.substring(start, end);
-        const after = text.substring(end);
-
-        let newContent = '';
-        let newCursorPos = start;
-
-        switch (type) {
-            case 'bold':
-                newContent = `${before}*${selected || 'bold text'}*${after}`;
-                newCursorPos = selected ? end + 2 : start + 1;
-                break;
-            case 'italic':
-                newContent = `${before}_${selected || 'italic text'}_${after}`;
-                newCursorPos = selected ? end + 2 : start + 1;
-                break;
-            case 'bullet':
-                newContent = `${before}${before.endsWith('\n') || before === '' ? '' : '\n'}- ${selected || 'list item'}${after}`;
-                newCursorPos = newContent.length - after.length;
-                break;
-            case 'number':
-                newContent = `${before}${before.endsWith('\n') || before === '' ? '' : '\n'}1. ${selected || 'list item'}${after}`;
-                newCursorPos = newContent.length - after.length;
-                break;
-        }
-
-        onUpdate(newContent);
-        
-        // Refocus and set cursor
-        setTimeout(() => {
-            textarea.focus();
-            textarea.setSelectionRange(newCursorPos, newCursorPos);
-        }, 0);
-    };
-
-    const Btn = ({ onClick, children, title }: { onClick: () => void, children?: React.ReactNode, title: string }) => (
-        <button
-            type="button"
-            onClick={onClick}
-            title={title}
-            className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-gray-100 text-gray-400 hover:text-primary hover:border-primary/20 hover:shadow-sm transition-all active:scale-90"
-        >
-            {children}
-        </button>
-    );
-
-    return (
-        <div className="flex gap-1 mb-2">
-            <Btn onClick={() => handleFormat('bold')} title="Bold">
-                <span className="font-black text-xs">B</span>
-            </Btn>
-            <Btn onClick={() => handleFormat('italic')} title="Italic">
-                <span className="italic font-serif text-sm">I</span>
-            </Btn>
-            <Btn onClick={() => handleFormat('bullet')} title="Bullet List">
-                <span className="text-base leading-none">•</span>
-            </Btn>
-            <Btn onClick={() => handleFormat('number')} title="Numbered List">
-                <span className="text-[10px] font-black leading-none">1.</span>
-            </Btn>
-        </div>
-    );
-};
-
-
-
 
 const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> => {
     const changes: Partial<Sprint> = {};
@@ -260,19 +183,26 @@ const EditSprint: React.FC = () => {
             { id: 'identity', title: 'Sprint Identity', body: '', type: 'identity' as any },
             { id: 'metadata', title: 'Metadata', body: '', type: 'metadata' as any },
             { id: 'pricing', title: 'Pricing & Economy', body: '', type: 'pricing' as any },
-            { id: 'completion', title: 'Completion Assets', body: '', type: 'completion' as any }
+            { id: 'completion', title: 'Completion Assets', body: '', type: 'completion' as any },
+            { id: 'overview', title: 'Sprint Overview', body: merged.description || merged.transformation || '', type: 'text' as any }
           ];
           
           const initialDynamicSections = [...(merged.dynamicSections || [])];
+          
+          // Filter out any old custom sections that aren't 'overview'
+          const filteredSections = initialDynamicSections.filter(s => 
+            systemSections.find(sys => sys.id === s.id)
+          );
+
           systemSections.forEach(sys => {
-              if (!initialDynamicSections.find(s => s.id === sys.id)) {
-                  initialDynamicSections.push(sys);
+              if (!filteredSections.find(s => s.id === sys.id)) {
+                  filteredSections.push(sys);
               }
           });
 
           setEditSettings({
             ...merged,
-            dynamicSections: initialDynamicSections
+            dynamicSections: filteredSections
           });
         } else { navigate('/dashboard'); }
       } catch (err) { navigate('/dashboard'); }
@@ -439,7 +369,7 @@ const EditSprint: React.FC = () => {
     // Parse dynamic sections back into sprint properties
     editSettings.dynamicSections?.forEach(section => {
       switch (section.id) {
-        case 'transformation':
+        case 'overview':
           updatedSprintData.transformation = section.body;
           updatedSprintData.description = section.body;
           break;
@@ -606,8 +536,22 @@ const EditSprint: React.FC = () => {
                   <label className={labelClasses}>Today's Insight</label>
                   {canEditDirectly && (
                       <FormattingToolbar 
-                          textareaRef={lessonTextRef} 
-                          onUpdate={(v) => handleContentChange('lessonText', v)} 
+                          onFormat={(prefix, suffix) => {
+                              const textarea = lessonTextRef.current;
+                              if (!textarea) return;
+                              const start = textarea.selectionStart;
+                              const end = textarea.selectionEnd;
+                              const text = textarea.value;
+                              const before = text.substring(0, start);
+                              const selection = text.substring(start, end);
+                              const after = text.substring(end);
+                              const newValue = before + prefix + selection + suffix + after;
+                              handleContentChange('lessonText', newValue);
+                              setTimeout(() => {
+                                  textarea.focus();
+                                  textarea.setSelectionRange(start + prefix.length, end + prefix.length);
+                              }, 0);
+                          }}
                       />
                   )}
                 </div>
@@ -634,8 +578,22 @@ const EditSprint: React.FC = () => {
                   <label className={labelClasses}>Today's Action Step</label>
                   {canEditDirectly && (
                       <FormattingToolbar 
-                          textareaRef={taskPromptRef} 
-                          onUpdate={(v) => handleContentChange('taskPrompt', v)} 
+                          onFormat={(prefix, suffix) => {
+                              const textarea = taskPromptRef.current;
+                              if (!textarea) return;
+                              const start = textarea.selectionStart;
+                              const end = textarea.selectionEnd;
+                              const text = textarea.value;
+                              const before = text.substring(0, start);
+                              const selection = text.substring(start, end);
+                              const after = text.substring(end);
+                              const newValue = before + prefix + selection + suffix + after;
+                              handleContentChange('taskPrompt', newValue);
+                              setTimeout(() => {
+                                  textarea.focus();
+                                  textarea.setSelectionRange(start + prefix.length, end + prefix.length);
+                              }, 0);
+                          }}
                       />
                   )}
                 </div>
@@ -662,8 +620,22 @@ const EditSprint: React.FC = () => {
                   <label className={labelClasses}>Coach Insight</label>
                   {canEditDirectly && (
                       <FormattingToolbar 
-                          textareaRef={coachInsightRef} 
-                          onUpdate={(v) => handleContentChange('coachInsight', v)} 
+                          onFormat={(prefix, suffix) => {
+                              const textarea = coachInsightRef.current;
+                              if (!textarea) return;
+                              const start = textarea.selectionStart;
+                              const end = textarea.selectionEnd;
+                              const text = textarea.value;
+                              const before = text.substring(0, start);
+                              const selection = text.substring(start, end);
+                              const after = text.substring(end);
+                              const newValue = before + prefix + selection + suffix + after;
+                              handleContentChange('coachInsight', newValue);
+                              setTimeout(() => {
+                                  textarea.focus();
+                                  textarea.setSelectionRange(start + prefix.length, end + prefix.length);
+                              }, 0);
+                          }}
                       />
                   )}
                 </div>
@@ -1060,68 +1032,54 @@ const EditSprint: React.FC = () => {
                                 );
                             }
 
-                            return (
-                                <section key={section.id} className="space-y-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
-                                    <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
-                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{section.title}</h4>
-                                        <button 
-                                            onClick={() => {
-                                                const newSections = editSettings.dynamicSections?.filter(s => s.id !== section.id);
-                                                setEditSettings({ ...editSettings, dynamicSections: newSections });
-                                            }}
-                                            className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full"
-                                            title="Remove section"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                        </button>
-                                    </div>
-                                    <label className={labelClasses}>Section Title</label>
-                                    <input 
-                                        type="text" 
-                                        value={section.title} 
-                                        onChange={e => {
-                                            const newSections = [...(editSettings.dynamicSections || [])];
-                                            newSections[index] = { ...newSections[index], title: e.target.value };
-                                            setEditSettings({ ...editSettings, dynamicSections: newSections });
-                                        }}
-                                        className={registryInputClasses + " mt-2"} 
-                                    />
-                                    <label className={labelClasses + " mt-4"}>
-                                        Section Body
-                                    </label>
+                            if (section.id === 'overview') {
+                                return (
+                                    <section key={section.id} className="space-y-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
+                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Sprint Overview</h4>
+                                        <label className={labelClasses}>
+                                            Detailed Overview
+                                        </label>
 
-                                    <textarea 
-                                        value={section.body} 
-                                        onChange={e => handleDynamicSectionChange(index, 'body', e.target.value)}
-                                        rows={6} 
-                                        className={registryInputClasses + " resize-none mt-2"} 
-                                        placeholder="Enter section content..."
-                                    />
-                                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                                        <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Preview:</h5>
-                                        <div className="bg-white rounded-xl p-4 border border-gray-100">
-                                            <DynamicSectionRenderer section={section} />
+                                        <div className="space-y-2">
+                                            <FormattingToolbar 
+                                                onFormat={(prefix, suffix) => {
+                                                    const textarea = document.getElementById(`section-body-${section.id}`) as HTMLTextAreaElement;
+                                                    if (!textarea) return;
+                                                    const start = textarea.selectionStart;
+                                                    const end = textarea.selectionEnd;
+                                                    const text = textarea.value;
+                                                    const before = text.substring(0, start);
+                                                    const selection = text.substring(start, end);
+                                                    const after = text.substring(end);
+                                                    const newValue = before + prefix + selection + suffix + after;
+                                                    handleDynamicSectionChange(index, 'body', newValue);
+                                                    setTimeout(() => {
+                                                        textarea.focus();
+                                                        textarea.setSelectionRange(start + prefix.length, end + prefix.length);
+                                                    }, 0);
+                                                }}
+                                            />
+                                            <textarea 
+                                                id={`section-body-${section.id}`}
+                                                value={section.body} 
+                                                onChange={e => handleDynamicSectionChange(index, 'body', e.target.value)}
+                                                rows={12} 
+                                                className={registryInputClasses + " resize-none mt-2"} 
+                                                placeholder="Enter the comprehensive sprint overview..."
+                                            />
                                         </div>
-                                    </div>
-                                </section>
-                            );
-                        })}
+                                        <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                                            <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Preview:</h5>
+                                            <div className="bg-white rounded-xl p-4 border border-gray-100">
+                                                <DynamicSectionRenderer section={section} />
+                                            </div>
+                                        </div>
+                                    </section>
+                                );
+                            }
 
-                        <Button 
-                            onClick={() => {
-                                const newSection: DynamicSection = {
-                                    id: `custom-${Date.now()}`,
-                                    title: 'New Custom Section',
-                                    body: 'Content for your new section.',
-                                    type: 'text'
-                                };
-                                setEditSettings({ ...editSettings, dynamicSections: [...(editSettings.dynamicSections || []), newSection] });
-                            }}
-                            variant="secondary"
-                            className="w-full py-4 text-primary border-primary/20 hover:bg-primary/5 rounded-[1.5rem]"
-                        >
-                            + Add New Section
-                        </Button>
+                            return null;
+                        })}
                     </>
                 )}
 
