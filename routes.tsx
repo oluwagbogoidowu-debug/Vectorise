@@ -198,6 +198,7 @@ export const AppRoutes: React.FC = () => {
       <Route path="/admin/sprint/new" element={<ProtectedRoute roles={[UserRole.ADMIN]}><CreateFoundationalSprint /></ProtectedRoute>} />
       <Route path="/admin/coach/:coachId" element={<ProtectedRoute roles={[UserRole.ADMIN]}><AdminCoachDetail /></ProtectedRoute>} />
       <Route path="/admin/track/new" element={<ProtectedRoute roles={[UserRole.ADMIN]}><CreateTrack /></ProtectedRoute>} />
+      <Route path="/admin/track/edit/:trackId" element={<ProtectedRoute roles={[UserRole.ADMIN]}><CreateTrack /></ProtectedRoute>} />
       <Route path="/track/:trackId" element={<TrackDescriptionPage />} />
       
       <Route path="*" element={<Navigate to="/" replace />} />
