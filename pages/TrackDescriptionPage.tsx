@@ -193,7 +193,7 @@ const TrackDescriptionPage: React.FC = () => {
                                         SAVE {track.discountPercentage}%
                                     </span>
                                     <span className="px-3 py-1.5 bg-white/10 backdrop-blur-md text-white rounded-lg text-[11px] font-black uppercase tracking-widest">
-                                        {sprints.length} SPRINTS INCLUDED
+                                        {sprints.length} SPRINTS
                                     </span>
                                 </div>
                                 <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-4 italic">
@@ -210,6 +210,14 @@ const TrackDescriptionPage: React.FC = () => {
                         {/* MAIN CONTENT */}
                         <div className="space-y-8">
                             <section className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-sm animate-fade-in">
+                                <div className="flex items-center gap-4 mb-8">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[11px] font-black text-primary uppercase tracking-[0.3em]">SAVE {track.discountPercentage}%</span>
+                                        <span className="w-1.5 h-1.5 bg-primary/20 rounded-full"></span>
+                                        <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.3em]">{sprints.length} SPRINTS</span>
+                                    </div>
+                                    <div className="h-px flex-1 bg-gray-50"></div>
+                                </div>
                                 <SectionHeading>Track Overview</SectionHeading>
                                 <div className="text-base md:text-lg text-gray-600 font-medium leading-relaxed italic">
                                     <FormattedText text={track.description} />

@@ -20,10 +20,10 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
                 {/* Badge */}
                 <div className="absolute top-6 left-6 z-20 flex items-center gap-2">
                     <span className="px-3 py-1.5 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20">
-                        Bundle Save {track.discountPercentage}%
+                        SAVE {track.discountPercentage}%
                     </span>
                     <span className="px-3 py-1.5 bg-white/90 backdrop-blur-sm text-gray-900 text-[9px] font-black uppercase tracking-widest rounded-xl shadow-sm">
-                        {track.sprintIds.length} Sprints
+                        {track.sprintIds.length} SPRINTS
                     </span>
                 </div>
 
@@ -41,10 +41,10 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
                     {/* Badges - Moved to bottom-left */}
                     <div className="absolute bottom-4 left-4 z-20 flex items-center gap-2">
                         <span className="px-3 py-1.5 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20">
-                            Bundle Save {track.discountPercentage}%
+                            SAVE {track.discountPercentage}%
                         </span>
                         <span className="px-3 py-1.5 bg-white/95 backdrop-blur-md text-gray-900 text-[9px] font-black uppercase tracking-widest rounded-xl shadow-sm">
-                            {track.sprintIds.length} Sprints
+                            {track.sprintIds.length} SPRINTS
                         </span>
                     </div>
                 </div>
@@ -58,6 +58,11 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
                     <h3 className="text-2xl font-black text-gray-900 mb-1 transition-colors leading-[1.1] tracking-tight group-hover:text-primary">
                         {track.title}
                     </h3>
+                    <div className="flex items-center gap-2 mb-4">
+                        <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">SAVE {track.discountPercentage}%</span>
+                        <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{track.sprintIds.length} SPRINTS</span>
+                    </div>
                     {track.subtitle && (
                         <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-8 leading-none">
                             {track.subtitle}

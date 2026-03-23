@@ -267,7 +267,7 @@ const CreateTrack: React.FC = () => {
                                         <div className="absolute bottom-6 left-6 right-6">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <span className="px-2 py-1 bg-primary text-white text-[8px] font-black uppercase tracking-widest rounded-md">Track Bundle</span>
-                                                <span className="px-2 py-1 bg-white/20 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-widest rounded-md">{formData.sprintIds.length} Sprints</span>
+                                                <span className="px-2 py-1 bg-white/20 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-widest rounded-md">{formData.sprintIds.length} SPRINTS</span>
                                             </div>
                                             <h3 className="text-xl font-black text-white tracking-tight italic">{formData.title || 'Untitled Track'}</h3>
                                         </div>

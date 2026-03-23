@@ -87,9 +87,13 @@ const AdminTracks: React.FC = () => {
                                             </div>
                                         )}
                                     </div>
-                                    <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">{track.sprintIds.length} Programs</span>
+                                    <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">{track.sprintIds.length} SPRINTS</span>
                                     <div className="h-4 w-px bg-gray-100"></div>
-                                    <span className="text-[10px] font-black text-primary italic">
+                                    <span className="text-[10px] font-black text-primary italic uppercase tracking-widest">
+                                        SAVE {track.discountPercentage}%
+                                    </span>
+                                    <div className="h-4 w-px bg-gray-100"></div>
+                                    <span className="text-[10px] font-black text-gray-900 italic">
                                         {discountedPrice.toLocaleString()} {track.currency}
                                         <span className="text-[8px] text-gray-300 line-through ml-1">{totalValue.toLocaleString()}</span>
                                     </span>
@@ -102,11 +106,6 @@ const AdminTracks: React.FC = () => {
                                         <Eye className="w-4 h-4" />
                                     </button>
                                 </Link>
-                                <Link to={`/admin/track/edit/${track.id}`}>
-                                    <button className="p-3 bg-gray-50 text-gray-400 hover:text-primary rounded-xl transition-all" title="Edit Track">
-                                        <Edit2 className="w-4 h-4" />
-                                    </button>
-                                </Link>
                                 <button 
                                     onClick={() => trackService.updateTrack(track.id, { published: !track.published })}
                                     className={`p-3 rounded-xl transition-all ${track.published ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-400'}`}
@@ -114,17 +113,7 @@ const AdminTracks: React.FC = () => {
                                 >
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                 </button>
-                                <button 
-                                    onClick={async () => {
-                                        try {
-                                            await trackService.deleteTrack(track.id);
-                                        } catch (error) {
-                                            console.error(error);
-                                        }
-                                    }}
-                                    className="p-3 bg-gray-50 text-gray-400 hover:text-red-500 rounded-xl transition-all" 
-                                    title="Delete Track"
-                                >
+                                <button className="p-3 bg-gray-50 text-gray-400 hover:text-red-500 rounded-xl transition-all" title="Delete Track">
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             </div>
