@@ -18,7 +18,7 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
         <Link to={`/track/${track.id}`} className="block group">
             <div className="bg-white rounded-[3rem] border border-gray-100 shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-500 relative">
                 {/* Image Section */}
-                <div className="h-60 relative overflow-hidden bg-gray-100">
+                <div className="h-48 relative overflow-hidden bg-gray-100">
                     <img 
                         src={track.coverImageUrl || `https://picsum.photos/seed/${track.id}/1200/600`} 
                         className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
@@ -34,27 +34,27 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
                             SAVE {track.discountPercentage}%
                         </span>
                         <span className="px-3 py-1.5 bg-white/95 backdrop-blur-md text-gray-900 text-[9px] font-black uppercase tracking-widest rounded-xl shadow-sm">
-                            {track.sprintIds.length} SPRINTS
+                            {track.sprintIds.length} SPRINTS INCLUDED
                         </span>
                     </div>
                 </div>
 
                 {/* Content Section */}
-                <div className="p-8 flex flex-col flex-grow">
-                    <div className="flex items-center gap-2 mb-4">
+                <div className="p-6 flex flex-col flex-grow">
+                    <div className="flex items-center gap-2 mb-3">
                         <span className="px-3 py-1 rounded-lg bg-gray-50 border border-gray-100 text-primary text-[9px] font-black uppercase tracking-[0.25em]">Track Bundle</span>
                     </div>
 
-                    <h3 className="text-2xl font-black text-gray-900 mb-1 transition-colors leading-[1.1] tracking-tight group-hover:text-primary">
+                    <h3 className="text-xl font-black text-gray-900 mb-1 transition-colors leading-[1.1] tracking-tight group-hover:text-primary">
                         {track.title}
                     </h3>
                     {track.subtitle && (
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-8 leading-none">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-6 leading-none">
                             {track.subtitle}
                         </p>
                     )}
 
-                    <div className="pt-8 border-t border-gray-50 mt-auto space-y-8">
+                    <div className="pt-6 border-t border-gray-50 mt-auto space-y-6">
                         {/* Curated Bundle Info */}
                         <div className="flex items-center gap-5">
                             <div className="flex -space-x-4">
