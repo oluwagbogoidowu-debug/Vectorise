@@ -82,9 +82,10 @@ const PaymentSuccess: React.FC = () => {
                         } else {
                             // Logged in flow: Redirect to sprint view or dashboard
                             const finalUserId = user?.id || data.userId;
-                            if (data.trackId) {
-                                // For tracks, we redirect to dashboard or the first sprint of the track
-                                // For now, let's go to dashboard where they can see their new track
+                            if (data.activeEnrollmentId) {
+                                navigate(`/participant/sprint/${data.activeEnrollmentId}`, { replace: true });
+                            } else if (data.trackId) {
+                                // If no active enrollment (e.g. user already has an active sprint), go to dashboard
                                 navigate('/participant/dashboard', { replace: true });
                             } else {
                                 const enrollmentId = `enrollment_${finalUserId}_${data.sprintId}`;

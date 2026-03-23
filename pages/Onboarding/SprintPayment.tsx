@@ -6,7 +6,7 @@ import { paymentService } from '../../services/paymentService';
 import { userService, sanitizeData } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { useAuth } from '../../contexts/AuthContext';
-import { Sprint, Participant, GlobalOrchestrationSettings } from '../../types';
+import { Sprint, Track, Participant, GlobalOrchestrationSettings } from '../../types';
 
 const SprintPayment: React.FC = () => {
   const navigate = useNavigate();
@@ -23,8 +23,12 @@ const SprintPayment: React.FC = () => {
 
   const state = location.state || {};
   const selectedSprint: Sprint | null = state.sprint || null;
+  const selectedTrack: Track | null = state.track || null;
   const sprintId = selectedSprint?.id;
+  const trackId = selectedTrack?.id;
   
+  const [trackSprints, setTrackSprints] = useState<Sprint[]>([]);
+
   useEffect(() => {
     const checkExistingEnrollment = async () => {
       if (user && sprintId) {
@@ -40,6 +44,15 @@ const SprintPayment: React.FC = () => {
       }
     };
     checkExistingEnrollment();
+
+    const loadTrackData = async () => {
+        if (selectedTrack) {
+            const sprintPromises = selectedTrack.sprintIds.map((id: string) => sprintService.getSprintById(id));
+            const data = await Promise.all(sprintPromises);
+            setTrackSprints(data.filter((s): s is Sprint => !!s));
+        }
+    };
+    loadTrackData();
     
     const loadSettings = async () => {
       const settings = await sprintService.getGlobalOrchestrationSettings();
@@ -53,8 +66,17 @@ const SprintPayment: React.FC = () => {
   }, [state.prefilledEmail, user, sprintId]);
 
   const isCreditSprint = selectedSprint?.pricingType === 'credits';
-  const sprintPrice = isCreditSprint ? (selectedSprint?.pointCost ?? 0) : (selectedSprint?.price ?? 3000);
-  const sprintTitle = selectedSprint?.title ?? "From Confusion to a Clear Path";
+  
+  const getPrice = () => {
+      if (selectedTrack) {
+          const total = trackSprints.reduce((sum, s) => sum + (s.price || 0), 0);
+          return total * (1 - selectedTrack.discountPercentage / 100);
+      }
+      return isCreditSprint ? (selectedSprint?.pointCost ?? 0) : (selectedSprint?.price ?? 3000);
+  };
+
+  const sprintPrice = getPrice();
+  const sprintTitle = selectedTrack?.title || selectedSprint?.title || "From Confusion to a Clear Path";
 
   const userParticipant = user as Participant;
   const userBalance = userParticipant?.walletBalance || 0;
@@ -63,7 +85,7 @@ const SprintPayment: React.FC = () => {
   const effectiveEmail = user?.email || guestEmail;
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(effectiveEmail);
 
-  const isFormValid = isEmailValid && !!sprintId && (isCreditSprint ? (!!user && hasEnoughCredits) : true);
+  const isFormValid = isEmailValid && (!!sprintId || !!trackId) && (isCreditSprint ? (!!user && hasEnoughCredits) : true);
   const canPay = finalCommitment && isFormValid && !isProcessing;
 
   const handleCoinPayment = async () => {
@@ -120,7 +142,7 @@ const SprintPayment: React.FC = () => {
         return;
     }
 
-    if (!sprintId) {
+    if (!sprintId && !trackId) {
         setValidationError("Program selection error. Please return to discovery.");
         return;
     }
@@ -132,7 +154,8 @@ const SprintPayment: React.FC = () => {
     const payload = {
         userId: traceId,
         email: effectiveEmail.toLowerCase().trim(),
-        sprintId: sprintId,
+        sprintId: sprintId || undefined,
+        trackId: trackId || undefined,
         amount: Number(sprintPrice),
         currency: "NGN",
         name: user?.name || 'Vectorise Guest'
@@ -198,6 +221,9 @@ const SprintPayment: React.FC = () => {
         <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col animate-slide-up">
           <header className="p-6 md:p-8 text-center border-b border-gray-50">
              <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-none italic">{sprintTitle}</h1>
+             {selectedTrack && (
+                 <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-3">Track Bundle • {trackSprints.length} Sprints</p>
+             )}
           </header>
           <main className="p-6 md:p-8 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
@@ -205,15 +231,23 @@ const SprintPayment: React.FC = () => {
                   <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Investment</p>
                   <h3 className="text-4xl font-black text-gray-900 tracking-tighter">{isCreditSprint ? '🪙' : '₦'}{sprintPrice.toLocaleString()}</h3>
                   {!isCreditSprint && (
-                    <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mt-2">One-time payment for the {selectedSprint?.duration || 5}-day sprint.</p>
+                    <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mt-2">One-time payment for the {selectedTrack ? 'entire track' : `${selectedSprint?.duration || 5}-day sprint`}.</p>
                   )}
                </section>
                <section className="space-y-3 pt-2">
-                  <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em]">What's included</h2>
+                  <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em]">{selectedTrack ? 'Sprints Unlocked' : "What's included"}</h2>
                   <div className="text-[10px] md:text-xs font-bold text-gray-600 space-y-1.5">
-                    <p>✓ {selectedSprint?.duration || 5}-Day Guided Clarity Journey</p>
-                    <p>✓ Daily Action System (15 minutes a day)</p>
-                    <p>✓ Coach Feedback During the Sprint</p>
+                    {selectedTrack ? (
+                        trackSprints.map((s, i) => (
+                            <p key={s.id}>✓ {i + 1}. {s.title}</p>
+                        ))
+                    ) : (
+                        <>
+                            <p>✓ {selectedSprint?.duration || 5}-Day Guided Clarity Journey</p>
+                            <p>✓ Daily Action System (15 minutes a day)</p>
+                            <p>✓ Coach Feedback During the Sprint</p>
+                        </>
+                    )}
                   </div>
                </section>
             </div>
@@ -252,14 +286,14 @@ const SprintPayment: React.FC = () => {
             <section className="pt-4 border-t border-gray-50 space-y-4">
                <label className="flex items-start gap-3 p-4 bg-primary/5 border border-primary/10 rounded-xl cursor-pointer active:scale-[0.98] transition-all group hover:bg-primary/10">
                 <input type="checkbox" checked={finalCommitment} onChange={(e) => setFinalCommitment(e.target.checked)} className="w-4 h-4 bg-white border-gray-200 rounded focus:ring-primary text-primary" />
-                <span className="text-[10px] font-black text-primary uppercase tracking-widest leading-tight">I commit to completing this {selectedSprint?.duration || 5}-day sprint.</span>
+                <span className="text-[10px] font-black text-primary uppercase tracking-widest leading-tight">I commit to completing {selectedTrack ? 'all sprints in this track' : `this ${selectedSprint?.duration || 5}-day sprint`}.</span>
               </label>
               {errorMessage && <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-[9px] font-bold text-red-600 uppercase tracking-widest text-center animate-pulse">{errorMessage}</div>}
             </section>
           </main>
           <footer className="p-6 md:p-8 pt-3 bg-gray-50/50 border-t border-gray-50">
              <div className="space-y-4">
-                <Button onClick={isCreditSprint ? handleCoinPayment : startCashPayment} disabled={!canPay} isLoading={isProcessing} className="w-full py-4 rounded-xl shadow-xl text-[11px] uppercase font-black">{isProcessing ? "Authorizing..." : isCreditSprint ? `Redeem ${sprintPrice} Credits` : "Pay & Start Sprint"}</Button>
+                <Button onClick={isCreditSprint ? handleCoinPayment : startCashPayment} disabled={!canPay} isLoading={isProcessing} className="w-full py-4 rounded-xl shadow-xl text-[11px] uppercase font-black">{isProcessing ? "Authorizing..." : isCreditSprint ? `Redeem ${sprintPrice} Credits` : selectedTrack ? "Pay & Unlock Track" : "Pay & Start Sprint"}</Button>
                 <div className="text-center">
                   <button onClick={handleHesitation} className="text-[9px] font-black text-gray-400 hover:text-primary transition-colors underline underline-offset-4 decoration-gray-200 cursor-pointer">Not sure yet? See The Map</button>
                 </div>

@@ -69,7 +69,7 @@ export const paymentService = {
     }
   },
 
-  checkPaymentStatus: async (txRef: string): Promise<{ status: string, sprintId?: string, trackId?: string, userId?: string, email?: string }> => {
+  checkPaymentStatus: async (txRef: string): Promise<{ status: string, sprintId?: string, trackId?: string, userId?: string, email?: string, activeEnrollmentId?: string }> => {
     try {
       const response = await fetch(`/api/flutterwave/check-status?tx_ref=${txRef}&t=${Date.now()}`);
       if (!response.ok) return { status: 'pending' };

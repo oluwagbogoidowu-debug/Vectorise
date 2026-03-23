@@ -90,7 +90,12 @@ export default async (req: any, res: any) => {
         });
 
         // Business logic: Handle enrollment
+        let activeEnrollmentId = null;
         if (!userId.startsWith('guest_')) {
+          // Check for existing active enrollments
+          const existingEnrollmentsSnap = await transaction.get(db.collection('enrollments').where('user_id', '==', userId).where('status', '==', 'active'));
+          const hasActiveSprint = !existingEnrollmentsSnap.empty;
+
           if (trackId) {
             // Handle Track Enrollment
             const trackSnap = await transaction.get(db.collection('tracks').doc(trackId));
@@ -98,11 +103,21 @@ export default async (req: any, res: any) => {
               const trackData = trackSnap.data();
               const sprintIds = trackData?.sprintIds || [];
               
+              let firstSprintActivated = false;
+
               for (const sId of sprintIds) {
                 const enrollmentId = `enrollment_${userId}_${sId}`;
                 const sprintSnap = await transaction.get(db.collection('sprints').doc(sId));
                 const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
                 const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
+
+                // Logic: If no active sprint exists, activate the first one in the track.
+                // Otherwise, queue it.
+                const shouldBeActive = !hasActiveSprint && !firstSprintActivated;
+                if (shouldBeActive) {
+                    firstSprintActivated = true;
+                    activeEnrollmentId = enrollmentId;
+                }
 
                 transaction.set(db.collection('enrollments').doc(enrollmentId), {
                   id: enrollmentId,
@@ -111,7 +126,7 @@ export default async (req: any, res: any) => {
                   user_id: userId,
                   coach_id: coachId,
                   started_at: new Date().toISOString(),
-                  status: 'active',
+                  status: shouldBeActive ? 'active' : 'queued',
                   progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
                 }, { merge: true });
 
@@ -132,13 +147,16 @@ export default async (req: any, res: any) => {
             const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
             const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
 
+            const shouldBeActive = !hasActiveSprint;
+            if (shouldBeActive) activeEnrollmentId = enrollmentId;
+
             transaction.set(db.collection('enrollments').doc(enrollmentId), {
               id: enrollmentId,
               sprint_id: sprintId,
               user_id: userId,
               coach_id: coachId,
               started_at: new Date().toISOString(),
-              status: 'active',
+              status: shouldBeActive ? 'active' : 'queued',
               progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
             }, { merge: true });
 
@@ -147,7 +165,15 @@ export default async (req: any, res: any) => {
             });
           }
         }
+
+        // Update payment record with activeEnrollmentId if found
+        if (activeEnrollmentId) {
+            transaction.update(paymentRef, { activeEnrollmentId });
+        }
       });
+
+      const finalPaymentSnap = await paymentRef.get();
+      const finalPaymentData = finalPaymentSnap.data() as any;
 
       return res.status(200).json({ 
           status: 'successful', 
@@ -155,7 +181,8 @@ export default async (req: any, res: any) => {
           trackId: data.trackId,
           userId: data.userId,
           email: data.email,
-          transaction_id: flw_tx.id
+          transaction_id: flw_tx.id,
+          activeEnrollmentId: finalPaymentData.activeEnrollmentId
       });
     } else if (verifyData.status === 'success' && verifyData.data && verifyData.data.status === 'failed') {
       // 4. If status is not successful: mark as "failed"
