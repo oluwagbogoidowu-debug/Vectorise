@@ -4,7 +4,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { trackService } from '../services/trackService';
 import { sprintService } from '../services/sprintService';
-import { Track, Sprint } from '../types';
+import { userService } from '../services/userService';
+import { Track, Sprint, Coach } from '../types';
 import Button from '../components/Button';
 import FormattedText from '../components/FormattedText';
 import { ChevronDown, ChevronUp, Clock, ArrowRight, ShieldCheck, Package, Zap, Calendar } from 'lucide-react';
@@ -15,49 +16,43 @@ const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) =
   </h2>
 );
 
-const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-
+const SprintViewCard: React.FC<{ sprint: Sprint; coach?: Coach }> = ({ sprint, coach }) => {
     return (
-        <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
-            <div 
-                className="p-6 flex items-center justify-between cursor-pointer group"
-                onClick={() => setIsExpanded(!isExpanded)}
-            >
-                <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 border border-gray-50">
-                        <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
-                    </div>
-                    <div className="text-left">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="px-2 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md">{sprint.category}</span>
-                            <span className="text-[8px] font-black text-primary uppercase tracking-widest">{sprint.duration} Days</span>
-                        </div>
-                        <h4 className="text-lg font-black text-gray-900 tracking-tight italic group-hover:text-primary transition-colors">{sprint.title}</h4>
-                    </div>
-                </div>
-                <div className="p-2 rounded-xl bg-gray-50 text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-all">
-                    {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                </div>
+        <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden transition-all hover:shadow-md flex flex-row items-center">
+            <div className="relative w-24 h-24 md:w-32 md:h-32 overflow-hidden bg-gray-100 flex-shrink-0">
+                <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                <div className="absolute top-2 right-2 bg-white/95 backdrop-blur-md px-2 py-0.5 rounded-full text-[7px] font-black text-primary shadow-sm uppercase tracking-widest">{sprint.duration}D</div>
             </div>
             
-            {isExpanded && (
-                <div className="px-8 pb-8 pt-2 border-t border-gray-50 animate-fade-in">
-                    <div className="prose prose-sm max-w-none text-gray-600 font-medium leading-relaxed italic">
-                        <FormattedText text={sprint.description || sprint.subtitle || "No description available."} />
+            <div className="p-6 md:p-8 flex flex-row flex-grow items-center justify-between gap-6">
+                <div className="flex-grow min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <span className="px-2 py-0.5 rounded-md bg-gray-50 border border-gray-100 text-gray-400 text-[7px] font-black uppercase tracking-widest">{sprint.category}</span>
                     </div>
-                    <div className="mt-6 flex flex-wrap gap-4">
-                        <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                            <Zap className="w-3 h-3" />
-                            Daily Execution
+                    <h4 className="text-lg font-black text-gray-900 tracking-tight italic leading-tight truncate">{sprint.title}</h4>
+                    {sprint.subtitle && (
+                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider leading-none truncate">{sprint.subtitle}</p>
+                    )}
+                </div>
+
+                <div className="flex items-center gap-8 flex-shrink-0">
+                    {/* Coach */}
+                    {coach && (
+                        <div className="hidden md:flex items-center gap-3">
+                            <img src={coach.profileImageUrl || 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd'} alt="" className="w-8 h-8 rounded-xl object-cover border border-gray-100 shadow-sm" />
+                            <div className="min-w-0">
+                                <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest leading-none mb-1">Coach</p>
+                                <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight truncate">{coach.name}</p>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                            <Calendar className="w-3 h-3" />
-                            {sprint.duration} Days
-                        </div>
+                    )}
+
+                    {/* Price */}
+                    <div className="px-5 py-2.5 rounded-xl bg-gray-50 border border-gray-100 text-gray-900 font-black text-[10px] uppercase tracking-[0.2em] min-w-[100px] text-center">
+                        {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost}` : `₦${sprint.price.toLocaleString()}`}
                     </div>
                 </div>
-            )}
+            </div>
         </div>
     );
 };
@@ -69,6 +64,7 @@ const TrackDescriptionPage: React.FC = () => {
     
     const [track, setTrack] = useState<Track | null>(null);
     const [sprints, setSprints] = useState<Sprint[]>([]);
+    const [coaches, setCoaches] = useState<Record<string, Coach>>({});
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -81,7 +77,17 @@ const TrackDescriptionPage: React.FC = () => {
                     setTrack(trackData);
                     const sprintPromises = trackData.sprintIds.map(id => sprintService.getSprintById(id));
                     const sprintData = await Promise.all(sprintPromises);
-                    setSprints(sprintData.filter((s): s is Sprint => !!s));
+                    const validSprints = sprintData.filter((s): s is Sprint => !!s);
+                    setSprints(validSprints);
+
+                    // Fetch coaches
+                    const coachIds = [...new Set(validSprints.map(s => s.coachId))];
+                    const coachData = await Promise.all(coachIds.map(id => userService.getUserDocument(id)));
+                    const coachMap: Record<string, Coach> = {};
+                    coachData.forEach((c: any) => {
+                        if (c && c.role === 'coach') coachMap[c.id] = c as Coach;
+                    });
+                    setCoaches(coachMap);
                 }
             } catch (err) {
                 console.error("Error fetching track data:", err);
@@ -167,7 +173,11 @@ const TrackDescriptionPage: React.FC = () => {
                                 <SectionHeading>Included Programs</SectionHeading>
                                 <div className="space-y-4">
                                     {sprints.map(sprint => (
-                                        <SprintViewCard key={sprint.id} sprint={sprint} />
+                                        <SprintViewCard 
+                                            key={sprint.id} 
+                                            sprint={sprint} 
+                                            coach={coaches[sprint.coachId]}
+                                        />
                                     ))}
                                 </div>
                             </section>

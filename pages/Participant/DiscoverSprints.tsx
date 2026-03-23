@@ -244,38 +244,40 @@ const DiscoverSprints: React.FC = () => {
 
                 {/* SECTION 1: FEATURED TRACK */}
                 {featuredTrack && (
-                    <section className="mb-16">
-                        <div className="mb-6 px-2 flex justify-between items-end">
+                    <section className="mb-20">
+                        <div className="mb-8 px-2 flex justify-between items-end">
                             <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <h2 className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Featured Track Bundle</h2>
-                                    <span className="px-2 py-0.5 bg-primary/5 text-primary text-[7px] font-black uppercase rounded-md border border-primary/10">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <h2 className="text-[11px] font-black text-primary uppercase tracking-[0.5em]">Featured Track Bundle</h2>
+                                    <span className="px-3 py-1 bg-primary/5 text-primary text-[8px] font-black uppercase rounded-full border border-primary/10">
                                         Best Value
                                     </span>
                                 </div>
-                                <p className="text-xs text-gray-400 font-medium italic">Curated paths for accelerated growth.</p>
+                                <p className="text-sm text-gray-400 font-medium italic">Curated paths for accelerated growth.</p>
                             </div>
                         </div>
 
-                        <TrackCard 
-                            track={featuredTrack} 
-                            sprints={sprints} 
-                        />
+                        <div className="max-w-2xl mx-auto">
+                            <TrackCard 
+                                track={featuredTrack} 
+                                sprints={sprints} 
+                            />
+                        </div>
                     </section>
                 )}
 
                 {/* SECTION 2: OTHER OPTIONS */}
                 {otherOptions.length > 0 && (
-                    <section className="mb-16">
-                        <div className="mb-6 px-2">
-                            <div className="flex items-center gap-2 mb-1">
-                                <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Individual Programs</h2>
-                                <Sparkles className="w-3 h-3 text-primary" />
+                    <section className="mb-20">
+                        <div className="mb-8 px-2">
+                            <div className="flex items-center gap-3 mb-2">
+                                <h2 className="text-[11px] font-black text-gray-900 uppercase tracking-[0.5em]">Individual Programs</h2>
+                                <Sparkles className="w-4 h-4 text-primary" />
                             </div>
-                            <p className="text-xs text-gray-400 font-medium italic">Focused sprints to build specific skills.</p>
+                            <p className="text-sm text-gray-400 font-medium italic">Focused sprints to build specific skills.</p>
                         </div>
                         
-                        <div className="grid grid-cols-1 gap-6 px-2">
+                        <div className="flex flex-col gap-4">
                             {otherOptions.map(s => (
                                 <SprintCard 
                                     key={s.id}
