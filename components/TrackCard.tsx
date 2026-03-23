@@ -29,6 +29,16 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
 
                 {/* Image Section */}
                 <div className="h-60 relative overflow-hidden bg-gray-100">
+                    {/* Badges */}
+                    <div className="absolute top-6 left-6 z-20 flex items-center gap-2">
+                        <span className="px-3 py-1.5 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20">
+                            Bundle Save {track.discountPercentage}%
+                        </span>
+                        <span className="px-3 py-1.5 bg-white/95 backdrop-blur-md text-gray-900 text-[9px] font-black uppercase tracking-widest rounded-xl shadow-sm">
+                            {track.sprintIds.length} Sprints
+                        </span>
+                    </div>
+
                     <img 
                         src={track.coverImageUrl || `https://picsum.photos/seed/${track.id}/1200/600`} 
                         className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
@@ -36,50 +46,52 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
                         onError={(e) => { e.currentTarget.src = `https://picsum.photos/seed/${track.id}/1200/600`; }} 
                         referrerPolicy="no-referrer"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                    
-                    <div className="absolute bottom-8 left-8 right-8">
-                        <h3 className="text-2xl md:text-3xl font-black text-white tracking-tighter italic mb-2 group-hover:translate-x-1 transition-transform">
-                            {track.title}
-                        </h3>
-                        <p className="text-white/70 text-xs font-medium italic line-clamp-1">
-                            {track.subtitle}
-                        </p>
-                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-dark/40 to-transparent transition-opacity duration-700 opacity-0 group-hover:opacity-100"></div>
                 </div>
 
                 {/* Content Section */}
-                <div className="p-8 flex flex-col md:flex-row justify-between items-center gap-6">
-                    <div className="flex items-center gap-4">
-                        <div className="flex -space-x-3">
-                            {trackSprints.slice(0, 4).map(s => (
-                                <div key={s.id} className="w-10 h-10 rounded-2xl ring-4 ring-white overflow-hidden border border-gray-100 shadow-sm">
-                                    <img src={s.coverImageUrl} className="w-full h-full object-cover" alt="" />
-                                </div>
-                            ))}
-                            {trackSprints.length > 4 && (
-                                <div className="w-10 h-10 rounded-2xl ring-4 ring-white bg-gray-50 flex items-center justify-center text-[10px] font-black text-gray-400 border border-gray-100">
-                                    +{trackSprints.length - 4}
-                                </div>
-                            )}
-                        </div>
-                        <div className="h-8 w-px bg-gray-100 hidden md:block"></div>
-                        <div className="text-center md:text-left">
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Curated Bundle</p>
-                            <p className="text-sm font-black text-gray-900 italic">Complete Growth Path</p>
-                        </div>
+                <div className="p-8 flex flex-col flex-grow">
+                    <div className="flex items-center gap-2 mb-4">
+                        <span className="px-3 py-1 rounded-lg bg-gray-50 border border-gray-100 text-primary text-[9px] font-black uppercase tracking-[0.25em]">Track Bundle</span>
                     </div>
 
-                    <div className="flex items-center gap-6">
-                        <div className="text-right">
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Bundle Value</p>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-2xl font-black text-primary italic">₦{discountedPrice.toLocaleString()}</span>
-                                <span className="text-xs font-bold text-gray-300 line-through">₦{totalValue.toLocaleString()}</span>
+                    <h3 className="text-2xl font-black text-gray-900 mb-1 transition-colors leading-[1.1] tracking-tight group-hover:text-primary">
+                        {track.title}
+                    </h3>
+                    {track.subtitle && (
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-6 leading-none">
+                            {track.subtitle}
+                        </p>
+                    )}
+
+                    <div className="pt-6 border-t border-gray-50 mt-auto">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-4">
+                                <div className="flex -space-x-3">
+                                    {trackSprints.slice(0, 4).map(s => (
+                                        <div key={s.id} className="w-10 h-10 rounded-[1.25rem] ring-4 ring-white overflow-hidden border border-gray-100 shadow-sm">
+                                            <img src={s.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                                        </div>
+                                    ))}
+                                    {trackSprints.length > 4 && (
+                                        <div className="w-10 h-10 rounded-[1.25rem] ring-4 ring-white bg-gray-50 flex items-center justify-center text-[10px] font-black text-gray-400 border border-gray-100">
+                                            +{trackSprints.length - 4}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Curated Bundle</p>
+                                    <p className="text-xs font-black text-gray-900 uppercase tracking-tight truncate">Complete Growth Path</p>
+                                </div>
                             </div>
                         </div>
-                        <div className="w-12 h-12 bg-primary text-white rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-primary/20">
-                            <ArrowRight className="w-6 h-6" />
+
+                        <div className="py-4 rounded-[1.5rem] bg-primary text-white font-black text-[11px] uppercase tracking-[0.3em] text-center shadow-sm transition-all duration-500 flex justify-center items-center gap-3 group-hover:bg-primary-hover shadow-primary/20">
+                            <div className="flex items-baseline gap-2">
+                                <span>₦{discountedPrice.toLocaleString()}</span>
+                                <span className="text-[9px] font-bold text-white/60 line-through">₦{totalValue.toLocaleString()}</span>
+                            </div>
+                            <ArrowRight className="w-4 h-4" />
                         </div>
                     </div>
                 </div>
