@@ -163,16 +163,6 @@ const TrackDescriptionPage: React.FC = () => {
                             <Package className="w-3 h-3" />
                             TRACK BUNDLE
                         </div>
-                        {track && (
-                            <>
-                                <div className="px-4 py-1.5 rounded-xl border border-primary/20 bg-primary/5 text-primary text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
-                                    SAVE {track.discountPercentage}%
-                                </div>
-                                <div className="px-4 py-1.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
-                                    {sprints.length} SPRINTS
-                                </div>
-                            </>
-                        )}
                     </div>
                 </div>
 
@@ -210,14 +200,6 @@ const TrackDescriptionPage: React.FC = () => {
                         {/* MAIN CONTENT */}
                         <div className="space-y-8">
                             <section className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-sm animate-fade-in">
-                                <div className="flex items-center gap-4 mb-8">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[11px] font-black text-primary uppercase tracking-[0.3em]">SAVE {track.discountPercentage}%</span>
-                                        <span className="w-1.5 h-1.5 bg-primary/20 rounded-full"></span>
-                                        <span className="text-[11px] font-black text-gray-400 uppercase tracking-[0.3em]">{sprints.length} SPRINTS</span>
-                                    </div>
-                                    <div className="h-px flex-1 bg-gray-50"></div>
-                                </div>
                                 <SectionHeading>Track Overview</SectionHeading>
                                 <div className="text-base md:text-lg text-gray-600 font-medium leading-relaxed italic">
                                     <FormattedText text={track.description} />
