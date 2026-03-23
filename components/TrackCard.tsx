@@ -17,16 +17,6 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
     return (
         <Link to={`/track/${track.id}`} className="block group">
             <div className="bg-white rounded-[3rem] border border-gray-100 shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-500 relative">
-                {/* Badge */}
-                <div className="absolute top-6 left-6 z-20 flex items-center gap-2">
-                    <span className="px-3 py-1.5 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20">
-                        Bundle Save {track.discountPercentage}%
-                    </span>
-                    <span className="px-3 py-1.5 bg-white/90 backdrop-blur-sm text-gray-900 text-[9px] font-black uppercase tracking-widest rounded-xl shadow-sm">
-                        {track.sprintIds.length} Sprints
-                    </span>
-                </div>
-
                 {/* Image Section */}
                 <div className="aspect-[21/9] relative overflow-hidden">
                     <img 
@@ -40,9 +30,17 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
                         <h3 className="text-2xl md:text-3xl font-black text-white tracking-tighter italic mb-2 group-hover:translate-x-1 transition-transform">
                             {track.title}
                         </h3>
-                        <p className="text-white/70 text-xs font-medium italic line-clamp-1">
+                        <p className="text-white/70 text-xs font-medium italic line-clamp-1 mb-4">
                             {track.subtitle}
                         </p>
+                        <div className="flex items-center gap-2">
+                            <span className="px-3 py-1.5 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20">
+                                SAVE {track.discountPercentage}%
+                            </span>
+                            <span className="px-3 py-1.5 bg-white/20 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest rounded-xl">
+                                {track.sprintIds.length} SPRINTS INCLUDED
+                            </span>
+                        </div>
                     </div>
                 </div>
 
