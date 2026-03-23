@@ -1,18 +1,20 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { trackService } from '../../services/trackService';
 import { Sprint, Track } from '../../types';
 import Button from '../../components/Button';
-import { List, Plus, Trash2, Search, Package } from 'lucide-react';
+import { List, Plus, Trash2, Search, Package, Save } from 'lucide-react';
 
-const CreateTrack: React.FC = () => {
+const EditTrack: React.FC = () => {
+    const { trackId } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [isLoadingSprints, setIsLoadingSprints] = useState(true);
+    const [isLoadingTrack, setIsLoadingTrack] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -23,16 +25,42 @@ const CreateTrack: React.FC = () => {
         description: '',
         discountPercentage: 0,
         coverImageUrl: '',
-        sprintIds: [] as string[]
+        sprintIds: [] as string[],
+        published: false
     });
 
     useEffect(() => {
-        const unsubscribe = sprintService.subscribeToAdminSprints((data) => {
-            setSprints(data.filter(s => s.published && s.approvalStatus === 'approved'));
-            setIsLoadingSprints(false);
-        });
-        return () => unsubscribe();
-    }, []);
+        const loadData = async () => {
+            if (!trackId) return;
+            
+            try {
+                const [dbSprints, trackData] = await Promise.all([
+                    sprintService.getAdminSprints(),
+                    trackService.getTrackById(trackId)
+                ]);
+
+                setSprints(dbSprints.filter(s => s.published && s.approvalStatus === 'approved'));
+                setIsLoadingSprints(false);
+
+                if (trackData) {
+                    setFormData({
+                        title: trackData.title,
+                        subtitle: trackData.subtitle,
+                        description: trackData.description,
+                        discountPercentage: trackData.discountPercentage,
+                        coverImageUrl: trackData.coverImageUrl,
+                        sprintIds: trackData.sprintIds,
+                        published: trackData.published
+                    });
+                }
+                setIsLoadingTrack(false);
+            } catch (error) {
+                console.error(error);
+                setIsLoadingTrack(false);
+            }
+        };
+        loadData();
+    }, [trackId]);
 
     const filteredSprints = useMemo(() => {
         return sprints.filter(s => 
@@ -64,30 +92,26 @@ const CreateTrack: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user || formData.sprintIds.length === 0) return;
+        if (!user || !trackId || formData.sprintIds.length === 0) return;
         setIsSubmitting(true);
 
-        const trackId = `track_${Date.now()}`;
-        const newTrack: Track = {
-            id: trackId,
+        const updatedTrack: Partial<Track> = {
             title: formData.title,
             subtitle: formData.subtitle,
             description: formData.description,
             sprintIds: formData.sprintIds,
             discountPercentage: Number(formData.discountPercentage),
-            coverImageUrl: formData.coverImageUrl || `https://picsum.photos/seed/${trackId}/800/400`,
-            published: true,
-            createdAt: new Date().toISOString(),
+            coverImageUrl: formData.coverImageUrl,
             updatedAt: new Date().toISOString(),
             currency: selectedSprints[0]?.currency || 'NGN'
         };
 
         try {
-            await trackService.createTrack(newTrack);
+            await trackService.updateTrack(trackId, updatedTrack);
             navigate('/admin/dashboard');
         } catch (error) {
             console.error(error);
-            setError("Failed to create track bundle. Please try again.");
+            setError("Failed to update track bundle. Please try again.");
         } finally {
             setIsSubmitting(false);
         }
@@ -95,6 +119,14 @@ const CreateTrack: React.FC = () => {
 
     const inputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all placeholder-gray-300";
     const labelClasses = "text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block";
+
+    if (isLoadingTrack) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 pb-32">
@@ -106,8 +138,8 @@ const CreateTrack: React.FC = () => {
                         </svg>
                     </button>
                     <div>
-                        <h1 className="text-3xl font-black text-gray-900 tracking-tight italic">Curate Track.</h1>
-                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Platform Bundle System</p>
+                        <h1 className="text-3xl font-black text-gray-900 tracking-tight italic">Edit Track.</h1>
+                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Update Platform Bundle</p>
                     </div>
                 </header>
 
@@ -289,7 +321,8 @@ const CreateTrack: React.FC = () => {
                                     isLoading={isSubmitting}
                                     className="w-full py-5 rounded-[2rem] shadow-2xl shadow-primary/20 scale-105 active:scale-100"
                                 >
-                                    Launch Track Bundle
+                                    <Save className="w-4 h-4 mr-2 inline-block" />
+                                    Save Changes
                                 </Button>
                             </div>
                         </div>
@@ -303,4 +336,4 @@ const CreateTrack: React.FC = () => {
     );
 };
 
-export default CreateTrack;
+export default EditTrack;

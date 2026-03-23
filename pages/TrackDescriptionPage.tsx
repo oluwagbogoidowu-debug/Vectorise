@@ -216,7 +216,7 @@ const TrackDescriptionPage: React.FC = () => {
                             
                             <div className="space-y-4 relative z-10">
                                 <Button 
-                                    onClick={() => alert("Payment flow for tracks is coming soon!")} 
+                                    onClick={() => {}} 
                                     className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black group/btn"
                                 >
                                     Unlock Track Bundle 
