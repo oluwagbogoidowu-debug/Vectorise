@@ -14,7 +14,6 @@ const CreateTrack: React.FC = () => {
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [isLoadingSprints, setIsLoadingSprints] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
 
     const [formData, setFormData] = useState({
@@ -87,7 +86,7 @@ const CreateTrack: React.FC = () => {
             navigate('/admin/dashboard');
         } catch (error) {
             console.error(error);
-            setError("Failed to create track bundle. Please try again.");
+            alert("Failed to create track.");
         } finally {
             setIsSubmitting(false);
         }
@@ -113,11 +112,6 @@ const CreateTrack: React.FC = () => {
 
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
                     <div className="lg:col-span-7 space-y-8">
-                        {error && (
-                            <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-500 text-xs font-bold italic animate-fade-in">
-                                {error}
-                            </div>
-                        )}
                         <div className="bg-white rounded-[3rem] shadow-sm border border-gray-100 p-10 space-y-8">
                             <section>
                                 <h4 className="text-[10px] font-black text-primary uppercase tracking-widest mb-6">Track Identity</h4>

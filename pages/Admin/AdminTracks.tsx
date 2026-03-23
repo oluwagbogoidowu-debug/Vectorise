@@ -5,15 +5,13 @@ import { Track, Sprint } from '../../types';
 import { trackService } from '../../services/trackService';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
-import { Edit2, Trash2, Eye, Package, AlertTriangle } from 'lucide-react';
-import ConfirmModal from '../../components/ConfirmModal';
+import { Edit2, Trash2, Eye, Package } from 'lucide-react';
 
 const AdminTracks: React.FC = () => {
     const navigate = useNavigate();
     const [tracks, setTracks] = useState<Track[]>([]);
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [deleteTrackId, setDeleteTrackId] = useState<string | null>(null);
 
     useEffect(() => {
         setIsLoading(true);
@@ -99,11 +97,6 @@ const AdminTracks: React.FC = () => {
                             </div>
 
                             <div className="flex items-center gap-2">
-                                <Link to={`/admin/track/edit/${track.id}`}>
-                                    <button className="p-3 bg-gray-50 text-gray-400 hover:text-primary rounded-xl transition-all" title="Edit Track">
-                                        <Edit2 className="w-4 h-4" />
-                                    </button>
-                                </Link>
                                 <Link to={`/track/${track.id}`} target="_blank">
                                     <button className="p-3 bg-gray-50 text-gray-400 hover:text-primary rounded-xl transition-all" title="View Landing Page">
                                         <Eye className="w-4 h-4" />
@@ -116,11 +109,7 @@ const AdminTracks: React.FC = () => {
                                 >
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                 </button>
-                                <button 
-                                    onClick={() => setDeleteTrackId(track.id)}
-                                    className="p-3 bg-gray-50 text-gray-400 hover:text-red-500 rounded-xl transition-all" 
-                                    title="Delete Track"
-                                >
+                                <button className="p-3 bg-gray-50 text-gray-400 hover:text-red-500 rounded-xl transition-all" title="Delete Track">
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             </div>
@@ -134,16 +123,6 @@ const AdminTracks: React.FC = () => {
                     </div>
                 )}
             </div>
-
-            <ConfirmModal 
-                isOpen={!!deleteTrackId}
-                onClose={() => setDeleteTrackId(null)}
-                onConfirm={() => deleteTrackId && trackService.deleteTrack(deleteTrackId)}
-                title="Delete Track Bundle?"
-                message="Are you sure you want to delete this track bundle? This action cannot be undone and will remove it from the platform."
-                confirmText="Delete Track"
-                variant="danger"
-            />
         </div>
     );
 };
