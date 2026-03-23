@@ -36,6 +36,7 @@ export default async (req: any, res: any) => {
       return res.status(200).json({ 
         status: data.status, 
         sprintId: data.sprintId,
+        trackId: data.trackId,
         userId: data.userId,
         email: data.email
       });
@@ -77,7 +78,7 @@ export default async (req: any, res: any) => {
         // Prevent status from being updated twice
         if (freshData.status === 'successful' || freshData.status === 'success') return;
 
-        const { userId, sprintId } = freshData;
+        const { userId, sprintId, trackId } = freshData;
 
         transaction.update(paymentRef, {
           status: 'successful', // Set status to "successful"
@@ -90,31 +91,68 @@ export default async (req: any, res: any) => {
 
         // Business logic: Handle enrollment
         if (!userId.startsWith('guest_')) {
-          const enrollmentId = `enrollment_${userId}_${sprintId}`;
-          
-          const sprintSnap = await transaction.get(db.collection('sprints').doc(sprintId));
-          const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
-          const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
+          if (trackId) {
+            // Handle Track Enrollment
+            const trackSnap = await transaction.get(db.collection('tracks').doc(trackId));
+            if (trackSnap.exists) {
+              const trackData = trackSnap.data();
+              const sprintIds = trackData?.sprintIds || [];
+              
+              for (const sId of sprintIds) {
+                const enrollmentId = `enrollment_${userId}_${sId}`;
+                const sprintSnap = await transaction.get(db.collection('sprints').doc(sId));
+                const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
+                const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
 
-          transaction.set(db.collection('enrollments').doc(enrollmentId), {
-            id: enrollmentId,
-            sprint_id: sprintId,
-            user_id: userId,
-            coach_id: coachId,
-            started_at: new Date().toISOString(),
-            status: 'active',
-            progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
-          }, { merge: true });
+                transaction.set(db.collection('enrollments').doc(enrollmentId), {
+                  id: enrollmentId,
+                  sprint_id: sId,
+                  track_id: trackId,
+                  user_id: userId,
+                  coach_id: coachId,
+                  started_at: new Date().toISOString(),
+                  status: 'active',
+                  progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
+                }, { merge: true });
 
-          transaction.update(db.collection('users').doc(userId), {
-              enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sprintId)
-          });
+                transaction.update(db.collection('users').doc(userId), {
+                    enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sId)
+                });
+              }
+              
+              transaction.update(db.collection('users').doc(userId), {
+                enrolledTrackIds: admin.firestore.FieldValue.arrayUnion(trackId)
+              });
+            }
+          } else if (sprintId) {
+            // Handle Single Sprint Enrollment
+            const enrollmentId = `enrollment_${userId}_${sprintId}`;
+            
+            const sprintSnap = await transaction.get(db.collection('sprints').doc(sprintId));
+            const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
+            const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
+
+            transaction.set(db.collection('enrollments').doc(enrollmentId), {
+              id: enrollmentId,
+              sprint_id: sprintId,
+              user_id: userId,
+              coach_id: coachId,
+              started_at: new Date().toISOString(),
+              status: 'active',
+              progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
+            }, { merge: true });
+
+            transaction.update(db.collection('users').doc(userId), {
+                enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sprintId)
+            });
+          }
         }
       });
 
       return res.status(200).json({ 
           status: 'successful', 
           sprintId: data.sprintId,
+          trackId: data.trackId,
           userId: data.userId,
           email: data.email,
           transaction_id: flw_tx.id
@@ -132,6 +170,7 @@ export default async (req: any, res: any) => {
     return res.status(200).json({ 
         status: 'pending', 
         sprintId: data.sprintId,
+        trackId: data.trackId,
         userId: data.userId,
         email: data.email
     });

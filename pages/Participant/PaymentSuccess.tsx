@@ -55,13 +55,14 @@ const PaymentSuccess: React.FC = () => {
                             const existingUser = await userService.getUserByEmail(data.email || '');
                             
                             if (existingUser) {
-                                // Scenario 2: User has an account but just paid for a new sprint
+                                // Scenario 2: User has an account but just paid for a new sprint/track
                                 navigate('/login', { 
                                     state: { 
                                         prefilledEmail: data.email || '',
                                         targetSprintId: data.sprintId,
+                                        targetTrackId: data.trackId,
                                         tx_ref: tx_ref,
-                                        authMessage: "Payment successful! Please log in to your account to start your sprint."
+                                        authMessage: `Payment successful! Please log in to your account to start your ${data.trackId ? 'track' : 'sprint'}.`
                                     },
                                     replace: true 
                                 });
@@ -71,6 +72,7 @@ const PaymentSuccess: React.FC = () => {
                                     state: { 
                                         fromPayment: true, 
                                         targetSprintId: data.sprintId,
+                                        targetTrackId: data.trackId,
                                         prefilledEmail: data.email || '',
                                         tx_ref: tx_ref
                                     },
@@ -80,8 +82,14 @@ const PaymentSuccess: React.FC = () => {
                         } else {
                             // Logged in flow: Redirect to sprint view or dashboard
                             const finalUserId = user?.id || data.userId;
-                            const enrollmentId = `enrollment_${finalUserId}_${data.sprintId}`;
-                            navigate(`/participant/sprint/${enrollmentId}`, { replace: true });
+                            if (data.trackId) {
+                                // For tracks, we redirect to dashboard or the first sprint of the track
+                                // For now, let's go to dashboard where they can see their new track
+                                navigate('/participant/dashboard', { replace: true });
+                            } else {
+                                const enrollmentId = `enrollment_${finalUserId}_${data.sprintId}`;
+                                navigate(`/participant/sprint/${enrollmentId}`, { replace: true });
+                            }
                         }
                     }, 2000);
                 } else if (data.status === 'failed') {

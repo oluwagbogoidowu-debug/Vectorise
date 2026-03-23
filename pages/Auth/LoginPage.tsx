@@ -25,6 +25,7 @@ const LoginPage: React.FC = () => {
 
   // Intent capture from payment success flow
   const targetSprintId = location.state?.targetSprintId;
+  const targetTrackId = location.state?.targetTrackId;
   const tx_ref = location.state?.tx_ref;
   const authMessage = location.state?.authMessage;
 
@@ -56,7 +57,10 @@ const LoginPage: React.FC = () => {
                       }
 
                       // 1. Check for payment-driven enrollment intent - Use replace: true
-                      if (targetSprintId) {
+                      if (targetTrackId) {
+                          navigate('/participant/dashboard', { replace: true });
+                          return;
+                      } else if (targetSprintId) {
                           const existing = enrollments.find(e => e.sprint_id === targetSprintId);
                           
                           if (existing) {

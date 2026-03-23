@@ -107,7 +107,8 @@ export interface PaymentRecord {
   userId: string;
   userEmail: string;
   userName: string;
-  sprintId: string;
+  sprintId?: string;
+  trackId?: string;
   sprintTitle: string;
   amount: number;
   currency: string;
@@ -176,7 +177,8 @@ export interface OrchestratorLog {
 export interface PaymentAttempt {
   id?: string;
   user_id: string;
-  sprint_id: string;
+  sprint_id?: string;
+  track_id?: string;
   amount: number;
   currency: string;
   status: PaymentAttemptStatus;

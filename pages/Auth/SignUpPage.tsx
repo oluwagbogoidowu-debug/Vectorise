@@ -39,6 +39,7 @@ const SignUpPage: React.FC = () => {
     prefilledLastName,
     fromPayment, 
     targetSprintId = savedSprint,
+    targetTrackId,
     tx_ref,
     isPartnerApplication,
     partnerData,
@@ -117,16 +118,22 @@ const SignUpPage: React.FC = () => {
       document.cookie = "vectorise_ref=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
       // 5. Post-Payment Fulfillment
-      if (fromPayment && targetSprintId) {
-          try {
-              const sprint = await sprintService.getSprintById(targetSprintId);
-              if (sprint) {
-                  const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprintId, sprint.duration);
-                  navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
-                  return;
+      if (fromPayment) {
+          if (targetTrackId) {
+              // For tracks, we redirect to dashboard
+              navigate('/participant/dashboard', { replace: true });
+              return;
+          } else if (targetSprintId) {
+              try {
+                  const sprint = await sprintService.getSprintById(targetSprintId);
+                  if (sprint) {
+                      const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprintId, sprint.duration);
+                      navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
+                      return;
+                  }
+              } catch (enrollError) {
+                  console.error("Auto-enrollment failed:", enrollError);
               }
-          } catch (enrollError) {
-              console.error("Auto-enrollment failed:", enrollError);
           }
       }
 

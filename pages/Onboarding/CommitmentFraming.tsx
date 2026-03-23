@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
-import { Sprint } from '../../types';
+import { Sprint, Track } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 
@@ -21,6 +21,19 @@ const CommitmentFraming: React.FC = () => {
   // Preserve navigation context (target sprints, skip logic, etc.)
   const state = location.state || {};
   const sprint: Sprint | null = state.sprint || null;
+  const track: Track | null = state.track || null;
+
+  const duration = useMemo(() => {
+    if (sprint) return sprint.duration;
+    if (track && state.totalDuration) return state.totalDuration;
+    return 5;
+  }, [sprint, track, state.totalDuration]);
+
+  const title = useMemo(() => {
+    if (sprint) return sprint.title;
+    if (track) return track.title;
+    return "this program";
+  }, [sprint, track]);
 
   useEffect(() => {
     const checkActive = async () => {
@@ -119,7 +132,7 @@ const CommitmentFraming: React.FC = () => {
             <section className="bg-primary/5 rounded-2xl p-4 text-center space-y-3 border border-primary/10">
                <div className="flex justify-center items-center gap-4">
                   <div>
-                    <p className="text-xl font-black text-primary leading-none">{sprint?.duration || 5}</p>
+                    <p className="text-xl font-black text-primary leading-none">{duration}</p>
                     <p className="text-[7px] font-black uppercase text-primary/60">Days</p>
                   </div>
                   <div className="w-px h-4 bg-primary/10"></div>
@@ -142,7 +155,7 @@ const CommitmentFraming: React.FC = () => {
                   />
                 </div>
                 <div className="text-[11px] font-bold text-gray-700 leading-tight select-none">
-                  I’m ready to commit to daily action for the next {sprint?.duration || 5} days.
+                  I’m ready to commit to daily action for the next {duration} days.
                 </div>
               </label>
             </section>

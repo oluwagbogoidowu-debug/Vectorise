@@ -6,7 +6,8 @@ import { sanitizeData } from './userService';
 interface PaymentPayload {
   userId: string; 
   email: string;
-  sprintId: string;
+  sprintId?: string;
+  trackId?: string;
   amount: number;
   currency?: string; 
   name?: string;
@@ -37,6 +38,7 @@ export const paymentService = {
           email: payload.email,
           userId: payload.userId,
           sprintId: payload.sprintId,
+          trackId: payload.trackId,
           amount: payload.amount.toString(),
           currency: payload.currency || 'NGN',
           name: payload.name || 'Vectorise User'
@@ -67,7 +69,7 @@ export const paymentService = {
     }
   },
 
-  checkPaymentStatus: async (txRef: string): Promise<{ status: string, sprintId?: string, userId?: string, email?: string }> => {
+  checkPaymentStatus: async (txRef: string): Promise<{ status: string, sprintId?: string, trackId?: string, userId?: string, email?: string }> => {
     try {
       const response = await fetch(`/api/flutterwave/check-status?tx_ref=${txRef}&t=${Date.now()}`);
       if (!response.ok) return { status: 'pending' };

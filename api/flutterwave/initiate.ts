@@ -19,10 +19,10 @@ export default async (req: any, res: any) => {
       return res.status(500).json({ error: "Gateway Configuration Error: Missing Secret Key." });
     }
 
-    const { email, amount, sprintId, name, userId, currency = "NGN" } = req.body || {};
+    const { email, amount, sprintId, trackId, name, userId, currency = "NGN" } = req.body || {};
     
-    if (!email || !userId || !sprintId) {
-      return res.status(400).json({ error: "Mandatory fields missing (email, userId, sprintId)" });
+    if (!email || !userId || (!sprintId && !trackId)) {
+      return res.status(400).json({ error: "Mandatory fields missing (email, userId, sprintId or trackId)" });
     }
 
     const tx_ref = `vec-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -33,7 +33,8 @@ export default async (req: any, res: any) => {
         userId,
         email: email.toLowerCase().trim(),
         userName: name || 'Vectorise User',
-        sprintId,
+        sprintId: sprintId || null,
+        trackId: trackId || null,
         amount: paymentAmount,
         currency,
         status: "pending",
@@ -63,7 +64,7 @@ export default async (req: any, res: any) => {
         customer: { email, name: name || 'Vectorise User' },
         customizations: {
           title: "Vectorise Registry Authorization",
-          description: `Sprint Enrollment: ${sprintId}`
+          description: trackId ? `Track Bundle: ${trackId}` : `Sprint Enrollment: ${sprintId}`
         }
       })
     });
