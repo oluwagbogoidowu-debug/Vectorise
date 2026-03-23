@@ -18,19 +18,19 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
         <Link to={`/track/${track.id}`} className="block group">
             <div className="bg-white rounded-[3rem] border border-gray-100 shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-500 relative">
                 {/* Image Section */}
-                <div className="aspect-[21/9] relative overflow-hidden">
+                <div className="aspect-[16/10] md:aspect-[21/9] relative overflow-hidden">
                     <img 
                         src={track.coverImageUrl || `https://picsum.photos/seed/${track.id}/1200/600`} 
                         className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
                         alt={track.title} 
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
                     
-                    <div className="absolute bottom-8 left-8 right-8">
-                        <h3 className="text-2xl md:text-3xl font-black text-white tracking-tighter italic mb-2 group-hover:translate-x-1 transition-transform">
+                    <div className="absolute bottom-6 left-6 right-6 md:bottom-8 md:left-8 md:right-8">
+                        <h3 className="text-2xl md:text-4xl font-black text-white tracking-tighter italic mb-2 leading-tight group-hover:translate-x-1 transition-transform">
                             {track.title}
                         </h3>
-                        <p className="text-white/70 text-xs font-medium italic line-clamp-1 mb-4">
+                        <p className="text-white/70 text-xs font-medium italic line-clamp-2 mb-4 leading-relaxed">
                             {track.subtitle}
                         </p>
                         <div className="flex items-center gap-2">
