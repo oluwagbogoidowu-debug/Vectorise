@@ -1,12 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Coach, Sprint, Participant, ParticipantSprint, LifecycleSlotAssignment } from '../../types';
+import { Coach, Sprint, Participant, ParticipantSprint, LifecycleSlotAssignment, Track } from '../../types';
 import { sprintService } from '../../services/sprintService';
+import { trackService } from '../../services/trackService';
 import { userService } from '../../services/userService';
 import { useAuth } from '../../contexts/AuthContext';
 import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import LocalLogo from '../../components/LocalLogo';
 import SprintCard from '../../components/SprintCard';
+import TrackCard from '../../components/TrackCard';
+import { Package, ArrowRight, Sparkles } from 'lucide-react';
 
 /**
  * LOCKED STAGE CARD (Internal)
@@ -45,6 +48,7 @@ const DiscoverSprints: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [sprints, setSprints] = useState<Sprint[]>([]);
+    const [tracks, setTracks] = useState<Track[]>([]);
     const [coaches, setCoaches] = useState<Coach[]>([]);
     const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
     const [orchestration, setOrchestration] = useState<Record<string, LifecycleSlotAssignment>>({});
@@ -63,12 +67,14 @@ const DiscoverSprints: React.FC = () => {
 
         const loadCoachesAndOrchestration = async () => {
             try {
-                const [dbCoaches, mapping] = await Promise.all([
+                const [dbCoaches, mapping, dbTracks] = await Promise.all([
                     userService.getCoaches(),
-                    sprintService.getOrchestration() as Promise<Record<string, LifecycleSlotAssignment>>
+                    sprintService.getOrchestration() as Promise<Record<string, LifecycleSlotAssignment>>,
+                    trackService.getAllTracks()
                 ]);
                 setCoaches(dbCoaches);
                 setOrchestration(mapping);
+                setTracks(dbTracks.filter(t => t.published));
             } catch (err) {
                 console.error(err);
             }
@@ -200,12 +206,17 @@ const DiscoverSprints: React.FC = () => {
         } as Coach;
     }, [recommendedSprint, coaches]);
 
-    // 2. Other options
+    // 2. Track & Other options
+    const featuredTrack = useMemo(() => {
+        return tracks[0] || null;
+    }, [tracks]);
+
     const otherOptions = useMemo(() => {
+        const trackSprintIds = featuredTrack?.sprintIds || [];
         return sprints
-            .filter(s => s.id !== recommendedSprint?.id && s.id !== activeSprintId)
+            .filter(s => !trackSprintIds.includes(s.id) && s.id !== activeSprintId)
             .slice(0, 3);
-    }, [sprints, recommendedSprint, activeSprintId]);
+    }, [sprints, featuredTrack, activeSprintId]);
 
     if (isLoading) {
         return (
@@ -231,24 +242,24 @@ const DiscoverSprints: React.FC = () => {
                     </div>
                 </header>
 
-                {/* SECTION 1: RECOMMENDED */}
-                {recommendedSprint && (
+                {/* SECTION 1: FEATURED TRACK */}
+                {featuredTrack && (
                     <section className="mb-16">
-                        <div className="mb-6 px-2">
-                            <div className="flex items-center gap-2 mb-1">
-                                <h2 className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Recommended for you</h2>
-                                {recommendationReason && (
-                                    <span className="px-2 py-0.5 bg-primary/5 text-primary text-[7px] font-black uppercase rounded-md border border-primary/10 animate-pulse">
-                                        {recommendationReason}
+                        <div className="mb-6 px-2 flex justify-between items-end">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <h2 className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Featured Track Bundle</h2>
+                                    <span className="px-2 py-0.5 bg-primary/5 text-primary text-[7px] font-black uppercase rounded-md border border-primary/10">
+                                        Best Value
                                     </span>
-                                )}
+                                </div>
+                                <p className="text-xs text-gray-400 font-medium italic">Curated paths for accelerated growth.</p>
                             </div>
-                            <p className="text-xs text-gray-400 font-medium italic">Based on where you are right now.</p>
                         </div>
 
-                        <SprintCard 
-                            sprint={recommendedSprint} 
-                            coach={recommendedCoach as Coach} 
+                        <TrackCard 
+                            track={featuredTrack} 
+                            sprints={sprints} 
                         />
                     </section>
                 )}
@@ -257,18 +268,20 @@ const DiscoverSprints: React.FC = () => {
                 {otherOptions.length > 0 && (
                     <section className="mb-16">
                         <div className="mb-6 px-2">
-                            <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em] mb-1">Other options you can explore (Swipe left to view)</h2>
-                            <p className="text-xs text-gray-400 font-medium italic">Save for later to build your future waitlist (Max 3).</p>
+                            <div className="flex items-center gap-2 mb-1">
+                                <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Individual Programs</h2>
+                                <Sparkles className="w-3 h-3 text-primary" />
+                            </div>
+                            <p className="text-xs text-gray-400 font-medium italic">Focused sprints to build specific skills.</p>
                         </div>
                         
-                        <div className="flex gap-6 overflow-x-auto pb-8 no-scrollbar px-2 -mx-2 snap-x snap-mandatory">
+                        <div className="grid grid-cols-1 gap-6 px-2">
                             {otherOptions.map(s => (
-                                <div key={s.id} className="w-[320px] flex-shrink-0 snap-center">
-                                    <SprintCard 
-                                        sprint={s} 
-                                        coach={coaches.find(c => c.id === s.coachId) || ({} as Coach)} 
-                                    />
-                                </div>
+                                <SprintCard 
+                                    key={s.id}
+                                    sprint={s} 
+                                    coach={coaches.find(c => c.id === s.coachId) || ({} as Coach)} 
+                                />
                             ))}
                         </div>
                     </section>
