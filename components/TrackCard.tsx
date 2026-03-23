@@ -59,39 +59,40 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
                         {track.title}
                     </h3>
                     {track.subtitle && (
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-6 leading-none">
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-8 leading-none">
                             {track.subtitle}
                         </p>
                     )}
 
-                    <div className="pt-6 border-t border-gray-50 mt-auto">
-                        <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-4">
-                                <div className="flex -space-x-3">
-                                    {trackSprints.slice(0, 4).map(s => (
-                                        <div key={s.id} className="w-10 h-10 rounded-[1.25rem] ring-4 ring-white overflow-hidden border border-gray-100 shadow-sm">
-                                            <img src={s.coverImageUrl} className="w-full h-full object-cover" alt="" />
-                                        </div>
-                                    ))}
-                                    {trackSprints.length > 4 && (
-                                        <div className="w-10 h-10 rounded-[1.25rem] ring-4 ring-white bg-gray-50 flex items-center justify-center text-[10px] font-black text-gray-400 border border-gray-100">
-                                            +{trackSprints.length - 4}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Curated Bundle</p>
-                                    <p className="text-xs font-black text-gray-900 uppercase tracking-tight truncate">Complete Growth Path</p>
-                                </div>
+                    <div className="pt-8 border-t border-gray-50 mt-auto space-y-8">
+                        {/* Curated Bundle Info */}
+                        <div className="flex items-center gap-5">
+                            <div className="flex -space-x-4">
+                                {trackSprints.slice(0, 3).map(s => (
+                                    <div key={s.id} className="w-14 h-14 rounded-full ring-4 ring-white overflow-hidden border border-gray-100 shadow-sm flex-shrink-0">
+                                        <img src={s.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Curated Bundle</p>
+                                <p className="text-lg font-black text-gray-900 italic leading-none">Complete Growth Path</p>
                             </div>
                         </div>
 
-                        <div className="py-4 rounded-[1.5rem] bg-primary text-white font-black text-[11px] uppercase tracking-[0.3em] text-center shadow-sm transition-all duration-500 flex justify-center items-center gap-3 group-hover:bg-primary-hover shadow-primary/20">
-                            <div className="flex items-baseline gap-2">
-                                <span>₦{discountedPrice.toLocaleString()}</span>
-                                <span className="text-[9px] font-bold text-white/60 line-through">₦{totalValue.toLocaleString()}</span>
+                        {/* Pricing and Action */}
+                        <div className="flex items-center justify-between">
+                            <div className="text-left">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Bundle Value</p>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-4xl font-black text-primary italic leading-none">₦{discountedPrice.toLocaleString()}</span>
+                                    <span className="text-sm font-bold text-gray-300 line-through">₦{totalValue.toLocaleString()}</span>
+                                </div>
                             </div>
-                            <ArrowRight className="w-4 h-4" />
+                            
+                            <div className="w-16 h-16 bg-primary text-white rounded-[1.75rem] flex items-center justify-center shadow-xl shadow-primary/20 group-hover:scale-105 transition-transform duration-500">
+                                <ArrowRight className="w-8 h-8" />
+                            </div>
                         </div>
                     </div>
                 </div>
