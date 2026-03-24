@@ -1,11 +1,34 @@
 import { UserRole, Coach, Participant, Admin, RoleDefinition, Sprint, LifecycleStage, LifecycleSlot, SprintType, ParticipantSprint, Referral, ShinePost, CoachingComment } from '../types';
 
 export const FOCUS_OPTIONS = [
-  "Get clarity on my career direction",
-  "Build real-world skills before graduation",
-  "Prepare for internships or entry roles",
-  "Turn an interest into a real project",
-  "Explore entrepreneurship seriously"
+  // Initial Personas
+  "Entrepreneur", "Business Owner", "Freelancer/Consultant", "9-5 Professional", "Student/Graduate", "Creative/Hustler",
+  // Entrepreneur
+  "Idea", "Pre-launch (MVP)", "Early (first users)", "Growth (scaling)", "Pivoting", "Funded & expanding",
+  "Validating fit", "Building MVP", "Getting users", "Raising funds", "Scaling team/ops", "Beating competition",
+  "Product-market fit", "Grow users", "Secure funding", "Build brand", "Optimize team/ops", "Enter new markets",
+  // Business Owner
+  "Product-based", "Service-based", "Hybrid (product + service)", "Franchise", "E-commerce / Online store", "Local / Brick-and-mortar",
+  "Attracting new clients/customers", "Retaining existing clients/customers", "Scaling & increasing revenue", "Managing operations/team", "Standing out from competitors", "Accessing funding/capital",
+  "Build recognizable brand", "Expand into new markets/locations", "Improve loyalty & retention", "Streamline operations", "Launch new products/services", "Increase profitability/margins",
+  // Freelancer/Consultant
+  "Coaching/mentoring", "Design/creative", "Marketing/sales", "Tech/IT", "Business/management consulting", "Other expertise",
+  "Getting consistent clients", "Charging my worth", "Standing out", "Building credibility", "Structuring offers/packages", "Managing clients & time",
+  "Attract high-paying clients", "Package/structure services", "Build personal brand", "Shift to retainers", "Diversify into products/courses", "Scale client delivery",
+  // Creative/Hustler
+  "Turn talent into profit", "Grow audience", "Land high-paying clients", "Balance art + money", "Build collabs/partnerships", "Break free from undervaluation",
+  "Packaging & positioning", "Inconsistent/low income", "Not being seen", "Passion vs. survival conflict", "No structure/strategy", "Charging true worth",
+  "Thriving creative biz", "Known authority in craft", "Partnering with big brands", "From hustle to entrepreneurship", "Multiple income streams", "Inspiring others through passion",
+  // 9-5 Professional
+  "Mid-level manager", "Senior executive", "Specialist/expert", "Team lead", "Early career, aiming higher", "Other track",
+  "Not recognized for expertise", "Plateaued/no growth", "Struggling to move into leadership", "Hard to stand out", "Preparing to pivot to entrepreneurship", "Balancing career + personal goals",
+  "Gain recognition as leader/expert", "Build influence inside & outside", "Prep for entrepreneurship", "Secure promotion/upgrade", "Strengthen personal brand", "Grow network & opportunities",
+  // Student/Graduate
+  "Build personal brand before job market", "Get clarity on career direction", "Land internships/entry roles", "Move from school to real projects", "Grow skills & confidence to stand out", "Explore entrepreneurship as a path",
+  "Lack of real-world experience", "Unsure how to present myself", "Limited network/connections", "Balancing studies with prep", "Overwhelmed by career options", "Fear of failure/rejection",
+  "Working in a top company", "Running a small biz/startup", "Advancing studies (Masters/pro courses)", "Known in my field/industry", "Trying out different paths", "Still figuring it out, but progressing",
+  // Employment Status
+  "University Student", "Employed / Earning Salary", "Self-Employed / Business", "Unemployed / Looking"
 ];
 
 // USER DEFINED HIERARCHY MAPPING - EXACT LIST
@@ -132,8 +155,11 @@ export const LIFECYCLE_SLOTS: LifecycleSlot[] = [
     { id: 'slot_found_orient', stage: 'Foundation', type: 'Diagnostic', name: 'Orientation', required: true, maxCount: 1 },
     { id: 'slot_found_core', stage: 'Foundation', type: 'Execution', name: 'Core Foundation', required: true, maxCount: 1 },
     
-    // All others have singular slots for mapping
-    { id: 'slot_dir_primary', stage: 'Direction', type: 'Narrowing', name: 'Mapping Slot', required: true, maxCount: 1 },
+    // Direction stage slots - 4 slots as requested
+    { id: 'slot_dir_track', stage: 'Direction', type: 'Narrowing', name: 'Track Card', required: true, maxCount: 1 },
+    { id: 'slot_dir_paid', stage: 'Direction', type: 'Narrowing', name: 'First Paid Sprint', required: true, maxCount: 1 },
+    { id: 'slot_dir_growth', stage: 'Direction', type: 'Narrowing', name: 'Growth Fundamental', required: true, maxCount: 1 },
+    { id: 'slot_dir_core', stage: 'Direction', type: 'Narrowing', name: 'Platform Core', required: true, maxCount: 1 },
     { id: 'slot_exec_primary', stage: 'Execution', type: 'Execution', name: 'Mapping Slot', required: true, maxCount: 1 },
     { id: 'slot_proof_primary', stage: 'Proof', type: 'Expression', name: 'Mapping Slot', required: true, maxCount: 1 },
     { id: 'slot_pos_primary', stage: 'Positioning', type: 'Expression', name: 'Mapping Slot', required: true, maxCount: 1 },

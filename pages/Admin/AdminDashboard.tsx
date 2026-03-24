@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { UserRole, Coach, Sprint, PartnerApplication, PlatformPulse, Quote, FunnelStats } from '../../types';
+import { UserRole, Coach, Sprint, PartnerApplication, PlatformPulse, Quote, FunnelStats, Track } from '../../types';
 import { sprintService } from '../../services/sprintService';
+import { trackService } from '../../services/trackService';
 import { analyticsService } from '../../services/analyticsService';
 import { quoteService } from '../../services/quoteService';
 import { partnerService } from '../../services/partnerService';
@@ -26,6 +27,7 @@ export default function AdminDashboard() {
     const { logout } = useAuth();
     const [activeTab, setActiveTab] = useState<Tab>('pulse');
     const [sprints, setSprints] = useState<Sprint[]>([]);
+    const [tracks, setTracks] = useState<Track[]>([]);
     const [partnerApps, setPartnerApps] = useState<PartnerApplication[]>([]);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0); 
@@ -50,8 +52,12 @@ export default function AdminDashboard() {
         const unsubscribeSprints = sprintService.subscribeToAdminSprints((data) => {
             setSprints(data);
         });
+        const unsubscribeTracks = trackService.subscribeToTracks((data: Track[]) => {
+            setTracks(data);
+        });
         return () => {
             unsubscribeSprints();
+            unsubscribeTracks();
         };
     }, [refreshKey]);
 
@@ -155,7 +161,7 @@ export default function AdminDashboard() {
                             </div>
                         )}
 
-                        {activeTab === 'orchestrator' && <LifecycleOrchestrator allSprints={sprints} refreshKey={refreshKey} />}
+                        {activeTab === 'orchestrator' && <LifecycleOrchestrator allSprints={sprints} allTracks={tracks} refreshKey={refreshKey} />}
                         
                         {activeTab === 'analytics' && <AdminAnalytics />}
                         

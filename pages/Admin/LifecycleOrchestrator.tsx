@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { LifecycleStage, LifecycleSlot, Sprint, SprintType, MicroSelector, MicroSelectorStep, GlobalOrchestrationSettings, OrchestrationTrigger, OrchestrationAction, LifecycleSlotAssignment } from '../../types';
+import { LifecycleStage, LifecycleSlot, Sprint, SprintType, MicroSelector, MicroSelectorStep, GlobalOrchestrationSettings, OrchestrationTrigger, OrchestrationAction, LifecycleSlotAssignment, Track } from '../../types';
 import { LIFECYCLE_STAGES_CONFIG, LIFECYCLE_SLOTS, FOCUS_OPTIONS } from '../../services/mockData';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
 
 interface OrchestratorProps {
     allSprints: Sprint[];
+    allTracks: Track[];
     refreshKey: number;
 }
 
@@ -27,7 +28,7 @@ const SYSTEM_DESTINATIONS = [
     { id: 'system_map', title: 'The Map', category: 'System Overview', coverImageUrl: 'https://images.unsplash.com/photo-1526628953301-3e589a6a8b74?auto=format&fit=crop&w=800&q=80', duration: 0 }
 ];
 
-const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refreshKey }) => {
+const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTracks, refreshKey }) => {
     const [selectedStage, setSelectedStage] = useState<LifecycleStage>('Foundation');
     const [assignments, setAssignments] = useState<Record<string, LifecycleSlotAssignment>>({});
     const [isSaving, setIsSaving] = useState(false);
@@ -227,6 +228,10 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                             .filter(s => (s.published && s.approvalStatus === 'approved') && !assignedSprintIds.includes(s.id))
                             .sort((a, b) => a.title.localeCompare(b.title));
                         
+                        const availableTracksForPicker = allTracks
+                            .filter(t => t.published && !assignedSprintIds.includes(t.id))
+                            .sort((a, b) => a.title.localeCompare(b.title));
+
                         const availableSystemForPicker = SYSTEM_DESTINATIONS.filter(s => !assignedSprintIds.includes(s.id));
 
                         return (
@@ -359,6 +364,31 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                                                 </div>
                                                 <div className="space-y-6 max-h-80 overflow-y-auto custom-scrollbar pr-2 mt-4">
                                                     
+                                                    {/* Tracks Section (Only for Track slots) */}
+                                                    {slot.name.toLowerCase().includes('track') && availableTracksForPicker.length > 0 && (
+                                                        <div className="space-y-2">
+                                                            <p className="text-[8px] font-black text-orange-400 uppercase tracking-[0.3em] px-4 mb-3">Available Tracks</p>
+                                                            {availableTracksForPicker.map(t => (
+                                                                <button 
+                                                                    key={t.id} 
+                                                                    onClick={() => handleSprintAssign(slot.id, t.id)}
+                                                                    className="w-full text-left p-5 rounded-[2rem] transition-all flex items-center justify-between border bg-orange-50/30 border-orange-100 hover:bg-orange-50 hover:border-orange-200"
+                                                                >
+                                                                    <div className="flex items-center gap-5">
+                                                                        <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-xl shadow-sm border border-orange-100">
+                                                                            🚀
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-sm font-black text-gray-900 tracking-tight leading-none mb-1.5">{t.title}</p>
+                                                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{t.sprintIds.length} Sprints • Track</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="w-8 h-8 bg-orange-100 text-orange-400 rounded-full flex items-center justify-center text-xs font-black shadow-inner">+</div>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
                                                     {/* System Destinations Section */}
                                                     {availableSystemForPicker.length > 0 && (
                                                         <div className="space-y-2">
@@ -418,10 +448,13 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                                     {assignedSprintIds.length > 0 && (
                                         <div className="space-y-8 animate-fade-in mt-10">
                                             {assignedSprintIds.map((sId) => {
-                                                const s = allSprints.find(x => x.id === sId) || SYSTEM_DESTINATIONS.find(x => x.id === sId);
+                                                const s = allSprints.find(x => x.id === sId) || 
+                                                         SYSTEM_DESTINATIONS.find(x => x.id === sId) ||
+                                                         allTracks.find(x => x.id === sId);
                                                 if (!s) return null;
                                                 const sprintFocus = (assignment.sprintFocusMap || {})[sId] || [];
                                                 const isSystem = sId.startsWith('system_');
+                                                const isTrack = 'sprintIds' in s && !isSystem;
                                                 
                                                 // UNIFIED UNIQUENESS LOGIC: Find focus options taken by OTHER items in THIS slot
                                                 const focusTakenByOthers = Object.entries(assignment.sprintFocusMap || {})
@@ -429,15 +462,15 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, refres
                                                     .flatMap(([_, options]) => options as string[]);
 
                                                 return (
-                                                    <div key={sId} className={`w-full p-8 rounded-[2.5rem] border shadow-md flex flex-col gap-6 group transition-all hover:shadow-lg ${isSystem ? 'bg-primary/5 border-primary/20' : 'bg-white border-primary/10'}`}>
+                                                    <div key={sId} className={`w-full p-8 rounded-[2.5rem] border shadow-md flex flex-col gap-6 group transition-all hover:shadow-lg ${isSystem ? 'bg-primary/5 border-primary/20' : isTrack ? 'bg-orange-50/30 border-orange-200' : 'bg-white border-primary/10'}`}>
                                                         <div className="flex items-center justify-between">
                                                             <div className="flex items-center gap-4">
-                                                                <div className={`w-12 h-12 rounded-xl overflow-hidden shadow-sm border border-gray-100 flex items-center justify-center ${isSystem ? 'bg-white text-xl' : ''}`}>
-                                                                    {isSystem ? '🗺️' : <img src={s.coverImageUrl} className="w-full h-full object-cover" alt="" />}
+                                                                <div className={`w-12 h-12 rounded-xl overflow-hidden shadow-sm border border-gray-100 flex items-center justify-center ${isSystem || isTrack ? 'bg-white text-xl' : ''}`}>
+                                                                    {isSystem ? '🗺️' : isTrack ? '🚀' : <img src={(s as Sprint).coverImageUrl} className="w-full h-full object-cover" alt="" />}
                                                                 </div>
                                                                 <div className="text-left">
-                                                                    <p className={`text-[9px] font-black uppercase tracking-widest ${isSystem ? 'text-primary' : 'text-primary'}`}>
-                                                                        {isSystem ? 'System Link' : 'Assigned Program'}
+                                                                    <p className={`text-[9px] font-black uppercase tracking-widest ${isSystem ? 'text-primary' : isTrack ? 'text-orange-500' : 'text-primary'}`}>
+                                                                        {isSystem ? 'System Link' : isTrack ? 'Assigned Track' : 'Assigned Program'}
                                                                     </p>
                                                                     <h6 className="text-lg font-black tracking-tight text-gray-900 italic">
                                                                         {s.title}

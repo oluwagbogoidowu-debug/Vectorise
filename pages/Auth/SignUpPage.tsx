@@ -43,7 +43,8 @@ const SignUpPage: React.FC = () => {
     tx_ref,
     isPartnerApplication,
     partnerData,
-    authMessage
+    authMessage,
+    isQueued
   } = onboardingState;
 
   const [firstName, setFirstName] = useState(prefilledFirstName || '');
@@ -117,7 +118,7 @@ const SignUpPage: React.FC = () => {
       localStorage.removeItem('vectorise_last_sprint');
       document.cookie = "vectorise_ref=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
-      // 5. Post-Payment Fulfillment
+      // 5. Post-Payment or Recommended Path Fulfillment
       if (fromPayment) {
           if (targetTrackId) {
               // For tracks, we redirect to dashboard
@@ -134,6 +135,48 @@ const SignUpPage: React.FC = () => {
               } catch (enrollError) {
                   console.error("Auto-enrollment failed:", enrollError);
               }
+          }
+      } else if (persona && answers) {
+          // Handle Recommended Path from Quiz
+          try {
+              const availableSprints = await sprintService.getPublishedSprints();
+              
+              // Recalculate path (same logic as RecommendedSprints.tsx)
+              let foundational = availableSprints.find(s => 
+                  s.category === 'Growth Fundamentals' || s.category === 'Core Platform Sprint'
+              );
+              
+              const registrySprints = availableSprints.filter(s => 
+                  s.category !== 'Growth Fundamentals' && s.category !== 'Core Platform Sprint'
+              );
+              
+              let nextPath = registrySprints.find(s => s.id === targetSprintId);
+              if (!nextPath) {
+                  const { translateToTag, calculateMatchScore } = await import('../../utils/tagUtils');
+                  const userProfile = {
+                      persona: persona,
+                      p1: translateToTag(persona, answers[1]),
+                      p2: translateToTag(persona, answers[2]),
+                      p3: translateToTag(persona, answers[3]),
+                      occupation: translateToTag('', occupation)
+                  };
+                  const scoredSprints = registrySprints
+                      .map(s => ({ sprint: s, score: calculateMatchScore(userProfile, s.targeting) }))
+                      .sort((a, b) => b.score - a.score);
+                  if (scoredSprints.length > 0) nextPath = scoredSprints[0].sprint;
+              }
+
+              // Enroll in Foundational (Always)
+              if (foundational) {
+                  await sprintService.enrollUser(firebaseUser.uid, foundational.id, foundational.duration);
+              }
+
+              // Enroll in Next Path (If Queued)
+              if (isQueued && nextPath) {
+                  await sprintService.enrollUser(firebaseUser.uid, nextPath.id, nextPath.duration, { source: 'queued' as any });
+              }
+          } catch (pathError) {
+              console.error("Recommended path enrollment failed:", pathError);
           }
       }
 

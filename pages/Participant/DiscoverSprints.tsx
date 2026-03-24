@@ -215,16 +215,38 @@ const DiscoverSprints: React.FC = () => {
     }, [recommendedSprint, coaches]);
 
     // 2. Track & Other options
-    const featuredTrack = useMemo(() => {
-        return tracks[0] || null;
-    }, [tracks]);
+    const resolvedSlots = useMemo(() => {
+        const slots = ['slot_dir_track', 'slot_dir_paid', 'slot_dir_growth', 'slot_dir_core'];
+        const results: Record<string, any> = {};
+        
+        const participant = user as Participant;
+        const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
+                         Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
 
-    const otherOptions = useMemo(() => {
-        const trackSprintIds = featuredTrack?.sprintIds || [];
-        return sprints
-            .filter(s => !trackSprintIds.includes(s.id) && s.id !== activeSprintId)
-            .slice(0, 3);
-    }, [sprints, featuredTrack, activeSprintId]);
+        slots.forEach(slotId => {
+            const mapping = orchestration[slotId];
+            if (!mapping) return;
+
+            let resolvedId = null;
+            if (userFocus) {
+                const focusMap = mapping.sprintFocusMap || {};
+                resolvedId = Object.keys(focusMap).find(id => focusMap[id]?.includes(userFocus));
+            }
+
+            if (!resolvedId) {
+                resolvedId = mapping.sprintIds?.[0] || mapping.sprintId;
+            }
+
+            if (resolvedId) {
+                if (slotId === 'slot_dir_track') {
+                    results[slotId] = tracks.find(t => t.id === resolvedId);
+                } else {
+                    results[slotId] = sprints.find(s => s.id === resolvedId);
+                }
+            }
+        });
+        return results;
+    }, [orchestration, user, sprints, tracks]);
 
     if (isLoading) {
         return (
@@ -250,48 +272,81 @@ const DiscoverSprints: React.FC = () => {
                     </div>
                 </header>
 
-                {/* SECTION 1: FEATURED TRACK */}
-                {featuredTrack && (
+                {/* SECTION 1: TRACK CARD */}
+                {resolvedSlots['slot_dir_track'] && (
                     <section className="mb-16">
                         <div className="mb-6 px-2 flex justify-between items-end">
                             <div>
                                 <div className="flex items-center gap-2 mb-1">
-                                    <h2 className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Recommended Track Bundle for you</h2>
+                                    <h2 className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Your Personalized Track</h2>
                                     <span className="px-2 py-0.5 bg-primary/5 text-primary text-[7px] font-black uppercase rounded-md border border-primary/10">
                                         Best Value
                                     </span>
                                 </div>
-                                <p className="text-xs text-gray-400 font-medium">Curated paths for your accelerated growth</p>
+                                <p className="text-xs text-gray-400 font-medium">Curated path for your accelerated growth</p>
                             </div>
                         </div>
 
                         <TrackCard 
-                            track={featuredTrack} 
+                            track={resolvedSlots['slot_dir_track']} 
                             sprints={sprints} 
                         />
                     </section>
                 )}
 
-                {/* SECTION 2: OTHER OPTIONS */}
-                {otherOptions.length > 0 && (
+                {/* SECTION 2: FIRST PAID SPRINT */}
+                {resolvedSlots['slot_dir_paid'] && (
                     <section className="mb-16">
                         <div className="mb-6 px-2">
                             <div className="flex items-center gap-2 mb-1">
-                                <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Explore More Sprints</h2>
+                                <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Recommended First Step</h2>
                                 <Sparkles className="w-3 h-3 text-primary" />
                             </div>
-                            <p className="text-xs text-gray-400 font-medium">Keep growing, one focused step at a time</p>
+                            <p className="text-xs text-gray-400 font-medium">The most impactful place to start</p>
+                        </div>
+                        
+                        <div className="px-2">
+                            <SprintCard 
+                                sprint={resolvedSlots['slot_dir_paid']} 
+                                coach={coaches.find(c => c.id === resolvedSlots['slot_dir_paid'].coachId) || ({} as Coach)} 
+                            />
+                        </div>
+                    </section>
+                )}
+
+                {/* SECTION 3: GROWTH & CORE SLOTS */}
+                {(resolvedSlots['slot_dir_growth'] || resolvedSlots['slot_dir_core']) && (
+                    <section className="mb-16">
+                        <div className="mb-6 px-2">
+                            <div className="flex items-center gap-2 mb-1">
+                                <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Growth & Core Fundamentals</h2>
+                            </div>
+                            <p className="text-xs text-gray-400 font-medium">Build your foundation with these essential programs</p>
                         </div>
                         
                         <div className="flex gap-6 overflow-x-auto pb-8 no-scrollbar px-2 -mx-2">
-                            {otherOptions.map(s => (
-                                <div key={s.id} className="flex-shrink-0 w-[85%] md:w-80">
+                            {resolvedSlots['slot_dir_growth'] && (
+                                <div className="flex-shrink-0 w-[85%] md:w-80">
+                                    <div className="mb-2 px-4">
+                                        <span className="text-[8px] font-black text-primary uppercase tracking-widest">Growth Fundamental</span>
+                                    </div>
                                     <SprintCard 
-                                        sprint={s} 
-                                        coach={coaches.find(c => c.id === s.coachId) || ({} as Coach)} 
+                                        sprint={resolvedSlots['slot_dir_growth']} 
+                                        coach={coaches.find(c => c.id === resolvedSlots['slot_dir_growth'].coachId) || ({} as Coach)} 
                                     />
                                 </div>
-                            ))}
+                            )}
+                            {resolvedSlots['slot_dir_core'] && (
+                                <div className="flex-shrink-0 w-[85%] md:w-80">
+                                    <div className="mb-2 px-4">
+                                        <span className="text-[8px] font-black text-primary uppercase tracking-widest">Platform Core</span>
+                                    </div>
+                                    <SprintCard 
+                                        sprint={resolvedSlots['slot_dir_core']} 
+                                        coach={coaches.find(c => c.id === resolvedSlots['slot_dir_core'].coachId) || ({} as Coach)} 
+                                    />
+                                </div>
+                            )}
                         </div>
                     </section>
                 )}
