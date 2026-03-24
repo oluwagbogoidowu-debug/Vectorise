@@ -209,13 +209,13 @@ export const sprintService = {
     getUserEnrollments: async (userId: string) => {
         const q = query(collection(db, ENROLLMENTS_COLLECTION), where("user_id", "==", userId));
         const snap = await getDocs(q);
-        return snap.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint);
+        return snap.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint));
     },
 
     subscribeToUserEnrollments: (userId: string, callback: (enrollments: ParticipantSprint[]) => void, onError?: (error: any) => void) => {
         const q = query(collection(db, ENROLLMENTS_COLLECTION), where("user_id", "==", userId));
         return onSnapshot(q, (snapshot) => {
-            callback(snapshot.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint));
+            callback(snapshot.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint)));
         }, (error) => {
             if (onError) onError(error);
         });
@@ -225,12 +225,12 @@ export const sprintService = {
         if (!sprintIds.length) return [];
         const q = query(collection(db, ENROLLMENTS_COLLECTION), where("sprint_id", "in", sprintIds.slice(0, 10)));
         const snap = await getDocs(q);
-        return snap.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint);
+        return snap.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint));
     },
 
     subscribeToEnrollment: (enrollmentId: string, callback: (data: ParticipantSprint | null) => void, onError?: (error: any) => void) => {
         return onSnapshot(doc(db, ENROLLMENTS_COLLECTION, enrollmentId), (doc) => {
-            callback(doc.exists() ? sanitizeData(doc.data()) as ParticipantSprint : null);
+            callback(doc.exists() ? ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint) : null);
         }, (error) => {
             if (onError) onError(error);
         });
@@ -239,13 +239,13 @@ export const sprintService = {
     getAllEnrollments: async () => {
         const q = query(collection(db, ENROLLMENTS_COLLECTION));
         const snap = await getDocs(q);
-        return snap.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint);
+        return snap.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint));
     },
 
     subscribeToAllEnrollments: (callback: (enrollments: ParticipantSprint[]) => void) => {
         const q = query(collection(db, ENROLLMENTS_COLLECTION));
         return onSnapshot(q, (snapshot) => {
-            callback(snapshot.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint));
+            callback(snapshot.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint)));
         });
     },
 
@@ -266,7 +266,9 @@ export const sprintService = {
 
     startNextQueuedSprint: async (userId: string) => {
         try {
-            // 1. Check for any active enrollments
+            console.log("[SprintService] Attempting to start next queued sprint for user:", userId);
+            
+            // 1. Check for any truly active enrollments
             const activeQuery = query(
                 collection(db, ENROLLMENTS_COLLECTION), 
                 where("user_id", "==", userId), 
@@ -274,8 +276,23 @@ export const sprintService = {
             );
             const activeSnap = await getDocs(activeQuery);
             
-            // If there's already an active sprint, don't start another one
-            if (!activeSnap.empty) return null;
+            const activeEnrollments = activeSnap.docs.map(doc => sanitizeData(doc.data()) as ParticipantSprint);
+            
+            // Filter out those that are actually completed (all days done)
+            const trulyActive = activeEnrollments.filter(e => {
+                const isDone = e.progress && e.progress.every(p => p.completed);
+                if (isDone) {
+                    console.log("[SprintService] Found 'active' sprint that is actually completed, ignoring:", e.id);
+                    // Optionally update its status to completed in the background
+                    updateDoc(doc(db, ENROLLMENTS_COLLECTION, e.id), { status: 'completed', completed_at: new Date().toISOString() }).catch(err => console.error("Failed to auto-complete sprint:", err));
+                }
+                return !isDone;
+            });
+
+            if (trulyActive.length > 0) {
+                console.log("[SprintService] User already has truly active sprints:", trulyActive.map(t => t.id));
+                return null;
+            }
 
             // 2. Find the oldest queued enrollment
             const queuedQuery = query(
@@ -285,14 +302,19 @@ export const sprintService = {
             );
             const queuedSnap = await getDocs(queuedQuery);
             
-            if (queuedSnap.empty) return null;
+            if (queuedSnap.empty) {
+                console.log("[SprintService] No queued sprints found for user.");
+                return null;
+            }
 
             // Sort by started_at (oldest first)
             const queued = queuedSnap.docs
-                .map(doc => sanitizeData(doc.data()) as ParticipantSprint)
+                .map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint))
                 .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime());
 
             const nextSprint = queued[0];
+            console.log("[SprintService] Starting next queued sprint:", nextSprint.id);
+            
             const enrollmentRef = doc(db, ENROLLMENTS_COLLECTION, nextSprint.id);
             
             const now = new Date().toISOString();

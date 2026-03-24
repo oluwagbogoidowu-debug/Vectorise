@@ -211,16 +211,25 @@ const ParticipantDashboard: React.FC = () => {
   const currentArchetype = ARCHETYPES.find(a => a.id === p.archetype);
 
   const handleStartNextSprint = async () => {
-    if (!user || queuedSprints.length === 0 || isStartingNext) return;
+    console.log("[Dashboard] handleStartNextSprint clicked. User:", user?.id, "Queued count:", queuedSprints.length);
+    if (!user || queuedSprints.length === 0 || isStartingNext) {
+        console.log("[Dashboard] handleStartNextSprint early return:", { user: !!user, queuedCount: queuedSprints.length, isStartingNext });
+        return;
+    }
     
     setIsStartingNext(true);
     try {
+        console.log("[Dashboard] Calling sprintService.startNextQueuedSprint...");
         const nextEnrollmentId = await sprintService.startNextQueuedSprint(user.id);
+        console.log("[Dashboard] Result from startNextQueuedSprint:", nextEnrollmentId);
+        
         if (nextEnrollmentId) {
             navigate(`/participant/sprint/${nextEnrollmentId}`);
+        } else {
+            userService.queueNotification('error', "Could not start the next sprint. Please try again or contact support.");
         }
     } catch (err) {
-        console.error("Failed to start next sprint", err);
+        console.error("[Dashboard] Failed to start next sprint", err);
     } finally {
         setIsStartingNext(false);
         setIsNextSprintModalOpen(false);

@@ -201,9 +201,11 @@ const SprintView: React.FC = () => {
             setIsReflectionModalOpen(false);
 
             if (isLastDay && updatedProgress.every(p => p.completed)) {
+                console.log("[SprintView] Last day finished. Checking for queued sprints...");
                 // Check if there are queued sprints
                 const enrollments = await sprintService.getUserEnrollments(user.id);
                 const hasQueued = enrollments.some(e => e.status === 'queued');
+                console.log("[SprintView] hasQueued:", hasQueued);
                 
                 if (hasQueued) {
                     navigate('/dashboard', { replace: true, state: { showNextSprintPopup: true } });
