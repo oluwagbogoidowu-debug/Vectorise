@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { ParticipantSprint, Sprint, Notification } from '../../types';
+import { ParticipantSprint, Sprint, Notification, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
+import { userService } from '../../services/userService';
 import { notificationService } from '../../services/notificationService';
 import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { ARCHETYPES } from '../../constants';
-import { Participant } from '../../types';
 import NextSprintModal from '../../components/NextSprintModal';
 
 /**
@@ -84,7 +84,48 @@ const ParticipantDashboard: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     
-    setIsLoading(true);
+    // Auto-claim Account Creation
+    const checkAccountCreation = async () => {
+      const p = user as Participant;
+      if (!p.claimedMilestoneIds?.includes('setup_account')) {
+        await userService.claimMilestone(user.id, 'setup_account', 10, true);
+      }
+    };
+
+    // Auto-claim First Sprint
+    const checkFirstSprint = async () => {
+      const p = user as Participant;
+      if (mySprints.length > 0 && !p.claimedMilestoneIds?.includes('s1')) {
+        await userService.claimMilestone(user.id, 's1', 5, true);
+      }
+    };
+
+    const checkOtherMilestones = async () => {
+      const p = user as Participant;
+      const completedSprints = mySprints.filter(e => e.enrollment.progress.every(day => day.completed)).length;
+      const daysSinceJoin = Math.max(1, Math.ceil((Date.now() - new Date(p.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));
+      
+      const stats = {
+        completed: completedSprints,
+        reflectionsCount: p.shinePostIds?.length || 0,
+        streak: p.impactStats?.streak || 0,
+        daysActive: daysSinceJoin,
+        meaningfulReflections: 0, // Simplified for now
+        peopleHelped: p.impactStats?.peopleHelped || 0
+      };
+
+      await userService.checkAndNotifyMilestones(user.id, stats, p.claimedMilestoneIds || []);
+    };
+
+    checkAccountCreation();
+    if (!isLoading) {
+      checkFirstSprint();
+      checkOtherMilestones();
+    }
+  }, [user, mySprints.length, isLoading]);
+
+  useEffect(() => {
+    if (!user) return;
     const unsubscribeEnrollments = sprintService.subscribeToUserEnrollments(user.id, async (enrollments) => {
         try {
             const enriched = await Promise.all(enrollments.map(async (enrollment) => {

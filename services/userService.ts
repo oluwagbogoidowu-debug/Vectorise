@@ -1,6 +1,7 @@
 import { db } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, increment, addDoc } from 'firebase/firestore';
 import { User, Participant, Coach, UserRole, WalletTransaction } from '../types';
+import { toast } from 'sonner';
 
 /**
  * Hardened utility to deeply clean objects for Firestore safety and JSON serialization.
@@ -251,19 +252,77 @@ export const userService = {
       }
   },
 
-  claimMilestone: async (uid: string, milestoneId: string, points: number) => {
+  claimMilestone: async (uid: string, milestoneId: string, points: number, isAutoClaim = false) => {
       try {
+          const userRef = doc(db, 'users', uid);
+          const userSnap = await getDoc(userRef);
+          if (!userSnap.exists()) return;
+          
+          const userData = userSnap.data() as Participant;
+          if (userData.claimedMilestoneIds?.includes(milestoneId)) return;
+
           await userService.processWalletTransaction(uid, {
               amount: points,
               type: 'milestone',
               description: `Claimed milestone: ${milestoneId}`,
               auditId: milestoneId
           });
-          const userRef = doc(db, 'users', uid);
+          
           await updateDoc(userRef, { claimedMilestoneIds: arrayUnion(milestoneId) });
+          
+          if (isAutoClaim) {
+            toast.success(`Bonus! +${points} Coins earned for ${milestoneId.replace(/-/g, ' ')}`, {
+              description: "Keep rising!",
+              duration: 5000,
+            });
+          }
       } catch (error) {
+          console.error("Error claiming milestone:", error);
           throw error;
       }
+  },
+
+  notifyMilestoneReached: (milestoneId: string, points: number, actionLabel: string = "Claim") => {
+    toast.info(`Milestone Reached: ${milestoneId.replace(/_/g, ' ').replace(/-/g, ' ')}`, {
+      description: `You've earned ${points} coins!`,
+      action: {
+        label: actionLabel,
+        onClick: () => window.location.href = '/profile/hall-of-rise'
+      },
+      duration: 10000,
+    });
+  },
+
+  checkAndNotifyMilestones: async (uid: string, stats: any, currentClaimedIds: string[]) => {
+    // This is a simplified version of the logic in Badges.tsx
+    const milestones = [
+      { id: 's2', title: 'The Closer', target: 1, val: stats.completed, points: 15 },
+      { id: 's4', title: 'Growth Habit', target: 3, val: stats.completed, points: 50 },
+      { id: 'c1', title: 'The Start', target: 1, val: stats.reflectionsCount, points: 5 },
+      { id: 'c2', title: 'Momentum', target: 3, val: stats.streak, points: 10 },
+      { id: 'qw3', title: '3-Day Sprint', target: 3, val: stats.daysActive, points: 5 },
+      { id: 'qw7', title: 'Weekly Warrior', target: 7, val: stats.daysActive, points: 10 },
+      { id: 'qw14', title: 'Fortnight Focus', target: 14, val: stats.daysActive, points: 15 },
+      { id: 'qw21', title: 'Habit Former', target: 21, val: stats.daysActive, points: 25 },
+      { id: 'qw30', title: 'Monthly Master', target: 30, val: stats.daysActive, points: 30 },
+      { id: 'cm1', title: 'Rooted', target: 60, val: stats.daysActive, points: 20 },
+      { id: 'cm2', title: 'Quarter Builder', target: 90, val: stats.daysActive, points: 50 },
+      { id: 'r1', title: 'Deep Diver', target: 1, val: stats.meaningfulReflections, points: 10 },
+      { id: 'r2', title: 'Self-Aware', target: 5, val: stats.meaningfulReflections, points: 30 },
+      { id: 'i1', title: 'Catalyst', target: 1, val: stats.peopleHelped, points: 5 },
+      { id: 'i10', title: 'Multiplier', target: 10, val: stats.peopleHelped, points: 50 },
+    ];
+
+    for (const m of milestones) {
+      if (m.val >= m.target && !currentClaimedIds.includes(m.id)) {
+        // Check if we already notified in this session to avoid spam
+        const sessionKey = `notified_${m.id}`;
+        if (!sessionStorage.getItem(sessionKey)) {
+          userService.notifyMilestoneReached(m.title, m.points);
+          sessionStorage.setItem(sessionKey, 'true');
+        }
+      }
+    }
   },
 
   deleteUserDocument: async (uid: string) => {

@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Participant, ParticipantSprint, ShinePost, Sprint } from '../../../types';
@@ -222,8 +223,12 @@ const Badges: React.FC = () => {
             const newClaimed = [...(p.claimedMilestoneIds || []), m.id];
             const newBalance = (p.walletBalance || 0) + m.points;
             await updateProfile({ claimedMilestoneIds: newClaimed, walletBalance: newBalance });
+            toast.success(`Claimed! +${m.points} Coins added to your wallet.`, {
+                description: `Milestone: ${m.title}`,
+                duration: 3000
+            });
         } catch (err) {
-            alert("Failed to claim credits.");
+            toast.error("Failed to claim credits.");
         }
     };
 

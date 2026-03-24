@@ -133,7 +133,11 @@ const Profile: React.FC = () => {
         risePathway: tempRisePathway
       }));
       // If we just finished the last step, set setupStep to -1
-      if (setupStep === 10) setSetupStep(-1);
+      if (setupStep === 10) {
+        setSetupStep(-1);
+        // Auto-claim Identity Setup
+        await userService.claimMilestone(user.id, 'setup_identity', 20, true);
+      }
     } catch (e) {
       alert("Failed to save identity settings.");
     } finally {
