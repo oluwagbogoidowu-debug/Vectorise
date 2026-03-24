@@ -45,11 +45,11 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
                         <span className="px-2 py-0.5 rounded-md bg-gray-50 border border-gray-100 text-primary text-[7px] font-black uppercase tracking-[0.2em]">Track Bundle</span>
                     </div>
 
-                    <h3 className="text-base font-black text-gray-900 mb-0.5 transition-colors leading-tight tracking-tight group-hover:text-primary">
+                    <h3 className="text-lg font-black text-gray-900 mb-2 transition-colors leading-tight tracking-tight group-hover:text-primary">
                         {track.title}
                     </h3>
                     {track.subtitle && (
-                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider mb-3 leading-none">
+                        <p className="text-[10px] font-bold text-gray-400 mb-4 leading-snug">
                             {track.subtitle}
                         </p>
                     )}

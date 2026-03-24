@@ -155,9 +155,9 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                         <span className="px-2 py-0.5 rounded-md bg-gray-50 border border-gray-100 text-gray-400 text-[8px] font-black uppercase tracking-[0.25em]">{sprint.category}</span>
                     </div>
 
-                    <h3 className={`text-base font-black text-gray-900 mb-0.5 transition-colors leading-tight tracking-tight ${!isStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>
+                    <h3 className={`text-lg font-black text-gray-900 mb-2 transition-colors leading-tight tracking-tight ${!isStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>
                     {sprint.subtitle && (
-                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-3 leading-none">{sprint.subtitle}</p>
+                        <p className="text-[10px] font-bold text-gray-400 mb-4 leading-snug">{sprint.subtitle}</p>
                     )}
                     
                     <div className="pt-3 border-t border-gray-50 mt-auto">
