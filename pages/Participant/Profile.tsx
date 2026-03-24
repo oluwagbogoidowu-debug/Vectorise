@@ -155,6 +155,16 @@ const Profile: React.FC = () => {
     }
   };
 
+  const currentQuiz = useMemo(() => {
+    if (!tempPersona || !PERSONA_QUIZZES[tempPersona]) return null;
+    return PERSONA_QUIZZES[tempPersona];
+  }, [tempPersona]);
+
+  const currentGrowthGroup = useMemo(() => {
+    if (currentTaskGroupIdx < 0 || currentTaskGroupIdx >= GROWTH_AREAS.length) return null;
+    return GROWTH_AREAS[currentTaskGroupIdx];
+  }, [currentTaskGroupIdx]);
+
   const totalSetupSteps = 11;
   const setupProgress = setupStep === -1 ? 100 : Math.round((setupStep / totalSetupSteps) * 100);
 
@@ -254,12 +264,12 @@ const Profile: React.FC = () => {
               )}
 
               {/* Steps 1-3: Persona Questions */}
-              {setupStep >= 1 && setupStep <= 3 && tempPersona && (
+              {setupStep >= 1 && setupStep <= 3 && tempPersona && currentQuiz && currentQuiz[setupStep - 1] && (
                 <div className="animate-fade-in">
-                  <h3 className="text-sm font-black text-gray-900 mb-1" dangerouslySetInnerHTML={{ __html: PERSONA_QUIZZES[tempPersona][setupStep - 1].title }} />
+                  <h3 className="text-sm font-black text-gray-900 mb-1" dangerouslySetInnerHTML={{ __html: currentQuiz[setupStep - 1].title }} />
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Question {setupStep}/3</p>
                   <div className="space-y-2">
-                    {PERSONA_QUIZZES[tempPersona][setupStep - 1].options.map(opt => (
+                    {currentQuiz[setupStep - 1].options.map(opt => (
                       <button
                         key={opt}
                         onClick={() => handleQuizOptionSelect(opt)}
@@ -292,15 +302,15 @@ const Profile: React.FC = () => {
               )}
 
               {/* Steps 5-9: Growth Areas */}
-              {setupStep >= 5 && setupStep <= 9 && (
+              {setupStep >= 5 && setupStep <= 9 && currentGrowthGroup && (
                 <div className="animate-fade-in">
                   <h3 className="text-sm font-black text-gray-900 mb-1">Where do you want to grow next?</h3>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Pick one from each group ({currentTaskGroupIdx + 1}/5)</p>
                   
                   <div className="mb-6">
-                    <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-3">{GROWTH_AREAS[currentTaskGroupIdx].group}</p>
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-3">{currentGrowthGroup.group}</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {GROWTH_AREAS[currentTaskGroupIdx].options.map(area => (
+                      {currentGrowthGroup.options.map(area => (
                         <button
                           key={area}
                           onClick={() => handleToggleGrowthArea(area)}
