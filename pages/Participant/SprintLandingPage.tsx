@@ -51,7 +51,10 @@ const SprintLandingPage: React.FC = () => {
 
     useEffect(() => {
         const fetchData = async () => {
-            if (!sprintId) return;
+            if (!sprintId) {
+                setIsLoading(false);
+                return;
+            }
             setIsLoading(true);
             try {
                 const data = await sprintService.getSprintById(sprintId);
@@ -148,7 +151,7 @@ const SprintLandingPage: React.FC = () => {
     const displayCoachName = isFoundational ? 'Vectorise' : (fetchedCoach?.name || 'Vectorise');
     const displayCoachImage = isFoundational ? 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd' : (fetchedCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE);
 
-    const hasDynamicContent = sprint.dynamicSections?.some(s => s.body && s.body.trim().length > 0);
+    const hasDynamicContent = Array.isArray(sprint.dynamicSections) && sprint.dynamicSections.some(s => s.body && s.body.trim().length > 0);
 
     return (
         <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
@@ -214,7 +217,7 @@ const SprintLandingPage: React.FC = () => {
                                             </p>
                                         )}
 
-                                        {sprint.dynamicSections && sprint.dynamicSections
+                                        {Array.isArray(sprint.dynamicSections) && sprint.dynamicSections
                                             .filter(section => section.body && section.body.trim().length > 0)
                                             .map((section, index) => (
                                                 <div key={index} className="animate-fade-in">

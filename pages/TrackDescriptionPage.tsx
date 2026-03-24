@@ -18,6 +18,8 @@ const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) =
   </h2>
 );
 
+const fallbackImage = 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80';
+
 const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
@@ -27,7 +29,7 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
                            sprint.category === 'Growth Fundamentals';
 
     const displayDescription = sprint.description || sprint.subtitle || "This sprint is designed to help you build a solid foundation for your growth journey.";
-    const hasDynamicContent = sprint.dynamicSections?.some(s => s.body && s.body.trim().length > 0);
+    const hasDynamicContent = Array.isArray(sprint.dynamicSections) && sprint.dynamicSections.some(s => s.body && s.body.trim().length > 0);
 
     return (
         <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
@@ -37,7 +39,7 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
             >
                 <div className="flex items-center gap-4">
                     <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-gray-50 shadow-sm">
-                        <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                        <img src={sprint.coverImageUrl || fallbackImage} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
                     </div>
                     <div className="text-left">
                         <div className="flex items-center gap-2 mb-1">
@@ -63,7 +65,7 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
                                     </p>
                                 )}
 
-                                {sprint.dynamicSections && sprint.dynamicSections
+                                {Array.isArray(sprint.dynamicSections) && sprint.dynamicSections
                                     .filter(section => section.body && section.body.trim().length > 0)
                                     .map((section, index) => (
                                         <div key={index} className="animate-fade-in">
@@ -123,15 +125,20 @@ const TrackDescriptionPage: React.FC = () => {
     const [isCheckingEmail, setIsCheckingEmail] = useState(false);
     const [emailError, setEmailError] = useState('');
 
+    const [imageError, setImageError] = useState(false);
+
     useEffect(() => {
         const fetchData = async () => {
-            if (!trackId) return;
+            if (!trackId) {
+                setIsLoading(false);
+                return;
+            }
             setIsLoading(true);
             try {
                 const trackData = await trackService.getTrackById(trackId);
                 if (trackData) {
                     setTrack(trackData);
-                    const sprintPromises = trackData.sprintIds.map(id => sprintService.getSprintById(id));
+                    const sprintPromises = (trackData.sprintIds || []).map(id => sprintService.getSprintById(id));
                     const sprintData = await Promise.all(sprintPromises);
                     setSprints(sprintData.filter((s): s is Sprint => !!s));
                 }
@@ -217,9 +224,10 @@ const TrackDescriptionPage: React.FC = () => {
                         {/* HERO SECTION */}
                         <div className="relative h-[280px] sm:h-[340px] lg:h-[440px] rounded-[3rem] overflow-hidden shadow-2xl group border-4 border-white bg-dark">
                             <img 
-                                src={track.coverImageUrl} 
+                                src={imageError || !track.coverImageUrl ? fallbackImage : track.coverImageUrl} 
                                 className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
                                 alt={track.title} 
+                                onError={() => setImageError(true)}
                                 referrerPolicy="no-referrer"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
