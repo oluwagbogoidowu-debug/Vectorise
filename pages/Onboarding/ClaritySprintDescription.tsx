@@ -116,6 +116,14 @@ const ClaritySprintDescription: React.FC = () => {
     <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
       <div className="max-w-screen-lg mx-auto px-4 pt-4">
         
+        {/* Top Progress / Brand */}
+        <div className="flex flex-col items-center mb-6">
+          <LocalLogo type="green" className="h-5 w-auto mb-4 opacity-40" />
+          <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
+             <div className="h-full bg-primary rounded-full transition-all duration-1000 w-[25%]" style={{ width: '25%' }}></div>
+          </div>
+        </div>
+
         {/* Top Navigation */}
         <div className="flex justify-between items-center mb-6">
           <button 
@@ -148,7 +156,7 @@ const ClaritySprintDescription: React.FC = () => {
                 <div className="mb-4">
                   <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg">FOUNDATIONAL PATH</span>
                 </div>
-                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-4 italic">
+                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-4">
                   <FormattedText text={sprint.title} inline />
                 </h1>
                 {sprint.subtitle && (
@@ -196,7 +204,7 @@ const ClaritySprintDescription: React.FC = () => {
               <div className="text-center mb-10 relative z-10">
                 <SectionHeading>Sprint Status</SectionHeading>
                 <div className="flex flex-col items-center">
-                    <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1 italic">Foundational</h3>
+                    <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1">Foundational</h3>
                     <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Core Journey</p>
                 </div>
               </div>

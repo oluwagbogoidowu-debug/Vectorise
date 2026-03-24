@@ -19,6 +19,8 @@ const CommitmentFraming: React.FC = () => {
   const [hasActiveSprint, setHasActiveSprint] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
 
+  const [isNavigating, setIsNavigating] = useState(false);
+
   // Preserve navigation context (target sprints, skip logic, etc.)
   const state = location.state || {};
   const sprint: Sprint | null = state.sprint || null;
@@ -58,10 +60,15 @@ const CommitmentFraming: React.FC = () => {
   const handleContinue = () => {
     if (!isCommitted) return;
     
-    // Pass everything through to payment
-    navigate('/onboarding/sprint-payment', { 
-      state: { ...state } 
-    });
+    setIsNavigating(true);
+    
+    // Brief delay to show progress bar animation
+    setTimeout(() => {
+      // Pass everything through to payment
+      navigate('/onboarding/sprint-payment', { 
+        state: { ...state } 
+      });
+    }, 600);
   };
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
@@ -92,7 +99,10 @@ const CommitmentFraming: React.FC = () => {
           <div className="flex flex-col items-center mb-6">
             <LocalLogo type="green" className="h-5 w-auto mb-4 opacity-40" />
             <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
-               <div className="h-full bg-primary rounded-full transition-all duration-1000 w-[50%]" style={{ width: '50%' }}></div>
+               <div 
+                 className="h-full bg-primary rounded-full transition-all duration-700" 
+                 style={{ width: isNavigating ? '75%' : '50%' }}
+               ></div>
             </div>
           </div>
 

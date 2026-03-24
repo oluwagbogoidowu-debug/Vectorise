@@ -206,6 +206,13 @@ const ProgramDescription: React.FC = () => {
   return (
     <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
       <div className="max-w-screen-lg mx-auto px-4 pt-4">
+        <div className="flex flex-col items-center mb-6">
+          <LocalLogo type="green" className="h-5 w-auto mb-4 opacity-40" />
+          <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
+             <div className="h-full bg-primary rounded-full transition-all duration-1000 w-[25%]" style={{ width: '25%' }}></div>
+          </div>
+        </div>
+
         <div className="flex justify-between items-center mb-6">
           <button 
             onClick={handleRefineFocus} 

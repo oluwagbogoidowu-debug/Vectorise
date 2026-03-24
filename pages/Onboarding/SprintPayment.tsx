@@ -220,7 +220,7 @@ const SprintPayment: React.FC = () => {
 
         <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col animate-slide-up">
           <header className="p-6 md:p-8 text-center border-b border-gray-50">
-             <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-none italic">{sprintTitle}</h1>
+             <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-none">{sprintTitle}</h1>
              {selectedTrack && (
                  <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-3">Track Bundle • {trackSprints.length} Sprints</p>
              )}

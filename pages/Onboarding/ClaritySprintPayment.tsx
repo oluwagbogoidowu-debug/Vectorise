@@ -81,10 +81,10 @@ const ClaritySprintPayment: React.FC = () => {
         <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col animate-slide-up">
           
           <header className="p-6 md:p-8 text-center border-b border-gray-50">
-             <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-none mb-2 italic">
+             <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-none mb-2">
                Start the {sprintTitle}
              </h1>
-             <div className="space-y-1 text-gray-500 text-[10px] md:text-xs font-medium leading-relaxed italic">
+             <div className="space-y-1 text-gray-500 text-[10px] md:text-xs font-medium leading-relaxed">
                <p>You’re not paying for information.</p>
                <p>You’re paying for focus, structure, and completion.</p>
              </div>
