@@ -21,7 +21,7 @@ const LockedStageCard: React.FC<{
     tags: string[]; 
     unlockCondition: string 
 }> = ({ title, desc, tags, unlockCondition }) => (
-    <div className="flex-shrink-0 w-72 bg-white rounded-[2.5rem] border border-gray-100 p-8 flex flex-col relative overflow-hidden group opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
+    <div className="flex-shrink-0 w-[85%] md:w-72 bg-white rounded-[2.5rem] border border-gray-100 p-8 flex flex-col relative overflow-hidden group opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
         <div className="relative z-10">
             <h3 className="text-xl font-black text-gray-900 mb-2 italic">{title}</h3>
             <p className="text-xs text-gray-500 font-medium leading-relaxed mb-6 italic">"{desc}"</p>
@@ -275,13 +275,14 @@ const DiscoverSprints: React.FC = () => {
                             <p className="text-xs text-gray-400 font-medium italic">Keep growing, one focused step at a time</p>
                         </div>
                         
-                        <div className="grid grid-cols-1 gap-6 px-2">
+                        <div className="flex gap-6 overflow-x-auto pb-8 no-scrollbar px-2 -mx-2">
                             {otherOptions.map(s => (
-                                <SprintCard 
-                                    key={s.id}
-                                    sprint={s} 
-                                    coach={coaches.find(c => c.id === s.coachId) || ({} as Coach)} 
-                                />
+                                <div key={s.id} className="flex-shrink-0 w-[85%] md:w-80">
+                                    <SprintCard 
+                                        sprint={s} 
+                                        coach={coaches.find(c => c.id === s.coachId) || ({} as Coach)} 
+                                    />
+                                </div>
                             ))}
                         </div>
                     </section>
