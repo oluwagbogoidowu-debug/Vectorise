@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Sprint, DailyContent, SprintDifficulty, UserRole, Coach, DynamicSection } from '../../types';
 import { sprintService } from '../../services/sprintService';
+import { sanitizeData } from '../../services/userService';
 import Button from '../../components/Button';
 import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtils';
 import { useAuth } from '../../contexts/AuthContext';
@@ -89,7 +90,12 @@ const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> =
     const isDifferent = (a: any, b: any) => {
         if (a === b) return false;
         if (!a || !b) return true;
-        return JSON.stringify(a) !== JSON.stringify(b);
+        try {
+            return JSON.stringify(sanitizeData(a)) !== JSON.stringify(sanitizeData(b));
+        } catch (e) {
+            console.warn("Circular structure detected in comparison, defaulting to true", e);
+            return true;
+        }
     };
 
     // Top level fields
@@ -158,56 +164,73 @@ const EditSprint: React.FC = () => {
   const registryIncomplete = useMemo(() => sprint ? isRegistryIncomplete(sprint) : true, [sprint]);
   const curriculumIncomplete = useMemo(() => sprint ? isSprintIncomplete(sprint) : true, [sprint]);
 
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
-    const fetchData = async () => {
-      if (!sprintId || !user) return;
-      try {
-        const found = await sprintService.getSprintById(sprintId);
-        if (found) {
-          setOriginalSprint(found);
-          const merged: Sprint = {
-              ...found,
-              ...(found.pendingChanges || {}),
-              dailyContent: found.pendingChanges?.dailyContent || found.dailyContent,
-              outcomes: found.pendingChanges?.outcomes || found.outcomes,
-              forWho: found.pendingChanges?.forWho || found.forWho,
-              notForWho: found.pendingChanges?.notForWho || found.notForWho,
-              methodSnapshot: found.pendingChanges?.methodSnapshot || found.methodSnapshot
-          };
-          
-          setSprint(merged);
-          setReviewFeedback(found.reviewFeedback || {});
+    if (!sprintId || !user) return;
+    
+    setIsLoading(true);
+    let timeoutId: any;
 
-          // Ensure system sections exist in dynamicSections for unified editing
-          const systemSections = [
-            { id: 'identity', title: 'Sprint Identity', body: '', type: 'identity' as any },
-            { id: 'metadata', title: 'Metadata', body: '', type: 'metadata' as any },
-            { id: 'pricing', title: 'Pricing & Economy', body: '', type: 'pricing' as any },
-            { id: 'completion', title: 'Completion Assets', body: '', type: 'completion' as any },
-            { id: 'overview', title: 'Sprint Overview', body: merged.description || merged.transformation || '', type: 'text' as any }
-          ];
-          
-          const initialDynamicSections = Array.isArray(merged.dynamicSections) ? [...merged.dynamicSections] : [];
-          
-          // Filter out any old custom sections that aren't 'overview'
-          const filteredSections = initialDynamicSections.filter(s => 
-            systemSections.find(sys => sys.id === s.id)
-          );
+    const unsub = sprintService.subscribeToSprint(sprintId, (found) => {
+      if (found) {
+        if (timeoutId) clearTimeout(timeoutId);
+        setOriginalSprint(found);
+        const merged: Sprint = {
+            ...found,
+            ...(found.pendingChanges || {}),
+            dailyContent: found.pendingChanges?.dailyContent || found.dailyContent,
+            outcomes: found.pendingChanges?.outcomes || found.outcomes,
+            forWho: found.pendingChanges?.forWho || found.forWho,
+            notForWho: found.pendingChanges?.notForWho || found.notForWho,
+            methodSnapshot: found.pendingChanges?.methodSnapshot || found.methodSnapshot
+        };
+        
+        setSprint(merged);
+        setReviewFeedback(found.reviewFeedback || {});
 
-          systemSections.forEach(sys => {
-              if (!filteredSections.find(s => s.id === sys.id)) {
-                  filteredSections.push(sys);
-              }
-          });
+        // Ensure system sections exist in dynamicSections for unified editing
+        const systemSections = [
+          { id: 'identity', title: 'Sprint Identity', body: '', type: 'identity' as any },
+          { id: 'metadata', title: 'Metadata', body: '', type: 'metadata' as any },
+          { id: 'pricing', title: 'Pricing & Economy', body: '', type: 'pricing' as any },
+          { id: 'completion', title: 'Completion Assets', body: '', type: 'completion' as any },
+          { id: 'overview', title: 'Sprint Overview', body: merged.description || merged.transformation || '', type: 'text' as any }
+        ];
+        
+        const initialDynamicSections = Array.isArray(merged.dynamicSections) ? [...merged.dynamicSections] : [];
+        
+        // Filter out any old custom sections that aren't 'overview'
+        const filteredSections = initialDynamicSections.filter(s => 
+          systemSections.find(sys => sys.id === s.id)
+        );
 
-          setEditSettings({
-            ...merged,
-            dynamicSections: filteredSections
-          });
-        } else { navigate('/dashboard'); }
-      } catch (err) { navigate('/dashboard'); }
+        systemSections.forEach(sys => {
+            if (!filteredSections.find(s => s.id === sys.id)) {
+                filteredSections.push(sys);
+            }
+        });
+
+        setEditSettings({
+          ...merged,
+          dynamicSections: filteredSections
+        });
+        setIsLoading(false);
+      } else {
+        // If not found, wait a bit before giving up (handles race conditions on creation)
+        if (!timeoutId) {
+          timeoutId = setTimeout(() => {
+            console.error("Sprint not found after timeout");
+            navigate('/dashboard');
+          }, 3000);
+        }
+      }
+    });
+
+    return () => {
+      unsub();
+      if (timeoutId) clearTimeout(timeoutId);
     };
-    fetchData();
   }, [sprintId, navigate, user]);
 
   const currentContent = useMemo(() => {
