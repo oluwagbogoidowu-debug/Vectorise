@@ -187,7 +187,7 @@ const EditSprint: React.FC = () => {
             { id: 'overview', title: 'Sprint Overview', body: merged.description || merged.transformation || '', type: 'text' as any }
           ];
           
-          const initialDynamicSections = [...(merged.dynamicSections || [])];
+          const initialDynamicSections = Array.isArray(merged.dynamicSections) ? [...merged.dynamicSections] : [];
           
           // Filter out any old custom sections that aren't 'overview'
           const filteredSections = initialDynamicSections.filter(s => 

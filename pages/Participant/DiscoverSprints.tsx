@@ -269,10 +269,10 @@ const DiscoverSprints: React.FC = () => {
                     <section className="mb-16">
                         <div className="mb-6 px-2">
                             <div className="flex items-center gap-2 mb-1">
-                                <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Individual Programs</h2>
+                                <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Explore More Sprints</h2>
                                 <Sparkles className="w-3 h-3 text-primary" />
                             </div>
-                            <p className="text-xs text-gray-400 font-medium italic">Focused sprints to build specific skills.</p>
+                            <p className="text-xs text-gray-400 font-medium italic">Keep growing, one focused step at a time</p>
                         </div>
                         
                         <div className="grid grid-cols-1 gap-6 px-2">

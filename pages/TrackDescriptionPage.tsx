@@ -9,7 +9,8 @@ import { analyticsTracker } from '../services/analyticsTracker';
 import { Track, Sprint } from '../types';
 import Button from '../components/Button';
 import FormattedText from '../components/FormattedText';
-import { ChevronDown, ChevronUp, Clock, ArrowRight, ShieldCheck, Package, Zap, Calendar } from 'lucide-react';
+import DynamicSectionRenderer from '../components/DynamicSectionRenderer';
+import { ChevronDown, ChevronUp, Clock, ArrowRight, ShieldCheck, Package, Zap, Calendar, Plus, Minus } from 'lucide-react';
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <h2 className="text-[11px] font-black text-primary uppercase tracking-[0.5em] mb-6">
@@ -19,6 +20,14 @@ const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+
+    const isFoundational = sprint.sprintType === 'Foundational' || 
+                           sprint.category === 'Core Platform Sprint' || 
+                           sprint.category === 'Growth Fundamentals';
+
+    const displayDescription = sprint.description || sprint.subtitle || "This sprint is designed to help you build a solid foundation for your growth journey.";
+    const hasDynamicContent = sprint.dynamicSections?.some(s => s.body && s.body.trim().length > 0);
 
     return (
         <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
@@ -45,10 +54,47 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
             
             {isExpanded && (
                 <div className="px-8 pb-8 pt-2 border-t border-gray-50 animate-fade-in">
-                    <div className="text-[12px] text-gray-600 font-medium leading-relaxed italic mb-6">
-                        <FormattedText text={sprint.description || sprint.subtitle || "No description available."} />
+                    <div className="space-y-6 mb-6">
+                        <div className={`relative transition-all duration-500 ${!isDescriptionExpanded ? 'max-h-[160px] overflow-hidden' : 'max-h-[2000px]'}`}>
+                            <div className="space-y-8">
+                                {displayDescription && !hasDynamicContent && (
+                                    <p className="text-base text-gray-600 font-medium leading-relaxed italic">
+                                        "{displayDescription}"
+                                    </p>
+                                )}
+
+                                {sprint.dynamicSections && sprint.dynamicSections
+                                    .filter(section => section.body && section.body.trim().length > 0)
+                                    .map((section, index) => (
+                                        <div key={index} className="animate-fade-in">
+                                            {section.id !== 'overview' && <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4">{section.title}</h3>}
+                                            <DynamicSectionRenderer section={section} />
+                                        </div>
+                                    ))
+                                }
+                            </div>
+                            
+                            {!isDescriptionExpanded && (
+                                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />
+                            )}
+                        </div>
+
+                        <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsDescriptionExpanded(!isDescriptionExpanded);
+                            }}
+                            className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest hover:opacity-70 transition-opacity"
+                        >
+                            {isDescriptionExpanded ? (
+                                <><Minus className="w-3 h-3" /> See Less</>
+                            ) : (
+                                <><Plus className="w-3 h-3" /> See More</>
+                            )}
+                        </button>
                     </div>
-                    <div className="flex flex-wrap gap-6">
+
+                    <div className="flex flex-wrap gap-6 pt-6 border-t border-gray-50">
                         <div className="flex items-center gap-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">
                             <Zap className="w-3.5 h-3.5 text-primary/40" />
                             Daily Execution

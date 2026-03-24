@@ -6,6 +6,7 @@ import Button from '../../components/Button';
 import { Sprint, Track } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
+import { Zap } from 'lucide-react';
 
 const CommitmentFraming: React.FC = () => {
   const navigate = useNavigate();
@@ -83,102 +84,100 @@ const CommitmentFraming: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-dark/95 backdrop-blur-md animate-fade-in selection:bg-primary/10">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-white sm:bg-dark/95 sm:backdrop-blur-md animate-fade-in selection:bg-primary/10">
       
       {/* Main Commitment Modal */}
       {!showEmailCapture && (
-        <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl relative overflow-hidden flex flex-col max-h-[95vh] animate-slide-up">
+        <div className="bg-white sm:rounded-[2.5rem] w-full max-w-md sm:shadow-2xl relative overflow-hidden flex flex-col h-full sm:h-auto max-h-[95vh] animate-slide-up">
           
-          <header className="p-6 pb-4 border-b border-gray-50 flex-shrink-0 flex items-center justify-between">
+          <header className="p-6 pb-4 flex-shrink-0 flex items-center justify-between">
              <div className="text-left">
-                <h1 className="text-sm font-black text-gray-900 tracking-tighter leading-none">Before you start</h1>
-                <p className="text-[8px] font-black text-primary uppercase tracking-widest mt-1 opacity-60">
-                    {hasActiveSprint ? 'This is the Registry Queue' : 'This is the Execution Phase'}
+                <h1 className="text-lg font-black text-gray-900 tracking-tighter leading-none italic">Read this before you continue</h1>
+                <p className="text-[9px] font-black text-primary uppercase tracking-widest mt-1.5 opacity-60">
+                    This is where your next sprint is scheduled
                 </p>
              </div>
-             <LocalLogo type="green" className="h-5 w-auto opacity-80" />
+             <LocalLogo type="green" className="h-4 w-auto opacity-40" />
           </header>
 
-          <main className="flex-1 overflow-y-auto p-6 pt-4 custom-scrollbar space-y-6">
+          <main className="flex-1 overflow-y-auto px-6 py-2 custom-scrollbar space-y-5">
             
             {hasActiveSprint && (
-                <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl animate-fade-in">
-                    <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest mb-1 flex items-center gap-2">
-                        <span className="w-1 h-1 bg-blue-600 rounded-full"></span>
-                        Active Session Detected
-                    </p>
-                    <p className="text-[11px] font-bold text-blue-800 leading-relaxed italic">
-                        "You’re already running a sprint. This will be added to your <strong className="underline decoration-blue-200 underline-offset-2">Upcoming Queue</strong>."
+                <div className="bg-gray-50 border border-gray-100 p-4 rounded-2xl animate-fade-in">
+                    <p className="text-[11px] font-bold text-gray-600 leading-relaxed italic">
+                        You’re currently in a sprint. This will be added next—no overlap, no distractions.
                     </p>
                 </div>
             )}
 
-            <section className="space-y-3">
-              <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em]">Requirements</h2>
-              <div className="space-y-2">
+            <section className="space-y-4">
+              <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.4em]">What this requires from you</h2>
+              <div className="space-y-4">
                 {[
-                  { t: "Daily Action", d: "One focused task each day." },
-                  { t: "Honest Reflection", d: "Notice what energizes or drains you." },
-                  { t: "Finish What You Start", d: "The value is in finishing." }
+                  { t: "Show up daily", d: "One clear action. Every single day." },
+                  { t: "Pay attention to yourself", d: "Notice what works and what doesn’t." },
+                  { t: "Finish, don’t sample", d: "This only works if you complete it." }
                 ].map((item, i) => (
-                  <div key={i} className="bg-gray-50 border border-gray-100 p-3 rounded-xl group transition-all hover:border-primary/20">
-                    <h3 className="text-[11px] font-black text-gray-900 mb-0.5">{item.t}</h3>
-                    <p className="text-[10px] text-gray-400 leading-snug font-medium">{item.d}</p>
+                  <div key={i} className="flex gap-4 group">
+                    <div className="w-1 h-1 bg-primary/30 rounded-full mt-1.5 group-hover:bg-primary transition-colors"></div>
+                    <div>
+                      <h3 className="text-[12px] font-black text-gray-900 leading-none mb-1">{item.t}</h3>
+                      <p className="text-[11px] text-gray-400 leading-snug font-medium italic">{item.d}</p>
+                    </div>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="bg-primary/5 rounded-2xl p-4 text-center space-y-3 border border-primary/10">
-               <div className="flex justify-center items-center gap-4">
-                  <div>
-                    <p className="text-xl font-black text-primary leading-none">{duration}</p>
-                    <p className="text-[7px] font-black uppercase text-primary/60">Days</p>
-                  </div>
-                  <div className="w-px h-4 bg-primary/10"></div>
-                  <div>
-                    <p className="text-xl font-black text-primary leading-none">15</p>
-                    <p className="text-[7px] font-black uppercase text-primary/60">Min/Day</p>
-                  </div>
+            <section className="py-4 border-y border-gray-50">
+               <div className="flex items-center justify-between mb-1">
+                  <p className="text-sm font-black text-gray-900 italic">{duration} days • 15 min/day</p>
+                  <Zap className="w-4 h-4 text-primary" />
                </div>
-               <p className="text-[9px] font-medium text-primary/70 italic">"You don’t need more time. You need focus."</p>
+               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Consistency is the whole point.</p>
             </section>
 
-            <section className="pt-1">
-              <label className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer active:scale-[0.98] transition-all group hover:border-primary/20">
-                <div className="relative flex items-center h-4 mt-0.5">
+            <div className="bg-red-50/50 border border-red-100/50 p-3 rounded-xl text-center">
+              <p className="text-[10px] font-black text-red-400 uppercase tracking-widest leading-tight">
+                If you don’t complete this, you reset your own momentum.
+              </p>
+            </div>
+
+            <section>
+              <label className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer active:scale-[0.98] transition-all group hover:border-primary/20">
+                <div className="relative flex items-center h-4">
                   <input 
                     type="checkbox" 
                     checked={isCommitted}
                     onChange={(e) => setIsCommitted(e.target.checked)}
-                    className="w-4 h-4 bg-white border-gray-200 rounded focus:ring-offset-white focus:ring-primary text-primary cursor-pointer transition-all"
+                    className="w-5 h-5 bg-white border-gray-200 rounded-lg focus:ring-offset-white focus:ring-primary text-primary cursor-pointer transition-all"
                   />
                 </div>
-                <div className="text-[11px] font-bold text-gray-700 leading-tight select-none">
-                  I’m ready to commit to daily action for the next {duration} days.
+                <div className="text-[11px] font-black text-gray-700 leading-tight select-none uppercase tracking-wider">
+                  I will show up and complete each day—no skipping.
                 </div>
               </label>
             </section>
           </main>
 
-          <footer className="p-6 pt-3 border-t border-gray-50 bg-white flex-shrink-0">
-            <div className="space-y-3">
+          <footer className="p-6 pt-4 bg-white flex-shrink-0">
+            <div className="space-y-4">
               <Button 
                 onClick={handleContinue}
                 disabled={!isCommitted}
-                className={`w-full py-3.5 rounded-xl shadow-xl transition-all text-[10px] uppercase tracking-widest font-black ${
-                  isCommitted ? 'bg-primary text-white active:scale-95' : 'bg-gray-100 text-gray-400 grayscale cursor-not-allowed border-none shadow-none'
+                className={`w-full py-5 rounded-2xl shadow-2xl transition-all text-[11px] uppercase tracking-[0.2em] font-black ${
+                  isCommitted ? 'bg-primary text-white active:scale-95 shadow-primary/20' : 'bg-gray-100 text-gray-300 grayscale cursor-not-allowed border-none shadow-none'
                 }`}
               >
-                {hasActiveSprint ? 'Secure for Queue' : 'Secure My Path'} &rarr;
+                Lock This In
               </Button>
               
               <div className="text-center">
                 <button 
                   onClick={() => setShowEmailCapture(true)}
-                  className="text-[8px] font-black text-gray-400 hover:text-red-400 transition-colors uppercase tracking-widest"
+                  className="text-[9px] font-black text-gray-300 hover:text-gray-500 transition-colors uppercase tracking-[0.2em]"
                 >
-                  Not ready yet
+                  I’m not ready to commit
                 </button>
               </div>
             </div>
