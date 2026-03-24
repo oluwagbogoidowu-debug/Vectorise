@@ -29,8 +29,8 @@ const Profile: React.FC = () => {
   const [isSavingIdentity, setIsSavingIdentity] = useState(false);
 
   // Quiz Step Logic
-  // 0: Persona, 1-3: Persona Questions, 4: Occupation, 5-9: Growth Areas, 10: Rise Pathway
-  const [setupStep, setSetupStep] = useState(0);
+  // -2: Loading/Checking, -1: Complete, 0: Persona, 1-3: Persona Questions, 4: Occupation, 5-9: Growth Areas, 10: Rise Pathway
+  const [setupStep, setSetupStep] = useState(-2);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -228,8 +228,15 @@ const Profile: React.FC = () => {
 
       <main className="flex-1 overflow-y-auto custom-scrollbar px-4 py-4 space-y-5">
         
-        {/* Progressive Identity Tasks */}
-        {setupStep !== -1 && (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Syncing Identity...</p>
+          </div>
+        ) : (
+          <>
+            {/* Progressive Identity Tasks */}
+            {setupStep >= 0 && (
           <div className="space-y-3 animate-fade-in">
             <div className="flex items-center justify-between px-1">
               <SectionLabel text="Identity Setup" />
@@ -517,7 +524,8 @@ const Profile: React.FC = () => {
         <footer className="text-center pt-10">
             <p className="text-[7px] font-black text-gray-200 uppercase tracking-[0.4em]">Vectorise • Profile 5.0 Progressive</p>
         </footer>
-
+          </>
+        )}
       </main>
 
       <style>{`
