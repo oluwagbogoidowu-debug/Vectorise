@@ -250,7 +250,7 @@ const ProgramDescription: React.FC = () => {
                   <FormattedText text={sprint.title} inline />
                 </h1>
                 {sprint.subtitle && (
-                  <p className="text-white/70 text-sm md:text-base font-medium italic tracking-tight mb-6 leading-snug max-w-xl">
+                  <p className="text-white/70 text-sm md:text-base font-medium tracking-tight mb-6 leading-snug max-w-xl">
                     {sprint.subtitle}
                   </p>
                 )}
@@ -265,7 +265,7 @@ const ProgramDescription: React.FC = () => {
             <div className="space-y-8">
               {displayDescription && !hasDynamicContent && (
                 <section className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-sm animate-fade-in">
-                  <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed italic">
+                  <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed">
                     "{displayDescription}"
                   </p>
                 </section>
@@ -294,7 +294,7 @@ const ProgramDescription: React.FC = () => {
                 <SectionHeading>Sprint Status</SectionHeading>
                 {enrollmentStatus === 'none' && (
                     <div className="flex flex-col items-center">
-                        <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1 italic">Securing Path</h3>
+                        <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1">Securing Path</h3>
                         <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Awaiting Authorization</p>
                     </div>
                 )}

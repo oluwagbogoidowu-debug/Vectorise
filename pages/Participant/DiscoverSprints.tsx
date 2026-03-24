@@ -23,8 +23,8 @@ const LockedStageCard: React.FC<{
 }> = ({ title, desc, tags, unlockCondition }) => (
     <div className="flex-shrink-0 w-[85%] md:w-72 bg-white rounded-[2.5rem] border border-gray-100 p-8 flex flex-col relative overflow-hidden group opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
         <div className="relative z-10">
-            <h3 className="text-xl font-black text-gray-900 mb-2 italic">{title}</h3>
-            <p className="text-xs text-gray-500 font-medium leading-relaxed mb-6 italic">"{desc}"</p>
+            <h3 className="text-xl font-black text-gray-900 mb-2">{title}</h3>
+            <p className="text-xs text-gray-500 font-medium leading-relaxed mb-6">"{desc}"</p>
             
             <div className="flex flex-wrap gap-2 mb-8">
                 {tags.map(tag => (
@@ -233,12 +233,12 @@ const DiscoverSprints: React.FC = () => {
                 
                 {/* HEADER */}
                 <header className="mb-16 text-center">
-                    <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter italic mb-3">
+                    <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter mb-3">
                         Explore What’s Next
                     </h1>
                     <div className="space-y-1">
-                        <p className="text-lg text-gray-500 font-medium italic">You don’t need to do everything.</p>
-                        <p className="text-lg text-gray-900 font-bold italic">Just the next right thing.</p>
+                        <p className="text-lg text-gray-500 font-medium">You don’t need to do everything.</p>
+                        <p className="text-lg text-gray-900 font-bold">Just the next right thing.</p>
                     </div>
                 </header>
 
@@ -253,7 +253,7 @@ const DiscoverSprints: React.FC = () => {
                                         Best Value
                                     </span>
                                 </div>
-                                <p className="text-xs text-gray-400 font-medium italic">Curated paths for your accelerated growth</p>
+                                <p className="text-xs text-gray-400 font-medium">Curated paths for your accelerated growth</p>
                             </div>
                         </div>
 
@@ -272,7 +272,7 @@ const DiscoverSprints: React.FC = () => {
                                 <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Explore More Sprints</h2>
                                 <Sparkles className="w-3 h-3 text-primary" />
                             </div>
-                            <p className="text-xs text-gray-400 font-medium italic">Keep growing, one focused step at a time</p>
+                            <p className="text-xs text-gray-400 font-medium">Keep growing, one focused step at a time</p>
                         </div>
                         
                         <div className="flex gap-6 overflow-x-auto pb-8 no-scrollbar px-2 -mx-2">
@@ -292,7 +292,7 @@ const DiscoverSprints: React.FC = () => {
                 <section className="mb-20">
                     <div className="mb-6 px-2">
                         <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em] mb-1">What comes after this</h2>
-                        <p className="text-xs text-gray-400 font-medium italic">You’ll unlock these as you progress.</p>
+                        <p className="text-xs text-gray-400 font-medium">You’ll unlock these as you progress.</p>
                     </div>
 
                     <div className="flex gap-5 overflow-x-auto pb-8 no-scrollbar px-2 -mx-2">
@@ -325,8 +325,8 @@ const DiscoverSprints: React.FC = () => {
 
                 {/* FOOTER TEXT */}
                 <footer className="text-center pt-10 border-t border-gray-50">
-                    <p className="text-lg text-gray-300 font-medium italic">You’re not behind.</p>
-                    <p className="text-lg text-gray-400 font-black italic">You’re building in order.</p>
+                    <p className="text-lg text-gray-300 font-medium">You’re not behind.</p>
+                    <p className="text-lg text-gray-400 font-black">You’re building in order.</p>
                     
                     <div className="mt-16 flex justify-center opacity-10 grayscale">
                         <LocalLogo type="green" className="h-8 w-auto" />

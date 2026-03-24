@@ -298,7 +298,7 @@ const SprintPayment: React.FC = () => {
                   <button onClick={handleHesitation} className="text-[9px] font-black text-gray-400 hover:text-primary transition-colors underline underline-offset-4 decoration-gray-200 cursor-pointer">Not sure yet? See The Map</button>
                 </div>
                 <div className="text-center pt-2">
-                    <p className="text-[9px] font-bold text-gray-400 italic">Trusted by young professionals seeking clarity.</p>
+                    <p className="text-[9px] font-bold text-gray-400">Trusted by young professionals seeking clarity.</p>
                 </div>
              </div>
           </footer>

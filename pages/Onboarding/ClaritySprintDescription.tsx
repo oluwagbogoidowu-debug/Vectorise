@@ -160,7 +160,7 @@ const ClaritySprintDescription: React.FC = () => {
                   <FormattedText text={sprint.title} inline />
                 </h1>
                 {sprint.subtitle && (
-                  <p className="text-white/70 text-sm md:text-base font-medium italic tracking-tight mb-6 leading-snug max-w-xl">
+                  <p className="text-white/70 text-sm md:text-base font-medium tracking-tight mb-6 leading-snug max-w-xl">
                     {sprint.subtitle}
                   </p>
                 )}
@@ -175,7 +175,7 @@ const ClaritySprintDescription: React.FC = () => {
             <div className="space-y-8">
               {displayDescription && !hasDynamicContent && (
                 <section className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-sm animate-fade-in">
-                  <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed italic">
+                  <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed">
                     "{displayDescription}"
                   </p>
                 </section>

@@ -8,7 +8,7 @@ import { userService, sanitizeData } from '../../services/userService';
 import { shineService } from '../../services/shineService';
 import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
-import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
+import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS, PERSONA_QUIZZES, INITIAL_OPTIONS, OCCUPATION_QUESTION } from '../../constants';
 import { ShinePost } from '../../types';
 
 const Profile: React.FC = () => {
@@ -21,9 +21,16 @@ const Profile: React.FC = () => {
 
   // Identity Task States
   const [currentTaskGroupIdx, setCurrentTaskGroupIdx] = useState(0);
+  const [tempPersona, setTempPersona] = useState<string | null>(null);
+  const [tempOccupation, setTempOccupation] = useState<string | null>(null);
+  const [tempOnboardingAnswers, setTempOnboardingAnswers] = useState<Record<string, any>>({});
   const [tempGrowthAreas, setTempGrowthAreas] = useState<string[]>([]);
   const [tempRisePathway, setTempRisePathway] = useState<string>('');
   const [isSavingIdentity, setIsSavingIdentity] = useState(false);
+
+  // Quiz Step Logic
+  // 0: Persona, 1-3: Persona Questions, 4: Occupation, 5-9: Growth Areas, 10: Rise Pathway
+  const [setupStep, setSetupStep] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -42,8 +49,25 @@ const Profile: React.FC = () => {
         }));
         
         setEnrollments(enriched.filter((x) => x !== null) as any);
-        setTempGrowthAreas((user as Participant).growthAreas || []);
-        setTempRisePathway((user as Participant).risePathway || '');
+        
+        const p = user as Participant;
+        setTempPersona(p.persona || null);
+        setTempOccupation(p.occupation || null);
+        setTempOnboardingAnswers(p.onboardingAnswers || {});
+        setTempGrowthAreas(p.growthAreas || []);
+        setTempRisePathway(p.risePathway || '');
+
+        // Determine initial setup step if incomplete
+        if (!p.persona) setSetupStep(0);
+        else if (Object.keys(p.onboardingAnswers || {}).length < 3) setSetupStep(1);
+        else if (!p.occupation) setSetupStep(4);
+        else if (!p.growthAreas || p.growthAreas.length < 5) {
+          setSetupStep(5);
+          setCurrentTaskGroupIdx(p.growthAreas?.length || 0);
+        }
+        else if (!p.risePathway) setSetupStep(10);
+        else setSetupStep(-1); // Complete
+
       } catch (err) {
         console.error("Profile sync failed:", err);
       } finally {
@@ -83,17 +107,15 @@ const Profile: React.FC = () => {
 
   const handleToggleGrowthArea = (area: string) => {
     setTempGrowthAreas(prev => {
-      // If we're in the progressive flow, we just replace or add for the current group
-      // But the user said "First one appear you pick one then the second one appear"
-      // So we pick one per group.
       const currentGroup = GROWTH_AREAS[currentTaskGroupIdx];
       const otherAreas = prev.filter(a => !currentGroup.options.includes(a));
-      
       const newAreas = [...otherAreas, area];
       
-      // Move to next group if not at the end
       if (currentTaskGroupIdx < GROWTH_AREAS.length - 1) {
         setCurrentTaskGroupIdx(prevIdx => prevIdx + 1);
+        setSetupStep(prevStep => prevStep + 1);
+      } else {
+        setSetupStep(10); // Move to Rise Pathway
       }
       
       return newAreas;
@@ -104,15 +126,37 @@ const Profile: React.FC = () => {
     setIsSavingIdentity(true);
     try {
       await updateProfile(sanitizeData({ 
+        persona: tempPersona,
+        occupation: tempOccupation,
+        onboardingAnswers: tempOnboardingAnswers,
         growthAreas: tempGrowthAreas,
         risePathway: tempRisePathway
       }));
+      // If we just finished the last step, set setupStep to -1
+      if (setupStep === 10) setSetupStep(-1);
     } catch (e) {
       alert("Failed to save identity settings.");
     } finally {
       setIsSavingIdentity(false);
     }
   };
+
+  const handleQuizOptionSelect = (option: string) => {
+    if (setupStep === 0) {
+      setTempPersona(option);
+      setSetupStep(1);
+    } else if (setupStep >= 1 && setupStep <= 3) {
+      setTempOnboardingAnswers(prev => ({ ...prev, [setupStep]: option }));
+      setSetupStep(prev => prev + 1);
+    } else if (setupStep === 4) {
+      setTempOccupation(option);
+      setSetupStep(5);
+      setCurrentTaskGroupIdx(0);
+    }
+  };
+
+  const totalSetupSteps = 11;
+  const setupProgress = setupStep === -1 ? 100 : Math.round((setupStep / totalSetupSteps) * 100);
 
   const SectionLabel = ({ text }: { text: string }) => (
     <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2 px-1">
@@ -175,83 +219,153 @@ const Profile: React.FC = () => {
       <main className="flex-1 overflow-y-auto custom-scrollbar px-4 py-4 space-y-5">
         
         {/* Progressive Identity Tasks */}
-        {(!p.growthAreas || p.growthAreas.length === 0 || !p.risePathway) && (
+        {setupStep !== -1 && (
           <div className="space-y-3 animate-fade-in">
-            <SectionLabel text="Identity Setup" />
+            <div className="flex items-center justify-between px-1">
+              <SectionLabel text="Identity Setup" />
+              <span className="text-[8px] font-black text-primary uppercase tracking-widest">{setupProgress}%</span>
+            </div>
             
-            {/* Task 1: Growth Areas (Progressive) */}
-            {(!p.growthAreas || p.growthAreas.length === 0) ? (
-              <div className="bg-white rounded-[2rem] p-6 border border-primary/10 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <svg className="w-12 h-12 text-primary" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" /></svg>
-                </div>
-                <h3 className="text-sm font-black text-gray-900 mb-1">Where do you want to grow next?</h3>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Pick one from each group ({currentTaskGroupIdx + 1}/5)</p>
-                
-                <div className="mb-6">
-                  <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-3">{GROWTH_AREAS[currentTaskGroupIdx].group}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {GROWTH_AREAS[currentTaskGroupIdx].options.map(area => (
+            <div className="bg-white rounded-[2rem] p-6 border border-primary/10 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gray-50">
+                <div 
+                  className="h-full bg-primary transition-all duration-500" 
+                  style={{ width: `${setupProgress}%` }}
+                />
+              </div>
+
+              {/* Step 0: Persona */}
+              {setupStep === 0 && (
+                <div className="animate-fade-in">
+                  <h3 className="text-sm font-black text-gray-900 mb-1">Which best describes you today?</h3>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your persona</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {INITIAL_OPTIONS.map(opt => (
                       <button
-                        key={area}
-                        onClick={() => handleToggleGrowthArea(area)}
-                        className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${tempGrowthAreas.includes(area) ? 'bg-primary text-white shadow-md scale-105' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                        key={opt}
+                        onClick={() => handleQuizOptionSelect(opt)}
+                        className={`p-3 rounded-2xl border text-[10px] font-bold text-left transition-all ${tempPersona === opt ? 'bg-primary text-white border-primary shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
                       >
-                        {area}
+                        {opt}
                       </button>
                     ))}
                   </div>
                 </div>
-                
-                <div className="flex gap-2">
-                  {currentTaskGroupIdx > 0 && (
-                    <button 
-                      onClick={() => setCurrentTaskGroupIdx(prev => prev - 1)}
-                      className="flex-1 py-3 bg-gray-50 text-gray-400 rounded-xl font-black uppercase tracking-widest text-[9px] border border-gray-100"
-                    >
-                      Back
-                    </button>
-                  )}
+              )}
+
+              {/* Steps 1-3: Persona Questions */}
+              {setupStep >= 1 && setupStep <= 3 && tempPersona && (
+                <div className="animate-fade-in">
+                  <h3 className="text-sm font-black text-gray-900 mb-1" dangerouslySetInnerHTML={{ __html: PERSONA_QUIZZES[tempPersona][setupStep - 1].title }} />
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Question {setupStep}/3</p>
+                  <div className="space-y-2">
+                    {PERSONA_QUIZZES[tempPersona][setupStep - 1].options.map(opt => (
+                      <button
+                        key={opt}
+                        onClick={() => handleQuizOptionSelect(opt)}
+                        className={`w-full p-3 rounded-xl border text-[10px] font-bold text-left transition-all ${tempOnboardingAnswers[setupStep] === opt ? 'bg-primary text-white border-primary shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Occupation */}
+              {setupStep === 4 && (
+                <div className="animate-fade-in">
+                  <h3 className="text-sm font-black text-gray-900 mb-1" dangerouslySetInnerHTML={{ __html: OCCUPATION_QUESTION.title }} />
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Employment Status</p>
+                  <div className="space-y-2">
+                    {OCCUPATION_QUESTION.options.map(opt => (
+                      <button
+                        key={opt}
+                        onClick={() => handleQuizOptionSelect(opt)}
+                        className={`w-full p-3 rounded-xl border text-[10px] font-bold text-left transition-all ${tempOccupation === opt ? 'bg-primary text-white border-primary shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Steps 5-9: Growth Areas */}
+              {setupStep >= 5 && setupStep <= 9 && (
+                <div className="animate-fade-in">
+                  <h3 className="text-sm font-black text-gray-900 mb-1">Where do you want to grow next?</h3>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Pick one from each group ({currentTaskGroupIdx + 1}/5)</p>
+                  
+                  <div className="mb-6">
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-3">{GROWTH_AREAS[currentTaskGroupIdx].group}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {GROWTH_AREAS[currentTaskGroupIdx].options.map(area => (
+                        <button
+                          key={area}
+                          onClick={() => handleToggleGrowthArea(area)}
+                          className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${tempGrowthAreas.includes(area) ? 'bg-primary text-white shadow-md scale-105' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                        >
+                          {area}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 10: Rise Pathway */}
+              {setupStep === 10 && (
+                <div className="animate-fade-in">
+                  <h3 className="text-sm font-black text-gray-900 mb-1">What best describes your current focus?</h3>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your Rise Pathway.</p>
+                  
+                  <div className="space-y-2 mb-6">
+                    {RISE_PATHWAYS.map(path => (
+                      <button
+                        key={path.id}
+                        onClick={() => setTempRisePathway(path.id)}
+                        className={`w-full text-left p-3 rounded-2xl border transition-all ${tempRisePathway === path.id ? 'bg-primary/5 border-primary/20 scale-[1.02] shadow-sm' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}
+                      >
+                        <h4 className="text-[10px] font-black text-gray-900">{path.name}</h4>
+                        <p className="text-[8px] text-gray-400 font-medium mt-0.5">{path.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                  
                   <button 
                     onClick={handleSaveIdentity}
-                    disabled={tempGrowthAreas.length === 0 || isSavingIdentity}
-                    className="flex-[2] py-3 bg-primary text-white rounded-xl font-black uppercase tracking-[0.2em] text-[9px] shadow-md disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
+                    disabled={!tempRisePathway || isSavingIdentity}
+                    className="w-full py-3 bg-primary text-white rounded-xl font-black uppercase tracking-[0.2em] text-[9px] shadow-md disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
                   >
-                    {isSavingIdentity ? 'Saving...' : currentTaskGroupIdx < 4 ? 'Next Group' : 'Confirm Growth Areas'}
+                    {isSavingIdentity ? 'Saving...' : 'Complete Setup'}
                   </button>
                 </div>
-              </div>
-            ) : !p.risePathway ? (
-              /* Task 2: Rise Pathway */
-              <div className="bg-white rounded-[2rem] p-6 border border-primary/10 shadow-sm relative overflow-hidden animate-slide-up">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <svg className="w-12 h-12 text-primary" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd" /></svg>
+              )}
+
+              {/* Navigation Controls for Quiz Steps */}
+              {setupStep > 0 && setupStep < 10 && (
+                <div className="mt-4 flex gap-2">
+                  <button 
+                    onClick={() => {
+                      setSetupStep(prev => prev - 1);
+                      if (setupStep > 5) setCurrentTaskGroupIdx(prev => prev - 1);
+                    }}
+                    className="flex-1 py-3 bg-gray-50 text-gray-400 rounded-xl font-black uppercase tracking-widest text-[9px] border border-gray-100"
+                  >
+                    Back
+                  </button>
+                  {/* Save Progress Button */}
+                  <button 
+                    onClick={handleSaveIdentity}
+                    disabled={isSavingIdentity}
+                    className="flex-1 py-3 bg-white text-primary border border-primary/20 rounded-xl font-black uppercase tracking-widest text-[9px] shadow-sm active:scale-95 transition-all"
+                  >
+                    {isSavingIdentity ? 'Saving...' : 'Save Progress'}
+                  </button>
                 </div>
-                <h3 className="text-sm font-black text-gray-900 mb-1">What best describes your current focus?</h3>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your Rise Pathway.</p>
-                
-                <div className="space-y-2 mb-6">
-                  {RISE_PATHWAYS.map(path => (
-                    <button
-                      key={path.id}
-                      onClick={() => setTempRisePathway(path.id)}
-                      className={`w-full text-left p-3 rounded-2xl border transition-all ${tempRisePathway === path.id ? 'bg-primary/5 border-primary/20 scale-[1.02] shadow-sm' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}
-                    >
-                      <h4 className="text-[10px] font-black text-gray-900">{path.name}</h4>
-                      <p className="text-[8px] text-gray-400 font-medium mt-0.5">{path.description}</p>
-                    </button>
-                  ))}
-                </div>
-                
-                <button 
-                  onClick={handleSaveIdentity}
-                  disabled={!tempRisePathway || isSavingIdentity}
-                  className="w-full py-3 bg-primary text-white rounded-xl font-black uppercase tracking-[0.2em] text-[9px] shadow-md disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
-                >
-                  {isSavingIdentity ? 'Saving...' : 'Complete Setup'}
-                </button>
-              </div>
-            ) : null}
+              )}
+            </div>
           </div>
         )}
 
@@ -311,7 +425,15 @@ const Profile: React.FC = () => {
         {/* Growth Focus Display */}
         {p.growthAreas && p.growthAreas.length > 0 && (
           <section className="animate-fade-in">
-            <SectionLabel text="Growth Focus" />
+            <div className="flex items-center justify-between mb-2 px-1">
+              <SectionLabel text="Growth Focus" />
+              <button 
+                onClick={() => setSetupStep(0)} 
+                className="text-[8px] font-black text-primary uppercase tracking-widest hover:underline"
+              >
+                Refine
+              </button>
+            </div>
             <div className="flex flex-wrap gap-2 px-1">
               {p.growthAreas.map((area, i) => (
                 <div 
