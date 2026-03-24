@@ -90,82 +90,84 @@ const CommitmentFraming: React.FC = () => {
       {!showEmailCapture && (
         <div className="bg-white sm:rounded-[2.5rem] w-full max-w-md sm:shadow-2xl relative overflow-hidden flex flex-col h-full sm:h-auto max-h-[95vh] animate-slide-up">
           
-          <header className="p-5 pb-3 flex-shrink-0 flex items-center justify-between border-b border-gray-50">
+          <header className="p-6 pb-4 flex-shrink-0 flex items-center justify-between border-b border-gray-50 bg-white">
              <div className="text-left">
-                <h1 className="text-base font-black text-gray-900 tracking-tighter leading-none italic">Read this before you continue</h1>
-                <p className="text-[8px] font-black text-primary uppercase tracking-widest mt-1 opacity-60">
-                    This is where your next sprint is scheduled
+                <h1 className="text-xl font-black text-gray-900 tracking-tight leading-tight">Read this before you continue</h1>
+                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mt-1 opacity-70">
+                    Scheduling your next growth window
                 </p>
              </div>
-             <LocalLogo type="green" className="h-3 w-auto opacity-40" />
+             <LocalLogo type="green" className="h-4 w-auto opacity-30" />
           </header>
 
-          <main className="flex-1 overflow-y-auto px-5 py-3 custom-scrollbar space-y-4">
+          <main className="flex-1 overflow-y-auto px-6 py-5 custom-scrollbar space-y-6">
             
             {hasActiveSprint && (
-                <div className="bg-primary/5 border border-primary/10 p-3 rounded-xl animate-fade-in">
-                    <p className="text-[10px] font-bold text-primary leading-relaxed italic">
-                        You’re currently in a sprint. This will be added next—no overlap, no distractions.
+                <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl animate-fade-in">
+                    <p className="text-[11px] font-bold text-primary leading-relaxed">
+                        You're currently in a sprint. This will be added to your queue—no overlap, just continuous momentum.
                     </p>
                 </div>
             )}
 
-            <section className="space-y-3">
-              <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.4em]">What this requires from you</h2>
-              <div className="space-y-3">
+            <section className="space-y-4">
+              <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">The Commitment</h2>
+              <div className="space-y-4">
                 {[
-                  { t: "Show up daily", d: "One clear action. Every single day." },
-                  { t: "Pay attention to yourself", d: "Notice what works and what doesn’t." },
-                  { t: "Finish, don’t sample", d: "This only works if you complete it." }
+                  { t: "Show up daily", d: "Commit to one clear action every single day." },
+                  { t: "Self-awareness", d: "Notice what works and what doesn't as you progress." },
+                  { t: "Complete the journey", d: "The results only come to those who finish." }
                 ].map((item, i) => (
-                  <div key={i} className="flex gap-3 group">
-                    <div className="w-1 h-1 bg-primary/30 rounded-full mt-1.5 group-hover:bg-primary transition-colors"></div>
+                  <div key={i} className="flex gap-4 group">
+                    <div className="w-1.5 h-1.5 bg-primary/20 rounded-full mt-1.5 group-hover:bg-primary transition-colors flex-shrink-0"></div>
                     <div>
-                      <h3 className="text-[11px] font-black text-gray-900 leading-none mb-0.5">{item.t}</h3>
-                      <p className="text-[10px] text-gray-400 leading-tight font-medium italic">{item.d}</p>
+                      <h3 className="text-[12px] font-black text-gray-900 leading-none mb-1">{item.t}</h3>
+                      <p className="text-[11px] text-gray-500 leading-relaxed font-medium">{item.d}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="py-3 border-y border-gray-50">
-               <div className="flex items-center justify-between mb-0.5">
-                  <p className="text-xs font-black text-gray-900 italic">{duration} days • 15 min/day</p>
-                  <Zap className="w-3.5 h-3.5 text-primary" />
+            <section className="py-4 border-y border-gray-50 flex items-center justify-between">
+               <div>
+                  <p className="text-sm font-black text-gray-900">{duration} days • 15 min/day</p>
+                  <p className="text-[10px] font-bold text-gray-400 mt-0.5">Consistency is the foundation of growth.</p>
                </div>
-               <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Consistency is the whole point.</p>
+               <div className="w-10 h-10 bg-primary/5 rounded-xl flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-primary" />
+               </div>
             </section>
 
-            <div className="bg-red-50/50 border border-red-100/50 p-2.5 rounded-xl text-center">
-              <p className="text-[9px] font-black text-red-400 uppercase tracking-widest leading-tight">
-                If you don’t complete this, you reset your own momentum.
+            <div className="bg-red-50/50 border border-red-100/50 p-3 rounded-xl text-center">
+              <p className="text-[10px] font-bold text-red-500 leading-tight">
+                If you don't complete this, you reset your own momentum.
               </p>
             </div>
 
             <section>
-              <label className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl cursor-pointer active:scale-[0.98] transition-all group hover:border-primary/20">
-                <div className="relative flex items-center h-4">
+              <label className="flex items-center gap-4 p-4 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer active:scale-[0.98] transition-all group hover:border-primary/20 hover:bg-white">
+                <div className="relative flex items-center h-5">
                   <input 
                     type="checkbox" 
                     checked={isCommitted}
                     onChange={(e) => setIsCommitted(e.target.checked)}
-                    className="w-4 h-4 bg-white border-gray-200 rounded focus:ring-offset-white focus:ring-primary text-primary cursor-pointer transition-all"
+                    className="w-5 h-5 bg-white border-gray-200 rounded-lg focus:ring-offset-white focus:ring-primary text-primary cursor-pointer transition-all"
                   />
                 </div>
-                <div className="text-[10px] font-black text-gray-700 leading-tight select-none uppercase tracking-wider">
-                  I will show up and complete each day—no skipping.
+                <div className="text-[11px] font-bold text-gray-700 leading-tight select-none">
+                  I will show up and complete each day without skipping.
                 </div>
               </label>
             </section>
           </main>
 
-          <footer className="p-5 pt-3 bg-white flex-shrink-0 border-t border-gray-50">
-            <div className="space-y-3">
+          <footer className="p-6 pt-4 bg-white flex-shrink-0 border-t border-gray-50">
+            <div className="space-y-4">
               <Button 
                 onClick={handleContinue}
                 disabled={!isCommitted}
-                className={`w-full py-4 rounded-xl shadow-2xl transition-all text-[10px] uppercase tracking-[0.2em] font-black ${
+                className={`w-full py-5 rounded-2xl shadow-2xl transition-all text-[11px] font-black tracking-widest ${
                   isCommitted ? 'bg-primary text-white active:scale-95 shadow-primary/20' : 'bg-gray-100 text-gray-300 grayscale cursor-not-allowed border-none shadow-none'
                 }`}
               >
@@ -175,9 +177,9 @@ const CommitmentFraming: React.FC = () => {
               <div className="text-center">
                 <button 
                   onClick={() => setShowEmailCapture(true)}
-                  className="text-[8px] font-black text-gray-300 hover:text-gray-500 transition-colors uppercase tracking-[0.2em]"
+                  className="text-[10px] font-bold text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  I’m not ready to commit
+                  I'm not ready to commit right now
                 </button>
               </div>
             </div>
@@ -186,37 +188,37 @@ const CommitmentFraming: React.FC = () => {
       )}
 
       {showEmailCapture && (
-        <div className="bg-white rounded-[2.5rem] w-full max-sm shadow-2xl relative overflow-hidden flex flex-col p-8 md:p-12 animate-slide-up text-center">
-          <header className="mb-8">
-            <div className="w-16 h-16 bg-primary/5 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 text-2xl shadow-inner">
+        <div className="bg-white rounded-[3rem] w-full max-w-md shadow-2xl relative overflow-hidden flex flex-col p-10 md:p-14 animate-slide-up text-center">
+          <header className="mb-10">
+            <div className="w-20 h-20 bg-primary/5 rounded-[2rem] flex items-center justify-center mx-auto mb-8 text-3xl shadow-inner">
               📩
             </div>
-            <h2 className="text-2xl font-black text-gray-900 tracking-tighter leading-none italic mb-2">Stay in the circle</h2>
-            <p className="text-xs text-gray-400 font-medium leading-relaxed italic">
+            <h2 className="text-3xl font-black text-gray-900 tracking-tight leading-tight mb-3">Stay in the circle</h2>
+            <p className="text-sm text-gray-400 font-bold leading-relaxed">
               Growth is a timing game. If now isn't the window, let's stay connected.
             </p>
           </header>
 
-          <main className="mb-10">
-            <p className="text-sm text-gray-600 font-medium leading-relaxed mb-6 italic">
+          <main className="mb-12">
+            <p className="text-[13px] text-gray-600 font-medium leading-relaxed mb-8">
               Leave your email and we'll send you small reminders and insights to help you find your next momentum window.
             </p>
 
-            <form onSubmit={handleEmailSubmit} className="space-y-3">
+            <form onSubmit={handleEmailSubmit} className="space-y-4">
               <input 
                 type="email" 
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Your email address"
-                className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all placeholder-gray-300"
+                className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all placeholder-gray-300"
               />
               <Button 
                 type="submit"
                 isLoading={isSubmittingEmail}
-                className="w-full py-4 rounded-xl shadow-xl shadow-primary/20 text-[10px] uppercase tracking-widest font-black"
+                className="w-full py-5 rounded-2xl shadow-xl shadow-primary/20 text-[11px] font-black tracking-widest"
               >
-                Keep me updated
+                Keep Me Updated
               </Button>
             </form>
           </main>
@@ -224,7 +226,7 @@ const CommitmentFraming: React.FC = () => {
           <footer>
             <button 
               onClick={() => navigate('/')}
-              className="text-[9px] font-black text-gray-300 hover:text-primary uppercase tracking-[0.2em] transition-colors"
+              className="text-[10px] font-black text-gray-300 hover:text-primary transition-colors"
             >
               No thanks, just take me home
             </button>
