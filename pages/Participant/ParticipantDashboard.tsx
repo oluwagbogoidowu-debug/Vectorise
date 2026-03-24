@@ -226,7 +226,7 @@ const ParticipantDashboard: React.FC = () => {
         if (nextEnrollmentId) {
             navigate(`/participant/sprint/${nextEnrollmentId}`);
         } else {
-            userService.queueNotification('error', "Could not start the next sprint. Please try again or contact support.");
+            userService.queueNotification('error', "Could not start the next sprint. Please try again or contact support.", { duration: 3000 });
         }
     } catch (err) {
         console.error("[Dashboard] Failed to start next sprint", err);

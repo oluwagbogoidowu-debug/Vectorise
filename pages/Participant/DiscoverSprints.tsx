@@ -52,17 +52,21 @@ const DiscoverSprints: React.FC = () => {
     const [coaches, setCoaches] = useState<Coach[]>([]);
     const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
     const [orchestration, setOrchestration] = useState<Record<string, LifecycleSlotAssignment>>({});
-    const [isLoading, setIsLoading] = useState(true);
+    const [isSprintsLoaded, setIsSprintsLoaded] = useState(false);
+    const [isOtherDataLoaded, setIsOtherDataLoaded] = useState(false);
+    const [isEnrollmentsLoaded, setIsEnrollmentsLoaded] = useState(false);
     const [recommendationReason, setRecommendationReason] = useState<string>('');
+
+    const isLoading = !isSprintsLoaded || !isOtherDataLoaded || !isEnrollmentsLoaded;
 
     useEffect(() => {
         // Subscribe to published sprints in real-time
         const unsubSprints = sprintService.subscribeToPublishedSprints((data) => {
             setSprints(data);
-            setIsLoading(false);
+            setIsSprintsLoaded(true);
         }, (error) => {
             console.error("Error subscribing to sprints:", error);
-            setIsLoading(false);
+            setIsSprintsLoaded(true);
         });
 
         const loadCoachesAndOrchestration = async () => {
@@ -77,6 +81,8 @@ const DiscoverSprints: React.FC = () => {
                 setTracks(dbTracks.filter(t => t.published));
             } catch (err) {
                 console.error(err);
+            } finally {
+                setIsOtherDataLoaded(true);
             }
         };
         
@@ -88,10 +94,12 @@ const DiscoverSprints: React.FC = () => {
     useEffect(() => {
         if (!user) {
             setUserEnrollments([]);
+            setIsEnrollmentsLoaded(true);
             return;
         }
         const unsubscribe = sprintService.subscribeToUserEnrollments(user.id, (data) => {
             setUserEnrollments(data);
+            setIsEnrollmentsLoaded(true);
         });
         return () => unsubscribe();
     }, [user]);

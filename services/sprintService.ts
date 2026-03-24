@@ -62,6 +62,25 @@ export const sprintService = {
         return snap.exists() ? sanitizeData(snap.data()) as Sprint : null;
     },
 
+    getSprintsByIds: async (sprintIds: string[]) => {
+        const validIds = Array.from(new Set((sprintIds || []).filter(id => !!id && typeof id === 'string' && id !== '')));
+        if (validIds.length === 0) return [];
+        try {
+            const CHUNK_SIZE = 10;
+            const results: Sprint[] = [];
+            for (let i = 0; i < validIds.length; i += CHUNK_SIZE) {
+                const chunk = validIds.slice(i, i + CHUNK_SIZE);
+                const q = query(collection(db, SPRINTS_COLLECTION), where("id", "in", chunk));
+                const querySnapshot = await getDocs(q);
+                querySnapshot.forEach((doc) => results.push(sanitizeData(doc.data()) as Sprint));
+            }
+            return results;
+        } catch (error) {
+            console.error("Error fetching sprints by IDs:", error);
+            return [];
+        }
+    },
+
     subscribeToSprint: (sprintId: string, callback: (sprint: Sprint | null) => void) => {
         return onSnapshot(doc(db, SPRINTS_COLLECTION, sprintId), (doc) => {
             callback(doc.exists() ? sanitizeData(doc.data()) as Sprint : null);

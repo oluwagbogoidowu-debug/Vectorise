@@ -38,6 +38,24 @@ export const shineService = {
         }
     },
 
+    getPostsByUserId: async (userId: string) => {
+        try {
+            const postsRef = collection(db, COLLECTION_NAME);
+            const q = query(postsRef, where('userId', '==', userId));
+            const querySnapshot = await getDocs(q);
+            const dbPosts: ShinePost[] = [];
+            querySnapshot.forEach((doc) => {
+                dbPosts.push(sanitizeData({ id: doc.id, ...doc.data() }) as ShinePost);
+            });
+            const filteredMock = MOCK_SHINE_POSTS.filter(p => p.userId === userId);
+            return [...dbPosts, ...filteredMock].sort((a, b) => 
+                new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            );
+        } catch (error: any) {
+            return MOCK_SHINE_POSTS.filter(p => p.userId === userId);
+        }
+    },
+
     subscribeToPosts: (callback: (posts: ShinePost[]) => void) => {
         const postsRef = collection(db, COLLECTION_NAME);
         const q = query(postsRef);
