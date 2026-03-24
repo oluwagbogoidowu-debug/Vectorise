@@ -36,6 +36,10 @@ const MilestoneCard: React.FC<{ milestone: Milestone; onClaim: (m: Milestone) =>
     const accentColor = colorClass === 'primary' ? 'rgba(14, 120, 80, 0.4)' : 
                        colorClass === 'teal' ? 'rgba(20, 184, 166, 0.4)' : 
                        colorClass === 'orange' ? 'rgba(249, 115, 22, 0.4)' : 
+                       colorClass === 'indigo' ? 'rgba(79, 70, 229, 0.4)' :
+                       colorClass === 'amber' ? 'rgba(245, 158, 11, 0.4)' :
+                       colorClass === 'blue' ? 'rgba(59, 130, 246, 0.4)' :
+                       colorClass === 'yellow' ? 'rgba(234, 179, 8, 0.4)' :
                        'rgba(14, 120, 80, 0.4)';
 
     return (
@@ -156,14 +160,19 @@ const Badges: React.FC = () => {
         const daysSinceJoin = Math.max(1, Math.ceil((Date.now() - new Date(p.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));
         const streak = p.impactStats?.streak || 0;
         const peopleHelped = p.impactStats?.peopleHelped || 0;
-        return { started: enrollments.length, completed: completedSprints.length, completedPaid: completedPaidSprintsCount, finishedEarly: finishedEarlyCount, reflectionsCount: reflections.length, meaningfulReflections: reflections.filter(r => r.content.trim().length > 50).length, daysActive: daysSinceJoin, streak: streak, peopleHelped: peopleHelped };
+        const isIdentityComplete = !!(p.persona && p.occupation && (p.growthAreas && p.growthAreas.length >= 5) && p.risePathway);
+        return { started: enrollments.length, completed: completedSprints.length, completedPaid: completedPaidSprintsCount, finishedEarly: finishedEarlyCount, reflectionsCount: reflections.length, meaningfulReflections: reflections.filter(r => r.content.trim().length > 50).length, daysActive: daysSinceJoin, streak: streak, peopleHelped: peopleHelped, isIdentityComplete };
     }, [user, enrollments, reflections, allSprintData]);
 
     const milestonesByType = useMemo(() => {
-        if (!stats || !user) return { coreProgress: [], dailyDiscipline: [], longGame: [], innerWork: [], influence: [] };
+        if (!stats || !user) return { setupReward: [], coreProgress: [], dailyDiscipline: [], quickWin: [], longGame: [], innerWork: [], influence: [] };
         const p = user as Participant;
         const claimed = p.claimedMilestoneIds || [];
         const categories = {
+            setupReward: [
+                { id: 'setup_account', title: 'Account Creation', description: 'Welcome to the Rise.', icon: '👤', currentValue: 1, targetValue: 1, points: 10, color: 'indigo' },
+                { id: 'setup_identity', title: 'Identity Setup', description: 'You defined your path.', icon: '🆔', currentValue: stats.isIdentityComplete ? 1 : 0, targetValue: 1, points: 20, color: 'indigo' },
+            ],
             coreProgress: [
                 { id: 's1', title: 'First Spark', description: 'You started your rise.', icon: '🚀', currentValue: stats.started, targetValue: 1, points: 5 },
                 { id: 's2', title: 'The Closer', description: 'You finished what you started.', icon: '🏁', currentValue: stats.completed, targetValue: 1, points: 15 },
@@ -173,13 +182,20 @@ const Badges: React.FC = () => {
                 { id: 'c1', title: 'The Start', description: 'You chose reflection over reaction.', icon: '💡', currentValue: stats.reflectionsCount, targetValue: 1, points: 5 },
                 { id: 'c2', title: 'Momentum', description: 'You built momentum.', icon: '🔥', currentValue: stats.streak, targetValue: 3, points: 10 }
             ],
+            quickWin: [
+                { id: 'qw3', title: '3-Day Sprint', description: 'Three days of showing up.', icon: '🥉', currentValue: stats.daysActive, targetValue: 3, points: 5, color: 'amber' },
+                { id: 'qw7', title: 'Weekly Warrior', description: 'One full week of growth.', icon: '🥈', currentValue: stats.daysActive, targetValue: 7, points: 10, color: 'amber' },
+                { id: 'qw14', title: 'Fortnight Focus', description: 'Two weeks of consistency.', icon: '🥇', currentValue: stats.daysActive, targetValue: 14, points: 15, color: 'amber' },
+                { id: 'qw21', title: 'Habit Former', description: 'Three weeks of dedication.', icon: '💎', currentValue: stats.daysActive, targetValue: 21, points: 25, color: 'amber' },
+                { id: 'qw30', title: 'Monthly Master', description: 'One month of the Rise.', icon: '👑', currentValue: stats.daysActive, targetValue: 30, points: 30, color: 'amber' },
+            ],
             longGame: [
-                { id: 'cm1', title: 'Rooted', description: '60 days of intentional growth.', icon: '🌱', currentValue: stats.daysActive, targetValue: 60, points: 20 },
-                { id: 'cm2', title: 'Quarter Builder', description: '90 days of structured rise.', icon: '🏢', currentValue: stats.daysActive, targetValue: 90, points: 50 }
+                { id: 'cm1', title: 'Rooted', description: '60 days of intentional growth.', icon: '🌱', currentValue: stats.daysActive, targetValue: 60, points: 20, color: 'blue' },
+                { id: 'cm2', title: 'Quarter Builder', description: '90 days of structured rise.', icon: '🏢', currentValue: stats.daysActive, targetValue: 90, points: 50, color: 'blue' }
             ],
             innerWork: [
-                { id: 'r1', title: 'Deep Diver', description: 'You went beyond surface-level growth.', icon: '🌊', currentValue: stats.meaningfulReflections, targetValue: 1, points: 10 },
-                { id: 'r2', title: 'Self-Aware', description: 'You turned reflection into clarity.', icon: '💎', currentValue: stats.meaningfulReflections, targetValue: 5, points: 30 }
+                { id: 'r1', title: 'Deep Diver', description: 'You went beyond surface-level growth.', icon: '🌊', currentValue: stats.meaningfulReflections, targetValue: 1, points: 10, color: 'yellow' },
+                { id: 'r2', title: 'Self-Aware', description: 'You turned reflection into clarity.', icon: '💎', currentValue: stats.meaningfulReflections, targetValue: 5, points: 30, color: 'yellow' }
             ],
             influence: [
                 { id: 'i1', title: 'Catalyst', description: 'You helped someone start their rise.', icon: '🌱', currentValue: stats.peopleHelped, targetValue: 1, points: 5, color: 'teal' },
@@ -188,8 +204,10 @@ const Badges: React.FC = () => {
         };
         const mapToMilestone = (m: any): Milestone => ({ ...m, isUnlocked: m.currentValue >= m.targetValue, isClaimed: claimed.includes(m.id) });
         return {
+            setupReward: categories.setupReward.map(mapToMilestone),
             coreProgress: categories.coreProgress.map(mapToMilestone),
             dailyDiscipline: categories.dailyDiscipline.map(mapToMilestone),
+            quickWin: categories.quickWin.map(mapToMilestone),
             longGame: categories.longGame.map(mapToMilestone),
             innerWork: categories.innerWork.map(mapToMilestone),
             influence: categories.influence.map(mapToMilestone)
@@ -246,8 +264,8 @@ const Badges: React.FC = () => {
                 <button onClick={() => navigate('/profile')} className="group flex items-center text-gray-400 hover:text-primary transition-colors mb-6 text-xs font-black uppercase tracking-widest"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>My Profile</button>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                     <div>
-                        <h1 className="text-4xl font-black text-gray-900 tracking-tight mb-2 italic">The Hall of Rise.</h1>
-                        <p className="text-gray-500 font-medium text-lg">Your progress matters. Claim credits as you hit milestones.</p>
+                        <h1 className="text-2xl font-black text-gray-900 tracking-tight mb-2">The Hall of Rise.</h1>
+                        <p className="text-gray-500 font-medium text-sm">Your progress matters. Claim credits as you hit milestones.</p>
                     </div>
                 </div>
             </div>
@@ -259,8 +277,10 @@ const Badges: React.FC = () => {
                 </div>
             ) : (
                 <div className="space-y-16">
+                    <CategorySection title="Setup Reward" type="setupReward" milestones={milestonesByType.setupReward} color="indigo" />
                     <CategorySection title="Core Progress" type="coreProgress" milestones={milestonesByType.coreProgress} color="primary" />
                     <CategorySection title="Daily Discipline" type="dailyDiscipline" milestones={milestonesByType.dailyDiscipline} color="orange" />
+                    <CategorySection title="Quick Win" type="quickWin" milestones={milestonesByType.quickWin} color="amber" />
                     <CategorySection title="Long Game" type="longGame" milestones={milestonesByType.longGame} color="blue" />
                     <CategorySection title="Inner Work" type="innerWork" milestones={milestonesByType.innerWork} color="yellow" />
                     <CategorySection title="Influence" type="influence" milestones={milestonesByType.influence} color="teal" />
