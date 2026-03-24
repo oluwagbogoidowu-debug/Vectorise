@@ -139,7 +139,7 @@ const Profile: React.FC = () => {
         await userService.claimMilestone(user.id, 'setup_identity', 20, true);
       }
     } catch (e) {
-      alert("Failed to save identity settings.");
+      userService.queueNotification('error', "Failed to save identity settings.", { duration: 3000 });
     } finally {
       setIsSavingIdentity(false);
     }

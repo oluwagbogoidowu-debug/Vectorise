@@ -223,12 +223,12 @@ const Badges: React.FC = () => {
             const newClaimed = [...(p.claimedMilestoneIds || []), m.id];
             const newBalance = (p.walletBalance || 0) + m.points;
             await updateProfile({ claimedMilestoneIds: newClaimed, walletBalance: newBalance });
-            toast.success(`Claimed! +${m.points} Coins added to your wallet.`, {
+            userService.queueNotification('success', `Claimed! +${m.points} Coins added to your wallet.`, {
                 description: `Milestone: ${m.title}`,
                 duration: 3000
             });
         } catch (err) {
-            toast.error("Failed to claim credits.");
+            userService.queueNotification('error', "Failed to claim credits.", { duration: 3000 });
         }
     };
 

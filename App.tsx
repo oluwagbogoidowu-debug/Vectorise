@@ -86,7 +86,7 @@ const AppContent: React.FC = () => {
 
   return (
     <div className={`min-h-screen font-sans ${isOnboardingRoute ? 'bg-primary text-white' : 'bg-light text-dark'}`}>
-      <Toaster position="top-center" richColors />
+      <Toaster position="top-center" richColors visibleToasts={1} />
       {showGlobalHeader && <Header />}
       <main className={showGlobalHeader ? "container mx-auto px-4 md:px-6 lg:px-8" : ""}>
         <AppRoutes />

@@ -2,7 +2,7 @@
 import { db } from './firebase';
 import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp } from 'firebase/firestore';
 import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review } from '../types';
-import { sanitizeData } from './userService';
+import { sanitizeData, userService } from './userService';
 
 const SPRINTS_COLLECTION = 'sprints';
 const ENROLLMENTS_COLLECTION = 'enrollments';
@@ -195,6 +195,14 @@ export const sprintService = {
         };
 
         await setDoc(enrollmentRef, sanitizeData(newEnrollment));
+        
+        // Auto-claim First Sprint milestone if it's the first one
+        if (!hasActive) {
+            // We can't easily check claimedMilestoneIds here without fetching user
+            // but claimMilestone handles its own check
+            await userService.claimMilestone(userId, 's1', 5, true);
+        }
+        
         return newEnrollment;
     },
 

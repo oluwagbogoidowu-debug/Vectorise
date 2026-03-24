@@ -3,6 +3,38 @@ import { doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, col
 import { User, Participant, Coach, UserRole, WalletTransaction } from '../types';
 import { toast } from 'sonner';
 
+// Notification Queue System
+const notificationQueue: { type: 'success' | 'info' | 'error', message: string, options: any }[] = [];
+let isProcessingQueue = false;
+
+const processQueue = async () => {
+  if (isProcessingQueue || notificationQueue.length === 0) return;
+  isProcessingQueue = true;
+
+  while (notificationQueue.length > 0) {
+    const next = notificationQueue.shift();
+    if (next) {
+      // Clear any existing toasts to ensure "Never make them show at the same time"
+      toast.dismiss();
+      
+      if (next.type === 'success') toast.success(next.message, next.options);
+      else if (next.type === 'info') toast.info(next.message, next.options);
+      else if (next.type === 'error') toast.error(next.message, next.options);
+      
+      const duration = next.options?.duration || 3000;
+      // Wait for the toast to finish + 2 seconds break
+      await new Promise(resolve => setTimeout(resolve, duration + 2000));
+    }
+  }
+
+  isProcessingQueue = false;
+};
+
+const queueNotification = (type: 'success' | 'info' | 'error', message: string, options: any) => {
+  notificationQueue.push({ type, message, options });
+  processQueue();
+};
+
 /**
  * Hardened utility to deeply clean objects for Firestore safety and JSON serialization.
  * Specifically targets minified Firestore internal classes (Q$1, Sa, etc.) 
@@ -107,6 +139,7 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
 };
 
 export const userService = {
+  queueNotification,
   createUserDocument: async (uid: string, data: Partial<User | Participant | Coach>) => {
     try {
       const userRef = doc(db, 'users', uid);
@@ -271,9 +304,9 @@ export const userService = {
           await updateDoc(userRef, { claimedMilestoneIds: arrayUnion(milestoneId) });
           
           if (isAutoClaim) {
-            toast.success(`Bonus! +${points} Coins earned for ${milestoneId.replace(/-/g, ' ')}`, {
+            queueNotification('success', `Bonus! +${points} Coins earned for ${milestoneId.replace(/-/g, ' ')}`, {
               description: "Keep rising!",
-              duration: 5000,
+              duration: 3000,
             });
           }
       } catch (error) {
@@ -283,13 +316,13 @@ export const userService = {
   },
 
   notifyMilestoneReached: (milestoneId: string, points: number, actionLabel: string = "Claim") => {
-    toast.info(`Milestone Reached: ${milestoneId.replace(/_/g, ' ').replace(/-/g, ' ')}`, {
+    queueNotification('info', `Milestone Reached: ${milestoneId.replace(/_/g, ' ').replace(/-/g, ' ')}`, {
       description: `You've earned ${points} coins!`,
       action: {
         label: actionLabel,
         onClick: () => window.location.href = '/profile/hall-of-rise'
       },
-      duration: 10000,
+      duration: 5000,
     });
   },
 
