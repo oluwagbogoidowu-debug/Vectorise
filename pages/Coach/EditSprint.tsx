@@ -28,7 +28,7 @@ const DiffHighlight: React.FC<{ original: any; updated: any; label: string }> = 
                 if (typeof item === 'object' && item !== null) {
                     if ('verb' in item && 'description' in item) return `${item.verb}: ${item.description}`;
                     if ('title' in item && 'body' in item) return `[${item.title}]\n${item.body}`;
-                    if ('day' in item) return `Day ${item.day}: ${item.lessonText?.substring(0, 30)}...`;
+                    if ('day' in item) return `Day ${item.day}: ${(item.lessonText || '').substring(0, 30)}...`;
                     return JSON.stringify(item);
                 }
                 return String(item);
@@ -49,8 +49,9 @@ const DiffHighlight: React.FC<{ original: any; updated: any; label: string }> = 
         </div>
     );
 
-    const origWords = origStr.split(/\s+/);
-    const upWords = upStr.split(/\s+/);
+    const origWords = useMemo(() => origStr.split(/\s+/), [origStr]);
+    const origWordsSet = useMemo(() => new Set(origWords), [origWords]);
+    const upWords = useMemo(() => upStr.split(/\s+/), [upStr]);
 
     return (
         <div className="space-y-2 p-4 bg-red-50/30 border border-red-100 rounded-2xl animate-fade-in">
@@ -67,7 +68,7 @@ const DiffHighlight: React.FC<{ original: any; updated: any; label: string }> = 
                     <p className="text-[7px] font-black text-red-400 uppercase mb-1">Proposed Update:</p>
                     <div className="text-sm font-bold text-gray-900 leading-relaxed whitespace-pre-wrap">
                         {upWords.map((word, i) => {
-                            const isNew = !origWords.includes(word);
+                            const isNew = !origWordsSet.has(word);
                             return (
                                 <span 
                                     key={i} 
@@ -83,6 +84,44 @@ const DiffHighlight: React.FC<{ original: any; updated: any; label: string }> = 
         </div>
     );
 };
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("EditSprint Error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+          <div className="bg-white p-8 rounded-[2rem] shadow-xl max-w-md w-full text-center space-y-6">
+            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
+              <AlertCircle size={32} />
+            </div>
+            <h2 className="text-2xl font-black text-gray-900">Something went wrong</h2>
+            <p className="text-gray-500">We encountered an error while loading the editor. This might be due to a data mismatch.</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="w-full py-4 bg-primary text-white font-black uppercase tracking-widest rounded-2xl shadow-lg hover:shadow-primary/20 transition-all"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> => {
     const changes: Partial<Sprint> = {};
@@ -280,22 +319,8 @@ const EditSprint: React.FC = () => {
       let updatedSprintData: any = {};
 
       if (isDirectPush) {
-          // Flatten changes for granular updateDoc
-          Object.entries(changes).forEach(([key, value]) => {
-              if (key === 'dailyContent' && Array.isArray(value)) {
-                  value.forEach((day: DailyContent) => {
-                      const idx = sprint.dailyContent?.findIndex((d: DailyContent) => d.day === day.day) ?? -1;
-                      if (idx !== -1) updatedSprintData[`dailyContent.${idx}`] = day;
-                  });
-              } else if (key === 'dynamicSections' && Array.isArray(value)) {
-                  value.forEach((section: DynamicSection) => {
-                      const idx = sprint.dynamicSections?.findIndex((s: DynamicSection) => s.id === section.id);
-                      if (idx !== -1) updatedSprintData[`dynamicSections.${idx}`] = section;
-                  });
-              } else {
-                  updatedSprintData[key] = value;
-              }
-          });
+          // Apply all changes directly to the main document
+          updatedSprintData = { ...changes };
 
           if (isAdmin && isFoundational) {
               updatedSprintData.published = true;
@@ -424,17 +449,8 @@ const EditSprint: React.FC = () => {
         let persistenceData: any = {};
 
         if (isDirectPush) {
-            // Use granular dot notation for direct updates
-            Object.entries(updatedSprintData).forEach(([key, value]) => {
-                if (key === 'dynamicSections' && Array.isArray(value)) {
-                    value.forEach((section: DynamicSection) => {
-                        const idx = updatedLocalSprint.dynamicSections?.findIndex((s: DynamicSection) => s.id === section.id);
-                        if (idx !== -1) persistenceData[`dynamicSections.${idx}`] = section;
-                    });
-                } else {
-                    persistenceData[key] = value;
-                }
-            });
+            // Apply all changes directly to the main document
+            persistenceData = { ...updatedSprintData };
 
             if (isAdmin && isFoundational) {
                 persistenceData.published = true;
@@ -474,7 +490,16 @@ const EditSprint: React.FC = () => {
     setEditSettings({ ...editSettings, dynamicSections: newSections });
   };
 
-  if (!sprint) return <div className="p-8 text-center text-gray-500">Loading Registry...</div>;
+  if (isLoading || !sprint) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Loading Sprint Editor...</p>
+        </div>
+      </div>
+    );
+  }
 
   const editorInputClasses = "w-full p-6 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all placeholder-gray-300 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
   const registryInputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
@@ -487,7 +512,8 @@ const EditSprint: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-8 pb-32">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gray-50 px-4 py-8 pb-32">
 
       
       <div className="max-w-5xl mx-auto">
@@ -1129,7 +1155,8 @@ const EditSprint: React.FC = () => {
       )}
 
 
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 
