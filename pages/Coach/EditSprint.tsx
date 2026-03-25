@@ -238,7 +238,7 @@ const EditSprint: React.FC = () => {
     if (!sprint) return {
       day: selectedDay, lessonText: '', taskPrompt: '', coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: ''
     };
-    return (sprint.dailyContent.find(c => c.day === selectedDay)) || {
+    return (sprint.dailyContent?.find(c => c.day === selectedDay)) || {
       day: selectedDay, lessonText: '', taskPrompt: '', coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: '', submissionPrompt: ''
     };
   }, [sprint, selectedDay]);
@@ -247,8 +247,8 @@ const EditSprint: React.FC = () => {
     if (!sprint || !canEditDirectly) return;
     setSprint(prev => {
       if (!prev) return null;
-      const existingContentIndex = prev.dailyContent.findIndex(c => c.day === selectedDay);
-      let updatedDailyContent = [...prev.dailyContent];
+      const existingContentIndex = prev.dailyContent?.findIndex(c => c.day === selectedDay) ?? -1;
+      let updatedDailyContent = prev.dailyContent ? [...prev.dailyContent] : [];
       if (existingContentIndex >= 0) {
         updatedDailyContent[existingContentIndex] = { ...updatedDailyContent[existingContentIndex], [field]: value };
       } else {
@@ -284,7 +284,7 @@ const EditSprint: React.FC = () => {
           Object.entries(changes).forEach(([key, value]) => {
               if (key === 'dailyContent' && Array.isArray(value)) {
                   value.forEach((day: DailyContent) => {
-                      const idx = sprint.dailyContent.findIndex((d: DailyContent) => d.day === day.day);
+                      const idx = sprint.dailyContent?.findIndex((d: DailyContent) => d.day === day.day) ?? -1;
                       if (idx !== -1) updatedSprintData[`dailyContent.${idx}`] = day;
                   });
               } else if (key === 'dynamicSections' && Array.isArray(value)) {
@@ -482,7 +482,7 @@ const EditSprint: React.FC = () => {
 
   const isDayComplete = (day: number) => {
     if (!sprint) return false;
-    const content = sprint.dailyContent.find(c => c.day === day);
+    const content = sprint.dailyContent?.find(c => c.day === day);
     return !!(content && content.lessonText?.trim() && content.taskPrompt?.trim());
   };
 
@@ -582,7 +582,7 @@ const EditSprint: React.FC = () => {
                 {isAdmin && !isFoundational ? (
                     <DiffHighlight 
                       label="Today's Insight" 
-                      original={originalSprint?.dailyContent.find(c => c.day === selectedDay)?.lessonText} 
+                      original={originalSprint?.dailyContent?.find(c => c.day === selectedDay)?.lessonText} 
                       updated={currentContent.lessonText} 
                     />
                 ) : (
@@ -624,7 +624,7 @@ const EditSprint: React.FC = () => {
                 {isAdmin && !isFoundational ? (
                     <DiffHighlight 
                       label="Today's Action Step" 
-                      original={originalSprint?.dailyContent.find(c => c.day === selectedDay)?.taskPrompt} 
+                      original={originalSprint?.dailyContent?.find(c => c.day === selectedDay)?.taskPrompt} 
                       updated={currentContent.taskPrompt} 
                     />
                 ) : (
@@ -666,7 +666,7 @@ const EditSprint: React.FC = () => {
                 {isAdmin && !isFoundational ? (
                     <DiffHighlight 
                       label="Coach Insight" 
-                      original={originalSprint?.dailyContent.find(c => c.day === selectedDay)?.coachInsight} 
+                      original={originalSprint?.dailyContent?.find(c => c.day === selectedDay)?.coachInsight} 
                       updated={currentContent.coachInsight} 
                     />
                 ) : (

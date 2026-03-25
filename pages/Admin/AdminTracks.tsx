@@ -52,7 +52,7 @@ const AdminTracks: React.FC = () => {
 
             <div className="grid grid-cols-1 gap-4">
                 {tracks.length > 0 ? tracks.map(track => {
-                    const trackSprints = sprints.filter(s => track.sprintIds.includes(s.id));
+                    const trackSprints = sprints.filter(s => track.sprintIds?.includes(s.id));
                     const totalValue = trackSprints.reduce((sum, s) => sum + (s.price || 0), 0);
                     const discountedPrice = totalValue * (1 - track.discountPercentage / 100);
 

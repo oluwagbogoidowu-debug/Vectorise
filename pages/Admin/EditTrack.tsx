@@ -67,7 +67,7 @@ const EditTrack: React.FC = () => {
     }, [sprints, searchTerm]);
 
     const selectedSprints = useMemo(() => {
-        return sprints.filter(s => formData.sprintIds.includes(s.id));
+        return sprints.filter(s => formData.sprintIds?.includes(s.id));
     }, [sprints, formData.sprintIds]);
 
     const totalPrice = useMemo(() => {
@@ -80,9 +80,10 @@ const EditTrack: React.FC = () => {
 
     const handleToggleSprint = (id: string) => {
         setFormData(prev => {
-            const newIds = prev.sprintIds.includes(id)
+            const isSelected = prev.sprintIds?.includes(id) ?? false;
+            const newIds = isSelected 
                 ? prev.sprintIds.filter(sid => sid !== id)
-                : [...prev.sprintIds, id];
+                : [...(prev.sprintIds || []), id];
             return { ...prev, sprintIds: newIds };
         });
     };
