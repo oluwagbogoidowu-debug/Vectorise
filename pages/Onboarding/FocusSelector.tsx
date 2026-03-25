@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import { FOCUS_OPTIONS } from '../../services/mockData';
@@ -7,6 +7,41 @@ import { sprintService } from '../../services/sprintService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Participant, LifecycleSlotAssignment, OrchestrationTrigger } from '../../types';
 import { sanitizeData } from '../../services/userService';
+
+const PERSONAS = ["Entrepreneur", "Business Owner", "Freelancer/Consultant", "9-5 Professional", "Student/Graduate", "Creative/Hustler"];
+
+const FOCUS_HIERARCHY: Record<string, string[][]> = {
+  "Entrepreneur": [
+    ["Idea", "Pre-launch (MVP)", "Early (first users)", "Growth (scaling)", "Pivoting", "Funded & expanding"],
+    ["Validating fit", "Building MVP", "Getting users", "Raising funds", "Scaling team/ops", "Beating competition"],
+    ["Product-market fit", "Grow users", "Secure funding", "Build brand", "Optimize team/ops", "Enter new markets"]
+  ],
+  "Business Owner": [
+    ["Product-based", "Service-based", "Hybrid (product + service)", "Franchise", "E-commerce / Online store", "Local / Brick-and-mortar"],
+    ["Attracting new clients/customers", "Retaining existing clients/customers", "Scaling & increasing revenue", "Managing operations/team", "Standing out from competitors", "Accessing funding/capital"],
+    ["Build recognizable brand", "Expand into new markets/locations", "Improve loyalty & retention", "Streamline operations", "Launch new products/services", "Increase profitability/margins"]
+  ],
+  "Freelancer/Consultant": [
+    ["Coaching/mentoring", "Design/creative", "Marketing/sales", "Tech/IT", "Business/management consulting", "Other expertise"],
+    ["Getting consistent clients", "Charging my worth", "Standing out", "Building credibility", "Structuring offers/packages", "Managing clients & time"],
+    ["Attract high-paying clients", "Package/structure services", "Build personal brand", "Shift to retainers", "Diversify into products/courses", "Scale client delivery"]
+  ],
+  "Creative/Hustler": [
+    ["Turn talent into profit", "Grow audience", "Land high-paying clients", "Balance art + money", "Build collabs/partnerships", "Break free from undervaluation"],
+    ["Packaging & positioning", "Inconsistent/low income", "Not being seen", "Passion vs. survival conflict", "No structure/strategy", "Charging true worth"],
+    ["Thriving creative biz", "Known authority in craft", "Partnering with big brands", "From hustle to entrepreneurship", "Multiple income streams", "Inspiring others through passion"]
+  ],
+  "9-5 Professional": [
+    ["Mid-level manager", "Senior executive", "Specialist/expert", "Team lead", "Early career, aiming higher", "Other track"],
+    ["Not recognized for expertise", "Plateaued/no growth", "Struggling to move into leadership", "Hard to stand out", "Preparing to pivot to entrepreneurship", "Balancing career + personal goals"],
+    ["Gain recognition as leader/expert", "Build influence inside & outside", "Prep for entrepreneurship", "Secure promotion/upgrade", "Strengthen personal brand", "Grow network & opportunities"]
+  ],
+  "Student/Graduate": [
+    ["Build personal brand before job market", "Get clarity on career direction", "Land internships/entry roles", "Move from school to real projects", "Grow skills & confidence to stand out", "Explore entrepreneurship as a path"],
+    ["Lack of real-world experience", "Unsure how to present myself", "Limited network/connections", "Balancing studies with prep", "Overwhelmed by career options", "Fear of failure/rejection"],
+    ["Working in a top company", "Running a small biz/startup", "Advancing studies (Masters/pro courses)", "Known in my field/industry", "Trying out different paths", "Still figuring it out, but progressing"]
+  ]
+};
 
 const FocusSelector: React.FC = () => {
   const navigate = useNavigate();
@@ -18,18 +53,29 @@ const FocusSelector: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessingSelection, setIsProcessingSelection] = useState(false);
   const [pollQuestion, setPollQuestion] = useState<string>("What’s your biggest focus right now?");
-  const [focusOptions, setFocusOptions] = useState<string[]>(FOCUS_OPTIONS);
   const [activeAssignment, setActiveAssignment] = useState<LifecycleSlotAssignment | null>(null);
   const [activeSlotName, setActiveSlotName] = useState<string>("Growth Catalyst Mapping");
   const [lookupError, setLookupError] = useState<string | null>(null);
 
+  // Hierarchical State
+  const [currentLevel, setCurrentLevel] = useState(0);
+  const [selections, setSelections] = useState<string[]>([]);
+  const [activeOption, setActiveOption] = useState<string | null>(null);
+
+  const currentOptions = useMemo(() => {
+    if (currentLevel === 0) return PERSONAS;
+    const persona = selections[0];
+    const levels = FOCUS_HIERARCHY[persona];
+    if (levels && levels[currentLevel - 1]) {
+      return levels[currentLevel - 1];
+    }
+    return [];
+  }, [currentLevel, selections]);
+
   useEffect(() => {
     const loadDynamicOrchestration = async () => {
       try {
-        const [settings, orchestration] = await Promise.all([
-          sprintService.getGlobalOrchestrationSettings(),
-          sprintService.getOrchestration()
-        ]);
+        const orchestration = await sprintService.getOrchestration();
 
         const assignmentEntry = Object.entries(orchestration).find(
           ([_, a]: any) => a.stateTrigger === activeTrigger
@@ -45,12 +91,6 @@ const FocusSelector: React.FC = () => {
           } else {
             setActiveSlotName("Growth Catalyst Mapping");
           }
-
-          if (assignment.availableFocusOptions && assignment.availableFocusOptions.length > 0) {
-            setFocusOptions(assignment.availableFocusOptions);
-          } else if (settings?.focusOptions) {
-            setFocusOptions(settings.focusOptions);
-          }
         }
 
         if (activeTrigger === 'skip_clarity') {
@@ -65,7 +105,7 @@ const FocusSelector: React.FC = () => {
     loadDynamicOrchestration();
   }, [activeTrigger]);
 
-  const handleSelect = async (option: string) => {
+  const handleSelect = async (option: string, path: string[]) => {
     setIsProcessingSelection(true);
     setLookupError(null);
     
@@ -76,7 +116,8 @@ const FocusSelector: React.FC = () => {
         await updateProfile(sanitizeData({
           onboardingAnswers: {
             ...(user as Participant).onboardingAnswers || {},
-            selected_focus: option
+            selected_focus: option,
+            focus_path: path
           }
         }));
       } catch (err) {
@@ -90,52 +131,62 @@ const FocusSelector: React.FC = () => {
       
       let resolvedSprintId: string | null = null;
       let resolvedSlotId: string = 'unknown';
+      let finalUsedOption: string = option;
 
-      // 1. Priority check within the triggering slot
-      if (activeAssignment?.sprintFocusMap) {
-          resolvedSprintId = Object.keys(activeAssignment.sprintFocusMap).find(
-              sId => activeAssignment.sprintFocusMap?.[sId]?.includes(option)
-          ) || null;
-          
-          if (resolvedSprintId) {
-            const slotEntry = slots.find(([_, val]) => val.stateTrigger === activeTrigger);
-            resolvedSlotId = slotEntry ? slotEntry[0] : 'trigger_match';
-          }
-      }
+      // Prioritized lookup: Check path in reverse order (most specific first)
+      for (let i = path.length - 1; i >= 0; i--) {
+        const currentOption = path[i];
+        
+        // 1. Priority check within the triggering slot
+        if (activeAssignment?.sprintFocusMap) {
+            resolvedSprintId = Object.keys(activeAssignment.sprintFocusMap).find(
+                sId => activeAssignment.sprintFocusMap?.[sId]?.includes(currentOption)
+            ) || null;
+            
+            if (resolvedSprintId) {
+              const slotEntry = slots.find(([_, val]) => val.stateTrigger === activeTrigger);
+              resolvedSlotId = slotEntry ? slotEntry[0] : 'trigger_match';
+              finalUsedOption = currentOption;
+              break;
+            }
+        }
 
-      // 2. Global registry check
-      if (!resolvedSprintId) {
-          for (const [slotId, mapping] of slots) {
-              if (mapping.sprintFocusMap) {
-                  const match = Object.keys(mapping.sprintFocusMap).find(
-                      sId => mapping.sprintFocusMap?.[sId]?.includes(option)
-                  );
-                  if (match) {
-                      resolvedSprintId = match;
-                      resolvedSlotId = slotId;
-                      break;
-                  }
-              }
-          }
+        // 2. Global registry check
+        if (!resolvedSprintId) {
+            for (const [slotId, mapping] of slots) {
+                if (mapping.sprintFocusMap) {
+                    const match = Object.keys(mapping.sprintFocusMap).find(
+                        sId => mapping.sprintFocusMap?.[sId]?.includes(currentOption)
+                    );
+                    if (match) {
+                        resolvedSprintId = match;
+                        resolvedSlotId = slotId;
+                        finalUsedOption = currentOption;
+                        break;
+                    }
+                }
+            }
+        }
+        if (resolvedSprintId) break;
       }
 
       if (resolvedSprintId) {
-          // TELEMETRY: Log what the orchestrator picked using snake_case for DB alignment
+          // TELEMETRY: Log what the orchestrator picked
           await sprintService.logOrchestratorResolution({
               user_id: userId,
               trigger: activeTrigger,
-              input_focus: option,
+              input_focus: finalUsedOption,
               resolved_sprint_id: resolvedSprintId,
               slot_id: resolvedSlotId
           });
 
           if (resolvedSprintId === 'system_map') {
             navigate('/onboarding/map', { 
-              state: { selectedFocus: option, trigger: activeTrigger } 
+              state: { selectedFocus: finalUsedOption, trigger: activeTrigger } 
             });
           } else {
             navigate(`/onboarding/description/${resolvedSprintId}`, { 
-              state: { selectedFocus: option, sprintId: resolvedSprintId, trigger: activeTrigger } 
+              state: { selectedFocus: finalUsedOption, sprintId: resolvedSprintId, trigger: activeTrigger } 
             });
           }
       } else {
@@ -149,9 +200,37 @@ const FocusSelector: React.FC = () => {
     }
   };
 
+  const handleSpecify = () => {
+    if (activeOption && currentLevel < 3) {
+      setSelections([...selections, activeOption]);
+      setCurrentLevel(currentLevel + 1);
+      setActiveOption(null);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentLevel > 0) {
+      const newSelections = [...selections];
+      newSelections.pop();
+      setSelections(newSelections);
+      setCurrentLevel(currentLevel - 1);
+      setActiveOption(null);
+    }
+  };
+
+  const handleFinalContinue = () => {
+    if (activeOption) {
+      const fullPath = [...selections, activeOption];
+      handleSelect(activeOption, fullPath);
+    }
+  };
+
   const handleReset = () => {
     setLookupError(null);
     setIsProcessingSelection(false);
+    setCurrentLevel(0);
+    setSelections([]);
+    setActiveOption(null);
   };
 
   return (
@@ -188,25 +267,72 @@ const FocusSelector: React.FC = () => {
                <LocalLogo type="white" className="h-5 w-auto mx-auto mb-8 opacity-40" />
                <h1 className="text-xl md:text-2xl font-black tracking-tight leading-tight italic">{pollQuestion}</h1>
                <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em] mt-4">
-                 {activeTrigger === 'skip_clarity' ? 'Execution Registry' : activeSlotName}
+                 {selections.length > 0 ? selections.join(' > ') : (activeTrigger === 'skip_clarity' ? 'Execution Registry' : activeSlotName)}
                </p>
             </header>
+            
             <div className="w-full space-y-3 animate-slide-up">
-              {focusOptions.map((option, idx) => (
+              {currentOptions.map((option: string, idx: number) => (
                 <button
                   key={idx}
-                  onClick={() => handleSelect(option)}
-                  className="w-full group relative overflow-hidden bg-white/5 border border-white/10 py-5 px-6 rounded-2xl transition-all duration-500 hover:bg-white hover:border-white hover:scale-[1.02] active:scale-95 text-center flex items-center justify-center"
+                  onClick={() => setActiveOption(option)}
+                  className={`w-full group relative overflow-hidden py-5 px-6 rounded-2xl transition-all duration-500 border flex items-center justify-center ${
+                    activeOption === option 
+                      ? 'bg-white border-white scale-[1.02] shadow-xl' 
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+                  }`}
                 >
                   <div className="relative z-10">
-                    <span className="text-[9px] font-black uppercase tracking-[0.15em] text-white group-hover:text-primary transition-colors leading-relaxed block">{option}</span>
+                    <span className={`text-[9px] font-black uppercase tracking-[0.15em] transition-colors leading-relaxed block ${
+                      activeOption === option ? 'text-primary' : 'text-white'
+                    }`}>
+                      {option}
+                    </span>
                   </div>
-                  <div className="absolute inset-0 bg-white group-hover:opacity-100 opacity-0 transition-opacity"></div>
                 </button>
               ))}
-              {activeTrigger !== 'after_homepage' && (
-                  <button onClick={() => navigate('/')} className="w-full mt-4 text-[9px] font-black text-white/40 uppercase tracking-widest hover:text-white transition-colors">Cancel Action</button>
+            </div>
+
+            <div className="mt-10 space-y-4 animate-fade-in">
+              {activeOption && (
+                <div className="space-y-3">
+                  <button 
+                    onClick={handleFinalContinue}
+                    className="w-full py-4 bg-white text-primary font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all"
+                  >
+                    Continue with {activeOption}
+                  </button>
+                  
+                  {currentLevel < 3 && (
+                    <button 
+                      onClick={handleSpecify}
+                      className="w-full py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] hover:text-white/80 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <span className="opacity-40">──</span> Specify Further <span className="opacity-40">──</span>
+                    </button>
+                  )}
+                </div>
               )}
+
+              <div className="flex items-center justify-center gap-6 pt-4">
+                {currentLevel > 0 && (
+                  <button 
+                    onClick={handlePrevious}
+                    className="text-[9px] font-black text-white/40 uppercase tracking-widest hover:text-white transition-colors"
+                  >
+                    Previous
+                  </button>
+                )}
+                
+                {activeTrigger !== 'after_homepage' && (
+                    <button 
+                      onClick={() => navigate('/')} 
+                      className="text-[9px] font-black text-white/40 uppercase tracking-widest hover:text-white transition-colors"
+                    >
+                      Cancel
+                    </button>
+                )}
+              </div>
             </div>
           </div>
         )}
