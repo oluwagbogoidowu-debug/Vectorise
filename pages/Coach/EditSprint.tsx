@@ -203,6 +203,12 @@ const EditSprint: React.FC = () => {
   const registryIncomplete = useMemo(() => sprint ? isRegistryIncomplete(sprint) : true, [sprint]);
   const curriculumIncomplete = useMemo(() => sprint ? isSprintIncomplete(sprint) : true, [sprint]);
 
+  const hasChanges = useMemo(() => {
+    if (!originalSprint || !sprint) return false;
+    const changes = getPendingChanges(originalSprint, sprint);
+    return Object.keys(changes).length > 0;
+  }, [originalSprint, sprint]);
+
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -553,7 +559,7 @@ const EditSprint: React.FC = () => {
                         <Button 
                             onClick={handleSubmitForReview} 
                             isLoading={isSubmittingReview}
-                            disabled={registryIncomplete || curriculumIncomplete || isSubmittingReview} 
+                            disabled={registryIncomplete || curriculumIncomplete || isSubmittingReview || (!hasChanges && sprint.approvalStatus === 'pending_approval')} 
                             className="font-black uppercase tracking-widest text-[10px] rounded-xl px-6"
                         >
                         {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
