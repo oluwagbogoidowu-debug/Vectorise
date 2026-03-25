@@ -1,4 +1,8 @@
 
+import { INITIAL_OPTIONS, PERSONA_QUIZZES, OCCUPATION_QUESTION } from './services/mockData';
+
+export { INITIAL_OPTIONS, PERSONA_QUIZZES, OCCUPATION_QUESTION };
+
 export const ARCHETYPES = [
   {
     id: 'explorer',
@@ -108,112 +112,4 @@ export const RISE_PATHWAYS = [
   }
 ];
 
-export type QuizQuestion = {
-  title: string;
-  options: string[];
-};
-
-export type PersonaQuizData = {
-  [key: string]: QuizQuestion[];
-};
-
-export const PERSONA_QUIZZES: PersonaQuizData = {
-  "Entrepreneur": [
-    {
-      title: "Where’s your startup?",
-      options: ["Idea", "Pre-launch (MVP)", "Early (first users)", "Growth (scaling)", "Pivoting", "Funded & expanding"]
-    },
-    {
-      title: "Your biggest roadblock?",
-      options: ["Validating fit", "Building MVP", "Getting users", "Raising funds", "Scaling team/ops", "Beating competition"]
-    },
-    {
-      title: "Top priority (Next 12 Months)?",
-      options: ["Product-market fit", "Grow users", "Secure funding", "Build brand", "Optimize team/ops", "Enter new markets"]
-    }
-  ],
-  "Business Owner": [
-    {
-      title: "Business type",
-      options: ["Product-based", "Service-based", "Hybrid (product + service)", "Franchise", "E-commerce / Online store", "Local / Brick-and-mortar"]
-    },
-    {
-      title: "Core challenge",
-      options: ["Attracting new clients/customers", "Retaining existing clients/customers", "Scaling & increasing revenue", "Managing operations/team", "Standing out from competitors", "Accessing funding/capital"]
-    },
-    {
-      title: "Business goal (Next 12 Months)",
-      options: ["Build recognizable brand", "Expand into new markets/locations", "Improve loyalty & retention", "Streamline operations", "Launch new products/services", "Increase profitability/margins"]
-    }
-  ],
-  "Freelancer/Consultant": [
-    {
-      title: "Service focus",
-      options: ["Coaching/mentoring", "Design/creative", "Marketing/sales", "Tech/IT", "Business/management consulting", "Other expertise"]
-    },
-    {
-      title: "Challenge",
-      options: ["Getting consistent clients", "Charging my worth", "Standing out", "Building credibility", "Structuring offers/packages", "Managing clients & time"]
-    },
-    {
-      title: "Growth goal (Next 12 Months)",
-      options: ["Attract high-paying clients", "Package/structure services", "Build personal brand", "Shift to retainers", "Diversify into products/courses", "Scale client delivery"]
-    }
-  ],
-  "Creative/Hustler": [
-    {
-      title: "Focus",
-      options: ["Turn talent into profit", "Grow audience", "Land high-paying clients", "Balance art + money", "Build collabs/partnerships", "Break free from undervaluation"]
-    },
-    {
-      title: "Struggle",
-      options: ["Packaging & positioning", "Inconsistent/low income", "Not being seen", "Passion vs. survival conflict", "No structure/strategy", "Charging true worth"]
-    },
-    {
-      title: "2–3 Year vision",
-      options: ["Thriving creative biz", "Known authority in craft", "Partnering with big brands", "From hustle to entrepreneurship", "Multiple income streams", "Inspiring others through passion"]
-    }
-  ],
-  "9-5 Professional": [
-    {
-      title: "Role",
-      options: ["Mid-level manager", "Senior executive", "Specialist/expert", "Team lead", "Early career, aiming higher", "Other track"]
-    },
-    {
-      title: "Challenge",
-      options: ["Not recognized for expertise", "Plateaued/no growth", "Struggling to move into leadership", "Hard to stand out", "Preparing to pivot to entrepreneurship", "Balancing career + personal goals"]
-    },
-    {
-      title: "Goal (Next 12 Months)",
-      options: ["Gain recognition as leader/expert", "Build influence inside & outside", "Prep for entrepreneurship", "Secure promotion/upgrade", "Strengthen personal brand", "Grow network & opportunities"]
-    }
-  ],
-  "Student/Graduate": [
-    {
-      title: "What’s your biggest focus right now?",
-      options: ["Build personal brand before job market", "Get clarity on career direction", "Land internships/entry roles", "Move from school to real projects", "Grow skills & confidence to stand out", "Explore entrepreneurship as a path"]
-    },
-    {
-      title: "What’s your biggest hurdle?",
-      options: ["Lack of real-world experience", "Unsure how to present myself", "Limited network/connections", "Balancing studies with prep", "Overwhelmed by career options", "Fear of failure/rejection"]
-    },
-    {
-      title: "Where do you see yourself soon (2–3 Years)?",
-      options: ["Working in a top company", "Running a small biz/startup", "Advancing studies (Masters/pro courses)", "Known in my field/industry", "Trying out different paths", "Still figuring it out, but progressing"]
-    }
-  ]
-};
-
-export const INITIAL_OPTIONS = [
-  "Entrepreneur",
-  "Business Owner",
-  "Freelancer/Consultant",
-  "9-5 Professional",
-  "Student/Graduate",
-  "Creative/Hustler"
-];
-
-export const OCCUPATION_QUESTION = {
-  title: "What is your current<br />employment status?",
-  options: ["University Student", "Employed / Earning Salary", "Self-Employed / Business", "Unemployed / Looking"]
-};
+// Redundant constants removed, now imported from mockData.ts

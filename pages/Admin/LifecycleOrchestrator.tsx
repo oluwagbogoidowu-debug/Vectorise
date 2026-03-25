@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { toast } from 'sonner';
 import { LifecycleStage, LifecycleSlot, Sprint, SprintType, MicroSelector, MicroSelectorStep, GlobalOrchestrationSettings, OrchestrationTrigger, OrchestrationAction, LifecycleSlotAssignment, Track } from '../../types';
-import { LIFECYCLE_STAGES_CONFIG, LIFECYCLE_SLOTS, FOCUS_OPTIONS } from '../../services/mockData';
+import { LIFECYCLE_STAGES_CONFIG, LIFECYCLE_SLOTS, FOCUS_OPTIONS, PERSONA_HIERARCHY, PERSONAS } from '../../services/mockData';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
 
@@ -37,6 +38,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
     const [editingFocusSlot, setEditingFocusSlot] = useState<string | null>(null);
     const [activeTriggerPicker, setActiveTriggerPicker] = useState<string | null>(null);
     const [activeSprintPicker, setActiveSprintPicker] = useState<string | null>(null);
+    const [specificationSteps, setSpecificationSteps] = useState<Record<string, number>>({});
 
     useEffect(() => {
         setIsInitialLoading(true);
@@ -156,13 +158,20 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
         });
     };
 
+    const handleSetStep = (slotId: string, sId: string, step: number) => {
+        setSpecificationSteps(prev => ({
+            ...prev,
+            [`${slotId}-${sId}`]: step
+        }));
+    };
+
     const handleSaveRegistry = async () => {
         setIsSaving(true);
         try {
             await sprintService.saveOrchestration(assignments);
-            alert("Registry state synchronized.");
+            toast.success("Registry state synchronized.");
         } catch (err) {
-            alert("Persistence failed.");
+            toast.error("Persistence failed.");
         } finally {
             setIsSaving(false);
         }
@@ -487,40 +496,91 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                                         </div>
 
                                                         <div className="space-y-4 pt-4 border-t border-gray-50">
-                                                            <div className="flex items-center gap-3">
-                                                                <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Map Focus Criteria</h5>
-                                                                <div className="h-px bg-gray-50 flex-1"></div>
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex items-center gap-3">
+                                                                    <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Map Focus Criteria</h5>
+                                                                    <div className="h-px bg-gray-50 w-12"></div>
+                                                                </div>
+                                                                <div className="flex items-center gap-4">
+                                                                    {(specificationSteps[`${slot.id}-${sId}`] || 0) > 0 && (
+                                                                        <button 
+                                                                            onClick={() => handleSetStep(slot.id, sId, (specificationSteps[`${slot.id}-${sId}`] || 0) - 1)}
+                                                                            className="text-[8px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-1"
+                                                                        >
+                                                                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                                                                            Previous
+                                                                        </button>
+                                                                    )}
+                                                                    {(() => {
+                                                                        const currentStep = specificationSteps[`${slot.id}-${sId}`] || 0;
+                                                                        const selectedPersonas = sprintFocus.filter(f => PERSONAS.includes(f));
+                                                                        const canSpecify = selectedPersonas.length > 0 && currentStep < 3;
+                                                                        
+                                                                        if (!canSpecify) return null;
+                                                                        
+                                                                        return (
+                                                                            <button 
+                                                                                onClick={() => handleSetStep(slot.id, sId, currentStep + 1)}
+                                                                                className="text-[8px] font-black text-primary uppercase tracking-widest hover:underline transition-all flex items-center gap-1"
+                                                                            >
+                                                                                Specify
+                                                                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                                                                            </button>
+                                                                        );
+                                                                    })()}
+                                                                </div>
                                                             </div>
                                                             
                                                             <div className="flex flex-wrap gap-2">
-                                                                {slotFocusOptions.map((opt, optIdx) => {
-                                                                    const isSelected = sprintFocus.includes(opt);
-                                                                    const isTaken = focusTakenByOthers.includes(opt);
+                                                                {(() => {
+                                                                    const currentStep = specificationSteps[`${slot.id}-${sId}`] || 0;
+                                                                    let visibleOptions: string[] = [];
                                                                     
-                                                                    return (
-                                                                        <button
-                                                                            key={opt}
-                                                                            disabled={isTaken}
-                                                                            onClick={() => handleToggleSprintFocus(slot.id, sId, opt)}
-                                                                            className={`px-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-2.5 group relative ${
-                                                                                isSelected 
-                                                                                ? 'bg-primary text-white border-primary shadow-lg scale-[1.02]' 
-                                                                                : isTaken
-                                                                                ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-40'
-                                                                                : 'bg-white text-gray-400 border-gray-100 hover:border-primary/20 hover:text-primary'
-                                                                            }`}
-                                                                            title={isTaken ? 'Already mapped to another destination in this slot' : ''}
-                                                                        >
-                                                                            <span className={`w-5 h-5 rounded-lg flex items-center justify-center text-[8px] font-black ${isSelected ? 'bg-white/20 text-white' : isTaken ? 'bg-gray-100 text-gray-200' : 'bg-gray-50 text-gray-300 group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                                                                                {optIdx + 1}
-                                                                            </span>
-                                                                            {opt}
-                                                                            {isTaken && (
-                                                                                <span className="absolute -top-2 -right-1 bg-white text-gray-400 text-[6px] font-black px-1 rounded-sm border border-gray-100 shadow-sm whitespace-nowrap">Assigned</span>
-                                                                            )}
-                                                                        </button>
-                                                                    );
-                                                                })}
+                                                                    if (currentStep === 0) {
+                                                                        const allHierarchyOptions = Object.values(PERSONA_HIERARCHY).flat(2);
+                                                                        visibleOptions = slotFocusOptions.filter(opt => PERSONAS.includes(opt) || !allHierarchyOptions.includes(opt));
+                                                                    } else {
+                                                                        const selectedPersonas = sprintFocus.filter(f => PERSONAS.includes(f));
+                                                                        const options: string[] = [];
+                                                                        selectedPersonas.forEach(p => {
+                                                                            const levels = PERSONA_HIERARCHY[p];
+                                                                            if (levels && levels[currentStep - 1]) {
+                                                                                options.push(...levels[currentStep - 1]);
+                                                                            }
+                                                                        });
+                                                                        visibleOptions = slotFocusOptions.filter(opt => options.includes(opt));
+                                                                    }
+
+                                                                    return visibleOptions.map((opt) => {
+                                                                        const isSelected = sprintFocus.includes(opt);
+                                                                        const isTaken = focusTakenByOthers.includes(opt);
+                                                                        const optIdx = slotFocusOptions.indexOf(opt);
+                                                                        
+                                                                        return (
+                                                                            <button
+                                                                                key={opt}
+                                                                                disabled={isTaken}
+                                                                                onClick={() => handleToggleSprintFocus(slot.id, sId, opt)}
+                                                                                className={`px-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-2.5 group relative ${
+                                                                                    isSelected 
+                                                                                    ? 'bg-primary text-white border-primary shadow-lg scale-[1.02]' 
+                                                                                    : isTaken
+                                                                                    ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-40'
+                                                                                    : 'bg-white text-gray-400 border-gray-100 hover:border-primary/20 hover:text-primary'
+                                                                                }`}
+                                                                                title={isTaken ? 'Already mapped to another destination in this slot' : ''}
+                                                                            >
+                                                                                <span className={`w-5 h-5 rounded-lg flex items-center justify-center text-[8px] font-black ${isSelected ? 'bg-white/20 text-white' : isTaken ? 'bg-gray-100 text-gray-200' : 'bg-gray-50 text-gray-300 group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                                                                                    {optIdx + 1}
+                                                                                </span>
+                                                                                {opt}
+                                                                                {isTaken && (
+                                                                                    <span className="absolute -top-2 -right-1 bg-white text-gray-400 text-[6px] font-black px-1 rounded-sm border border-gray-100 shadow-sm whitespace-nowrap">Assigned</span>
+                                                                                )}
+                                                                            </button>
+                                                                        );
+                                                                    });
+                                                                })()}
                                                             </div>
                                                             {sprintFocus.length > 0 && (
                                                                 <p className="text-[8px] font-bold text-primary italic uppercase tracking-widest mt-1">

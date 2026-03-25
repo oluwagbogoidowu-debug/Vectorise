@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import { sanitizeData } from '../../services/userService';
-import { PERSONA_QUIZZES, INITIAL_OPTIONS, OCCUPATION_QUESTION } from '../../constants';
+import { PERSONA_QUIZZES, INITIAL_OPTIONS, OCCUPATION_QUESTION } from '../../services/mockData';
 
 const STORAGE_KEY = 'vectorise_quiz_prefill';
 
