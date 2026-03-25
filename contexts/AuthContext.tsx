@@ -79,12 +79,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const serializableUser = sanitizeData(dbUser);
             setUser(serializableUser);
             
-            const storedRole = localStorage.getItem('vectorise_active_role');
+            // Determine active role
+            const storedRole = localStorage.getItem('vectorise_active_role') as UserRole;
+            const dbRole = dbUser.role as UserRole;
+            
+            // Validate stored role
+            let roleToSet = dbRole;
             if (storedRole) {
-                setActiveRole(storedRole as UserRole);
-            } else if (dbUser) {
-                setActiveRole(dbUser.role);
+                const isCoach = (dbUser as Coach).hasCoachProfile || dbRole === UserRole.COACH;
+                const isAdmin = dbRole === UserRole.ADMIN;
+                
+                if (storedRole === dbRole) {
+                    roleToSet = storedRole;
+                } else if (storedRole === UserRole.COACH && isCoach) {
+                    roleToSet = UserRole.COACH;
+                } else if (isAdmin) {
+                    // Admins can switch to any role they want for testing/viewing
+                    roleToSet = storedRole;
+                }
             }
+            
+            setActiveRole(roleToSet);
+            localStorage.setItem('vectorise_active_role', roleToSet);
         } else {
             // User is signed out
             setUser(null);
@@ -154,7 +170,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const switchRole = (role: UserRole) => {
-    setActiveRole(role);
+    if (!user) return;
+    
+    // Basic validation
+    const isCoach = (user as Coach).hasCoachProfile || user.role === UserRole.COACH;
+    const isAdmin = user.role === UserRole.ADMIN;
+    
+    if (role === user.role || (role === UserRole.COACH && isCoach) || isAdmin) {
+        setActiveRole(role);
+        localStorage.setItem('vectorise_active_role', role);
+    } else {
+        console.warn(`Unauthorized role switch attempt to ${role}`);
+    }
   };
 
   const updateProfile = async (data: Partial<Participant | Coach>) => {

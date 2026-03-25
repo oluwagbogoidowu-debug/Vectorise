@@ -12,7 +12,7 @@ import { AppRoutes } from './routes';
 import { UserRole } from './types';
 
 const AppContent: React.FC = () => {
-  const { user, activeRole } = useAuth();
+  const { user, activeRole, loading } = useAuth();
   const location = useLocation();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
@@ -61,6 +61,19 @@ const AppContent: React.FC = () => {
       localStorage.setItem('vectorise_last_sprint', sprintId);
     }
   }, [location.pathname]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-primary text-white">
+        <div className="mb-8 animate-pulse">
+          <img src="/logo.png" alt="Vectorise" className="h-12 w-auto brightness-0 invert" onError={(e) => (e.currentTarget.style.display = 'none')} />
+          <h1 className="text-4xl font-black tracking-tighter">VECTORISE</h1>
+        </div>
+        <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+        <p className="mt-6 text-[10px] font-black uppercase tracking-[0.3em] opacity-50">Synchronizing Registry</p>
+      </div>
+    );
+  }
   
   const isOnboardingRoute = location.pathname.startsWith('/onboarding') || 
                             location.pathname === '/recommended' || 

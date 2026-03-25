@@ -105,8 +105,8 @@ export const AppRoutes: React.FC = () => {
 
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignUpPage />} />
+      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+      <Route path="/signup" element={user ? <Navigate to="/dashboard" replace /> : <SignUpPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/" element={
         user 
