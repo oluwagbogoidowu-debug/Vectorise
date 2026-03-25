@@ -101,6 +101,11 @@ const AdminTracks: React.FC = () => {
                             </div>
 
                             <div className="flex items-center gap-2">
+                                <Link to={`/admin/track/edit/${track.id}`}>
+                                    <button className="p-3 bg-gray-50 text-gray-400 hover:text-primary rounded-xl transition-all" title="Edit Track">
+                                        <Edit2 className="w-4 h-4" />
+                                    </button>
+                                </Link>
                                 <Link to={`/track/${track.id}`} target="_blank">
                                     <button className="p-3 bg-gray-50 text-gray-400 hover:text-primary rounded-xl transition-all" title="View Landing Page">
                                         <Eye className="w-4 h-4" />

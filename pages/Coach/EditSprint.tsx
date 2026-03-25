@@ -159,7 +159,7 @@ const EditSprint: React.FC = () => {
     return cat === 'Core Platform Sprint' || cat === 'Growth Fundamentals';
   }, [editSettings.category, sprint?.category]);
 
-  const canEditDirectly = !isAdmin || (isAdmin && isFoundational);
+  const canEditDirectly = !isAdmin || isAdmin; // Admins should always be able to edit directly if they choose
 
   const registryIncomplete = useMemo(() => sprint ? isRegistryIncomplete(sprint) : true, [sprint]);
   const curriculumIncomplete = useMemo(() => sprint ? isSprintIncomplete(sprint) : true, [sprint]);
@@ -179,11 +179,12 @@ const EditSprint: React.FC = () => {
         const merged: Sprint = {
             ...found,
             ...(found.pendingChanges || {}),
-            dailyContent: found.pendingChanges?.dailyContent || found.dailyContent,
-            outcomes: found.pendingChanges?.outcomes || found.outcomes,
-            forWho: found.pendingChanges?.forWho || found.forWho,
-            notForWho: found.pendingChanges?.notForWho || found.notForWho,
-            methodSnapshot: found.pendingChanges?.methodSnapshot || found.methodSnapshot
+            dailyContent: found.pendingChanges?.dailyContent || found.dailyContent || [],
+            duration: found.pendingChanges?.duration || found.duration || 0,
+            outcomes: found.pendingChanges?.outcomes || found.outcomes || [],
+            forWho: found.pendingChanges?.forWho || found.forWho || [],
+            notForWho: found.pendingChanges?.notForWho || found.notForWho || [],
+            methodSnapshot: found.pendingChanges?.methodSnapshot || found.methodSnapshot || []
         };
         
         setSprint(merged);
@@ -273,7 +274,7 @@ const EditSprint: React.FC = () => {
     setSaveStatus('saving');
     try {
       const isDraft = sprint.approvalStatus === 'draft';
-      const isDirectPush = isDraft || (isAdmin && isFoundational);
+      const isDirectPush = isDraft || isAdmin;
       const changes = getPendingChanges(originalSprint, sprint);
       
       let updatedSprintData: any = {};
@@ -417,7 +418,7 @@ const EditSprint: React.FC = () => {
     try {
         const updatedLocalSprint = { ...sprint, ...updatedSprintData as any };
         const isDraft = sprint.approvalStatus === 'draft';
-        const isDirectPush = isDraft || (isAdmin && isFoundational);
+        const isDirectPush = isDraft || isAdmin;
         const changes = getPendingChanges(originalSprint, updatedLocalSprint);
         
         let persistenceData: any = {};
@@ -1107,15 +1108,13 @@ const EditSprint: React.FC = () => {
                 )}
 
                 <div className="flex gap-4 pt-6 border-t border-gray-100 flex-shrink-0">
-                    {(!isAdmin || isFoundational) && (
-                        <Button 
-                            className="flex-1 py-4 font-black uppercase tracking-widest text-xs rounded-2xl" 
-                            onClick={handleApplySettings}
-                            disabled={settingsSaveStatus === 'saving'}
-                        >
-                            {settingsSaveStatus === 'saving' ? 'Saving...' : settingsSaveStatus === 'saved' ? 'Saved!' : 'Save Settings'}
-                        </Button>
-                    )}
+                    <Button 
+                        className="flex-1 py-4 font-black uppercase tracking-widest text-xs rounded-2xl" 
+                        onClick={handleApplySettings}
+                        disabled={settingsSaveStatus === 'saving'}
+                    >
+                        {settingsSaveStatus === 'saving' ? 'Saving...' : settingsSaveStatus === 'saved' ? 'Saved!' : isAdmin ? 'Apply Audit' : 'Save Settings'}
+                    </Button>
                     <button 
                         className="flex-1 py-4 bg-white text-gray-400 font-black uppercase tracking-widest text-xs rounded-2xl border border-gray-100" 
                         onClick={() => setShowSettings(false)}
