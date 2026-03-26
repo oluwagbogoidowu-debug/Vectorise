@@ -19,8 +19,8 @@ const ReflectionModal: React.FC<{
     const [text, setText] = useState('');
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl relative overflow-hidden animate-slide-up flex flex-col p-8">
+        <div className="absolute inset-0 z-[200] flex items-center justify-center p-6 bg-white/90 backdrop-blur-md animate-fade-in">
+            <div className="w-full max-w-sm relative overflow-hidden animate-slide-up flex flex-col p-4">
                 <h3 className="text-xl font-black text-gray-900 tracking-tight mb-4">Sprint Reflection</h3>
                 <p className="text-[11px] font-black text-primary uppercase tracking-widest mb-6 leading-tight">
                     {question || "One idea that shifted my thinking was..."}
@@ -243,54 +243,6 @@ const SprintView: React.FC = () => {
 
     return (
         <>
-            <ReflectionModal 
-                isOpen={isReflectionModalOpen} 
-                day={viewingDay} 
-                question={dayContent?.reflectionQuestion}
-                onClose={() => setIsReflectionModalOpen(false)} 
-                onFinish={handleFinishDay} 
-                isSubmitting={isSubmitting} 
-            />
-
-            {enrollment.status === 'queued' && (
-                <div className="fixed inset-0 z-[150] bg-white/90 backdrop-blur-md flex flex-col items-center justify-center text-center p-8 animate-fade-in">
-                    <div className="mb-6 opacity-20">
-                        <LocalLogo type="favicon" className="w-32 h-32" />
-                    </div>
-                    <h2 className="text-2xl font-black text-gray-900 tracking-tight italic mb-2">In the Queue.</h2>
-                    <p className="text-sm text-gray-500 font-medium mb-10 max-w-xs">
-                        You have an active sprint running. This journey will automatically unlock once your current focus is complete.
-                    </p>
-                    <button 
-                        onClick={() => navigate('/dashboard')}
-                        className="px-8 py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95"
-                    >
-                        Return to Active Focus
-                    </button>
-                </div>
-            )}
-
-            {dayLockDetails.isLocked && (
-                <div className="fixed inset-0 z-[140] bg-white/80 backdrop-blur-md flex flex-col items-center justify-center text-center p-8 animate-fade-in">
-                    <div className="mb-6 opacity-20">
-                        <LocalLogo type="favicon" className="w-32 h-32" />
-                    </div>
-                    <h2 className="text-2xl font-black text-gray-900 tracking-tight italic mb-2">Access Locked.</h2>
-                    <p className="text-sm text-gray-500 font-medium mb-10 max-w-xs">
-                        {dayLockDetails.unlockTime 
-                            ? `Next lesson unlocks at midnight.`
-                            : dayLockDetails.reason || 'Complete previous day first.'}
-                    </p>
-                    
-                    {dayLockDetails.unlockTime && (
-                        <div className="space-y-2">
-                            <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Available In</p>
-                            <p className="text-4xl font-black text-gray-900 tabular-nums tracking-tighter">{timeToUnlock}</p>
-                        </div>
-                    )}
-                </div>
-            )}
-
             <div className="w-full bg-[#FAFAFA] flex flex-col font-sans text-dark animate-fade-in pb-24">
                 <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
                 <div className="flex items-center justify-between">
@@ -349,11 +301,61 @@ const SprintView: React.FC = () => {
                 </div>
 
                 <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden min-h-[400px]">
+                    <ReflectionModal 
+                        isOpen={isReflectionModalOpen} 
+                        day={viewingDay} 
+                        question={dayContent?.reflectionQuestion}
+                        onClose={() => setIsReflectionModalOpen(false)} 
+                        onFinish={handleFinishDay} 
+                        isSubmitting={isSubmitting} 
+                    />
+                    {enrollment.status === 'queued' && (
+                        <div className="absolute inset-0 z-[150] bg-white/90 backdrop-blur-md flex flex-col items-center justify-center text-center p-8 animate-fade-in">
+                            <div className="mb-6 opacity-20">
+                                <LocalLogo type="favicon" className="w-24 h-24" />
+                            </div>
+                            <h2 className="text-xl font-black text-gray-900 tracking-tight italic mb-2">In the Queue.</h2>
+                            <p className="text-[10px] text-gray-500 font-medium mb-8 max-w-xs">
+                                You have an active sprint running. This journey will automatically unlock once your current focus is complete.
+                            </p>
+                            <button 
+                                onClick={() => navigate('/dashboard')}
+                                className="px-6 py-3 bg-primary text-white rounded-2xl text-[8px] font-black uppercase tracking-widest shadow-xl active:scale-95"
+                            >
+                                Return to Active Focus
+                            </button>
+                        </div>
+                    )}
+
+                    {dayLockDetails.isLocked && (
+                        <div className="absolute inset-0 z-[140] bg-white/80 backdrop-blur-md flex flex-col items-center justify-center text-center p-8 animate-fade-in">
+                            <div className="mb-6 opacity-20">
+                                <LocalLogo type="favicon" className="w-24 h-24" />
+                            </div>
+                            <h2 className="text-xl font-black text-gray-900 tracking-tight italic mb-2">Access Locked.</h2>
+                            <p className="text-[10px] text-gray-500 font-medium mb-8 max-w-xs">
+                                {dayLockDetails.unlockTime 
+                                    ? `Next lesson unlocks at midnight.`
+                                    : dayLockDetails.reason || 'Complete previous day first.'}
+                            </p>
+                            
+                            {dayLockDetails.unlockTime && (
+                                <div className="space-y-2">
+                                    <p className="text-[8px] font-black text-primary uppercase tracking-[0.4em]">Available In</p>
+                                    <p className="text-3xl font-black text-gray-900 tabular-nums tracking-tighter">{timeToUnlock}</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <div className={dayLockDetails.isLocked ? 'blur-sm pointer-events-none opacity-20' : ''}>
                         <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day {viewingDay}</h2>
                         
                         <div className="space-y-2 mb-10">
-                            <SectionHeading>Today's Insight</SectionHeading>
+                            <div className="flex items-center gap-3 mb-2">
+                                <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[10px] font-black">1</span>
+                                <SectionHeading>Today's Insight</SectionHeading>
+                            </div>
                             <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
                                 <FormattedText text={dayContent?.lessonText || ""} />
                             </div>
@@ -361,7 +363,10 @@ const SprintView: React.FC = () => {
 
                         <div className="space-y-6">
                             <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                                <SectionHeading>Today's Action Step</SectionHeading>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <span className="w-6 h-6 rounded-lg bg-primary text-white flex items-center justify-center text-[10px] font-black">2</span>
+                                    <SectionHeading>Today's Action Step</SectionHeading>
+                                </div>
                                 <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
                                     <FormattedText text={dayContent?.taskPrompt || ""} />
                                 </div>
@@ -370,7 +375,10 @@ const SprintView: React.FC = () => {
 
                             {dayContent?.coachInsight && (
                                 <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
-                                    <SectionHeading color="gray-400">Coach Insight</SectionHeading>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <span className="w-6 h-6 rounded-lg bg-gray-200 text-gray-500 flex items-center justify-center text-[10px] font-black">3</span>
+                                        <SectionHeading color="gray-400">Coach Insight</SectionHeading>
+                                    </div>
                                     <div className="text-gray-600 italic font-medium text-xs md:text-sm leading-relaxed">
                                         <FormattedText text={dayContent.coachInsight} />
                                     </div>

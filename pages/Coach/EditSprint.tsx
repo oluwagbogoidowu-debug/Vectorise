@@ -29,7 +29,7 @@ const DiffHighlight: React.FC<{ original: any; updated: any; label: string }> = 
                     if ('verb' in item && 'description' in item) return `${item.verb}: ${item.description}`;
                     if ('title' in item && 'body' in item) return `[${item.title}]\n${item.body}`;
                     if ('day' in item) return `Day ${item.day}: ${(item.lessonText || '').substring(0, 30)}...`;
-                    return JSON.stringify(item);
+                    return JSON.stringify(sanitizeData(item));
                 }
                 return String(item);
             }).join('\n---\n');
@@ -49,9 +49,21 @@ const DiffHighlight: React.FC<{ original: any; updated: any; label: string }> = 
         </div>
     );
 
-    const origWords = useMemo(() => origStr.split(/\s+/), [origStr]);
+    const origWords = useMemo(() => {
+        try {
+            return origStr.split(/\s+/);
+        } catch (e) {
+            return [];
+        }
+    }, [origStr]);
     const origWordsSet = useMemo(() => new Set(origWords), [origWords]);
-    const upWords = useMemo(() => upStr.split(/\s+/), [upStr]);
+    const upWords = useMemo(() => {
+        try {
+            return upStr.split(/\s+/);
+        } catch (e) {
+            return [];
+        }
+    }, [upStr]);
 
     return (
         <div className="space-y-2 p-4 bg-red-50/30 border border-red-100 rounded-2xl animate-fade-in">
@@ -220,7 +232,13 @@ const EditSprint: React.FC = () => {
     const unsub = sprintService.subscribeToSprint(sprintId, (found) => {
       if (found) {
         if (timeoutId) clearTimeout(timeoutId);
-        setOriginalSprint(found);
+        
+        // originalSprint should represent the base sprint without pending changes
+        // so that hasChanges correctly detects if there are any pending changes to submit.
+        const baseSprint = { ...found };
+        delete baseSprint.pendingChanges;
+        setOriginalSprint(baseSprint);
+
         const merged: Sprint = {
             ...found,
             ...(found.pendingChanges || {}),

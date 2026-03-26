@@ -57,18 +57,18 @@ const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint, coach }) => {
         </div>
 
         <div className="px-6 py-6 space-y-8">
-          {(sprint.description || (sprint.dynamicSections && sprint.dynamicSections.filter(s => s.body && s.body.trim()).length > 0)) && (
+          {(sprint.description || (Array.isArray(sprint.dynamicSections) && sprint.dynamicSections.filter(s => s.body && s.body.trim()).length > 0)) && (
             <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm animate-fade-in">
               <SectionHeading>Sprint Overview</SectionHeading>
               
               <div className="space-y-6">
-                {sprint.description && (!sprint.dynamicSections || sprint.dynamicSections.filter(s => s.body && s.body.trim()).length === 0) && (
+                {sprint.description && (!Array.isArray(sprint.dynamicSections) || sprint.dynamicSections.filter(s => s.body && s.body.trim()).length === 0) && (
                   <p className="text-[9px] text-gray-600 font-medium leading-relaxed italic">
                     "{sprint.description}"
                   </p>
                 )}
 
-                {sprint.dynamicSections?.filter(s => s.body && s.body.trim()).map((section) => (
+                {Array.isArray(sprint.dynamicSections) && sprint.dynamicSections.filter(s => s.body && s.body.trim()).map((section) => (
                   <div key={`${section.id}-${section.type}`} className="animate-fade-in">
                     {section.id !== 'overview' && <h3 className="text-[8px] font-black text-gray-900 uppercase tracking-widest mb-2">{section.title}</h3>}
                     <DynamicSectionRenderer section={section} />

@@ -30,7 +30,7 @@ export const isRegistryIncomplete = (sprint: Sprint): boolean => {
     }
 
     // Check dynamic sections
-    if (!sprint.dynamicSections || sprint.dynamicSections.length === 0) {
+    if (!Array.isArray(sprint.dynamicSections) || sprint.dynamicSections.length === 0) {
         return true;
     }
 
@@ -58,7 +58,7 @@ export const isRegistryIncomplete = (sprint: Sprint): boolean => {
  * Checks if a sprint is missing daily content (lesson/task).
  */
 export const isSprintIncomplete = (sprint: Sprint): boolean => {
-    if (!sprint.dailyContent || sprint.dailyContent.length < sprint.duration) {
+    if (!Array.isArray(sprint.dailyContent) || sprint.dailyContent.length < sprint.duration) {
         return true;
     }
     
