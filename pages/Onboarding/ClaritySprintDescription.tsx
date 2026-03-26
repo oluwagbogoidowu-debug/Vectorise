@@ -93,7 +93,7 @@ const ClaritySprintDescription: React.FC = () => {
   const displayCoachName = 'Vectorise';
   const displayCoachImage = 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd';
 
-  const hasDynamicContent = sprint?.dynamicSections && sprint.dynamicSections.filter(s => s.body && s.body.trim().length > 0).length > 0;
+  const hasDynamicContent = Array.isArray(sprint?.dynamicSections) && sprint.dynamicSections.filter(s => s.body && s.body.trim().length > 0).length > 0;
 
   if (isLoading) {
     return (
@@ -181,7 +181,7 @@ const ClaritySprintDescription: React.FC = () => {
                 </section>
               )}
 
-              {sprint.dynamicSections && sprint.dynamicSections
+              {Array.isArray(sprint.dynamicSections) && sprint.dynamicSections
                 .filter(section => section.body && section.body.trim().length > 0)
                 .map((section, index) => (
                   <section key={index} className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">

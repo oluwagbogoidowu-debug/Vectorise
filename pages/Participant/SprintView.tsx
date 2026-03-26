@@ -220,7 +220,7 @@ const SprintView: React.FC = () => {
         }
     };
 
-    const dayContent = sprint?.dailyContent?.find(dc => dc.day === viewingDay);
+    const dayContent = Array.isArray(sprint?.dailyContent) ? sprint?.dailyContent.find(dc => dc.day === viewingDay) : undefined;
     const dayProgress = enrollment?.progress?.find(p => p.day === viewingDay);
 
     const isProofMet = useMemo(() => {

@@ -201,7 +201,7 @@ const ProgramDescription: React.FC = () => {
   const displayCoachName = isFoundational ? 'Vectorise' : (fetchedCoach?.name || 'Vectorise');
   const displayCoachImage = isFoundational ? 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd' : (fetchedCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE);
 
-  const hasDynamicContent = sprint.dynamicSections?.some(s => s.body && s.body.trim().length > 0);
+  const hasDynamicContent = Array.isArray(sprint.dynamicSections) && sprint.dynamicSections.some(s => s.body && s.body.trim().length > 0);
 
   return (
     <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
@@ -271,7 +271,7 @@ const ProgramDescription: React.FC = () => {
                 </section>
               )}
 
-              {sprint.dynamicSections && sprint.dynamicSections
+              {Array.isArray(sprint.dynamicSections) && sprint.dynamicSections
                 .filter(section => section.body && section.body.trim().length > 0)
                 .map((section, index) => (
                   <section key={index} className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">

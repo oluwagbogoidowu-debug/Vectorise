@@ -70,6 +70,8 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
     const constructorName = val.constructor?.name || '';
     const isFirebaseInternal = 
         /^[A-Z][a-z0-9]$|^[A-Z]\$[0-9]$/.test(constructorName) || 
+        constructorName === 'Y2' || 
+        constructorName === 'Ka' || 
         constructorName.includes('Query') || 
         constructorName.includes('Reference') ||
         constructorName.includes('Firestore') ||
@@ -89,7 +91,6 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
         val.firestore || 
         val._database ||
         val._path ||
-        (val.i && val.src) || // Direct circular marker in some minified versions
         (val.i && typeof val.i === 'object' && (val.src || val.i.src || val.i.i)) ||
         (val.src && typeof val.src === 'object' && (val.src.i || val.src.src))
     );

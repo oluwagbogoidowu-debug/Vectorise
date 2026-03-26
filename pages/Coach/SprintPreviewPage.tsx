@@ -28,10 +28,18 @@ const SprintPreviewPage: React.FC = () => {
                     const mergedSprint: Sprint = {
                         ...fetchedSprint,
                         ...(fetchedSprint.pendingChanges || {}),
-                        dailyContent: fetchedSprint.pendingChanges?.dailyContent || fetchedSprint.dailyContent,
-                        outcomes: fetchedSprint.pendingChanges?.outcomes || fetchedSprint.outcomes,
-                        forWho: fetchedSprint.pendingChanges?.forWho || fetchedSprint.forWho,
-                        dynamicSections: fetchedSprint.pendingChanges?.dynamicSections || fetchedSprint.dynamicSections,
+                        dailyContent: Array.isArray(fetchedSprint.pendingChanges?.dailyContent) 
+                            ? fetchedSprint.pendingChanges.dailyContent 
+                            : (Array.isArray(fetchedSprint.dailyContent) ? fetchedSprint.dailyContent : []),
+                        outcomes: Array.isArray(fetchedSprint.pendingChanges?.outcomes)
+                            ? fetchedSprint.pendingChanges.outcomes
+                            : (Array.isArray(fetchedSprint.outcomes) ? fetchedSprint.outcomes : []),
+                        forWho: Array.isArray(fetchedSprint.pendingChanges?.forWho)
+                            ? fetchedSprint.pendingChanges.forWho
+                            : (Array.isArray(fetchedSprint.forWho) ? fetchedSprint.forWho : []),
+                        dynamicSections: Array.isArray(fetchedSprint.pendingChanges?.dynamicSections)
+                            ? fetchedSprint.pendingChanges.dynamicSections
+                            : (Array.isArray(fetchedSprint.dynamicSections) ? fetchedSprint.dynamicSections : []),
                     };
                     setSprint(mergedSprint);
 
@@ -93,7 +101,7 @@ const SprintPreviewPage: React.FC = () => {
         );
     }
 
-    const currentDailyContent = sprint.dailyContent.find(content => content.day === selectedDay);
+    const currentDailyContent = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(content => content.day === selectedDay) : undefined;
 
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -149,7 +157,7 @@ const SprintPreviewPage: React.FC = () => {
                     {previewType === 'landing' && (
                         <div className="animate-fade-in text-left">
                             <div className="space-y-8">
-                                {sprint.dynamicSections && sprint.dynamicSections.map((section, index) => (
+                                {Array.isArray(sprint.dynamicSections) && sprint.dynamicSections.map((section, index) => (
                                     <section key={index} className="bg-white rounded-[2.5rem] p-10 md:p-14 border border-gray-100 shadow-sm">
                                         <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">{section.title}</h2>
                                         <DynamicSectionRenderer section={section} />

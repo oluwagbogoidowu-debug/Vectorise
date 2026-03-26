@@ -63,7 +63,7 @@ export const isSprintIncomplete = (sprint: Sprint): boolean => {
     }
     
     for (let i = 1; i <= sprint.duration; i++) {
-        const content = sprint.dailyContent.find(c => c.day === i);
+        const content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(c => c.day === i) : undefined;
         if (!content || !content.lessonText?.trim() || !content.taskPrompt?.trim()) {
             return true;
         }

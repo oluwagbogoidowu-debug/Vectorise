@@ -381,13 +381,13 @@ const CoachParticipants: React.FC = () => {
                                                 <div className="mb-6">
                                                     <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Lesson Text</h4>
                                                     <p className="text-sm text-gray-700 leading-relaxed italic font-medium bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                                        {viewingSubmission.enrollment.sprint.dailyContent.find(c => c.day === viewingSubmission.day)?.lessonText || "No lesson text recorded."}
+                                                        {Array.isArray(viewingSubmission.enrollment.sprint.dailyContent) ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c.day === viewingSubmission.day)?.lessonText : "No lesson text recorded."}
                                                     </p>
                                                 </div>
                                                 <div>
                                                     <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-3">Task Prompt</h4>
                                                     <p className="text-sm text-gray-900 font-bold leading-tight bg-primary/5 p-4 rounded-2xl border border-primary/10">
-                                                        "{viewingSubmission.enrollment.sprint.dailyContent.find(c => c.day === viewingSubmission.day)?.taskPrompt}"
+                                                        "{Array.isArray(viewingSubmission.enrollment.sprint.dailyContent) ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c.day === viewingSubmission.day)?.taskPrompt : ""}"
                                                     </p>
                                                 </div>
                                             </div>

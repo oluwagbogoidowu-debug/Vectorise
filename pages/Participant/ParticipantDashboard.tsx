@@ -25,12 +25,12 @@ const getDayStatus = (enrollment: ParticipantSprint, sprint: Sprint, now: number
             day: sprint.duration, 
             isCompleted: true, 
             isLocked: false, 
-            content: sprint.dailyContent ? sprint.dailyContent[sprint.dailyContent.length - 1] : null
+            content: Array.isArray(sprint.dailyContent) ? sprint.dailyContent[sprint.dailyContent.length - 1] : null
         };
     }
 
     const currentDay = enrollment.progress[currentDayIndex].day;
-    const content = sprint.dailyContent ? sprint.dailyContent.find(c => c.day === currentDay) : null;
+    const content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(c => c.day === currentDay) : null;
 
     let isLocked = false;
     let unlockTime = 0;

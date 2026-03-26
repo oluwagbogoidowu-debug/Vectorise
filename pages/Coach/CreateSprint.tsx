@@ -222,7 +222,7 @@ const CreateSprint: React.FC = () => {
                             </section>
 
                             {/* Sprint Overview Section */}
-                            {formData.dynamicSections?.filter(s => s.id === 'overview').map((section, index) => (
+                            {Array.isArray(formData.dynamicSections) && formData.dynamicSections.filter(s => s.id === 'overview').map((section, index) => (
                                 <section key={section.id} className="space-y-6 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                                     <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
                                         <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Sprint Overview</h4>

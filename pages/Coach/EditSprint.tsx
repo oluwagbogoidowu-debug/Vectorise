@@ -235,19 +235,40 @@ const EditSprint: React.FC = () => {
         
         // originalSprint should represent the base sprint without pending changes
         // so that hasChanges correctly detects if there are any pending changes to submit.
-        const baseSprint = { ...found };
+        const baseSprint = { 
+            ...found,
+            dailyContent: Array.isArray(found.dailyContent) ? found.dailyContent : [],
+            outcomes: Array.isArray(found.outcomes) ? found.outcomes : [],
+            forWho: Array.isArray(found.forWho) ? found.forWho : [],
+            notForWho: Array.isArray(found.notForWho) ? found.notForWho : [],
+            methodSnapshot: Array.isArray(found.methodSnapshot) ? found.methodSnapshot : [],
+            dynamicSections: Array.isArray(found.dynamicSections) ? found.dynamicSections : []
+        };
         delete baseSprint.pendingChanges;
         setOriginalSprint(baseSprint);
 
         const merged: Sprint = {
             ...found,
             ...(found.pendingChanges || {}),
-            dailyContent: found.pendingChanges?.dailyContent || found.dailyContent || [],
+            dailyContent: Array.isArray(found.pendingChanges?.dailyContent) 
+                ? found.pendingChanges.dailyContent 
+                : (Array.isArray(found.dailyContent) ? found.dailyContent : []),
             duration: found.pendingChanges?.duration || found.duration || 0,
-            outcomes: found.pendingChanges?.outcomes || found.outcomes || [],
-            forWho: found.pendingChanges?.forWho || found.forWho || [],
-            notForWho: found.pendingChanges?.notForWho || found.notForWho || [],
-            methodSnapshot: found.pendingChanges?.methodSnapshot || found.methodSnapshot || []
+            outcomes: Array.isArray(found.pendingChanges?.outcomes)
+                ? found.pendingChanges.outcomes
+                : (Array.isArray(found.outcomes) ? found.outcomes : []),
+            forWho: Array.isArray(found.pendingChanges?.forWho)
+                ? found.pendingChanges.forWho
+                : (Array.isArray(found.forWho) ? found.forWho : []),
+            notForWho: Array.isArray(found.pendingChanges?.notForWho)
+                ? found.pendingChanges.notForWho
+                : (Array.isArray(found.notForWho) ? found.notForWho : []),
+            methodSnapshot: Array.isArray(found.pendingChanges?.methodSnapshot)
+                ? found.pendingChanges.methodSnapshot
+                : (Array.isArray(found.methodSnapshot) ? found.methodSnapshot : []),
+            dynamicSections: Array.isArray(found.pendingChanges?.dynamicSections)
+                ? found.pendingChanges.dynamicSections
+                : (Array.isArray(found.dynamicSections) ? found.dynamicSections : [])
         };
         
         setSprint(merged);
@@ -301,7 +322,7 @@ const EditSprint: React.FC = () => {
     if (!sprint) return {
       day: selectedDay, lessonText: '', taskPrompt: '', coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: ''
     };
-    return (sprint.dailyContent?.find(c => c.day === selectedDay)) || {
+    return (Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(c => c.day === selectedDay) : undefined) || {
       day: selectedDay, lessonText: '', taskPrompt: '', coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: '', submissionPrompt: ''
     };
   }, [sprint, selectedDay]);
@@ -310,8 +331,8 @@ const EditSprint: React.FC = () => {
     if (!sprint || !canEditDirectly) return;
     setSprint(prev => {
       if (!prev) return null;
-      const existingContentIndex = prev.dailyContent?.findIndex(c => c.day === selectedDay) ?? -1;
-      let updatedDailyContent = prev.dailyContent ? [...prev.dailyContent] : [];
+      const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+      let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
       if (existingContentIndex >= 0) {
         updatedDailyContent[existingContentIndex] = { ...updatedDailyContent[existingContentIndex], [field]: value };
       } else {
@@ -422,6 +443,7 @@ const EditSprint: React.FC = () => {
     if (!sprint || !originalSprint) return;
     setSettingsSaveStatus('saving');
 
+    // 2. Prepare updated data
     let updatedSprintData: Partial<Sprint> = {
       title: editSettings.title,
       subtitle: editSettings.subtitle,
@@ -438,6 +460,27 @@ const EditSprint: React.FC = () => {
       outcomeTag: editSettings.outcomeTag,
       outcomeStatement: editSettings.outcomeStatement,
     };
+
+    // Handle duration change by adjusting dailyContent array
+    const newDuration = editSettings.duration || 7;
+    if (newDuration !== sprint.duration) {
+      const currentDailyContent = Array.isArray(sprint.dailyContent) ? [...sprint.dailyContent] : [];
+      if (newDuration > currentDailyContent.length) {
+        // Pad with empty days
+        const padding = Array.from({ length: newDuration - currentDailyContent.length }, (_, i) => ({
+          day: currentDailyContent.length + i + 1,
+          lessonText: '',
+          taskPrompt: '',
+          coachInsight: '',
+          proofType: 'note' as const,
+          reflectionQuestion: ''
+        }));
+        updatedSprintData.dailyContent = [...currentDailyContent, ...padding];
+      } else if (newDuration < currentDailyContent.length) {
+        // Truncate
+        updatedSprintData.dailyContent = currentDailyContent.slice(0, newDuration);
+      }
+    }
 
     // Parse dynamic sections back into sprint properties
     editSettings.dynamicSections?.forEach(section => {
@@ -531,7 +574,7 @@ const EditSprint: React.FC = () => {
 
   const isDayComplete = (day: number) => {
     if (!sprint) return false;
-    const content = sprint.dailyContent?.find(c => c.day === day);
+    const content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(c => c.day === day) : undefined;
     return !!(content && content.lessonText?.trim() && content.taskPrompt?.trim());
   };
 
@@ -632,7 +675,7 @@ const EditSprint: React.FC = () => {
                 {isAdmin && !isFoundational ? (
                     <DiffHighlight 
                       label="Today's Insight" 
-                      original={originalSprint?.dailyContent?.find(c => c.day === selectedDay)?.lessonText} 
+                      original={Array.isArray(originalSprint?.dailyContent) ? originalSprint?.dailyContent.find(c => c.day === selectedDay)?.lessonText : undefined} 
                       updated={currentContent.lessonText} 
                     />
                 ) : (
@@ -674,7 +717,7 @@ const EditSprint: React.FC = () => {
                 {isAdmin && !isFoundational ? (
                     <DiffHighlight 
                       label="Today's Action Step" 
-                      original={originalSprint?.dailyContent?.find(c => c.day === selectedDay)?.taskPrompt} 
+                      original={Array.isArray(originalSprint?.dailyContent) ? originalSprint?.dailyContent.find(c => c.day === selectedDay)?.taskPrompt : undefined} 
                       updated={currentContent.taskPrompt} 
                     />
                 ) : (
@@ -716,7 +759,7 @@ const EditSprint: React.FC = () => {
                 {isAdmin && !isFoundational ? (
                     <DiffHighlight 
                       label="Coach Insight" 
-                      original={originalSprint?.dailyContent?.find(c => c.day === selectedDay)?.coachInsight} 
+                      original={Array.isArray(originalSprint?.dailyContent) ? originalSprint?.dailyContent.find(c => c.day === selectedDay)?.coachInsight : undefined} 
                       updated={currentContent.coachInsight} 
                     />
                 ) : (
@@ -982,7 +1025,7 @@ const EditSprint: React.FC = () => {
                 ) : (
                     <>
                         {/* Dynamic Sections Loop */}
-                        {editSettings.dynamicSections?.map((section, index) => {
+                        {Array.isArray(editSettings.dynamicSections) && editSettings.dynamicSections.map((section, index) => {
                             if (section.id === 'identity') {
                                 return (
                                     <section key={section.id} className="space-y-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
