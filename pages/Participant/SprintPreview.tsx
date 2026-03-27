@@ -37,6 +37,17 @@ const SprintPreview: React.FC = () => {
     if (!sprint) return <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center"><h2 className="text-base font-black mb-4">Sprint not found.</h2><button onClick={() => navigate('/discover')} className="text-primary font-black uppercase tracking-widest text-xs">Back to Discover</button></div>;
 
     const day1Content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
+    
+    const getPartialText = (text: string, percentage: number) => {
+        if (!text) return "";
+        // Split by sentence endings (. ! ?) followed by space or end of string
+        const sentences = text.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g) || [text];
+        const count = Math.max(1, Math.floor(sentences.length * (percentage / 100)));
+        return sentences.slice(0, count).join("").trim();
+    };
+
+    const partialInsight = getPartialText(day1Content?.lessonText || "", 90);
+    const partialAction = getPartialText(day1Content?.taskPrompt || "", 90);
 
     return (
         <div className="w-full bg-[#FAFAFA] min-h-screen flex flex-col font-sans text-dark animate-fade-in pb-24">
@@ -71,27 +82,24 @@ const SprintPreview: React.FC = () => {
                 <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden">
                     <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day 1 (Preview)</h2>
                     
-                    {/* Lesson Content - Locked 10% from the end (90% visibility) */}
+                    {/* Lesson Content - Sentence Based Lock */}
                     <div className="space-y-2 mb-10 relative">
                         <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Insight</h2>
-                        <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch] max-h-[700px] overflow-hidden relative">
-                            <FormattedText text={day1Content?.lessonText || ""} />
-                            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white via-white/90 to-transparent flex flex-col items-center justify-end pb-4">
-                                <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                                    Sprint Locked
-                                </div>
+                        <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch] relative">
+                            <FormattedText text={partialInsight + "..."} />
+                            <div className="mt-4 flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                Sprint Locked
                             </div>
                         </div>
                     </div>
 
-                    {/* Action Step - Locked after 90% */}
+                    {/* Action Step - Sentence Based Lock */}
                     <div className="space-y-6 relative">
                         <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden">
                             <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Action Step</h2>
-                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug max-h-[10rem] overflow-hidden relative">
-                                <FormattedText text={day1Content?.taskPrompt || ""} />
-                                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#F9FBF9] via-[#F9FBF9]/90 to-transparent"></div>
+                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug relative">
+                                <FormattedText text={partialAction + "..."} />
                             </div>
                             <div className="mt-6 border-t border-primary/5 pt-4 flex flex-col items-center">
                                 <Link 
