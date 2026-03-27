@@ -118,8 +118,8 @@ const SignUpPage: React.FC = () => {
       localStorage.removeItem('vectorise_last_sprint');
       document.cookie = "vectorise_ref=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
-      // 5. Post-Payment or Recommended Path Fulfillment
-      if (fromPayment) {
+      // 5. Post-Payment, Preview, or Recommended Path Fulfillment
+      if (fromPayment || targetSprintId) {
           if (targetTrackId) {
               // For tracks, we redirect to dashboard
               navigate('/participant/dashboard', { replace: true });
@@ -128,15 +128,21 @@ const SignUpPage: React.FC = () => {
               try {
                   const sprint = await sprintService.getSprintById(targetSprintId);
                   if (sprint) {
-                      const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprintId, sprint.duration);
-                      navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
-                      return;
+                      // Check if it's a foundational/free sprint or if they came from payment
+                      const isFoundational = sprint.category === 'Core Platform Sprint' || sprint.category === 'Growth Fundamentals';
+                      if (fromPayment || isFoundational || sprint.price === 0) {
+                          const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprintId, sprint.duration);
+                          navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
+                          return;
+                      }
                   }
               } catch (enrollError) {
                   console.error("Auto-enrollment failed:", enrollError);
               }
           }
-      } else if (persona && answers) {
+      }
+      
+      if (persona && answers) {
           // Handle Recommended Path from Quiz
           try {
               const availableSprints = await sprintService.getPublishedSprints();

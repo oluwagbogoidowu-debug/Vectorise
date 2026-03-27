@@ -240,34 +240,43 @@ const SprintLandingPage: React.FC = () => {
                             <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl group-hover/card:bg-primary/10 transition-colors duration-700"></div>
 
                             <div className="text-center mb-10 relative z-10">
-                                <SectionHeading>Sprint Status</SectionHeading>
-                                {enrollmentStatus === 'none' && (
-                                    <div className="flex flex-col items-center">
-                                        <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1">
-                                            {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost}` : `₦${sprint.price.toLocaleString()}`}
-                                        </h3>
-                                        <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Authorized Access</p>
+                                {(!user && sprint.pricingType === 'credits') ? (
+                                    <div className="py-2">
+                                        <SectionHeading>Path Discovery</SectionHeading>
+                                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Preview Mode</p>
                                     </div>
-                                )}
-                                {enrollmentStatus === 'active' && (
-                                    <div className="flex flex-col items-center gap-2">
-                                        <div className="bg-emerald-50 text-emerald-600 px-5 py-2.5 rounded-2xl border border-emerald-100 flex items-center gap-2 font-black uppercase text-[12px] tracking-widest animate-pulse shadow-sm">
-                                            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                                            In Progress
-                                        </div>
-                                    </div>
-                                )}
-                                {enrollmentStatus === 'queued' && (
-                                    <div className="bg-blue-50 text-blue-600 px-5 py-2.5 rounded-2xl border border-blue-100 inline-flex items-center gap-2 font-black uppercase text-[12px] tracking-widest shadow-sm">
-                                        <Clock className="w-3 h-3" />
-                                        In Upcoming Queue
-                                    </div>
-                                )}
-                                {enrollmentStatus === 'completed' && (
-                                    <div className="bg-gray-50 text-gray-400 px-5 py-2.5 rounded-2xl border border-gray-100 inline-flex items-center gap-2 font-black uppercase text-[12px] tracking-widest shadow-sm">
-                                        <CheckCircle2 className="w-3 h-3" />
-                                        Mastered
-                                    </div>
+                                ) : (
+                                    <>
+                                        <SectionHeading>Sprint Status</SectionHeading>
+                                        {enrollmentStatus === 'none' && (
+                                            <div className="flex flex-col items-center">
+                                                <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1">
+                                                    {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost}` : `₦${sprint.price.toLocaleString()}`}
+                                                </h3>
+                                                <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Authorized Access</p>
+                                            </div>
+                                        )}
+                                        {enrollmentStatus === 'active' && (
+                                            <div className="flex flex-col items-center gap-2">
+                                                <div className="bg-emerald-50 text-emerald-600 px-5 py-2.5 rounded-2xl border border-emerald-100 flex items-center gap-2 font-black uppercase text-[12px] tracking-widest animate-pulse shadow-sm">
+                                                    <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                                                    In Progress
+                                                </div>
+                                            </div>
+                                        )}
+                                        {enrollmentStatus === 'queued' && (
+                                            <div className="bg-blue-50 text-blue-600 px-5 py-2.5 rounded-2xl border border-blue-100 inline-flex items-center gap-2 font-black uppercase text-[12px] tracking-widest shadow-sm">
+                                                <Clock className="w-3 h-3" />
+                                                In Upcoming Queue
+                                            </div>
+                                        )}
+                                        {enrollmentStatus === 'completed' && (
+                                            <div className="bg-gray-50 text-gray-400 px-5 py-2.5 rounded-2xl border border-gray-100 inline-flex items-center gap-2 font-black uppercase text-[12px] tracking-widest shadow-sm">
+                                                <CheckCircle2 className="w-3 h-3" />
+                                                Mastered
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
 

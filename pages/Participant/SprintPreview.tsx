@@ -116,13 +116,20 @@ const SprintPreview: React.FC = () => {
                                         <div className="blur-[3px] select-none pointer-events-none opacity-30">
                                             <FormattedText text={actionParts.locked} />
                                         </div>
-                                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                                             <Link 
                                                 to="/signup" 
                                                 state={{ prefilledEmail, targetSprintId: sprintId }}
                                                 className="text-[10px] font-black text-primary hover:underline tracking-widest uppercase bg-white/90 px-4 py-2 rounded-full shadow-sm backdrop-blur-sm"
                                             >
                                                 Complete your account creation to unlock full sprint.
+                                            </Link>
+                                            <Link 
+                                                to="/login" 
+                                                state={{ prefilledEmail, targetSprintId: sprintId }}
+                                                className="text-[9px] font-black text-gray-400 hover:text-primary tracking-widest uppercase"
+                                            >
+                                                Already have an account? Login
                                             </Link>
                                         </div>
                                     </div>
