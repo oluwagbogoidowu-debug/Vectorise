@@ -1,7 +1,7 @@
 
 import { db } from './firebase';
 import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp } from 'firebase/firestore';
-import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review } from '../types';
+import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review, Track } from '../types';
 import { sanitizeData, userService } from './userService';
 
 const SPRINTS_COLLECTION = 'sprints';
@@ -108,6 +108,15 @@ export const sprintService = {
 
     subscribeToAdminSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("deleted", "==", false));
+        return onSnapshot(q, (snap) => {
+            callback(snap.docs.map(doc => sanitizeData(doc.data()) as Sprint));
+        }, (error) => {
+            if (onError) onError(error);
+        });
+    },
+
+    subscribeToAllSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
+        const q = query(collection(db, SPRINTS_COLLECTION));
         return onSnapshot(q, (snap) => {
             callback(snap.docs.map(doc => sanitizeData(doc.data()) as Sprint));
         }, (error) => {
@@ -274,7 +283,66 @@ export const sprintService = {
     },
 
     deleteSprint: async (sprintId: string) => {
+        // 1. Mark sprint as deleted
         await updateDoc(doc(db, SPRINTS_COLLECTION, sprintId), { deleted: true, published: false });
+
+        // 2. Remove from all Tracks
+        try {
+            const tracksQuery = query(collection(db, 'tracks'), where("sprintIds", "array-contains", sprintId));
+            const tracksSnap = await getDocs(tracksQuery);
+            for (const trackDoc of tracksSnap.docs) {
+                const trackData = trackDoc.data() as Track;
+                const newSprintIds = trackData.sprintIds.filter(id => id !== sprintId);
+                await updateDoc(doc(db, 'tracks', trackDoc.id), { 
+                    sprintIds: newSprintIds,
+                    updatedAt: new Date().toISOString()
+                });
+            }
+        } catch (err) {
+            console.error("[SprintService] Failed to cleanup tracks after sprint deletion:", err);
+        }
+
+        // 3. Remove from Orchestration
+        try {
+            const orchRef = doc(db, ORCHESTRATION_COLLECTION, 'current_mapping');
+            const orchSnap = await getDoc(orchRef);
+            if (orchSnap.exists()) {
+                const data = orchSnap.data();
+                const assignments = data.assignments as Record<string, LifecycleSlotAssignment> || {};
+                let changed = false;
+
+                for (const slotId in assignments) {
+                    const assignment = assignments[slotId];
+                    
+                    // Check primary sprintId
+                    if (assignment.sprintId === sprintId) {
+                        assignment.sprintId = '';
+                        changed = true;
+                    }
+
+                    // Check sprintIds array
+                    if (assignment.sprintIds && assignment.sprintIds.includes(sprintId)) {
+                        assignment.sprintIds = assignment.sprintIds.filter(id => id !== sprintId);
+                        changed = true;
+                    }
+
+                    // Check focus map
+                    if (assignment.sprintFocusMap && assignment.sprintFocusMap[sprintId]) {
+                        delete assignment.sprintFocusMap[sprintId];
+                        changed = true;
+                    }
+                }
+
+                if (changed) {
+                    await updateDoc(orchRef, { 
+                        assignments,
+                        updatedAt: new Date().toISOString()
+                    });
+                }
+            }
+        } catch (err) {
+            console.error("[SprintService] Failed to cleanup orchestration after sprint deletion:", err);
+        }
     },
 
     approveSprint: async (sprintId: string, data?: Partial<Sprint>) => {

@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { auth, db } from '../../services/firebase';
-import { createUserWithEmailAndPassword, updateProfile as updateFbProfile, sendEmailVerification, signOut } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile as updateFbProfile, sendEmailVerification } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { userService } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { UserRole, Participant } from '../../types';
 import Button from '../../components/Button';
 import LocalLogo from '../../components/LocalLogo';
+import { toast } from 'sonner';
 
 const SignUpPage: React.FC = () => {
   const navigate = useNavigate();
@@ -53,7 +54,6 @@ const SignUpPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [regError, setRegError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     if (prefilledEmail) setEmail(prefilledEmail);
@@ -182,9 +182,8 @@ const SignUpPage: React.FC = () => {
 
       await sendEmailVerification(firebaseUser);
       
-      // Sign out so they can "log in" as requested
-      await signOut(auth);
-      setShowSuccess(true);
+      toast.success("Account created successfully!");
+      navigate('/dashboard', { replace: true });
 
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') setRegError("Email already in use. Try logging in instead.");
@@ -194,34 +193,6 @@ const SignUpPage: React.FC = () => {
       setIsSubmitting(false);
     }
   };
-
-  if (showSuccess) {
-    return (
-      <div className="h-[100dvh] w-screen bg-[#FAFAFA] flex flex-col items-center justify-center px-6 overflow-hidden font-sans relative">
-        <div className="w-full max-w-sm flex flex-col items-center animate-fade-in z-10">
-          <div className="w-full bg-white p-10 rounded-[2.5rem] shadow-2xl border border-gray-100 text-center">
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic mb-4">
-              Sign up successful
-            </h1>
-            <p className="text-xs text-gray-500 font-medium leading-relaxed mb-8 italic">
-              Your account has been created. Please log in to begin your journey.
-            </p>
-            <Button 
-              onClick={() => navigate('/login', { state: { prefilledEmail: email } })} 
-              className="w-full py-4 bg-primary text-white rounded-full shadow-lg text-[10px] font-black uppercase tracking-[0.2em]"
-            >
-              Start your rise &rarr;
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-[100dvh] w-screen bg-[#FAFAFA] flex flex-col items-center justify-center px-6 overflow-hidden font-sans relative">

@@ -31,9 +31,10 @@ const MySprints: React.FC = () => {
             setIsLoading(false);
         });
 
-        // 2. Subscribe to ALL active sprints for real-time metadata syncing (like unique images)
+        // 2. Subscribe to ALL sprints (including deleted) for real-time metadata syncing
         // This ensures if a coach updates an image, it reflects on the enrollment card immediately.
-        const unsubSprints = sprintService.subscribeToAdminSprints((data) => {
+        // Also ensures that if a sprint is deleted, participants who are already enrolled can still see it.
+        const unsubSprints = sprintService.subscribeToAllSprints((data) => {
             setAllSprints(data);
             setIsLoading(false);
         }, (error) => {

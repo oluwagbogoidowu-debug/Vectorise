@@ -78,7 +78,7 @@ exports.createPartnerAccount = functions.https.onRequest(async (req, res) => {
       shineCommentIds: [],
       claimedMilestoneIds: [],
       referralCode: (uid || '').substring(0, 8).toUpperCase(),
-      walletBalance: 50,
+      walletBalance: 0,
       impactStats: { peopleHelped: 0, streak: 0 }
     });
 

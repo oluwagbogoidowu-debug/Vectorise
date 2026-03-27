@@ -171,6 +171,7 @@ const Badges: React.FC = () => {
         const claimed = p.claimedMilestoneIds || [];
         const categories = {
             setupReward: [
+                { id: 'welcome_login', title: 'Welcome Bonus', description: 'Your first step into the Rise.', icon: '🪙', currentValue: 1, targetValue: 1, points: 10, color: 'indigo' },
                 { id: 'setup_account', title: 'Account Creation', description: 'Welcome to the Rise.', icon: '👤', currentValue: 1, targetValue: 1, points: 10, color: 'indigo' },
                 { id: 'setup_identity', title: 'Identity Setup', description: 'You defined your path.', icon: '🆔', currentValue: stats.isIdentityComplete ? 1 : 0, targetValue: 1, points: 20, color: 'indigo' },
             ],

@@ -44,6 +44,49 @@ export const trackService = {
     },
 
     deleteTrack: async (trackId: string) => {
+        // 1. Delete the track document
         await deleteDoc(doc(db, TRACKS_COLLECTION, trackId));
+
+        // 2. Remove from Orchestration
+        try {
+            const orchRef = doc(db, 'orchestration', 'current_mapping');
+            const orchSnap = await getDoc(orchRef);
+            if (orchSnap.exists()) {
+                const data = orchSnap.data();
+                const assignments = data.assignments as Record<string, any> || {};
+                let changed = false;
+
+                for (const slotId in assignments) {
+                    const assignment = assignments[slotId];
+                    
+                    // Check primary sprintId (which can be a track ID)
+                    if (assignment.sprintId === trackId) {
+                        assignment.sprintId = '';
+                        changed = true;
+                    }
+
+                    // Check sprintIds array (which can contain track IDs)
+                    if (assignment.sprintIds && assignment.sprintIds.includes(trackId)) {
+                        assignment.sprintIds = assignment.sprintIds.filter((id: string) => id !== trackId);
+                        changed = true;
+                    }
+
+                    // Check focus map
+                    if (assignment.sprintFocusMap && assignment.sprintFocusMap[trackId]) {
+                        delete assignment.sprintFocusMap[trackId];
+                        changed = true;
+                    }
+                }
+
+                if (changed) {
+                    await updateDoc(orchRef, { 
+                        assignments,
+                        updatedAt: new Date().toISOString()
+                    });
+                }
+            }
+        } catch (err) {
+            console.error("[TrackService] Failed to cleanup orchestration after track deletion:", err);
+        }
     }
 };

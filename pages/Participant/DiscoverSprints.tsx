@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Coach, Sprint, Participant, ParticipantSprint, LifecycleSlotAssignment, Track } from '../../types';
+import { Coach, Sprint, Participant, ParticipantSprint, LifecycleSlotAssignment, Track, UserRole } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { trackService } from '../../services/trackService';
 import { userService } from '../../services/userService';
@@ -344,6 +344,27 @@ const DiscoverSprints: React.FC = () => {
                             )}
                         </div>
                     </section>
+                )}
+
+                {/* PROFILE SETUP PROMPT */}
+                {user && user.role === UserRole.PARTICIPANT && (!(user as Participant).occupation || !(user as Participant).growthAreas?.length || !(user as Participant).risePathway) && (
+                    <div className="mb-12 p-6 bg-primary/5 border border-primary/10 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                                <Sparkles className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-black text-gray-900 leading-tight">Complete your profile setup</p>
+                                <p className="text-[10px] text-gray-500 font-medium">Earn coins to start your first sprint</p>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={() => navigate('/profile/settings/identity')}
+                            className="px-6 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm hover:shadow-md transition-all active:scale-95"
+                        >
+                            Setup Profile &rarr;
+                        </button>
+                    </div>
                 )}
 
                 {/* SECTION 3: THE FUTURE TRACK */}
