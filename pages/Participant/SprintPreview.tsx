@@ -48,8 +48,8 @@ const SprintPreview: React.FC = () => {
         };
     };
 
-    const insightParts = splitByParagraphs(day1Content?.lessonText || "", 80);
-    const actionParts = splitByParagraphs(day1Content?.taskPrompt || "", 80);
+    const insightParts = splitByParagraphs(day1Content?.lessonText || "", 70);
+    const actionParts = splitByParagraphs(day1Content?.taskPrompt || "", 40);
 
     return (
         <div className="w-full bg-[#FAFAFA] min-h-screen flex flex-col font-sans text-dark animate-fade-in pb-24">
