@@ -352,10 +352,7 @@ const SprintView: React.FC = () => {
                         <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day {viewingDay}</h2>
                         
                         <div className="space-y-2 mb-10">
-                            <div className="flex items-center gap-3 mb-2">
-                                <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[10px] font-black">1</span>
-                                <SectionHeading>Today's Insight</SectionHeading>
-                            </div>
+                            <SectionHeading>Today's Insight</SectionHeading>
                             <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
                                 <FormattedText text={dayContent?.lessonText || ""} />
                             </div>
@@ -363,10 +360,7 @@ const SprintView: React.FC = () => {
 
                         <div className="space-y-6">
                             <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <span className="w-6 h-6 rounded-lg bg-primary text-white flex items-center justify-center text-[10px] font-black">2</span>
-                                    <SectionHeading>Today's Action Step</SectionHeading>
-                                </div>
+                                <SectionHeading>Today's Action Step</SectionHeading>
                                 <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
                                     <FormattedText text={dayContent?.taskPrompt || ""} />
                                 </div>
@@ -375,10 +369,7 @@ const SprintView: React.FC = () => {
 
                             {dayContent?.coachInsight && (
                                 <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <span className="w-6 h-6 rounded-lg bg-gray-200 text-gray-500 flex items-center justify-center text-[10px] font-black">3</span>
-                                        <SectionHeading color="gray-400">Coach Insight</SectionHeading>
-                                    </div>
+                                    <SectionHeading color="gray-400">Coach Insight</SectionHeading>
                                     <div className="text-gray-600 italic font-medium text-xs md:text-sm leading-relaxed">
                                         <FormattedText text={dayContent.coachInsight} />
                                     </div>
