@@ -19,6 +19,7 @@ const SprintPayment: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   
+  const [showInsufficientModal, setShowInsufficientModal] = useState(false);
   const [globalSettings, setGlobalSettings] = useState<GlobalOrchestrationSettings | null>(null);
 
   const state = location.state || {};
@@ -82,14 +83,22 @@ const SprintPayment: React.FC = () => {
   const userBalance = userParticipant?.walletBalance || 0;
   const hasEnoughCredits = userBalance >= sprintPrice;
 
+  const isProfileIncomplete = userParticipant && (!userParticipant.occupation || !userParticipant.growthAreas || userParticipant.growthAreas.length === 0 || !userParticipant.risePathway);
+
   const effectiveEmail = user?.email || guestEmail;
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(effectiveEmail);
 
-  const isFormValid = isEmailValid && (!!sprintId || !!trackId) && (isCreditSprint ? (!!user && hasEnoughCredits) : true);
+  const isFormValid = isEmailValid && (!!sprintId || !!trackId) && (isCreditSprint ? (!!user) : true);
   const canPay = finalCommitment && isFormValid && !isProcessing;
 
   const handleCoinPayment = async () => {
     if (!user || !selectedSprint) return;
+    
+    if (!hasEnoughCredits) {
+        setShowInsufficientModal(true);
+        return;
+    }
+
     setIsProcessing(true);
     setErrorMessage(null);
     setValidationError(null);
@@ -304,6 +313,56 @@ const SprintPayment: React.FC = () => {
           </footer>
         </div>
       </div>
+
+      {/* Insufficient Coins Modal */}
+      {showInsufficientModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl animate-slide-up">
+            <div className="p-8 text-center">
+              <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
+                🪙
+              </div>
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Insufficient Coins</h2>
+              <p className="text-sm text-gray-500 font-medium mb-8">
+                You need <span className="text-gray-900 font-black">{sprintPrice} coins</span> to unlock this sprint. You currently have <span className="text-gray-900 font-black">{userBalance} coins</span>.
+              </p>
+
+              <div className="space-y-3">
+                <Button 
+                  onClick={() => navigate('/buy-coins')}
+                  className="w-full py-4 bg-primary text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-primary/20"
+                >
+                  Buy Coins
+                </Button>
+
+                {isProfileIncomplete && (
+                  <Button 
+                    variant="secondary"
+                    onClick={() => navigate('/profile')}
+                    className="w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest"
+                  >
+                    Setup Your Profile
+                  </Button>
+                )}
+
+                <button 
+                  onClick={() => navigate('/profile/hall-of-rise')}
+                  className="w-full py-4 text-gray-400 hover:text-primary rounded-2xl text-[11px] font-black uppercase tracking-widest transition-colors"
+                >
+                  Redeem Coins From Hall of Rise
+                </button>
+
+                <button 
+                  onClick={() => setShowInsufficientModal(false)}
+                  className="mt-4 text-[10px] font-black text-gray-300 uppercase tracking-widest hover:text-gray-400 transition-colors"
+                >
+                  Maybe Later
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

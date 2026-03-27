@@ -187,7 +187,7 @@ const Profile: React.FC = () => {
   }, [currentTaskGroupIdx]);
 
   const totalSetupSteps = 11;
-  const setupProgress = setupStep === -1 ? 100 : Math.round((setupStep / totalSetupSteps) * 100);
+  const setupProgress = (isLoading || setupStep === -2) ? 0 : (setupStep === -1 ? 100 : Math.max(0, Math.round((setupStep / totalSetupSteps) * 100)));
 
   const SectionLabel = ({ text }: { text: string }) => (
     <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2 px-1">

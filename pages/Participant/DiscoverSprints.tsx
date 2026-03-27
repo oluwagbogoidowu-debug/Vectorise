@@ -359,7 +359,7 @@ const DiscoverSprints: React.FC = () => {
                             </div>
                         </div>
                         <button 
-                            onClick={() => navigate('/profile/settings/identity')}
+                            onClick={() => navigate('/profile')}
                             className="px-6 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm hover:shadow-md transition-all active:scale-95"
                         >
                             Setup Profile &rarr;

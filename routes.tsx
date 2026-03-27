@@ -67,6 +67,8 @@ import EditProfile from './pages/Participant/Profile/EditProfile';
 import IdentitySettings from './pages/Participant/Profile/IdentitySettings';
 import RiseArchive from './pages/Participant/Profile/RiseArchive';
 
+import BuyCoins from './pages/Participant/BuyCoins';
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
   roles: UserRole[];
@@ -174,6 +176,7 @@ export const AppRoutes: React.FC = () => {
          <Route path="/impact/ripple" element={<RippleEffect />} />
          <Route path="/impact/rewards" element={<GrowthRewards />} />
          <Route path="/impact/badges" element={<Badges />} />
+         <Route path="/buy-coins" element={<BuyCoins />} />
       </Route>
       
       <Route path="/participant/sprint/:enrollmentId" element={
