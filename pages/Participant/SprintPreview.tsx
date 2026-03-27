@@ -38,16 +38,18 @@ const SprintPreview: React.FC = () => {
 
     const day1Content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
     
-    const getPartialText = (text: string, percentage: number) => {
-        if (!text) return "";
-        // Split by sentence endings (. ! ?) followed by space or end of string
-        const sentences = text.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g) || [text];
-        const count = Math.max(1, Math.floor(sentences.length * (percentage / 100)));
-        return sentences.slice(0, count).join("").trim();
+    const splitByParagraphs = (text: string, percentage: number) => {
+        if (!text) return { visible: "", locked: "" };
+        const paragraphs = text.split(/\n\s*\n/);
+        const count = Math.max(1, Math.floor(paragraphs.length * (percentage / 100)));
+        return {
+            visible: paragraphs.slice(0, count).join("\n\n"),
+            locked: paragraphs.slice(count).join("\n\n")
+        };
     };
 
-    const partialInsight = getPartialText(day1Content?.lessonText || "", 90);
-    const partialAction = getPartialText(day1Content?.taskPrompt || "", 90);
+    const insightParts = splitByParagraphs(day1Content?.lessonText || "", 80);
+    const actionParts = splitByParagraphs(day1Content?.taskPrompt || "", 80);
 
     return (
         <div className="w-full bg-[#FAFAFA] min-h-screen flex flex-col font-sans text-dark animate-fade-in pb-24">
@@ -82,33 +84,49 @@ const SprintPreview: React.FC = () => {
                 <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden">
                     <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day 1 (Preview)</h2>
                     
-                    {/* Lesson Content - Sentence Based Lock */}
+                    {/* Lesson Content - Paragraph Based Lock with Blur */}
                     <div className="space-y-2 mb-10 relative">
                         <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Insight</h2>
                         <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch] relative">
-                            <FormattedText text={partialInsight + "..."} />
-                            <div className="mt-4 flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                                Sprint Locked
-                            </div>
+                            <FormattedText text={insightParts.visible} />
+                            {insightParts.locked && (
+                                <div className="relative mt-4">
+                                    <div className="blur-[4px] select-none pointer-events-none opacity-40">
+                                        <FormattedText text={insightParts.locked} />
+                                    </div>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                        <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-white/80 px-4 py-2 rounded-full shadow-sm backdrop-blur-sm">
+                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                            Sprint Locked
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* Action Step - Sentence Based Lock */}
+                    {/* Action Step - Paragraph Based Lock with Blur */}
                     <div className="space-y-6 relative">
                         <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden">
                             <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Action Step</h2>
                             <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug relative">
-                                <FormattedText text={partialAction + "..."} />
-                            </div>
-                            <div className="mt-6 border-t border-primary/5 pt-4 flex flex-col items-center">
-                                <Link 
-                                    to="/signup" 
-                                    state={{ prefilledEmail, targetSprintId: sprintId }}
-                                    className="text-[10px] font-black text-primary hover:underline tracking-widest uppercase"
-                                >
-                                    Complete your account creation to unlock full sprint.
-                                </Link>
+                                <FormattedText text={actionParts.visible} />
+                                {actionParts.locked && (
+                                    <div className="relative mt-4">
+                                        <div className="blur-[3px] select-none pointer-events-none opacity-30">
+                                            <FormattedText text={actionParts.locked} />
+                                        </div>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                            <Link 
+                                                to="/signup" 
+                                                state={{ prefilledEmail, targetSprintId: sprintId }}
+                                                className="text-[10px] font-black text-primary hover:underline tracking-widest uppercase bg-white/90 px-4 py-2 rounded-full shadow-sm backdrop-blur-sm"
+                                            >
+                                                Complete your account creation to unlock full sprint.
+                                            </Link>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
