@@ -87,7 +87,7 @@ const SignUpPage: React.FC = () => {
         persona: persona || (isPartnerApplication ? 'Growth Partner' : 'Seeker'),
         onboardingAnswers: answers || {},
         occupation: occupation || (isPartnerApplication ? 'Partner' : 'Unemployed'),
-        walletBalance: 50,
+        walletBalance: 0,
         createdAt: new Date().toISOString(),
         enrolledSprintIds: [],
         isPartner: !!isPartnerApplication,

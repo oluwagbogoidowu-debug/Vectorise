@@ -155,7 +155,7 @@ export const userService = {
         shineCommentIds: [], 
         claimedMilestoneIds: [],
         referralCode: (uid || '').substring(0, 8).toUpperCase(),
-        walletBalance: 50,
+        walletBalance: 0,
         impactStats: { peopleHelped: 0, streak: 0 },
         isPartner: false,
         ...data
@@ -305,8 +305,9 @@ export const userService = {
           await updateDoc(userRef, { claimedMilestoneIds: arrayUnion(milestoneId) });
           
           if (isAutoClaim) {
-            queueNotification('success', `Bonus! +${points} Coins earned for ${milestoneId.replace(/-/g, ' ')}`, {
-              description: "Keep rising!",
+            const displayId = milestoneId === 'welcome_login' ? 'Daily Login Bonus' : milestoneId.replace(/-/g, ' ');
+            queueNotification('success', `Bonus! +${points} Coins earned for ${displayId}`, {
+              description: milestoneId === 'welcome_login' ? "Welcome back to the Rise!" : "Keep rising!",
               duration: 3000,
             });
           }

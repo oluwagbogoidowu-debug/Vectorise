@@ -195,7 +195,7 @@ const TrackDescriptionPage: React.FC = () => {
         navigate('/onboarding/commitment', { state: { trackId: track.id, track: track } });
     };
 
-    if (isLoading) return <div className="flex items-center justify-center min-h-screen bg-light text-[8px] font-black uppercase tracking-[0.2em] text-gray-300">Assembling Track Bundle...</div>;
+    if (isLoading) return null;
     if (!track) return <div className="min-h-screen flex flex-col items-center justify-center bg-light text-center px-4"><h2 className="text-base font-black mb-2">Track not found.</h2><Button onClick={() => navigate('/discover')}>Discover Paths</Button></div>;
 
     return (

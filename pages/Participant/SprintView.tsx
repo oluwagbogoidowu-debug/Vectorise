@@ -394,9 +394,6 @@ const SprintView: React.FC = () => {
                                                     }`}
                                                 >
                                                     <div className="relative z-10 flex items-center gap-3">
-                                                        <span className={`text-[8px] font-black w-5 h-5 rounded-lg flex items-center justify-center transition-colors ${proofSelected === opt ? 'bg-white/20 text-white' : 'bg-gray-50 text-gray-300'}`}>
-                                                            {idx + 1}
-                                                        </span>
                                                         <span className={`text-[10px] font-black uppercase tracking-[0.15em] transition-colors ${proofSelected === opt ? 'text-white' : 'text-gray-600'}`}>
                                                             {opt}
                                                         </span>

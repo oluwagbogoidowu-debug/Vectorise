@@ -3,6 +3,8 @@ import { User, Coach, Participant, Admin, Permission, UserRole } from '../types'
 import { MOCK_USERS, MOCK_ROLES } from '../services/mockData';
 import { auth } from '../services/firebase';
 import { onAuthStateChanged, signOut, deleteUser as firebaseDeleteUser, sendPasswordResetEmail } from 'firebase/auth';
+import { onSnapshot, doc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 import { userService, sanitizeData } from '../services/userService';
 
 type AuthContextType = {
@@ -29,96 +31,104 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Listen for Firebase Auth changes
   useEffect(() => {
+    let unsubscribeSnapshot: (() => void) | null = null;
 
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+      }
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setLoading(true);
-      try {
-        if (firebaseUser) {
-            let dbUser = await userService.getUserDocument(firebaseUser.uid);
+      if (firebaseUser) {
+        setLoading(true);
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        
+        unsubscribeSnapshot = onSnapshot(userRef, async (docSnap) => {
+          try {
+            if (docSnap.exists()) {
+              let dbUser = sanitizeData(docSnap.data()) as User | Participant | Coach;
 
-            if (dbUser) {
-                const updates: any = {};
+              // Check for auto-claim 10 coin login bonus
+              if (dbUser.role === UserRole.PARTICIPANT) {
                 const pUser = dbUser as Participant;
-                if (!pUser.enrolledSprintIds) updates.enrolledSprintIds = [];
-                if (!pUser.shinePostIds) updates.shinePostIds = [];
-                if (!pUser.shineCommentIds) updates.shineCommentIds = [];
-                if (!pUser.referralCode) updates.referralCode = (firebaseUser.uid || '').substring(0, 8).toUpperCase();
-
-                if (Object.keys(updates).length > 0) {
-                    await userService.updateUserDocument(dbUser.id, updates);
-                    dbUser = { ...dbUser, ...updates };
+                if (!pUser.claimedMilestoneIds?.includes('welcome_login')) {
+                  // We use a session storage flag to only trigger this once per session to avoid any potential loops
+                  const sessionKey = `auto_claim_welcome_${firebaseUser.uid}`;
+                  if (!sessionStorage.getItem(sessionKey)) {
+                    sessionStorage.setItem(sessionKey, 'true');
+                    await userService.claimMilestone(firebaseUser.uid, 'welcome_login', 10, true);
+                    // The snapshot will trigger again with the updated data
+                    return;
+                  }
                 }
-            }
-
-            if (!dbUser) {
-                const newUserProfile: Partial<Participant> = {
-                    id: firebaseUser.uid,
-                    name: firebaseUser.displayName || 'User',
-                    email: firebaseUser.email || '',
-                    role: UserRole.PARTICIPANT,
-                    profileImageUrl: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${firebaseUser.displayName || 'User'}&background=0E7850&color=fff`,
-                    bio: "Ready to grow.",
-                    followers: 0,
-                    following: 0,
-                    savedSprintIds: [],
-                    enrolledSprintIds: [],
-                    wishlistSprintIds: [],
-                    shinePostIds: [],
-                    shineCommentIds: [],
-                    referralCode: (firebaseUser.uid || '').substring(0, 8).toUpperCase(),
-                    walletBalance: 50,
-                    impactStats: { peopleHelped: 0, streak: 0 },
-                    createdAt: new Date().toISOString(),
-                };
-                
-                await userService.createUserDocument(firebaseUser.uid, newUserProfile);
-                dbUser = newUserProfile as Participant;
-            }
-
-            const serializableUser = sanitizeData(dbUser);
-            setUser(serializableUser);
-            
-            // Determine active role
-            const storedRole = localStorage.getItem('vectorise_active_role') as UserRole;
-            const dbRole = dbUser.role as UserRole;
-            
-            // Validate stored role
-            let roleToSet = dbRole;
-            if (storedRole) {
-                const isCoach = (dbUser as Coach).hasCoachProfile || dbRole === UserRole.COACH;
-                const isAdmin = dbRole === UserRole.ADMIN;
-                
-                if (storedRole === dbRole) {
-                    roleToSet = storedRole;
-                } else if (storedRole === UserRole.COACH && isCoach) {
-                    roleToSet = UserRole.COACH;
-                } else if (isAdmin) {
-                    // Admins can switch to any role they want for testing/viewing
-                    roleToSet = storedRole;
-                }
-            }
-            
-            setActiveRole(roleToSet);
-            localStorage.setItem('vectorise_active_role', roleToSet);
-        } else {
-            // User is signed out
-            setUser(null);
-        }
-      } catch (err) {
-          console.error("Auth State Sync Error", err);
-          if (firebaseUser) {
-              let foundUser = MOCK_USERS.find(u => u.email.toLowerCase() === firebaseUser.email?.toLowerCase());
-              if (foundUser) {
-                  setUser(sanitizeData(foundUser));
               }
+
+              setUser(dbUser);
+              
+              // Determine active role
+              const storedRole = localStorage.getItem('vectorise_active_role') as UserRole;
+              const dbRole = dbUser.role as UserRole;
+              
+              let roleToSet = dbRole;
+              if (storedRole) {
+                  const isCoach = (dbUser as Coach).hasCoachProfile || dbRole === UserRole.COACH;
+                  const isAdmin = dbRole === UserRole.ADMIN;
+                  
+                  if (storedRole === dbRole) {
+                      roleToSet = storedRole;
+                  } else if (storedRole === UserRole.COACH && isCoach) {
+                      roleToSet = UserRole.COACH;
+                  } else if (isAdmin) {
+                      roleToSet = storedRole;
+                  }
+              }
+              
+              setActiveRole(roleToSet);
+              localStorage.setItem('vectorise_active_role', roleToSet);
+            } else {
+              // Document doesn't exist yet, create it
+              const newUserProfile: Partial<Participant> = {
+                  id: firebaseUser.uid,
+                  name: firebaseUser.displayName || 'User',
+                  email: firebaseUser.email || '',
+                  role: UserRole.PARTICIPANT,
+                  profileImageUrl: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${firebaseUser.displayName || 'User'}&background=0E7850&color=fff`,
+                  bio: "Ready to grow.",
+                  followers: 0,
+                  following: 0,
+                  savedSprintIds: [],
+                  enrolledSprintIds: [],
+                  wishlistSprintIds: [],
+                  shinePostIds: [],
+                  shineCommentIds: [],
+                  referralCode: (firebaseUser.uid || '').substring(0, 8).toUpperCase(),
+                  walletBalance: 0,
+                  impactStats: { peopleHelped: 0, streak: 0 },
+                  createdAt: new Date().toISOString(),
+              };
+              
+              await userService.createUserDocument(firebaseUser.uid, newUserProfile);
+              // Snapshot will trigger again
+            }
+          } catch (err) {
+            console.error("Auth State Sync Error", err);
+          } finally {
+            setLoading(false);
           }
-      } finally {
+        }, (error) => {
+          console.error("Snapshot Error", error);
           setLoading(false);
+        });
+      } else {
+        setUser(null);
+        setLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+    };
   }, []);
 
   useEffect(() => {

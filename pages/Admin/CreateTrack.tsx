@@ -223,9 +223,7 @@ const CreateTrack: React.FC = () => {
                             </div>
 
                             <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 no-scrollbar">
-                                {isLoadingSprints ? (
-                                    <p className="text-center py-10 text-gray-300 text-[10px] font-black uppercase tracking-widest">Loading Registry...</p>
-                                ) : filteredSprints.map(s => (
+                                {isLoadingSprints ? null : filteredSprints.map(s => (
                                     <button 
                                         key={s.id}
                                         type="button"

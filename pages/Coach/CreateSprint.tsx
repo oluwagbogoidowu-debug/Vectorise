@@ -21,11 +21,7 @@ const CreateSprint: React.FC = () => {
     const [sprintId] = useState(() => `sprint_${Date.now()}`);
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <p className="text-gray-400 font-bold uppercase tracking-widest text-sm">Loading Registry...</p>
-            </div>
-        );
+        return null;
     }
 
     if (!user) {

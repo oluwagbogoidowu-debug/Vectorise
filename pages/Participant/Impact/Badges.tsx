@@ -219,10 +219,6 @@ const Badges: React.FC = () => {
         if (!user) return;
         try {
             await userService.claimMilestone(user.id, m.id, m.points);
-            const p = user as Participant;
-            const newClaimed = [...(p.claimedMilestoneIds || []), m.id];
-            const newBalance = (p.walletBalance || 0) + m.points;
-            await updateProfile({ claimedMilestoneIds: newClaimed, walletBalance: newBalance });
             userService.queueNotification('success', `Claimed! +${m.points} Coins added to your wallet.`, {
                 description: `Milestone: ${m.title}`,
                 duration: 3000
