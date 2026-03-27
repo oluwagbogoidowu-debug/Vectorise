@@ -71,10 +71,10 @@ const SprintPreview: React.FC = () => {
                 <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden">
                     <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day 1 (Preview)</h2>
                     
-                    {/* Lesson Content - Locked 2/3 */}
+                    {/* Lesson Content - Locked 80% */}
                     <div className="space-y-2 mb-10 relative">
                         <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Insight</h2>
-                        <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch] max-h-[300px] overflow-hidden relative">
+                        <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch] max-h-[450px] overflow-hidden relative">
                             <FormattedText text={day1Content?.lessonText || ""} />
                             <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white via-white/90 to-transparent flex flex-col items-center justify-end pb-4">
                                 <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
@@ -85,11 +85,11 @@ const SprintPreview: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Action Step - Locked after 5 lines */}
+                    {/* Action Step - Locked after 50% */}
                     <div className="space-y-6 relative">
                         <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden">
                             <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Action Step</h2>
-                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug max-h-[7.5rem] overflow-hidden relative">
+                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug max-h-[4.5rem] overflow-hidden relative">
                                 <FormattedText text={day1Content?.taskPrompt || ""} />
                                 <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#F9FBF9] via-[#F9FBF9]/90 to-transparent"></div>
                             </div>
