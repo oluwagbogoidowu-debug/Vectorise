@@ -250,7 +250,7 @@ const SprintView: React.FC = () => {
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                     </button>
                     <div className="text-center flex-1 mx-4 min-w-0">
-                        <h1 className="text-lg font-black text-gray-900 truncate italic">{sprint.title}</h1>
+                        <h1 className="text-lg font-black text-gray-900 truncate">{sprint.title}</h1>
                     </div>
                     <div className="flex gap-2">
                         <Link to={`/sprint/${sprint.id}`} className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all">
@@ -314,7 +314,7 @@ const SprintView: React.FC = () => {
                             <div className="mb-6 opacity-20">
                                 <LocalLogo type="favicon" className="w-24 h-24" />
                             </div>
-                            <h2 className="text-xl font-black text-gray-900 tracking-tight italic mb-2">In the Queue.</h2>
+                            <h2 className="text-xl font-black text-gray-900 tracking-tight mb-2">In the Queue.</h2>
                             <p className="text-[10px] text-gray-500 font-medium mb-8 max-w-xs">
                                 You have an active sprint running. This journey will automatically unlock once your current focus is complete.
                             </p>
@@ -332,7 +332,7 @@ const SprintView: React.FC = () => {
                             <div className="mb-6 opacity-20">
                                 <LocalLogo type="favicon" className="w-24 h-24" />
                             </div>
-                            <h2 className="text-xl font-black text-gray-900 tracking-tight italic mb-2">Access Locked.</h2>
+                            <h2 className="text-xl font-black text-gray-900 tracking-tight mb-2">Access Locked.</h2>
                             <p className="text-[10px] text-gray-500 font-medium mb-8 max-w-xs">
                                 {dayLockDetails.unlockTime 
                                     ? `Next lesson unlocks at midnight.`
@@ -370,7 +370,7 @@ const SprintView: React.FC = () => {
                             {dayContent?.coachInsight && (
                                 <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
                                     <SectionHeading color="gray-400">Coach Insight</SectionHeading>
-                                    <div className="text-gray-600 italic font-medium text-xs md:text-sm leading-relaxed">
+                                    <div className="text-gray-600 font-medium text-xs md:text-sm leading-relaxed">
                                         <FormattedText text={dayContent.coachInsight} />
                                     </div>
                                 </div>
@@ -413,7 +413,7 @@ const SprintView: React.FC = () => {
                                     <div className="space-y-3">
                                         <SectionHeading>Send Submission</SectionHeading>
                                         {dayContent.submissionPrompt && (
-                                            <p className="text-[10px] font-bold text-gray-400 italic mb-2">
+                                            <p className="text-[10px] font-bold text-gray-400 mb-2">
                                                 {dayContent.submissionPrompt}
                                             </p>
                                         )}
@@ -467,8 +467,8 @@ const SprintView: React.FC = () => {
                                     <div className="animate-fade-in pt-4 border-t border-gray-50">
                                         <p className="text-[7px] font-black text-primary uppercase tracking-[0.2em] mb-4">Your Breakthrough</p>
                                         <div className="bg-primary/5 rounded-[1.5rem] p-6 border border-primary/10">
-                                            <p className="text-gray-800 italic font-medium text-sm leading-relaxed">
-                                                "{dayProgress.reflection}"
+                                            <p className="text-gray-800 font-medium text-sm leading-relaxed">
+                                                {dayProgress.reflection}
                                             </p>
                                         </div>
                                     </div>

@@ -47,7 +47,7 @@ const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint, coach }) => {
               <FormattedText text={sprint.title || 'Untitled Sprint'} inline />
             </h1>
             {sprint.subtitle && (
-                <p className="text-white/60 text-[8px] font-medium italic tracking-tight mb-3 leading-snug max-w-[200px]">{sprint.subtitle}</p>
+                <p className="text-white/60 text-[8px] font-medium tracking-tight mb-3 leading-snug max-w-[200px]">{sprint.subtitle}</p>
             )}
             <div className="flex items-center gap-1.5 text-white/40 text-[6px] font-black uppercase tracking-widest">
               <Clock className="w-2 h-2" />
@@ -63,8 +63,8 @@ const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint, coach }) => {
               
               <div className="space-y-6">
                 {sprint.description && (!Array.isArray(sprint.dynamicSections) || sprint.dynamicSections.filter(s => s.body && s.body.trim()).length === 0) && (
-                  <p className="text-[9px] text-gray-600 font-medium leading-relaxed italic">
-                    "{sprint.description}"
+                  <p className="text-[9px] text-gray-600 font-medium leading-relaxed">
+                    {sprint.description}
                   </p>
                 )}
 

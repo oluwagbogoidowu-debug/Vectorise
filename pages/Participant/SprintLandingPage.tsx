@@ -193,7 +193,7 @@ const SprintLandingPage: React.FC = () => {
                                     <FormattedText text={sprint.title} inline />
                                 </h1>
                                 {sprint.subtitle && (
-                                    <p className="text-white/70 text-sm md:text-base font-medium italic tracking-tight mb-6 leading-snug max-w-xl">
+                                    <p className="text-white/70 text-sm md:text-base font-medium tracking-tight mb-6 leading-snug max-w-xl">
                                         {sprint.subtitle}
                                     </p>
                                 )}
@@ -212,8 +212,8 @@ const SprintLandingPage: React.FC = () => {
                                     
                                     <div className="space-y-8">
                                         {displayDescription && !hasDynamicContent && (
-                                            <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed italic">
-                                                "{displayDescription}"
+                                            <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed">
+                                                {displayDescription}
                                             </p>
                                         )}
 
