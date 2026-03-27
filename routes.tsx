@@ -69,6 +69,8 @@ import RiseArchive from './pages/Participant/Profile/RiseArchive';
 
 import BuyCoins from './pages/Participant/BuyCoins';
 
+import SprintPreview from './pages/Participant/SprintPreview';
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
   roles: UserRole[];
@@ -201,6 +203,7 @@ export const AppRoutes: React.FC = () => {
       <Route path="/admin/track/edit/:trackId" element={<ProtectedRoute roles={[UserRole.ADMIN]}><EditTrack /></ProtectedRoute>} />
       <Route path="/track/:trackId" element={<TrackDescriptionPage />} />
       
+      <Route path="/sprint/preview/:sprintId" element={<SprintPreview />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

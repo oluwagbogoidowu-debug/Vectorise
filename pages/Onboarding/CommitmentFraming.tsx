@@ -62,12 +62,26 @@ const CommitmentFraming: React.FC = () => {
     
     setIsNavigating(true);
     
+    // Check if it's a foundational sprint and user is not logged in
+    const isFoundational = sprint && (
+      sprint.sprintType === 'Foundational' || 
+      sprint.category === 'Core Platform Sprint' || 
+      sprint.category === 'Growth Fundamentals'
+    );
+
     // Brief delay to show progress bar animation
     setTimeout(() => {
-      // Pass everything through to payment
-      navigate('/onboarding/sprint-payment', { 
-        state: { ...state } 
-      });
+      if (!user && isFoundational && sprint) {
+        // Redirect to preview mode for unauthenticated users on foundational sprints
+        navigate(`/sprint/preview/${sprint.id}`, { 
+          state: { ...state } 
+        });
+      } else {
+        // Pass everything through to payment
+        navigate('/onboarding/sprint-payment', { 
+          state: { ...state } 
+        });
+      }
     }, 600);
   };
 
