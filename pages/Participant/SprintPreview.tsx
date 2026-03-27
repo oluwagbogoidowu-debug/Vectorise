@@ -38,25 +38,6 @@ const SprintPreview: React.FC = () => {
 
     const day1Content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
 
-    const AuthLinks = () => (
-        <div className="mt-4 flex flex-col items-center gap-1.5">
-            <Link 
-                to="/signup" 
-                state={{ prefilledEmail, targetSprintId: sprintId }}
-                className="text-[10px] font-bold text-primary hover:underline tracking-tight"
-            >
-                create an account to access the full sprint
-            </Link>
-            <Link 
-                to="/login" 
-                state={{ prefilledEmail, targetSprintId: sprintId }}
-                className="text-[10px] font-bold text-gray-400 hover:text-gray-600 tracking-tight"
-            >
-                Already have an account login.
-            </Link>
-        </div>
-    );
-
     return (
         <div className="w-full bg-[#FAFAFA] min-h-screen flex flex-col font-sans text-dark animate-fade-in pb-24">
             <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
@@ -90,48 +71,38 @@ const SprintPreview: React.FC = () => {
                 <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden">
                     <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day 1 (Preview)</h2>
                     
-                    {/* Lesson Content - Locked Halfway */}
+                    {/* Lesson Content - Locked 2/3 */}
                     <div className="space-y-2 mb-10 relative">
                         <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Insight</h2>
-                        <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch] max-h-[150px] overflow-hidden relative">
+                        <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch] max-h-[300px] overflow-hidden relative">
                             <FormattedText text={day1Content?.lessonText || ""} />
-                            <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white via-white/80 to-transparent flex flex-col items-center justify-end pb-2">
-                                <AuthLinks />
+                            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white via-white/90 to-transparent flex flex-col items-center justify-end pb-4">
+                                <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                    Sprint Locked
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Action Step - Locked after 3 lines */}
+                    {/* Action Step - Locked after 5 lines */}
                     <div className="space-y-6 relative">
                         <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden">
                             <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Action Step</h2>
-                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug max-h-[4.5rem] overflow-hidden relative">
+                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug max-h-[7.5rem] overflow-hidden relative">
                                 <FormattedText text={day1Content?.taskPrompt || ""} />
-                                <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[#F9FBF9] via-[#F9FBF9]/80 to-transparent"></div>
+                                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#F9FBF9] via-[#F9FBF9]/90 to-transparent"></div>
                             </div>
-                            <div className="mt-4 border-t border-primary/5 pt-4 flex flex-col items-center">
-                                <AuthLinks />
+                            <div className="mt-6 border-t border-primary/5 pt-4 flex flex-col items-center">
+                                <Link 
+                                    to="/signup" 
+                                    state={{ prefilledEmail, targetSprintId: sprintId }}
+                                    className="text-[10px] font-black text-primary hover:underline tracking-widest uppercase"
+                                >
+                                    Complete your account creation to unlock full sprint.
+                                </Link>
                             </div>
                         </div>
-
-                        {day1Content?.coachInsight && (
-                            <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 opacity-30 grayscale pointer-events-none">
-                                <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.4em] mb-4">Coach Insight</h2>
-                                <div className="text-gray-600 italic font-medium text-xs md:text-sm leading-relaxed">
-                                    <FormattedText text={day1Content.coachInsight} />
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Locked Overlay for the rest of the page */}
-                    <div className="mt-12 p-8 bg-gray-50/50 rounded-3xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center">
-                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm mb-4">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                        </div>
-                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-2">Sprint Locked</h3>
-                        <p className="text-[10px] text-gray-500 font-medium max-w-[200px] mb-6">Create an account to unlock the full journey and track your progress.</p>
-                        <Link to="/signup" className="px-8 py-3 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all">Get Started</Link>
                     </div>
                 </div>
             </div>
