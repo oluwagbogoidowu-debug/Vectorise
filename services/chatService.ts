@@ -47,24 +47,42 @@ export const chatService = {
     }
   },
 
-  getConversation: async (sprintId: string, participantId: string) => {
+  getConversation: async (sprintId: string, participantId: string, day: number) => {
     try {
       const colRef = collection(db, 'coaching_messages');
       const q = query(
         colRef, 
         where("sprintId", "==", sprintId),
-        where("participantId", "==", participantId)
+        where("participantId", "==", participantId),
+        where("day", "==", day)
       );
       const snapshot = await getDocs(q);
       const dbMessages = snapshot.docs.map(doc => sanitizeData({ id: doc.id, ...doc.data() }) as CoachingComment);
       const mockMessages = MOCK_COACHING_COMMENTS.filter(c => 
-          c.sprintId === sprintId && c.participantId === participantId
+          c.sprintId === sprintId && c.participantId === participantId && c.day === day
       );
       return [...dbMessages, ...mockMessages].sort((a, b) => 
           new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
     } catch (error: any) {
-      return MOCK_COACHING_COMMENTS.filter(c => c.sprintId === sprintId && c.participantId === participantId);
+      return MOCK_COACHING_COMMENTS.filter(c => c.sprintId === sprintId && c.participantId === participantId && c.day === day);
+    }
+  },
+
+  hasUnreadMessages: async (sprintId: string, participantId: string, day: number, readerId: string) => {
+    try {
+      const colRef = collection(db, 'coaching_messages');
+      const q = query(
+        colRef,
+        where("sprintId", "==", sprintId),
+        where("participantId", "==", participantId),
+        where("day", "==", day),
+        where("read", "==", false)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.some(d => (d.data() as CoachingComment).authorId !== readerId);
+    } catch (error) {
+      return false;
     }
   },
 

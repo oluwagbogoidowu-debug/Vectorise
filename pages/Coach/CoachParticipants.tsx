@@ -124,11 +124,12 @@ const CoachParticipants: React.FC = () => {
         }
 
         const fetchChat = async () => {
-            const allMessages = await chatService.getConversation(
+            const dayMessages = await chatService.getConversation(
                 viewingSubmission.enrollment.sprint_id, 
-                viewingSubmission.enrollment.user_id
+                viewingSubmission.enrollment.user_id,
+                viewingSubmission.day
             );
-            setDayComments(allMessages.filter(c => c.day === viewingSubmission.day));
+            setDayComments(dayMessages);
         };
 
         fetchChat();

@@ -21,8 +21,8 @@ const ReflectionModal: React.FC<{
     const [text, setText] = useState('');
     if (!isOpen) return null;
     return (
-        <div className="absolute inset-0 z-[200] flex items-center justify-center p-6 bg-white/90 backdrop-blur-md animate-fade-in">
-            <div className="w-full max-w-sm relative overflow-y-auto animate-slide-up flex flex-col p-4 max-h-[90vh] custom-scrollbar">
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-white/90 backdrop-blur-md animate-fade-in" onClick={onClose}>
+            <div className="w-full max-w-sm relative overflow-y-auto animate-slide-up flex flex-col p-4 max-h-[90vh] custom-scrollbar" onClick={e => e.stopPropagation()}>
                 <h3 className="text-xl font-black text-gray-900 tracking-tight mb-4">Sprint Reflection</h3>
                 <p className="text-[11px] font-black text-primary uppercase tracking-widest mb-6 leading-tight">
                     {question || "One idea that shifted my thinking was..."}
@@ -121,7 +121,7 @@ const CoachingChatModal: React.FC<{
     useEffect(() => {
         if (isOpen) {
             const fetchMessages = async () => {
-                const conversation = await chatService.getConversation(sprintId, participantId);
+                const conversation = await chatService.getConversation(sprintId, participantId, day);
                 setMessages(conversation);
                 // Mark as read
                 await chatService.markMessagesAsRead(sprintId, participantId, day, participantId);
@@ -255,6 +255,7 @@ const SprintView: React.FC = () => {
     const { user } = useAuth();
     const { enrollmentId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     
     const [enrollment, setEnrollment] = useState<ParticipantSprint | null>(null);
     const [sprint, setSprint] = useState<Sprint | null>(null);
@@ -263,6 +264,7 @@ const SprintView: React.FC = () => {
     const [isReflectionModalOpen, setIsReflectionModalOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
     const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+    const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
     const [now, setNow] = useState(Date.now());
     const [timeToUnlock, setTimeToUnlock] = useState<string>('00:00:00');
     
@@ -292,13 +294,40 @@ const SprintView: React.FC = () => {
                 if (!sprint) {
                     const found = await sprintService.getSprintById(data.sprint_id);
                     setSprint(found);
-                    const firstIncomplete = data.progress?.find(p => !p.completed);
-                    setViewingDay(firstIncomplete ? firstIncomplete.day : (data.progress?.length || 1));
+                    
+                    // Handle deep linking from query params
+                    const params = new URLSearchParams(location.search);
+                    const dayParam = params.get('day');
+                    const openChatParam = params.get('openChat');
+                    
+                    if (dayParam) {
+                        setViewingDay(parseInt(dayParam));
+                        if (openChatParam === 'true') {
+                            setIsChatModalOpen(true);
+                        }
+                    } else {
+                        const firstIncomplete = data.progress?.find(p => !p.completed);
+                        setViewingDay(firstIncomplete ? firstIncomplete.day : (data.progress?.length || 1));
+                    }
                 }
             }
         });
         return () => unsubscribe();
-    }, [enrollmentId, sprint]);
+    }, [enrollmentId, sprint, location.search]);
+
+    // Check for unread messages
+    useEffect(() => {
+        if (!enrollment || !user || isChatModalOpen) return;
+        
+        const checkUnread = async () => {
+            const hasUnread = await chatService.hasUnreadMessages(enrollment.sprint_id, user.id, viewingDay, user.id);
+            setHasUnreadMessages(hasUnread);
+        };
+        
+        checkUnread();
+        const interval = setInterval(checkUnread, 10000); // Check every 10s
+        return () => clearInterval(interval);
+    }, [enrollment, user, viewingDay, isChatModalOpen]);
 
     useEffect(() => {
       const loadSettings = async () => {
@@ -521,18 +550,21 @@ const SprintView: React.FC = () => {
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </Link>
                         <button 
+                            onClick={() => setIsChatModalOpen(true)}
+                            className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all relative"
+                            title="Coaching Chat"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                            {hasUnreadMessages && (
+                                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse"></span>
+                            )}
+                        </button>
+                        <button 
                             onClick={() => setIsSettingsModalOpen(true)}
                             className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
                             title="Sprint Settings"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        </button>
-                        <button 
-                            onClick={() => setIsChatModalOpen(true)}
-                            className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
-                            title="Coaching Chat"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                         </button>
                     </div>
                 </div>
