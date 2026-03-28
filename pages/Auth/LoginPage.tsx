@@ -39,6 +39,10 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
       const handleUserRedirect = async () => {
           if (user) {
+              if (user.role === UserRole.ADMIN) {
+                  navigate('/admin/role-selector', { replace: true });
+                  return;
+              }
               if (user.role === UserRole.PARTICIPANT) {
                   try {
                       const enrollments = await sprintService.getUserEnrollments(user.id);

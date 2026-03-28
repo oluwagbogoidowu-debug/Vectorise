@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { Coach, Sprint } from '../../types';
+import { Coach, Sprint, UserRole } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 
 const CoachProfile: React.FC = () => {
-    const { user, logout } = useAuth();
+    const { user, logout, switchRole, activeRole } = useAuth();
     const navigate = useNavigate();
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -65,7 +65,20 @@ const CoachProfile: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                    <button onClick={logout} className="px-4 py-2 text-xs font-bold text-gray-500 bg-gray-100 rounded-lg">Logout</button>
+                    <div className="flex items-center gap-2">
+                        {user.role === UserRole.ADMIN && activeRole === UserRole.COACH && (
+                            <button 
+                                onClick={() => {
+                                    switchRole(UserRole.ADMIN);
+                                    navigate('/admin/dashboard');
+                                }} 
+                                className="px-4 py-2 text-xs font-black text-white bg-dark rounded-lg uppercase tracking-widest hover:bg-black transition-colors"
+                            >
+                                Switch to Admin
+                            </button>
+                        )}
+                        <button onClick={logout} className="px-4 py-2 text-xs font-bold text-gray-500 bg-gray-100 rounded-lg">Logout</button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

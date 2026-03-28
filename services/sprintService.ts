@@ -93,6 +93,16 @@ export const sprintService = {
         return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
     },
 
+    getAdminCoachSprints: async () => {
+        const q = query(
+            collection(db, SPRINTS_COLLECTION), 
+            where("category", "in", ["Growth Fundamentals", "Core Platform Sprint"]), 
+            where("deleted", "==", false)
+        );
+        const snap = await getDocs(q);
+        return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+    },
+
     subscribeToCoachSprints: (coachId: string, callback: (sprints: Sprint[]) => void) => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("coachId", "==", coachId), where("deleted", "==", false));
         return onSnapshot(q, (snap) => {
@@ -254,9 +264,17 @@ export const sprintService = {
 
     getEnrollmentsForSprints: async (sprintIds: string[]) => {
         if (!sprintIds.length) return [];
-        const q = query(collection(db, ENROLLMENTS_COLLECTION), where("sprint_id", "in", sprintIds.slice(0, 10)));
-        const snap = await getDocs(q);
-        return snap.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint));
+        const CHUNK_SIZE = 10;
+        const results: ParticipantSprint[] = [];
+        
+        for (let i = 0; i < sprintIds.length; i += CHUNK_SIZE) {
+            const chunk = sprintIds.slice(i, i + CHUNK_SIZE);
+            const q = query(collection(db, ENROLLMENTS_COLLECTION), where("sprint_id", "in", chunk));
+            const snap = await getDocs(q);
+            snap.forEach(doc => results.push({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint));
+        }
+        
+        return results;
     },
 
     subscribeToEnrollment: (enrollmentId: string, callback: (data: ParticipantSprint | null) => void, onError?: (error: any) => void) => {

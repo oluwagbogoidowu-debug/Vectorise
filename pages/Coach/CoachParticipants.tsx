@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { MOCK_USERS } from '../../services/mockData';
-import { Participant, Sprint, ParticipantSprint, CoachingComment } from '../../types';
+import { Participant, Sprint, ParticipantSprint, CoachingComment, UserRole } from '../../types';
 import Button from '../../components/Button';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
@@ -41,7 +41,25 @@ const CoachParticipants: React.FC = () => {
             setIsLoading(true);
 
             try {
-                const coachSprints = await sprintService.getCoachSprints(user.id);
+                let coachSprints: Sprint[] = [];
+                
+                if (user.role === UserRole.ADMIN) {
+                    // Admins in coach mode see specific categories
+                    const adminSprints = await sprintService.getAdminCoachSprints();
+                    const myOwnSprints = await sprintService.getCoachSprints(user.id);
+                    
+                    // Combine and deduplicate
+                    const combined = [...adminSprints, ...myOwnSprints];
+                    const uniqueIds = new Set();
+                    coachSprints = combined.filter(s => {
+                        if (uniqueIds.has(s.id)) return false;
+                        uniqueIds.add(s.id);
+                        return true;
+                    });
+                } else {
+                    coachSprints = await sprintService.getCoachSprints(user.id);
+                }
+
                 const approvedSprints = coachSprints.filter(s => s.approvalStatus === 'approved');
                 setMySprints(approvedSprints);
 

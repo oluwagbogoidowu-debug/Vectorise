@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { notificationService } from '../../services/notificationService';
-import { Sprint, Notification, Review } from '../../types';
+import { Sprint, Notification, Review, UserRole } from '../../types';
 
 const CoachDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -24,7 +24,22 @@ const CoachDashboard: React.FC = () => {
           if (!user) return;
           setIsLoading(true);
           try {
-              const fetched = await sprintService.getCoachSprints(user.id);
+              let fetched: Sprint[] = [];
+              
+              if (user.role === UserRole.ADMIN) {
+                  const adminSprints = await sprintService.getAdminCoachSprints();
+                  const myOwnSprints = await sprintService.getCoachSprints(user.id);
+                  const combined = [...adminSprints, ...myOwnSprints];
+                  const uniqueIds = new Set();
+                  fetched = combined.filter(s => {
+                      if (uniqueIds.has(s.id)) return false;
+                      uniqueIds.add(s.id);
+                      return true;
+                  });
+              } else {
+                  fetched = await sprintService.getCoachSprints(user.id);
+              }
+              
               setMySprints(fetched);
               
               const sprintIds = fetched.map(s => s.id).filter(id => !!id);
