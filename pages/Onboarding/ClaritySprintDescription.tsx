@@ -135,7 +135,8 @@ const ClaritySprintDescription: React.FC = () => {
             </svg>
             Refine Focus
           </button>
-          <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest">
+          <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
+            <LocalLogo type="favicon" className="w-3 h-3" />
             PHASE 01: CORE
           </div>
         </div>
@@ -154,7 +155,10 @@ const ClaritySprintDescription: React.FC = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
               <div className="absolute bottom-10 left-10 right-10 text-white">
                 <div className="mb-4">
-                  <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg">FOUNDATIONAL PATH</span>
+                  <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2 w-fit">
+                    <LocalLogo type="favicon" className="w-3 h-3 brightness-0 invert" />
+                    FOUNDATIONAL PATH
+                  </span>
                 </div>
                 <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-4">
                   <FormattedText text={sprint.title} inline />
