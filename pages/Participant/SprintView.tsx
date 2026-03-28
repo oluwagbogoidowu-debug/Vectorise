@@ -630,7 +630,7 @@ const SprintView: React.FC = () => {
                     )}
 
                     {dayLockDetails.isLocked && (
-                        <div className="absolute inset-0 z-[140] bg-white/80 backdrop-blur-md flex flex-col items-center justify-center text-center p-8 animate-fade-in">
+                        <div className="absolute inset-0 z-[140] bg-white/80 flex flex-col items-center justify-center text-center p-8 animate-fade-in">
                             <div className="mb-6 opacity-20">
                                 <LocalLogo type="favicon" className="w-24 h-24" />
                             </div>
