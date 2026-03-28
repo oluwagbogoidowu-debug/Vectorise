@@ -6,7 +6,7 @@ import Button from '../../components/Button';
 import { Sprint, Track } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
-import { Zap } from 'lucide-react';
+import { Zap, ArrowRight } from 'lucide-react';
 
 const CommitmentFraming: React.FC = () => {
   const navigate = useNavigate();
@@ -133,7 +133,7 @@ const CommitmentFraming: React.FC = () => {
                 ].map((text, i) => (
                   <div key={i} className="flex items-center gap-4 group">
                     <div className="w-8 h-8 rounded-full border border-gray-100 flex items-center justify-center group-hover:border-primary/50 transition-colors bg-white">
-                      <span className="text-primary font-bold text-lg leading-none">↠</span>
+                      <ArrowRight className="w-4 h-4 text-primary" />
                     </div>
                     <span className="text-lg font-bold tracking-tight text-gray-800">{text}</span>
                   </div>
