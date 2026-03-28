@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { ParticipantSprint, Sprint, DailyContent, GlobalOrchestrationSettings, MicroSelector, MicroSelectorStep } from '../../types';
+import { ParticipantSprint, Sprint, DailyContent, GlobalOrchestrationSettings, MicroSelector, MicroSelectorStep, CoachingComment } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
+import { chatService } from '../../services/chatService';
 import { doc, updateDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { db } from '../../services/firebase';
@@ -102,6 +103,141 @@ const SprintSettingsModal: React.FC<{
     );
 };
 
+const CoachingChatModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    sprintId: string;
+    participantId: string;
+    day: number;
+    sprintTitle: string;
+}> = ({ isOpen, onClose, sprintId, participantId, day, sprintTitle }) => {
+    const [messages, setMessages] = useState<CoachingComment[]>([]);
+    const [newMessage, setNewMessage] = useState('');
+    const [isSending, setIsSending] = useState(false);
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            const fetchMessages = async () => {
+                const conversation = await chatService.getConversation(sprintId, participantId);
+                setMessages(conversation);
+                // Mark as read
+                await chatService.markMessagesAsRead(sprintId, participantId, day, participantId);
+            };
+            fetchMessages();
+        }
+    }, [isOpen, sprintId, participantId, day]);
+
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [messages]);
+
+    const handleSend = async () => {
+        if (!newMessage.trim() || isSending) return;
+        setIsSending(true);
+        try {
+            const msg = await chatService.sendMessage({
+                sprintId,
+                participantId,
+                authorId: participantId,
+                content: newMessage.trim(),
+                day,
+                timestamp: new Date().toISOString(),
+                read: false
+            });
+            setMessages(prev => [...prev, msg]);
+            setNewMessage('');
+        } catch (error) {
+            console.error("Failed to send message", error);
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+            <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col animate-slide-up h-[80vh]" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-white sticky top-0 z-10">
+                    <div>
+                        <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Private Coaching Chat</h3>
+                        <p className="text-sm font-black text-gray-900 truncate max-w-[200px]">{sprintTitle}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="bg-gray-50 px-3 py-1.5 rounded-full">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Day {day}</span>
+                        </div>
+                        <button onClick={onClose} className="p-2 text-gray-400 hover:text-dark transition-colors">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Messages */}
+                <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#FAFAFA]">
+                    {messages.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
+                            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                                <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                            </div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">No messages yet</p>
+                            <p className="text-[9px] font-medium text-gray-400 mt-2">Start the conversation with your coach.</p>
+                        </div>
+                    ) : (
+                        messages.map((msg, idx) => {
+                            const isMe = msg.authorId === participantId;
+                            return (
+                                <div key={msg.id || idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[85%] p-4 rounded-2xl text-sm ${
+                                        isMe 
+                                        ? 'bg-primary text-white rounded-tr-none shadow-lg shadow-primary/10' 
+                                        : 'bg-white text-gray-800 rounded-tl-none border border-gray-100 shadow-sm'
+                                    }`}>
+                                        <p className="font-medium leading-relaxed">{msg.content}</p>
+                                        <p className={`text-[8px] mt-2 font-black uppercase tracking-widest opacity-40 ${isMe ? 'text-white text-right' : 'text-gray-400'}`}>
+                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* Input */}
+                <div className="p-6 bg-white border-t border-gray-50">
+                    <div className="relative flex items-center gap-2">
+                        <textarea
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSend();
+                                }
+                            }}
+                            placeholder="Type your message..."
+                            className="flex-1 bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-medium focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none max-h-32"
+                            rows={1}
+                        />
+                        <button 
+                            onClick={handleSend}
+                            disabled={!newMessage.trim() || isSending}
+                            className="w-12 h-12 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 active:scale-95 disabled:opacity-50 disabled:grayscale transition-all"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 interface SectionHeadingProps {
     children: React.ReactNode;
     color?: string;
@@ -124,6 +260,7 @@ const SprintView: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isReflectionModalOpen, setIsReflectionModalOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    const [isChatModalOpen, setIsChatModalOpen] = useState(false);
     const [now, setNow] = useState(Date.now());
     const [timeToUnlock, setTimeToUnlock] = useState<string>('00:00:00');
     
@@ -388,6 +525,13 @@ const SprintView: React.FC = () => {
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                         </button>
+                        <button 
+                            onClick={() => setIsChatModalOpen(true)}
+                            className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
+                            title="Coaching Chat"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                        </button>
                     </div>
                 </div>
             </header>
@@ -484,6 +628,14 @@ const SprintView: React.FC = () => {
                     )}
 
                     <div className={dayLockDetails.isLocked ? 'blur-sm pointer-events-none opacity-20' : ''}>
+                        <CoachingChatModal 
+                            isOpen={isChatModalOpen}
+                            onClose={() => setIsChatModalOpen(false)}
+                            sprintId={sprint.id}
+                            participantId={user?.id || ''}
+                            day={viewingDay}
+                            sprintTitle={sprint.title}
+                        />
                         <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day {viewingDay}</h2>
                         
                         <div className="space-y-2 mb-10">
