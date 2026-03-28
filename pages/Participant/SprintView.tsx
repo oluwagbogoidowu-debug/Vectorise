@@ -650,7 +650,7 @@ const SprintView: React.FC = () => {
                         </div>
                     )}
 
-                    <div className={dayLockDetails.isLocked ? 'blur-sm pointer-events-none opacity-20' : ''}>
+                    <div className={dayLockDetails.isLocked ? 'pointer-events-none opacity-20' : ''}>
                         
                         <div className="space-y-2 mb-10">
                             <SectionHeading>Today's Insight</SectionHeading>
