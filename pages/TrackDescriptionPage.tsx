@@ -46,7 +46,7 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
                             <span className="px-2 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md">{sprint.category}</span>
                             <span className="text-[8px] font-black text-primary uppercase tracking-widest">{sprint.duration} Days</span>
                         </div>
-                        <h4 className="text-lg font-black text-gray-900 tracking-tight italic group-hover:text-primary transition-colors leading-tight">{sprint.title}</h4>
+                        <h4 className="text-lg font-black text-gray-900 tracking-tight group-hover:text-primary transition-colors leading-tight">{sprint.title}</h4>
                     </div>
                 </div>
                 <div className="p-2 rounded-xl bg-gray-50 text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-all">
@@ -60,8 +60,8 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
                         <div className={`relative transition-all duration-500 ${!isDescriptionExpanded ? 'max-h-[180px] overflow-hidden' : 'max-h-none'}`}>
                             <div className="space-y-8">
                                 {displayDescription && !hasDynamicContent && (
-                                    <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed italic">
-                                        "{displayDescription}"
+                                    <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed">
+                                        {displayDescription}
                                     </p>
                                 )}
 
@@ -240,11 +240,11 @@ const TrackDescriptionPage: React.FC = () => {
                                         {sprints.length} SPRINTS
                                     </span>
                                 </div>
-                                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-4 italic">
+                                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-4">
                                     <FormattedText text={track.title} inline />
                                 </h1>
                                 {track.subtitle && (
-                                    <p className="text-white/70 text-sm md:text-base font-medium italic tracking-tight mb-6 leading-snug max-w-xl">
+                                    <p className="text-white/70 text-sm md:text-base font-medium tracking-tight mb-6 leading-snug max-w-xl">
                                         {track.subtitle}
                                     </p>
                                 )}
@@ -255,7 +255,7 @@ const TrackDescriptionPage: React.FC = () => {
                         <div className="space-y-8">
                             <section className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-sm animate-fade-in">
                                 <SectionHeading>Track Overview</SectionHeading>
-                                <div className="text-base md:text-lg text-gray-600 font-medium leading-relaxed italic">
+                                <div className="text-base md:text-lg text-gray-600 font-medium leading-relaxed">
                                     <FormattedText text={track.description} />
                                 </div>
                             </section>
@@ -281,7 +281,7 @@ const TrackDescriptionPage: React.FC = () => {
                                 <SectionHeading>Bundle Value</SectionHeading>
                                 <div className="flex flex-col items-center">
                                     <div className="flex items-baseline gap-2 mb-1">
-                                        <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none italic">
+                                        <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none">
                                             ₦{discountedPrice.toLocaleString()}
                                         </h3>
                                         <span className="text-sm font-bold text-gray-300 line-through">₦{totalPrice.toLocaleString()}</span>
