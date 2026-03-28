@@ -21,8 +21,8 @@ const ReflectionModal: React.FC<{
     const [text, setText] = useState('');
     if (!isOpen) return null;
     return (
-        <div className="modal-overlay bg-white/95 backdrop-blur-md animate-fade-in" onClick={onClose}>
-            <div className="w-full max-w-sm relative overflow-y-auto animate-slide-up flex flex-col p-4 max-h-[90vh] custom-scrollbar" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+            <div className="w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl relative overflow-y-auto animate-slide-up flex flex-col p-8 max-h-[80vh] custom-scrollbar" onClick={e => e.stopPropagation()}>
                 <h3 className="text-xl font-black text-gray-900 tracking-tight mb-4">Sprint Reflection</h3>
                 <p className="text-[11px] font-black text-primary uppercase tracking-widest mb-6 leading-tight">
                     {question || "One idea that shifted my thinking was..."}
@@ -77,8 +77,8 @@ const SprintSettingsModal: React.FC<{
     );
 
     return (
-        <div className="modal-overlay bg-white/95 backdrop-blur-md animate-fade-in" onClick={onClose}>
-            <div className="w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[90vh] border border-gray-100" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+            <div className="w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[80vh] border border-gray-100" onClick={e => e.stopPropagation()}>
                 <div className="p-8 pb-4 flex justify-between items-center flex-shrink-0">
                     <h3 className="text-xl font-black text-gray-900 tracking-tight">Sprint Settings</h3>
                     <button onClick={onClose} className="p-2 text-gray-400 hover:text-dark transition-colors">
@@ -161,8 +161,8 @@ const CoachingChatModal: React.FC<{
     if (!isOpen) return null;
 
     return (
-        <div className="modal-overlay bg-white/95 backdrop-blur-md animate-fade-in" onClick={onClose}>
-            <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col animate-slide-up h-[80vh] max-h-[90vh] border border-gray-100" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+            <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col animate-slide-up h-[70vh] max-h-[80vh] border border-gray-100" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-white flex-shrink-0">
                     <div>
