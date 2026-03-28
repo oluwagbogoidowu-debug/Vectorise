@@ -21,8 +21,8 @@ const ReflectionModal: React.FC<{
     const [text, setText] = useState('');
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-white/90 backdrop-blur-md animate-fade-in" onClick={onClose}>
-            <div className="w-full max-w-sm relative overflow-y-auto animate-slide-up flex flex-col p-4 max-h-[90vh] custom-scrollbar" onClick={e => e.stopPropagation()}>
+        <div className="absolute inset-0 z-[500] flex items-center justify-center p-6 bg-white/95 backdrop-blur-md animate-fade-in" onClick={onClose}>
+            <div className="w-full max-w-sm relative overflow-y-auto animate-slide-up flex flex-col p-4 max-h-full custom-scrollbar" onClick={e => e.stopPropagation()}>
                 <h3 className="text-xl font-black text-gray-900 tracking-tight mb-4">Sprint Reflection</h3>
                 <p className="text-[11px] font-black text-primary uppercase tracking-widest mb-6 leading-tight">
                     {question || "One idea that shifted my thinking was..."}
@@ -77,8 +77,8 @@ const SprintSettingsModal: React.FC<{
     );
 
     return (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-            <div className="w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        <div className="absolute inset-0 z-[450] flex items-center justify-center p-4 bg-white/95 backdrop-blur-md animate-fade-in" onClick={onClose}>
+            <div className="w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-full border border-gray-100" onClick={e => e.stopPropagation()}>
                 <div className="p-8 pb-4 flex justify-between items-center flex-shrink-0">
                     <h3 className="text-xl font-black text-gray-900 tracking-tight">Sprint Settings</h3>
                     <button onClick={onClose} className="p-2 text-gray-400 hover:text-dark transition-colors">
@@ -161,8 +161,8 @@ const CoachingChatModal: React.FC<{
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-            <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col animate-slide-up h-[80vh] max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        <div className="absolute inset-0 z-[480] flex items-center justify-center p-4 bg-white/95 backdrop-blur-md animate-fade-in" onClick={onClose}>
+            <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col animate-slide-up h-full max-h-full border border-gray-100" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-white flex-shrink-0">
                     <div>
@@ -551,11 +551,12 @@ const SprintView: React.FC = () => {
                         </Link>
                         <button 
                             onClick={() => setIsChatModalOpen(true)}
-                            className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all relative"
-                            title="Coaching Chat"
+                            disabled={dayLockDetails.isLocked}
+                            className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm transition-all relative ${dayLockDetails.isLocked ? 'opacity-40 cursor-not-allowed' : 'text-gray-400 active:scale-95'}`}
+                            title={dayLockDetails.isLocked ? "Complete previous day first" : "Coaching Chat"}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                            {hasUnreadMessages && (
+                            {!dayLockDetails.isLocked && hasUnreadMessages && (
                                 <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse"></span>
                             )}
                         </button>
@@ -614,6 +615,14 @@ const SprintView: React.FC = () => {
                         notificationsEnabled={notificationsEnabled}
                         onToggleNotifications={toggleNotificationsState}
                     />
+                    <CoachingChatModal 
+                        isOpen={isChatModalOpen}
+                        onClose={() => setIsChatModalOpen(false)}
+                        sprintId={sprint.id}
+                        participantId={user?.id || ''}
+                        day={viewingDay}
+                        sprintTitle={sprint.title}
+                    />
                     <ReflectionModal 
                         isOpen={isReflectionModalOpen} 
                         day={viewingDay} 
@@ -662,14 +671,6 @@ const SprintView: React.FC = () => {
                     )}
 
                     <div className={dayLockDetails.isLocked ? 'blur-sm pointer-events-none opacity-20' : ''}>
-                        <CoachingChatModal 
-                            isOpen={isChatModalOpen}
-                            onClose={() => setIsChatModalOpen(false)}
-                            sprintId={sprint.id}
-                            participantId={user?.id || ''}
-                            day={viewingDay}
-                            sprintTitle={sprint.title}
-                        />
                         <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day {viewingDay}</h2>
                         
                         <div className="space-y-2 mb-10">
