@@ -166,30 +166,14 @@ const Badges: React.FC = () => {
     }, [user, enrollments, reflections, allSprintData]);
 
     const milestonesByType = useMemo(() => {
-        if (!stats || !user) return { setupReward: [], coreProgress: [], dailyDiscipline: [], quickWin: [], longGame: [], innerWork: [], influence: [] };
+        if (!stats || !user) return { coreProgress: [], longGame: [], innerWork: [], influence: [] };
         const p = user as Participant;
         const claimed = p.claimedMilestoneIds || [];
         const categories = {
-            setupReward: [
-                { id: 'welcome_login', title: 'Welcome Bonus', description: 'Your first step into the Rise.', icon: '🪙', currentValue: 1, targetValue: 1, points: 10, color: 'indigo' },
-                { id: 'setup_account', title: 'Account Creation', description: 'Welcome to the Rise.', icon: '👤', currentValue: 1, targetValue: 1, points: 10, color: 'indigo' },
-                { id: 'setup_identity', title: 'Identity Setup', description: 'You defined your path.', icon: '🆔', currentValue: stats.isIdentityComplete ? 1 : 0, targetValue: 1, points: 20, color: 'indigo' },
-            ],
             coreProgress: [
                 { id: 's1', title: 'First Spark', description: 'You started your rise.', icon: '🚀', currentValue: stats.started, targetValue: 1, points: 5 },
                 { id: 's2', title: 'The Closer', description: 'You finished what you started.', icon: '🏁', currentValue: stats.completed, targetValue: 1, points: 15 },
                 { id: 's4', title: 'Growth Habit', description: 'Consistency is becoming your default.', icon: '🏗️', currentValue: stats.completed, targetValue: 3, points: 50 },
-            ],
-            dailyDiscipline: [
-                { id: 'c1', title: 'The Start', description: 'You chose reflection over reaction.', icon: '💡', currentValue: stats.reflectionsCount, targetValue: 1, points: 5 },
-                { id: 'c2', title: 'Momentum', description: 'You built momentum.', icon: '🔥', currentValue: stats.streak, targetValue: 3, points: 10 }
-            ],
-            quickWin: [
-                { id: 'qw3', title: '3-Day Sprint', description: 'Three days of showing up.', icon: '🥉', currentValue: stats.daysActive, targetValue: 3, points: 5, color: 'amber' },
-                { id: 'qw7', title: 'Weekly Warrior', description: 'One full week of growth.', icon: '🥈', currentValue: stats.daysActive, targetValue: 7, points: 10, color: 'amber' },
-                { id: 'qw14', title: 'Fortnight Focus', description: 'Two weeks of consistency.', icon: '🥇', currentValue: stats.daysActive, targetValue: 14, points: 15, color: 'amber' },
-                { id: 'qw21', title: 'Habit Former', description: 'Three weeks of dedication.', icon: '💎', currentValue: stats.daysActive, targetValue: 21, points: 25, color: 'amber' },
-                { id: 'qw30', title: 'Monthly Master', description: 'One month of the Rise.', icon: '👑', currentValue: stats.daysActive, targetValue: 30, points: 30, color: 'amber' },
             ],
             longGame: [
                 { id: 'cm1', title: 'Rooted', description: '60 days of intentional growth.', icon: '🌱', currentValue: stats.daysActive, targetValue: 60, points: 20, color: 'blue' },
@@ -206,10 +190,7 @@ const Badges: React.FC = () => {
         };
         const mapToMilestone = (m: any): Milestone => ({ ...m, isUnlocked: m.currentValue >= m.targetValue, isClaimed: claimed.includes(m.id) });
         return {
-            setupReward: categories.setupReward.map(mapToMilestone),
             coreProgress: categories.coreProgress.map(mapToMilestone),
-            dailyDiscipline: categories.dailyDiscipline.map(mapToMilestone),
-            quickWin: categories.quickWin.map(mapToMilestone),
             longGame: categories.longGame.map(mapToMilestone),
             innerWork: categories.innerWork.map(mapToMilestone),
             influence: categories.influence.map(mapToMilestone)
@@ -279,10 +260,7 @@ const Badges: React.FC = () => {
                 </div>
             ) : (
                 <div className="space-y-16">
-                    <CategorySection title="Setup Reward" type="setupReward" milestones={milestonesByType.setupReward} color="indigo" />
                     <CategorySection title="Core Progress" type="coreProgress" milestones={milestonesByType.coreProgress} color="primary" />
-                    <CategorySection title="Daily Discipline" type="dailyDiscipline" milestones={milestonesByType.dailyDiscipline} color="orange" />
-                    <CategorySection title="Quick Win" type="quickWin" milestones={milestonesByType.quickWin} color="amber" />
                     <CategorySection title="Long Game" type="longGame" milestones={milestonesByType.longGame} color="blue" />
                     <CategorySection title="Inner Work" type="innerWork" milestones={milestonesByType.innerWork} color="yellow" />
                     <CategorySection title="Influence" type="influence" milestones={milestonesByType.influence} color="teal" />
