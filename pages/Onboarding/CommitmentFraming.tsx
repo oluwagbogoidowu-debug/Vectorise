@@ -32,12 +32,6 @@ const CommitmentFraming: React.FC = () => {
     return 5;
   }, [sprint, track, state.totalDuration]);
 
-  const title = useMemo(() => {
-    if (sprint) return sprint.title;
-    if (track) return track.title;
-    return "this program";
-  }, [sprint, track]);
-
   useEffect(() => {
     const checkActive = async () => {
         if (!user) {
@@ -62,22 +56,18 @@ const CommitmentFraming: React.FC = () => {
     
     setIsNavigating(true);
     
-    // Check if it's a foundational sprint and user is not logged in
     const isFoundational = sprint && (
       sprint.sprintType === 'Foundational' || 
       sprint.category === 'Core Platform Sprint' || 
       sprint.category === 'Growth Fundamentals'
     );
 
-    // Brief delay to show progress bar animation
     setTimeout(() => {
       if (!user && isFoundational && sprint) {
-        // Redirect to preview mode for unauthenticated users on foundational sprints
         navigate(`/sprint/preview/${sprint.id}`, { 
           state: { ...state } 
         });
       } else {
-        // Pass everything through to payment
         navigate('/onboarding/sprint-payment', { 
           state: { ...state } 
         });
@@ -90,7 +80,6 @@ const CommitmentFraming: React.FC = () => {
     if (!email.trim()) return;
     
     setIsSubmittingEmail(true);
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 800));
     setIsSubmittingEmail(false);
     navigate('/');
@@ -98,102 +87,110 @@ const CommitmentFraming: React.FC = () => {
 
   if (isChecking) {
       return (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-dark/95 backdrop-blur-md">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0A0A0A] backdrop-blur-md">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
           </div>
       );
   }
 
   return (
-    <div className="min-h-screen w-full bg-[#FAFAFA] flex flex-col items-center py-6 px-4 overflow-x-hidden selection:bg-primary/10 font-sans relative">
+    <div className="min-h-screen w-full bg-[#0A0A0A] text-white flex flex-col items-center justify-center py-12 px-6 overflow-x-hidden font-sans selection:bg-primary/30 relative">
       
-      {/* Main Commitment Card */}
+      {/* Background Decorative Elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-20">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px]"></div>
+      </div>
+
       {!showEmailCapture && (
-        <div className="max-w-xl w-full animate-fade-in">
-          <div className="flex flex-col items-center mb-6">
-            <LocalLogo type="green" className="h-5 w-auto mb-4 opacity-40" />
-            <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
-               <div 
-                 className="h-full bg-primary rounded-full transition-all duration-700" 
-                 style={{ width: isNavigating ? '75%' : '50%' }}
-               ></div>
+        <div className="max-w-4xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center animate-fade-in relative z-10">
+          
+          {/* Left Side: Editorial Content */}
+          <div className="space-y-10">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <LocalLogo type="favicon" className="h-8 w-8" />
+                <div className="h-[1px] w-12 bg-white/20"></div>
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">The Protocol</span>
+              </div>
+              <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-[0.95] italic">
+                Before you continue <br/>
+                <span className="text-white/40">you have to decide.</span>
+              </h1>
+            </div>
+
+            <p className="text-lg text-white/60 font-medium leading-relaxed max-w-md">
+              This only works if you commit. Most people start; very few finish. Momentum is earned, not given.
+            </p>
+
+            <div className="space-y-6">
+              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">What this requires</h2>
+              <div className="space-y-5">
+                {[
+                  "Show up daily",
+                  "Pay attention to what works",
+                  "Finish what you start"
+                ].map((text, i) => (
+                  <div key={i} className="flex items-center gap-4 group">
+                    <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center group-hover:border-primary/50 transition-colors">
+                      <span className="text-primary font-bold text-lg leading-none">↠</span>
+                    </div>
+                    <span className="text-lg font-bold tracking-tight">{text}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col animate-slide-up">
-            
-            <header className="p-8 md:p-10 text-center border-b border-gray-50 bg-white">
-               <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-tight">Before you continue you have to decide.</h1>
-               <p className="text-[11px] font-bold text-primary uppercase tracking-widest mt-4">
-                   This only works if you commit.
-               </p>
-            </header>
-
-            <main className="p-8 md:p-10 space-y-8">
+          {/* Right Side: Action Card */}
+          <div className="relative">
+            <div className="absolute inset-0 bg-primary/5 blur-3xl rounded-full"></div>
+            <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[3rem] p-8 md:p-12 relative overflow-hidden flex flex-col shadow-2xl">
               
-              {hasActiveSprint && (
-                  <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl animate-fade-in">
-                      <p className="text-[11px] font-bold text-primary leading-relaxed">
-                          You're currently in a sprint. This will be added to your queue—no overlap, just continuous momentum.
-                      </p>
-                  </div>
-              )}
-
-              <section className="space-y-6">
-                <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">What this requires</h2>
-                <div className="space-y-4">
-                  {[
-                    "Show up daily",
-                    "Pay attention to what works",
-                    "Finish what you start"
-                  ].map((text, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <span className="text-primary font-bold text-lg">↠</span>
-                      <span className="text-sm font-black text-gray-900">{text}</span>
-                    </div>
-                  ))}
+              <div className="space-y-8 flex-1">
+                <div className="text-center space-y-2">
+                  <p className="text-4xl font-black tracking-tighter">{duration} Days</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">15 mins / day</p>
                 </div>
-              </section>
 
-              <section className="py-6 border-y border-gray-50 text-center">
-                <p className="text-lg font-black text-gray-900">{duration} Days · 15 mins/day</p>
-                <p className="text-[11px] font-bold text-gray-400 mt-1">Small actions. Real momentum.</p>
-              </section>
+                <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
 
-              <div className="text-center">
-                <p className="text-[11px] font-bold text-red-500">
-                  Skip a day… you reset your momentum.
-                </p>
-              </div>
+                <div className="text-center space-y-2">
+                  <p className="text-sm font-bold text-white/80">Small actions. Real momentum.</p>
+                  <div className="inline-block px-4 py-1.5 bg-red-500/10 border border-red-500/20 rounded-full">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-red-400">
+                      Skip a day… you reset your momentum.
+                    </p>
+                  </div>
+                </div>
 
-              <section>
                 <button 
                   onClick={() => setIsCommitted(!isCommitted)}
-                  className={`w-full flex items-center gap-4 p-5 rounded-2xl transition-all duration-300 border ${
+                  className={`w-full group flex flex-col items-center gap-4 p-8 rounded-[2.5rem] transition-all duration-500 border-2 ${
                     isCommitted 
-                    ? 'bg-primary/5 border-primary/20 shadow-inner' 
-                    : 'bg-gray-50 border-gray-100 hover:bg-white hover:border-gray-200'
+                    ? 'bg-primary border-primary shadow-[0_0_40px_rgba(21,158,91,0.3)]' 
+                    : 'bg-white/5 border-white/10 hover:border-white/20'
                   }`}
                 >
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                    isCommitted ? 'bg-primary border-primary' : 'bg-white border-gray-200'
+                  <div className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-500 ${
+                    isCommitted ? 'bg-white border-white scale-110' : 'bg-transparent border-white/20'
                   }`}>
-                    {isCommitted && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                    {isCommitted && <div className="w-3 h-3 bg-primary rounded-full animate-scale-in"></div>}
                   </div>
-                  <span className={`text-[12px] font-black transition-colors ${isCommitted ? 'text-gray-900' : 'text-gray-500'}`}>
-                    I commit to showing up and finishing this
+                  <span className={`text-sm font-black uppercase tracking-[0.15em] text-center leading-tight transition-colors ${isCommitted ? 'text-white' : 'text-white/40'}`}>
+                    I commit to showing up <br/> and finishing this
                   </span>
                 </button>
-              </section>
-            </main>
+              </div>
 
-            <footer className="p-8 md:p-10 pt-4 bg-gray-50/50 border-t border-gray-50">
-              <div className="space-y-6">
+              <div className="mt-10 space-y-6">
                 <Button 
                   onClick={handleContinue}
                   disabled={!isCommitted}
-                  className={`w-full py-6 rounded-2xl shadow-2xl transition-all text-[12px] font-black tracking-[0.2em] uppercase ${
-                    isCommitted ? 'bg-primary text-white active:scale-95 shadow-primary/20' : 'bg-gray-100 text-gray-300 grayscale cursor-not-allowed border-none shadow-none'
+                  className={`w-full py-6 rounded-2xl shadow-2xl transition-all text-xs font-black tracking-[0.3em] uppercase ${
+                    isCommitted 
+                    ? 'bg-white text-black hover:scale-[1.02] active:scale-95' 
+                    : 'bg-white/5 text-white/20 cursor-not-allowed border-none'
                   }`}
                 >
                   Start Day 1
@@ -202,35 +199,31 @@ const CommitmentFraming: React.FC = () => {
                 <div className="text-center">
                   <button 
                     onClick={() => setShowEmailCapture(true)}
-                    className="text-[10px] font-bold text-gray-400 hover:text-gray-600 transition-colors"
+                    className="text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-white/40 transition-colors"
                   >
                     I'm not ready to commit right now
                   </button>
                 </div>
               </div>
-            </footer>
+            </div>
           </div>
         </div>
       )}
 
       {showEmailCapture && (
-        <div className="max-w-md w-full animate-fade-in">
-          <div className="bg-white rounded-[3rem] shadow-xl border border-gray-100 relative overflow-hidden flex flex-col p-10 md:p-14 animate-slide-up text-center">
+        <div className="max-w-md w-full animate-fade-in relative z-10">
+          <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-[3rem] relative overflow-hidden flex flex-col p-10 md:p-14 animate-slide-up text-center shadow-2xl">
             <header className="mb-10">
-              <div className="w-20 h-20 bg-primary/5 rounded-[2rem] flex items-center justify-center mx-auto mb-8 text-3xl shadow-inner">
+              <div className="w-20 h-20 bg-primary/10 rounded-[2rem] flex items-center justify-center mx-auto mb-8 text-3xl shadow-inner border border-primary/20">
                 📩
               </div>
-              <h2 className="text-3xl font-black text-gray-900 tracking-tight leading-tight mb-3">Stay in the circle</h2>
-              <p className="text-sm text-gray-400 font-bold leading-relaxed">
+              <h2 className="text-3xl font-black tracking-tight leading-tight mb-3 italic">Stay in the circle</h2>
+              <p className="text-sm text-white/40 font-bold leading-relaxed">
                 Growth is a timing game. If now isn't the window, let's stay connected.
               </p>
             </header>
 
             <main className="mb-12">
-              <p className="text-[13px] text-gray-600 font-medium leading-relaxed mb-8">
-                Leave your email and we'll send you small reminders and insights to help you find your next momentum window.
-              </p>
-
               <form onSubmit={handleEmailSubmit} className="space-y-4">
                 <input 
                   type="email" 
@@ -238,12 +231,12 @@ const CommitmentFraming: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Your email address"
-                  className="w-full px-6 py-5 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all placeholder-gray-300"
+                  className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-2xl focus:ring-8 focus:ring-primary/20 focus:border-primary outline-none text-sm font-bold transition-all placeholder-white/20 text-white"
                 />
                 <Button 
                   type="submit"
                   isLoading={isSubmittingEmail}
-                  className="w-full py-5 rounded-2xl shadow-xl shadow-primary/20 text-[11px] font-black tracking-widest"
+                  className="w-full py-5 rounded-2xl bg-primary text-white shadow-xl shadow-primary/20 text-[11px] font-black tracking-widest uppercase"
                 >
                   Keep Me Updated
                 </Button>
@@ -253,25 +246,22 @@ const CommitmentFraming: React.FC = () => {
             <footer>
               <button 
                 onClick={() => navigate('/')}
-                className="text-[10px] font-black text-gray-300 hover:text-primary transition-colors"
+                className="text-[10px] font-black text-white/20 hover:text-primary transition-colors uppercase tracking-widest"
               >
                 No thanks, just take me home
               </button>
             </footer>
-
-            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
           </div>
         </div>
       )}
 
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.05); border-radius: 10px; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        .animate-slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scaleIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-slide-up { animation: slideUp 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-scale-in { animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
       `}</style>
     </div>
   );
