@@ -792,7 +792,7 @@ const SprintView: React.FC = () => {
                   justify-content: center;
                   z-index: 9999;
                   background-color: transparent;
-                  pointer-events: none;
+                  pointer-events: auto;
                 }
                 .modal-content-wrapper {
                   width: 90%;
