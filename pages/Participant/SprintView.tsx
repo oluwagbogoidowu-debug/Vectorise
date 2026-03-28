@@ -778,14 +778,23 @@ const SprintView: React.FC = () => {
             <style>{`
                 .modal-overlay {
                   position: fixed;
-                  top: 0;
-                  left: 20%;
-                  width: 60%;
-                  height: 100vh;
+                  top: 5vh;
+                  left: 5%;
+                  width: 90%;
+                  height: 90vh;
                   display: flex;
                   align-items: center;
                   justify-content: center;
                   z-index: 9999;
+                  border-radius: 3rem;
+                }
+                @media (min-width: 768px) {
+                  .modal-overlay {
+                    left: 20%;
+                    width: 60%;
+                    top: 10vh;
+                    height: 80vh;
+                  }
                 }
                 .no-scrollbar::-webkit-scrollbar { display: none; }
                 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
