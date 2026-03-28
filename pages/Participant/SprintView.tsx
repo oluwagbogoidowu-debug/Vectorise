@@ -21,7 +21,7 @@ const ReflectionModal: React.FC<{
     const [text, setText] = useState('');
     if (!isOpen) return null;
     return (
-        <div className="modal-overlay bg-black/40 animate-fade-in" onClick={onClose}>
+        <div className="modal-overlay animate-fade-in" onClick={onClose}>
             <div className="modal-content w-full max-w-sm bg-white rounded-[2.5rem] relative overflow-y-auto animate-slide-up flex flex-col p-8 max-h-[80vh] custom-scrollbar" onClick={e => e.stopPropagation()}>
                 <h3 className="text-xl font-black text-gray-900 tracking-tight mb-4">Sprint Reflection</h3>
                 <p className="text-[11px] font-black text-primary uppercase tracking-widest mb-6 leading-tight">
@@ -77,7 +77,7 @@ const SprintSettingsModal: React.FC<{
     );
 
     return (
-        <div className="modal-overlay bg-black/40 animate-fade-in" onClick={onClose}>
+        <div className="modal-overlay animate-fade-in" onClick={onClose}>
             <div className="modal-content w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden animate-slide-up flex flex-col max-h-[80vh] border border-gray-100" onClick={e => e.stopPropagation()}>
                 <div className="p-8 pb-4 flex justify-between items-center flex-shrink-0">
                     <h3 className="text-xl font-black text-gray-900 tracking-tight">Sprint Settings</h3>
@@ -161,7 +161,7 @@ const CoachingChatModal: React.FC<{
     if (!isOpen) return null;
 
     return (
-        <div className="modal-overlay bg-black/40 animate-fade-in" onClick={onClose}>
+        <div className="modal-overlay animate-fade-in" onClick={onClose}>
             <div className="modal-content w-full max-w-md bg-white rounded-[2.5rem] overflow-hidden flex flex-col animate-slide-up h-[70vh] max-h-[80vh] border border-gray-100" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-white flex-shrink-0">
@@ -787,11 +787,11 @@ const SprintView: React.FC = () => {
                   justify-content: center;
                   z-index: 9999;
                   border-radius: 3rem;
-                  backdrop-filter: none;
-                  -webkit-backdrop-filter: none;
+                  background-color: rgba(0, 0, 0, 0.1); /* Very subtle dimming */
                 }
                 .modal-content {
-                  box-shadow: none;
+                  box-shadow: 0 0 60px rgba(0, 0, 0, 0.15), 0 20px 40px rgba(0, 0, 0, 0.1);
+                  border: 1px solid rgba(0, 0, 0, 0.05);
                 }
                 @media (min-width: 768px) {
                   .modal-overlay {
