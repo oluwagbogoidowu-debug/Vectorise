@@ -201,6 +201,8 @@ export interface ParticipantSprint {
   referral_source?: string | null;
   sentNudges?: number[];
   reflectionsDisabled?: boolean;
+  soundDisabled?: boolean;
+  notificationsDisabled?: boolean;
   isCommissionTrigger?: boolean; 
   progress: {
     day: number;

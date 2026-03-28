@@ -4,6 +4,7 @@ import { ParticipantSprint, Sprint, DailyContent, GlobalOrchestrationSettings, M
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { doc, updateDoc } from 'firebase/firestore';
+import { toast } from 'sonner';
 import { db } from '../../services/firebase';
 import FormattedText from '../../components/FormattedText';
 import LocalLogo from '../../components/LocalLogo';
@@ -50,6 +51,57 @@ const ReflectionModal: React.FC<{
     );
 };
 
+const SprintSettingsModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    reflectionsEnabled: boolean;
+    onToggleReflections: () => void;
+    soundEnabled: boolean;
+    onToggleSound: () => void;
+    notificationsEnabled: boolean;
+    onToggleNotifications: () => void;
+}> = ({ isOpen, onClose, reflectionsEnabled, onToggleReflections, soundEnabled, onToggleSound, notificationsEnabled, onToggleNotifications }) => {
+    if (!isOpen) return null;
+
+    const Toggle = ({ enabled, onToggle, label }: { enabled: boolean, onToggle: () => void, label: string }) => (
+        <div className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0">
+            <span className="text-xs font-black text-gray-700 uppercase tracking-widest">{label}</span>
+            <button 
+                onClick={onToggle}
+                className={`w-12 h-6 rounded-full transition-all duration-300 relative ${enabled ? 'bg-primary' : 'bg-gray-200'}`}
+            >
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${enabled ? 'right-1' : 'left-1'}`} />
+            </button>
+        </div>
+    );
+
+    return (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/20 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+            <div className="w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl p-8 animate-slide-up" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-8">
+                    <h3 className="text-xl font-black text-gray-900 tracking-tight">Sprint Settings</h3>
+                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-dark transition-colors">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                
+                <div className="space-y-2">
+                    <Toggle enabled={reflectionsEnabled} onToggle={onToggleReflections} label="Daily Reflections" />
+                    <Toggle enabled={soundEnabled} onToggle={onToggleSound} label="Completion Sound" />
+                    <Toggle enabled={notificationsEnabled} onToggle={onToggleNotifications} label="Unlock Notifications" />
+                </div>
+
+                <button 
+                    onClick={onClose}
+                    className="w-full mt-8 bg-dark text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95"
+                >
+                    Done
+                </button>
+            </div>
+        </div>
+    );
+};
+
 interface SectionHeadingProps {
     children: React.ReactNode;
     color?: string;
@@ -71,6 +123,7 @@ const SprintView: React.FC = () => {
     const [viewingDay, setViewingDay] = useState<number>(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isReflectionModalOpen, setIsReflectionModalOpen] = useState(false);
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
     const [now, setNow] = useState(Date.now());
     const [timeToUnlock, setTimeToUnlock] = useState<string>('00:00:00');
     
@@ -79,6 +132,8 @@ const SprintView: React.FC = () => {
     const [proofSelected, setProofSelected] = useState('');
 
     const [reflectionsEnabled, setReflectionsEnabled] = useState(true);
+    const [soundEnabled, setSoundEnabled] = useState(true);
+    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [globalSettings, setGlobalSettings] = useState<GlobalOrchestrationSettings | null>(null);
 
     useEffect(() => {
@@ -88,6 +143,12 @@ const SprintView: React.FC = () => {
                 setEnrollment(data);
                 if (data.reflectionsDisabled !== undefined) {
                     setReflectionsEnabled(!data.reflectionsDisabled);
+                }
+                if (data.soundDisabled !== undefined) {
+                    setSoundEnabled(!data.soundDisabled);
+                }
+                if (data.notificationsDisabled !== undefined) {
+                    setNotificationsEnabled(!data.notificationsDisabled);
                 }
                 if (!sprint) {
                     const found = await sprintService.getSprintById(data.sprint_id);
@@ -117,6 +178,36 @@ const SprintView: React.FC = () => {
         const interval = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(interval);
     }, []);
+
+    useEffect(() => {
+        if (!notificationsEnabled || !enrollment || !sprint || !enrollment.progress) return;
+        
+        // Check if the next day is unlocked
+        const firstIncomplete = enrollment.progress.find(p => !p.completed);
+        if (firstIncomplete && firstIncomplete.day > 1) {
+            const prevDay = enrollment.progress.find(p => p.day === firstIncomplete.day - 1);
+            if (prevDay?.completedAt) {
+                const completedDate = new Date(prevDay.completedAt);
+                const nextMidnight = new Date(
+                    completedDate.getFullYear(),
+                    completedDate.getMonth(),
+                    completedDate.getDate() + 1,
+                    0, 0, 0
+                ).getTime();
+                
+                // If it's exactly midnight or just passed it, show a notification
+                // We'll use a ref to prevent multiple notifications for the same day
+                const lastNotifiedDay = localStorage.getItem(`last_notified_day_${enrollment.id}`);
+                if (now >= nextMidnight && lastNotifiedDay !== firstIncomplete.day.toString()) {
+                    toast.success(`Day ${firstIncomplete.day} is now unlocked!`, {
+                        description: "Time to take action.",
+                        icon: <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    });
+                    localStorage.setItem(`last_notified_day_${enrollment.id}`, firstIncomplete.day.toString());
+                }
+            }
+        }
+    }, [now, notificationsEnabled, enrollment, sprint]);
 
     const dayLockDetails = useMemo(() => {
         if (!enrollment || !sprint || !enrollment.progress) return { isLocked: false, unlockTime: 0 };
@@ -169,6 +260,30 @@ const SprintView: React.FC = () => {
         }
     };
 
+    const toggleSoundState = async () => {
+        if (!enrollment) return;
+        const newState = !soundEnabled;
+        setSoundEnabled(newState);
+        try {
+            const enrollmentRef = doc(db, 'enrollments', enrollment.id);
+            await updateDoc(enrollmentRef, { soundDisabled: !newState });
+        } catch (err) {
+            console.error("Toggle sound state failed", err);
+        }
+    };
+
+    const toggleNotificationsState = async () => {
+        if (!enrollment) return;
+        const newState = !notificationsEnabled;
+        setNotificationsEnabled(newState);
+        try {
+            const enrollmentRef = doc(db, 'enrollments', enrollment.id);
+            await updateDoc(enrollmentRef, { notificationsDisabled: !newState });
+        } catch (err) {
+            console.error("Toggle notifications state failed", err);
+        }
+    };
+
     const handleFinishDay = async (reflection: string) => {
         if (!enrollment || !user || isSubmitting || !enrollment.progress) return;
         setIsSubmitting(true);
@@ -199,6 +314,16 @@ const SprintView: React.FC = () => {
 
             await updateDoc(enrollmentRef, updatePayload);
             setIsReflectionModalOpen(false);
+
+            // Play completion sound if enabled
+            if (soundEnabled) {
+                try {
+                    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
+                    audio.play().catch(e => console.error("Sound playback failed:", e));
+                } catch (e) {
+                    console.error("Audio initialization failed:", e);
+                }
+            }
 
             if (isLastDay && updatedProgress.every(p => p.completed)) {
                 console.log("[SprintView] Last day finished. Checking for queued sprints...");
@@ -257,11 +382,11 @@ const SprintView: React.FC = () => {
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </Link>
                         <button 
-                            onClick={toggleReflectionState}
-                            className={`p-2.5 rounded-2xl shadow-sm transition-all border ${reflectionsEnabled ? 'bg-white text-primary border-gray-100' : 'bg-primary text-white border-primary'} active:scale-95`}
-                            title={reflectionsEnabled ? "Disable Reflections" : "Enable Reflections"}
+                            onClick={() => setIsSettingsModalOpen(true)}
+                            className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
+                            title="Sprint Settings"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                         </button>
                     </div>
                 </div>
@@ -301,6 +426,16 @@ const SprintView: React.FC = () => {
                 </div>
 
                 <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden min-h-[400px]">
+                    <SprintSettingsModal 
+                        isOpen={isSettingsModalOpen}
+                        onClose={() => setIsSettingsModalOpen(false)}
+                        reflectionsEnabled={reflectionsEnabled}
+                        onToggleReflections={toggleReflectionState}
+                        soundEnabled={soundEnabled}
+                        onToggleSound={toggleSoundState}
+                        notificationsEnabled={notificationsEnabled}
+                        onToggleNotifications={toggleNotificationsState}
+                    />
                     <ReflectionModal 
                         isOpen={isReflectionModalOpen} 
                         day={viewingDay} 
