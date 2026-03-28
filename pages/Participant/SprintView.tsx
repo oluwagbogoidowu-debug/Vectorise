@@ -605,32 +605,6 @@ const SprintView: React.FC = () => {
                 </div>
 
                 <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden min-h-[400px]">
-                    <SprintSettingsModal 
-                        isOpen={isSettingsModalOpen}
-                        onClose={() => setIsSettingsModalOpen(false)}
-                        reflectionsEnabled={reflectionsEnabled}
-                        onToggleReflections={toggleReflectionState}
-                        soundEnabled={soundEnabled}
-                        onToggleSound={toggleSoundState}
-                        notificationsEnabled={notificationsEnabled}
-                        onToggleNotifications={toggleNotificationsState}
-                    />
-                    <CoachingChatModal 
-                        isOpen={isChatModalOpen}
-                        onClose={() => setIsChatModalOpen(false)}
-                        sprintId={sprint.id}
-                        participantId={user?.id || ''}
-                        day={viewingDay}
-                        sprintTitle={sprint.title}
-                    />
-                    <ReflectionModal 
-                        isOpen={isReflectionModalOpen} 
-                        day={viewingDay} 
-                        question={dayContent?.reflectionQuestion}
-                        onClose={() => setIsReflectionModalOpen(false)} 
-                        onFinish={handleFinishDay} 
-                        isSubmitting={isSubmitting} 
-                    />
                     {enrollment.status === 'queued' && (
                         <div className="absolute inset-0 z-[150] bg-white/90 backdrop-blur-md flex flex-col items-center justify-center text-center p-8 animate-fade-in">
                             <div className="mb-6 opacity-20">
@@ -825,6 +799,33 @@ const SprintView: React.FC = () => {
                 .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
             `}</style>
             </div>
+
+            <SprintSettingsModal 
+                isOpen={isSettingsModalOpen}
+                onClose={() => setIsSettingsModalOpen(false)}
+                reflectionsEnabled={reflectionsEnabled}
+                onToggleReflections={toggleReflectionState}
+                soundEnabled={soundEnabled}
+                onToggleSound={toggleSoundState}
+                notificationsEnabled={notificationsEnabled}
+                onToggleNotifications={toggleNotificationsState}
+            />
+            <CoachingChatModal 
+                isOpen={isChatModalOpen}
+                onClose={() => setIsChatModalOpen(false)}
+                sprintId={sprint.id}
+                participantId={user?.id || ''}
+                day={viewingDay}
+                sprintTitle={sprint.title}
+            />
+            <ReflectionModal 
+                isOpen={isReflectionModalOpen} 
+                day={viewingDay} 
+                question={dayContent?.reflectionQuestion}
+                onClose={() => setIsReflectionModalOpen(false)} 
+                onFinish={handleFinishDay} 
+                isSubmitting={isSubmitting} 
+            />
         </>
     );
 };
