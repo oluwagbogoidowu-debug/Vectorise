@@ -779,8 +779,8 @@ const SprintView: React.FC = () => {
                 .modal-overlay {
                   position: fixed;
                   top: 0;
-                  left: 0;
-                  width: 100%;
+                  left: 20%;
+                  width: 60%;
                   height: 100vh;
                   display: flex;
                   align-items: center;
