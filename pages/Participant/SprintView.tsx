@@ -22,7 +22,8 @@ const ReflectionModal: React.FC<{
     if (!isOpen) return null;
     return (
         <div className="modal-overlay animate-fade-in" onClick={onClose}>
-            <div className="modal-content w-full max-w-sm bg-white rounded-[2.5rem] relative overflow-y-auto animate-slide-up flex flex-col p-8 max-h-[80vh] custom-scrollbar" onClick={e => e.stopPropagation()}>
+            <div className="modal-content-wrapper" onClick={onClose}>
+                <div className="modal-content w-full max-w-sm bg-white rounded-[2.5rem] relative overflow-y-auto animate-slide-up flex flex-col p-8 max-h-[80vh] custom-scrollbar" onClick={e => e.stopPropagation()}>
                 <h3 className="text-xl font-black text-gray-900 tracking-tight mb-4">Sprint Reflection</h3>
                 <p className="text-[11px] font-black text-primary uppercase tracking-widest mb-6 leading-tight">
                     {question || "One idea that shifted my thinking was..."}
@@ -49,6 +50,7 @@ const ReflectionModal: React.FC<{
                 </button>
             </div>
         </div>
+    </div>
     );
 };
 
@@ -78,7 +80,8 @@ const SprintSettingsModal: React.FC<{
 
     return (
         <div className="modal-overlay animate-fade-in" onClick={onClose}>
-            <div className="modal-content w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden animate-slide-up flex flex-col max-h-[80vh] border border-gray-100" onClick={e => e.stopPropagation()}>
+            <div className="modal-content-wrapper" onClick={onClose}>
+                <div className="modal-content w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden animate-slide-up flex flex-col max-h-[80vh] border border-gray-100" onClick={e => e.stopPropagation()}>
                 <div className="p-8 pb-4 flex justify-between items-center flex-shrink-0">
                     <h3 className="text-xl font-black text-gray-900 tracking-tight">Sprint Settings</h3>
                     <button onClick={onClose} className="p-2 text-gray-400 hover:text-dark transition-colors">
@@ -102,6 +105,7 @@ const SprintSettingsModal: React.FC<{
                 </div>
             </div>
         </div>
+    </div>
     );
 };
 
@@ -162,7 +166,8 @@ const CoachingChatModal: React.FC<{
 
     return (
         <div className="modal-overlay animate-fade-in" onClick={onClose}>
-            <div className="modal-content w-full max-w-md bg-white rounded-[2.5rem] overflow-hidden flex flex-col animate-slide-up h-[70vh] max-h-[80vh] border border-gray-100" onClick={e => e.stopPropagation()}>
+            <div className="modal-content-wrapper" onClick={onClose}>
+                <div className="modal-content w-full max-w-md bg-white rounded-[2.5rem] overflow-hidden flex flex-col animate-slide-up h-[70vh] max-h-[80vh] border border-gray-100" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-white flex-shrink-0">
                     <div>
@@ -237,6 +242,7 @@ const CoachingChatModal: React.FC<{
                 </div>
             </div>
         </div>
+    </div>
     );
 };
 
@@ -536,7 +542,7 @@ const SprintView: React.FC = () => {
 
     return (
         <>
-            <div className="w-full bg-[#FAFAFA] flex flex-col font-sans text-dark animate-fade-in pb-24">
+            <div className="page-content w-full bg-[#FAFAFA] flex flex-col font-sans text-dark animate-fade-in pb-24">
                 <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
                 <div className="flex items-center justify-between">
                     <button onClick={() => navigate('/dashboard')} className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all">
@@ -778,26 +784,34 @@ const SprintView: React.FC = () => {
             <style>{`
                 .modal-overlay {
                   position: fixed;
-                  top: 5vh;
-                  left: 5%;
+                  top: 0;
+                  left: 0;
+                  width: 100%;
+                  height: 100vh;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  z-index: 9999;
+                  background-color: transparent;
+                  pointer-events: none;
+                }
+                .modal-content-wrapper {
                   width: 90%;
                   height: 90vh;
                   display: flex;
                   align-items: center;
                   justify-content: center;
-                  z-index: 9999;
+                  background-color: rgba(0, 0, 0, 0.1);
                   border-radius: 3rem;
-                  background-color: rgba(0, 0, 0, 0.1); /* Very subtle dimming */
+                  pointer-events: auto;
                 }
                 .modal-content {
                   box-shadow: 0 0 60px rgba(0, 0, 0, 0.15), 0 20px 40px rgba(0, 0, 0, 0.1);
                   border: 1px solid rgba(0, 0, 0, 0.05);
                 }
                 @media (min-width: 768px) {
-                  .modal-overlay {
-                    left: 20%;
+                  .modal-content-wrapper {
                     width: 60%;
-                    top: 10vh;
                     height: 80vh;
                   }
                 }
