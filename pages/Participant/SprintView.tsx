@@ -651,7 +651,6 @@ const SprintView: React.FC = () => {
                     )}
 
                     <div className={dayLockDetails.isLocked ? 'blur-sm pointer-events-none opacity-20' : ''}>
-                        <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day {viewingDay}</h2>
                         
                         <div className="space-y-2 mb-10">
                             <SectionHeading>Today's Insight</SectionHeading>
