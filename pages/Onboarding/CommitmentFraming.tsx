@@ -122,14 +122,14 @@ const CommitmentFraming: React.FC = () => {
 
           <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col animate-slide-up">
             
-            <header className="p-6 md:p-8 text-center border-b border-gray-50 bg-white">
-               <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-tight">Read this before you continue</h1>
-               <p className="text-[10px] font-bold text-primary uppercase tracking-widest mt-3 opacity-70">
-                   Scheduling your next growth window
+            <header className="p-8 md:p-10 text-center border-b border-gray-50 bg-white">
+               <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-tight">Before you continue you have to decide.</h1>
+               <p className="text-[11px] font-bold text-primary uppercase tracking-widest mt-4">
+                   This only works if you commit.
                </p>
             </header>
 
-            <main className="p-6 md:p-8 space-y-6">
+            <main className="p-8 md:p-10 space-y-8">
               
               {hasActiveSprint && (
                   <div className="bg-primary/5 border border-primary/10 p-4 rounded-2xl animate-fade-in">
@@ -139,68 +139,64 @@ const CommitmentFraming: React.FC = () => {
                   </div>
               )}
 
-              <section className="space-y-4">
-                <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">The Commitment</h2>
+              <section className="space-y-6">
+                <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">What this requires</h2>
                 <div className="space-y-4">
                   {[
-                    { t: "Show up daily", d: "Commit to one clear action every single day." },
-                    { t: "Self-awareness", d: "Notice what works and what doesn't as you progress." },
-                    { t: "Complete the journey", d: "The results only come to those who finish." }
-                  ].map((item, i) => (
-                    <div key={i} className="flex gap-4 group">
-                      <div className="w-1.5 h-1.5 bg-primary/20 rounded-full mt-1.5 group-hover:bg-primary transition-colors flex-shrink-0"></div>
-                      <div>
-                        <h3 className="text-[12px] font-black text-gray-900 leading-none mb-1">{item.t}</h3>
-                        <p className="text-[11px] text-gray-500 leading-relaxed font-medium">{item.d}</p>
-                      </div>
+                    "Show up daily",
+                    "Pay attention to what works",
+                    "Finish what you start"
+                  ].map((text, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="text-primary font-bold text-lg">↠</span>
+                      <span className="text-sm font-black text-gray-900">{text}</span>
                     </div>
                   ))}
                 </div>
               </section>
 
-              <section className="py-4 border-y border-gray-50 flex items-center justify-between">
-                 <div>
-                    <p className="text-sm font-black text-gray-900">{duration} days • 15 min/day</p>
-                    <p className="text-[10px] font-bold text-gray-400 mt-0.5">Consistency is the foundation of growth.</p>
-                 </div>
-                 <div className="w-10 h-10 bg-primary/5 rounded-xl flex items-center justify-center">
-                    <Zap className="w-5 h-5 text-primary" />
-                 </div>
+              <section className="py-6 border-y border-gray-50 text-center">
+                <p className="text-lg font-black text-gray-900">{duration} Days · 15 mins/day</p>
+                <p className="text-[11px] font-bold text-gray-400 mt-1">Small actions. Real momentum.</p>
               </section>
 
-              <div className="bg-red-50/50 border border-red-100/50 p-3 rounded-xl text-center">
-                <p className="text-[10px] font-bold text-red-500 leading-tight">
-                  If you don't complete this, you reset your own momentum.
+              <div className="text-center">
+                <p className="text-[11px] font-bold text-red-500">
+                  Skip a day… you reset your momentum.
                 </p>
               </div>
 
               <section>
-                <label className="flex items-center gap-4 p-4 bg-gray-50 border border-gray-100 rounded-2xl cursor-pointer active:scale-[0.98] transition-all group hover:border-primary/20 hover:bg-white">
-                  <div className="relative flex items-center h-5">
-                    <input 
-                      type="checkbox" 
-                      checked={isCommitted}
-                      onChange={(e) => setIsCommitted(e.target.checked)}
-                      className="w-5 h-5 bg-white border-gray-200 rounded-lg focus:ring-offset-white focus:ring-primary text-primary cursor-pointer transition-all"
-                    />
+                <button 
+                  onClick={() => setIsCommitted(!isCommitted)}
+                  className={`w-full flex items-center gap-4 p-5 rounded-2xl transition-all duration-300 border ${
+                    isCommitted 
+                    ? 'bg-primary/5 border-primary/20 shadow-inner' 
+                    : 'bg-gray-50 border-gray-100 hover:bg-white hover:border-gray-200'
+                  }`}
+                >
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                    isCommitted ? 'bg-primary border-primary' : 'bg-white border-gray-200'
+                  }`}>
+                    {isCommitted && <div className="w-2 h-2 bg-white rounded-full"></div>}
                   </div>
-                  <div className="text-[11px] font-bold text-gray-700 leading-tight select-none">
-                    I will show up and complete each day without skipping.
-                  </div>
-                </label>
+                  <span className={`text-[12px] font-black transition-colors ${isCommitted ? 'text-gray-900' : 'text-gray-500'}`}>
+                    I commit to showing up and finishing this
+                  </span>
+                </button>
               </section>
             </main>
 
-            <footer className="p-6 md:p-8 pt-4 bg-gray-50/50 flex-shrink-0 border-t border-gray-50">
-              <div className="space-y-4">
+            <footer className="p-8 md:p-10 pt-4 bg-gray-50/50 border-t border-gray-50">
+              <div className="space-y-6">
                 <Button 
                   onClick={handleContinue}
                   disabled={!isCommitted}
-                  className={`w-full py-5 rounded-2xl shadow-2xl transition-all text-[11px] font-black tracking-widest ${
+                  className={`w-full py-6 rounded-2xl shadow-2xl transition-all text-[12px] font-black tracking-[0.2em] uppercase ${
                     isCommitted ? 'bg-primary text-white active:scale-95 shadow-primary/20' : 'bg-gray-100 text-gray-300 grayscale cursor-not-allowed border-none shadow-none'
                   }`}
                 >
-                  Lock This In
+                  Start Day 1
                 </Button>
                 
                 <div className="text-center">
