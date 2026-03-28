@@ -122,14 +122,7 @@ const SprintPreview: React.FC = () => {
                                                 state={{ prefilledEmail, targetSprintId: sprintId }}
                                                 className="text-[10px] font-black text-primary hover:underline tracking-widest uppercase bg-white/90 px-4 py-2 rounded-full shadow-sm backdrop-blur-sm"
                                             >
-                                                Complete your account creation to unlock full sprint.
-                                            </Link>
-                                            <Link 
-                                                to="/login" 
-                                                state={{ prefilledEmail, targetSprintId: sprintId }}
-                                                className="text-[9px] font-black text-gray-400 hover:text-primary tracking-widest uppercase"
-                                            >
-                                                Already have an account? Login
+                                                Finish setting up your account to unlock the full sprint.
                                             </Link>
                                         </div>
                                     </div>
