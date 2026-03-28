@@ -202,7 +202,17 @@ const GrowthDashboard: React.FC = () => {
                     </div>
                 </header>
 
-                {!analytics || isLoading ? (
+                {!isLoading && enrollments.length === 0 ? (
+                    <div className="h-96 flex flex-col items-center justify-center text-center px-6">
+                        <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-300 mb-6">
+                            <Zap className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">No Growth Data Yet</h3>
+                        <p className="text-sm text-gray-500 font-medium max-w-xs leading-relaxed">
+                            Complete your first sprint day to unlock your growth analysis and performance insights.
+                        </p>
+                    </div>
+                ) : !analytics || isLoading ? (
                     <div className="h-96 flex items-center justify-center">
                         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                     </div>

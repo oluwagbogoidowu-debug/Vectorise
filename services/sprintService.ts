@@ -219,6 +219,9 @@ export const sprintService = {
             status: hasActive ? 'queued' : 'active',
             last_activity_at: now,
             sentNudges: [],
+            reflectionsDisabled: false,
+            soundDisabled: false,
+            notificationsDisabled: false,
             progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
         };
 
