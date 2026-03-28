@@ -22,7 +22,7 @@ const ReflectionModal: React.FC<{
     if (!isOpen) return null;
     return (
         <div className="absolute inset-0 z-[200] flex items-center justify-center p-6 bg-white/90 backdrop-blur-md animate-fade-in">
-            <div className="w-full max-w-sm relative overflow-hidden animate-slide-up flex flex-col p-4">
+            <div className="w-full max-w-sm relative overflow-y-auto animate-slide-up flex flex-col p-4 max-h-[90vh] custom-scrollbar">
                 <h3 className="text-xl font-black text-gray-900 tracking-tight mb-4">Sprint Reflection</h3>
                 <p className="text-[11px] font-black text-primary uppercase tracking-widest mb-6 leading-tight">
                     {question || "One idea that shifted my thinking was..."}
@@ -77,27 +77,29 @@ const SprintSettingsModal: React.FC<{
     );
 
     return (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/20 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-            <div className="w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl p-8 animate-slide-up" onClick={e => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-8">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+            <div className="w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                <div className="p-8 pb-4 flex justify-between items-center flex-shrink-0">
                     <h3 className="text-xl font-black text-gray-900 tracking-tight">Sprint Settings</h3>
                     <button onClick={onClose} className="p-2 text-gray-400 hover:text-dark transition-colors">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
                 
-                <div className="space-y-2">
+                <div className="flex-1 overflow-y-auto px-8 py-2 min-h-0 custom-scrollbar">
                     <Toggle enabled={reflectionsEnabled} onToggle={onToggleReflections} label="Daily Reflections" />
                     <Toggle enabled={soundEnabled} onToggle={onToggleSound} label="Completion Sound" />
                     <Toggle enabled={notificationsEnabled} onToggle={onToggleNotifications} label="Unlock Notifications" />
                 </div>
 
-                <button 
-                    onClick={onClose}
-                    className="w-full mt-8 bg-dark text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95"
-                >
-                    Done
-                </button>
+                <div className="p-8 pt-4 flex-shrink-0">
+                    <button 
+                        onClick={onClose}
+                        className="w-full bg-dark text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95"
+                    >
+                        Done
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -160,9 +162,9 @@ const CoachingChatModal: React.FC<{
 
     return (
         <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-            <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col animate-slide-up h-[80vh]" onClick={e => e.stopPropagation()}>
+            <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col animate-slide-up h-[80vh] max-h-[90vh]" onClick={e => e.stopPropagation()}>
                 {/* Header */}
-                <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-white sticky top-0 z-10">
+                <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-white flex-shrink-0">
                     <div>
                         <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Private Coaching Chat</h3>
                         <p className="text-sm font-black text-gray-900 truncate max-w-[200px]">{sprintTitle}</p>
@@ -178,7 +180,7 @@ const CoachingChatModal: React.FC<{
                 </div>
 
                 {/* Messages */}
-                <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#FAFAFA]">
+                <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#FAFAFA] min-h-0 custom-scrollbar">
                     {messages.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
                             <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -209,7 +211,7 @@ const CoachingChatModal: React.FC<{
                 </div>
 
                 {/* Input */}
-                <div className="p-6 bg-white border-t border-gray-50">
+                <div className="p-6 bg-white border-t border-gray-50 flex-shrink-0">
                     <div className="relative flex items-center gap-2">
                         <textarea
                             value={newMessage}
@@ -769,6 +771,10 @@ const SprintView: React.FC = () => {
             <style>{`
                 .no-scrollbar::-webkit-scrollbar { display: none; }
                 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+                .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 10px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
                 .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
                 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
