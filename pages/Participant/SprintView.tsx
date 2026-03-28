@@ -543,7 +543,7 @@ const SprintView: React.FC = () => {
     return (
         <>
             <div className="page-content w-full bg-[#FAFAFA] flex flex-col font-sans text-dark animate-fade-in pb-24">
-                <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
+                <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90">
                 <div className="flex items-center justify-between">
                     <button onClick={() => navigate('/dashboard')} className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
@@ -612,7 +612,7 @@ const SprintView: React.FC = () => {
 
                 <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden min-h-[400px]">
                     {enrollment.status === 'queued' && (
-                        <div className="absolute inset-0 z-[150] bg-white/90 backdrop-blur-md flex flex-col items-center justify-center text-center p-8 animate-fade-in">
+                        <div className="absolute inset-0 z-[150] bg-transparent flex flex-col items-center justify-center text-center p-8 animate-fade-in">
                             <div className="mb-6 opacity-20">
                                 <LocalLogo type="favicon" className="w-24 h-24" />
                             </div>
@@ -630,7 +630,7 @@ const SprintView: React.FC = () => {
                     )}
 
                     {dayLockDetails.isLocked && (
-                        <div className="absolute inset-0 z-[140] bg-white/80 flex flex-col items-center justify-center text-center p-8 animate-fade-in">
+                        <div className="absolute inset-0 z-[140] bg-transparent flex flex-col items-center justify-center text-center p-8 animate-fade-in">
                             <div className="mb-6 opacity-20">
                                 <LocalLogo type="favicon" className="w-24 h-24" />
                             </div>
@@ -650,7 +650,7 @@ const SprintView: React.FC = () => {
                         </div>
                     )}
 
-                    <div className={dayLockDetails.isLocked ? 'pointer-events-none opacity-20' : ''}>
+                    <div className={dayLockDetails.isLocked ? 'pointer-events-none' : ''}>
                         
                         <div className="space-y-2 mb-10">
                             <SectionHeading>Today's Insight</SectionHeading>
@@ -790,7 +790,7 @@ const SprintView: React.FC = () => {
                   display: flex;
                   align-items: center;
                   justify-content: center;
-                  z-index: 9999;
+                  z-index: 100;
                   background-color: transparent;
                   pointer-events: auto;
                 }
@@ -800,7 +800,7 @@ const SprintView: React.FC = () => {
                   display: flex;
                   align-items: center;
                   justify-content: center;
-                  background-color: rgba(0, 0, 0, 0.1);
+                  background-color: transparent;
                   border-radius: 3rem;
                   pointer-events: auto;
                 }
