@@ -10,6 +10,7 @@ import { Track, Sprint } from '../types';
 import Button from '../components/Button';
 import FormattedText from '../components/FormattedText';
 import DynamicSectionRenderer from '../components/DynamicSectionRenderer';
+import LocalLogo from '../components/LocalLogo';
 import { ChevronDown, ChevronUp, Clock, ArrowRight, ShieldCheck, Package, Zap, Calendar, Plus, Minus } from 'lucide-react';
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -202,7 +203,7 @@ const TrackDescriptionPage: React.FC = () => {
         <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
             <div className="max-w-screen-lg mx-auto px-4 pt-4">
                 <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
-                    {user && (
+                    {user ? (
                         <button 
                             onClick={() => navigate('/discover')} 
                             className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest"
@@ -212,6 +213,8 @@ const TrackDescriptionPage: React.FC = () => {
                             </svg>
                             Back to Registry
                         </button>
+                    ) : (
+                        <LocalLogo type="green" className="h-4 w-auto" />
                     )}
                     <div className="flex items-center gap-2">
                         <div className="px-4 py-1.5 rounded-xl border border-primary/20 bg-white text-primary text-[11px] font-black uppercase tracking-widest flex items-center gap-2">

@@ -158,7 +158,7 @@ const SprintLandingPage: React.FC = () => {
         <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
             <div className="max-w-screen-lg mx-auto px-4 pt-4">
                 <div className="flex justify-between items-center mb-6">
-                    {user && (
+                    {user ? (
                         <button 
                             onClick={() => navigate('/discover')} 
                             className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest"
@@ -168,9 +168,10 @@ const SprintLandingPage: React.FC = () => {
                             </svg>
                             Back to Registry
                         </button>
+                    ) : (
+                        <LocalLogo type="green" className="h-4 w-auto" />
                     )}
                     <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
-                        {isFoundational && <LocalLogo type="favicon" className="w-3 h-3" />}
                         {isFoundational ? 'FOUNDATIONAL PATH' : 'FOUNDATION PATH'}
                     </div>
                 </div>

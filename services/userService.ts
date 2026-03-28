@@ -2,6 +2,7 @@ import { db } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, increment, addDoc } from 'firebase/firestore';
 import { User, Participant, Coach, UserRole, WalletTransaction } from '../types';
 import { toast } from 'sonner';
+import { MILESTONES } from './milestoneConstants';
 
 // Notification Queue System
 const notificationQueue: { type: 'success' | 'info' | 'error', message: string, options: any }[] = [];
@@ -304,9 +305,10 @@ export const userService = {
           
           await updateDoc(userRef, { claimedMilestoneIds: arrayUnion(milestoneId) });
           
-          if (isAutoClaim) {
-            const displayId = milestoneId === 'welcome_login' ? 'Daily Login Bonus' : milestoneId.replace(/-/g, ' ');
-            queueNotification('success', `Bonus! +${points} Coins earned for ${displayId}`, {
+          // Only show notification if it's in the Hall of Rise (MILESTONES)
+          const milestoneDef = MILESTONES.find(m => m.id === milestoneId);
+          if (isAutoClaim && milestoneDef) {
+            queueNotification('success', `Bonus! +${points} Coins earned for ${milestoneDef.title}`, {
               description: milestoneId === 'welcome_login' ? "Welcome back to the Rise!" : "Keep rising!",
               duration: 3000,
             });
@@ -318,8 +320,8 @@ export const userService = {
   },
 
   notifyMilestoneReached: (milestoneId: string, points: number, actionLabel: string = "Claim") => {
-    queueNotification('info', `Milestone Reached: ${milestoneId.replace(/_/g, ' ').replace(/-/g, ' ')}`, {
-      description: `You've earned ${points} coins!`,
+    queueNotification('info', `Milestone Reached: ${milestoneId}`, {
+      description: `${points} coins are ready to claim in the Hall of Rise!`,
       action: {
         label: actionLabel,
         onClick: () => window.location.href = '/profile/hall-of-rise'
@@ -329,27 +331,28 @@ export const userService = {
   },
 
   checkAndNotifyMilestones: async (uid: string, stats: any, currentClaimedIds: string[]) => {
-    // This is a simplified version of the logic in Badges.tsx
-    const milestones = [
-      { id: 's2', title: 'The Closer', target: 1, val: stats.completed, points: 15 },
-      { id: 's4', title: 'Growth Habit', target: 3, val: stats.completed, points: 50 },
-      { id: 'c1', title: 'The Start', target: 1, val: stats.reflectionsCount, points: 5 },
-      { id: 'c2', title: 'Momentum', target: 3, val: stats.streak, points: 10 },
-      { id: 'qw3', title: '3-Day Sprint', target: 3, val: stats.daysActive, points: 5 },
-      { id: 'qw7', title: 'Weekly Warrior', target: 7, val: stats.daysActive, points: 10 },
-      { id: 'qw14', title: 'Fortnight Focus', target: 14, val: stats.daysActive, points: 15 },
-      { id: 'qw21', title: 'Habit Former', target: 21, val: stats.daysActive, points: 25 },
-      { id: 'qw30', title: 'Monthly Master', target: 30, val: stats.daysActive, points: 30 },
-      { id: 'cm1', title: 'Rooted', target: 60, val: stats.daysActive, points: 20 },
-      { id: 'cm2', title: 'Quarter Builder', target: 90, val: stats.daysActive, points: 50 },
-      { id: 'r1', title: 'Deep Diver', target: 1, val: stats.meaningfulReflections, points: 10 },
-      { id: 'r2', title: 'Self-Aware', target: 5, val: stats.meaningfulReflections, points: 30 },
-      { id: 'i1', title: 'Catalyst', target: 1, val: stats.peopleHelped, points: 5 },
-      { id: 'i10', title: 'Multiplier', target: 10, val: stats.peopleHelped, points: 50 },
-    ];
+    // Only include milestones that are actually in the Hall of Rise (MILESTONES)
+    // and are NOT auto-claimed (since those notify immediately)
+    const manualMilestones = MILESTONES.filter(m => !m.isAutoClaim);
 
-    for (const m of milestones) {
-      if (m.val >= m.target && !currentClaimedIds.includes(m.id)) {
+    const getStatValue = (id: string) => {
+        switch(id) {
+            case 's1': return stats.started;
+            case 's2': return stats.completed;
+            case 's4': return stats.completed;
+            case 'cm1': return stats.daysActive;
+            case 'cm2': return stats.daysActive;
+            case 'r1': return stats.meaningfulReflections;
+            case 'r2': return stats.meaningfulReflections;
+            case 'i1': return stats.peopleHelped;
+            case 'i10': return stats.peopleHelped;
+            default: return 0;
+        }
+    };
+
+    for (const m of manualMilestones) {
+      const val = getStatValue(m.id);
+      if (val >= m.targetValue && !currentClaimedIds.includes(m.id)) {
         // Check if we already notified in this session to avoid spam
         const sessionKey = `notified_${m.id}`;
         if (!sessionStorage.getItem(sessionKey)) {

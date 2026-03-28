@@ -206,8 +206,8 @@ const ProgramDescription: React.FC = () => {
   return (
     <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
       <div className="max-w-screen-lg mx-auto px-4 pt-4">
-        <div className="flex flex-col items-center mb-6">
-          <LocalLogo type="green" className="h-5 w-auto mb-4 opacity-40" />
+        <div className="flex flex-col items-start mb-6">
+          <LocalLogo type="green" className="h-4 w-auto mb-4" />
           <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
              <div className="h-full bg-primary rounded-full transition-all duration-1000 w-[25%]" style={{ width: '25%' }}></div>
           </div>
@@ -223,8 +223,7 @@ const ProgramDescription: React.FC = () => {
             </svg>
             Refine Focus
           </button>
-          <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
-            {isFoundational && <LocalLogo type="favicon" className="w-3 h-3" />}
+          <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest">
             {slotInfo ? `${slotInfo.stage}: ${slotInfo.name}` : 'PHASE 01: CORE'}
           </div>
         </div>

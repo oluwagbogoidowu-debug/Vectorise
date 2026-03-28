@@ -7,17 +7,12 @@ import { sprintService } from '../../../services/sprintService';
 import { shineService } from '../../../services/shineService';
 import { userService, sanitizeData } from '../../../services/userService';
 
-interface Milestone {
-    id: string;
-    title: string;
-    description: string;
-    icon: string;
+import { MILESTONES, MilestoneDefinition } from '../../../services/milestoneConstants';
+
+interface Milestone extends MilestoneDefinition {
     currentValue: number;
-    targetValue: number;
     isUnlocked: boolean;
     isClaimed: boolean;
-    points: number;
-    color?: string;
 }
 
 const MilestoneCard: React.FC<{ milestone: Milestone; onClaim: (m: Milestone) => void }> = ({ milestone, onClaim }) => {
@@ -166,35 +161,40 @@ const Badges: React.FC = () => {
     }, [user, enrollments, reflections, allSprintData]);
 
     const milestonesByType = useMemo(() => {
-        if (!stats || !user) return { coreProgress: [], longGame: [], innerWork: [], influence: [] };
+        if (!stats || !user) return { coreProgress: [], longGame: [], innerWork: [], influence: [], onboarding: [] };
         const p = user as Participant;
         const claimed = p.claimedMilestoneIds || [];
-        const categories = {
-            coreProgress: [
-                { id: 's1', title: 'First Spark', description: 'You started your rise.', icon: '🚀', currentValue: stats.started, targetValue: 1, points: 5 },
-                { id: 's2', title: 'The Closer', description: 'You finished what you started.', icon: '🏁', currentValue: stats.completed, targetValue: 1, points: 15 },
-                { id: 's4', title: 'Growth Habit', description: 'Consistency is becoming your default.', icon: '🏗️', currentValue: stats.completed, targetValue: 3, points: 50 },
-            ],
-            longGame: [
-                { id: 'cm1', title: 'Rooted', description: '60 days of intentional growth.', icon: '🌱', currentValue: stats.daysActive, targetValue: 60, points: 20, color: 'blue' },
-                { id: 'cm2', title: 'Quarter Builder', description: '90 days of structured rise.', icon: '🏢', currentValue: stats.daysActive, targetValue: 90, points: 50, color: 'blue' }
-            ],
-            innerWork: [
-                { id: 'r1', title: 'Deep Diver', description: 'You went beyond surface-level growth.', icon: '🌊', currentValue: stats.meaningfulReflections, targetValue: 1, points: 10, color: 'yellow' },
-                { id: 'r2', title: 'Self-Aware', description: 'You turned reflection into clarity.', icon: '💎', currentValue: stats.meaningfulReflections, targetValue: 5, points: 30, color: 'yellow' }
-            ],
-            influence: [
-                { id: 'i1', title: 'Catalyst', description: 'You helped someone start their rise.', icon: '🌱', currentValue: stats.peopleHelped, targetValue: 1, points: 5, color: 'teal' },
-                { id: 'i10', title: 'Multiplier', description: 'You ignited growth in 10 people.', icon: '🌳', currentValue: stats.peopleHelped, targetValue: 10, points: 50, color: 'teal' }
-            ]
+        
+        const getStatValue = (id: string) => {
+            switch(id) {
+                case 'setup_account': return stats.isIdentityComplete ? 1 : 0;
+                case 'welcome_login': return 1; // Always 1 if they are here
+                case 's1': return stats.started;
+                case 's2': return stats.completed;
+                case 's4': return stats.completed;
+                case 'cm1': return stats.daysActive;
+                case 'cm2': return stats.daysActive;
+                case 'r1': return stats.meaningfulReflections;
+                case 'r2': return stats.meaningfulReflections;
+                case 'i1': return stats.peopleHelped;
+                case 'i10': return stats.peopleHelped;
+                default: return 0;
+            }
         };
-        const mapToMilestone = (m: any): Milestone => ({ ...m, isUnlocked: m.currentValue >= m.targetValue, isClaimed: claimed.includes(m.id) });
-        return {
-            coreProgress: categories.coreProgress.map(mapToMilestone),
-            longGame: categories.longGame.map(mapToMilestone),
-            innerWork: categories.innerWork.map(mapToMilestone),
-            influence: categories.influence.map(mapToMilestone)
-        };
+
+        const result: Record<string, Milestone[]> = { coreProgress: [], longGame: [], innerWork: [], influence: [], onboarding: [] };
+        
+        MILESTONES.forEach(m => {
+            const milestone: Milestone = {
+                ...m,
+                currentValue: getStatValue(m.id),
+                isUnlocked: getStatValue(m.id) >= m.targetValue,
+                isClaimed: claimed.includes(m.id)
+            };
+            result[m.category].push(milestone);
+        });
+
+        return result;
     }, [stats, user]);
 
     const handleClaim = async (m: Milestone) => {
@@ -217,6 +217,7 @@ const Badges: React.FC = () => {
     if (!user) return null;
 
     const CategorySection = ({ title, type, milestones, color }: { title: string, type: string, milestones: Milestone[], color: string }) => {
+        if (milestones.length === 0) return null;
         const isExpanded = expandedCategories[type] || false;
         const visibleMilestones = isExpanded ? milestones : milestones.slice(0, 3);
 
@@ -260,6 +261,7 @@ const Badges: React.FC = () => {
                 </div>
             ) : (
                 <div className="space-y-16">
+                    <CategorySection title="Onboarding" type="onboarding" milestones={milestonesByType.onboarding} color="orange" />
                     <CategorySection title="Core Progress" type="coreProgress" milestones={milestonesByType.coreProgress} color="primary" />
                     <CategorySection title="Long Game" type="longGame" milestones={milestonesByType.longGame} color="blue" />
                     <CategorySection title="Inner Work" type="innerWork" milestones={milestonesByType.innerWork} color="yellow" />
@@ -273,5 +275,6 @@ const Badges: React.FC = () => {
         </div>
     );
 };
+
 
 export default Badges;
