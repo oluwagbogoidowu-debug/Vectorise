@@ -189,8 +189,7 @@ const SprintLandingPage: React.FC = () => {
                             <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
                             <div className="absolute bottom-10 left-10 right-10 text-white">
                                 <div className="mb-4">
-                                    <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2 w-fit">
-                                        {isFoundational && <LocalLogo type="favicon" className="w-3 h-3 brightness-0 invert" />}
+                                    <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg">
                                         {isFoundational ? 'FOUNDATIONAL PATH' : 'PREMIUM SPRINT'}
                                     </span>
                                 </div>
