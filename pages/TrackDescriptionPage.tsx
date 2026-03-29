@@ -44,6 +44,12 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
                     </div>
                     <div className="text-left">
                         <div className="flex items-center gap-2 mb-1">
+                            {isFoundational && (
+                                <span className="px-2 py-0.5 bg-primary/10 text-primary text-[8px] font-black uppercase tracking-widest rounded-md flex items-center gap-1">
+                                    <LocalLogo type="favicon" className="h-2 w-auto" />
+                                    FOUNDATIONAL PATH
+                                </span>
+                            )}
                             <span className="px-2 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md">{sprint.category}</span>
                             <span className="text-[8px] font-black text-primary uppercase tracking-widest">{sprint.duration} Days</span>
                         </div>
@@ -238,6 +244,9 @@ const TrackDescriptionPage: React.FC = () => {
                             <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
                             <div className="absolute bottom-10 left-10 right-10 text-white">
                                 <div className="mb-4 flex items-center gap-2">
+                                    <span className="px-3 py-1.5 bg-white text-primary rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2">
+                                        TRACK BUNDLE
+                                    </span>
                                     <span className="px-3 py-1.5 bg-primary text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg">
                                         SAVE {track.discountPercentage}%
                                     </span>
