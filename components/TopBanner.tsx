@@ -12,12 +12,16 @@ const TopBanner: React.FC<TopBannerProps> = ({ deferredPrompt }) => {
   useEffect(() => {
     const isDismissed = localStorage.getItem('vectorise_banner_dismissed');
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
+    // For testing purposes, we'll allow it on desktop too, but keep the mobile check logic ready
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isDev = window.location.hostname.includes('run.app') || window.location.hostname.includes('localhost');
+
     // Hide if dismissed or already in the app (standalone)
-    if (isDismissed || isStandalone || !isMobile) {
+    if (isDismissed || isStandalone) {
       setIsVisible(false);
     } else {
+      // Show if mobile OR if we are in the dev environment so you can see it
       setIsVisible(true);
     }
   }, []);
