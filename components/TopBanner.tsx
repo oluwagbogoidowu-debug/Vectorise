@@ -43,9 +43,16 @@ const TopBanner: React.FC<TopBannerProps> = ({ deferredPrompt }) => {
         setIsVisible(false);
       }
     } else {
-      // If already installed, we try to "open" it by navigating to the home page
-      // In many mobile browsers, this will trigger the "Open in App" prompt or transition
-      window.location.href = '/';
+      // If already installed, we try to "open" it.
+      // On many mobile browsers, navigating to the root with target="_blank" 
+      // can trigger the "Open in App" prompt or transition if the PWA is installed.
+      const link = document.createElement('a');
+      link.href = '/';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 
