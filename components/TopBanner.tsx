@@ -10,7 +10,7 @@ const TopBanner: React.FC<TopBannerProps> = ({ deferredPrompt }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const isDismissed = localStorage.getItem('vectorise_banner_dismissed');
+    const isDismissed = sessionStorage.getItem('vectorise_banner_dismissed');
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
     
     // For testing purposes, we'll allow it on desktop too, but keep the mobile check logic ready
@@ -28,7 +28,7 @@ const TopBanner: React.FC<TopBannerProps> = ({ deferredPrompt }) => {
 
   const handleDismiss = (e: React.MouseEvent) => {
     e.stopPropagation();
-    localStorage.setItem('vectorise_banner_dismissed', 'true');
+    sessionStorage.setItem('vectorise_banner_dismissed', 'true');
     setIsVisible(false);
   };
 
