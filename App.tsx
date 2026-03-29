@@ -85,7 +85,7 @@ const AppContent: React.FC = () => {
     !location.pathname.startsWith('/admin') &&
     !isAuthRoute;
 
-  const showTopBanner = (!isOnboardingRoute && !isAuthRoute) || location.pathname === '/login';
+  const showTopBanner = !isOnboardingRoute && !isAuthRoute;
 
   if (loading) {
     return (
