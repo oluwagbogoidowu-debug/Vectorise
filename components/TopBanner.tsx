@@ -11,11 +11,13 @@ const TopBanner: React.FC<TopBannerProps> = ({ deferredPrompt }) => {
 
   useEffect(() => {
     const isDismissed = localStorage.getItem('vectorise_banner_dismissed');
-    const isInstalled = localStorage.getItem('vec_pwa_installed') === 'true';
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    // Show if not dismissed, not installed, and is mobile
-    if (!isDismissed && !isInstalled && isMobile) {
+    // Hide if dismissed or already in the app (standalone)
+    if (isDismissed || isStandalone || !isMobile) {
+      setIsVisible(false);
+    } else {
       setIsVisible(true);
     }
   }, []);
@@ -27,22 +29,26 @@ const TopBanner: React.FC<TopBannerProps> = ({ deferredPrompt }) => {
   };
 
   const handleAction = async () => {
-    if (deferredPrompt) {
+    const isInstalled = localStorage.getItem('vec_pwa_installed') === 'true';
+
+    if (deferredPrompt && !isInstalled) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
+        localStorage.setItem('vec_pwa_installed', 'true');
         localStorage.setItem('vectorise_banner_dismissed', 'true');
         setIsVisible(false);
       }
     } else {
-      // If already installed or not supported, we can't easily "open" it via JS
-      // but we can show a toast or just let the browser handle it.
-      // For now, we'll just log it.
-      console.log('App might already be installed or PWA not supported');
+      // If already installed, we try to "open" it by navigating to the home page
+      // In many mobile browsers, this will trigger the "Open in App" prompt or transition
+      window.location.href = '/';
     }
   };
 
   if (!isVisible) return null;
+
+  const isInstalled = localStorage.getItem('vec_pwa_installed') === 'true';
 
   return (
     <div 
@@ -54,7 +60,7 @@ const TopBanner: React.FC<TopBannerProps> = ({ deferredPrompt }) => {
            <LocalLogo type="favicon" className="w-5 h-5" />
         </div>
         <span className="text-white text-[13px] font-bold tracking-tight">
-          Use the app for a smoother experience
+          {isInstalled ? 'Open Vectorise App' : 'Use the app for a smoother experience'}
         </span>
       </div>
       <button 
