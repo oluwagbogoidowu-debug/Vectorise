@@ -86,7 +86,7 @@ export default function AdminDashboard() {
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
                         </button>
                         <div>
-                            <h1 className="text-4xl font-black text-gray-900 tracking-tight italic">Admin Control.</h1>
+                            <h1 className="text-2xl font-black text-gray-900 tracking-tight italic">Admin Control.</h1>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -102,7 +102,6 @@ export default function AdminDashboard() {
                             </svg>
                             Switch to Coach
                         </button>
-                        <button onClick={() => setRefreshKey(k => k + 1)} className="p-3 bg-white text-gray-400 hover:text-primary rounded-2xl shadow-sm border border-gray-100 active:scale-90 group"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-active:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg></button>
                         <button onClick={handleLogout} disabled={isLoggingOut} className="p-3 bg-white text-red-400 rounded-2xl shadow-sm border border-gray-100 hover:bg-red-50 active:scale-90 disabled:opacity-50"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></button>
                     </div>
                 </div>
