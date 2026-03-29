@@ -165,8 +165,8 @@ const LoginPage: React.FC = () => {
       <div className="w-full max-w-sm flex flex-col items-center animate-fade-in">
         <div className="w-full bg-white p-8 rounded-[2.5rem] shadow-2xl border border-gray-100 relative overflow-hidden">
             <header className="text-center mb-10 pt-4">
-                <h1 className="text-5xl font-black leading-[0.95] text-center tracking-tighter bg-gradient-to-br from-primary to-[#0FB881] bg-clip-text text-transparent">
-                    Continue<br/><span className="opacity-80 italic pb-1">your rise</span>
+                <h1 className="text-5xl font-black leading-[0.95] text-center tracking-tighter text-gray-900">
+                    Continue<br/><span className="text-primary italic pb-1">your rise</span>
                 </h1>
             </header>
 
