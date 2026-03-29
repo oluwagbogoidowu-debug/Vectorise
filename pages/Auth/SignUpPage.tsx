@@ -203,8 +203,8 @@ const SignUpPage: React.FC = () => {
     <div className="h-[100dvh] w-screen bg-[#FAFAFA] flex flex-col items-center justify-center px-6 overflow-hidden font-sans relative">
       <div className="w-full max-w-sm flex flex-col items-center animate-fade-in z-10">
         <header className="text-center mb-10">
-            <h1 className="text-5xl font-black leading-[0.95] text-center tracking-tighter text-gray-900">
-                Start<br/><span className="text-primary italic pb-1">your rise</span>
+            <h1 className="text-5xl font-black leading-[0.95] text-center tracking-tighter">
+                <span className="text-[#1D8E5F]">Start</span><br/><span className="text-primary italic pb-1">your rise</span>
             </h1>
             {referrerId && !isPartnerApplication && (
                 <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-3">
