@@ -7,7 +7,6 @@ import { userService } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { UserRole, Participant } from '../../types';
 import Button from '../../components/Button';
-import LocalLogo from '../../components/LocalLogo';
 import { toast } from 'sonner';
 
 const SignUpPage: React.FC = () => {
@@ -203,10 +202,9 @@ const SignUpPage: React.FC = () => {
   return (
     <div className="h-[100dvh] w-screen bg-[#FAFAFA] flex flex-col items-center justify-center px-6 overflow-hidden font-sans relative">
       <div className="w-full max-w-sm flex flex-col items-center animate-fade-in z-10">
-        <header className="text-center mb-8">
-            <LocalLogo type="green" className="h-6 w-auto mx-auto mb-6 opacity-30" />
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">
-                {isPartnerApplication ? 'Establish Partner Identity' : fromPayment ? 'Establish your identity' : 'Start your Rise'}
+        <header className="text-center mb-10">
+            <h1 className="text-5xl font-black leading-[0.95] text-center tracking-tighter text-gray-900">
+                Start<br/><span className="opacity-80 italic">your rise</span>
             </h1>
             {referrerId && !isPartnerApplication && (
                 <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-3">

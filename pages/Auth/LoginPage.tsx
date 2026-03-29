@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/Button';
-import LocalLogo from '../../components/LocalLogo';
 import { auth, db } from '../../services/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -165,10 +164,9 @@ const LoginPage: React.FC = () => {
     <div className="h-[100dvh] w-screen bg-[#FAFAFA] flex items-center justify-center px-6 overflow-hidden font-sans">
       <div className="w-full max-w-sm flex flex-col items-center animate-fade-in">
         <div className="w-full bg-white p-8 rounded-[2.5rem] shadow-2xl border border-gray-100 relative overflow-hidden">
-            <header className="text-center mb-8 pt-4">
-                <LocalLogo type="green" className="h-10 w-auto mx-auto mb-4" />
-                <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">
-                    Continue your rise
+            <header className="text-center mb-10 pt-4">
+                <h1 className="text-5xl font-black leading-[0.95] text-center tracking-tighter text-gray-900">
+                    Continue<br/><span className="opacity-80 italic">your rise</span>
                 </h1>
             </header>
 
