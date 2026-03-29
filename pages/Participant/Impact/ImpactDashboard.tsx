@@ -160,7 +160,6 @@ const ImpactDashboard: React.FC = () => {
                 <section>
                     <div className="flex justify-between items-center mb-2 px-1">
                         <SectionLabel text="Impact Scale" />
-                        <Link to="/impact/ripple" className="text-[7px] font-black text-primary uppercase">View All</Link>
                     </div>
                     <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                         {leaders.map((leader, index) => {

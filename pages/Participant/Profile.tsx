@@ -513,7 +513,11 @@ const Profile: React.FC = () => {
           </div>
           <div className="space-y-2">
             {milestones.slice(0, 3).map((m) => (
-              <div key={m.id} className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex items-center gap-3">
+              <Link 
+                key={m.id} 
+                to={m.category === 'influence' ? "/impact" : "/profile/hall-of-rise"}
+                className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex items-center gap-3 active:scale-[0.98] transition-all block"
+              >
                 <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center text-lg flex-shrink-0">
                   {m.icon}
                 </div>
@@ -526,7 +530,7 @@ const Profile: React.FC = () => {
                 <div className="text-[7px] font-black text-gray-400 uppercase tracking-widest">
                   {m.progress === 100 && m.isClaimed ? 'Awarded' : (m.progress === 100 ? 'Unlocked' : m.displayValue)}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </section>
