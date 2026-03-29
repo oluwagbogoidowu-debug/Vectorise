@@ -75,14 +75,14 @@ const HomePage: React.FC = () => {
               onClick={handleStartAction}
               className="px-6 py-2.5 bg-primary text-white rounded-full text-[8px] font-black uppercase tracking-[0.1em] shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95 cursor-pointer"
             >
-              START {claritySlotName} SPRINT
+              START
             </button>
           </div>
         </div>
       </nav>
 
       {/* HERO SECTION */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-32 text-center animate-fade-in flex-shrink-0">
+      <section className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-20 text-center animate-fade-in flex-shrink-0">
         <div className="max-w-5xl mx-auto flex flex-col items-center">
           <h1 className="text-6xl md:text-[110px] font-black text-gray-900 tracking-tighter leading-[0.85] mb-12">
             Grow into who <br/> <span className="italic">you’re <span className="text-primary">becoming.</span></span>
@@ -93,7 +93,7 @@ const HomePage: React.FC = () => {
                 <p className="text-lg md:text-2xl text-gray-900 font-bold leading-tight">
                     You don’t lack ambition.
                 </p>
-                <p className="text-lg md:text-2xl text-gray-400 font-medium italic">
+                <p className="text-lg md:text-2xl text-gray-900 font-bold leading-tight">
                     You lack clarity on what move actually matters now.
                 </p>
             </div>
@@ -103,12 +103,17 @@ const HomePage: React.FC = () => {
           </div>
 
           <div className="flex flex-col items-center gap-6">
-            <button 
-                onClick={handleStartAction}
-                className="px-12 py-5 bg-primary text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
-            >
-                START YOUR {claritySlotName} SPRINT
-            </button>
+            <div className="flex flex-col items-center">
+              <button 
+                  onClick={handleStartAction}
+                  className="px-12 py-5 bg-primary text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
+              >
+                  START YOUR RISE
+              </button>
+              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-3">
+                Get clear on what matters now
+              </p>
+            </div>
             <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest">
                 ALREADY HAVE AN ACCOUNT? <Link to="/login" className="text-primary hover:underline ml-1">CONTINUE YOUR RISE</Link>
             </p>
@@ -323,7 +328,7 @@ const HomePage: React.FC = () => {
                 onClick={handleStartAction}
                 className="px-12 py-5 bg-white text-primary font-black uppercase tracking-[0.3em] text-[10px] rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all"
             >
-                START YOUR CLARITY SPRINT
+                START YOUR SPRINT NOW
             </button>
         </div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-white/5 rounded-full pointer-events-none"></div>
