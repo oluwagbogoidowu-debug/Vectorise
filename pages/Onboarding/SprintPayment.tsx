@@ -5,6 +5,7 @@ import Button from '../../components/Button';
 import { paymentService } from '../../services/paymentService';
 import { userService, sanitizeData } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
+import { trackService } from '../../services/trackService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Sprint, Track, Participant, GlobalOrchestrationSettings } from '../../types';
 
@@ -23,12 +24,26 @@ const SprintPayment: React.FC = () => {
   const [globalSettings, setGlobalSettings] = useState<GlobalOrchestrationSettings | null>(null);
 
   const state = location.state || {};
-  const selectedSprint: Sprint | null = state.sprint || null;
-  const selectedTrack: Track | null = state.track || null;
-  const sprintId = selectedSprint?.id;
-  const trackId = selectedTrack?.id;
+  const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(state.sprint || null);
+  const [selectedTrack, setSelectedTrack] = useState<Track | null>(state.track || null);
+  const sprintId = selectedSprint?.id || state.sprintId;
+  const trackId = selectedTrack?.id || state.trackId;
   
   const [trackSprints, setTrackSprints] = useState<Sprint[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (state.sprintId && !selectedSprint) {
+        const sprint = await sprintService.getSprintById(state.sprintId);
+        setSelectedSprint(sprint);
+      }
+      if (state.trackId && !selectedTrack) {
+        const track = await trackService.getTrackById(state.trackId);
+        setSelectedTrack(track);
+      }
+    };
+    fetchData();
+  }, [state.sprintId, state.trackId]);
 
   useEffect(() => {
     const checkExistingEnrollment = async () => {
@@ -329,7 +344,7 @@ const SprintPayment: React.FC = () => {
 
               <div className="space-y-3">
                 <Button 
-                  onClick={() => navigate('/buy-coins')}
+                  onClick={() => navigate('/buy-coins', { state: { sprintId, trackId, sprint: selectedSprint, track: selectedTrack } })}
                   className="w-full py-4 bg-primary text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-primary/20"
                 >
                   Buy Coins

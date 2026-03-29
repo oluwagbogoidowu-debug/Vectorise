@@ -19,10 +19,10 @@ export default async (req: any, res: any) => {
       return res.status(500).json({ error: "Gateway Configuration Error: Missing Secret Key." });
     }
 
-    const { email, amount, sprintId, trackId, name, userId, currency = "NGN" } = req.body || {};
+    const { email, amount, sprintId, trackId, coinPackageId, coins, name, userId, currency = "NGN" } = req.body || {};
     
-    if (!email || !userId || (!sprintId && !trackId)) {
-      return res.status(400).json({ error: "Mandatory fields missing (email, userId, sprintId or trackId)" });
+    if (!email || !userId || (!sprintId && !trackId && !coinPackageId)) {
+      return res.status(400).json({ error: "Mandatory fields missing (email, userId, sprintId, trackId or coinPackageId)" });
     }
 
     const tx_ref = `vec-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -35,6 +35,8 @@ export default async (req: any, res: any) => {
         userName: name || 'Vectorise User',
         sprintId: sprintId || null,
         trackId: trackId || null,
+        coinPackageId: coinPackageId || null,
+        coins: coins || null,
         amount: paymentAmount,
         currency,
         status: "pending",
@@ -63,8 +65,8 @@ export default async (req: any, res: any) => {
         redirect_url: redirectUrl,
         customer: { email, name: name || 'Vectorise User' },
         customizations: {
-          title: "Vectorise Registry Authorization",
-          description: trackId ? `Track Bundle: ${trackId}` : `Sprint Enrollment: ${sprintId}`
+          title: coinPackageId ? "Vectorise Coin Purchase" : "Vectorise Registry Authorization",
+          description: coinPackageId ? `Coin Package: ${coins} Coins` : (trackId ? `Track Bundle: ${trackId}` : `Sprint Enrollment: ${sprintId}`)
         }
       })
     });

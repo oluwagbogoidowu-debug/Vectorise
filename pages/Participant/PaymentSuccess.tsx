@@ -22,6 +22,8 @@ const PaymentSuccess: React.FC = () => {
 
     const { tx_ref, status: urlStatus } = queryParams;
 
+    const [coinsAdded, setCoinsAdded] = useState<number | null>(null);
+
     useEffect(() => {
         // 1. Handle missing reference
         if (!tx_ref) {
@@ -45,11 +47,29 @@ const PaymentSuccess: React.FC = () => {
                 
                 if (data.status === 'successful' || data.status === 'success') {
                     setStatus('successful');
+                    if (data.coins) setCoinsAdded(data.coins);
                     clearInterval(pollInterval);
                     clearTimeout(timeoutFallback);
                     
                     // Redirect logic
                     setTimeout(async () => {
+                        if (data.coinPackageId) {
+                            // Coin purchase flow
+                            if (data.sprintId || data.trackId) {
+                                // Redirect back to the sprint payment page they were on
+                                navigate('/onboarding/sprint-payment', { 
+                                    state: { 
+                                        sprintId: data.sprintId,
+                                        trackId: data.trackId
+                                    },
+                                    replace: true 
+                                });
+                            } else {
+                                navigate('/participant/dashboard', { replace: true });
+                            }
+                            return;
+                        }
+
                         if (!user && data.userId?.startsWith('guest_')) {
                             // Guest flow: Check if user exists by email
                             const existingUser = await userService.getUserByEmail(data.email || '');
@@ -92,7 +112,7 @@ const PaymentSuccess: React.FC = () => {
                                 navigate(`/participant/sprint/${enrollmentId}`, { replace: true });
                             }
                         }
-                    }, 2000);
+                    }, 3000);
                 } else if (data.status === 'failed') {
                     setStatus('failed');
                     clearInterval(pollInterval);
@@ -178,6 +198,12 @@ const PaymentSuccess: React.FC = () => {
                                 <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none italic">Success.</h1>
                                 <p className="text-[9px] font-black text-primary uppercase tracking-[0.3em] mt-2">Registry identity updated.</p>
                             </div>
+                            {coinsAdded && (
+                                <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 mt-4">
+                                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Wallet Updated</p>
+                                    <p className="text-lg font-black text-gray-900">+{coinsAdded} Coins Added</p>
+                                </div>
+                            )}
                             <p className="text-xs text-gray-500 font-medium italic mt-4">"Authorizing your journey..."</p>
                         </div>
                     ) : status === 'cancelled' ? (

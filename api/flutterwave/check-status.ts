@@ -78,7 +78,7 @@ export default async (req: any, res: any) => {
         // Prevent status from being updated twice
         if (freshData.status === 'successful' || freshData.status === 'success') return;
 
-        const { userId, sprintId, trackId } = freshData;
+        const { userId, sprintId, trackId, coinPackageId, coins } = freshData;
 
         transaction.update(paymentRef, {
           status: 'successful', // Set status to "successful"
@@ -89,80 +89,99 @@ export default async (req: any, res: any) => {
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        // Business logic: Handle enrollment
+        // Business logic: Handle Coins or Enrollment
         let activeEnrollmentId = null;
         if (!userId.startsWith('guest_')) {
-          // Check for existing active enrollments
-          const existingEnrollmentsSnap = await transaction.get(db.collection('enrollments').where('user_id', '==', userId).where('status', '==', 'active'));
-          const hasActiveSprint = !existingEnrollmentsSnap.empty;
+          if (coinPackageId && coins) {
+            // Handle Coin Purchase
+            transaction.update(db.collection('users').doc(userId), {
+              walletBalance: admin.firestore.FieldValue.increment(Number(coins))
+            });
+            
+            // Log transaction
+            const transactionId = `coin_purchase_${tx_ref}`;
+            transaction.set(db.collection('users').doc(userId).collection('transactions').doc(transactionId), {
+              id: transactionId,
+              amount: Number(coins),
+              type: 'credit',
+              description: `Purchased ${coins} Coins Package`,
+              timestamp: admin.firestore.FieldValue.serverTimestamp(),
+              status: 'completed',
+              paymentRef: tx_ref
+            });
+          } else {
+            // Check for existing active enrollments
+            const existingEnrollmentsSnap = await transaction.get(db.collection('enrollments').where('user_id', '==', userId).where('status', '==', 'active'));
+            const hasActiveSprint = !existingEnrollmentsSnap.empty;
 
-          if (trackId) {
-            // Handle Track Enrollment
-            const trackSnap = await transaction.get(db.collection('tracks').doc(trackId));
-            if (trackSnap.exists) {
-              const trackData = trackSnap.data();
-              const sprintIds = trackData?.sprintIds || [];
-              
-              let firstSprintActivated = false;
+            if (trackId) {
+              // Handle Track Enrollment
+              const trackSnap = await transaction.get(db.collection('tracks').doc(trackId));
+              if (trackSnap.exists) {
+                const trackData = trackSnap.data();
+                const sprintIds = trackData?.sprintIds || [];
+                
+                let firstSprintActivated = false;
 
-              for (const sId of sprintIds) {
-                const enrollmentId = `enrollment_${userId}_${sId}`;
-                const sprintSnap = await transaction.get(db.collection('sprints').doc(sId));
-                const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
-                const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
+                for (const sId of sprintIds) {
+                  const enrollmentId = `enrollment_${userId}_${sId}`;
+                  const sprintSnap = await transaction.get(db.collection('sprints').doc(sId));
+                  const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
+                  const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
 
-                // Logic: If no active sprint exists, activate the first one in the track.
-                // Otherwise, queue it.
-                const shouldBeActive = !hasActiveSprint && !firstSprintActivated;
-                if (shouldBeActive) {
-                    firstSprintActivated = true;
-                    activeEnrollmentId = enrollmentId;
+                  // Logic: If no active sprint exists, activate the first one in the track.
+                  // Otherwise, queue it.
+                  const shouldBeActive = !hasActiveSprint && !firstSprintActivated;
+                  if (shouldBeActive) {
+                      firstSprintActivated = true;
+                      activeEnrollmentId = enrollmentId;
+                  }
+
+                  transaction.set(db.collection('enrollments').doc(enrollmentId), {
+                    id: enrollmentId,
+                    sprint_id: sId,
+                    track_id: trackId,
+                    user_id: userId,
+                    coach_id: coachId,
+                    started_at: new Date().toISOString(),
+                    status: shouldBeActive ? 'active' : 'queued',
+                    progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
+                  }, { merge: true });
+
+                  transaction.update(db.collection('users').doc(userId), {
+                      enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sId)
+                  });
                 }
-
-                transaction.set(db.collection('enrollments').doc(enrollmentId), {
-                  id: enrollmentId,
-                  sprint_id: sId,
-                  track_id: trackId,
-                  user_id: userId,
-                  coach_id: coachId,
-                  started_at: new Date().toISOString(),
-                  status: shouldBeActive ? 'active' : 'queued',
-                  progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
-                }, { merge: true });
-
+                
                 transaction.update(db.collection('users').doc(userId), {
-                    enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sId)
+                  enrolledTrackIds: admin.firestore.FieldValue.arrayUnion(trackId)
                 });
               }
+            } else if (sprintId) {
+              // Handle Single Sprint Enrollment
+              const enrollmentId = `enrollment_${userId}_${sprintId}`;
               
+              const sprintSnap = await transaction.get(db.collection('sprints').doc(sprintId));
+              const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
+              const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
+
+              const shouldBeActive = !hasActiveSprint;
+              if (shouldBeActive) activeEnrollmentId = enrollmentId;
+
+              transaction.set(db.collection('enrollments').doc(enrollmentId), {
+                id: enrollmentId,
+                sprint_id: sprintId,
+                user_id: userId,
+                coach_id: coachId,
+                started_at: new Date().toISOString(),
+                status: shouldBeActive ? 'active' : 'queued',
+                progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
+              }, { merge: true });
+
               transaction.update(db.collection('users').doc(userId), {
-                enrolledTrackIds: admin.firestore.FieldValue.arrayUnion(trackId)
+                  enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sprintId)
               });
             }
-          } else if (sprintId) {
-            // Handle Single Sprint Enrollment
-            const enrollmentId = `enrollment_${userId}_${sprintId}`;
-            
-            const sprintSnap = await transaction.get(db.collection('sprints').doc(sprintId));
-            const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
-            const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
-
-            const shouldBeActive = !hasActiveSprint;
-            if (shouldBeActive) activeEnrollmentId = enrollmentId;
-
-            transaction.set(db.collection('enrollments').doc(enrollmentId), {
-              id: enrollmentId,
-              sprint_id: sprintId,
-              user_id: userId,
-              coach_id: coachId,
-              started_at: new Date().toISOString(),
-              status: shouldBeActive ? 'active' : 'queued',
-              progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
-            }, { merge: true });
-
-            transaction.update(db.collection('users').doc(userId), {
-                enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sprintId)
-            });
           }
         }
 
