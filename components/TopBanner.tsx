@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface TopBannerProps {
   deferredPrompt: any;
@@ -44,10 +45,12 @@ const TopBanner: React.FC<TopBannerProps> = ({ deferredPrompt }) => {
       }
     } else {
       // If already installed, we try to "open" it.
+      toast.success("Opening Vectorise App...");
+      
       // On many mobile browsers, navigating to the root with target="_blank" 
       // can trigger the "Open in App" prompt or transition if the PWA is installed.
       const link = document.createElement('a');
-      link.href = '/';
+      link.href = window.location.origin + '/?utm_source=pwa_banner&action=open';
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       document.body.appendChild(link);

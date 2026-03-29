@@ -87,6 +87,14 @@ const AppContent: React.FC = () => {
 
   const showTopBanner = (!isOnboardingRoute && !isAuthRoute) || location.pathname === '/login';
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#FAFAFA]">
+        <div className="w-10 h-10 border-4 border-[#0E7850] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen font-sans ${isOnboardingRoute ? 'bg-primary text-white' : 'bg-light text-dark'}`}>
       {showTopBanner && <TopBanner deferredPrompt={deferredPrompt} />}
