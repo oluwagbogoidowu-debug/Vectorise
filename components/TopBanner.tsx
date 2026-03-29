@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import LocalLogo from './LocalLogo';
 
 interface TopBannerProps {
   deferredPrompt: any;
@@ -60,9 +59,6 @@ const TopBanner: React.FC<TopBannerProps> = ({ deferredPrompt }) => {
       onClick={handleAction}
     >
       <div className="flex-1 flex justify-center items-center gap-3">
-        <div className="w-7 h-7 bg-white rounded-xl flex items-center justify-center shadow-sm">
-           <LocalLogo type="favicon" className="w-5 h-5" />
-        </div>
         <span className="text-white text-[13px] font-bold tracking-tight">
           {isInstalled ? 'Open Vectorise App' : 'Use the app for a smoother experience'}
         </span>
