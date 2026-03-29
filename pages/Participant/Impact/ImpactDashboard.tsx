@@ -84,11 +84,8 @@ const ImpactDashboard: React.FC = () => {
                     </div>
                     
                     <div className="relative z-10 flex gap-1.5">
-                        <Link to="/impact/share">
-                            <button className="bg-white text-primary px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest shadow-md active:scale-95 transition-all">Expand</button>
-                        </Link>
                         <Link to="/impact/badges">
-                            <button className="bg-black/20 text-white border border-white/10 px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest backdrop-blur-sm active:scale-95 transition-all">Claim</button>
+                            <button className="bg-white text-primary px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest shadow-md active:scale-95 transition-all">Claim</button>
                         </Link>
                     </div>
                     <div className="absolute -top-6 -right-6 w-20 h-20 bg-white/5 rounded-full blur-2xl"></div>

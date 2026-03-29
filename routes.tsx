@@ -56,7 +56,6 @@ import CoachEditProfile from './pages/Coach/Profile/EditProfile';
 import SprintPreviewPage from './pages/Coach/SprintPreviewPage'; // New import
 
 import ImpactDashboard from './pages/Participant/Impact/ImpactDashboard';
-import ReferralShare from './pages/Participant/Impact/ReferralShare';
 import GrowthRewards from './pages/Participant/Impact/GrowthRewards';
 import Badges from './pages/Participant/Impact/Badges';
 import ReferralSuccess from './pages/Participant/Impact/ReferralSuccess';
@@ -178,7 +177,6 @@ export const AppRoutes: React.FC = () => {
          <Route path="/profile/:userId" element={<PublicProfile />} />
          <Route path="/growth" element={<GrowthDashboard />} />
          <Route path="/impact" element={<ImpactDashboard />} />
-         <Route path="/impact/share" element={<ReferralShare />} />
          <Route path="/impact/rewards" element={<GrowthRewards />} />
          <Route path="/impact/badges" element={<Badges />} />
          <Route path="/buy-coins" element={<BuyCoins />} />
