@@ -172,7 +172,7 @@ const SprintLandingPage: React.FC = () => {
                         <LocalLogo type="green" className="h-8 w-auto" />
                     )}
                     <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
-                        <LocalLogo type="green" className="h-3 w-auto" />
+                        <LocalLogo type="favicon" className="h-3 w-auto" />
                         {isFoundational ? 'FOUNDATIONAL PATH' : 'FOUNDATION PATH'}
                     </div>
                 </div>
@@ -192,6 +192,7 @@ const SprintLandingPage: React.FC = () => {
                             <div className="absolute bottom-10 left-10 right-10 text-white">
                                 <div className="mb-4">
                                     <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2">
+                                        <LocalLogo type="favicon" className="h-3 w-auto" />
                                         {isFoundational ? 'FOUNDATIONAL PATH' : 'PREMIUM SPRINT'}
                                     </span>
                                 </div>

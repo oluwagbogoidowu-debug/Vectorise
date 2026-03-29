@@ -218,7 +218,7 @@ const TrackDescriptionPage: React.FC = () => {
                     )}
                     <div className="flex items-center gap-2">
                         <div className="px-4 py-1.5 rounded-xl border border-primary/20 bg-white text-primary text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
-                            <LocalLogo type="green" className="h-3 w-auto" />
+                            <LocalLogo type="favicon" className="h-3 w-auto" />
                             TRACK BUNDLE
                         </div>
                     </div>
