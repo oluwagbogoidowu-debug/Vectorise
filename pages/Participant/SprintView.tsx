@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 import { db } from '../../services/firebase';
 import FormattedText from '../../components/FormattedText';
 import LocalLogo from '../../components/LocalLogo';
+import SprintCompletionModal from '../../components/SprintCompletionModal';
+import { Participant } from '../../types';
 
 const ReflectionModal: React.FC<{
     day: number;
@@ -270,6 +272,7 @@ const SprintView: React.FC = () => {
     const [isReflectionModalOpen, setIsReflectionModalOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
     const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+    const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
     const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
     const [now, setNow] = useState(Date.now());
     const [timeToUnlock, setTimeToUnlock] = useState<string>('00:00:00');
@@ -500,22 +503,41 @@ const SprintView: React.FC = () => {
             }
 
             if (isLastDay && updatedProgress.every(p => p.completed)) {
-                console.log("[SprintView] Last day finished. Checking for queued sprints...");
-                // Check if there are queued sprints
-                const enrollments = await sprintService.getUserEnrollments(user.id);
-                const hasQueued = enrollments.some(e => e.status === 'queued');
-                console.log("[SprintView] hasQueued:", hasQueued);
-                
-                if (hasQueued) {
-                    navigate('/dashboard', { replace: true, state: { showNextSprintPopup: true } });
-                } else {
-                    navigate('/discover', { replace: true });
-                }
+                setIsCompletionModalOpen(true);
             }
         } catch (err) {
             console.error("Completion failed", err);
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleCompletionModalAction = async (rating: number) => {
+        if (!user) return;
+        
+        try {
+            // Log rating if needed, for now just proceed
+            const enrollments = await sprintService.getUserEnrollments(user.id);
+            const queued = enrollments.filter(e => e.status === 'queued');
+            
+            if (queued.length > 0) {
+                // Activate instantly
+                await sprintService.startNextQueuedSprint(user.id);
+                navigate('/dashboard', { replace: true });
+            } else {
+                // Check for saved sprints
+                const p = user as Participant;
+                const hasSaved = (p.savedSprintIds || []).length > 0 || (p.wishlistSprintIds || []).length > 0;
+                
+                if (hasSaved) {
+                    navigate('/participant/my-sprints', { replace: true });
+                } else {
+                    navigate('/discover', { replace: true });
+                }
+            }
+        } catch (err) {
+            console.error("Navigation after completion failed", err);
+            navigate('/dashboard', { replace: true });
         }
     };
 
@@ -852,6 +874,11 @@ const SprintView: React.FC = () => {
                 onClose={() => setIsReflectionModalOpen(false)} 
                 onFinish={handleFinishDay} 
                 isSubmitting={isSubmitting} 
+            />
+            <SprintCompletionModal
+                isOpen={isCompletionModalOpen}
+                onClose={() => navigate('/dashboard', { replace: true })}
+                onStartNext={handleCompletionModalAction}
             />
         </>
     );
