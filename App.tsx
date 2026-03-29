@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Toaster } from 'sonner';
 import Header from './components/Header';
 import BottomNavigation from './components/BottomNavigation';
+import TopBanner from './components/TopBanner';
 
 import { sprintService } from './services/sprintService';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
@@ -86,6 +87,7 @@ const AppContent: React.FC = () => {
 
   return (
     <div className={`min-h-screen font-sans ${isOnboardingRoute ? 'bg-primary text-white' : 'bg-light text-dark'}`}>
+      {!isOnboardingRoute && !isAuthRoute && <TopBanner />}
       <Toaster position="top-center" richColors visibleToasts={1} />
       {showGlobalHeader && <Header />}
       <main className={showGlobalHeader ? "container mx-auto px-4 md:px-6 lg:px-8" : ""}>

@@ -118,7 +118,7 @@ const ClaritySprintDescription: React.FC = () => {
         
         {/* Top Progress / Brand */}
         <div className="flex flex-col items-start mb-6">
-          <LocalLogo type="green" className="h-4 w-auto mb-4" />
+          <LocalLogo type="green" className="h-8 w-auto mb-4" />
           <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
              <div className="h-full bg-primary rounded-full transition-all duration-1000 w-[25%]" style={{ width: '25%' }}></div>
           </div>
@@ -154,7 +154,10 @@ const ClaritySprintDescription: React.FC = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
               <div className="absolute bottom-10 left-10 right-10 text-white">
                 <div className="mb-4">
-                  <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg">FOUNDATIONAL PATH</span>
+                  <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2">
+                    <LocalLogo type="white" className="h-3 w-auto" />
+                    FOUNDATIONAL PATH
+                  </span>
                 </div>
                 <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-4">
                   <FormattedText text={sprint.title} inline />

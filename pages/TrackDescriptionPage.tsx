@@ -214,11 +214,11 @@ const TrackDescriptionPage: React.FC = () => {
                             Back to Registry
                         </button>
                     ) : (
-                        <LocalLogo type="green" className="h-4 w-auto" />
+                        <LocalLogo type="green" className="h-8 w-auto" />
                     )}
                     <div className="flex items-center gap-2">
                         <div className="px-4 py-1.5 rounded-xl border border-primary/20 bg-white text-primary text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
-                            <Package className="w-3 h-3" />
+                            <LocalLogo type="green" className="h-3 w-auto" />
                             TRACK BUNDLE
                         </div>
                     </div>
