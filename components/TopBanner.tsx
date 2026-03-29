@@ -36,7 +36,7 @@ const TopBanner: React.FC<TopBannerProps> = ({ deferredPrompt }) => {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
         localStorage.setItem('vec_pwa_installed', 'true');
-        localStorage.setItem('vectorise_banner_dismissed', 'true');
+        // Don't set vectorise_banner_dismissed here, so it can show "Open App" next time
         setIsVisible(false);
       }
     } else {
