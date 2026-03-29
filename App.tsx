@@ -85,9 +85,11 @@ const AppContent: React.FC = () => {
     !location.pathname.startsWith('/admin') &&
     !isAuthRoute;
 
+  const showTopBanner = (!isOnboardingRoute && !isAuthRoute) || location.pathname === '/login';
+
   return (
     <div className={`min-h-screen font-sans ${isOnboardingRoute ? 'bg-primary text-white' : 'bg-light text-dark'}`}>
-      {!isOnboardingRoute && !isAuthRoute && <TopBanner />}
+      {showTopBanner && <TopBanner deferredPrompt={deferredPrompt} />}
       <Toaster position="top-center" richColors visibleToasts={1} />
       {showGlobalHeader && <Header />}
       <main className={showGlobalHeader ? "container mx-auto px-4 md:px-6 lg:px-8" : ""}>
