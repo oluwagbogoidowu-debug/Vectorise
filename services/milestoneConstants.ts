@@ -6,16 +6,12 @@ export interface MilestoneDefinition {
     icon: string;
     targetValue: number;
     points: number;
-    category: 'coreProgress' | 'longGame' | 'innerWork' | 'influence' | 'onboarding';
+    category: 'coreProgress' | 'longGame' | 'innerWork' | 'influence';
     color?: string;
     isAutoClaim?: boolean;
 }
 
 export const MILESTONES: MilestoneDefinition[] = [
-    // Onboarding
-    { id: 'setup_account', title: 'Identity Set', description: 'You completed your profile setup.', icon: '👤', targetValue: 1, points: 10, category: 'onboarding', color: 'orange', isAutoClaim: true },
-    { id: 'welcome_login', title: 'First Entry', description: 'Your first login to the platform.', icon: '👋', targetValue: 1, points: 10, category: 'onboarding', color: 'orange', isAutoClaim: true },
-    
     // Core Progress
     { id: 's1', title: 'First Spark', description: 'You started your rise.', icon: '🚀', targetValue: 1, points: 5, category: 'coreProgress', isAutoClaim: true },
     { id: 's2', title: 'The Closer', description: 'You finished what you started.', icon: '🏁', targetValue: 1, points: 15, category: 'coreProgress' },

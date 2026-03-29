@@ -84,14 +84,6 @@ const ParticipantDashboard: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     
-    // Auto-claim Account Creation
-    const checkAccountCreation = async () => {
-      const p = user as Participant;
-      if (!p.claimedMilestoneIds?.includes('setup_account')) {
-        await userService.claimMilestone(user.id, 'setup_account', 10, true);
-      }
-    };
-
     // Auto-claim First Sprint
     const checkFirstSprint = async () => {
       const p = user as Participant;
@@ -117,7 +109,6 @@ const ParticipantDashboard: React.FC = () => {
       await userService.checkAndNotifyMilestones(user.id, stats, p.claimedMilestoneIds || []);
     };
 
-    checkAccountCreation();
     if (!isLoading) {
       checkFirstSprint();
       checkOtherMilestones();

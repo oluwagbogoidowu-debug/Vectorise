@@ -48,21 +48,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (docSnap.exists()) {
               let dbUser = sanitizeData(docSnap.data()) as User | Participant | Coach;
 
-              // Check for auto-claim 10 coin login bonus
-              if (dbUser.role === UserRole.PARTICIPANT) {
-                const pUser = dbUser as Participant;
-                if (!pUser.claimedMilestoneIds?.includes('welcome_login')) {
-                  // We use a session storage flag to only trigger this once per session to avoid any potential loops
-                  const sessionKey = `auto_claim_welcome_${firebaseUser.uid}`;
-                  if (!sessionStorage.getItem(sessionKey)) {
-                    sessionStorage.setItem(sessionKey, 'true');
-                    await userService.claimMilestone(firebaseUser.uid, 'welcome_login', 10, true);
-                    // The snapshot will trigger again with the updated data
-                    return;
-                  }
-                }
-              }
-
               setUser(dbUser);
               
               // Determine active role

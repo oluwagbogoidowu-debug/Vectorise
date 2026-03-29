@@ -156,19 +156,16 @@ const Badges: React.FC = () => {
         const daysSinceJoin = Math.max(1, Math.ceil((Date.now() - new Date(p.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));
         const streak = p.impactStats?.streak || 0;
         const peopleHelped = p.impactStats?.peopleHelped || 0;
-        const isIdentityComplete = !!(p.persona && p.occupation && (p.growthAreas && p.growthAreas.length >= 5) && p.risePathway);
-        return { started: enrollments.length, completed: completedSprints.length, completedPaid: completedPaidSprintsCount, finishedEarly: finishedEarlyCount, reflectionsCount: reflections.length, meaningfulReflections: reflections.filter(r => r.content.trim().length > 50).length, daysActive: daysSinceJoin, streak: streak, peopleHelped: peopleHelped, isIdentityComplete };
+        return { started: enrollments.length, completed: completedSprints.length, completedPaid: completedPaidSprintsCount, finishedEarly: finishedEarlyCount, reflectionsCount: reflections.length, meaningfulReflections: reflections.filter(r => r.content.trim().length > 50).length, daysActive: daysSinceJoin, streak: streak, peopleHelped: peopleHelped };
     }, [user, enrollments, reflections, allSprintData]);
 
     const milestonesByType = useMemo(() => {
-        if (!stats || !user) return { coreProgress: [], longGame: [], innerWork: [], influence: [], onboarding: [] };
+        if (!stats || !user) return { coreProgress: [], longGame: [], innerWork: [], influence: [] };
         const p = user as Participant;
         const claimed = p.claimedMilestoneIds || [];
         
         const getStatValue = (id: string) => {
             switch(id) {
-                case 'setup_account': return stats.isIdentityComplete ? 1 : 0;
-                case 'welcome_login': return 1; // Always 1 if they are here
                 case 's1': return stats.started;
                 case 's2': return stats.completed;
                 case 's4': return stats.completed;
@@ -182,7 +179,7 @@ const Badges: React.FC = () => {
             }
         };
 
-        const result: Record<string, Milestone[]> = { coreProgress: [], longGame: [], innerWork: [], influence: [], onboarding: [] };
+        const result: Record<string, Milestone[]> = { coreProgress: [], longGame: [], innerWork: [], influence: [] };
         
         MILESTONES.forEach(m => {
             const milestone: Milestone = {
@@ -261,7 +258,6 @@ const Badges: React.FC = () => {
                 </div>
             ) : (
                 <div className="space-y-16">
-                    <CategorySection title="Onboarding" type="onboarding" milestones={milestonesByType.onboarding} color="orange" />
                     <CategorySection title="Core Progress" type="coreProgress" milestones={milestonesByType.coreProgress} color="primary" />
                     <CategorySection title="Long Game" type="longGame" milestones={milestonesByType.longGame} color="blue" />
                     <CategorySection title="Inner Work" type="innerWork" milestones={milestonesByType.innerWork} color="yellow" />

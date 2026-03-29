@@ -309,7 +309,7 @@ export const userService = {
           const milestoneDef = MILESTONES.find(m => m.id === milestoneId);
           if (isAutoClaim && milestoneDef) {
             queueNotification('success', `Bonus! +${points} Coins earned for ${milestoneDef.title}`, {
-              description: milestoneId === 'welcome_login' ? "Welcome back to the Rise!" : "Keep rising!",
+              description: "Keep rising!",
               duration: 3000,
             });
           }
