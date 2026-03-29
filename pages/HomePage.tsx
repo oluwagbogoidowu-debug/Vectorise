@@ -149,7 +149,7 @@ const HomePage: React.FC = () => {
 
             <div className="max-w-2xl mx-auto">
                 <p className="text-lg md:text-2xl text-gray-900 font-black leading-[1.2] tracking-tight italic">
-                    "You want to move forward, but you’re unsure which <br className="hidden md:block" /> direction is worth committing to. <br/>
+                    "You want to move forward, but you’re unsure which direction is worth committing to. 
                     <span className="text-primary">That uncertainty quietly wastes years.</span>"
                 </p>
             </div>
@@ -163,9 +163,8 @@ const HomePage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
             <div className="lg:col-span-7 space-y-12">
               <div className="space-y-4">
-                 <p className="text-[9px] font-black text-primary uppercase tracking-[0.4em]">THE INSIGHT</p>
                  <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-[1] italic">
-                    Clarity doesn’t come from <br/> more planning.
+                    Clarity doesn’t come from more planning.
                  </h2>
                  <p className="text-2xl md:text-4xl font-black text-gray-300 tracking-tight leading-none italic">
                     It comes from intentional action.
