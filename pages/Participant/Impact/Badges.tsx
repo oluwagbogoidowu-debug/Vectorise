@@ -156,7 +156,27 @@ const Badges: React.FC = () => {
         const daysSinceJoin = Math.max(1, Math.ceil((Date.now() - new Date(p.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));
         const streak = p.impactStats?.streak || 0;
         const peopleHelped = p.impactStats?.peopleHelped || 0;
-        return { started: enrollments.length, completed: completedSprints.length, completedPaid: completedPaidSprintsCount, finishedEarly: finishedEarlyCount, reflectionsCount: reflections.length, meaningfulReflections: reflections.filter(r => r.content.trim().length > 50).length, daysActive: daysSinceJoin, streak: streak, peopleHelped: peopleHelped };
+
+        // Calculate unique days with task completion
+        const allCompletedDates = enrollments.flatMap(e => 
+            e.progress
+                .filter(day => day.completed && day.completedAt)
+                .map(day => new Date(day.completedAt!).toDateString())
+        );
+        const totalTaskDays = new Set(allCompletedDates).size;
+
+        return { 
+            started: enrollments.length, 
+            completed: completedSprints.length, 
+            completedPaid: completedPaidSprintsCount, 
+            finishedEarly: finishedEarlyCount, 
+            reflectionsCount: reflections.length, 
+            meaningfulReflections: reflections.filter(r => r.content.trim().length > 50).length, 
+            daysActive: daysSinceJoin, 
+            streak: streak, 
+            peopleHelped: peopleHelped,
+            totalTaskDays
+        };
     }, [user, enrollments, reflections, allSprintData]);
 
     const milestonesByType = useMemo(() => {
@@ -168,12 +188,14 @@ const Badges: React.FC = () => {
             switch(id) {
                 case 's1': return stats.started;
                 case 's2': return stats.completed;
-                case 's4': return stats.completed;
-                case 'cm1': return stats.daysActive;
-                case 'cm2': return stats.daysActive;
+                case 's4': return stats.totalTaskDays;
+                case 'cm1': return stats.totalTaskDays;
+                case 'cm2': return stats.totalTaskDays;
                 case 'r1': return stats.meaningfulReflections;
                 case 'r2': return stats.meaningfulReflections;
                 case 'i1': return stats.peopleHelped;
+                case 'i3': return stats.peopleHelped;
+                case 'i5': return stats.peopleHelped;
                 case 'i10': return stats.peopleHelped;
                 default: return 0;
             }

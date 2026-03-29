@@ -10,6 +10,7 @@ import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS, PERSONA_QUIZZES, INITIAL_OPTIONS, OCCUPATION_QUESTION } from '../../constants';
 import { ShinePost } from '../../types';
+import { MILESTONES } from '../../services/milestoneConstants';
 
 const Profile: React.FC = () => {
   const { user, logout, updateProfile } = useAuth();
@@ -108,18 +109,86 @@ const Profile: React.FC = () => {
   const milestones = useMemo(() => {
     if (!user) return [];
     const p = user as Participant;
-    const completedSprints = enrollments.filter(e => e.enrollment.progress.every(day => day.completed));
+    const claimedIds = p.claimedMilestoneIds || [];
+    
+    // Calculate unique days with task completion
+    const allCompletedDates = enrollments.flatMap(e => 
+        e.enrollment.progress
+            .filter(day => day.completed && day.completedAt)
+            .map(day => new Date(day.completedAt!).toDateString())
+    );
+    const totalTaskDays = new Set(allCompletedDates).size;
     const peopleHelped = p.impactStats?.peopleHelped || 0;
     const reflectionsCount = reflections.length;
+    const meaningfulReflections = reflections.filter(r => r.content.trim().length > 50).length;
+    const startedSprints = enrollments.length;
+    const completedSprints = enrollments.filter(e => e.enrollment.progress.every(day => day.completed)).length;
+
+    const getStatValue = (id: string) => {
+        switch(id) {
+            case 's1': return startedSprints;
+            case 's2': return completedSprints;
+            case 's4': return totalTaskDays;
+            case 'cm1': return totalTaskDays;
+            case 'cm2': return totalTaskDays;
+            case 'r1': return meaningfulReflections;
+            case 'r2': return meaningfulReflections;
+            case 'i1': return peopleHelped;
+            case 'i3': return peopleHelped;
+            case 'i5': return peopleHelped;
+            case 'i10': return peopleHelped;
+            default: return 0;
+        }
+    };
+
+    const allMilestones = MILESTONES.map(m => {
+        const val = getStatValue(m.id);
+        const progress = Math.min(100, (val / m.targetValue) * 100);
+        const isClaimed = claimedIds.includes(m.id);
+        return { ...m, currentValue: val, progress, isClaimed };
+    });
+
+    // 3. Next unclaimed Influence milestone (Constant at #3)
+    const nextInfluence = allMilestones.find(m => m.category === 'influence' && !m.isClaimed) || 
+                          allMilestones.filter(m => m.category === 'influence').pop();
+
+    // 1. Most recently claimed badge
+    const lastClaimedId = claimedIds.length > 0 ? claimedIds[claimedIds.length - 1] : null;
+    const lastClaimed = allMilestones.find(m => m.id === lastClaimedId);
+
+    // 2. Next closest to completion (unclaimed, excluding nextInfluence)
+    const unclaimed = allMilestones.filter(m => !m.isClaimed && m.id !== nextInfluence?.id);
+    const closestToCompletion = [...unclaimed].sort((a, b) => b.progress - a.progress)[0];
+
+    const result: any[] = [];
     
-    const list = [
-      { id: 's1', title: 'First Spark', icon: '🚀', currentValue: enrollments.length, targetValue: 1 },
-      { id: 's2', title: 'The Closer', icon: '🏁', currentValue: completedSprints.length, targetValue: 1 },
-      { id: 'i1', title: 'Impact 1 Degree', icon: '🌱', currentValue: peopleHelped, targetValue: 1 },
-      { id: 'c1', title: 'The Start', icon: '💡', currentValue: reflectionsCount, targetValue: 1 },
-    ];
+    // Add last claimed if it's not the influence one we're showing at #3
+    if (lastClaimed && lastClaimed.id !== nextInfluence?.id) {
+        result.push(lastClaimed);
+    }
     
-    return list.map(m => ({ ...m, progress: Math.min(100, (m.currentValue / m.targetValue) * 100) }));
+    // Add closest to completion
+    if (closestToCompletion) {
+        result.push(closestToCompletion);
+    }
+
+    // Fill up to 2 if needed (excluding nextInfluence)
+    if (result.length < 2) {
+        const others = allMilestones.filter(m => !result.find(r => r.id === m.id) && m.id !== nextInfluence?.id);
+        while (result.length < 2 && others.length > 0) {
+            result.push(others.shift()!);
+        }
+    }
+
+    // Always put nextInfluence at index 2
+    if (nextInfluence) {
+        result[2] = nextInfluence;
+    }
+
+    return result.slice(0, 3).map(m => ({
+        ...m,
+        displayValue: m.category === 'influence' ? `${m.currentValue}/${m.targetValue} invite` : `${m.progress.toFixed(0)}%`
+    }));
   }, [user, enrollments, reflections]);
 
   const handleToggleGrowthArea = (area: string) => {
@@ -454,7 +523,9 @@ const Profile: React.FC = () => {
                     <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${m.progress}%` }} />
                   </div>
                 </div>
-                <div className="text-[7px] font-black text-gray-400 uppercase tracking-widest">{m.progress === 100 ? 'Unlocked' : `${m.progress.toFixed(0)}%`}</div>
+                <div className="text-[7px] font-black text-gray-400 uppercase tracking-widest">
+                  {m.progress === 100 && m.isClaimed ? 'Awarded' : (m.progress === 100 ? 'Unlocked' : m.displayValue)}
+                </div>
               </div>
             ))}
           </div>
