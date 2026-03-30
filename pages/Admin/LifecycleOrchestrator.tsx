@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 import { LifecycleStage, LifecycleSlot, Sprint, SprintType, MicroSelector, MicroSelectorStep, GlobalOrchestrationSettings, OrchestrationTrigger, OrchestrationAction, LifecycleSlotAssignment, Track } from '../../types';
-import { LIFECYCLE_STAGES_CONFIG, LIFECYCLE_SLOTS, FOCUS_OPTIONS, PERSONA_HIERARCHY, PERSONAS } from '../../services/mockData';
+import { LIFECYCLE_STAGES_CONFIG, LIFECYCLE_SLOTS, FOCUS_OPTIONS, FOUNDATION_CLARITY_OPTIONS, PERSONA_HIERARCHY, PERSONAS } from '../../services/mockData';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
 
@@ -28,6 +28,10 @@ const TRIGGER_STATES: { id: OrchestrationTrigger; label: string }[] = [
 const SYSTEM_DESTINATIONS = [
     { id: 'system_map', title: 'The Map', category: 'System Overview', coverImageUrl: 'https://images.unsplash.com/photo-1526628953301-3e589a6a8b74?auto=format&fit=crop&w=800&q=80', duration: 0 }
 ];
+
+const getSlotDefaultOptions = (slotId: string) => {
+    return slotId === 'slot_found_clarity' ? FOUNDATION_CLARITY_OPTIONS : FOCUS_OPTIONS;
+};
 
 const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTracks, refreshKey }) => {
     const [selectedStage, setSelectedStage] = useState<LifecycleStage>('Foundation');
@@ -71,7 +75,8 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
 
     const handleSprintAssign = (slotId: string, sprintId: string) => {
         setAssignments(prev => {
-            const current = prev[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...FOCUS_OPTIONS] };
+            const defaultOptions = getSlotDefaultOptions(slotId);
+            const current = prev[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...defaultOptions] };
             const existingIds = current.sprintIds || (current.sprintId ? [current.sprintId] : []);
             
             let newIds = [...existingIds];
@@ -97,14 +102,15 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
     const handleTriggerAssign = (slotId: string, triggerId: OrchestrationTrigger | undefined) => {
         setAssignments(prev => ({
             ...prev,
-            [slotId]: { ...(prev[slotId] || { sprintId: '', focusCriteria: [], availableFocusOptions: [...FOCUS_OPTIONS] }), stateTrigger: triggerId }
+            [slotId]: { ...(prev[slotId] || { sprintId: '', focusCriteria: [], availableFocusOptions: [...getSlotDefaultOptions(slotId)] }), stateTrigger: triggerId }
         }));
         setActiveTriggerPicker(null);
     };
 
     const handleToggleSprintFocus = (slotId: string, sprintId: string, option: string) => {
         setAssignments(prev => {
-            const current = prev[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...FOCUS_OPTIONS] };
+            const defaultOptions = getSlotDefaultOptions(slotId);
+            const current = prev[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...defaultOptions] };
             const focusMap = { ...(current.sprintFocusMap || {}) };
             
             // Fix: Cast 'options' as string[] to resolve the type error
@@ -129,8 +135,9 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
 
     const handleUpdateFocusOptionText = (slotId: string, optIdx: number, newText: string) => {
         setAssignments(prev => {
-            const current = prev[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...FOCUS_OPTIONS] };
-            const options = [...(current.availableFocusOptions || FOCUS_OPTIONS)];
+            const defaultOptions = getSlotDefaultOptions(slotId);
+            const current = prev[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...defaultOptions] };
+            const options = [...(current.availableFocusOptions || defaultOptions)];
             const oldText = options[optIdx];
             options[optIdx] = newText;
             
@@ -145,16 +152,18 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
 
     const handleAddFocusOption = (slotId: string) => {
         setAssignments(prev => {
-            const current = prev[slotId] || { sprintId: '', focusCriteria: [], availableFocusOptions: [...FOCUS_OPTIONS] };
-            const options = [...(current.availableFocusOptions || FOCUS_OPTIONS), 'New focus path'];
+            const defaultOptions = getSlotDefaultOptions(slotId);
+            const current = prev[slotId] || { sprintId: '', focusCriteria: [], availableFocusOptions: [...defaultOptions] };
+            const options = [...(current.availableFocusOptions || defaultOptions), 'New focus path'];
             return { ...prev, [slotId]: { ...current, availableFocusOptions: options } };
         });
     };
 
     const handleRemoveFocusOption = (slotId: string, optIdx: number) => {
         setAssignments(prev => {
-            const current = prev[slotId] || { sprintId: '', focusCriteria: [], availableFocusOptions: [...FOCUS_OPTIONS] };
-            const options = [...(current.availableFocusOptions || FOCUS_OPTIONS)];
+            const defaultOptions = getSlotDefaultOptions(slotId);
+            const current = prev[slotId] || { sprintId: '', focusCriteria: [], availableFocusOptions: [...defaultOptions] };
+            const options = [...(current.availableFocusOptions || defaultOptions)];
             const removedText = options[optIdx];
             options.splice(optIdx, 1);
             
@@ -233,7 +242,8 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
 
                 <div className="grid grid-cols-1 gap-6">
                     {currentSlots.map((slot) => {
-                        const assignment = assignments[slot.id] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...FOCUS_OPTIONS] };
+                        const defaultOptions = getSlotDefaultOptions(slot.id);
+                        const assignment = assignments[slot.id] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...defaultOptions] };
                         const assignedSprintIds = assignment.sprintIds || (assignment.sprintId ? [assignment.sprintId] : []);
                         
                         const isTriggerOpen = activeTriggerPicker === slot.id;
@@ -241,7 +251,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                         // Fix: Corrected typo 'editingFocusText' to 'isEditingFocusText'
                         const isEditingFocusText = editingFocusSlot === slot.id;
                         
-                        const slotFocusOptions = assignment.availableFocusOptions || FOCUS_OPTIONS;
+                        const slotFocusOptions = assignment.availableFocusOptions || defaultOptions;
                         const availableSprintsForPicker = allSprints
                             .filter(s => (s.published && s.approvalStatus === 'approved') && !assignedSprintIds.includes(s.id))
                             .sort((a, b) => a.title.localeCompare(b.title));
@@ -522,6 +532,20 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                                                     <div className="h-px bg-gray-50 w-12"></div>
                                                                 </div>
                                                                 <div className="flex items-center gap-4">
+                                                                    <button 
+                                                                        onClick={() => {
+                                                                            setAssignments(prev => {
+                                                                                const current = prev[slot.id];
+                                                                                const focusMap = { ...(current.sprintFocusMap || {}) };
+                                                                                delete focusMap[sId];
+                                                                                return { ...prev, [slot.id]: { ...current, sprintFocusMap: focusMap } };
+                                                                            });
+                                                                            toast.info(`Cleared focus criteria for ${s.title}`);
+                                                                        }}
+                                                                        className="text-[8px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors"
+                                                                    >
+                                                                        Clear Focus
+                                                                    </button>
                                                                     {(specificationSteps[`${slot.id}-${sId}`] || 0) > 0 && (
                                                                         <button 
                                                                             onClick={() => handleSetStep(slot.id, sId, (specificationSteps[`${slot.id}-${sId}`] || 0) - 1)}

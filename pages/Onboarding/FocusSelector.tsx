@@ -28,6 +28,11 @@ const FocusSelector: React.FC = () => {
   const [activeOption, setActiveOption] = useState<string | null>(null);
 
   const currentOptions = useMemo(() => {
+    // If we have specific options from the orchestrator assignment, use them at level 0
+    if (currentLevel === 0 && activeAssignment?.availableFocusOptions && activeAssignment.availableFocusOptions.length > 0) {
+      return activeAssignment.availableFocusOptions;
+    }
+
     if (currentLevel === 0) return PERSONAS;
     const persona = selections[0];
     const levels = PERSONA_HIERARCHY[persona];
@@ -35,7 +40,7 @@ const FocusSelector: React.FC = () => {
       return levels[currentLevel - 1];
     }
     return [];
-  }, [currentLevel, selections]);
+  }, [currentLevel, selections, activeAssignment]);
 
   useEffect(() => {
     const loadDynamicOrchestration = async () => {
@@ -275,7 +280,7 @@ const FocusSelector: React.FC = () => {
                     Continue with {activeOption}
                   </button>
                   
-                  {currentLevel < 3 && (
+                  {currentLevel < 3 && (!activeAssignment?.availableFocusOptions || activeAssignment.availableFocusOptions.length === 0) && (
                     <button 
                       onClick={handleSpecify}
                       className="w-full py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] hover:text-white/80 transition-colors flex items-center justify-center gap-2"

@@ -92,16 +92,16 @@ const HomePage: React.FC = () => {
             </Link>
             <button 
               onClick={handleStartAction}
-              className="px-6 py-2.5 bg-primary text-white rounded-full text-[8px] font-black uppercase tracking-[0.1em] shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95 cursor-pointer"
+              className="px-6 py-2.5 bg-black text-white rounded-full text-[8px] font-black uppercase tracking-[0.1em] shadow-xl shadow-black/20 hover:scale-[1.02] transition-all active:scale-95 cursor-pointer"
             >
-              START
+              Start
             </button>
           </div>
         </div>
       </nav>
 
       {/* HERO SECTION */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-20 text-center animate-fade-in flex-shrink-0">
+      <section className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-12 text-center animate-fade-in flex-shrink-0">
         <div className="max-w-5xl mx-auto flex flex-col items-center">
           <h1 className="text-6xl md:text-[110px] font-black text-gray-900 tracking-tighter leading-[0.85] mb-12">
             Grow into who <br/> <span className="italic">you’re <span className="text-primary">becoming.</span></span>
@@ -109,10 +109,10 @@ const HomePage: React.FC = () => {
           
           <div className="max-w-2xl mx-auto mb-16 space-y-6">
             <div className="space-y-1">
-                <p className="text-lg md:text-2xl text-gray-900 font-bold leading-tight">
+                <p className="text-lg md:text-2xl text-black font-bold leading-tight">
                     You don’t lack ambition.
                 </p>
-                <p className="text-lg md:text-2xl text-gray-900 font-bold leading-tight">
+                <p className="text-lg md:text-2xl text-black font-bold leading-tight">
                     You lack clarity on what move actually matters now.
                 </p>
             </div>
@@ -125,16 +125,16 @@ const HomePage: React.FC = () => {
             <div className="flex flex-col items-center">
               <button 
                   onClick={handleStartAction}
-                  className="px-12 py-5 bg-primary text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
+                  className="px-12 py-5 bg-black text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-full shadow-2xl shadow-black/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
               >
-                  START YOUR RISE
+                  Start your Rise
               </button>
               <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-3">
                 Get clear on what matters now
               </p>
             </div>
             <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest">
-                ALREADY HAVE AN ACCOUNT? <Link to="/login" className="text-primary hover:underline ml-1">CONTINUE YOUR RISE</Link>
+                ALREADY HAVE AN ACCOUNT? <Link to="/login" className="text-black hover:underline ml-1">CONTINUE YOUR RISE</Link>
             </p>
           </div>
         </div>
@@ -167,9 +167,8 @@ const HomePage: React.FC = () => {
             </div>
 
             <div className="max-w-2xl mx-auto">
-                <p className="text-lg md:text-2xl text-gray-900 font-black leading-[1.2] tracking-tight italic">
-                    "You want to move forward, but you’re unsure which direction is worth committing to. 
-                    <span className="text-primary">That uncertainty quietly wastes years.</span>"
+                <p className="text-lg md:text-2xl text-gray-900 font-black leading-[1.2] tracking-tight">
+                    "You want to move forward, but you’re unsure which direction is worth committing to. That uncertainty quietly wastes years."
                 </p>
             </div>
           </div>
@@ -182,7 +181,7 @@ const HomePage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
             <div className="lg:col-span-7 space-y-12">
               <div className="space-y-4">
-                 <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-[1] italic">
+                 <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-[1]">
                     Clarity doesn’t come from more planning.
                  </h2>
                  <p className="text-2xl md:text-4xl font-black text-gray-300 tracking-tight leading-none italic">
@@ -344,9 +343,9 @@ const HomePage: React.FC = () => {
             </p>
             <button 
                 onClick={handleStartAction}
-                className="px-12 py-5 bg-white text-primary font-black uppercase tracking-[0.3em] text-[10px] rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all"
+                className="px-12 py-5 bg-black text-white font-black uppercase tracking-[0.3em] text-[10px] rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all"
             >
-                START YOUR SPRINT NOW
+                Start your sprint now
             </button>
         </div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-white/5 rounded-full pointer-events-none"></div>

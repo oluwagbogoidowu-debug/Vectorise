@@ -31,6 +31,13 @@ export const FOCUS_OPTIONS = [
   "University Student", "Employed / Earning Salary", "Self-Employed / Business", "Unemployed / Looking"
 ];
 
+export const FOUNDATION_CLARITY_OPTIONS = [
+  "I’m still trying to figure my direction",
+  "I have ideas but no clear focus",
+  "I know what I want — I need to execute",
+  "I just want to explore what’s possible"
+];
+
 // USER DEFINED HIERARCHY MAPPING - EXACT LIST
 export const PERSONA_HIERARCHY: Record<string, string[][]> = {
     "Entrepreneur": [
