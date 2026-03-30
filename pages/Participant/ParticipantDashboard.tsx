@@ -5,6 +5,7 @@ import { ParticipantSprint, Sprint, Notification, Participant } from '../../type
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { notificationService } from '../../services/notificationService';
+import { toast } from 'sonner';
 import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { ARCHETYPES } from '../../constants';
@@ -68,6 +69,21 @@ const ParticipantDashboard: React.FC = () => {
   const [isNextSprintModalOpen, setIsNextSprintModalOpen] = useState(false);
   const [isStartingNext, setIsStartingNext] = useState(false);
   const autoOpenedRef = useRef(false);
+
+  const isIdentitySet = userService.isIdentitySet(user as Participant);
+
+  const handleExploreClick = (e: React.MouseEvent) => {
+    if (!isIdentitySet) {
+      e.preventDefault();
+      toast.error("Explore Locked", {
+        description: "Set your identity in your profile to unlock the Explore page.",
+        action: {
+          label: "Set Identity",
+          onClick: () => navigate('/profile/settings/identity')
+        }
+      });
+    }
+  };
 
   useEffect(() => {
     if (location.state?.showNextSprintPopup) {
@@ -334,7 +350,7 @@ const ParticipantDashboard: React.FC = () => {
                 ) : (
                     <div className="py-12 text-center bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center">
                         <p className="text-gray-400 font-bold uppercase tracking-widest text-[8px]">No Active Focus. Explore Sprints to begin.</p>
-                        <Link to="/discover" className="mt-2 inline-block text-primary font-black uppercase text-[8px] tracking-widest border-b-2 border-primary/20 pb-0.5">Discover Sprints</Link>
+                        <Link to="/discover" onClick={handleExploreClick} className="mt-2 inline-block text-primary font-black uppercase text-[8px] tracking-widest border-b-2 border-primary/20 pb-0.5">Discover Sprints</Link>
                     </div>
                 )}
             </div>

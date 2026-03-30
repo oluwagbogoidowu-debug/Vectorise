@@ -414,5 +414,10 @@ export const userService = {
           const userRef = doc(db, 'users', uid);
           await updateDoc(userRef, { shineCommentIds: arrayUnion(commentId) });
       } catch (error) {}
+  },
+
+  isIdentitySet: (user: Participant | null): boolean => {
+    if (!user) return false;
+    return (user.growthAreas?.length || 0) > 0 && !!user.risePathway;
   }
 };

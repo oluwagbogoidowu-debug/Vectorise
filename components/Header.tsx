@@ -3,8 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationService } from '../services/notificationService';
-import { Notification } from '../types';
+import { userService } from '../services/userService';
+import { Notification, Participant } from '../types';
 import LocalLogo from './LocalLogo';
+import { toast } from 'sonner';
 
 const Header: React.FC = () => {
   const { user } = useAuth();
@@ -13,6 +15,21 @@ const Header: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const isIdentitySet = userService.isIdentitySet(user as Participant);
+
+  const handleExploreClick = (e: React.MouseEvent) => {
+    if (!isIdentitySet) {
+      e.preventDefault();
+      toast.error("Explore Locked", {
+        description: "Set your identity in your profile to unlock the Explore page.",
+        action: {
+          label: "Set Identity",
+          onClick: () => navigate('/profile/settings/identity')
+        }
+      });
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -74,9 +91,9 @@ const Header: React.FC = () => {
           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          <Link to="/discover" className="flex flex-col text-left group">
-            <span className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] leading-none group-hover:text-primary transition-colors">Explore</span>
-            <span className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] leading-none group-hover:text-primary transition-colors">Sprints</span>
+          <Link to="/discover" onClick={handleExploreClick} className="flex flex-col text-left group">
+            <span className={`text-[8px] font-black uppercase tracking-[0.2em] leading-none transition-colors ${isIdentitySet ? 'text-gray-300 group-hover:text-primary' : 'text-gray-200'}`}>Explore</span>
+            <span className={`text-[8px] font-black uppercase tracking-[0.2em] leading-none transition-colors ${isIdentitySet ? 'text-gray-300 group-hover:text-primary' : 'text-gray-200'}`}>Sprints</span>
           </Link>
         </div>
 

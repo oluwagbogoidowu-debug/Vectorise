@@ -5,6 +5,7 @@ import { sprintService } from '../../services/sprintService';
 import { trackService } from '../../services/trackService';
 import { userService } from '../../services/userService';
 import { useAuth } from '../../contexts/AuthContext';
+import { toast } from 'sonner';
 import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import LocalLogo from '../../components/LocalLogo';
 import SprintCard from '../../components/SprintCard';
@@ -58,6 +59,19 @@ const DiscoverSprints: React.FC = () => {
     const [recommendationReason, setRecommendationReason] = useState<string>('');
 
     const isLoading = !isSprintsLoaded || !isOtherDataLoaded || !isEnrollmentsLoaded;
+
+    useEffect(() => {
+        if (user && !userService.isIdentitySet(user as Participant)) {
+            navigate('/participant-dashboard');
+            toast.error("Explore Locked", {
+                description: "Set your identity in your profile to unlock the Explore page.",
+                action: {
+                    label: "Set Identity",
+                    onClick: () => navigate('/profile/settings/identity')
+                }
+            });
+        }
+    }, [user, navigate]);
 
     useEffect(() => {
         // Subscribe to published sprints in real-time
