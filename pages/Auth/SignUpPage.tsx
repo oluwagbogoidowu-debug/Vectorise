@@ -32,7 +32,6 @@ const SignUpPage: React.FC = () => {
     persona, 
     answers, 
     recommendedPlan, 
-    occupation, 
     referrerId = storedRef, // Attribution priority
     prefilledEmail, 
     prefilledFirstName,
@@ -85,7 +84,6 @@ const SignUpPage: React.FC = () => {
         profileImageUrl: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=0E7850&color=fff`,
         persona: persona || (isPartnerApplication ? 'Growth Partner' : 'Seeker'),
         onboardingAnswers: answers || {},
-        occupation: occupation || (isPartnerApplication ? 'Partner' : 'Unemployed'),
         walletBalance: 0,
         createdAt: new Date().toISOString(),
         enrolledSprintIds: [],
@@ -162,8 +160,7 @@ const SignUpPage: React.FC = () => {
                       persona: persona,
                       p1: translateToTag(persona, answers[1]),
                       p2: translateToTag(persona, answers[2]),
-                      p3: translateToTag(persona, answers[3]),
-                      occupation: translateToTag('', occupation)
+                      p3: translateToTag(persona, answers[3])
                   };
                   const scoredSprints = registrySprints
                       .map(s => ({ sprint: s, score: calculateMatchScore(userProfile, s.targeting) }))

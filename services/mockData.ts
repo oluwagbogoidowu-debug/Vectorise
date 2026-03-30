@@ -26,9 +26,7 @@ export const FOCUS_OPTIONS = [
   // Student/Graduate
   "Build personal brand before job market", "Get clarity on career direction", "Land internships/entry roles", "Move from school to real projects", "Grow skills & confidence to stand out", "Explore entrepreneurship as a path",
   "Lack of real-world experience", "Unsure how to present myself", "Limited network/connections", "Balancing studies with prep", "Overwhelmed by career options", "Fear of failure/rejection",
-  "Working in a top company", "Running a small biz/startup", "Advancing studies (Masters/pro courses)", "Known in my field/industry", "Trying out different paths", "Still figuring it out, but progressing",
-  // Employment Status
-  "University Student", "Employed / Earning Salary", "Self-Employed / Business", "Unemployed / Looking"
+  "Working in a top company", "Running a small biz/startup", "Advancing studies (Masters/pro courses)", "Known in my field/industry", "Trying out different paths", "Still figuring it out, but progressing"
 ];
 
 export const FOUNDATION_CLARITY_OPTIONS = [
@@ -217,11 +215,6 @@ export const INITIAL_OPTIONS = [
   "Student/Graduate",
   "Creative/Hustler"
 ];
-
-export const OCCUPATION_QUESTION = {
-  title: "What is your current<br />employment status?",
-  options: ["University Student", "Employed / Earning Salary", "Self-Employed / Business", "Unemployed / Looking"]
-};
 
 export const PERSONA_QUIZZES: Record<string, { title: string; options: string[] }[]> = {
   "Entrepreneur": [
@@ -431,13 +424,6 @@ export const PERSONA_TAG_MAPPING: Record<string, Record<string, string>> = {
     "Trying out different paths": "Exploring",
     "Still figuring it out, but progressing": "Growth"
   }
-};
-
-export const COMMON_TAG_MAPPING: Record<string, string> = {
-  "University Student": "Student",
-  "Employed / Earning Salary": "Employed",
-  "Self-Employed / Business": "Business",
-  "Unemployed / Looking": "Unemployed"
 };
 
 export const MOCK_ROLES: RoleDefinition[] = [

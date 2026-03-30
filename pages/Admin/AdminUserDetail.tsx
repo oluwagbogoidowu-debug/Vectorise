@@ -219,12 +219,6 @@ export default function AdminUserDetail() {
                                     </div>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Career / Business Focus</p>
-                                    <p className="text-sm font-bold text-gray-700 leading-relaxed">
-                                        {user.occupation || 'Not specified'}
-                                    </p>
-                                </div>
-                                <div>
                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Bio / Intention</p>
                                     <p className="text-sm font-bold text-gray-700 leading-relaxed italic">
                                         "{user.bio || 'No bio provided.'}"

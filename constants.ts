@@ -1,7 +1,7 @@
 
-import { INITIAL_OPTIONS, PERSONA_QUIZZES, OCCUPATION_QUESTION } from './services/mockData';
+import { INITIAL_OPTIONS, PERSONA_QUIZZES } from './services/mockData';
 
-export { INITIAL_OPTIONS, PERSONA_QUIZZES, OCCUPATION_QUESTION };
+export { INITIAL_OPTIONS, PERSONA_QUIZZES };
 
 export const ARCHETYPES = [
   {

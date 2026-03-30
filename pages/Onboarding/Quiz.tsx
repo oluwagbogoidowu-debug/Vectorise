@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import { sanitizeData } from '../../services/userService';
-import { PERSONA_QUIZZES, INITIAL_OPTIONS, OCCUPATION_QUESTION } from '../../services/mockData';
+import { PERSONA_QUIZZES, INITIAL_OPTIONS } from '../../services/mockData';
 
 const STORAGE_KEY = 'vectorise_quiz_prefill';
 
@@ -18,17 +18,16 @@ const Quiz: React.FC = () => {
         try {
             return JSON.parse(saved);
         } catch (e) {
-            return { step: 0, answers: {}, selectedPersona: null, occupation: null };
+            return { step: 0, answers: {}, selectedPersona: null };
         }
     }
-    return { step: 0, answers: {}, selectedPersona: null, occupation: null };
+    return { step: 0, answers: {}, selectedPersona: null };
   };
 
   const initialState = getInitialState();
   const [step, setStep] = useState(initialState.step || 0);
   const [answers, setAnswers] = useState<{[key: number]: string}>(initialState.answers || {});
   const [selectedPersona, setSelectedPersona] = useState<string | null>(initialState.selectedPersona || null);
-  const [occupation, setOccupation] = useState<string | null>(initialState.occupation || null);
   const [showSummary, setShowSummary] = useState(false);
 
   // Auto-persist state to localStorage on every change
@@ -38,8 +37,7 @@ const Quiz: React.FC = () => {
     const stateToSave = sanitizeData({
         step, 
         answers: cleanAnswers, 
-        selectedPersona, 
-        occupation
+        selectedPersona
     });
     
     if (stateToSave) {
@@ -50,7 +48,7 @@ const Quiz: React.FC = () => {
             console.warn("LocalStorage JSON serialization failed", err);
         }
     }
-  }, [step, answers, selectedPersona, occupation]);
+  }, [step, answers, selectedPersona]);
 
   const currentQuestion = useMemo(() => {
     if (step === 0) {
@@ -62,13 +60,12 @@ const Quiz: React.FC = () => {
     const personaQuestions = selectedPersona ? PERSONA_QUIZZES[selectedPersona] : [];
     const personaQCount = personaQuestions.length;
     if (step > 0 && step <= personaQCount) return personaQuestions[step - 1];
-    if (step === personaQCount + 1) return OCCUPATION_QUESTION;
     return null;
   }, [step, selectedPersona]);
 
   const totalSteps = useMemo(() => {
      if (!selectedPersona) return 1;
-     return 1 + PERSONA_QUIZZES[selectedPersona].length + 1; 
+     return 1 + PERSONA_QUIZZES[selectedPersona].length; 
   }, [selectedPersona]);
 
   const progressPercentage = useMemo(() => {
@@ -78,15 +75,12 @@ const Quiz: React.FC = () => {
 
   const handleOptionSelect = (option: string) => {
     setAnswers(prev => ({ ...prev, [step]: option }));
-    const personaQuestions = selectedPersona ? PERSONA_QUIZZES[selectedPersona] : [];
     if (step === 0) {
         if (selectedPersona && selectedPersona !== option) {
             setAnswers({ 0: option });
-            setOccupation(null);
         }
         setSelectedPersona(option);
     }
-    else if (step === personaQuestions.length + 1) setOccupation(option);
   };
 
   const handleNext = () => {
@@ -102,16 +96,13 @@ const Quiz: React.FC = () => {
   };
 
   const handleFinish = () => {
-    let recommendedPlan = 'free'; 
-    if (occupation === 'University Student') recommendedPlan = 'student';
-    else recommendedPlan = 'basic';
+    const recommendedPlan = 'basic';
     
     // Pass data through state to recommendations page
     navigate('/recommended', { 
       state: sanitizeData({ 
         persona: selectedPersona, 
         answers, 
-        occupation, 
         recommendedPlan,
         targetSprintId,
         referrerId 
@@ -132,11 +123,6 @@ const Quiz: React.FC = () => {
           <div className="mb-6 border-b border-white/10 pb-4">
             <p className="text-[9px] font-black text-white/40 mb-1.5">Selected profile</p>
             <p className="text-xl font-black text-white tracking-tight">{selectedPersona}</p>
-          </div>
-          
-           <div className="mb-6 border-b border-white/10 pb-4">
-            <p className="text-[9px] font-black text-white/40 mb-1.5">Context</p>
-            <p className="text-base font-black text-white">{occupation}</p>
           </div>
 
           <div className="space-y-6">
@@ -176,7 +162,7 @@ const Quiz: React.FC = () => {
       <h1 className="text-2xl font-black text-white text-center mb-6 leading-tight flex-shrink-0 tracking-tight" dangerouslySetInnerHTML={{ __html: currentQuestion?.title || "" }} />
 
       <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 mb-4 px-1 space-y-2.5">
-          {currentQuestion?.options.map((option) => {
+          {currentQuestion?.options.map((option: string) => {
             const isSelected = answers[step] === option;
             return (
               <button

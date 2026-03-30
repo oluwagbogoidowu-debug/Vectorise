@@ -98,7 +98,7 @@ const SprintPayment: React.FC = () => {
   const userBalance = userParticipant?.walletBalance || 0;
   const hasEnoughCredits = userBalance >= sprintPrice;
 
-  const isProfileIncomplete = userParticipant && (!userParticipant.occupation || !userParticipant.growthAreas || userParticipant.growthAreas.length === 0 || !userParticipant.risePathway);
+  const isProfileIncomplete = userParticipant && !userService.isIdentitySet(userParticipant);
 
   const effectiveEmail = user?.email || guestEmail;
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(effectiveEmail);

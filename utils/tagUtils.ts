@@ -1,5 +1,5 @@
 
-import { PERSONA_TAG_MAPPING, COMMON_TAG_MAPPING } from '../services/mockData';
+import { PERSONA_TAG_MAPPING } from '../services/mockData';
 
 /**
  * Translates a full sentence answer into a concise 1-2 word tag.
@@ -7,9 +7,6 @@ import { PERSONA_TAG_MAPPING, COMMON_TAG_MAPPING } from '../services/mockData';
 export const translateToTag = (persona: string, answer: string): string => {
   if (PERSONA_TAG_MAPPING[persona]?.[answer]) {
     return PERSONA_TAG_MAPPING[persona][answer];
-  }
-  if (COMMON_TAG_MAPPING[answer]) {
-    return COMMON_TAG_MAPPING[answer];
   }
   // Fallback: take first two words if no mapping
   return (answer || '').split(' ').slice(0, 2).join(' ');
@@ -30,9 +27,6 @@ export const calculateMatchScore = (userProfile: any, sprintTargeting: any): num
     if (userProfile.p1 && userProfile.p1 === sprintTargeting.p1) score += 2;
     if (userProfile.p2 && userProfile.p2 === sprintTargeting.p2) score += 2;
     if (userProfile.p3 && userProfile.p3 === sprintTargeting.p3) score += 2;
-    
-    // Occupation is also important (weight 1)
-    if (userProfile.occupation === sprintTargeting.occupation) score += 1;
     
     return score;
 };

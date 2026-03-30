@@ -361,7 +361,7 @@ const DiscoverSprints: React.FC = () => {
                 )}
 
                 {/* PROFILE SETUP PROMPT */}
-                {user && user.role === UserRole.PARTICIPANT && (!(user as Participant).occupation || !(user as Participant).growthAreas?.length || !(user as Participant).risePathway) && (
+                {user && user.role === UserRole.PARTICIPANT && (!(user as Participant).growthAreas?.length || !(user as Participant).risePathway) && (
                     <div className="mb-12 p-6 bg-primary/5 border border-primary/10 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">

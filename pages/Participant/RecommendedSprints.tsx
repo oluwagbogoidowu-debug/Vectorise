@@ -9,7 +9,7 @@ import { translateToTag, calculateMatchScore } from '../../utils/tagUtils';
 const RecommendedSprints: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { persona, answers, recommendedPlan, occupation, targetSprintId, referrerId } = location.state || {};
+  const { persona, answers, recommendedPlan, targetSprintId, referrerId } = location.state || {};
 
   const [isQueued, setIsQueued] = useState(true); 
   const [availableSprints, setAvailableSprints] = useState<Sprint[]>([]);
@@ -51,8 +51,7 @@ const RecommendedSprints: React.FC = () => {
             persona: persona,
             p1: translateToTag(persona, answers[1]),
             p2: translateToTag(persona, answers[2]),
-            p3: translateToTag(persona, answers[3]),
-            occupation: translateToTag('', occupation)
+            p3: translateToTag(persona, answers[3])
         };
 
         const scoredSprints = registrySprints
@@ -70,7 +69,7 @@ const RecommendedSprints: React.FC = () => {
     if (!nextPath) nextPath = registrySprints[0];
 
     return { foundational, nextPath };
-  }, [availableSprints, targetSprintId, persona, answers, occupation]);
+  }, [availableSprints, targetSprintId, persona, answers]);
 
   const handleContinueToSignUp = () => {
     navigate('/signup', { 

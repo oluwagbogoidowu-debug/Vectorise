@@ -299,7 +299,6 @@ export interface Participant extends User {
   savedSprintIds: string[];
   bio: string;
   persona: string;
-  occupation?: string;
   createdAt: string;
   lastLoginAt?: string;
   interests?: string[];

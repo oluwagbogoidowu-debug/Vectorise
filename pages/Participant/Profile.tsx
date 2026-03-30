@@ -8,7 +8,7 @@ import { userService, sanitizeData } from '../../services/userService';
 import { shineService } from '../../services/shineService';
 import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
-import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS, PERSONA_QUIZZES, INITIAL_OPTIONS, OCCUPATION_QUESTION } from '../../constants';
+import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS, PERSONA_QUIZZES, INITIAL_OPTIONS } from '../../constants';
 import { ShinePost } from '../../types';
 import { MILESTONES } from '../../services/milestoneConstants';
 
@@ -23,7 +23,6 @@ const Profile: React.FC = () => {
   // Identity Task States
   const [currentTaskGroupIdx, setCurrentTaskGroupIdx] = useState(0);
   const [tempPersona, setTempPersona] = useState<string | null>(null);
-  const [tempOccupation, setTempOccupation] = useState<string | null>(null);
   const [tempOnboardingAnswers, setTempOnboardingAnswers] = useState<Record<string, any>>({});
   const [tempGrowthAreas, setTempGrowthAreas] = useState<string[]>([]);
   const [tempRisePathway, setTempRisePathway] = useState<string>('');
@@ -70,24 +69,16 @@ const Profile: React.FC = () => {
         
         const p = user as Participant;
         setTempPersona(p.persona || null);
-        setTempOccupation(p.occupation || null);
         setTempOnboardingAnswers(p.onboardingAnswers || {});
         setTempGrowthAreas(p.growthAreas || []);
         setTempRisePathway(p.risePathway || '');
 
         // Determine initial setup step if incomplete
-        if (!p.persona) setSetupStep(0); // Start Screen
-        else if (Object.keys(p.onboardingAnswers || {}).length < 3) {
-          setSetupStep(2 + Object.keys(p.onboardingAnswers || {}).length);
+        if (!userService.isIdentitySet(p)) {
+          setSetupStep(0); // Always start with welcome screen if incomplete
+        } else {
+          setSetupStep(-1); // Complete
         }
-        else if (!p.occupation) setSetupStep(5);
-        else if (!p.growthAreas || p.growthAreas.length < 5) {
-          const currentCount = p.growthAreas?.length || 0;
-          setSetupStep(6 + currentCount);
-          setCurrentTaskGroupIdx(currentCount);
-        }
-        else if (!p.risePathway) setSetupStep(11);
-        else setSetupStep(-1); // Complete
 
       } catch (err) {
         console.error("Profile sync failed:", err);
@@ -194,6 +185,21 @@ const Profile: React.FC = () => {
     }));
   }, [user, enrollments, reflections]);
 
+  const handleStartSetup = () => {
+    const p = user as Participant;
+    if (!p.persona) setSetupStep(1);
+    else if (Object.keys(p.onboardingAnswers || {}).length < 3) {
+      setSetupStep(2 + Object.keys(p.onboardingAnswers || {}).length);
+    }
+    else if (!p.growthAreas || p.growthAreas.length < 5) {
+      const currentCount = p.growthAreas?.length || 0;
+      setSetupStep(5 + currentCount);
+      setCurrentTaskGroupIdx(currentCount);
+    }
+    else if (!p.risePathway) setSetupStep(10);
+    else setSetupStep(-1);
+  };
+
   const handleToggleGrowthArea = (area: string) => {
     setTempGrowthAreas(prev => {
       const currentGroup = GROWTH_AREAS[currentTaskGroupIdx];
@@ -204,7 +210,7 @@ const Profile: React.FC = () => {
         setCurrentTaskGroupIdx(prevIdx => prevIdx + 1);
         setSetupStep(prevStep => prevStep + 1);
       } else {
-        setSetupStep(11); // Move to Rise Pathway
+        setSetupStep(10); // Move to Rise Pathway
       }
       
       return newAreas;
@@ -216,13 +222,12 @@ const Profile: React.FC = () => {
     try {
       await updateProfile(sanitizeData({ 
         persona: tempPersona,
-        occupation: tempOccupation,
         onboardingAnswers: tempOnboardingAnswers,
         growthAreas: tempGrowthAreas,
         risePathway: tempRisePathway
       }));
       // If we just finished the last step, set setupStep to -1
-      if (setupStep === 11) {
+      if (setupStep === 10) {
         setSetupStep(-1);
         // Auto-claim Identity Setup
         await userService.claimMilestone(user.id, 'setup_identity', 20, true);
@@ -239,11 +244,12 @@ const Profile: React.FC = () => {
       setTempPersona(option);
     } else if (setupStep >= 2 && setupStep <= 4) {
       setTempOnboardingAnswers(prev => ({ ...prev, [setupStep - 1]: option }));
-      setSetupStep(prev => prev + 1);
-    } else if (setupStep === 5) {
-      setTempOccupation(option);
-      setSetupStep(6);
-      setCurrentTaskGroupIdx(0);
+      if (setupStep === 4) {
+        setSetupStep(5);
+        setCurrentTaskGroupIdx(0);
+      } else {
+        setSetupStep(prev => prev + 1);
+      }
     }
   };
 
@@ -259,7 +265,7 @@ const Profile: React.FC = () => {
     return GROWTH_AREAS[currentTaskGroupIdx];
   }, [currentTaskGroupIdx]);
 
-  const totalSetupSteps = 12;
+  const totalSetupSteps = 11;
   const setupProgress = (isLoading || setupStep === -2) ? 0 : (setupStep === -1 ? 100 : Math.max(0, Math.min(99, Math.round((Math.max(0, setupStep) / totalSetupSteps) * 100))));
 
   const SectionLabel = ({ text }: { text: string }) => (
@@ -396,27 +402,8 @@ const Profile: React.FC = () => {
                 </div>
               )}
 
-              {/* Step 5: Occupation */}
-              {setupStep === 5 && (
-                <div className="animate-fade-in">
-                  <h3 className="text-sm font-black text-gray-900 mb-1" dangerouslySetInnerHTML={{ __html: OCCUPATION_QUESTION.title }} />
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Employment Status</p>
-                  <div className="space-y-2">
-                    {OCCUPATION_QUESTION.options.map(opt => (
-                      <button
-                        key={opt}
-                        onClick={() => handleQuizOptionSelect(opt)}
-                        className={`w-full p-3 rounded-xl border text-[10px] font-bold text-left transition-all ${tempOccupation === opt ? 'bg-[#0E7850] text-white border-[#0E7850] shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Steps 6-10: Growth Areas */}
-              {setupStep >= 6 && setupStep <= 10 && currentGrowthGroup && (
+              {/* Steps 5-9: Growth Areas */}
+              {setupStep >= 5 && setupStep <= 9 && currentGrowthGroup && (
                 <div className="animate-fade-in">
                   <h3 className="text-sm font-black text-gray-900 mb-1">Where do you want to grow next?</h3>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Pick one from each group ({currentTaskGroupIdx + 1}/5)</p>
@@ -438,8 +425,8 @@ const Profile: React.FC = () => {
                 </div>
               )}
 
-              {/* Step 11: Rise Pathway */}
-              {setupStep === 11 && (
+              {/* Step 10: Rise Pathway */}
+              {setupStep === 10 && (
                 <div className="animate-fade-in">
                   <h3 className="text-sm font-black text-gray-900 mb-1">What best describes your current focus?</h3>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your Rise Pathway.</p>
@@ -468,11 +455,11 @@ const Profile: React.FC = () => {
               )}
 
               {/* Navigation Controls for Quiz Steps */}
-              {setupStep >= 0 && setupStep < 11 && (
+              {setupStep >= 0 && setupStep < 10 && (
                 <div className="mt-4 flex gap-2">
                   {setupStep === 0 ? (
                     <button 
-                      onClick={() => setSetupStep(1)}
+                      onClick={handleStartSetup}
                       className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-[0.15em] text-[11px] shadow-lg shadow-emerald-900/10 active:scale-95 transition-all"
                     >
                       Let us get to know you better
@@ -490,7 +477,7 @@ const Profile: React.FC = () => {
                       <button 
                         onClick={() => {
                           setSetupStep(prev => prev - 1);
-                          if (setupStep > 6) setCurrentTaskGroupIdx(prev => prev - 1);
+                          if (setupStep > 5) setCurrentTaskGroupIdx(prev => prev - 1);
                         }}
                         className="flex-1 py-3 bg-gray-50 text-gray-400 rounded-xl font-black uppercase tracking-widest text-[9px] border border-gray-100"
                       >
