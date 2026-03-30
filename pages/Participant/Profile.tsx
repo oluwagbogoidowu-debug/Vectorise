@@ -334,25 +334,25 @@ const Profile: React.FC = () => {
           <div className="space-y-3 animate-fade-in">
             <div className="flex items-center justify-between px-1">
               <SectionLabel text="Identity Setup" />
-              <span className="text-[8px] font-black text-primary uppercase tracking-widest">{setupProgress}%</span>
+              <span className="text-[8px] font-black text-[#0E7850] uppercase tracking-widest">{setupProgress}%</span>
             </div>
             
-            <div className="bg-white rounded-[2rem] p-6 border border-primary/10 shadow-sm relative overflow-hidden">
+            <div className="bg-white rounded-[2rem] p-6 border border-[#0E7850]/10 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1 bg-gray-50">
                 <div 
-                  className="h-full bg-primary transition-all duration-500" 
+                  className="h-full bg-[#0E7850] transition-all duration-500" 
                   style={{ width: `${setupProgress}%` }}
                 />
               </div>
 
               {/* Step 0: Start Screen */}
               {setupStep === 0 && (
-                <div className="animate-fade-in py-4 text-center">
-                  <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <span className="text-2xl">👋</span>
+                <div className="animate-fade-in py-8 text-center">
+                  <div className="w-20 h-20 bg-[#E6F2ED] rounded-3xl flex items-center justify-center mx-auto mb-8">
+                    <span className="text-3xl">👋</span>
                   </div>
-                  <h3 className="text-lg font-black text-gray-900 mb-2">Welcome to your journey</h3>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-relaxed">
+                  <h3 className="text-xl font-black text-gray-900 mb-3">Welcome to your journey</h3>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.05em] leading-relaxed px-4">
                     We're excited to help you grow. Let's start by setting up your identity profile.
                   </p>
                 </div>
@@ -368,7 +368,7 @@ const Profile: React.FC = () => {
                       <button
                         key={opt}
                         onClick={() => handleQuizOptionSelect(opt)}
-                        className={`p-3 rounded-2xl border text-[10px] font-bold text-left transition-all ${tempPersona === opt ? 'bg-primary text-white border-primary shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
+                        className={`p-3 rounded-2xl border text-[10px] font-bold text-left transition-all ${tempPersona === opt ? 'bg-[#0E7850] text-white border-[#0E7850] shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
                       >
                         {opt}
                       </button>
@@ -387,7 +387,7 @@ const Profile: React.FC = () => {
                       <button
                         key={opt}
                         onClick={() => handleQuizOptionSelect(opt)}
-                        className={`w-full p-3 rounded-xl border text-[10px] font-bold text-left transition-all ${tempOnboardingAnswers[setupStep - 1] === opt ? 'bg-primary text-white border-primary shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
+                        className={`w-full p-3 rounded-xl border text-[10px] font-bold text-left transition-all ${tempOnboardingAnswers[setupStep - 1] === opt ? 'bg-[#0E7850] text-white border-[#0E7850] shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
                       >
                         {opt}
                       </button>
@@ -406,7 +406,7 @@ const Profile: React.FC = () => {
                       <button
                         key={opt}
                         onClick={() => handleQuizOptionSelect(opt)}
-                        className={`w-full p-3 rounded-xl border text-[10px] font-bold text-left transition-all ${tempOccupation === opt ? 'bg-primary text-white border-primary shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
+                        className={`w-full p-3 rounded-xl border text-[10px] font-bold text-left transition-all ${tempOccupation === opt ? 'bg-[#0E7850] text-white border-[#0E7850] shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
                       >
                         {opt}
                       </button>
@@ -422,13 +422,13 @@ const Profile: React.FC = () => {
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Pick one from each group ({currentTaskGroupIdx + 1}/5)</p>
                   
                   <div className="mb-6">
-                    <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-3">{currentGrowthGroup.group}</p>
+                    <p className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest mb-3">{currentGrowthGroup.group}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {currentGrowthGroup.options.map(area => (
                         <button
                           key={area}
                           onClick={() => handleToggleGrowthArea(area)}
-                          className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${tempGrowthAreas.includes(area) ? 'bg-primary text-white shadow-md scale-105' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                          className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${tempGrowthAreas.includes(area) ? 'bg-[#0E7850] text-white shadow-md scale-105' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
                         >
                           {area}
                         </button>
@@ -449,7 +449,7 @@ const Profile: React.FC = () => {
                       <button
                         key={path.id}
                         onClick={() => setTempRisePathway(path.id)}
-                        className={`w-full text-left p-3 rounded-2xl border transition-all ${tempRisePathway === path.id ? 'bg-primary/5 border-primary/20 scale-[1.02] shadow-sm' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}
+                        className={`w-full text-left p-3 rounded-2xl border transition-all ${tempRisePathway === path.id ? 'bg-[#0E7850]/5 border-[#0E7850]/20 scale-[1.02] shadow-sm' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}
                       >
                         <h4 className="text-[10px] font-black text-gray-900">{path.name}</h4>
                         <p className="text-[8px] text-gray-400 font-medium mt-0.5">{path.description}</p>
@@ -460,7 +460,7 @@ const Profile: React.FC = () => {
                   <button 
                     onClick={handleSaveIdentity}
                     disabled={!tempRisePathway || isSavingIdentity}
-                    className="w-full py-3 bg-primary text-white rounded-xl font-black uppercase tracking-[0.2em] text-[9px] shadow-md disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
+                    className="w-full py-3 bg-[#0E7850] text-white rounded-xl font-black uppercase tracking-[0.15em] text-[10px] shadow-md disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
                   >
                     {isSavingIdentity ? 'Saving...' : 'Complete Setup'}
                   </button>
@@ -473,7 +473,7 @@ const Profile: React.FC = () => {
                   {setupStep === 0 ? (
                     <button 
                       onClick={() => setSetupStep(1)}
-                      className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-primary/20 active:scale-95 transition-all"
+                      className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-[0.15em] text-[11px] shadow-lg shadow-emerald-900/10 active:scale-95 transition-all"
                     >
                       Let us get to know you better
                     </button>
@@ -481,7 +481,7 @@ const Profile: React.FC = () => {
                     <button 
                       onClick={() => setSetupStep(2)}
                       disabled={!tempPersona}
-                      className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50"
+                      className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-[0.15em] text-[11px] shadow-lg shadow-emerald-900/10 active:scale-95 transition-all disabled:opacity-50"
                     >
                       Continue
                     </button>
@@ -499,7 +499,7 @@ const Profile: React.FC = () => {
                       <button 
                         onClick={handleSaveIdentity}
                         disabled={isSavingIdentity}
-                        className="flex-1 py-3 bg-white text-primary border border-primary/20 rounded-xl font-black uppercase tracking-widest text-[9px] shadow-sm active:scale-95 transition-all"
+                        className="flex-1 py-3 bg-white text-[#0E7850] border border-[#0E7850]/20 rounded-xl font-black uppercase tracking-widest text-[9px] shadow-sm active:scale-95 transition-all"
                       >
                         {isSavingIdentity ? 'Saving...' : 'Save Progress'}
                       </button>
