@@ -45,7 +45,14 @@ const FocusSelector: React.FC = () => {
         const assignmentEntry = Object.entries(orchestration).find(
           ([_, a]: any) => a.stateTrigger === activeTrigger
         );
-        const [slotId, assignment] = assignmentEntry || [null, null];
+        
+        let [slotId, assignment] = assignmentEntry || [null, null];
+
+        // Default to Foundation Clarity if no explicit trigger mapping exists for after_homepage
+        if (!assignment && activeTrigger === 'after_homepage') {
+          slotId = 'slot_found_clarity';
+          assignment = orchestration['slot_found_clarity'];
+        }
 
         if (assignment) {
           setActiveAssignment(assignment as LifecycleSlotAssignment);

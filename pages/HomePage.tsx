@@ -28,8 +28,27 @@ const HomePage: React.FC = () => {
   }, []);
 
   const handleStartAction = () => {
-    // Direct navigation to FocusSelector as requested
-    navigate('/onboarding/focus-selector');
+    // Check if there's a specific orchestration for after_homepage
+    const afterHomepageAssignment = Object.entries(orchestration).find(
+      ([_, a]) => a.stateTrigger === 'after_homepage'
+    );
+
+    if (afterHomepageAssignment) {
+      const [slotId, assignment] = afterHomepageAssignment;
+      // If it's the clarity slot, go to focus selector
+      if (slotId === 'slot_found_clarity') {
+        navigate('/onboarding/focus-selector', { state: { trigger: 'after_homepage' } });
+      } else if (assignment.sprintId) {
+        // If it's a direct sprint, go to description
+        navigate(`/onboarding/description/${assignment.sprintId}`, { state: { trigger: 'after_homepage' } });
+      } else {
+        // Fallback
+        navigate('/onboarding/focus-selector', { state: { trigger: 'after_homepage' } });
+      }
+    } else {
+      // Default behavior: go to focus selector (which we've made default to clarity slot)
+      navigate('/onboarding/focus-selector', { state: { trigger: 'after_homepage' } });
+    }
   };
 
   const handleOptionClick = (option: any) => {
