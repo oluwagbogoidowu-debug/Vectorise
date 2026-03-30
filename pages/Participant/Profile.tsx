@@ -78,15 +78,15 @@ const Profile: React.FC = () => {
         // Determine initial setup step if incomplete
         if (!p.persona) setSetupStep(0);
         else if (Object.keys(p.onboardingAnswers || {}).length < 3) {
-          setSetupStep(2 + Object.keys(p.onboardingAnswers || {}).length);
+          setSetupStep(1 + Object.keys(p.onboardingAnswers || {}).length);
         }
-        else if (!p.occupation) setSetupStep(5);
+        else if (!p.occupation) setSetupStep(4);
         else if (!p.growthAreas || p.growthAreas.length < 5) {
           const currentCount = p.growthAreas?.length || 0;
-          setSetupStep(6 + currentCount);
+          setSetupStep(5 + currentCount);
           setCurrentTaskGroupIdx(currentCount);
         }
-        else if (!p.risePathway) setSetupStep(11);
+        else if (!p.risePathway) setSetupStep(10);
         else setSetupStep(-1); // Complete
 
       } catch (err) {
@@ -204,7 +204,7 @@ const Profile: React.FC = () => {
         setCurrentTaskGroupIdx(prevIdx => prevIdx + 1);
         setSetupStep(prevStep => prevStep + 1);
       } else {
-        setSetupStep(11); // Move to Rise Pathway
+        setSetupStep(10); // Move to Rise Pathway
       }
       
       return newAreas;
@@ -222,7 +222,7 @@ const Profile: React.FC = () => {
         risePathway: tempRisePathway
       }));
       // If we just finished the last step, set setupStep to -1
-      if (setupStep === 11) {
+      if (setupStep === 10) {
         setSetupStep(-1);
         // Auto-claim Identity Setup
         await userService.claimMilestone(user.id, 'setup_identity', 20, true);
@@ -235,22 +235,21 @@ const Profile: React.FC = () => {
   };
 
   const handleQuizOptionSelect = (option: string) => {
-    if (setupStep === 1) {
+    if (setupStep === 0) {
       setTempPersona(option);
-      setSetupStep(2);
-    } else if (setupStep >= 2 && setupStep <= 4) {
-      setTempOnboardingAnswers(prev => ({ ...prev, [setupStep - 1]: option }));
+    } else if (setupStep >= 1 && setupStep <= 3) {
+      setTempOnboardingAnswers(prev => ({ ...prev, [setupStep]: option }));
       setSetupStep(prev => prev + 1);
-    } else if (setupStep === 5) {
+    } else if (setupStep === 4) {
       setTempOccupation(option);
-      setSetupStep(6);
+      setSetupStep(5);
       setCurrentTaskGroupIdx(0);
     }
   };
 
   const currentQuiz = useMemo(() => {
     if (!tempPersona || !PERSONA_QUIZZES[tempPersona]) return null;
-    const quizStep = setupStep - 1; // Adjust for start screen
+    const quizStep = setupStep;
     if (quizStep < 1 || quizStep > 3) return null;
     return PERSONA_QUIZZES[tempPersona];
   }, [tempPersona, setupStep]);
@@ -346,24 +345,8 @@ const Profile: React.FC = () => {
                 />
               </div>
 
-              {/* Step 0: Start Screen */}
+              {/* Step 0: Persona */}
               {setupStep === 0 && (
-                <div className="animate-fade-in flex flex-col items-center text-center py-4">
-                  <div className="w-16 h-16 bg-primary/5 rounded-full flex items-center justify-center text-3xl mb-6">✨</div>
-                  <h3 className="text-lg font-black text-gray-900 mb-2">Ready to Rise?</h3>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-8 max-w-[200px]">Complete your identity to unlock the full experience.</p>
-                  
-                  <button 
-                    onClick={() => setSetupStep(1)}
-                    className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-primary/20 active:scale-95 transition-all"
-                  >
-                    Let us get to know you better
-                  </button>
-                </div>
-              )}
-
-              {/* Step 1: Persona */}
-              {setupStep === 1 && (
                 <div className="animate-fade-in">
                   <h3 className="text-sm font-black text-gray-900 mb-1">Which best describes you today?</h3>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your persona</p>
@@ -381,17 +364,17 @@ const Profile: React.FC = () => {
                 </div>
               )}
 
-              {/* Steps 2-4: Persona Questions */}
-              {setupStep >= 2 && setupStep <= 4 && tempPersona && currentQuiz && currentQuiz[setupStep - 2] && (
+              {/* Steps 1-3: Persona Questions */}
+              {setupStep >= 1 && setupStep <= 3 && tempPersona && currentQuiz && currentQuiz[setupStep - 1] && (
                 <div className="animate-fade-in">
-                  <h3 className="text-sm font-black text-gray-900 mb-1" dangerouslySetInnerHTML={{ __html: currentQuiz[setupStep - 2].title }} />
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Question {setupStep - 1}/3</p>
+                  <h3 className="text-sm font-black text-gray-900 mb-1" dangerouslySetInnerHTML={{ __html: currentQuiz[setupStep - 1].title }} />
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Question {setupStep}/3</p>
                   <div className="space-y-2">
-                    {currentQuiz[setupStep - 2].options.map(opt => (
+                    {currentQuiz[setupStep - 1].options.map(opt => (
                       <button
                         key={opt}
                         onClick={() => handleQuizOptionSelect(opt)}
-                        className={`w-full p-3 rounded-xl border text-[10px] font-bold text-left transition-all ${tempOnboardingAnswers[setupStep - 1] === opt ? 'bg-primary text-white border-primary shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
+                        className={`w-full p-3 rounded-xl border text-[10px] font-bold text-left transition-all ${tempOnboardingAnswers[setupStep] === opt ? 'bg-primary text-white border-primary shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
                       >
                         {opt}
                       </button>
@@ -400,8 +383,8 @@ const Profile: React.FC = () => {
                 </div>
               )}
 
-              {/* Step 5: Occupation */}
-              {setupStep === 5 && (
+              {/* Step 4: Occupation */}
+              {setupStep === 4 && (
                 <div className="animate-fade-in">
                   <h3 className="text-sm font-black text-gray-900 mb-1" dangerouslySetInnerHTML={{ __html: OCCUPATION_QUESTION.title }} />
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Employment Status</p>
@@ -419,8 +402,8 @@ const Profile: React.FC = () => {
                 </div>
               )}
 
-              {/* Steps 6-10: Growth Areas */}
-              {setupStep >= 6 && setupStep <= 10 && currentGrowthGroup && (
+              {/* Steps 5-9: Growth Areas */}
+              {setupStep >= 5 && setupStep <= 9 && currentGrowthGroup && (
                 <div className="animate-fade-in">
                   <h3 className="text-sm font-black text-gray-900 mb-1">Where do you want to grow next?</h3>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Pick one from each group ({currentTaskGroupIdx + 1}/5)</p>
@@ -442,8 +425,8 @@ const Profile: React.FC = () => {
                 </div>
               )}
 
-              {/* Step 11: Rise Pathway */}
-              {setupStep === 11 && (
+              {/* Step 10: Rise Pathway */}
+              {setupStep === 10 && (
                 <div className="animate-fade-in">
                   <h3 className="text-sm font-black text-gray-900 mb-1">What best describes your current focus?</h3>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your Rise Pathway.</p>
@@ -472,25 +455,36 @@ const Profile: React.FC = () => {
               )}
 
               {/* Navigation Controls for Quiz Steps */}
-              {setupStep > 0 && setupStep < 11 && (
+              {setupStep >= 0 && setupStep < 10 && (
                 <div className="mt-4 flex gap-2">
-                  <button 
-                    onClick={() => {
-                      setSetupStep(prev => prev - 1);
-                      if (setupStep > 6) setCurrentTaskGroupIdx(prev => prev - 1);
-                    }}
-                    className="flex-1 py-3 bg-gray-50 text-gray-400 rounded-xl font-black uppercase tracking-widest text-[9px] border border-gray-100"
-                  >
-                    Back
-                  </button>
-                  {/* Save Progress Button */}
-                  <button 
-                    onClick={handleSaveIdentity}
-                    disabled={isSavingIdentity}
-                    className="flex-1 py-3 bg-white text-primary border border-primary/20 rounded-xl font-black uppercase tracking-widest text-[9px] shadow-sm active:scale-95 transition-all"
-                  >
-                    {isSavingIdentity ? 'Saving...' : 'Save Progress'}
-                  </button>
+                  {setupStep === 0 ? (
+                    <button 
+                      onClick={() => setSetupStep(1)}
+                      disabled={!tempPersona}
+                      className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      Let us get to know you better
+                    </button>
+                  ) : (
+                    <>
+                      <button 
+                        onClick={() => {
+                          setSetupStep(prev => prev - 1);
+                          if (setupStep > 5) setCurrentTaskGroupIdx(prev => prev - 1);
+                        }}
+                        className="flex-1 py-3 bg-gray-50 text-gray-400 rounded-xl font-black uppercase tracking-widest text-[9px] border border-gray-100"
+                      >
+                        Back
+                      </button>
+                      <button 
+                        onClick={handleSaveIdentity}
+                        disabled={isSavingIdentity}
+                        className="flex-1 py-3 bg-white text-primary border border-primary/20 rounded-xl font-black uppercase tracking-widest text-[9px] shadow-sm active:scale-95 transition-all"
+                      >
+                        {isSavingIdentity ? 'Saving...' : 'Save Progress'}
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
