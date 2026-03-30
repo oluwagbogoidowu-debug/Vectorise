@@ -79,7 +79,7 @@ const ParticipantDashboard: React.FC = () => {
         description: "Set your identity in your profile to unlock the Explore page.",
         action: {
           label: "Set Identity",
-          onClick: () => navigate('/profile/settings/identity')
+          onClick: () => navigate('/profile')
         }
       });
     }
