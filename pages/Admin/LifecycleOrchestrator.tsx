@@ -60,6 +60,15 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
     const currentStageConfig = LIFECYCLE_STAGES_CONFIG[selectedStage];
     const currentSlots = LIFECYCLE_SLOTS.filter(s => s.stage === selectedStage);
 
+    const handleClearSlot = (slotId: string) => {
+        setAssignments(prev => {
+            const newAssignments = { ...prev };
+            delete newAssignments[slotId];
+            return newAssignments;
+        });
+        toast.info(`Cleared assignments for ${LIFECYCLE_SLOTS.find(s => s.id === slotId)?.name || 'slot'}`);
+    };
+
     const handleSprintAssign = (slotId: string, sprintId: string) => {
         setAssignments(prev => {
             const current = prev[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...FOCUS_OPTIONS] };
@@ -246,39 +255,50 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                         return (
                             <div key={slot.id} className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm flex flex-col gap-8 transition-all relative overflow-visible">
                                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                                    <div className="flex items-center gap-2 mb-1">
+                                    <div className="flex items-center gap-3 mb-1">
                                         <h4 className="text-lg font-black text-gray-900 tracking-tight italic">{slot.name}</h4>
-                                        <div className="relative">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="relative">
+                                                <button 
+                                                    onClick={() => setActiveTriggerPicker(isTriggerOpen ? null : slot.id)}
+                                                    className={`p-1.5 rounded-lg transition-all border ${assignment.stateTrigger ? 'bg-primary text-white border-primary' : 'text-gray-300 border-transparent hover:border-gray-100 hover:text-primary active:scale-90'}`}
+                                                    title="Set Activation State"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 10-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                                                    </svg>
+                                                </button>
+                                                {isTriggerOpen && (
+                                                    <div className="absolute top-full left-0 mt-3 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100 z-[100] p-4 animate-slide-up">
+                                                        <div className="flex justify-between items-center mb-4 px-2">
+                                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Activation Point</p>
+                                                            <button onClick={() => setActiveTriggerPicker(null)} className="text-gray-300 hover:text-gray-900"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                                                        </div>
+                                                        <div className="space-y-1.5 max-h-64 overflow-y-auto no-scrollbar">
+                                                            {TRIGGER_STATES.map(ts => {
+                                                                const isUsedByOthers = usedTriggerStates.has(ts.id) && assignment.stateTrigger !== ts.id;
+                                                                if (isUsedByOthers) return null;
+                                                                return (
+                                                                    <button key={ts.id} onClick={() => handleTriggerAssign(slot.id, assignment.stateTrigger === ts.id ? undefined : ts.id)} className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between group ${assignment.stateTrigger === ts.id ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}>
+                                                                        <span className={`text-[10px] font-bold uppercase tracking-tight ${assignment.stateTrigger === ts.id ? 'text-white' : 'text-gray-600'}`}>{ts.label}</span>
+                                                                        {assignment.stateTrigger === ts.id && <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                            <button onClick={() => handleTriggerAssign(slot.id, undefined)} className="w-full text-center py-3 text-[9px] font-black text-red-400 uppercase tracking-widest hover:bg-red-50 rounded-xl">Clear</button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                             <button 
-                                                onClick={() => setActiveTriggerPicker(isTriggerOpen ? null : slot.id)}
-                                                className={`p-1.5 rounded-lg transition-all border ${assignment.stateTrigger ? 'bg-primary text-white border-primary' : 'text-gray-300 border-transparent hover:border-gray-100 hover:text-primary active:scale-90'}`}
-                                                title="Set Activation State"
+                                                onClick={() => handleClearSlot(slot.id)}
+                                                className="p-1.5 rounded-lg transition-all border border-transparent text-gray-300 hover:border-red-100 hover:text-red-500 active:scale-90"
+                                                title="Clear All Assignments"
                                             >
                                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 10-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                 </svg>
                                             </button>
-                                            {isTriggerOpen && (
-                                                <div className="absolute top-full left-0 mt-3 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100 z-[100] p-4 animate-slide-up">
-                                                    <div className="flex justify-between items-center mb-4 px-2">
-                                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Activation Point</p>
-                                                        <button onClick={() => setActiveTriggerPicker(null)} className="text-gray-300 hover:text-gray-900"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
-                                                    </div>
-                                                    <div className="space-y-1.5 max-h-64 overflow-y-auto no-scrollbar">
-                                                        {TRIGGER_STATES.map(ts => {
-                                                            const isUsedByOthers = usedTriggerStates.has(ts.id) && assignment.stateTrigger !== ts.id;
-                                                            if (isUsedByOthers) return null;
-                                                            return (
-                                                                <button key={ts.id} onClick={() => handleTriggerAssign(slot.id, assignment.stateTrigger === ts.id ? undefined : ts.id)} className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between group ${assignment.stateTrigger === ts.id ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}>
-                                                                    <span className={`text-[10px] font-bold uppercase tracking-tight ${assignment.stateTrigger === ts.id ? 'text-white' : 'text-gray-600'}`}>{ts.label}</span>
-                                                                    {assignment.stateTrigger === ts.id && <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                        <button onClick={() => handleTriggerAssign(slot.id, undefined)} className="w-full text-center py-3 text-[9px] font-black text-red-400 uppercase tracking-widest hover:bg-red-50 rounded-xl">Clear</button>
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
                                     {assignment.stateTrigger && (
