@@ -77,11 +77,14 @@ const Profile: React.FC = () => {
 
         // Determine initial setup step if incomplete
         if (!p.persona) setSetupStep(0);
-        else if (Object.keys(p.onboardingAnswers || {}).length < 3) setSetupStep(1);
+        else if (Object.keys(p.onboardingAnswers || {}).length < 3) {
+          setSetupStep(1 + Object.keys(p.onboardingAnswers || {}).length);
+        }
         else if (!p.occupation) setSetupStep(4);
         else if (!p.growthAreas || p.growthAreas.length < 5) {
-          setSetupStep(5);
-          setCurrentTaskGroupIdx(p.growthAreas?.length || 0);
+          const currentCount = p.growthAreas?.length || 0;
+          setSetupStep(5 + currentCount);
+          setCurrentTaskGroupIdx(currentCount);
         }
         else if (!p.risePathway) setSetupStep(10);
         else setSetupStep(-1); // Complete
@@ -255,8 +258,8 @@ const Profile: React.FC = () => {
     return GROWTH_AREAS[currentTaskGroupIdx];
   }, [currentTaskGroupIdx]);
 
-  const totalSetupSteps = 11;
-  const setupProgress = (isLoading || setupStep === -2) ? 0 : (setupStep === -1 ? 100 : Math.max(0, Math.round((setupStep / totalSetupSteps) * 100)));
+  const totalSetupSteps = 10;
+  const setupProgress = (isLoading || setupStep === -2) ? 0 : (setupStep === -1 ? 100 : Math.max(0, Math.min(99, Math.round((Math.max(0, setupStep - 1) / totalSetupSteps) * 100))));
 
   const SectionLabel = ({ text }: { text: string }) => (
     <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2 px-1">
