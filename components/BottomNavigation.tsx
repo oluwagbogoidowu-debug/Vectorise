@@ -3,11 +3,15 @@ import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationService } from '../services/notificationService';
+import { userService } from '../services/userService';
 import { Home, Zap, User } from 'lucide-react';
+import { Participant } from '../types';
 
 const BottomNavigation: React.FC = () => {
   const { user } = useAuth();
   const [hasUnread, setHasUnread] = useState(true); // Default true to match screenshot requirement
+
+  const isIdentitySet = userService.isIdentitySet(user as Participant);
 
   useEffect(() => {
     if (!user) return;
@@ -44,7 +48,15 @@ const BottomNavigation: React.FC = () => {
       label: 'Profile',
       path: '/profile',
       icon: (active: boolean) => (
-        <User className={`h-6 w-6 ${active ? 'text-[#0E7850]' : 'text-gray-400'}`} strokeWidth={active ? 2.5 : 2} />
+        <div className="relative">
+          <User className={`h-6 w-6 ${active ? 'text-[#0E7850]' : 'text-gray-400'}`} strokeWidth={active ? 2.5 : 2} />
+          {!isIdentitySet && (
+            <div className="absolute -top-1 -right-1 flex items-center justify-center">
+              <div className="absolute w-4 h-4 bg-red-500/20 rounded-full animate-pulse"></div>
+              <div className="relative w-2 h-2 bg-red-500 rounded-full border border-white shadow-sm"></div>
+            </div>
+          )}
+        </div>
       )
     }
   ];
