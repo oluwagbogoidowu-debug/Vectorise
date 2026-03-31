@@ -92,7 +92,7 @@ const HomePage: React.FC = () => {
             </Link>
             <button 
               onClick={handleStartAction}
-              className="px-6 py-2.5 bg-black text-white rounded-full text-[8px] font-black uppercase tracking-[0.1em] shadow-xl shadow-black/20 hover:scale-[1.02] transition-all active:scale-95 cursor-pointer"
+              className="px-6 py-2.5 bg-primary text-white rounded-full text-[8px] font-black uppercase tracking-[0.1em] shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95 cursor-pointer"
             >
               Start
             </button>
@@ -125,7 +125,7 @@ const HomePage: React.FC = () => {
             <div className="flex flex-col items-center">
               <button 
                   onClick={handleStartAction}
-                  className="px-12 py-5 bg-black text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-full shadow-2xl shadow-black/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
+                  className="px-12 py-5 bg-primary text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
               >
                   Start your Rise
               </button>
@@ -343,7 +343,7 @@ const HomePage: React.FC = () => {
             </p>
             <button 
                 onClick={handleStartAction}
-                className="px-12 py-5 bg-black text-white font-black uppercase tracking-[0.3em] text-[10px] rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all"
+                className="px-12 py-5 bg-white text-primary font-black uppercase tracking-[0.3em] text-[10px] rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all"
             >
                 Start your sprint now
             </button>

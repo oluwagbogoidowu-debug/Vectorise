@@ -49,38 +49,34 @@ export const trackService = {
 
         // 2. Remove from Orchestration
         try {
-            const orchRef = doc(db, 'orchestration', 'current_mapping');
-            const orchSnap = await getDoc(orchRef);
-            if (orchSnap.exists()) {
-                const data = orchSnap.data();
-                const assignments = data.assignments as Record<string, any> || {};
+            const orchSlotsQuery = query(collection(db, 'orchestration_slots'));
+            const orchSlotsSnap = await getDocs(orchSlotsQuery);
+            
+            for (const slotDoc of orchSlotsSnap.docs) {
+                const assignment = slotDoc.data();
                 let changed = false;
 
-                for (const slotId in assignments) {
-                    const assignment = assignments[slotId];
-                    
-                    // Check primary sprintId (which can be a track ID)
-                    if (assignment.sprintId === trackId) {
-                        assignment.sprintId = '';
-                        changed = true;
-                    }
+                // Check primary sprintId (which can be a track ID)
+                if (assignment.sprintId === trackId) {
+                    assignment.sprintId = '';
+                    changed = true;
+                }
 
-                    // Check sprintIds array (which can contain track IDs)
-                    if (assignment.sprintIds && assignment.sprintIds.includes(trackId)) {
-                        assignment.sprintIds = assignment.sprintIds.filter((id: string) => id !== trackId);
-                        changed = true;
-                    }
+                // Check sprintIds array (which can contain track IDs)
+                if (assignment.sprintIds && assignment.sprintIds.includes(trackId)) {
+                    assignment.sprintIds = assignment.sprintIds.filter((id: string) => id !== trackId);
+                    changed = true;
+                }
 
-                    // Check focus map
-                    if (assignment.sprintFocusMap && assignment.sprintFocusMap[trackId]) {
-                        delete assignment.sprintFocusMap[trackId];
-                        changed = true;
-                    }
+                // Check focus map
+                if (assignment.sprintFocusMap && assignment.sprintFocusMap[trackId]) {
+                    delete assignment.sprintFocusMap[trackId];
+                    changed = true;
                 }
 
                 if (changed) {
-                    await updateDoc(orchRef, { 
-                        assignments,
+                    await updateDoc(doc(db, 'orchestration_slots', slotDoc.id), { 
+                        ...assignment,
                         updatedAt: new Date().toISOString()
                     });
                 }

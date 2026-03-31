@@ -8,6 +8,7 @@ const SPRINTS_COLLECTION = 'sprints';
 const ENROLLMENTS_COLLECTION = 'enrollments';
 const ORCHESTRATOR_LOGS = 'orchestrator_logs';
 const ORCHESTRATION_COLLECTION = 'orchestration';
+const ORCHESTRATION_SLOTS_COLLECTION = 'orchestration_slots';
 const LINK_STATS_COLLECTION = 'link_stats';
 
 export const sprintService = {
@@ -161,19 +162,62 @@ export const sprintService = {
     },
 
     saveOrchestration: async (assignments: Record<string, LifecycleSlotAssignment>) => {
+        // Legacy method - keeping for compatibility but will be phased out
         const docRef = doc(db, ORCHESTRATION_COLLECTION, 'current_mapping');
         await setDoc(docRef, sanitizeData({ assignments, updatedAt: new Date().toISOString() }), { merge: true });
     },
 
-    getOrchestration: async (): Promise<Record<string, LifecycleSlotAssignment>> => {
-        const docRef = doc(db, ORCHESTRATION_COLLECTION, 'current_mapping');
-        const snap = await getDoc(docRef);
-        return snap.exists() ? (sanitizeData(snap.data()) as any).assignments || {} : {};
+    saveSlotAssignment: async (slotId: string, assignment: LifecycleSlotAssignment) => {
+        const docRef = doc(db, ORCHESTRATION_SLOTS_COLLECTION, slotId);
+        await setDoc(docRef, sanitizeData({ ...assignment, updatedAt: new Date().toISOString() }));
     },
 
-    subscribeToOrchestration: (callback: (mapping: Record<string, any>) => void) => {
-        return onSnapshot(doc(db, ORCHESTRATION_COLLECTION, 'current_mapping'), (doc) => {
-            callback(doc.exists() ? (sanitizeData(doc.data()) as any).assignments || {} : {});
+    deleteSlotAssignment: async (slotId: string) => {
+        const docRef = doc(db, ORCHESTRATION_SLOTS_COLLECTION, slotId);
+        try {
+            const { deleteDoc } = await import('firebase/firestore');
+            await deleteDoc(docRef);
+        } catch (e) {
+            console.error("Delete failed:", e);
+        }
+    },
+
+    clearAllOrchestration: async () => {
+        try {
+            const { deleteDoc } = await import('firebase/firestore');
+            
+            // Clear legacy
+            await deleteDoc(doc(db, ORCHESTRATION_COLLECTION, 'current_mapping'));
+            
+            // Clear new slots
+            const q = query(collection(db, ORCHESTRATION_SLOTS_COLLECTION));
+            const snap = await getDocs(q);
+            for (const d of snap.docs) {
+                await deleteDoc(doc(db, ORCHESTRATION_SLOTS_COLLECTION, d.id));
+            }
+        } catch (e) {
+            console.error("Clear all failed:", e);
+        }
+    },
+
+    getOrchestration: async (): Promise<Record<string, LifecycleSlotAssignment>> => {
+        const q = query(collection(db, ORCHESTRATION_SLOTS_COLLECTION));
+        const snap = await getDocs(q);
+        const mapping: Record<string, LifecycleSlotAssignment> = {};
+        snap.forEach(doc => {
+            mapping[doc.id] = sanitizeData(doc.data()) as LifecycleSlotAssignment;
+        });
+        return mapping;
+    },
+
+    subscribeToOrchestration: (callback: (mapping: Record<string, LifecycleSlotAssignment>) => void) => {
+        const q = query(collection(db, ORCHESTRATION_SLOTS_COLLECTION));
+        return onSnapshot(q, (snapshot) => {
+            const mapping: Record<string, LifecycleSlotAssignment> = {};
+            snapshot.forEach(doc => {
+                mapping[doc.id] = sanitizeData(doc.data()) as LifecycleSlotAssignment;
+            });
+            callback(mapping);
         });
     },
 
@@ -325,38 +369,34 @@ export const sprintService = {
 
         // 3. Remove from Orchestration
         try {
-            const orchRef = doc(db, ORCHESTRATION_COLLECTION, 'current_mapping');
-            const orchSnap = await getDoc(orchRef);
-            if (orchSnap.exists()) {
-                const data = orchSnap.data();
-                const assignments = data.assignments as Record<string, LifecycleSlotAssignment> || {};
+            const orchSlotsQuery = query(collection(db, ORCHESTRATION_SLOTS_COLLECTION));
+            const orchSlotsSnap = await getDocs(orchSlotsQuery);
+            
+            for (const slotDoc of orchSlotsSnap.docs) {
+                const assignment = slotDoc.data() as LifecycleSlotAssignment;
                 let changed = false;
 
-                for (const slotId in assignments) {
-                    const assignment = assignments[slotId];
-                    
-                    // Check primary sprintId
-                    if (assignment.sprintId === sprintId) {
-                        assignment.sprintId = '';
-                        changed = true;
-                    }
+                // Check primary sprintId
+                if (assignment.sprintId === sprintId) {
+                    assignment.sprintId = '';
+                    changed = true;
+                }
 
-                    // Check sprintIds array
-                    if (assignment.sprintIds && assignment.sprintIds.includes(sprintId)) {
-                        assignment.sprintIds = assignment.sprintIds.filter(id => id !== sprintId);
-                        changed = true;
-                    }
+                // Check sprintIds array
+                if (assignment.sprintIds && assignment.sprintIds.includes(sprintId)) {
+                    assignment.sprintIds = assignment.sprintIds.filter(id => id !== sprintId);
+                    changed = true;
+                }
 
-                    // Check focus map
-                    if (assignment.sprintFocusMap && assignment.sprintFocusMap[sprintId]) {
-                        delete assignment.sprintFocusMap[sprintId];
-                        changed = true;
-                    }
+                // Check focus map
+                if (assignment.sprintFocusMap && assignment.sprintFocusMap[sprintId]) {
+                    delete assignment.sprintFocusMap[sprintId];
+                    changed = true;
                 }
 
                 if (changed) {
-                    await updateDoc(orchRef, { 
-                        assignments,
+                    await updateDoc(doc(db, ORCHESTRATION_SLOTS_COLLECTION, slotDoc.id), { 
+                        ...assignment,
                         updatedAt: new Date().toISOString()
                     });
                 }

@@ -64,116 +64,130 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
     const currentStageConfig = LIFECYCLE_STAGES_CONFIG[selectedStage];
     const currentSlots = LIFECYCLE_SLOTS.filter(s => s.stage === selectedStage);
 
-    const handleClearSlot = (slotId: string) => {
-        setAssignments(prev => {
-            const newAssignments = { ...prev };
-            delete newAssignments[slotId];
-            return newAssignments;
-        });
-        toast.info(`Cleared assignments for ${LIFECYCLE_SLOTS.find(s => s.id === slotId)?.name || 'slot'}`);
+    const handleClearSlot = async (slotId: string) => {
+        try {
+            await sprintService.deleteSlotAssignment(slotId);
+            toast.info(`Cleared assignments for ${LIFECYCLE_SLOTS.find(s => s.id === slotId)?.name || 'slot'}`);
+        } catch (err) {
+            toast.error("Failed to clear slot.");
+        }
     };
 
-    const handleSprintAssign = (slotId: string, sprintId: string) => {
-        setAssignments(prev => {
-            const defaultOptions = getSlotDefaultOptions(slotId);
-            const current = prev[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...defaultOptions] };
-            const existingIds = current.sprintIds || (current.sprintId ? [current.sprintId] : []);
-            
-            let newIds = [...existingIds];
-            if (newIds.includes(sprintId)) {
-                newIds = newIds.filter(id => id !== sprintId);
-                const focusMap = { ...(current.sprintFocusMap || {}) };
-                delete focusMap[sprintId];
-                return { 
-                    ...prev, 
-                    [slotId]: { ...current, sprintIds: newIds, sprintId: newIds[0] || '', sprintFocusMap: focusMap } 
-                };
-            } else {
-                newIds.push(sprintId);
-                return { 
-                    ...prev, 
-                    [slotId]: { ...current, sprintIds: newIds, sprintId: newIds[0] || '', sprintFocusMap: current.sprintFocusMap || {} } 
-                };
-            }
-        });
-        setActiveSprintPicker(null);
-    };
+    const handleSprintAssign = async (slotId: string, sprintId: string) => {
+        const defaultOptions = getSlotDefaultOptions(slotId);
+        const current = assignments[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...defaultOptions] };
+        const existingIds = current.sprintIds || (current.sprintId ? [current.sprintId] : []);
+        
+        let newIds = [...existingIds];
+        let newAssignment: LifecycleSlotAssignment;
 
-    const handleTriggerAssign = (slotId: string, triggerId: OrchestrationTrigger | undefined) => {
-        setAssignments(prev => ({
-            ...prev,
-            [slotId]: { ...(prev[slotId] || { sprintId: '', focusCriteria: [], availableFocusOptions: [...getSlotDefaultOptions(slotId)] }), stateTrigger: triggerId }
-        }));
-        setActiveTriggerPicker(null);
-    };
-
-    const handleToggleSprintFocus = (slotId: string, sprintId: string, option: string) => {
-        setAssignments(prev => {
-            const defaultOptions = getSlotDefaultOptions(slotId);
-            const current = prev[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...defaultOptions] };
+        if (newIds.includes(sprintId)) {
+            newIds = newIds.filter(id => id !== sprintId);
             const focusMap = { ...(current.sprintFocusMap || {}) };
-            
-            // Fix: Cast 'options' as string[] to resolve the type error
-            const isUsedByOther = Object.entries(focusMap).some(([otherId, options]) => 
-                otherId !== sprintId && (options as string[]).includes(option)
-            );
-            if (isUsedByOther) return prev;
+            delete focusMap[sprintId];
+            newAssignment = { ...current, sprintIds: newIds, sprintId: newIds[0] || '', sprintFocusMap: focusMap };
+        } else {
+            newIds.push(sprintId);
+            newAssignment = { ...current, sprintIds: newIds, sprintId: newIds[0] || '', sprintFocusMap: current.sprintFocusMap || {} };
+        }
 
-            const currentFocus = [...((focusMap[sprintId] as string[]) || [])];
-            const idx = currentFocus.indexOf(option);
-            if (idx > -1) currentFocus.splice(idx, 1);
-            else currentFocus.push(option);
-            
-            focusMap[sprintId] = currentFocus;
-            
-            return { 
-                ...prev, 
-                [slotId]: { ...current, sprintFocusMap: focusMap } 
-            };
-        });
+        try {
+            await sprintService.saveSlotAssignment(slotId, newAssignment);
+            setActiveSprintPicker(null);
+        } catch (err) {
+            toast.error("Update failed.");
+        }
     };
 
-    const handleUpdateFocusOptionText = (slotId: string, optIdx: number, newText: string) => {
-        setAssignments(prev => {
-            const defaultOptions = getSlotDefaultOptions(slotId);
-            const current = prev[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...defaultOptions] };
-            const options = [...(current.availableFocusOptions || defaultOptions)];
-            const oldText = options[optIdx];
-            options[optIdx] = newText;
-            
-            const focusMap = { ...(current.sprintFocusMap || {}) };
-            Object.keys(focusMap).forEach(sId => {
-                focusMap[sId] = (focusMap[sId] as string[]).map(f => f === oldText ? newText : f);
-            });
-
-            return { ...prev, [slotId]: { ...current, availableFocusOptions: options, sprintFocusMap: focusMap } };
-        });
+    const handleTriggerAssign = async (slotId: string, triggerId: OrchestrationTrigger | undefined) => {
+        const defaultOptions = getSlotDefaultOptions(slotId);
+        const current = assignments[slotId] || { sprintId: '', focusCriteria: [], availableFocusOptions: [...defaultOptions] };
+        const newAssignment = { ...current, stateTrigger: triggerId };
+        
+        try {
+            await sprintService.saveSlotAssignment(slotId, newAssignment);
+            setActiveTriggerPicker(null);
+        } catch (err) {
+            toast.error("Trigger update failed.");
+        }
     };
 
-    const handleAddFocusOption = (slotId: string) => {
-        setAssignments(prev => {
-            const defaultOptions = getSlotDefaultOptions(slotId);
-            const current = prev[slotId] || { sprintId: '', focusCriteria: [], availableFocusOptions: [...defaultOptions] };
-            const options = [...(current.availableFocusOptions || defaultOptions), 'New focus path'];
-            return { ...prev, [slotId]: { ...current, availableFocusOptions: options } };
-        });
+    const handleToggleSprintFocus = async (slotId: string, sprintId: string, option: string) => {
+        const defaultOptions = getSlotDefaultOptions(slotId);
+        const current = assignments[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...defaultOptions] };
+        const focusMap = { ...(current.sprintFocusMap || {}) };
+        
+        const isUsedByOther = Object.entries(focusMap).some(([otherId, options]) => 
+            otherId !== sprintId && (options as string[]).includes(option)
+        );
+        if (isUsedByOther) return;
+
+        const currentFocus = [...((focusMap[sprintId] as string[]) || [])];
+        const idx = currentFocus.indexOf(option);
+        if (idx > -1) currentFocus.splice(idx, 1);
+        else currentFocus.push(option);
+        
+        focusMap[sprintId] = currentFocus;
+        
+        const newAssignment = { ...current, sprintFocusMap: focusMap };
+        try {
+            await sprintService.saveSlotAssignment(slotId, newAssignment);
+        } catch (err) {
+            toast.error("Focus update failed.");
+        }
     };
 
-    const handleRemoveFocusOption = (slotId: string, optIdx: number) => {
-        setAssignments(prev => {
-            const defaultOptions = getSlotDefaultOptions(slotId);
-            const current = prev[slotId] || { sprintId: '', focusCriteria: [], availableFocusOptions: [...defaultOptions] };
-            const options = [...(current.availableFocusOptions || defaultOptions)];
-            const removedText = options[optIdx];
-            options.splice(optIdx, 1);
-            
-            const focusMap = { ...(current.sprintFocusMap || {}) };
-            Object.keys(focusMap).forEach(sId => {
-                focusMap[sId] = (focusMap[sId] as string[]).filter(c => c !== removedText);
-            });
-            
-            return { ...prev, [slotId]: { ...current, availableFocusOptions: options, sprintFocusMap: focusMap } };
+    const handleUpdateFocusOptionText = async (slotId: string, optIdx: number, newText: string) => {
+        const defaultOptions = getSlotDefaultOptions(slotId);
+        const current = assignments[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...defaultOptions] };
+        const options = [...(current.availableFocusOptions || defaultOptions)];
+        const oldText = options[optIdx];
+        options[optIdx] = newText;
+        
+        const focusMap = { ...(current.sprintFocusMap || {}) };
+        Object.keys(focusMap).forEach(sId => {
+            focusMap[sId] = (focusMap[sId] as string[]).map(f => f === oldText ? newText : f);
         });
+
+        const newAssignment = { ...current, availableFocusOptions: options, sprintFocusMap: focusMap };
+        try {
+            await sprintService.saveSlotAssignment(slotId, newAssignment);
+        } catch (err) {
+            toast.error("Label update failed.");
+        }
+    };
+
+    const handleAddFocusOption = async (slotId: string) => {
+        const defaultOptions = getSlotDefaultOptions(slotId);
+        const current = assignments[slotId] || { sprintId: '', focusCriteria: [], availableFocusOptions: [...defaultOptions] };
+        const options = [...(current.availableFocusOptions || defaultOptions), 'New focus path'];
+        const newAssignment = { ...current, availableFocusOptions: options };
+        
+        try {
+            await sprintService.saveSlotAssignment(slotId, newAssignment);
+        } catch (err) {
+            toast.error("Add focus failed.");
+        }
+    };
+
+    const handleRemoveFocusOption = async (slotId: string, optIdx: number) => {
+        const defaultOptions = getSlotDefaultOptions(slotId);
+        const current = assignments[slotId] || { sprintId: '', focusCriteria: [], availableFocusOptions: [...defaultOptions] };
+        const options = [...(current.availableFocusOptions || defaultOptions)];
+        const removedText = options[optIdx];
+        options.splice(optIdx, 1);
+        
+        const focusMap = { ...(current.sprintFocusMap || {}) };
+        Object.keys(focusMap).forEach(sId => {
+            focusMap[sId] = (focusMap[sId] as string[]).filter(c => c !== removedText);
+        });
+        
+        const newAssignment = { ...current, availableFocusOptions: options, sprintFocusMap: focusMap };
+        try {
+            await sprintService.saveSlotAssignment(slotId, newAssignment);
+        } catch (err) {
+            toast.error("Remove focus failed.");
+        }
     };
 
     const handleSetStep = (slotId: string, sId: string, step: number) => {
@@ -183,13 +197,15 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
         }));
     };
 
-    const handleSaveRegistry = async () => {
+    const handleClearAll = async () => {
+        if (!window.confirm("Are you sure you want to delete ALL orchestration data? This cannot be undone.")) return;
+        
         setIsSaving(true);
         try {
-            await sprintService.saveOrchestration(assignments);
-            toast.success("Registry state synchronized.");
+            await sprintService.clearAllOrchestration();
+            toast.success("All orchestration data deleted.");
         } catch (err) {
-            toast.error("Persistence failed.");
+            toast.error("Failed to clear orchestration.");
         } finally {
             setIsSaving(false);
         }
@@ -237,6 +253,13 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                 "{currentStageConfig.description}"
                             </p>
                         </div>
+                        <button 
+                            onClick={handleClearAll}
+                            disabled={isSaving}
+                            className="px-6 py-3 bg-red-50 text-red-500 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                        >
+                            Delete All Orchestration
+                        </button>
                     </div>
                 </header>
 
@@ -301,7 +324,11 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                                 )}
                                             </div>
                                             <button 
-                                                onClick={() => handleClearSlot(slot.id)}
+                                                onClick={() => {
+                                                    if (window.confirm(`Clear all assignments for ${slot.name}?`)) {
+                                                        handleClearSlot(slot.id);
+                                                    }
+                                                }}
                                                 className="p-1.5 rounded-lg transition-all border border-transparent text-gray-300 hover:border-red-100 hover:text-red-500 active:scale-90"
                                                 title="Clear All Assignments"
                                             >
@@ -644,9 +671,11 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                 </div>
 
                 <div className="flex justify-end pt-8">
-                    <Button onClick={handleSaveRegistry} isLoading={isSaving} className="px-16 py-5 rounded-[1.75rem] shadow-2xl font-black uppercase tracking-widest text-[11px] scale-105 active:scale-100">
-                        Synchronize Registry
-                    </Button>
+                    <div className="px-8 py-4 bg-primary/5 rounded-2xl border border-primary/10">
+                        <p className="text-[9px] font-black text-primary uppercase tracking-widest">
+                            Real-time Synchronization Active
+                        </p>
+                    </div>
                 </div>
             </main>
 
