@@ -45,8 +45,7 @@ export const isRegistryIncomplete = (sprint: Sprint): boolean => {
         !sprint.difficulty?.trim() || 
         !sprint.duration || 
         !sprint.protocol?.trim() ||
-        !sprint.outcomeTag?.trim() ||
-        !sprint.outcomeStatement?.trim()
+        !sprint.outcomeTag?.trim()
     ) {
         return true;
     }

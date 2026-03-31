@@ -8,6 +8,7 @@ import Button from '../../components/Button';
 import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtils';
 import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
+import { OUTCOME_TAGS } from '../../constants/sprintConstants';
 import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft } from 'lucide-react';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
@@ -153,7 +154,7 @@ const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> =
     const fields: (keyof Sprint)[] = [
         'title', 'subtitle', 'coverImageUrl', 'transformation', 'description', 
         'category', 'difficulty', 'price', 'currency', 'pointCost', 
-        'pricingType', 'duration', 'protocol', 'outcomeTag', 'outcomeStatement'
+        'pricingType', 'duration', 'protocol', 'outcomeTag'
     ];
 
     fields.forEach(f => {
@@ -399,6 +400,12 @@ const EditSprint: React.FC = () => {
 
   const handleSubmitForReview = async () => {
       if (!sprint || !originalSprint || isSubmittingReview) return;
+
+      if (sprint.approvalStatus === 'approved') {
+          const confirmAgain = window.confirm("Are you sure you want to submit for review again?");
+          if (!confirmAgain) return;
+      }
+
       setIsSubmittingReview(true);
       try {
           const changes = getPendingChanges(originalSprint, sprint);
@@ -458,7 +465,6 @@ const EditSprint: React.FC = () => {
       duration: editSettings.duration,
       protocol: editSettings.protocol,
       outcomeTag: editSettings.outcomeTag,
-      outcomeStatement: editSettings.outcomeStatement,
     };
 
     // Handle duration change by adjusting dailyContent array
@@ -620,7 +626,7 @@ const EditSprint: React.FC = () => {
                         <Button 
                             onClick={handleSubmitForReview} 
                             isLoading={isSubmittingReview}
-                            disabled={registryIncomplete || curriculumIncomplete || isSubmittingReview || (!hasChanges && sprint.approvalStatus === 'pending_approval')} 
+                            disabled={registryIncomplete || curriculumIncomplete || isSubmittingReview} 
                             className="font-black uppercase tracking-widest text-[10px] rounded-xl px-6"
                         >
                         {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
@@ -995,7 +1001,6 @@ const EditSprint: React.FC = () => {
                             <DiffHighlight label="Method Snapshot" original={originalSprint?.methodSnapshot} updated={editSettings.methodSnapshot} />
                             <DiffHighlight label="Evidence of Completion (outcomes)" original={originalSprint?.outcomes} updated={editSettings.outcomes} />
                             <DiffHighlight label="Archive Outcome Tag" original={originalSprint?.outcomeTag} updated={editSettings.outcomeTag} />
-                            <DiffHighlight label="The Outcome Statement" original={originalSprint?.outcomeStatement} updated={editSettings.outcomeStatement} />
                             
                             <div className="grid grid-cols-2 gap-4">
                                 <DiffHighlight label="Category" original={originalSprint?.category} updated={editSettings.category} />
@@ -1130,19 +1135,16 @@ const EditSprint: React.FC = () => {
                                         <div className="space-y-6">
                                             <div>
                                                 <label className={labelClasses}>Archive Outcome Tag</label>
-                                                <input type="text" value={editSettings.outcomeTag || ''} onChange={e => setEditSettings({...editSettings, outcomeTag: e.target.value})} className={registryInputClasses + " mt-2"} placeholder="e.g. Clarity gained" />
+                                                <select 
+                                                    value={editSettings.outcomeTag || ''} 
+                                                    onChange={e => setEditSettings({...editSettings, outcomeTag: e.target.value})} 
+                                                    className={registryInputClasses + " mt-2"}
+                                                >
+                                                    {OUTCOME_TAGS.map((tag: string) => (
+                                                        <option key={tag} value={tag}>{tag}</option>
+                                                    ))}
+                                                </select>
                                                 <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">This appears as the badge on completed sprint cards.</p>
-                                            </div>
-                                            <div>
-                                                <label className={labelClasses}>The Outcome Statement</label>
-                                                <textarea 
-                                                    value={editSettings.outcomeStatement || ''} 
-                                                    onChange={e => setEditSettings({...editSettings, outcomeStatement: e.target.value})} 
-                                                    className={registryInputClasses + " mt-2 resize-none"} 
-                                                    rows={3}
-                                                    placeholder="Focus creates feedback. *Feedback creates clarity.*" 
-                                                />
-                                                <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">The final message shown to participants upon completion.</p>
                                             </div>
                                         </div>
                                     </section>

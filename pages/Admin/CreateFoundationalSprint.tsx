@@ -8,6 +8,7 @@ import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import { ALL_CATEGORIES } from '../../services/mockData';
+import { OUTCOME_TAGS } from '../../constants/sprintConstants';
 import { List, Plus, Trash2, Type as TypeIcon, Clock } from 'lucide-react';
 
 const PLATFORM_CATEGORIES = ["Core Platform Sprint", "Growth Fundamentals", ...ALL_CATEGORIES];
@@ -31,7 +32,6 @@ const CreateFoundationalSprint: React.FC = () => {
         price: string;
         currency: string;
         outcomeTag: string;
-        outcomeStatement: string;
         sprintType: 'Foundational' | 'Execution' | 'Skill';
         protocol: 'One action per day' | 'Guided task' | 'Challenge-based';
         pricingType: 'cash' | 'credits';
@@ -56,8 +56,7 @@ const CreateFoundationalSprint: React.FC = () => {
         duration: 5,
         price: '0',
         currency: 'NGN',
-        outcomeTag: 'Core Mastery',
-        outcomeStatement: 'Focus creates feedback. *Feedback creates clarity.*',
+        outcomeTag: OUTCOME_TAGS[0],
         sprintType: 'Foundational' as 'Foundational' | 'Execution' | 'Skill',
         protocol: 'One action per day' as 'One action per day' | 'Guided task' | 'Challenge-based',
         pricingType: 'credits',
@@ -129,7 +128,6 @@ const CreateFoundationalSprint: React.FC = () => {
             pointCost: formData.pointCost || 0,
             pricingType: formData.pricingType,
             outcomeTag: formData.outcomeTag,
-            outcomeStatement: formData.outcomeStatement,
             sprintType: formData.sprintType,
             protocol: formData.protocol,
             dynamicSections: formData.dynamicSections,
@@ -190,7 +188,6 @@ const CreateFoundationalSprint: React.FC = () => {
             approvalStatus: 'approved',
             dailyContent: [],
             outcomeTag: formData.outcomeTag,
-            outcomeStatement: formData.outcomeStatement,
         };
 
         formData.dynamicSections?.forEach(section => {
@@ -411,18 +408,16 @@ const CreateFoundationalSprint: React.FC = () => {
                                 <div className="space-y-6">
                                     <div>
                                         <label className={labelClasses}>Archive Outcome Tag</label>
-                                        <input type="text" name="outcomeTag" value={formData.outcomeTag} onChange={handleChange} className={inputClasses + " mt-2"} placeholder="e.g. Core Mastery" />
-                                    </div>
-                                    <div>
-                                        <label className={labelClasses}>The Outcome Statement</label>
-                                        <textarea 
-                                            name="outcomeStatement"
-                                            value={formData.outcomeStatement} 
+                                        <select 
+                                            name="outcomeTag" 
+                                            value={formData.outcomeTag} 
                                             onChange={handleChange} 
-                                            className={inputClasses + " mt-2 resize-none"} 
-                                            rows={3}
-                                            placeholder="Focus creates feedback. *Feedback creates clarity.*" 
-                                        />
+                                            className={inputClasses + " mt-2"}
+                                        >
+                                            {OUTCOME_TAGS.map((tag: string) => (
+                                                <option key={tag} value={tag}>{tag}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
                             </section>

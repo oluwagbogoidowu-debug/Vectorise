@@ -11,6 +11,7 @@ import FormattedText from '../../components/FormattedText';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import { ALL_CATEGORIES } from '../../services/mockData';
+import { OUTCOME_TAGS } from '../../constants/sprintConstants';
 import { List, Plus, Trash2, Type as TypeIcon, Clock } from 'lucide-react';
 
 
@@ -44,7 +45,6 @@ const CreateSprint: React.FC = () => {
         duration: number;
         price: string;
         outcomeTag: string;
-        outcomeStatement: string;
         sprintType: 'Foundational' | 'Execution' | 'Skill';
         protocol: 'One action per day' | 'Guided task' | 'Challenge-based';
         pricingType: 'cash' | 'credits';
@@ -60,8 +60,7 @@ const CreateSprint: React.FC = () => {
         difficulty: 'Beginner' as SprintDifficulty,
         duration: 7,
         price: '0',
-        outcomeTag: '',
-        outcomeStatement: 'Focus creates feedback. *Feedback creates clarity.*',
+        outcomeTag: OUTCOME_TAGS[0],
         sprintType: 'Execution' as 'Foundational' | 'Execution' | 'Skill',
         protocol: 'One action per day' as 'One action per day' | 'Guided task' | 'Challenge-based',
         pricingType: 'cash',
@@ -121,8 +120,7 @@ const CreateSprint: React.FC = () => {
             currency: 'NGN',
             pointCost: formData.pointCost || 0,
             pricingType: formData.pricingType,
-            outcomeTag: formData.outcomeTag || 'Clarity gained',
-            outcomeStatement: formData.outcomeStatement,
+            outcomeTag: formData.outcomeTag || OUTCOME_TAGS[0],
             sprintType: formData.sprintType,
             protocol: formData.protocol,
             dynamicSections: formData.dynamicSections,
@@ -162,7 +160,6 @@ const CreateSprint: React.FC = () => {
             approvalStatus: 'draft',
             dailyContent: [],
             outcomeTag: formData.outcomeTag,
-            outcomeStatement: formData.outcomeStatement,
         };
 
         formData.dynamicSections?.forEach(section => {
@@ -345,20 +342,17 @@ const CreateSprint: React.FC = () => {
                                 <div className="space-y-6">
                                     <div>
                                         <label className={labelClasses}>Archive Outcome Tag</label>
-                                        <input type="text" name="outcomeTag" value={formData.outcomeTag} onChange={handleChange} className={inputClasses + " mt-2"} placeholder="e.g. Clarity gained" />
-                                        <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">This appears as the badge on completed sprint cards.</p>
-                                    </div>
-                                    <div>
-                                        <label className={labelClasses}>The Outcome Statement</label>
-                                        <textarea 
-                                            name="outcomeStatement"
-                                            value={formData.outcomeStatement} 
+                                        <select 
+                                            name="outcomeTag" 
+                                            value={formData.outcomeTag} 
                                             onChange={handleChange} 
-                                            className={inputClasses + " mt-2 resize-none"} 
-                                            rows={3}
-                                            placeholder="Focus creates feedback. *Feedback creates clarity.*" 
-                                        />
-                                        <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">The final message shown to participants upon completion.</p>
+                                            className={inputClasses + " mt-2"}
+                                        >
+                                            {OUTCOME_TAGS.map((tag: string) => (
+                                                <option key={tag} value={tag}>{tag}</option>
+                                            ))}
+                                        </select>
+                                        <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">This appears as the badge on completed sprint cards.</p>
                                     </div>
                                 </div>
                             </section>
