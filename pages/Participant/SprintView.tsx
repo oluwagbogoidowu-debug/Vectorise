@@ -4,6 +4,7 @@ import { ParticipantSprint, Sprint, DailyContent, GlobalOrchestrationSettings, M
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { chatService } from '../../services/chatService';
+import { pushNotificationService } from '../../services/pushNotificationService';
 import { doc, updateDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { db } from '../../services/firebase';
@@ -491,6 +492,11 @@ const SprintView: React.FC = () => {
 
             await updateDoc(enrollmentRef, updatePayload);
             setIsReflectionModalOpen(false);
+
+            // Trigger push notification for task completion
+            if (user?.id) {
+                pushNotificationService.triggerCompletedTask(user.id).catch(e => console.error("Push trigger failed:", e));
+            }
 
             // Play completion sound if enabled
             if (soundEnabled) {

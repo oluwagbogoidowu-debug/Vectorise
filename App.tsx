@@ -5,6 +5,8 @@ import { Toaster } from 'sonner';
 import Header from './components/Header';
 import BottomNavigation from './components/BottomNavigation';
 import TopBanner from './components/TopBanner';
+import { NotificationManager } from './components/NotificationManager';
+import { DormancyPrompt } from './components/DormancyPrompt';
 
 import { sprintService } from './services/sprintService';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
@@ -104,6 +106,8 @@ const AppContent: React.FC = () => {
         <AppRoutes />
       </main>
       {showParticipantNav && <BottomNavigation />}
+      <NotificationManager />
+      <DormancyPrompt />
       <PWAInstallPrompt deferredPrompt={deferredPrompt} />
     </div>
   );

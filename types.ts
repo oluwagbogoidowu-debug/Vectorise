@@ -278,6 +278,8 @@ export interface User {
   roleDefinitionId?: string;
 }
 
+export type UserNotificationState = 'New' | 'Active' | 'Pending' | 'Completed' | 'Inactive' | 'Dormant';
+
 export interface Participant extends User {
   role: UserRole.PARTICIPANT | UserRole.PARTNER;
   currentStage?: LifecycleStage;
@@ -301,12 +303,27 @@ export interface Participant extends User {
   persona: string;
   createdAt: string;
   lastLoginAt?: string;
+  lastActivityAt?: string;
+  notificationState?: UserNotificationState;
+  notificationsSentToday?: number;
+  lastNotificationSentAt?: string;
+  notificationsDisabled?: boolean;
+  pushSubscription?: PushSubscriptionJSON;
   interests?: string[];
   followers?: number;
   following?: number;
   isPartner?: boolean;
   partnerData?: any;
   referralFirstTouch?: string | null;
+}
+
+export interface PushSubscriptionJSON {
+  endpoint: string;
+  expirationTime: number | null;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
 }
 
 export interface Coach extends User {

@@ -159,6 +159,7 @@ export const userService = {
         walletBalance: 0,
         impactStats: { peopleHelped: 0, streak: 0 },
         isPartner: false,
+        notificationState: 'New',
         ...data
       });
       await setDoc(userRef, userData, { merge: true });
