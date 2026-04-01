@@ -204,6 +204,8 @@ export interface ParticipantSprint {
   soundDisabled?: boolean;
   notificationsDisabled?: boolean;
   isCommissionTrigger?: boolean; 
+  checkInReminderEnabled?: boolean;
+  checkInHistory?: { day: number; timestamp: string }[];
   progress: {
     day: number;
     completed: boolean;
@@ -255,6 +257,8 @@ export interface Sprint {
   pendingChanges?: Partial<Sprint>;
   targeting?: any;
   dynamicSections?: DynamicSection[];
+  checkInReminder?: boolean;
+  checkInReminderDays?: number;
 }
 
 export interface DailyContent {

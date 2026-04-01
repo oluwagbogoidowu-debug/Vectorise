@@ -154,7 +154,7 @@ const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> =
     const fields: (keyof Sprint)[] = [
         'title', 'subtitle', 'coverImageUrl', 'transformation', 'description', 
         'category', 'difficulty', 'price', 'currency', 'pointCost', 
-        'pricingType', 'duration', 'protocol', 'outcomeTag'
+        'pricingType', 'duration', 'protocol', 'outcomeTag', 'checkInReminder', 'checkInReminderDays'
     ];
 
     fields.forEach(f => {
@@ -895,6 +895,43 @@ const EditSprint: React.FC = () => {
                             />
                             <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Curate the prompt for the end-of-day reflection modal.</p>
                         </div>
+
+                        {selectedDay === sprint?.duration && (
+                            <div className="pt-6 border-t border-gray-50 space-y-4 animate-fade-in">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-1">
+                                        <label className={labelClasses}>Check-in Reminder</label>
+                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Enable daily check-in reminders for the user.</p>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        {sprint?.checkInReminder && (
+                                            <div className="flex items-center gap-2">
+                                                <input 
+                                                    type="number"
+                                                    value={sprint?.checkInReminderDays || 0}
+                                                    onChange={e => setSprint(prev => prev ? { ...prev, checkInReminderDays: Number(e.target.value) } : null)}
+                                                    className="w-16 px-3 py-1 bg-gray-50 border border-gray-100 rounded-lg text-xs font-bold text-gray-700 focus:bg-white focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                                                    placeholder="Days"
+                                                />
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Days</span>
+                                            </div>
+                                        )}
+                                        <button 
+                                            onClick={() => setSprint(prev => prev ? { ...prev, checkInReminder: !prev.checkInReminder, checkInReminderDays: prev.checkInReminder ? 0 : (prev.checkInReminderDays || 30) } : null)}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${sprint?.checkInReminder ? 'bg-primary' : 'bg-gray-200'}`}
+                                        >
+                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${sprint?.checkInReminder ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
+                                </div>
+                                {sprint?.checkInReminder && (
+                                    <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                                        <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">Daily Reminder Active for {sprint?.checkInReminderDays || 30} Days</p>
+                                        <p className="text-[10px] font-medium text-gray-600">The user will receive a daily notification to check in and complete their tasks for {sprint?.checkInReminderDays || 30} days after the sprint.</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
               </div>

@@ -547,6 +547,42 @@ const SprintView: React.FC = () => {
         }
     };
 
+    const handleToggleReminder = async () => {
+        if (!enrollment) return;
+        const newState = !enrollment.checkInReminderEnabled;
+        try {
+            const enrollmentRef = doc(db, 'enrollments', enrollment.id);
+            await updateDoc(enrollmentRef, { checkInReminderEnabled: newState });
+            toast.success(newState ? "Daily reminders enabled" : "Daily reminders disabled");
+        } catch (err) {
+            console.error("Toggle reminder failed", err);
+            toast.error("Failed to update reminder setting");
+        }
+    };
+
+    const handleCheckIn = async (day: number) => {
+        if (!enrollment || !user) return;
+        
+        // Check if already checked in for this day
+        if (enrollment.checkInHistory?.some(h => h.day === day)) return;
+
+        const newCheckIn = {
+            day,
+            timestamp: new Date().toISOString()
+        };
+
+        const updatedHistory = [...(enrollment.checkInHistory || []), newCheckIn];
+
+        try {
+            const enrollmentRef = doc(db, 'enrollments', enrollment.id);
+            await updateDoc(enrollmentRef, { checkInHistory: updatedHistory });
+            toast.success(`Checked in for Day ${day}!`);
+        } catch (err) {
+            console.error("Check-in failed", err);
+            toast.error("Failed to check in");
+        }
+    };
+
     const dayContent = Array.isArray(sprint?.dailyContent) ? sprint?.dailyContent.find(dc => dc.day === viewingDay) : undefined;
     const dayProgress = enrollment?.progress?.find(p => p.day === viewingDay);
 
@@ -637,6 +673,18 @@ const SprintView: React.FC = () => {
                         );
                     })}
                 </div>
+
+                {sprint.checkInReminder && (
+                    <div className="flex items-center justify-between px-1 mt-2 mb-2 animate-fade-in">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Set a daily check-in reminder</span>
+                        <button 
+                            onClick={handleToggleReminder}
+                            className={`w-8 h-4 rounded-full transition-all duration-300 relative ${enrollment.checkInReminderEnabled ? 'bg-primary' : 'bg-gray-200'}`}
+                        >
+                            <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-300 ${enrollment.checkInReminderEnabled ? 'right-0.5' : 'left-0.5'}`} />
+                        </button>
+                    </div>
+                )}
 
                 <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden min-h-[400px]">
                     {enrollment.status === 'queued' && (
@@ -805,6 +853,47 @@ const SprintView: React.FC = () => {
                             </div>
                         )}
                     </div>
+
+                    {enrollment.checkInReminderEnabled && (
+                        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm animate-fade-in mt-6">
+                            <div className="flex justify-between items-start mb-6">
+                                <div>
+                                    <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Daily Check-in</h3>
+                                    <p className="text-sm font-black text-gray-900">Active for {sprint.checkInReminderDays || 0} days</p>
+                                </div>
+                                <div className="text-right max-w-[150px]">
+                                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Last Sprint Submission</p>
+                                    <p className="text-[10px] font-bold text-gray-600 line-clamp-2 italic">
+                                        "{(() => {
+                                            const lastDayProg = enrollment.progress.find(p => p.day === sprint.duration);
+                                            return lastDayProg?.submission || lastDayProg?.reflection || 'No submission recorded';
+                                        })()}"
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                                {Array.from({ length: sprint.checkInReminderDays || 0 }, (_, i) => i + 1).map((day) => {
+                                    const isCheckedIn = enrollment.checkInHistory?.some(h => h.day === day);
+                                    return (
+                                        <button
+                                            key={day}
+                                            onClick={() => handleCheckIn(day)}
+                                            disabled={isCheckedIn}
+                                            className={`px-3 py-2 rounded-xl text-[10px] font-black transition-all active:scale-95 ${
+                                                isCheckedIn 
+                                                ? 'bg-primary/10 text-primary border border-primary/20' 
+                                                : 'bg-gray-50 text-gray-400 border border-gray-100 hover:border-primary/30'
+                                            }`}
+                                        >
+                                            Day {day} {isCheckedIn ? '✓' : ''}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-[9px] text-gray-400 mt-4 font-medium">Click a day to confirm your daily check-in.</p>
+                        </div>
+                    )}
                 </div>
             </div>
 
