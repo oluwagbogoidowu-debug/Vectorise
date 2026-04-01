@@ -364,7 +364,7 @@ const SprintPayment: React.FC = () => {
                   onClick={() => navigate('/profile/hall-of-rise')}
                   className="w-full py-4 text-gray-400 hover:text-primary rounded-2xl text-[11px] font-black uppercase tracking-widest transition-colors"
                 >
-                  Redeem Coins From Hall of Rise
+                  Refer a friend to grow, Earn enough coin to start
                 </button>
 
                 <button 
