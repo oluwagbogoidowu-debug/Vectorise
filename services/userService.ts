@@ -419,6 +419,6 @@ export const userService = {
 
   isIdentitySet: (user: Participant | null): boolean => {
     if (!user) return false;
-    return (user.growthAreas?.length || 0) === 5 && !!user.risePathway;
+    return (user.growthAreas?.length || 0) === 5 && !!user.risePathway && !!user.profileImageUrl;
   }
 };

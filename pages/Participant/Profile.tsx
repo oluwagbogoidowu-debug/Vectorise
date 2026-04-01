@@ -26,6 +26,7 @@ const Profile: React.FC = () => {
   const [tempOnboardingAnswers, setTempOnboardingAnswers] = useState<Record<string, any>>({});
   const [tempGrowthAreas, setTempGrowthAreas] = useState<string[]>([]);
   const [tempRisePathway, setTempRisePathway] = useState<string>('');
+  const [tempProfileImageUrl, setTempProfileImageUrl] = useState<string | null>(null);
   const [isSavingIdentity, setIsSavingIdentity] = useState(false);
 
   // Quiz Step Logic
@@ -72,6 +73,7 @@ const Profile: React.FC = () => {
         setTempOnboardingAnswers(p.onboardingAnswers || {});
         setTempGrowthAreas(p.growthAreas || []);
         setTempRisePathway(p.risePathway || '');
+        setTempProfileImageUrl(p.profileImageUrl || null);
 
         // Determine initial setup step if incomplete
         if (!userService.isIdentitySet(p)) {
@@ -197,6 +199,7 @@ const Profile: React.FC = () => {
       setCurrentTaskGroupIdx(currentCount);
     }
     else if (!p.risePathway) setSetupStep(10);
+    else if (!p.profileImageUrl) setSetupStep(11);
     else setSetupStep(-1);
   };
 
@@ -224,10 +227,11 @@ const Profile: React.FC = () => {
         persona: tempPersona,
         onboardingAnswers: tempOnboardingAnswers,
         growthAreas: tempGrowthAreas,
-        risePathway: tempRisePathway
+        risePathway: tempRisePathway,
+        profileImageUrl: tempProfileImageUrl
       }));
       // If we just finished the last step, set setupStep to -1
-      if (setupStep === 10) {
+      if (setupStep === 11) {
         setSetupStep(-1);
         // Auto-claim Identity Setup
         await userService.claimMilestone(user.id, 'setup_identity', 20, true);
@@ -265,7 +269,18 @@ const Profile: React.FC = () => {
     return GROWTH_AREAS[currentTaskGroupIdx];
   }, [currentTaskGroupIdx]);
 
-  const totalSetupSteps = 11;
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setTempProfileImageUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const totalSetupSteps = 12;
   const setupProgress = (isLoading || setupStep === -2) ? 0 : (setupStep === -1 ? 100 : Math.max(0, Math.min(99, Math.round((Math.max(0, setupStep) / totalSetupSteps) * 100))));
 
   const SectionLabel = ({ text }: { text: string }) => (
@@ -353,20 +368,23 @@ const Profile: React.FC = () => {
 
               {/* Step 0: Start Screen */}
               {setupStep === 0 && (
-                <div className="animate-fade-in py-8 text-center">
+                <div className="animate-fade-in py-8 text-center flex flex-col items-center justify-center min-h-[320px]">
                   <div className="w-20 h-20 bg-[#E6F2ED] rounded-3xl flex items-center justify-center mx-auto mb-8">
                     <span className="text-3xl">👋</span>
                   </div>
                   <h3 className="text-xl font-black text-gray-900 mb-3">Welcome to your journey</h3>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.05em] leading-relaxed px-4">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.05em] leading-relaxed px-4 mb-2">
                     We're excited to help you grow. Let's start by setting up your identity profile.
+                  </p>
+                  <p className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest">
+                    Let us get to know you better.
                   </p>
                 </div>
               )}
 
               {/* Step 1: Persona */}
               {setupStep === 1 && (
-                <div className="animate-fade-in">
+                <div className="animate-fade-in min-h-[320px]">
                   <h3 className="text-sm font-black text-gray-900 mb-1">Which best describes you today?</h3>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your persona</p>
                   <div className="grid grid-cols-2 gap-2">
@@ -385,7 +403,7 @@ const Profile: React.FC = () => {
 
               {/* Steps 2-4: Persona Questions */}
               {setupStep >= 2 && setupStep <= 4 && tempPersona && currentQuiz && currentQuiz[setupStep - 2] && (
-                <div className="animate-fade-in">
+                <div className="animate-fade-in min-h-[320px]">
                   <h3 className="text-sm font-black text-gray-900 mb-1" dangerouslySetInnerHTML={{ __html: currentQuiz[setupStep - 2].title }} />
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Question {setupStep - 1}/3</p>
                   <div className="space-y-2">
@@ -404,7 +422,7 @@ const Profile: React.FC = () => {
 
               {/* Steps 5-9: Growth Areas */}
               {setupStep >= 5 && setupStep <= 9 && currentGrowthGroup && (
-                <div className="animate-fade-in">
+                <div className="animate-fade-in min-h-[320px]">
                   <h3 className="text-sm font-black text-gray-900 mb-1">Where do you want to grow next?</h3>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Pick one from each group ({currentTaskGroupIdx + 1}/5)</p>
                   
@@ -427,7 +445,7 @@ const Profile: React.FC = () => {
 
               {/* Step 10: Rise Pathway */}
               {setupStep === 10 && (
-                <div className="animate-fade-in">
+                <div className="animate-fade-in min-h-[320px]">
                   <h3 className="text-sm font-black text-gray-900 mb-1">What best describes your current focus?</h3>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your Rise Pathway.</p>
                   
@@ -445,9 +463,56 @@ const Profile: React.FC = () => {
                   </div>
                   
                   <button 
-                    onClick={handleSaveIdentity}
-                    disabled={!tempRisePathway || isSavingIdentity}
+                    onClick={() => setSetupStep(11)}
+                    disabled={!tempRisePathway}
                     className="w-full py-3 bg-[#0E7850] text-white rounded-xl font-black uppercase tracking-[0.15em] text-[10px] shadow-md disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
+                  >
+                    Continue
+                  </button>
+                </div>
+              )}
+
+              {/* Step 11: Avatar Setup */}
+              {setupStep === 11 && (
+                <div className="animate-fade-in min-h-[320px] flex flex-col items-center justify-center py-4">
+                  <h3 className="text-sm font-black text-gray-900 mb-1">Final Touch: Your Avatar</h3>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-8 text-center">Upload a photo to complete your profile</p>
+                  
+                  <div className="relative mb-8 group">
+                    <div className="w-32 h-32 rounded-[2.5rem] bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden relative">
+                      {tempProfileImageUrl ? (
+                        <img src={tempProfileImageUrl} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="text-center">
+                          <svg className="w-8 h-8 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                          <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">Add Photo</span>
+                        </div>
+                      )}
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleAvatarUpload}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                    </div>
+                    {tempProfileImageUrl && (
+                      <button 
+                        onClick={() => setTempProfileImageUrl(null)}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+
+                  <button 
+                    onClick={handleSaveIdentity}
+                    disabled={isSavingIdentity}
+                    className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-[0.15em] text-[11px] shadow-lg shadow-emerald-900/10 active:scale-95 transition-all"
                   >
                     {isSavingIdentity ? 'Saving...' : 'Complete Setup'}
                   </button>
@@ -455,7 +520,7 @@ const Profile: React.FC = () => {
               )}
 
               {/* Navigation Controls for Quiz Steps */}
-              {setupStep >= 0 && setupStep < 10 && (
+              {setupStep >= 0 && setupStep < 11 && (
                 <div className="mt-4 flex gap-2">
                   {setupStep === 0 ? (
                     <button 
@@ -472,6 +537,8 @@ const Profile: React.FC = () => {
                     >
                       Continue
                     </button>
+                  ) : setupStep === 10 ? (
+                    null // Handled inside step 10 UI
                   ) : (
                     <>
                       <button 
