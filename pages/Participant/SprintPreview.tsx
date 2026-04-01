@@ -120,7 +120,7 @@ const SprintPreview: React.FC = () => {
                                             <Link 
                                                 to="/signup" 
                                                 state={{ prefilledEmail, targetSprintId: sprintId }}
-                                                className="text-[10px] font-black text-primary hover:underline tracking-widest bg-white/90 px-4 py-2 rounded-full shadow-sm backdrop-blur-sm"
+                                                className="text-[10px] font-black text-primary hover:underline tracking-widest bg-white/90 px-4 py-2 rounded-full shadow-sm backdrop-blur-sm text-center"
                                             >
                                                 Finish setting up your account to unlock the full sprint.
                                             </Link>

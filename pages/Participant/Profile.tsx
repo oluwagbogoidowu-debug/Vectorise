@@ -324,21 +324,23 @@ const Profile: React.FC = () => {
 
         </div>
 
-        {/* Rise and Impact Cards Moved Up */}
-        <div className="grid grid-cols-2 gap-3">
-          <Link to="/profile/hall-of-rise" className="bg-dark rounded-3xl p-4 text-white relative overflow-hidden flex flex-col justify-center active:scale-[0.98] transition-all">
-             <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 mb-1">Rise Score</p>
-             <div className="flex items-end gap-1">
-               <h3 className="text-2xl font-black tracking-tighter">{p.walletBalance || 0}</h3>
-               <span className="text-[10px] mb-1 opacity-40">🪙</span>
-             </div>
-          </Link>
+        {/* Rise and Impact Cards Moved Up - Only show if identity is set */}
+        {setupStep === -1 && (
+          <div className="grid grid-cols-2 gap-3">
+            <Link to="/profile/hall-of-rise" className="bg-dark rounded-3xl p-4 text-white relative overflow-hidden flex flex-col justify-center active:scale-[0.98] transition-all">
+               <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 mb-1">Rise Score</p>
+               <div className="flex items-end gap-1">
+                 <h3 className="text-2xl font-black tracking-tighter">{p.walletBalance || 0}</h3>
+                 <span className="text-[10px] mb-1 opacity-40">🪙</span>
+               </div>
+            </Link>
 
-          <Link to="/impact" className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col justify-center active:scale-[0.98] transition-all">
-            <p className="text-[7px] font-black uppercase tracking-[0.3em] text-gray-400 mb-1">Lives Impacted</p>
-            <h3 className="text-2xl font-black text-gray-900 tracking-tighter">{p.impactStats?.peopleHelped || 0}</h3>
-          </Link>
-        </div>
+            <Link to="/impact" className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col justify-center active:scale-[0.98] transition-all">
+              <p className="text-[7px] font-black uppercase tracking-[0.3em] text-gray-400 mb-1">Lives Impacted</p>
+              <h3 className="text-2xl font-black text-gray-900 tracking-tighter">{p.impactStats?.peopleHelped || 0}</h3>
+            </Link>
+          </div>
+        )}
       </div>
 
       <main className="flex-1 overflow-y-auto custom-scrollbar px-4 py-4 space-y-5">
@@ -373,11 +375,8 @@ const Profile: React.FC = () => {
                     <span className="text-3xl">👋</span>
                   </div>
                   <h3 className="text-xl font-black text-gray-900 mb-3">Welcome to your journey</h3>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.05em] leading-relaxed px-4 mb-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.05em] leading-relaxed px-4">
                     We're excited to help you grow. Let's start by setting up your identity profile.
-                  </p>
-                  <p className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest">
-                    Let us get to know you better.
                   </p>
                 </div>
               )}
