@@ -677,9 +677,6 @@ const SprintView: React.FC = () => {
                 <div className={`rounded-3xl animate-slide-up relative overflow-hidden transition-all duration-500 ${dayLockDetails.isLocked || enrollment.status === 'queued' ? 'bg-transparent border-none shadow-none min-h-[70vh]' : 'bg-white p-6 md:p-10 border border-gray-100 shadow-sm min-h-[400px]'}`}>
                     {enrollment.status === 'queued' ? (
                         <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in min-h-[60vh] w-full">
-                            <div className="mb-8 opacity-20">
-                                <LocalLogo type="favicon" className="w-32 h-32" />
-                            </div>
                             <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-4">In the Queue.</h2>
                             <p className="text-sm text-gray-500 font-medium mb-12 max-w-sm leading-relaxed">
                                 You have an active sprint running. This journey will automatically unlock once your current focus is complete.
@@ -693,22 +690,21 @@ const SprintView: React.FC = () => {
                         </div>
                     ) : dayLockDetails.isLocked ? (
                         <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in min-h-[60vh] w-full">
-                            <div className="mb-8 opacity-20">
-                                <LocalLogo type="favicon" className="w-32 h-32" />
+                            <div className="p-10 bg-white rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-200/50 w-full max-w-sm">
+                                <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-4">Access Locked.</h2>
+                                <p className="text-sm text-gray-500 font-medium mb-12 leading-relaxed">
+                                    {dayLockDetails.unlockTime 
+                                        ? `Next lesson unlocks at midnight.`
+                                        : dayLockDetails.reason || 'Complete previous day first.'}
+                                </p>
+                                
+                                {dayLockDetails.unlockTime && (
+                                    <>
+                                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-6">Available In</p>
+                                        <p className="text-5xl font-black text-gray-900 tabular-nums tracking-tighter">{timeToUnlock}</p>
+                                    </>
+                                )}
                             </div>
-                            <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-4">Access Locked.</h2>
-                            <p className="text-sm text-gray-500 font-medium mb-12 max-w-sm leading-relaxed">
-                                {dayLockDetails.unlockTime 
-                                    ? `Next lesson unlocks at midnight.`
-                                    : dayLockDetails.reason || 'Complete previous day first.'}
-                            </p>
-                            
-                            {dayLockDetails.unlockTime && (
-                                <div className="p-10 bg-white rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-200/50 w-full max-w-xs">
-                                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-6">Available In</p>
-                                    <p className="text-5xl font-black text-gray-900 tabular-nums tracking-tighter">{timeToUnlock}</p>
-                                </div>
-                            )}
                         </div>
                     ) : (
                         <>
