@@ -5,13 +5,30 @@ import { Track, Sprint } from '../../types';
 import { trackService } from '../../services/trackService';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
-import { Edit2, Trash2, Eye, Package } from 'lucide-react';
+import { Edit2, Trash2, Eye, Package, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 
 const AdminTracks: React.FC = () => {
     const navigate = useNavigate();
     const [tracks, setTracks] = useState<Track[]>([]);
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDelete = async (id: string) => {
+        setIsDeleting(true);
+        try {
+            await trackService.deleteTrack(id);
+            toast.success('Track deleted successfully');
+            setDeletingId(null);
+        } catch (error) {
+            console.error('Error deleting track:', error);
+            toast.error('Failed to delete track');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     useEffect(() => {
         setIsLoading(true);
@@ -37,7 +54,50 @@ const AdminTracks: React.FC = () => {
     }
 
     return (
-        <div className="animate-fade-in space-y-8">
+        <div className="animate-fade-in space-y-8 relative">
+            {/* Delete Confirmation Modal */}
+            {deletingId && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-500">
+                                <AlertTriangle className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h4 className="text-xl font-black text-gray-900 tracking-tight italic">Delete Track?</h4>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">This action cannot be undone</p>
+                            </div>
+                        </div>
+                        
+                        <p className="text-sm text-gray-500 mb-8 leading-relaxed">
+                            Are you sure you want to delete <span className="font-bold text-gray-900">"{tracks.find(t => t.id === deletingId)?.title}"</span>? 
+                            This will remove the track bundle and its orchestration assignments.
+                        </p>
+                        
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setDeletingId(null)}
+                                disabled={isDeleting}
+                                className="flex-1 py-4 bg-gray-50 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={() => deletingId && handleDelete(deletingId)}
+                                disabled={isDeleting}
+                                className="flex-1 py-4 bg-red-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 hover:bg-red-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {isDeleting ? (
+                                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    'Delete Track'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
                 <div>
                     <h3 className="text-2xl font-black text-gray-900 tracking-tight italic">Track Bundles</h3>
@@ -118,7 +178,11 @@ const AdminTracks: React.FC = () => {
                                 >
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                 </button>
-                                <button className="p-3 bg-gray-50 text-gray-400 hover:text-red-500 rounded-xl transition-all" title="Delete Track">
+                                <button 
+                                    onClick={() => setDeletingId(track.id)}
+                                    className="p-3 bg-gray-50 text-gray-400 hover:text-red-500 rounded-xl transition-all" 
+                                    title="Delete Track"
+                                >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             </div>

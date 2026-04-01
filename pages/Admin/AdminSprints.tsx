@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { Trash2, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 import { Sprint } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
@@ -10,6 +12,8 @@ const AdminSprints: React.FC = () => {
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sprintFilter, setSprintFilter] = useState<SprintFilter>('all');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     setIsLoading(true);
@@ -30,6 +34,21 @@ const AdminSprints: React.FC = () => {
     }
   }, [sprints, sprintFilter]);
 
+  const handleDelete = async () => {
+    if (!deletingId) return;
+    setIsDeleting(true);
+    try {
+      await sprintService.deleteSprint(deletingId);
+      toast.success("Sprint deleted successfully");
+      setDeletingId(null);
+    } catch (error) {
+      console.error("Error deleting sprint:", error);
+      toast.error("Failed to delete sprint");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -39,7 +58,50 @@ const AdminSprints: React.FC = () => {
   }
 
   return (
-    <div className="animate-fade-in space-y-8">
+    <div className="animate-fade-in space-y-8 relative">
+      {/* Delete Confirmation Modal */}
+      {deletingId && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-500">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="text-xl font-black text-gray-900 tracking-tight italic">Delete Sprint?</h4>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">This action cannot be undone</p>
+              </div>
+            </div>
+            
+            <p className="text-sm text-gray-500 mb-8 leading-relaxed">
+              Are you sure you want to delete <span className="font-bold text-gray-900">"{sprints.find(s => s.id === deletingId)?.title}"</span>? 
+              This will remove the sprint and clean up its references in tracks and orchestration.
+            </p>
+            
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setDeletingId(null)}
+                disabled={isDeleting}
+                className="flex-1 py-4 bg-gray-50 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="flex-1 py-4 bg-red-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 hover:bg-red-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeleting ? (
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  'Delete Sprint'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div>
           <h3 className="text-2xl font-black text-gray-900 tracking-tight italic">Registry Catalog</h3>
@@ -63,7 +125,16 @@ const AdminSprints: React.FC = () => {
                 <span className={`px-2 py-1 rounded-lg ${s.approvalStatus === 'approved' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-500'}`}>{s.approvalStatus.replace('_', ' ')}</span>
               </div>
             </div>
-            <Link to={`/coach/sprint/edit/${s.id}`}><button className="px-8 py-3 bg-white border border-gray-100 text-gray-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-primary transition-all">Edit</button></Link>
+            <div className="flex items-center gap-3">
+              <Link to={`/coach/sprint/edit/${s.id}`}><button className="px-8 py-3 bg-white border border-gray-100 text-gray-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-primary transition-all">Edit</button></Link>
+              <button 
+                onClick={() => setDeletingId(s.id)}
+                className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                title="Delete Sprint"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         ))}
       </div>

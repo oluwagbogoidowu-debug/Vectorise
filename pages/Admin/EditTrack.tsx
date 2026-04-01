@@ -6,7 +6,8 @@ import { sprintService } from '../../services/sprintService';
 import { trackService } from '../../services/trackService';
 import { Sprint, Track } from '../../types';
 import Button from '../../components/Button';
-import { List, Plus, Trash2, Search, Package, Save } from 'lucide-react';
+import { List, Plus, Trash2, Search, Package, Save, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 import FormattingToolbar from '../../components/FormattingToolbar';
 
 const EditTrack: React.FC = () => {
@@ -16,6 +17,8 @@ const EditTrack: React.FC = () => {
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
     const [formData, setFormData] = useState({
@@ -117,6 +120,21 @@ const EditTrack: React.FC = () => {
         }
     };
 
+    const handleDelete = async () => {
+        if (!trackId) return;
+        setIsDeleting(true);
+        try {
+            await trackService.deleteTrack(trackId);
+            toast.success("Track bundle deleted successfully");
+            navigate('/admin/dashboard');
+        } catch (error) {
+            console.error("Error deleting track:", error);
+            toast.error("Failed to delete track bundle");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     const inputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all placeholder-gray-300";
     const labelClasses = "text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block";
 
@@ -129,18 +147,73 @@ const EditTrack: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 pb-32">
-            <div className="max-w-7xl mx-auto">
-                <header className="flex items-center gap-3 mb-10">
-                    <button onClick={() => navigate('/admin/dashboard')} className="p-2 text-gray-400 hover:text-primary hover:bg-white rounded-xl transition-all cursor-pointer shadow-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
-                    <div>
-                        <h1 className="text-3xl font-black text-gray-900 tracking-tight italic">Edit Track.</h1>
-                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Update Platform Bundle</p>
+        <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 pb-32 relative">
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-500">
+                                <AlertTriangle className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h4 className="text-xl font-black text-gray-900 tracking-tight italic">Delete Track?</h4>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">This action cannot be undone</p>
+                            </div>
+                        </div>
+                        
+                        <p className="text-sm text-gray-500 mb-8 leading-relaxed">
+                            Are you sure you want to delete <span className="font-bold text-gray-900">"{formData.title}"</span>? 
+                            This will remove the track bundle and its orchestration assignments.
+                        </p>
+                        
+                        <div className="flex gap-3">
+                            <button 
+                                type="button"
+                                onClick={() => setShowDeleteConfirm(false)}
+                                disabled={isDeleting}
+                                className="flex-1 py-4 bg-gray-50 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                type="button"
+                                onClick={handleDelete}
+                                disabled={isDeleting}
+                                className="flex-1 py-4 bg-red-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 hover:bg-red-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {isDeleting ? (
+                                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    'Delete Track'
+                                )}
+                            </button>
+                        </div>
                     </div>
+                </div>
+            )}
+
+            <div className="max-w-7xl mx-auto">
+                <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-10">
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => navigate('/admin/dashboard')} className="p-2 text-gray-400 hover:text-primary hover:bg-white rounded-xl transition-all cursor-pointer shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <div>
+                            <h1 className="text-3xl font-black text-gray-900 tracking-tight italic">Edit Track.</h1>
+                            <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Update Platform Bundle</p>
+                        </div>
+                    </div>
+                    <button 
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="px-6 py-3 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center gap-2"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                        Delete Track
+                    </button>
                 </header>
 
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
