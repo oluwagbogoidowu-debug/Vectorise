@@ -674,21 +674,9 @@ const SprintView: React.FC = () => {
                     })}
                 </div>
 
-                {sprint.checkInReminder && (
-                    <div className="flex items-center justify-between px-1 mt-2 mb-2 animate-fade-in">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Set a daily check-in reminder</span>
-                        <button 
-                            onClick={handleToggleReminder}
-                            className={`w-8 h-4 rounded-full transition-all duration-300 relative ${enrollment.checkInReminderEnabled ? 'bg-primary' : 'bg-gray-200'}`}
-                        >
-                            <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-300 ${enrollment.checkInReminderEnabled ? 'right-0.5' : 'left-0.5'}`} />
-                        </button>
-                    </div>
-                )}
-
                 <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden min-h-[400px]">
-                    {enrollment.status === 'queued' && (
-                        <div className="absolute inset-0 z-[150] bg-white/90 backdrop-blur-md flex flex-col items-center justify-center text-center p-8 animate-fade-in">
+                    {enrollment.status === 'queued' ? (
+                        <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in h-full min-h-[300px]">
                             <div className="mb-6 opacity-20">
                                 <LocalLogo type="favicon" className="w-24 h-24" />
                             </div>
@@ -703,10 +691,8 @@ const SprintView: React.FC = () => {
                                 Return to Active Focus
                             </button>
                         </div>
-                    )}
-
-                    {dayLockDetails.isLocked && (
-                        <div className="absolute inset-0 z-[140] bg-white/80 backdrop-blur-md flex flex-col items-center justify-center text-center p-8 animate-fade-in">
+                    ) : dayLockDetails.isLocked ? (
+                        <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in h-full min-h-[300px]">
                             <div className="mb-6 opacity-20">
                                 <LocalLogo type="favicon" className="w-24 h-24" />
                             </div>
@@ -724,175 +710,188 @@ const SprintView: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                    )}
-
-                    <div className={dayLockDetails.isLocked ? 'pointer-events-none opacity-20' : ''}>
-                        
-                        <div className="space-y-2 mb-10">
-                            <SectionHeading>Today's Insight</SectionHeading>
-                            <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
-                                <FormattedText text={dayContent?.lessonText || ""} />
-                            </div>
-                        </div>
-
-                        <div className="space-y-6">
-                            <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                                <SectionHeading>Today's Action Step</SectionHeading>
-                                <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
-                                    <FormattedText text={dayContent?.taskPrompt || ""} />
-                                </div>
-                                <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-                            </div>
-
-                            {dayContent?.coachInsight && (
-                                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
-                                    <SectionHeading color="gray-400">Coach Insight</SectionHeading>
-                                    <div className="text-gray-600 font-medium text-xs md:text-sm leading-relaxed">
-                                        <FormattedText text={dayContent.coachInsight} />
+                    ) : (
+                        <>
+                            <div className="animate-fade-in">
+                                <div className="space-y-2 mb-10">
+                                    <SectionHeading>Today's Insight</SectionHeading>
+                                    <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
+                                        <FormattedText text={dayContent?.lessonText || ""} />
                                     </div>
                                 </div>
-                            )}
-                        </div>
 
-                        {!dayProgress?.completed && (
-                            <div className="mt-12 space-y-6 animate-fade-in">
-                                {dayContent?.proofType === 'picker' && (
-                                    <div className="space-y-4">
-                                        <SectionHeading>Choose from options curated by you</SectionHeading>
-                                        <div className="grid grid-cols-1 gap-3">
-                                            {dayContent.proofOptions?.map((opt, idx) => (
-                                                <button 
-                                                    key={idx}
-                                                    onClick={() => setProofSelected(opt)}
-                                                    className={`w-full group relative overflow-hidden py-5 px-6 rounded-2xl transition-all duration-500 border text-center flex items-center justify-center active:scale-95 ${
-                                                        proofSelected === opt 
-                                                        ? 'bg-primary border-primary shadow-xl scale-[1.02]' 
-                                                        : 'bg-white border-gray-100 hover:border-primary/30 hover:bg-gray-50'
+                                <div className="space-y-6">
+                                    <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
+                                        <SectionHeading>Today's Action Step</SectionHeading>
+                                        <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
+                                            <FormattedText text={dayContent?.taskPrompt || ""} />
+                                        </div>
+                                        <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                                    </div>
+
+                                    {dayContent?.coachInsight && (
+                                        <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
+                                            <SectionHeading color="gray-400">Coach Insight</SectionHeading>
+                                            <div className="text-gray-600 font-medium text-xs md:text-sm leading-relaxed">
+                                                <FormattedText text={dayContent.coachInsight} />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {sprint.checkInReminder && viewingDay === sprint.duration && (
+                                        <div className="flex items-center justify-between py-4 border-t border-gray-50 mt-6 animate-fade-in">
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Set a daily check-in reminder</span>
+                                            <button 
+                                                onClick={handleToggleReminder}
+                                                className={`w-8 h-4 rounded-full transition-all duration-300 relative ${enrollment.checkInReminderEnabled ? 'bg-primary' : 'bg-gray-200'}`}
+                                            >
+                                                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-300 ${enrollment.checkInReminderEnabled ? 'right-0.5' : 'left-0.5'}`} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {!dayProgress?.completed && (
+                                    <div className="mt-12 space-y-6 animate-fade-in">
+                                        {dayContent?.proofType === 'picker' && (
+                                            <div className="space-y-4">
+                                                <SectionHeading>Choose from options curated by you</SectionHeading>
+                                                <div className="grid grid-cols-1 gap-3">
+                                                    {dayContent.proofOptions?.map((opt, idx) => (
+                                                        <button 
+                                                            key={idx}
+                                                            onClick={() => setProofSelected(opt)}
+                                                            className={`w-full group relative overflow-hidden py-5 px-6 rounded-2xl transition-all duration-500 border text-center flex items-center justify-center active:scale-95 ${
+                                                                proofSelected === opt 
+                                                                ? 'bg-primary border-primary shadow-xl scale-[1.02]' 
+                                                                : 'bg-white border-gray-100 hover:border-primary/30 hover:bg-gray-50'
+                                                            }`}
+                                                        >
+                                                            <div className="relative z-10 flex items-center gap-3">
+                                                                <span className={`text-[10px] font-black uppercase tracking-[0.15em] transition-colors ${proofSelected === opt ? 'text-white' : 'text-gray-600'}`}>
+                                                                    {opt}
+                                                                </span>
+                                                            </div>
+                                                            {proofSelected === opt && (
+                                                                <div className="absolute right-6 top-1/2 -translate-y-1/2">
+                                                                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                                                </div>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {dayContent?.proofType === 'note' && (
+                                            <div className="space-y-3">
+                                                <SectionHeading>Send Submission</SectionHeading>
+                                                {dayContent.submissionPrompt && (
+                                                    <p className="text-[10px] font-bold text-gray-400 mb-2">
+                                                        {dayContent.submissionPrompt}
+                                                    </p>
+                                                )}
+                                                <textarea 
+                                                    value={proofInput}
+                                                    onChange={e => setProofInput(e.target.value)}
+                                                    placeholder="User must write a response"
+                                                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-5 text-sm font-medium min-h-[120px] focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all"
+                                                />
+                                            </div>
+                                        )}
+
+                                        <button 
+                                          onClick={handleQuickComplete}
+                                          disabled={isSubmitting || !isProofMet}
+                                          className={`w-full py-5 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] shadow-xl transition-all ${isProofMet ? 'bg-[#159E5B] text-white shadow-primary/10 active:scale-95' : 'bg-gray-100 text-gray-300 cursor-not-allowed grayscale'}`}
+                                        >
+                                          {dayContent?.proofType === 'note' ? 'Send Submission' : "Today's task completed"}
+                                        </button>
+                                    </div>
+                                )}
+
+                                {dayProgress?.completed && (
+                                    <div className="mt-12 space-y-6">
+                                        <div className="w-full py-5 bg-gray-50 text-gray-400 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] text-center border border-gray-100">
+                                            Mission Complete
+                                        </div>
+
+                                        {dayProgress.submission && (
+                                            <div className="animate-fade-in pt-4 border-t border-gray-50">
+                                                <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Your Submission</p>
+                                                <div className="bg-gray-50 rounded-[1.5rem] p-6 border border-gray-100">
+                                                    <p className="text-gray-700 font-bold text-sm leading-relaxed">
+                                                        {dayProgress.submission}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {dayProgress.proofSelection && (
+                                            <div className="animate-fade-in pt-4 border-t border-gray-50">
+                                                <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Confirmed Outcome</p>
+                                                <div className="bg-gray-50 rounded-[1.5rem] p-4 border border-gray-100 flex items-center gap-3">
+                                                    <div className="w-2 h-2 rounded-full bg-primary"></div>
+                                                    <p className="text-xs font-black uppercase text-gray-700">{dayProgress.proofSelection}</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {dayProgress.reflection && (
+                                            <div className="animate-fade-in pt-4 border-t border-gray-50">
+                                                <p className="text-[7px] font-black text-primary uppercase tracking-[0.2em] mb-4">Your Breakthrough</p>
+                                                <div className="bg-primary/5 rounded-[1.5rem] p-6 border border-primary/10">
+                                                    <p className="text-gray-800 font-medium text-sm leading-relaxed">
+                                                        {dayProgress.reflection}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {enrollment.checkInReminderEnabled && viewingDay === sprint.duration && (
+                                <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm animate-fade-in mt-6">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div>
+                                            <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Daily Check-in</h3>
+                                            <p className="text-sm font-black text-gray-900">Active for {sprint.checkInReminderDays || 0} days</p>
+                                        </div>
+                                        <div className="text-right max-w-[150px]">
+                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Last Sprint Submission</p>
+                                            <p className="text-[10px] font-bold text-gray-600 line-clamp-2 italic">
+                                                "{(() => {
+                                                    const lastDayProg = enrollment.progress.find(p => p.day === sprint.duration);
+                                                    return lastDayProg?.submission || lastDayProg?.reflection || 'No submission recorded';
+                                                })()}"
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2">
+                                        {Array.from({ length: sprint.checkInReminderDays || 0 }, (_, i) => i + 1).map((day) => {
+                                            const isCheckedIn = enrollment.checkInHistory?.some(h => h.day === day);
+                                            return (
+                                                <button
+                                                    key={day}
+                                                    onClick={() => handleCheckIn(day)}
+                                                    disabled={isCheckedIn}
+                                                    className={`px-3 py-2 rounded-xl text-[10px] font-black transition-all active:scale-95 ${
+                                                        isCheckedIn 
+                                                        ? 'bg-primary/10 text-primary border border-primary/20' 
+                                                        : 'bg-gray-50 text-gray-400 border border-gray-100 hover:border-primary/30'
                                                     }`}
                                                 >
-                                                    <div className="relative z-10 flex items-center gap-3">
-                                                        <span className={`text-[10px] font-black uppercase tracking-[0.15em] transition-colors ${proofSelected === opt ? 'text-white' : 'text-gray-600'}`}>
-                                                            {opt}
-                                                        </span>
-                                                    </div>
-                                                    {proofSelected === opt && (
-                                                        <div className="absolute right-6 top-1/2 -translate-y-1/2">
-                                                            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
-                                                        </div>
-                                                    )}
+                                                    Day {day} {isCheckedIn ? '✓' : ''}
                                                 </button>
-                                            ))}
-                                        </div>
+                                            );
+                                        })}
                                     </div>
-                                )}
-
-                                {dayContent?.proofType === 'note' && (
-                                    <div className="space-y-3">
-                                        <SectionHeading>Send Submission</SectionHeading>
-                                        {dayContent.submissionPrompt && (
-                                            <p className="text-[10px] font-bold text-gray-400 mb-2">
-                                                {dayContent.submissionPrompt}
-                                            </p>
-                                        )}
-                                        <textarea 
-                                            value={proofInput}
-                                            onChange={e => setProofInput(e.target.value)}
-                                            placeholder="User must write a response"
-                                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-5 text-sm font-medium min-h-[120px] focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all"
-                                        />
-                                    </div>
-                                )}
-
-                                <button 
-                                  onClick={handleQuickComplete}
-                                  disabled={isSubmitting || !isProofMet}
-                                  className={`w-full py-5 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] shadow-xl transition-all ${isProofMet ? 'bg-[#159E5B] text-white shadow-primary/10 active:scale-95' : 'bg-gray-100 text-gray-300 cursor-not-allowed grayscale'}`}
-                                >
-                                  {dayContent?.proofType === 'note' ? 'Send Submission' : "Today's task completed"}
-                                </button>
-                            </div>
-                        )}
-
-                        {dayProgress?.completed && (
-                            <div className="mt-12 space-y-6">
-                                <div className="w-full py-5 bg-gray-50 text-gray-400 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] text-center border border-gray-100">
-                                    Mission Complete
+                                    <p className="text-[9px] text-gray-400 mt-4 font-medium">Click a day to confirm your daily check-in.</p>
                                 </div>
-
-                                {dayProgress.submission && (
-                                    <div className="animate-fade-in pt-4 border-t border-gray-50">
-                                        <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Your Submission</p>
-                                        <div className="bg-gray-50 rounded-[1.5rem] p-6 border border-gray-100">
-                                            <p className="text-gray-700 font-bold text-sm leading-relaxed">
-                                                {dayProgress.submission}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {dayProgress.proofSelection && (
-                                    <div className="animate-fade-in pt-4 border-t border-gray-50">
-                                        <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Confirmed Outcome</p>
-                                        <div className="bg-gray-50 rounded-[1.5rem] p-4 border border-gray-100 flex items-center gap-3">
-                                            <div className="w-2 h-2 rounded-full bg-primary"></div>
-                                            <p className="text-xs font-black uppercase text-gray-700">{dayProgress.proofSelection}</p>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {dayProgress.reflection && (
-                                    <div className="animate-fade-in pt-4 border-t border-gray-50">
-                                        <p className="text-[7px] font-black text-primary uppercase tracking-[0.2em] mb-4">Your Breakthrough</p>
-                                        <div className="bg-primary/5 rounded-[1.5rem] p-6 border border-primary/10">
-                                            <p className="text-gray-800 font-medium text-sm leading-relaxed">
-                                                {dayProgress.reflection}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    {enrollment.checkInReminderEnabled && (
-                        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm animate-fade-in mt-6">
-                            <div className="flex justify-between items-start mb-6">
-                                <div>
-                                    <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Daily Check-in</h3>
-                                    <p className="text-sm font-black text-gray-900">Active for {sprint.checkInReminderDays || 0} days</p>
-                                </div>
-                                <div className="text-right max-w-[150px]">
-                                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Last Sprint Submission</p>
-                                    <p className="text-[10px] font-bold text-gray-600 line-clamp-2 italic">
-                                        "{(() => {
-                                            const lastDayProg = enrollment.progress.find(p => p.day === sprint.duration);
-                                            return lastDayProg?.submission || lastDayProg?.reflection || 'No submission recorded';
-                                        })()}"
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-wrap gap-2">
-                                {Array.from({ length: sprint.checkInReminderDays || 0 }, (_, i) => i + 1).map((day) => {
-                                    const isCheckedIn = enrollment.checkInHistory?.some(h => h.day === day);
-                                    return (
-                                        <button
-                                            key={day}
-                                            onClick={() => handleCheckIn(day)}
-                                            disabled={isCheckedIn}
-                                            className={`px-3 py-2 rounded-xl text-[10px] font-black transition-all active:scale-95 ${
-                                                isCheckedIn 
-                                                ? 'bg-primary/10 text-primary border border-primary/20' 
-                                                : 'bg-gray-50 text-gray-400 border border-gray-100 hover:border-primary/30'
-                                            }`}
-                                        >
-                                            Day {day} {isCheckedIn ? '✓' : ''}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            <p className="text-[9px] text-gray-400 mt-4 font-medium">Click a day to confirm your daily check-in.</p>
-                        </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
