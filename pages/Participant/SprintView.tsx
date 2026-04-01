@@ -674,39 +674,39 @@ const SprintView: React.FC = () => {
                     })}
                 </div>
 
-                <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden min-h-[400px]">
+                <div className={`rounded-3xl animate-slide-up relative overflow-hidden transition-all duration-500 ${dayLockDetails.isLocked || enrollment.status === 'queued' ? 'bg-transparent border-none shadow-none min-h-[70vh]' : 'bg-white p-6 md:p-10 border border-gray-100 shadow-sm min-h-[400px]'}`}>
                     {enrollment.status === 'queued' ? (
-                        <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in h-full min-h-[300px]">
-                            <div className="mb-6 opacity-20">
-                                <LocalLogo type="favicon" className="w-24 h-24" />
+                        <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in min-h-[60vh] w-full">
+                            <div className="mb-8 opacity-20">
+                                <LocalLogo type="favicon" className="w-32 h-32" />
                             </div>
-                            <h2 className="text-xl font-black text-gray-900 tracking-tight mb-2">In the Queue.</h2>
-                            <p className="text-[10px] text-gray-500 font-medium mb-8 max-w-xs">
+                            <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-4">In the Queue.</h2>
+                            <p className="text-sm text-gray-500 font-medium mb-12 max-w-sm leading-relaxed">
                                 You have an active sprint running. This journey will automatically unlock once your current focus is complete.
                             </p>
                             <button 
                                 onClick={() => navigate('/dashboard')}
-                                className="px-6 py-3 bg-primary text-white rounded-2xl text-[8px] font-black uppercase tracking-widest shadow-xl active:scale-95"
+                                className="px-10 py-5 bg-primary text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-primary/20 active:scale-95 transition-all hover:scale-[1.02]"
                             >
                                 Return to Active Focus
                             </button>
                         </div>
                     ) : dayLockDetails.isLocked ? (
-                        <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in h-full min-h-[300px]">
-                            <div className="mb-6 opacity-20">
-                                <LocalLogo type="favicon" className="w-24 h-24" />
+                        <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in min-h-[60vh] w-full">
+                            <div className="mb-8 opacity-20">
+                                <LocalLogo type="favicon" className="w-32 h-32" />
                             </div>
-                            <h2 className="text-xl font-black text-gray-900 tracking-tight mb-2">Access Locked.</h2>
-                            <p className="text-[10px] text-gray-500 font-medium mb-8 max-w-xs">
+                            <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-4">Access Locked.</h2>
+                            <p className="text-sm text-gray-500 font-medium mb-12 max-w-sm leading-relaxed">
                                 {dayLockDetails.unlockTime 
                                     ? `Next lesson unlocks at midnight.`
                                     : dayLockDetails.reason || 'Complete previous day first.'}
                             </p>
                             
                             {dayLockDetails.unlockTime && (
-                                <div className="space-y-2">
-                                    <p className="text-[8px] font-black text-primary uppercase tracking-[0.4em]">Available In</p>
-                                    <p className="text-3xl font-black text-gray-900 tabular-nums tracking-tighter">{timeToUnlock}</p>
+                                <div className="p-10 bg-white rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-200/50 w-full max-w-xs">
+                                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-6">Available In</p>
+                                    <p className="text-5xl font-black text-gray-900 tabular-nums tracking-tighter">{timeToUnlock}</p>
                                 </div>
                             )}
                         </div>
@@ -735,18 +735,6 @@ const SprintView: React.FC = () => {
                                             <div className="text-gray-600 font-medium text-xs md:text-sm leading-relaxed">
                                                 <FormattedText text={dayContent.coachInsight} />
                                             </div>
-                                        </div>
-                                    )}
-
-                                    {sprint.checkInReminder && viewingDay === sprint.duration && (
-                                        <div className="flex items-center justify-between py-4 border-t border-gray-50 mt-6 animate-fade-in">
-                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Set a daily check-in reminder</span>
-                                            <button 
-                                                onClick={handleToggleReminder}
-                                                className={`w-8 h-4 rounded-full transition-all duration-300 relative ${enrollment.checkInReminderEnabled ? 'bg-primary' : 'bg-gray-200'}`}
-                                            >
-                                                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-300 ${enrollment.checkInReminderEnabled ? 'right-0.5' : 'left-0.5'}`} />
-                                            </button>
                                         </div>
                                     )}
                                 </div>
@@ -847,6 +835,21 @@ const SprintView: React.FC = () => {
                                                 </div>
                                             </div>
                                         )}
+                                    </div>
+                                )}
+
+                                {sprint.checkInReminder && viewingDay === sprint.duration && (
+                                    <div className="flex items-center justify-between py-6 border-t border-gray-50 mt-12 animate-fade-in">
+                                        <div>
+                                            <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest block mb-1">Daily Check-in Reminder</span>
+                                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Enable to stay consistent after the sprint</p>
+                                        </div>
+                                        <button 
+                                            onClick={handleToggleReminder}
+                                            className={`w-12 h-6 rounded-full transition-all duration-300 relative ${enrollment.checkInReminderEnabled ? 'bg-primary shadow-lg shadow-primary/20' : 'bg-gray-200'}`}
+                                        >
+                                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${enrollment.checkInReminderEnabled ? 'right-1' : 'left-1'}`} />
+                                        </button>
                                     </div>
                                 )}
                             </div>

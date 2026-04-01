@@ -342,6 +342,11 @@ export const sprintService = {
         });
     },
 
+    updateEnrollment: async (enrollmentId: string, data: Partial<ParticipantSprint>) => {
+        const enrollmentRef = doc(db, ENROLLMENTS_COLLECTION, enrollmentId);
+        await updateDoc(enrollmentRef, sanitizeData({ ...data, last_activity_at: new Date().toISOString() }));
+    },
+
     updateSprint: async (sprintId: string, data: Partial<Sprint>, isDirect: boolean = false) => {
         const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
         await updateDoc(sprintRef, sanitizeData({ ...data, updatedAt: new Date().toISOString() }));

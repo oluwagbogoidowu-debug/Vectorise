@@ -68,6 +68,7 @@ const ParticipantDashboard: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isNextSprintModalOpen, setIsNextSprintModalOpen] = useState(false);
   const [isStartingNext, setIsStartingNext] = useState(false);
+  const [checkInSprints, setCheckInSprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
   const autoOpenedRef = useRef(false);
 
   const isIdentitySet = userService.isIdentitySet(user as Participant);
@@ -148,8 +149,13 @@ const ParticipantDashboard: React.FC = () => {
                 return item !== null && item.enrollment.status === 'queued';
             });
 
+            const checkInOnly = enriched.filter((item): item is { enrollment: ParticipantSprint; sprint: Sprint } => {
+                return item !== null && item.enrollment.checkInReminderEnabled === true;
+            });
+
             setMySprints(activeOnly);
             setQueuedSprints(queuedOnly);
+            setCheckInSprints(checkInOnly);
         } catch (err) {
             console.error("Error enriching enrollments:", err);
         } finally {
@@ -240,6 +246,25 @@ const ParticipantDashboard: React.FC = () => {
     } finally {
         setIsStartingNext(false);
         setIsNextSprintModalOpen(false);
+    }
+  };
+
+  const handleCheckIn = async (enrollmentId: string, day: number) => {
+    if (!user) return;
+    
+    const enrollmentItem = checkInSprints.find(s => s.enrollment.id === enrollmentId);
+    if (!enrollmentItem) return;
+
+    const isAlreadyCheckedIn = enrollmentItem.enrollment.checkInHistory?.some(h => h.day === day);
+    if (isAlreadyCheckedIn) return;
+
+    try {
+        const newHistory = [...(enrollmentItem.enrollment.checkInHistory || []), { day, timestamp: new Date().toISOString() }];
+        await sprintService.updateEnrollment(enrollmentId, { checkInHistory: newHistory });
+        toast.success(`Day ${day} Check-in confirmed!`);
+    } catch (err) {
+        console.error("Check-in failed:", err);
+        toast.error("Failed to check in. Please try again.");
     }
   };
 
@@ -354,6 +379,50 @@ const ParticipantDashboard: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {checkInSprints.length > 0 && (
+                <div className="mb-8 space-y-4">
+                    {checkInSprints.map(({ enrollment, sprint }) => (
+                        <div key={enrollment.id} className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm animate-fade-in">
+                            <div className="flex justify-between items-start mb-6">
+                                <div>
+                                    <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Daily Check-in: {sprint.title}</h3>
+                                    <p className="text-sm font-black text-gray-900">Active for {sprint.checkInReminderDays || 0} days</p>
+                                </div>
+                                <div className="text-right max-w-[150px]">
+                                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Last Sprint Submission</p>
+                                    <p className="text-[10px] font-bold text-gray-600 line-clamp-2 italic">
+                                        "{(() => {
+                                            const lastDayProg = enrollment.progress.find(p => p.day === sprint.duration);
+                                            return lastDayProg?.submission || lastDayProg?.reflection || 'No submission recorded';
+                                        })()}"
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                                {Array.from({ length: sprint.checkInReminderDays || 0 }, (_, i) => i + 1).map((day) => {
+                                    const isCheckedIn = enrollment.checkInHistory?.some(h => h.day === day);
+                                    return (
+                                        <button
+                                            key={day}
+                                            onClick={() => handleCheckIn(enrollment.id, day)}
+                                            disabled={isCheckedIn}
+                                            className={`px-3 py-2 rounded-xl text-[10px] font-black transition-all active:scale-95 ${
+                                                isCheckedIn 
+                                                ? 'bg-primary/10 text-primary border border-primary/20' 
+                                                : 'bg-gray-50 text-gray-400 border border-gray-100 hover:border-primary/30'
+                                            }`}
+                                        >
+                                            Day {day} {isCheckedIn ? '✓' : ''}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {queuedSprints.length > 0 && (
                 <div className="mb-6 animate-fade-in">
