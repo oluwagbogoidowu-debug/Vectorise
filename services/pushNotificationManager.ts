@@ -1,8 +1,8 @@
 
 import webpush from 'web-push';
 import { db } from './firebase';
-import { collection, query, where, getDocs, doc, updateDoc, getDoc, limit } from 'firebase/firestore';
-import { Participant, UserNotificationState, PushSubscriptionJSON } from '../types';
+import { collection, query, where, getDocs, doc, updateDoc, getDoc, limit, orderBy } from 'firebase/firestore';
+import { Participant, UserNotificationState, PushSubscriptionJSON, ParticipantSprint, Sprint } from '../types';
 import { notificationEngine } from './notificationEngine';
 
 // VAPID keys should be set in .env. For now, we'll use these placeholders
@@ -146,119 +146,88 @@ export const pushNotificationManager = {
       
       if (user.notificationsDisabled) continue;
 
+      // Check if already notified today for missed days (Rule: only 1 per day if missed 2+)
+      const lastSentAt = user.lastNotificationSentAt ? new Date(user.lastNotificationSentAt) : null;
+      const sentToday = lastSentAt && lastSentAt.toDateString() === now.toDateString();
+
+      // Get active enrollment to know the sprint category
+      const enrollmentsQuery = query(
+        collection(db, 'enrollments'),
+        where('user_id', '==', user.id),
+        where('status', '==', 'active'),
+        limit(1)
+      );
+      const enrollmentsSnap = await getDocs(enrollmentsQuery);
+      if (enrollmentsSnap.empty) continue;
+
+      const enrollment = { id: enrollmentsSnap.docs[0].id, ...enrollmentsSnap.docs[0].data() } as ParticipantSprint;
+      const sprintSnap = await getDoc(doc(db, 'sprints', enrollment.sprint_id));
+      const sprint = sprintSnap.exists() ? sprintSnap.data() as Sprint : null;
+      const category = sprint?.category || 'Growth';
+
       const lastActivity = user.lastActivityAt ? new Date(user.lastActivityAt) : new Date(user.createdAt);
       const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
-      const daysSinceActivity = hoursSinceActivity / 24;
+      const daysSinceActivity = Math.floor(hoursSinceActivity / 24);
 
-      // Logic based on state and triggers
-      
-      // A. New User - Trigger: joins. Send immediately.
-      if (user.notificationState === 'New') {
-        await pushNotificationManager.sendPush(user.id, {
-          title: 'Welcome in',
-          body: 'Your first step is ready.',
-          url: '/participant/discover',
-          tag: 'welcome'
-        });
-        await updateDoc(userDoc.ref, { notificationState: 'Pending' });
-        continue;
+      // Check if today's task is completed
+      const currentDay = enrollment.progress.find(p => !p.completed)?.day || enrollment.progress.length;
+      const todayProgress = enrollment.progress.find(p => p.day === currentDay);
+      const isTaskCompleted = todayProgress?.completed || false;
+
+      // Logic for Missed Days (2+ days)
+      if (daysSinceActivity >= 2) {
+        if (sentToday) continue; // Only 1 per day if missed 2+
+
+        // Trigger in the morning (8am)
+        if (currentHour >= 8 && currentHour < 10) {
+          if (daysSinceActivity >= 3) {
+            await pushNotificationManager.sendPush(user.id, {
+              title: 'Keep the Momentum',
+              body: `Your ${category} Sprint is still in motion. Continue where you stopped.`,
+              url: '/participant/sprint',
+              tag: 'missed-long'
+            });
+          } else {
+            await pushNotificationManager.sendPush(user.id, {
+              title: 'Still in Motion',
+              body: `Your ${category} Sprint is still in motion. This is going somewhere. Let’s keep it moving.`,
+              url: '/participant/sprint',
+              tag: 'missed-short'
+            });
+          }
+        }
+        continue; // Don't send active reminders if they are in "missed" state
       }
 
-      // B. Task Unlock (Daily) - Morning (7-9am)
-      // Trigger: new day / next task available
-      if (currentHour >= 7 && currentHour <= 9) {
-        const lastSentAt = user.lastNotificationSentAt ? new Date(user.lastNotificationSentAt) : null;
-        const sentToday = lastSentAt && lastSentAt.toDateString() === now.toDateString();
-        
-        if (!sentToday && (user.notificationState === 'Completed' || user.notificationState === 'Dormant')) {
+      // Active Reminders (if task not completed)
+      if (!isTaskCompleted) {
+        // 8 AM - Task Unlocked
+        if (currentHour === 8) {
           await pushNotificationManager.sendPush(user.id, {
             title: 'Today’s task is unlocked',
-            body: 'Ready to take the next step?',
+            body: 'Your next step is ready',
             url: '/participant/sprint',
             tag: 'daily-unlock'
           });
-          await updateDoc(userDoc.ref, { notificationState: 'Pending' });
-          continue;
         }
-      }
-
-      // C. Pending (hasn’t started) - 6-8 hours after unlock AND no activity
-      if (user.notificationState === 'Pending' && hoursSinceActivity >= 6 && hoursSinceActivity <= 12) {
-        const lastSentAt = user.lastNotificationSentAt ? new Date(user.lastNotificationSentAt) : null;
-        const sentRecently = lastSentAt && (now.getTime() - lastSentAt.getTime()) / (1000 * 60 * 60) < 4;
-        
-        if (!sentRecently) {
+        // 3 PM - Quick Check
+        else if (currentHour === 15) {
+          await pushNotificationManager.sendPush(user.id, {
+            title: 'Quick check',
+            body: 'Quick check — have you completed today’s step?',
+            url: '/participant/sprint',
+            tag: 'midday-check'
+          });
+        }
+        // 8 PM - Evening Reminder
+        else if (currentHour === 20) {
           await pushNotificationManager.sendPush(user.id, {
             title: 'Don’t let today slip',
-            body: 'Your step is waiting.',
+            body: 'Don’t let today slip. Your task is waiting.',
             url: '/participant/sprint',
-            tag: 'pending-reminder'
+            tag: 'evening-reminder'
           });
-          // Stay in Pending
         }
-      }
-
-      // D. Completed Task - Optional (later in day)
-      if (user.notificationState === 'Completed') {
-        const lastSentAt = user.lastNotificationSentAt ? new Date(user.lastNotificationSentAt) : null;
-        const hoursSinceLastSent = lastSentAt ? (now.getTime() - lastSentAt.getTime()) / (1000 * 60 * 60) : 0;
-        
-        // If completed more than 6 hours ago and haven't sent another one today
-        if (hoursSinceLastSent >= 6 && currentHour >= 16 && currentHour <= 20) {
-          const lastSentDate = lastSentAt ? lastSentAt.toDateString() : '';
-          const sentTwiceToday = lastSentDate === now.toDateString() && (user.notificationsSentToday || 0) >= 2;
-
-          if (!sentTwiceToday) {
-            await pushNotificationManager.sendPush(user.id, {
-              title: 'Tomorrow, we go deeper',
-              body: 'Rest well. We continue tomorrow.',
-              url: '/participant/sprint',
-              tag: 'daily-wrapup'
-            });
-            // Stay in Completed
-          }
-        }
-      }
-
-      // E. Missed Day - 24-36 hours, task not completed
-      // Trigger: Next morning
-      if (user.notificationState === 'Pending' && hoursSinceActivity >= 24 && hoursSinceActivity < 48) {
-        if (currentHour >= 7 && currentHour <= 9) {
-          const lastSentAt = user.lastNotificationSentAt ? new Date(user.lastNotificationSentAt) : null;
-          const sentToday = lastSentAt && lastSentAt.toDateString() === now.toDateString();
-          
-          if (!sentToday) {
-            await pushNotificationManager.sendPush(user.id, {
-              title: 'You missed yesterday',
-              body: 'Let’s continue.',
-              url: '/participant/sprint',
-              tag: 'missed-day'
-            });
-            // State stays Pending
-          }
-        }
-      }
-
-      // F. Inactive - 48 hours inactivity
-      if (hoursSinceActivity >= 48 && hoursSinceActivity < 72 && user.notificationState !== 'Inactive') {
-        await pushNotificationManager.sendPush(user.id, {
-          title: 'Ready to continue?',
-          body: 'You started this for a reason. Ready to continue?',
-          url: '/participant/sprint',
-          tag: 'inactive-nudge'
-        });
-        await updateDoc(userDoc.ref, { notificationState: 'Inactive' });
-      }
-
-      // G. Dormant - 72-120 hours inactivity
-      if (hoursSinceActivity >= 72 && hoursSinceActivity <= 120 && user.notificationState !== 'Dormant') {
-        await pushNotificationManager.sendPush(user.id, {
-          title: 'Ready to continue?',
-          body: 'You started this for a reason. Ready to continue?',
-          url: '/participant/sprint',
-          tag: 'dormant-nudge'
-        });
-        await updateDoc(userDoc.ref, { notificationState: 'Dormant' });
       }
     }
   }

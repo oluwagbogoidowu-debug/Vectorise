@@ -319,6 +319,10 @@ export interface Participant extends User {
   isPartner?: boolean;
   partnerData?: any;
   referralFirstTouch?: string | null;
+  pushPermissionDeniedCount?: number;
+  pushPermissionLastDeniedAt?: string;
+  pushPermissionConsecutiveDeniedDays?: number;
+  pushPermissionLastRequestAt?: string;
 }
 
 export interface PushSubscriptionJSON {

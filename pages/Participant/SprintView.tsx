@@ -11,6 +11,7 @@ import { db } from '../../services/firebase';
 import FormattedText from '../../components/FormattedText';
 import LocalLogo from '../../components/LocalLogo';
 import SprintCompletionModal from '../../components/SprintCompletionModal';
+import PushPermissionModal from '../../components/PushPermissionModal';
 import { Participant } from '../../types';
 
 const ReflectionModal: React.FC<{
@@ -274,6 +275,7 @@ const SprintView: React.FC = () => {
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
     const [isChatModalOpen, setIsChatModalOpen] = useState(false);
     const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
+    const [isPushPermissionModalOpen, setIsPushPermissionModalOpen] = useState(false);
     const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
     const [now, setNow] = useState(Date.now());
     const [timeToUnlock, setTimeToUnlock] = useState<string>('00:00:00');
@@ -451,15 +453,46 @@ const SprintView: React.FC = () => {
     };
 
     const toggleNotificationsState = async () => {
-        if (!enrollment) return;
+        if (!enrollment || !user) return;
         const newState = !notificationsEnabled;
         setNotificationsEnabled(newState);
         try {
             const enrollmentRef = doc(db, 'enrollments', enrollment.id);
             await updateDoc(enrollmentRef, { notificationsDisabled: !newState });
+            
+            if (newState && pushNotificationService.shouldShowPermissionRequest(user as Participant)) {
+                setIsPushPermissionModalOpen(true);
+            }
         } catch (err) {
             console.error("Toggle notifications state failed", err);
         }
+    };
+
+    const handleAcceptPush = async () => {
+        if (!user) return;
+        try {
+            await pushNotificationService.subscribeUser(user.id);
+            await pushNotificationService.recordPermissionResponse(user.id, user as Participant, 'accepted');
+            setNotificationsEnabled(true);
+            const enrollmentRef = doc(db, 'enrollments', enrollment!.id);
+            await updateDoc(enrollmentRef, { notificationsDisabled: false });
+        } catch (err) {
+            console.error("Push subscription failed", err);
+        } finally {
+            setIsPushPermissionModalOpen(false);
+        }
+    };
+
+    const handleDeclinePush = async () => {
+        if (!user) return;
+        await pushNotificationService.recordPermissionResponse(user.id, user as Participant, 'denied');
+        setIsPushPermissionModalOpen(false);
+    };
+
+    const handleIgnorePush = async () => {
+        if (!user) return;
+        await pushNotificationService.recordPermissionResponse(user.id, user as Participant, 'ignored');
+        setIsPushPermissionModalOpen(false);
     };
 
     const handleFinishDay = async (reflection: string) => {
@@ -510,6 +543,11 @@ const SprintView: React.FC = () => {
 
             if (isLastDay && updatedProgress.every(p => p.completed)) {
                 setIsCompletionModalOpen(true);
+            }
+
+            // Trigger push permission request if it's the first submission or based on logic
+            if (user && pushNotificationService.shouldShowPermissionRequest(user as Participant)) {
+                setIsPushPermissionModalOpen(true);
             }
         } catch (err) {
             console.error("Completion failed", err);
@@ -972,6 +1010,12 @@ const SprintView: React.FC = () => {
                 isOpen={isCompletionModalOpen}
                 onClose={() => navigate('/dashboard', { replace: true })}
                 onStartNext={handleCompletionModalAction}
+            />
+            <PushPermissionModal 
+                isOpen={isPushPermissionModalOpen}
+                onAccept={handleAcceptPush}
+                onDecline={handleDeclinePush}
+                onIgnore={handleIgnorePush}
             />
         </>
     );
