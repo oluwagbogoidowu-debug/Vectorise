@@ -49,7 +49,7 @@ export const pushNotificationManager = {
         sentToday = 0;
       }
 
-      if (sentToday >= 3) {
+      if (sentToday >= 10) {
         console.log(`[PushManager] User ${userId} reached daily notification cap.`);
         return false;
       }

@@ -99,5 +99,20 @@ export const pushNotificationService = {
     } catch (error) {
       console.error('Failed to trigger completed task notification:', error);
     }
+  },
+  
+  /**
+   * Send a generic push notification via server.
+   */
+  sendPush: async (userId: string, title: string, body: string, url?: string, tag?: string) => {
+    try {
+      await fetch('/api/notifications/send-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, title, body, url, tag })
+      });
+    } catch (error) {
+      console.error('Failed to send push notification:', error);
+    }
   }
 };

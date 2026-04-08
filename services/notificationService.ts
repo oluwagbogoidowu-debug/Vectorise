@@ -3,6 +3,7 @@ import { db } from './firebase';
 import { collection, addDoc, query, where, updateDoc, doc, onSnapshot, limit } from 'firebase/firestore';
 import { Notification, NotificationType, ParticipantSprint, Sprint } from '../types';
 import { sanitizeData } from './userService';
+import { pushNotificationService } from './pushNotificationService';
 
 const COLLECTION_NAME = 'notifications';
 
@@ -56,6 +57,15 @@ export const notificationService = {
 
       const colRef = collection(db, COLLECTION_NAME);
       const docRef = await addDoc(colRef, sanitizeData(rawNotification));
+      
+      // Also trigger a push notification
+      pushNotificationService.sendPush(
+        userId, 
+        title, 
+        body, 
+        options.actionUrl || undefined, 
+        type
+      ).catch(err => console.error("Push notification failed:", err));
       
       return { id: docRef.id, ...rawNotification } as Notification;
     } catch (error) {

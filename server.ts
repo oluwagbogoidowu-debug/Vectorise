@@ -50,6 +50,17 @@ async function startServer() {
     }
   });
 
+  app.post('/api/notifications/send-push', async (req, res) => {
+    const { userId, title, body, url, tag } = req.body;
+    if (!userId || !title || !body) return res.status(400).json({ error: 'userId, title, and body are required' });
+    try {
+      const success = await pushNotificationManager.sendPush(userId, { title, body, url, tag });
+      res.json({ success });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to send push notification' });
+    }
+  });
+
   app.post('/api/notifications/update-state', async (req, res) => {
     const { userId, state } = req.body;
     if (!userId || !state) return res.status(400).json({ error: 'userId and state are required' });
