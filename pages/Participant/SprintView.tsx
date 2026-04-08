@@ -276,6 +276,7 @@ const SprintView: React.FC = () => {
     const [isChatModalOpen, setIsChatModalOpen] = useState(false);
     const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
     const [isPushPermissionModalOpen, setIsPushPermissionModalOpen] = useState(false);
+    const [isSubmittingPush, setIsSubmittingPush] = useState(false);
     const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
     const [now, setNow] = useState(Date.now());
     const [timeToUnlock, setTimeToUnlock] = useState<string>('00:00:00');
@@ -470,16 +471,36 @@ const SprintView: React.FC = () => {
 
     const handleAcceptPush = async () => {
         if (!user) return;
+        setIsSubmittingPush(true);
+        const toastId = toast.loading("Setting up notifications...");
         try {
-            await pushNotificationService.subscribeUser(user.id);
+            console.log("Attempting push subscription for user:", user.id);
+            const sub = await pushNotificationService.subscribeUser(user.id);
+            console.log("Subscription result:", sub);
+            
             await pushNotificationService.recordPermissionResponse(user.id, user as Participant, 'accepted');
             setNotificationsEnabled(true);
+            
             const enrollmentRef = doc(db, 'enrollments', enrollment!.id);
             await updateDoc(enrollmentRef, { notificationsDisabled: false });
-        } catch (err) {
-            console.error("Push subscription failed", err);
-        } finally {
+            
+            toast.success("Notifications activated!", { id: toastId });
+            
+            // Trigger a test notification immediately
+            await pushNotificationService.sendPush(
+                user.id, 
+                "Notifications Active!", 
+                "You'll now receive timely reminders for your sprint.",
+                "/participant/sprint",
+                "test-notification"
+            );
+            
             setIsPushPermissionModalOpen(false);
+        } catch (err: any) {
+            console.error("Push subscription failed", err);
+            toast.error(`Failed to activate: ${err.message || "Unknown error"}`, { id: toastId });
+        } finally {
+            setIsSubmittingPush(false);
         }
     };
 
@@ -1016,6 +1037,7 @@ const SprintView: React.FC = () => {
                 onAccept={handleAcceptPush}
                 onDecline={handleDeclinePush}
                 onIgnore={handleIgnorePush}
+                isLoading={isSubmittingPush}
             />
         </>
     );

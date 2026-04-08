@@ -102,6 +102,12 @@ export const pushNotificationService = {
     try {
       const registration = await navigator.serviceWorker.ready;
       
+      // Explicitly request permission first
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        throw new Error('Notification permission denied');
+      }
+      
       // Check if already subscribed
       let subscription = await registration.pushManager.getSubscription();
       
