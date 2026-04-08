@@ -36,7 +36,7 @@ async function startServer() {
 
   // Push Notification Routes
   app.get('/api/notifications/vapid-key', (req, res) => {
-    res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || 'BEl62vp97Wv9R_Y-v6_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w' });
+    res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || 'BHPoCpbFGBbD4uJ1SxIqVLg0Z1bGOKu_Z6huSrBlI7Z_c3MhvGI_BzaucmyeVRvUv0IBV2vWY_m5wkGSwFZn6ZY' });
   });
 
   app.post('/api/notifications/trigger-completed', async (req, res) => {
