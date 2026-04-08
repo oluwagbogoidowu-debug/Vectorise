@@ -96,14 +96,32 @@ export const pushNotificationService = {
   subscribeUser: async (userId: string) => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       console.warn('Push notifications are not supported by this browser');
-      return null;
+      throw new Error('Push notifications are not supported by this browser');
     }
 
     try {
-      const registration = await navigator.serviceWorker.ready;
+      // Use a timeout for service worker ready
+      const registrationPromise = navigator.serviceWorker.ready;
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Service Worker registration timed out')), 10000)
+      );
+      
+      const registration = await Promise.race([registrationPromise, timeoutPromise]) as ServiceWorkerRegistration;
       
       // Explicitly request permission first
-      const permission = await Notification.requestPermission();
+      if (!('Notification' in window)) {
+        throw new Error('Notification API not available');
+      }
+
+      console.log("Requesting notification permission...");
+      const permissionPromise = Notification.requestPermission();
+      const permissionTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Notification permission request timed out. Please try opening the app in a new tab.')), 8000)
+      );
+      
+      const permission = await Promise.race([permissionPromise, permissionTimeout]) as NotificationPermission;
+      console.log("Permission result:", permission);
+      
       if (permission !== 'granted') {
         throw new Error('Notification permission denied');
       }
@@ -112,10 +130,13 @@ export const pushNotificationService = {
       let subscription = await registration.pushManager.getSubscription();
       
       if (!subscription) {
+        console.log("Fetching VAPID key...");
         // Get VAPID public key from server or use placeholder
         const response = await fetch('/api/notifications/vapid-key');
+        if (!response.ok) throw new Error('Failed to fetch VAPID key');
         const { publicKey } = await response.json();
         
+        console.log("Subscribing to push manager...");
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: publicKey
@@ -125,6 +146,7 @@ export const pushNotificationService = {
       const subscriptionJSON = subscription.toJSON() as unknown as PushSubscriptionJSON;
       
       // Save subscription to Firestore
+      console.log("Saving subscription to Firestore...");
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, {
         pushSubscription: subscriptionJSON,
@@ -132,7 +154,7 @@ export const pushNotificationService = {
       });
 
       return subscriptionJSON;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to subscribe user to push notifications:', error);
       throw error;
     }
