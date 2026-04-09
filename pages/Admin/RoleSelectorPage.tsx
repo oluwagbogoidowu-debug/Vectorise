@@ -20,8 +20,10 @@ const RoleSelectorPage: React.FC = () => {
     switchRole(role);
     if (role === UserRole.ADMIN) {
       navigate('/admin/dashboard');
-    } else {
+    } else if (role === UserRole.COACH) {
       navigate('/coach/dashboard');
+    } else {
+      navigate('/dashboard');
     }
   };
 
@@ -37,29 +39,42 @@ const RoleSelectorPage: React.FC = () => {
           <p className="text-gray-400 text-sm font-medium mb-10">
             Select how you want to proceed for this session.
           </p>
-
+ 
           <div className="grid grid-cols-1 gap-4">
             <button
               onClick={() => handleSelectRole(UserRole.ADMIN)}
-              className="group relative flex flex-col items-center p-8 bg-gray-50 border-2 border-transparent hover:border-primary rounded-[2rem] transition-all active:scale-95"
+              className="group relative flex flex-col items-center p-6 bg-gray-50 border-2 border-transparent hover:border-primary rounded-[2rem] transition-all active:scale-95"
             >
-              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-colors">
-                <Shield className="w-8 h-8" />
+              <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center mb-3 group-hover:bg-primary group-hover:text-white transition-colors">
+                <Shield className="w-6 h-6" />
               </div>
               <span className="text-sm font-black text-gray-900 uppercase tracking-widest">Admin Mode</span>
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">Full System Control</span>
             </button>
+ 
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => handleSelectRole(UserRole.COACH)}
+                className="group relative flex flex-col items-center p-6 bg-gray-50 border-2 border-transparent hover:border-primary rounded-[2rem] transition-all active:scale-95"
+              >
+                <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-3 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                  <Users className="w-6 h-6" />
+                </div>
+                <span className="text-xs font-black text-gray-900 uppercase tracking-widest">Coach Mode</span>
+              </button>
 
-            <button
-              onClick={() => handleSelectRole(UserRole.COACH)}
-              className="group relative flex flex-col items-center p-8 bg-gray-50 border-2 border-transparent hover:border-primary rounded-[2rem] transition-all active:scale-95"
-            >
-              <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                <Users className="w-8 h-8" />
-              </div>
-              <span className="text-sm font-black text-gray-900 uppercase tracking-widest">Coach Mode</span>
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">Manage Participants & Sprints</span>
-            </button>
+              <button
+                onClick={() => handleSelectRole(UserRole.PARTICIPANT)}
+                className="group relative flex flex-col items-center p-6 bg-gray-50 border-2 border-transparent hover:border-primary rounded-[2rem] transition-all active:scale-95"
+              >
+                <div className="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <span className="text-xs font-black text-gray-900 uppercase tracking-widest">User Mode</span>
+              </button>
+            </div>
           </div>
 
           <p className="mt-10 text-[10px] font-black text-gray-300 uppercase tracking-widest leading-none">

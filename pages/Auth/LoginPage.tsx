@@ -38,10 +38,25 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
       const handleUserRedirect = async () => {
           if (user) {
+              // 1. Admin Redirection
               if (user.role === UserRole.ADMIN) {
-                  navigate('/admin/role-selector', { replace: true });
+                  navigate('/admin/dashboard', { replace: true });
                   return;
               }
+
+              // 2. Coach Redirection
+              if (user.role === UserRole.COACH) {
+                  navigate('/coach/dashboard', { replace: true });
+                  return;
+              }
+
+              // 3. Partner Redirection
+              if (user.role === UserRole.PARTNER) {
+                  navigate('/partner/dashboard', { replace: true });
+                  return;
+              }
+
+              // 4. Participant Redirection (with complex resume logic)
               if (user.role === UserRole.PARTICIPANT) {
                   try {
                       const enrollments = await sprintService.getUserEnrollments(user.id);
@@ -74,13 +89,10 @@ const LoginPage: React.FC = () => {
                                   navigate('/my-sprints', { replace: true });
                                   return;
                               }
-                              // If completed, maybe they want to pay again to repeat? 
-                              // For now, let's redirect to payment page if they don't have an ACTIVE or QUEUED enrollment
                           }
 
                           const sprint = await sprintService.getSprintById(targetSprintId);
                           if (sprint) {
-                              // If it's a foundational/free sprint, we can enroll them
                               const isFoundational = sprint.category === 'Core Platform Sprint' || sprint.category === 'Growth Fundamentals';
                               if (isFoundational || sprint.price === 0) {
                                   const enrollment = await sprintService.enrollUser(user.id, targetSprintId, sprint.duration);
@@ -88,13 +100,12 @@ const LoginPage: React.FC = () => {
                                   return;
                               }
                               
-                              // Otherwise, redirect to payment page
                               navigate('/onboarding/sprint-payment', { state: { sprint: sprint, prefilledEmail: user.email } });
                               return;
                           }
                       }
 
-                      // 2. Resume active journey - Use replace: true
+                      // 2. Resume active journey
                       const active = enrollments.find(e => e.status === 'active' && e.progress.some(p => !p.completed));
                       if (active) {
                           navigate(`/participant/sprint/${active.id}`, { replace: true });
@@ -115,11 +126,13 @@ const LoginPage: React.FC = () => {
                       console.error("Redirect tracking error", e);
                   }
               }
+
+              // Default fallback
               navigate('/dashboard', { replace: true });
           }
       };
       handleUserRedirect();
-  }, [user, navigate, targetSprintId]);
+  }, [user, navigate, targetSprintId, targetTrackId, tx_ref]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,6 +146,7 @@ const LoginPage: React.FC = () => {
 
     try {
         await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+        localStorage.removeItem('vectorise_active_role');
         // Success - AuthContext will update and trigger redirect
         // We set isLoading to false so the button doesn't spin forever if redirect is slow
         setIsLoading(false);

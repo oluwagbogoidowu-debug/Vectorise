@@ -185,7 +185,13 @@ const SignUpPage: React.FC = () => {
       await sendEmailVerification(firebaseUser);
       
       toast.success("Account created successfully!");
-      navigate('/dashboard', { replace: true });
+      
+      // Strict role-based redirection
+      if (newUser.role === UserRole.PARTNER) {
+          navigate('/partner/dashboard', { replace: true });
+      } else {
+          navigate('/dashboard', { replace: true });
+      }
 
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') setRegError("Email already in use. Try logging in instead.");
