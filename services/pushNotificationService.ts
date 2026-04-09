@@ -4,18 +4,23 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { PushSubscriptionJSON, Participant } from '../types';
 
 function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding)
     .replace(/\-/g, '+')
     .replace(/_/g, '/');
 
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
+  try {
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
 
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  } catch (e) {
+    console.error('Failed to decode base64 string:', base64String);
+    throw new Error('Invalid VAPID public key format');
   }
-  return outputArray;
 }
 
 export const pushNotificationService = {
@@ -174,10 +179,15 @@ export const pushNotificationService = {
         if (!publicKey) {
           throw new Error('VAPID key not found in server response');
         }
+
+        console.log("Using VAPID public key:", publicKey);
+        const applicationServerKey = urlBase64ToUint8Array(publicKey.trim());
+        console.log("Converted applicationServerKey length:", applicationServerKey.length);
+
         try {
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(publicKey)
+            applicationServerKey: applicationServerKey
           });
         } catch (subErr: any) {
           console.error("Subscription error:", subErr);
@@ -188,7 +198,7 @@ export const pushNotificationService = {
             await new Promise(resolve => setTimeout(resolve, 3000));
             subscription = await newReg.pushManager.subscribe({
               userVisibleOnly: true,
-              applicationServerKey: urlBase64ToUint8Array(publicKey)
+              applicationServerKey: urlBase64ToUint8Array(publicKey.trim())
             });
           } else {
             throw subErr;
