@@ -3,7 +3,20 @@ import { db } from './firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { PushSubscriptionJSON, Participant } from '../types';
 
-const VAPID_PUBLIC_KEY = 'BEl62vp97Wv9R_Y-v6_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w_7w'; // Placeholder, will be replaced or used from env
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 export const pushNotificationService = {
   /**
@@ -164,7 +177,7 @@ export const pushNotificationService = {
         try {
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: publicKey
+            applicationServerKey: urlBase64ToUint8Array(publicKey)
           });
         } catch (subErr: any) {
           console.error("Subscription error:", subErr);
@@ -175,7 +188,7 @@ export const pushNotificationService = {
             await new Promise(resolve => setTimeout(resolve, 3000));
             subscription = await newReg.pushManager.subscribe({
               userVisibleOnly: true,
-              applicationServerKey: publicKey
+              applicationServerKey: urlBase64ToUint8Array(publicKey)
             });
           } else {
             throw subErr;
