@@ -157,7 +157,7 @@ export const pushNotificationService = {
         console.log("No existing subscription, fetching VAPID key...");
         let response;
         try {
-          response = await fetch('/api/notifications/vapid-key');
+          response = await fetch('/api/vapid-key');
         } catch (fetchErr: any) {
           console.error("Network error fetching VAPID key:", fetchErr);
           throw new Error(`Network error fetching VAPID key: ${fetchErr.message}`);
