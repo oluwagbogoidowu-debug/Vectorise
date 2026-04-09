@@ -157,7 +157,7 @@ export const pushNotificationService = {
         console.log("No existing subscription, fetching VAPID key...");
         let response;
         try {
-          response = await fetch('/api/vapid-key');
+          response = await fetch(window.location.origin + '/api/vapid-key');
         } catch (fetchErr: any) {
           console.error("Network error fetching VAPID key:", fetchErr);
           throw new Error(`Network error fetching VAPID key: ${fetchErr.message}`);
@@ -243,7 +243,7 @@ export const pushNotificationService = {
    */
   updateActivity: async (userId: string, state: string = 'Active') => {
     try {
-      await fetch('/api/notifications/update-state', {
+      await fetch(window.location.origin + '/api/notifications/update-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, state })
@@ -258,7 +258,7 @@ export const pushNotificationService = {
    */
   triggerCompletedTask: async (userId: string) => {
     try {
-      await fetch('/api/notifications/trigger-completed', {
+      await fetch(window.location.origin + '/api/notifications/trigger-completed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId })
@@ -273,7 +273,7 @@ export const pushNotificationService = {
    */
   sendPush: async (userId: string, title: string, body: string, url?: string, tag?: string) => {
     try {
-      await fetch('/api/notifications/send-push', {
+      await fetch(window.location.origin + '/api/notifications/send-push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, title, body, url, tag })

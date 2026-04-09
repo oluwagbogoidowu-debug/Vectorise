@@ -33,7 +33,7 @@ export const paymentService = {
 
   initializeFlutterwave: async (payload: PaymentPayload): Promise<string> => {
     try {
-      const response = await fetch("/api/flutterwave/initiate", {
+      const response = await fetch(window.location.origin + "/api/flutterwave/initiate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -75,7 +75,7 @@ export const paymentService = {
 
   checkPaymentStatus: async (txRef: string): Promise<{ status: string, sprintId?: string, trackId?: string, userId?: string, email?: string, activeEnrollmentId?: string, coinPackageId?: string, coins?: number }> => {
     try {
-      const response = await fetch(`/api/flutterwave/check-status?tx_ref=${txRef}&t=${Date.now()}`);
+      const response = await fetch(`${window.location.origin}/api/flutterwave/check-status?tx_ref=${txRef}&t=${Date.now()}`);
       if (!response.ok) return { status: 'pending' };
       return await response.json();
     } catch (e) {
