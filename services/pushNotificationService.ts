@@ -99,15 +99,32 @@ export const pushNotificationService = {
       throw new Error('Push notifications are not supported by this browser');
     }
 
+    const getRegistration = async () => {
+      // Try to get existing registration first
+      let registration = await navigator.serviceWorker.getRegistration();
+      
+      // If no registration or it's not active, try to register it
+      if (!registration || !registration.active) {
+        console.log("No active registration found, registering sw.js...");
+        registration = await navigator.serviceWorker.register('/sw.js');
+        // Wait for it to become active
+        let retryCount = 0;
+        while (!registration.active && retryCount < 10) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          retryCount++;
+        }
+      }
+      return registration;
+    };
+
     try {
-      // Use a timeout for service worker ready
-      const registrationPromise = navigator.serviceWorker.ready;
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Service Worker registration timed out')), 10000)
-      );
+      console.log("Getting service worker registration...");
+      let registration = await getRegistration();
       
-      const registration = await Promise.race([registrationPromise, timeoutPromise]) as ServiceWorkerRegistration;
-      
+      if (!registration.active) {
+        throw new Error('Service Worker could not be activated');
+      }
+
       // Explicitly request permission first
       if (!('Notification' in window)) {
         throw new Error('Notification API not available');
@@ -127,21 +144,49 @@ export const pushNotificationService = {
       }
       
       // Check if already subscribed
-      let subscription = await registration.pushManager.getSubscription();
+      let subscription: PushSubscription | null = null;
+      try {
+        subscription = await registration.pushManager.getSubscription();
+      } catch (e: any) {
+        console.warn("Failed to get subscription, might be unregistered. Retrying registration...", e);
+        registration = await navigator.serviceWorker.register('/sw.js');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        subscription = await registration.pushManager.getSubscription();
+      }
       
       if (!subscription) {
         console.log("Fetching VAPID key...");
-        // Get VAPID public key from server or use placeholder
         const response = await fetch('/api/notifications/vapid-key');
         if (!response.ok) throw new Error('Failed to fetch VAPID key');
         const { publicKey } = await response.json();
         
         console.log("Subscribing to push manager...");
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: publicKey
-        });
+        try {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: publicKey
+          });
+        } catch (subErr: any) {
+          if (subErr.message?.includes('unregistered') || subErr.name === 'InvalidStateError') {
+            console.log("Registration was lost, re-registering and retrying subscription...");
+            registration = await navigator.serviceWorker.register('/sw.js');
+            // Wait for activation
+            let waitCount = 0;
+            while (!registration.active && waitCount < 10) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+              waitCount++;
+            }
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: publicKey
+            });
+          } else {
+            throw subErr;
+          }
+        }
       }
+
+      if (!subscription) throw new Error('Failed to create push subscription');
 
       const subscriptionJSON = subscription.toJSON() as unknown as PushSubscriptionJSON;
       
