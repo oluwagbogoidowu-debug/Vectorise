@@ -99,30 +99,19 @@ export const pushNotificationService = {
       throw new Error('Push notifications are not supported by this browser');
     }
 
-    const getRegistration = async () => {
-      // Try to get existing registration first
-      let registration = await navigator.serviceWorker.getRegistration();
-      
-      // If no registration or it's not active, try to register it
-      if (!registration || !registration.active) {
-        console.log("No active registration found, registering sw.js...");
-        registration = await navigator.serviceWorker.register('/sw.js');
-        // Wait for it to become active
-        let retryCount = 0;
-        while (!registration.active && retryCount < 10) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-          retryCount++;
-        }
-      }
-      return registration;
-    };
-
     try {
-      console.log("Getting service worker registration...");
-      let registration = await getRegistration();
+      console.log("Waiting for service worker to be ready...");
+      // Use the standard navigator.serviceWorker.ready which is more reliable
+      const registration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Service Worker readiness timed out')), 15000))
+      ]) as ServiceWorkerRegistration;
       
       if (!registration.active) {
-        throw new Error('Service Worker could not be activated');
+        console.log("Registration found but not active, attempting re-registration...");
+        await navigator.serviceWorker.register('/sw.js');
+        // Wait a bit for activation
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
       // Explicitly request permission first
@@ -133,7 +122,7 @@ export const pushNotificationService = {
       console.log("Requesting notification permission...");
       const permissionPromise = Notification.requestPermission();
       const permissionTimeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Notification permission request timed out. Please try opening the app in a new tab.')), 8000)
+        setTimeout(() => reject(new Error('Notification permission request timed out. Please try opening the app in a new tab.')), 10000)
       );
       
       const permission = await Promise.race([permissionPromise, permissionTimeout]) as NotificationPermission;
@@ -148,14 +137,11 @@ export const pushNotificationService = {
       try {
         subscription = await registration.pushManager.getSubscription();
       } catch (e: any) {
-        console.warn("Failed to get subscription, might be unregistered. Retrying registration...", e);
-        registration = await navigator.serviceWorker.register('/sw.js');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        subscription = await registration.pushManager.getSubscription();
+        console.warn("Failed to get subscription:", e);
       }
       
       if (!subscription) {
-        console.log("Fetching VAPID key...");
+        console.log("No existing subscription, fetching VAPID key...");
         const response = await fetch('/api/notifications/vapid-key');
         if (!response.ok) throw new Error('Failed to fetch VAPID key');
         const { publicKey } = await response.json();
@@ -167,16 +153,13 @@ export const pushNotificationService = {
             applicationServerKey: publicKey
           });
         } catch (subErr: any) {
+          console.error("Subscription error:", subErr);
+          // If it's an 'unregistered' error, try one last time after a fresh registration
           if (subErr.message?.includes('unregistered') || subErr.name === 'InvalidStateError') {
-            console.log("Registration was lost, re-registering and retrying subscription...");
-            registration = await navigator.serviceWorker.register('/sw.js');
-            // Wait for activation
-            let waitCount = 0;
-            while (!registration.active && waitCount < 10) {
-              await new Promise(resolve => setTimeout(resolve, 500));
-              waitCount++;
-            }
-            subscription = await registration.pushManager.subscribe({
+            console.log("Attempting recovery from unregistered state...");
+            const newReg = await navigator.serviceWorker.register('/sw.js');
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            subscription = await newReg.pushManager.subscribe({
               userVisibleOnly: true,
               applicationServerKey: publicKey
             });
@@ -200,7 +183,7 @@ export const pushNotificationService = {
 
       return subscriptionJSON;
     } catch (error: any) {
-      console.error('Failed to subscribe user to push notifications:', error);
+      console.error('Push subscription process failed:', error);
       throw error;
     }
   },

@@ -9,12 +9,33 @@ analyticsTracker.init();
 
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(registration => {
+  window.addEventListener('load', async () => {
+    try {
+      // Check for existing registrations
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const reg of registrations) {
+        // If there's a registration that isn't for our current sw.js, or if it's in a weird state
+        // we might want to unregister it, but for now let's just log
+        console.log('Existing SW found:', reg.scope, reg.active ? 'active' : 'inactive');
+      }
+
+      const registration = await navigator.serviceWorker.register('/sw.js');
       console.log('SW registered: ', registration);
-    }).catch(registrationError => {
-      console.log('SW registration failed: ', registrationError);
-    });
+      
+      // Listen for updates
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('New service worker available, please refresh.');
+            }
+          });
+        }
+      });
+    } catch (error) {
+      console.error('SW registration failed: ', error);
+    }
   });
 }
 
