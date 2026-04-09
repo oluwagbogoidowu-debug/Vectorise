@@ -142,11 +142,25 @@ export const pushNotificationService = {
       
       if (!subscription) {
         console.log("No existing subscription, fetching VAPID key...");
-        const response = await fetch('/api/notifications/vapid-key');
-        if (!response.ok) throw new Error('Failed to fetch VAPID key');
+        let response;
+        try {
+          response = await fetch('/api/notifications/vapid-key');
+        } catch (fetchErr: any) {
+          console.error("Network error fetching VAPID key:", fetchErr);
+          throw new Error(`Network error fetching VAPID key: ${fetchErr.message}`);
+        }
+
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'No error body');
+          console.error(`Failed to fetch VAPID key: ${response.status} ${response.statusText}`, errorText);
+          throw new Error(`Failed to fetch VAPID key: ${response.status} ${response.statusText}`);
+        }
+
         const { publicKey } = await response.json();
         
-        console.log("Subscribing to push manager...");
+        if (!publicKey) {
+          throw new Error('VAPID key not found in server response');
+        }
         try {
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,

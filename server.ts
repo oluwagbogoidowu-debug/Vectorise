@@ -36,6 +36,7 @@ async function startServer() {
 
   // Push Notification Routes
   app.get('/api/notifications/vapid-key', (req, res) => {
+    console.log('[Server] VAPID key requested');
     res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || 'BHPoCpbFGBbD4uJ1SxIqVLg0Z1bGOKu_Z6huSrBlI7Z_c3MhvGI_BzaucmyeVRvUv0IBV2vWY_m5wkGSwFZn6ZY' });
   });
 

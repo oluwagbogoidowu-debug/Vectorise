@@ -11,11 +11,20 @@ const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BHPoCpbFGBbD4uJ1SxIqVL
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '6lEE3qVWJ8f76DFEIcZFNG0JaAuyxBoYaQhPx8jKuCQ';
 const GCM_API_KEY = process.env.GCM_API_KEY;
 
-webpush.setVapidDetails(
-  'mailto:support@vectorise.ai',
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-);
+try {
+  if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+      'mailto:support@vectorise.ai',
+      VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY
+    );
+    console.log('[PushManager] VAPID details set successfully');
+  } else {
+    console.warn('[PushManager] VAPID keys are missing. Push notifications will not work.');
+  }
+} catch (error) {
+  console.error('[PushManager] Failed to set VAPID details:', error);
+}
 
 if (GCM_API_KEY) {
   webpush.setGCMAPIKey(GCM_API_KEY);
