@@ -7,8 +7,8 @@ import { notificationEngine } from './notificationEngine';
 
 // VAPID keys should be set in .env. For now, we'll use these placeholders
 // In a real app, you'd generate them using web-push.generateVAPIDKeys()
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BHPoCpbFGBbD4uJ1SxIqVLg0Z1bGOKu_Z6huSrBlI7Z_c3MhvGI_BzaucmyeVRvUv0IBV2vWY_m5wkGSwFZn6ZY';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '6lEE3qVWJ8f76DFEIcZFNG0JaAuyxBoYaQhPx8jKuCQ';
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BPG4lkECd-HiF4W8WPANEjk6QswjHOFk4fnvdTceYYu_L4ORxw7PogMDAqANoL1DnPM0L27zEpqM6Zokn7ZJhdc';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'qP_xSYSgk0QqbBfgSqxuHsj3zeqWYnihR5ATHKtBw3Y';
 const GCM_API_KEY = process.env.GCM_API_KEY;
 
 try {

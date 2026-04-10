@@ -79,27 +79,39 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  if (!event.data) return;
-  
-  try {
-    const data = event.data.json();
-    const options = {
-      body: data.body,
-      icon: '/icon-192x192.png',
-      badge: '/badge-72x72.png',
-      data: {
-        url: data.url || '/'
-      },
-      tag: data.tag || 'default',
-      renotify: true
-    };
+  console.log('🔥 PUSH RECEIVED:', event);
 
-    event.waitUntil(
-      self.registration.showNotification(data.title, options)
-    );
-  } catch (err) {
-    console.error('Push event error:', err);
+  let title = 'Test';
+  let options = {
+    body: 'Push is working',
+    icon: '/icon-192x192.png',
+    badge: '/badge-72x72.png',
+    data: {
+      url: '/'
+    }
+  };
+
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      title = data.title || title;
+      options = {
+        ...options,
+        body: data.body || options.body,
+        data: {
+          url: data.url || '/'
+        },
+        tag: data.tag || 'default',
+        renotify: true
+      };
+    } catch (err) {
+      console.warn('Push data was not JSON:', event.data.text());
+    }
   }
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
 });
 
 self.addEventListener('notificationclick', (event) => {
