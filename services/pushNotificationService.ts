@@ -210,13 +210,17 @@ export const pushNotificationService = {
 
       const subscriptionJSON = subscription.toJSON() as unknown as PushSubscriptionJSON;
       
-      // Save subscription to Firestore
-      console.log("Saving subscription to Firestore...");
-      const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, {
-        pushSubscription: subscriptionJSON,
-        notificationsDisabled: false
+      // Save subscription via API
+      console.log("Saving subscription via API...");
+      const responseSub = await fetch(window.location.origin + '/api/notifications/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, subscription: subscriptionJSON })
       });
+
+      if (!responseSub.ok) {
+        throw new Error('Failed to save subscription to server');
+      }
 
       return subscriptionJSON;
     } catch (error: any) {

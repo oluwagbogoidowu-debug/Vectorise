@@ -32,6 +32,25 @@ if (GCM_API_KEY) {
 
 export const pushNotificationManager = {
   /**
+   * Save a push subscription for a user.
+   */
+  saveSubscription: async (userId: string, subscription: PushSubscriptionJSON) => {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        pushSubscription: subscription,
+        notificationsDisabled: false,
+        lastActivityAt: new Date().toISOString()
+      });
+      console.log(`[PushManager] Saved subscription for user ${userId}`);
+      return true;
+    } catch (error) {
+      console.error(`[PushManager] Failed to save subscription for user ${userId}:`, error);
+      return false;
+    }
+  },
+
+  /**
    * Send a push notification to a specific user.
    */
   sendPush: async (userId: string, payload: { title: string; body: string; url?: string; tag?: string }) => {

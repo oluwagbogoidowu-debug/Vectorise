@@ -37,6 +37,17 @@ async function startServer() {
   app.get('/payment-success', paymentSuccess);
   app.get('/api/vapid-key', vapidKeyHandler);
 
+  app.post('/api/notifications/subscribe', async (req, res) => {
+    const { userId, subscription } = req.body;
+    if (!userId || !subscription) return res.status(400).json({ error: 'userId and subscription are required' });
+    try {
+      const success = await pushNotificationManager.saveSubscription(userId, subscription);
+      res.json({ success });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to save subscription' });
+    }
+  });
+
   app.post('/api/notifications/trigger-completed', async (req, res) => {
     const { userId } = req.body;
     if (!userId) return res.status(400).json({ error: 'userId is required' });
