@@ -137,6 +137,9 @@ export default function AdminUserDetail() {
                                 </div>
                                 <h2 className="text-2xl font-black text-gray-900 leading-tight">{user.name}</h2>
                                 <p className="text-sm font-bold text-gray-400 mt-1">{user.email}</p>
+                                {user.occupation && (
+                                    <p className="text-xs font-black text-primary uppercase tracking-widest mt-2">{user.occupation}</p>
+                                )}
                                 <div className="mt-4 inline-flex items-center px-4 py-1.5 bg-gray-50 rounded-full text-[10px] font-black text-gray-500 uppercase tracking-widest">
                                     @{user.persona || 'participant'}
                                 </div>
@@ -224,8 +227,48 @@ export default function AdminUserDetail() {
                                         "{user.bio || 'No bio provided.'}"
                                     </p>
                                 </div>
+
+                                {user.risePathway && (
+                                    <div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Rise Pathway</p>
+                                        <p className="text-sm font-bold text-primary">{user.risePathway}</p>
+                                    </div>
+                                )}
+
+                                {user.impactStats && (
+                                    <div className="grid grid-cols-2 gap-4 pt-2">
+                                        <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">People Helped</p>
+                                            <p className="text-base font-black text-gray-900">{user.impactStats.peopleHelped || 0}</p>
+                                        </div>
+                                        <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Current Streak</p>
+                                            <p className="text-base font-black text-gray-900">{user.impactStats.streak || 0} days</p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
+
+                        {/* Onboarding Answers Section */}
+                        {user.onboardingAnswers && Object.keys(user.onboardingAnswers).length > 0 && (
+                            <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <Calendar className="w-5 h-5 text-primary" />
+                                    <h3 className="text-lg font-black text-gray-900 italic">Onboarding.</h3>
+                                </div>
+                                <div className="space-y-4">
+                                    {Object.entries(user.onboardingAnswers).map(([key, value], idx) => (
+                                        <div key={idx} className="border-b border-gray-50 pb-3 last:border-0">
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{key.replace(/_/g, ' ')}</p>
+                                            <p className="text-xs font-bold text-gray-700">
+                                                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Right Column: Sprint History */}

@@ -1,50 +1,87 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { pushNotificationService } from '../services/pushNotificationService';
 import { motion, AnimatePresence } from 'motion/react';
 import { Bell, X, Check } from 'lucide-react';
 
+type Status = 'idle' | 'requesting' | 'success' | 'error' | 'denied';
+
 export const NotificationManager: React.FC = () => {
   const { user } = useAuth();
   const [showPrompt, setShowPrompt] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'requesting' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<Status>('idle');
 
   useEffect(() => {
     if (!user) return;
 
-    // Check if we should show the prompt
-    const checkPermission = async () => {
-      if (!('Notification' in window)) return;
+    let timer: any;
 
+    const init = async () => {
+      // Full capability check
+      if (
+        !('serviceWorker' in navigator) ||
+        !('PushManager' in window) ||
+        !('Notification' in window)
+      ) {
+        return;
+      }
+
+      // If already denied → don't show prompt
+      if (Notification.permission === 'denied') {
+        setStatus('denied');
+        return;
+      }
+
+      // Check if already subscribed
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        const existingSub = await registration.pushManager.getSubscription();
+
+        if (existingSub) {
+          return; // already subscribed → no prompt
+        }
+      } catch (err) {
+        console.error('Subscription check failed:', err);
+      }
+
+      // Only show if permission not yet granted
       if (Notification.permission === 'default') {
-        // Wait a bit before showing the prompt
-        const timer = setTimeout(() => {
+        timer = setTimeout(() => {
           setShowPrompt(true);
         }, 5000);
-        return () => clearTimeout(timer);
       }
     };
 
-    checkPermission();
+    init();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [user]);
 
   const handleSubscribe = async () => {
     if (!user) return;
+
     setStatus('requesting');
+
     try {
       const permission = await Notification.requestPermission();
+
       if (permission === 'granted') {
         await pushNotificationService.subscribeUser(user.id);
+
         setStatus('success');
+
+        // prevent future prompts
+        localStorage.setItem('push_enabled', 'true');
+
         setTimeout(() => {
           setShowPrompt(false);
         }, 2000);
+      } else if (permission === 'denied') {
+        setStatus('denied');
       } else {
         setStatus('error');
-        setTimeout(() => {
-          setShowPrompt(false);
-        }, 3000);
       }
     } catch (err) {
       console.error('Subscription failed:', err);
@@ -66,11 +103,22 @@ export const NotificationManager: React.FC = () => {
           <div className="p-3 bg-green-50 rounded-xl text-green-600">
             <Bell className="w-6 h-6" />
           </div>
+
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900">Stay on track</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Stay on track
+            </h3>
+
             <p className="text-sm text-gray-500 mt-1">
-              Enable notifications to get daily task reminders and stay consistent with your growth.
+              Enable notifications to get reminders and stay consistent.
             </p>
+
+            {status === 'denied' ? (
+              <p className="text-xs text-red-500 mt-3">
+                Notifications blocked. Enable them in your browser settings.
+              </p>
+            ) : null}
+
             <div className="mt-6 flex items-center gap-3">
               <button
                 onClick={handleSubscribe}
@@ -88,6 +136,7 @@ export const NotificationManager: React.FC = () => {
                   'Enable Notifications'
                 )}
               </button>
+
               <button
                 onClick={() => setShowPrompt(false)}
                 className="p-2.5 text-gray-400 hover:bg-gray-50 rounded-xl transition-colors"
@@ -97,8 +146,7 @@ export const NotificationManager: React.FC = () => {
             </div>
           </div>
         </div>
-        
-        {/* Progress bar for status */}
+
         {status === 'requesting' && (
           <motion.div
             initial={{ width: 0 }}

@@ -212,7 +212,7 @@ export const pushNotificationService = {
       
       // Save subscription via API
       console.log("Saving subscription via API...");
-      const responseSub = await fetch(window.location.origin + '/api/notifications/subscribe', {
+      const responseSub = await fetch(window.location.origin + '/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, subscription: subscriptionJSON })

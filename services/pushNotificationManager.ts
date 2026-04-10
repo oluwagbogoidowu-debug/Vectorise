@@ -1,30 +1,11 @@
 
-import webpush from 'web-push';
+import webpush from '../utils/webpush';
 import { db } from './firebase';
 import { collection, query, where, getDocs, doc, updateDoc, getDoc, limit, orderBy } from 'firebase/firestore';
 import { Participant, UserNotificationState, PushSubscriptionJSON, ParticipantSprint, Sprint } from '../types';
 import { notificationEngine } from './notificationEngine';
 
-// VAPID keys should be set in .env. For now, we'll use these placeholders
-// In a real app, you'd generate them using web-push.generateVAPIDKeys()
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BPG4lkECd-HiF4W8WPANEjk6QswjHOFk4fnvdTceYYu_L4ORxw7PogMDAqANoL1DnPM0L27zEpqM6Zokn7ZJhdc';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'qP_xSYSgk0QqbBfgSqxuHsj3zeqWYnihR5ATHKtBw3Y';
 const GCM_API_KEY = process.env.GCM_API_KEY;
-
-try {
-  if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-    webpush.setVapidDetails(
-      'mailto:support@vectorise.ai',
-      VAPID_PUBLIC_KEY,
-      VAPID_PRIVATE_KEY
-    );
-    console.log('[PushManager] VAPID details set successfully');
-  } else {
-    console.warn('[PushManager] VAPID keys are missing. Push notifications will not work.');
-  }
-} catch (error) {
-  console.error('[PushManager] Failed to set VAPID details:', error);
-}
 
 if (GCM_API_KEY) {
   webpush.setGCMAPIKey(GCM_API_KEY);

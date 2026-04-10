@@ -298,6 +298,7 @@ export interface Participant extends User {
   risePathway?: string;
   partnerCommissionClosed?: boolean;
   impactStats?: { peopleHelped: number; streak: number };
+  occupation?: string;
   enrolledSprintIds: string[];
   shinePostIds: string[];
   shineCommentIds: string[];

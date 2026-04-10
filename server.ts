@@ -17,6 +17,10 @@ import checkStatus from './api/flutterwave/check-status.js';
 import webhook from './api/flutterwave/webhook.js';
 // @ts-ignore
 import vapidKeyHandler from './api/vapid-key.js';
+// @ts-ignore
+import subscribeHandler from './api/subscribe.js';
+// @ts-ignore
+import sendHandler from './api/send.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,6 +40,8 @@ async function startServer() {
   app.get('/api/payment-success', paymentSuccess);
   app.get('/payment-success', paymentSuccess);
   app.get('/api/vapid-key', vapidKeyHandler);
+  app.post('/api/subscribe', subscribeHandler);
+  app.post('/api/send', sendHandler);
 
   app.post('/api/notifications/subscribe', async (req, res) => {
     const { userId, subscription } = req.body;
