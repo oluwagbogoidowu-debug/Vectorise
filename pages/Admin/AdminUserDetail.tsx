@@ -262,7 +262,16 @@ export default function AdminUserDetail() {
                                         <div key={idx} className="border-b border-gray-50 pb-3 last:border-0">
                                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{key.replace(/_/g, ' ')}</p>
                                             <p className="text-xs font-bold text-gray-700">
-                                                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                                {typeof value === 'object' && value !== null ? (
+                                                    // Handle Firestore Timestamps or generic objects safely
+                                                    ('seconds' in value && 'nanoseconds' in value)
+                                                        ? new Date((value as any).seconds * 1000).toLocaleString()
+                                                        : JSON.stringify(value, (key, val) => 
+                                                            (typeof val === 'object' && val !== null && 'id' in val && 'path' in val)
+                                                                ? `[Ref: ${val.path}]` 
+                                                                : val
+                                                          )
+                                                ) : String(value)}
                                             </p>
                                         </div>
                                     ))}

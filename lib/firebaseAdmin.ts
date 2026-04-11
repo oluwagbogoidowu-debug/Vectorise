@@ -20,13 +20,14 @@ if (!admin.apps.length) {
   }
 
   if (config && config.privateKey) {
-    // Ensure newlines are correctly handled and remove any accidental wrapping quotes
+    // 1. Handle literal "\n" strings and accidental wrapping quotes
     let key = config.privateKey
       .replace(/\\n/g, "\n")
       .replace(/^['"]|['"]$/g, "")
+      .replace(/^['"]|['"]$/g, "") // Handle double wrapping
       .trim();
     
-    // Ensure the key has the correct PEM headers if they are missing or mangled
+    // 2. Ensure the key has the correct PEM headers
     if (!key.includes("-----BEGIN PRIVATE KEY-----")) {
       key = "-----BEGIN PRIVATE KEY-----\n" + key;
     }
@@ -34,7 +35,19 @@ if (!admin.apps.length) {
       key = key + "\n-----END PRIVATE KEY-----";
     }
     
-    config.privateKey = key;
+    // 3. Normalize newlines: remove any existing newlines and re-insert them every 64 chars
+    // (This is the standard PEM format, though not strictly required by all decoders, it's safest)
+    const header = "-----BEGIN PRIVATE KEY-----";
+    const footer = "-----END PRIVATE KEY-----";
+    let body = key.replace(header, "").replace(footer, "").replace(/\s+/g, "");
+    
+    // Reconstruct the key with proper 64-character line breaks
+    let formattedBody = "";
+    for (let i = 0; i < body.length; i += 64) {
+      formattedBody += body.substring(i, i + 64) + "\n";
+    }
+    
+    config.privateKey = `${header}\n${formattedBody}${footer}`;
   }
 
   if (config) {

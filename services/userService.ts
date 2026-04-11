@@ -71,8 +71,7 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
     const constructorName = val.constructor?.name || '';
     const isFirebaseInternal = 
         /^[A-Z][a-z0-9]$|^[A-Z]\$[0-9]$/.test(constructorName) || 
-        constructorName === 'Y2' || 
-        constructorName === 'Ka' || 
+        ['Y2', 'Ka', 'Sa', 'Q$1', 't'].includes(constructorName) ||
         constructorName.includes('Query') || 
         constructorName.includes('Reference') ||
         constructorName.includes('Firestore') ||
@@ -85,7 +84,6 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
 
     // Pattern matching for specific SDK circular structures (e.g., Query.i.src)
     // The 'i' and 'src' properties are common markers in minified Firestore SDK internals.
-    // We use a more robust check to catch these even if they are nested differently.
     const hasSDKMarkers = !!(
         val.onSnapshot || 
         val.getDoc || 
@@ -93,10 +91,11 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
         val._database ||
         val._path ||
         (val.i && typeof val.i === 'object' && (val.src || val.i.src || val.i.i)) ||
-        (val.src && typeof val.src === 'object' && (val.src.i || val.src.src))
+        (val.src && typeof val.src === 'object' && (val.src.i || val.src.src)) ||
+        (val.type === 'document' && val.path && val.id) // Firestore DocumentReference
     );
 
-    if (isFirebaseInternal || hasSDKMarkers || val instanceof Element) {
+    if (isFirebaseInternal || hasSDKMarkers || val instanceof Element || (val.constructor && val.constructor.name === 'Object' && val.i && val.src)) {
         return undefined;
     }
 
