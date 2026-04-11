@@ -65,27 +65,24 @@ export const NotificationManager: React.FC = () => {
     setStatus('requesting');
 
     try {
-      const permission = await Notification.requestPermission();
+      // The service now handles permission request, VAPID key fetching, and subscription
+      await pushNotificationService.subscribeUser(user.id);
 
-      if (permission === 'granted') {
-        await pushNotificationService.subscribeUser(user.id);
+      setStatus('success');
 
-        setStatus('success');
+      // prevent future prompts
+      localStorage.setItem('push_enabled', 'true');
 
-        // prevent future prompts
-        localStorage.setItem('push_enabled', 'true');
-
-        setTimeout(() => {
-          setShowPrompt(false);
-        }, 2000);
-      } else if (permission === 'denied') {
-        setStatus('denied');
-      } else {
-        setStatus('error');
-      }
-    } catch (err) {
+      setTimeout(() => {
+        setShowPrompt(false);
+      }, 2000);
+    } catch (err: any) {
       console.error('Subscription failed:', err);
       setStatus('error');
+      // If it's a permission error, we can show a more specific message
+      if (err.message?.includes('permission') || err.message?.includes('blocked')) {
+        setStatus('denied');
+      }
     }
   };
 
@@ -114,8 +111,12 @@ export const NotificationManager: React.FC = () => {
             </p>
 
             {status === 'denied' ? (
-              <p className="text-xs text-red-500 mt-3">
-                Notifications blocked. Enable them in your browser settings.
+              <p className="text-xs text-red-500 mt-3 font-medium">
+                Notifications blocked or preview restricted. Please enable them in browser settings or open in a new tab.
+              </p>
+            ) : status === 'error' ? (
+              <p className="text-xs text-red-500 mt-3 font-medium">
+                Something went wrong. Please try opening in a new tab.
               </p>
             ) : null}
 

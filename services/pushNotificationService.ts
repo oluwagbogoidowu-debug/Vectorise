@@ -134,20 +134,33 @@ export const pushNotificationService = {
 
       // Explicitly request permission first
       if (!('Notification' in window)) {
-        throw new Error('Notification API not available');
+        throw new Error('Notification API not available in this browser.');
+      }
+
+      if (Notification.permission === 'denied') {
+        throw new Error('Notification permission is blocked. Please enable notifications in your browser settings (usually by clicking the lock icon in the address bar) and try again.');
       }
 
       console.log("Requesting notification permission...");
-      const permissionPromise = Notification.requestPermission();
-      const permissionTimeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Notification permission request timed out. Please try opening the app in a new tab.')), 10000)
-      );
-      
-      const permission = await Promise.race([permissionPromise, permissionTimeout]) as NotificationPermission;
+      // Wrap in a try-catch specifically for the permission request which can fail in iframes
+      let permission: NotificationPermission;
+      try {
+        const permissionPromise = Notification.requestPermission();
+        const permissionTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Notification permission request timed out. If you are in the preview, please open the app in a new tab to enable notifications.')), 15000)
+        );
+        
+        permission = await Promise.race([permissionPromise, permissionTimeout]) as NotificationPermission;
+      } catch (permErr: any) {
+        console.error("Permission request error:", permErr);
+        if (permErr.message?.includes('timed out')) throw permErr;
+        throw new Error('Could not request notification permission. This often happens in embedded previews. Please try opening the app in a new tab.');
+      }
+
       console.log("Permission result:", permission);
       
       if (permission !== 'granted') {
-        throw new Error('Notification permission denied');
+        throw new Error('Notification permission denied. Please allow notifications to stay on track with your sprint.');
       }
       
       // Check if already subscribed
