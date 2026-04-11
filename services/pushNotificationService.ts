@@ -162,7 +162,7 @@ export const pushNotificationService = {
         console.log("No existing subscription, fetching VAPID key...");
         let response;
         try {
-          response = await fetch(window.location.origin + '/api/vapid-key');
+          response = await fetch('/api/vapid-key');
         } catch (fetchErr: any) {
           console.error("Network error fetching VAPID key:", fetchErr);
           throw new Error(`Network error fetching VAPID key: ${fetchErr.message}`);
@@ -212,14 +212,17 @@ export const pushNotificationService = {
       
       // Save subscription via API
       console.log("Saving subscription via API...");
-      const responseSub = await fetch(window.location.origin + '/api/subscribe', {
+      const responseSub = await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, subscription: subscriptionJSON })
       });
 
       if (!responseSub.ok) {
-        throw new Error('Failed to save subscription to server');
+        const errorData = await responseSub.json().catch(() => ({}));
+        const errorMessage = errorData.error || `Server returned ${responseSub.status}`;
+        console.error("Server error saving subscription:", errorMessage);
+        throw new Error(errorMessage);
       }
 
       return subscriptionJSON;

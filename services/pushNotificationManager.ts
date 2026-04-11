@@ -1,7 +1,6 @@
 
 import webpush from '../utils/webpush';
-import { db } from './firebase';
-import { collection, query, where, getDocs, doc, updateDoc, getDoc, limit, orderBy } from 'firebase/firestore';
+import { db } from '../lib/firebaseAdmin';
 import { Participant, UserNotificationState, PushSubscriptionJSON, ParticipantSprint, Sprint } from '../types';
 import { notificationEngine } from './notificationEngine';
 
@@ -17,8 +16,8 @@ export const pushNotificationManager = {
    */
   saveSubscription: async (userId: string, subscription: PushSubscriptionJSON) => {
     try {
-      const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, {
+      const userRef = db.collection('users').doc(userId);
+      await userRef.update({
         pushSubscription: subscription,
         notificationsDisabled: false,
         lastActivityAt: new Date().toISOString()
@@ -36,10 +35,10 @@ export const pushNotificationManager = {
    */
   sendPush: async (userId: string, payload: { title: string; body: string; url?: string; tag?: string }) => {
     try {
-      const userRef = doc(db, 'users', userId);
-      const userSnap = await getDoc(userRef);
+      const userRef = db.collection('users').doc(userId);
+      const userSnap = await userRef.get();
       
-      if (!userSnap.exists()) return false;
+      if (!userSnap.exists) return false;
       
       const userData = userSnap.data() as Participant;
       
@@ -76,7 +75,7 @@ export const pushNotificationManager = {
       );
 
       // Update user notification stats
-      await updateDoc(userRef, {
+      await userRef.update({
         notificationsSentToday: sentToday + 1,
         lastNotificationSentAt: new Date().toISOString()
       });
@@ -89,8 +88,8 @@ export const pushNotificationManager = {
       // If subscription is invalid, remove it
       if (error.statusCode === 410 || error.statusCode === 404) {
         console.log(`[PushManager] Removing invalid subscription for user ${userId}`);
-        const userRef = doc(db, 'users', userId);
-        await updateDoc(userRef, {
+        const userRef = db.collection('users').doc(userId);
+        await userRef.update({
           pushSubscription: null
         });
       }
@@ -114,8 +113,8 @@ export const pushNotificationManager = {
     });
 
     // Update state to Completed
-    const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, { 
+    const userRef = db.collection('users').doc(userId);
+    await userRef.update({ 
       notificationState: 'Completed',
       lastActivityAt: new Date().toISOString()
     });
@@ -125,8 +124,8 @@ export const pushNotificationManager = {
    * Update user notification state.
    */
   updateNotificationState: async (userId: string, state: UserNotificationState) => {
-    const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, { 
+    const userRef = db.collection('users').doc(userId);
+    await userRef.update({ 
       notificationState: state,
       lastActivityAt: new Date().toISOString()
     });
@@ -142,12 +141,10 @@ export const pushNotificationManager = {
     const currentHour = now.getHours();
     
     // 1. Get all users with push subscriptions
-    const usersQuery = query(
-      collection(db, 'users'),
-      where('pushSubscription', '!=', null)
-    );
+    const usersSnap = await db.collection('users')
+      .where('pushSubscription', '!=', null)
+      .get();
     
-    const usersSnap = await getDocs(usersQuery);
     console.log(`[PushManager] Found ${usersSnap.size} users with push subscriptions.`);
 
     for (const userDoc of usersSnap.docs) {
@@ -160,18 +157,17 @@ export const pushNotificationManager = {
       const sentToday = lastSentAt && lastSentAt.toDateString() === now.toDateString();
 
       // Get active enrollment to know the sprint category
-      const enrollmentsQuery = query(
-        collection(db, 'enrollments'),
-        where('user_id', '==', user.id),
-        where('status', '==', 'active'),
-        limit(1)
-      );
-      const enrollmentsSnap = await getDocs(enrollmentsQuery);
+      const enrollmentsSnap = await db.collection('enrollments')
+        .where('user_id', '==', user.id)
+        .where('status', '==', 'active')
+        .limit(1)
+        .get();
+
       if (enrollmentsSnap.empty) continue;
 
       const enrollment = { id: enrollmentsSnap.docs[0].id, ...enrollmentsSnap.docs[0].data() } as ParticipantSprint;
-      const sprintSnap = await getDoc(doc(db, 'sprints', enrollment.sprint_id));
-      const sprint = sprintSnap.exists() ? sprintSnap.data() as Sprint : null;
+      const sprintSnap = await db.collection('sprints').doc(enrollment.sprint_id).get();
+      const sprint = sprintSnap.exists ? sprintSnap.data() as Sprint : null;
       const category = sprint?.category || 'Growth';
 
       const lastActivity = user.lastActivityAt ? new Date(user.lastActivityAt) : new Date(user.createdAt);
