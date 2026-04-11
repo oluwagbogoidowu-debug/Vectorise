@@ -138,7 +138,10 @@ export const pushNotificationService = {
       }
 
       if (Notification.permission === 'denied') {
-        throw new Error('Notification permission is blocked. Please enable notifications in your browser settings (usually by clicking the lock icon in the address bar) and try again.');
+        const isIframe = window.self !== window.top;
+        const baseMessage = 'Notification permission is blocked.';
+        const iframeGuidance = isIframe ? ' Since you are in a preview window, please open the app in a new tab to enable notifications.' : '';
+        throw new Error(`${baseMessage} Please enable notifications in your browser settings (usually by clicking the lock icon in the address bar)${iframeGuidance} and try again.`);
       }
 
       console.log("Requesting notification permission...");

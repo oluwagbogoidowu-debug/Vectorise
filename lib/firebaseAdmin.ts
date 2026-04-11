@@ -21,10 +21,20 @@ if (!admin.apps.length) {
 
   if (config && config.privateKey) {
     // Ensure newlines are correctly handled and remove any accidental wrapping quotes
-    config.privateKey = config.privateKey
+    let key = config.privateKey
       .replace(/\\n/g, "\n")
       .replace(/^['"]|['"]$/g, "")
       .trim();
+    
+    // Ensure the key has the correct PEM headers if they are missing or mangled
+    if (!key.includes("-----BEGIN PRIVATE KEY-----")) {
+      key = "-----BEGIN PRIVATE KEY-----\n" + key;
+    }
+    if (!key.includes("-----END PRIVATE KEY-----")) {
+      key = key + "\n-----END PRIVATE KEY-----";
+    }
+    
+    config.privateKey = key;
   }
 
   if (config) {
