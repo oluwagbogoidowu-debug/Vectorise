@@ -1,12 +1,22 @@
 import webpush from 'web-push';
-import { VAPID_PUBLIC_KEY } from './vapid';
 
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'qP_xSYSgk0QqbBfgSqxuHsj3zeqWYnihR5ATHKtBw3Y';
+/**
+ * Initialize and return a configured webpush instance
+ * This avoids crashes during import and ensures safe usage
+ */
+export function getWebPush() {
+  const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+  const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 
-webpush.setVapidDetails(
-  'mailto:Vectorise.io@gmail.com',
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-);
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+    throw new Error('Missing VAPID keys in environment variables');
+  }
 
-export default webpush;
+  webpush.setVapidDetails(
+    'mailto:vectorise.io@gmail.com',
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+  );
+
+  return webpush;
+}
