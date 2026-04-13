@@ -1,6 +1,6 @@
-import { VAPID_PUBLIC_KEY } from '../utils/vapid';
+import { VAPID_PUBLIC_KEY } from '../../utils/vapid';
 
-export default function handler(req, res) {
+export default function handler(req: any, res: any) {
   try {
     if (!VAPID_PUBLIC_KEY) {
       return res.status(500).json({ error: 'VAPID key missing' });
