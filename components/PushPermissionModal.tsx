@@ -34,6 +34,11 @@ const PushPermissionModal: React.FC<PushPermissionModalProps> = ({ isOpen, onAcc
               </h3>
               <p className="text-gray-500 font-medium text-sm mb-8">
                 Get reminded when your next task is ready and stay on track with your sprint goals.
+                {window.self !== window.top && (
+                  <span className="block mt-2 text-xs text-amber-600 font-bold">
+                    Note: Notifications may be blocked in this preview. Please open the app in a new tab to enable them.
+                  </span>
+                )}
               </p>
               
               <div className="space-y-3">

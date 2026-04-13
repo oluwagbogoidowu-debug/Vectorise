@@ -10,6 +10,7 @@ export const NotificationManager: React.FC = () => {
   const { user } = useAuth();
   const [showPrompt, setShowPrompt] = useState(false);
   const [status, setStatus] = useState<Status>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -79,7 +80,9 @@ export const NotificationManager: React.FC = () => {
     } catch (err: any) {
       console.error('Subscription failed:', err);
       setStatus('error');
-      // If it's a permission error, we can show a more specific message
+      // Use the error message from the service if available
+      setErrorMessage(err.message || 'Something went wrong. Please try opening in a new tab.');
+      
       if (err.message?.includes('permission') || err.message?.includes('blocked')) {
         setStatus('denied');
       }
@@ -110,13 +113,9 @@ export const NotificationManager: React.FC = () => {
               Enable notifications to get reminders and stay consistent.
             </p>
 
-            {status === 'denied' ? (
+            {status === 'denied' || status === 'error' ? (
               <p className="text-xs text-red-500 mt-3 font-medium">
-                Notifications blocked or preview restricted. Please enable them in browser settings or open in a new tab.
-              </p>
-            ) : status === 'error' ? (
-              <p className="text-xs text-red-500 mt-3 font-medium">
-                Something went wrong. Please try opening in a new tab.
+                {errorMessage || 'Notifications blocked or preview restricted. Please enable them in browser settings or open in a new tab.'}
               </p>
             ) : null}
 
