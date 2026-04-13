@@ -1,4 +1,3 @@
-
 import { db } from './firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { PushSubscriptionJSON, Participant } from '../types';
@@ -24,31 +23,22 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export const pushNotificationService = {
-  /**
-   * Check if we should show the push notification permission request.
-   */
   shouldShowPermissionRequest: (user: Participant) => {
-    // If already subscribed or explicitly disabled, don't show
     if (user.pushSubscription || user.notificationsDisabled) return false;
 
     const now = new Date();
     const lastRequestAt = user.pushPermissionLastRequestAt ? new Date(user.pushPermissionLastRequestAt) : null;
     const lastDeniedAt = user.pushPermissionLastDeniedAt ? new Date(user.pushPermissionLastDeniedAt) : null;
     const lastActivityAt = user.lastActivityAt ? new Date(user.lastActivityAt) : null;
-    
-    // If never requested, show it (caller will decide when, e.g., after first submission)
+
     if (!lastRequestAt) return true;
 
-    // Check for "4 times and 4 days in a row" rule
     const consecutiveDenied = user.pushPermissionConsecutiveDeniedDays || 0;
-    
+
     if (consecutiveDenied >= 4) {
-      // Cooldown logic
       const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      
-      // Wait for a week later
+
       if (lastDeniedAt && lastDeniedAt > oneWeekAgo) {
-        // Check if they missed 3-5 days
         if (lastActivityAt) {
           const daysSinceActivity = (now.getTime() - lastActivityAt.getTime()) / (1000 * 60 * 60 * 24);
           if (daysSinceActivity >= 3) return true;
@@ -57,34 +47,26 @@ export const pushNotificationService = {
       }
     }
 
-    // If they ignored/dismissed, show again in the next action (caller handles the "next action" part)
-    // We just need to ensure we don't spam them in the same session or too frequently
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
     if (lastRequestAt > oneHourAgo) return false;
 
     return true;
   },
 
-  /**
-   * Record the user's response to the permission request.
-   */
   recordPermissionResponse: async (userId: string, user: Participant, response: 'accepted' | 'denied' | 'ignored') => {
     const userRef = doc(db, 'users', userId);
     const now = new Date();
     const today = now.toISOString().split('T')[0];
-    
+
     const updates: any = {
       pushPermissionLastRequestAt: now.toISOString()
     };
 
-    if (response === 'accepted') {
-      // Handled by subscribeUser
-    } else if (response === 'denied') {
+    if (response === 'denied') {
       const lastDeniedAt = user.pushPermissionLastDeniedAt ? new Date(user.pushPermissionLastDeniedAt) : null;
       const lastDeniedDate = lastDeniedAt ? lastDeniedAt.toISOString().split('T')[0] : null;
-      
       const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      
+
       let newConsecutive = 1;
       if (lastDeniedDate === yesterday) {
         newConsecutive = (user.pushPermissionConsecutiveDeniedDays || 0) + 1;
@@ -96,8 +78,6 @@ export const pushNotificationService = {
       updates.pushPermissionLastDeniedAt = now.toISOString();
       updates.pushPermissionConsecutiveDeniedDays = newConsecutive;
     } else {
-      // Ignored - just update last request time
-      // Reset consecutive if they didn't deny today
       const lastDeniedAt = user.pushPermissionLastDeniedAt ? new Date(user.pushPermissionLastDeniedAt) : null;
       const lastDeniedDate = lastDeniedAt ? lastDeniedAt.toISOString().split('T')[0] : null;
       if (lastDeniedDate !== today) {
@@ -108,127 +88,74 @@ export const pushNotificationService = {
     await updateDoc(userRef, updates);
   },
 
-  /**
-   * Request permission for push notifications and subscribe the user.
-   */
   subscribeUser: async (userId: string) => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      console.warn('Push notifications are not supported by this browser');
       throw new Error('Push notifications are not supported by this browser');
     }
 
     try {
-      console.log("Waiting for service worker to be ready...");
-      // Use the standard navigator.serviceWorker.ready which is more reliable
       const registration = await Promise.race([
         navigator.serviceWorker.ready,
         new Promise((_, reject) => setTimeout(() => reject(new Error('Service Worker readiness timed out')), 15000))
       ]) as ServiceWorkerRegistration;
-      
+
       if (!registration.active) {
-        console.log("Registration found but not active, attempting re-registration...");
         await navigator.serviceWorker.register('/sw.js');
-        // Wait a bit for activation
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
-      // Explicitly request permission first
       if (!('Notification' in window)) {
         throw new Error('Notification API not available in this browser.');
       }
 
       if (Notification.permission === 'denied') {
-        const isIframe = window.self !== window.top;
-        const baseMessage = 'Notification permission is blocked.';
-        const iframeGuidance = isIframe ? ' Since you are in a preview window, please open the app in a new tab to enable notifications.' : '';
-        throw new Error(`${baseMessage} Please enable notifications in your browser settings (usually by clicking the lock icon in the address bar)${iframeGuidance} and try again.`);
+        throw new Error('Notification permission is blocked. Enable it in browser settings.');
       }
 
-      console.log("Requesting notification permission...");
-      // Wrap in a try-catch specifically for the permission request which can fail in iframes
-      let permission: NotificationPermission;
-      try {
-        const permissionPromise = Notification.requestPermission();
-        const permissionTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Notification permission request timed out. If you are in the preview, please open the app in a new tab to enable notifications.')), 15000)
-        );
-        
-        permission = await Promise.race([permissionPromise, permissionTimeout]) as NotificationPermission;
-      } catch (permErr: any) {
-        console.error("Permission request error:", permErr);
-        if (permErr.message?.includes('timed out')) throw permErr;
-        throw new Error('Could not request notification permission. This often happens in embedded previews. Please try opening the app in a new tab.');
-      }
+      const permission = await Notification.requestPermission();
 
-      console.log("Permission result:", permission);
-      
       if (permission !== 'granted') {
-        throw new Error('Notification permission denied. Please allow notifications to stay on track with your sprint.');
+        throw new Error('Notification permission denied.');
       }
-      
-      // Check if already subscribed
-      let subscription: PushSubscription | null = null;
-      try {
-        subscription = await registration.pushManager.getSubscription();
-      } catch (e: any) {
-        console.warn("Failed to get subscription:", e);
-      }
-      
-      if (!subscription) {
-        console.log("No existing subscription, fetching VAPID key...");
-        let response;
-        try {
-          response = await fetch('/api/vapid-key');
-        } catch (fetchErr: any) {
-          console.error("Network error fetching VAPID key:", fetchErr);
-          throw new Error(`Network error fetching VAPID key: ${fetchErr.message}`);
-        }
 
-        if (!response.ok) {
-          const errorText = await response.text().catch(() => 'No error body');
-          console.error(`Failed to fetch VAPID key: ${response.status} ${response.statusText}`, errorText);
-          throw new Error(`Failed to fetch VAPID key: ${response.status} ${response.statusText}`);
-        }
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        const response = await fetch(`${window.location.origin}/api/vapid-key`);
+        if (!response.ok) throw new Error('Failed to fetch VAPID key');
 
         const { publicKey } = await response.json();
-        
-        if (!publicKey) {
-          throw new Error('VAPID key not found in server response');
-        }
 
-        console.log("Using VAPID public key:", publicKey);
         const applicationServerKey = urlBase64ToUint8Array(publicKey.trim());
-        console.log("Converted applicationServerKey length:", applicationServerKey.length);
 
-        try {
-          subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: applicationServerKey
-          });
-        } catch (subErr: any) {
-          console.error("Subscription error:", subErr);
-          // If it's an 'unregistered' error, try one last time after a fresh registration
-          if (subErr.message?.includes('unregistered') || subErr.name === 'InvalidStateError') {
-            console.log("Attempting recovery from unregistered state...");
-            const newReg = await navigator.serviceWorker.register('/sw.js');
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            subscription = await newReg.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: urlBase64ToUint8Array(publicKey.trim())
-            });
-          } else {
-            throw subErr;
-          }
-        }
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey
+        });
       }
 
       if (!subscription) throw new Error('Failed to create push subscription');
 
-      const subscriptionJSON = subscription.toJSON() as unknown as PushSubscriptionJSON;
-      
-      // Save subscription via API
-      console.log("Saving subscription via API...");
-      const responseSub = await fetch('/api/subscribe', {
+      // ✅ FIXED: Safe subscription extraction
+      const rawSub = subscription.toJSON();
+
+      const subscriptionJSON: PushSubscriptionJSON = {
+        endpoint: subscription.endpoint,
+        expirationTime: rawSub.expirationTime || null,
+        keys: {
+          p256dh: rawSub.keys?.p256dh || '',
+          auth: rawSub.keys?.auth || ''
+        }
+      };
+
+      // ✅ SAFETY CHECK
+      if (!subscriptionJSON.keys.p256dh || !subscriptionJSON.keys.auth) {
+        console.error('Invalid subscription keys:', subscriptionJSON);
+        throw new Error('Invalid subscription keys generated');
+      }
+
+      // ✅ FIXED: absolute URL
+      const responseSub = await fetch(`${window.location.origin}/api/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, subscription: subscriptionJSON })
@@ -236,9 +163,7 @@ export const pushNotificationService = {
 
       if (!responseSub.ok) {
         const errorData = await responseSub.json().catch(() => ({}));
-        const errorMessage = errorData.error || `Server returned ${responseSub.status}`;
-        console.error("Server error saving subscription:", errorMessage);
-        throw new Error(errorMessage);
+        throw new Error(errorData.error || `Server returned ${responseSub.status}`);
       }
 
       return subscriptionJSON;
@@ -248,14 +173,11 @@ export const pushNotificationService = {
     }
   },
 
-  /**
-   * Unsubscribe the user from push notifications.
-   */
   unsubscribeUser: async (userId: string) => {
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
-      
+
       if (subscription) {
         await subscription.unsubscribe();
       }
@@ -266,53 +188,44 @@ export const pushNotificationService = {
         notificationsDisabled: true
       });
     } catch (error) {
-      console.error('Failed to unsubscribe user from push notifications:', error);
+      console.error('Failed to unsubscribe user:', error);
       throw error;
     }
   },
 
-  /**
-   * Update user activity timestamp and notification state.
-   */
   updateActivity: async (userId: string, state: string = 'Active') => {
     try {
-      await fetch(window.location.origin + '/api/notifications/update-state', {
+      await fetch(`${window.location.origin}/api/notifications/update-state`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, state })
       });
     } catch (error) {
-      console.error('Failed to update user activity:', error);
+      console.error('Failed to update activity:', error);
     }
   },
 
-  /**
-   * Trigger the "Completed Task" notification.
-   */
   triggerCompletedTask: async (userId: string) => {
     try {
-      await fetch(window.location.origin + '/api/notifications/trigger-completed', {
+      await fetch(`${window.location.origin}/api/notifications/trigger-completed`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId })
       });
     } catch (error) {
-      console.error('Failed to trigger completed task notification:', error);
+      console.error('Failed to trigger notification:', error);
     }
   },
-  
-  /**
-   * Send a generic push notification via server.
-   */
+
   sendPush: async (userId: string, title: string, body: string, url?: string, tag?: string) => {
     try {
-      await fetch(window.location.origin + '/api/notifications/send-push', {
+      await fetch(`${window.location.origin}/api/notifications/send-push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, title, body, url, tag })
       });
     } catch (error) {
-      console.error('Failed to send push notification:', error);
+      console.error('Failed to send push:', error);
     }
   }
 };
