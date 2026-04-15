@@ -1,7 +1,7 @@
 
 import webpush from '../utils/webpush.js';
 import { db } from '../api/lib/firebaseAdmin.js';
-import { Participant, UserNotificationState, PushSubscriptionJSON, ParticipantSprint, Sprint } from '../types.js';
+import { Participant, UserNotificationState, PushSubscriptionJSON, ParticipantSprint, Sprint, Notification } from '../types.js';
 import { notificationEngine } from './notificationEngine.js';
 
 const GCM_API_KEY = process.env.GCM_API_KEY;
@@ -96,6 +96,45 @@ export const pushNotificationManager = {
       
       return false;
     }
+  },
+
+  /**
+   * Start a listener on the notifications collection to send pushes for new notifications.
+   */
+  startNotificationListener: () => {
+    console.log('[PushManager] Starting notification listener...');
+    
+    db.collection('notifications')
+      .where('pushSent', '==', false)
+      .onSnapshot(async (snapshot) => {
+        const changes = snapshot.docChanges();
+        
+        for (const change of changes) {
+          if (change.type === 'added') {
+            const notification = { id: change.doc.id, ...change.doc.data() } as Notification;
+            
+            // Only push if it's unread and hasn't been pushed yet
+            if (!notification.isRead && !notification.pushSent) {
+              console.log(`[PushManager] New notification detected for user ${notification.userId}. Sending push...`);
+              
+              const success = await pushNotificationManager.sendPush(notification.userId, {
+                title: notification.title,
+                body: notification.body,
+                url: notification.actionUrl || '/',
+                tag: notification.type
+              });
+
+              if (success) {
+                await db.collection('notifications').doc(notification.id).update({
+                  pushSent: true
+                });
+              }
+            }
+          }
+        }
+      }, (error) => {
+        console.error('[PushManager] Notification listener error:', error);
+      });
   },
 
   /**

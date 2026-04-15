@@ -279,6 +279,7 @@ exports.paystackWebhook = functions.https.onRequest(async (req, res) => {
           title: 'Journey Authorized',
           body: `Verification complete for ${sprintId.replace(/-/g, ' ')}. Day 1 is now accessible.`,
           isRead: false,
+          pushSent: false,
           createdAt: new Date().toISOString(),
           actionUrl: `/participant/sprint/${enrollmentId}?day=1`
         });

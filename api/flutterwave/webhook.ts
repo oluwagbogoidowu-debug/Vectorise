@@ -101,6 +101,7 @@ export default async (req: any, res: any) => {
       title: 'Growth Path Authorized',
       body: `Registry verified. Your journey into '${sprintId}' has begun.`,
       isRead: false,
+      pushSent: false,
       createdAt: new Date().toISOString(),
       actionUrl: `/participant/sprint/enrollment_${userId}_${sprintId}?day=1`
     });

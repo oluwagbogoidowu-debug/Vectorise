@@ -116,6 +116,10 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    
+    // Start real-time notification listener for pushes
+    pushNotificationManager.startNotificationListener();
+
     // Run initial trigger check on startup
     pushNotificationManager.processTriggers().catch(err => {
       console.error('[Server] Initial push trigger processing failed:', err);

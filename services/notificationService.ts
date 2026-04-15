@@ -51,21 +51,13 @@ export const notificationService = {
         context: options.context || null,
         isRead: false,
         readAt: null,
+        pushSent: false,
         createdAt: now.toISOString(),
         expiresAt: expiresAt
       };
 
       const colRef = collection(db, COLLECTION_NAME);
       const docRef = await addDoc(colRef, sanitizeData(rawNotification));
-      
-      // Also trigger a push notification
-      pushNotificationService.sendPush(
-        userId, 
-        title, 
-        body, 
-        options.actionUrl || undefined, 
-        type
-      ).catch(err => console.error("Push notification failed:", err));
       
       return { id: docRef.id, ...rawNotification } as Notification;
     } catch (error) {

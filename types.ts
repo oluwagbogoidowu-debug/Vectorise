@@ -372,6 +372,7 @@ export interface Notification {
   actionUrl?: string | null;
   expiresAt?: string | null;
   readAt?: null | string;
+  pushSent?: boolean;
   context?: any;
 }
 
