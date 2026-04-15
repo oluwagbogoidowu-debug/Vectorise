@@ -94,15 +94,41 @@ export const pushNotificationService = {
     }
 
     try {
+      // 1. Ensure service worker is registered and ready
+      console.log('[PushService] Waiting for Service Worker to be ready...');
+      
+      // Register first to be sure
+      await navigator.serviceWorker.register('/sw.js');
+      
       const registration = await Promise.race([
         navigator.serviceWorker.ready,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Service Worker readiness timed out')), 15000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Service Worker readiness timed out')), 10000))
       ]) as ServiceWorkerRegistration;
 
+      // 2. Critical: Ensure there is an active worker before subscribing
       if (!registration.active) {
-        await navigator.serviceWorker.register('/sw.js');
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log('[PushService] SW ready but not active. Waiting for activation...');
+        const worker = registration.installing || registration.waiting;
+        if (worker) {
+          await new Promise<void>((resolve) => {
+            worker.addEventListener('statechange', (e: any) => {
+              if (e.target.state === 'active') {
+                console.log('[PushService] SW activated via statechange');
+                resolve();
+              }
+            });
+            // Safety timeout for statechange
+            setTimeout(resolve, 5000);
+          });
+        }
       }
+
+      // Final check
+      if (!registration.active) {
+        throw new Error('Service Worker could not be activated. Please refresh the page.');
+      }
+
+      console.log('[PushService] Service Worker is active. Proceeding with subscription.');
 
       if (!('Notification' in window)) {
         throw new Error('Notification API not available in this browser.');
