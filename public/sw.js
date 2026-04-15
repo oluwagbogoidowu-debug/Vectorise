@@ -81,7 +81,7 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   console.log('🔥 PUSH RECEIVED:', event);
 
-  const LOGO_WHITE = 'https://lh3.googleusercontent.com/d/1rlpdJZVVY-aFonII5g-HgNNn7P9KYprl';
+  const LOGO_MONO = 'https://lh3.googleusercontent.com/d/1E53SHGw_3D5V-qQKkMX6hUo61NgKkJPv';
   const STATE_ICONS = {
     'daily-unlock': 'https://img.icons8.com/fluency-systems-filled/96/0E7850/unlock.png',
     'coach-message': 'https://img.icons8.com/fluency-systems-filled/96/0E7850/chat.png',
@@ -94,8 +94,8 @@ self.addEventListener('push', (event) => {
   let options = {
     body: 'Push is working',
     icon: STATE_ICONS.default, // State icon on the right
-    badge: LOGO_WHITE,         // Logo on the left (monochrome for Android)
-    color: '#0E7850',          // Tint the badge and notification elements green
+    badge: LOGO_MONO,          // New monochrome logo on the left
+    color: '#0E7850',          // Brand background/accent color
     data: {
       url: '/'
     }
