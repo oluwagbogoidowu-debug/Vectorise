@@ -81,11 +81,20 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   console.log('🔥 PUSH RECEIVED:', event);
 
+  const LOGO = 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd';
+  const STATE_ICONS = {
+    'daily-unlock': 'https://img.icons8.com/fluency-systems-filled/96/0E7850/unlock.png',
+    'coach-message': 'https://img.icons8.com/fluency-systems-filled/96/0E7850/chat.png',
+    'task-completed': 'https://img.icons8.com/fluency-systems-filled/96/0E7850/checkmark.png',
+    'reminder': 'https://img.icons8.com/fluency-systems-filled/96/0E7850/clock.png',
+    'default': 'https://img.icons8.com/fluency-systems-filled/96/0E7850/clock.png'
+  };
+
   let title = 'Vectorise';
   let options = {
     body: 'Push is working',
-    icon: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd',
-    badge: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd',
+    icon: STATE_ICONS.default, // State icon on the right
+    badge: LOGO,               // Logo on the left
     data: {
       url: '/'
     }
@@ -95,10 +104,22 @@ self.addEventListener('push', (event) => {
     try {
       const data = event.data.json();
       title = data.title || title;
+      
+      // Determine icon based on tag
+      let stateIcon = STATE_ICONS.default;
+      if (data.tag) {
+        if (data.tag === 'daily-unlock') stateIcon = STATE_ICONS['daily-unlock'];
+        else if (data.tag === 'coach-message') stateIcon = STATE_ICONS['coach-message'];
+        else if (data.tag === 'task-completed') stateIcon = STATE_ICONS['task-completed'];
+        else if (['missed-long', 'missed-short', 'midday-check', 'evening-reminder'].includes(data.tag)) {
+          stateIcon = STATE_ICONS['reminder'];
+        }
+      }
+
       options = {
         ...options,
         body: data.body || options.body,
-        icon: data.icon || options.icon,
+        icon: data.icon || stateIcon, // Allow server override, else use state icon
         data: {
           url: data.url || '/'
         },

@@ -70,8 +70,7 @@ export const pushNotificationManager = {
           title: payload.title,
           body: payload.body,
           url: payload.url || '/',
-          tag: payload.tag || 'default',
-          icon: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd'
+          tag: payload.tag || 'default'
         })
       );
 

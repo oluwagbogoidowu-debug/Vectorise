@@ -17,7 +17,7 @@ export default async function handler(req: Request, res: Response) {
       title: '🔥 It works!',
       body: 'Push from Firebase-backed system',
       url: '/',
-      icon: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd'
+      tag: 'daily-unlock' // Testing the unlock icon
     });
 
     const results = await Promise.allSettled(
