@@ -3,7 +3,7 @@ import cors from 'cors';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { pushNotificationManager } from './services/pushNotificationManager';
+import { pushNotificationManager } from './services/pushNotificationManager.js';
 
 // @ts-ignore
 import provisionPartner from './api/admin/provision-partner.js';

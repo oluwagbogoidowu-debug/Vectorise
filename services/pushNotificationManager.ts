@@ -1,8 +1,8 @@
 
-import webpush from '../utils/webpush';
-import { db } from '../lib/firebaseAdmin';
-import { Participant, UserNotificationState, PushSubscriptionJSON, ParticipantSprint, Sprint } from '../types';
-import { notificationEngine } from './notificationEngine';
+import webpush from '../utils/webpush.js';
+import { db } from '../api/lib/firebaseAdmin.js';
+import { Participant, UserNotificationState, PushSubscriptionJSON, ParticipantSprint, Sprint } from '../types.js';
+import { notificationEngine } from './notificationEngine.js';
 
 const GCM_API_KEY = process.env.GCM_API_KEY;
 

@@ -1,7 +1,8 @@
-import { db } from '../lib/firebaseAdmin';
+import { db } from './lib/firebaseAdmin.js';
 import crypto from 'crypto';
+import type { Request, Response } from 'express';
 
-export default async function handler(req, res) {
+export default async function handler(req: Request, res: Response) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -37,7 +38,7 @@ export default async function handler(req, res) {
         });
 
         console.log(`[API Subscribe] Updated user ${userId}`);
-      } catch (userErr) {
+      } catch (userErr: any) {
         console.warn(
           `[API Subscribe] Could not update user ${userId}:`,
           userErr.message
@@ -64,7 +65,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ success: true });
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('[API Subscribe] Error saving subscription:', err);
 
     return res.status(500).json({

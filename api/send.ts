@@ -1,7 +1,8 @@
-import webpush from '../utils/webpush';
-import { db } from '../lib/firebaseAdmin';
+import webpush from '../utils/webpush.js';
+import { db } from './lib/firebaseAdmin.js';
+import type { Request, Response } from 'express';
 
-export default async function handler(req, res) {
+export default async function handler(req: Request, res: Response) {
   try {
     const snapshot = await db.collection('subscriptions').get();
 

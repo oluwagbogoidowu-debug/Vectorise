@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { NotificationPayload } from "../types";
+import { NotificationPayload } from "../types.js";
 
 export type TimeOfDay = 'morning' | 'afternoon' | 'evening';
 export type UserStage = 'clarity' | 'skill-building' | 'execution';
