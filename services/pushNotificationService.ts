@@ -128,14 +128,28 @@ export const pushNotificationService = {
 
       let subscription = await registration.pushManager.getSubscription();
 
+      const response = await fetch(`${window.location.origin}/api/vapid-key`);
+      if (!response.ok) throw new Error('Failed to fetch VAPID key');
+      const { publicKey } = await response.json();
+      const applicationServerKey = urlBase64ToUint8Array(publicKey.trim());
+
+      if (subscription) {
+        // Check if the current subscription uses the same key
+        const currentKey = subscription.options.applicationServerKey;
+        if (currentKey) {
+          const currentKeyArray = new Uint8Array(currentKey);
+          const isSameKey = currentKeyArray.length === applicationServerKey.length &&
+            currentKeyArray.every((v, i) => v === applicationServerKey[i]);
+          
+          if (!isSameKey) {
+            console.log('VAPID key changed, re-subscribing...');
+            await subscription.unsubscribe();
+            subscription = null;
+          }
+        }
+      }
+
       if (!subscription) {
-        const response = await fetch(`${window.location.origin}/api/vapid-key`);
-        if (!response.ok) throw new Error('Failed to fetch VAPID key');
-
-        const { publicKey } = await response.json();
-
-        const applicationServerKey = urlBase64ToUint8Array(publicKey.trim());
-
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey

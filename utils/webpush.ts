@@ -1,7 +1,7 @@
 import webpush from 'web-push';
 import { VAPID_PUBLIC_KEY } from './vapid.js';
 
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'qP_xSYSgk0QqbBfgSqxuHsj3zeqWYnihR5ATHKtBw3Y';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'hJ4w5pS8YyWlalmdtRjsZE8v9oPJLWTNeUSazpA-6bs';
 
 webpush.setVapidDetails(
   'mailto:Vectorise.io@gmail.com',
