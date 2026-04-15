@@ -81,7 +81,7 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   console.log('🔥 PUSH RECEIVED:', event);
 
-  const LOGO_MONO = 'https://lh3.googleusercontent.com/d/1E53SHGw_3D5V-qQKkMX6hUo61NgKkJPv';
+  const LOGO_MONO = 'https://lh3.googleusercontent.com/d/1iPPiCUwdOmGZ-KScVrvOpOw0LiauXE7X';
   const STATE_ICONS = {
     'daily-unlock': 'https://img.icons8.com/fluency-systems-filled/96/0E7850/unlock.png',
     'coach-message': 'https://img.icons8.com/fluency-systems-filled/96/0E7850/chat.png',
