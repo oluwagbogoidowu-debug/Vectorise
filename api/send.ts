@@ -16,7 +16,8 @@ export default async function handler(req: Request, res: Response) {
     const payload = JSON.stringify({
       title: '🔥 It works!',
       body: 'Push from Firebase-backed system',
-      url: '/'
+      url: '/',
+      icon: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd'
     });
 
     const results = await Promise.allSettled(

@@ -81,11 +81,11 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   console.log('🔥 PUSH RECEIVED:', event);
 
-  let title = 'Test';
+  let title = 'Vectorise';
   let options = {
     body: 'Push is working',
-    icon: '/icon-192x192.png',
-    badge: '/badge-72x72.png',
+    icon: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd',
+    badge: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd',
     data: {
       url: '/'
     }
@@ -98,6 +98,7 @@ self.addEventListener('push', (event) => {
       options = {
         ...options,
         body: data.body || options.body,
+        icon: data.icon || options.icon,
         data: {
           url: data.url || '/'
         },
