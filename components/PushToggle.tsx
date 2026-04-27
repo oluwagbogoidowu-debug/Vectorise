@@ -30,7 +30,7 @@ export const PushToggle: React.FC<PushToggleProps> = ({
   const syncState = async () => {
     const status = await pushNotificationService.getPushStatus();
     setIsSubscribed(status.subscribed);
-    setPermission(status.permission);
+    setPermission(status.permission as NotificationPermission);
     setLoading(false);
   };
 

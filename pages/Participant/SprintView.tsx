@@ -69,7 +69,7 @@ const SprintSettingsModal: React.FC<{
     soundEnabled: boolean;
     onToggleSound: () => void;
     notificationsEnabled: boolean;
-    onToggleNotifications: () => void;
+    onToggleNotifications: (state: boolean) => void;
 }> = ({ isOpen, onClose, reflectionsEnabled, onToggleReflections, soundEnabled, onToggleSound, notificationsEnabled, onToggleNotifications }) => {
     if (!isOpen) return null;
 
@@ -104,7 +104,7 @@ const SprintSettingsModal: React.FC<{
                             label="Unlock Notifications" 
                             showSubLabel={false}
                             labelClassName="text-xs font-black text-gray-700 uppercase tracking-widest"
-                            onToggleSuccess={(state) => setNotificationsEnabled(state)} 
+                            onToggleSuccess={(state) => onToggleNotifications(state)} 
                         />
                     </div>
                 </div>
@@ -464,9 +464,9 @@ const SprintView: React.FC = () => {
         }
     };
 
-    const toggleNotificationsState = async () => {
+    const toggleNotificationsState = async (forcedState?: boolean) => {
         if (!enrollment || !user) return;
-        const newState = !notificationsEnabled;
+        const newState = forcedState !== undefined ? forcedState : !notificationsEnabled;
         setNotificationsEnabled(newState);
         try {
             const enrollmentRef = doc(db, 'enrollments', enrollment.id);

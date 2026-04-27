@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { userService } from '../../services/userService';
+import { userService, sanitizeData } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { Participant, ParticipantSprint, Sprint } from '../../types';
 import { ArrowLeft, Calendar, Mail, User as UserIcon, Zap, Target, Clock, AlertCircle } from 'lucide-react';
@@ -235,7 +235,7 @@ export default function AdminUserDetail() {
                                     </div>
                                 )}
 
-                                {user.impactStats && (
+                                 {user.impactStats && (
                                     <div className="grid grid-cols-2 gap-4 pt-2">
                                         <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
                                             <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">People Helped</p>
@@ -246,6 +246,60 @@ export default function AdminUserDetail() {
                                             <p className="text-base font-black text-gray-900">{user.impactStats.streak || 0} days</p>
                                         </div>
                                     </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Push Notification Status */}
+                        <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm">
+                            <div className="flex items-center gap-3 mb-6">
+                                <Zap className="w-5 h-5 text-primary" />
+                                <h3 className="text-lg font-black text-gray-900 italic">Notifications.</h3>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">System Push</p>
+                                    <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${user.pushSubscription ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-50 text-gray-400'}`}>
+                                        {user.pushSubscription ? 'Subscribed' : 'Not Subscribed'}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">User Preference</p>
+                                    <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${!user.notificationsDisabled ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                                        {!user.notificationsDisabled ? 'Enabled' : 'Disabled'}
+                                    </span>
+                                </div>
+                                {user.pushPermissionLastRequestAt && (
+                                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">
+                                        Last Request: {format(parseISO(user.pushPermissionLastRequestAt), 'MMM d, h:mm a')}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Badges & Claims */}
+                        <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm">
+                            <div className="flex items-center gap-3 mb-6">
+                                <Zap className="w-5 h-5 text-yellow-500" />
+                                <h3 className="text-lg font-black text-gray-900 italic">Claims & Badges.</h3>
+                            </div>
+                            <div className="space-y-3">
+                                {user.claimedBadges && user.claimedBadges.length > 0 ? (
+                                    user.claimedBadges.map((badge: any, idx: number) => (
+                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                                            <div>
+                                                <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight">{badge.milestoneId.replace(/-/g, ' ')}</p>
+                                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">
+                                                    {format(parseISO(badge.claimedAt), 'MMM d, yyyy')}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs font-black text-emerald-600">+{badge.claimedCredit} Credits</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-xs font-bold text-gray-400 italic text-center py-4">No badges claimed yet.</p>
                                 )}
                             </div>
                         </div>
@@ -266,11 +320,7 @@ export default function AdminUserDetail() {
                                                     // Handle Firestore Timestamps or generic objects safely
                                                     ('seconds' in value && 'nanoseconds' in value)
                                                         ? new Date((value as any).seconds * 1000).toLocaleString()
-                                                        : JSON.stringify(value, (key, val) => 
-                                                            (typeof val === 'object' && val !== null && 'id' in val && 'path' in val)
-                                                                ? `[Ref: ${val.path}]` 
-                                                                : val
-                                                          )
+                                                        : JSON.stringify(sanitizeData(value), null, 2)
                                                 ) : String(value)}
                                             </p>
                                         </div>

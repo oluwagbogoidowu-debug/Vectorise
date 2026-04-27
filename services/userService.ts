@@ -71,31 +71,24 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
     const constructorName = val.constructor?.name || '';
     const isFirebaseInternal = 
         /^[A-Z][a-z0-9]$|^[A-Z]\$[0-9]$/.test(constructorName) || 
-        ['Y2', 'Ka', 'Sa', 'Q$1', 't'].includes(constructorName) ||
-        constructorName.includes('Query') || 
-        constructorName.includes('Reference') ||
+        ['Y2', 'Ka', 'Sa', 'Q$1', 't', 'Reference', 'Query', 'Snapshot'].includes(constructorName) ||
+        constructorName.includes('Firebase') || 
         constructorName.includes('Firestore') ||
-        constructorName.includes('Transaction') ||
-        constructorName.includes('Firebase') ||
-        constructorName.includes('App') ||
-        constructorName.includes('Snapshot') ||
-        constructorName.includes('Observer') ||
-        constructorName.includes('Collection');
+        constructorName.includes('Transaction');
 
     // Pattern matching for specific SDK circular structures (e.g., Query.i.src)
-    // The 'i' and 'src' properties are common markers in minified Firestore SDK internals.
     const hasSDKMarkers = !!(
         val.onSnapshot || 
         val.getDoc || 
         val.firestore || 
         val._database ||
         val._path ||
-        (val.i && typeof val.i === 'object' && (val.src || val.i.src || val.i.i)) ||
+        (val.i && typeof val.i === 'object' && (val.src || (val.i && val.i.src))) ||
         (val.src && typeof val.src === 'object' && (val.src.i || val.src.src)) ||
-        (val.type === 'document' && val.path && val.id) // Firestore DocumentReference
+        (val.type === 'document' && val.path && val.id)
     );
 
-    if (isFirebaseInternal || hasSDKMarkers || val instanceof Element || (val.constructor && val.constructor.name === 'Object' && val.i && val.src)) {
+    if (isFirebaseInternal || hasSDKMarkers || val instanceof Element || (val.i && val.src && !val.constructor)) {
         return undefined;
     }
 
