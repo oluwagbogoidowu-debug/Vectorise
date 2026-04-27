@@ -622,6 +622,9 @@ const SprintView: React.FC = () => {
     const handleCheckIn = async (day: number) => {
         if (!enrollment || !user) return;
         
+        // Add confirmation popup
+        if (!window.confirm(`Are you sure you want to mark Day ${day} as checked in?`)) return;
+
         // Check if already checked in for this day
         if (enrollment.checkInHistory?.some(h => h.day === day)) return;
 
@@ -913,7 +916,12 @@ const SprintView: React.FC = () => {
                                 <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm animate-fade-in mt-6">
                                     <div className="flex justify-between items-start mb-6">
                                         <div>
-                                            <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Daily Check-in</h3>
+                                            <button 
+                                                onClick={() => setViewingDay(sprint.duration)}
+                                                className="group/title block text-left"
+                                            >
+                                                <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1 group-hover/title:text-primary/70 transition-colors">Daily Check-in</h3>
+                                            </button>
                                             <p className="text-sm font-black text-gray-900">Active for {sprint.checkInReminderDays || 0} days</p>
                                         </div>
                                         <div className="text-right max-w-[150px]">

@@ -252,6 +252,9 @@ const ParticipantDashboard: React.FC = () => {
   const handleCheckIn = async (enrollmentId: string, day: number) => {
     if (!user) return;
     
+    // Add confirmation popup
+    if (!window.confirm(`Are you sure you want to mark Day ${day} as checked in?`)) return;
+    
     const enrollmentItem = checkInSprints.find(s => s.enrollment.id === enrollmentId);
     if (!enrollmentItem) return;
 
@@ -386,7 +389,9 @@ const ParticipantDashboard: React.FC = () => {
                         <div key={enrollment.id} className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm animate-fade-in">
                             <div className="flex justify-between items-start mb-6">
                                 <div>
-                                    <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Daily Check-in: {sprint.title}</h3>
+                                    <Link to={`/participant/sprint/${enrollment.id}?day=${sprint.duration}`} className="group/title block">
+                                        <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1 group-hover/title:text-primary/70 transition-colors">Daily Check-in: {sprint.title}</h3>
+                                    </Link>
                                     <p className="text-sm font-black text-gray-900">Active for {sprint.checkInReminderDays || 0} days</p>
                                 </div>
                                 <div className="text-right max-w-[150px]">
