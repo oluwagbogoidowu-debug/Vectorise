@@ -3,6 +3,7 @@ import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import LocalLogo from '../../../components/LocalLogo';
+import { PushToggle } from '../../../components/PushToggle';
 
 const AccountSettings: React.FC = () => {
   const navigate = useNavigate();
@@ -37,6 +38,10 @@ const AccountSettings: React.FC = () => {
             </div>
             <svg className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
           </Link>
+
+          <div className="p-5 bg-white border border-gray-100 rounded-3xl shadow-sm">
+            <PushToggle />
+          </div>
         </div>
 
         <div className="pt-8">

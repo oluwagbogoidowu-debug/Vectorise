@@ -88,6 +88,35 @@ export const pushNotificationService = {
     await updateDoc(userRef, updates);
   },
 
+  getPushStatus: async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      return { supported: false, permission: 'denied', subscribed: false };
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      return {
+        supported: true,
+        permission: Notification.permission,
+        subscribed: !!subscription,
+      };
+    } catch (err) {
+      console.error('[PushService] Error checking status:', err);
+      return {
+        supported: true,
+        permission: Notification.permission,
+        subscribed: false,
+      };
+    }
+  },
+
+  isPWA: () => {
+    return window.matchMedia('(display-mode: standalone)').matches || 
+           (navigator as any).standalone || 
+           document.referrer.includes('android-app://');
+  },
+
   subscribeUser: async (userId: string) => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       throw new Error('Push notifications are not supported by this browser');

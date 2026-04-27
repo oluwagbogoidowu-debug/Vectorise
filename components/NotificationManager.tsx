@@ -71,9 +71,6 @@ export const NotificationManager: React.FC = () => {
 
       setStatus('success');
 
-      // prevent future prompts
-      localStorage.setItem('push_enabled', 'true');
-
       setTimeout(() => {
         setShowPrompt(false);
       }, 2000);

@@ -15,6 +15,8 @@ import PushPermissionModal from '../../components/PushPermissionModal';
 import ConfirmModal from '../../components/ConfirmModal';
 import { Participant } from '../../types';
 
+import { PushToggle } from '../../components/PushToggle';
+
 const ReflectionModal: React.FC<{
     day: number;
     isOpen: boolean;
@@ -97,7 +99,14 @@ const SprintSettingsModal: React.FC<{
                 <div className="flex-1 overflow-y-auto px-8 py-2 min-h-0 custom-scrollbar">
                     <Toggle enabled={reflectionsEnabled} onToggle={onToggleReflections} label="Daily Reflections" />
                     <Toggle enabled={soundEnabled} onToggle={onToggleSound} label="Completion Sound" />
-                    <Toggle enabled={notificationsEnabled} onToggle={onToggleNotifications} label="Unlock Notifications" />
+                    <div className="py-2.5 border-b border-gray-50 last:border-0">
+                        <PushToggle 
+                            label="Unlock Notifications" 
+                            showSubLabel={false}
+                            labelClassName="text-xs font-black text-gray-700 uppercase tracking-widest"
+                            onToggleSuccess={(state) => setNotificationsEnabled(state)} 
+                        />
+                    </div>
                 </div>
 
                 <div className="p-8 pt-4 flex-shrink-0">
