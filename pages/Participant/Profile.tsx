@@ -34,62 +34,70 @@ const Profile: React.FC = () => {
   const [setupStep, setSetupStep] = useState(-2);
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return;
-      setIsLoading(true);
-      try {
-        const [userEnrollments, reflectionsData] = await Promise.all([
-          sprintService.getUserEnrollments(user.id),
-          shineService.getPostsByUserId(user.id)
-        ]);
-        
-        setReflections(reflectionsData);
-        
-        // Get all unique sprint IDs
-        const sprintIds = Array.from(new Set(userEnrollments.map(en => en.sprint_id)));
-        
-        // Fetch all sprints in parallel
-        const sprintsData = await sprintService.getSprintsByIds(sprintIds);
-        const sprintsMap = Object.fromEntries(sprintsData.map(s => [s.id, s]));
-        
-        // Get all unique coach IDs from the fetched sprints
-        const coachIds = Array.from(new Set(sprintsData.map(s => s.coachId)));
-        
-        // Fetch all coaches in parallel
-        const coachesData = await userService.getUsersByIds(coachIds);
-        const coachesMap = Object.fromEntries(coachesData.map(c => [c.id || (c as any).uid, c as unknown as Coach]));
-        
-        const enriched = userEnrollments.map(en => {
-          const sprint = sprintsMap[en.sprint_id];
-          if (!sprint) return null;
-          const coach = coachesMap[sprint.coachId] || null;
-          return { enrollment: en, sprint, coach };
-        }).filter((x) => x !== null) as any;
-        
-        setEnrollments(enriched);
-        
-        const p = user as Participant;
-        setTempPersona(p.persona || null);
-        setTempOnboardingAnswers(p.onboardingAnswers || {});
-        setTempGrowthAreas(p.growthAreas || []);
-        setTempRisePathway(p.risePathway || '');
-        setTempProfileImageUrl(p.profileImageUrl || null);
+    if (!user) return;
+    setIsLoading(true);
 
-        // Determine initial setup step if incomplete
-        if (!userService.isIdentitySet(p)) {
-          setSetupStep(0); // Always start with welcome screen if incomplete
-        } else {
-          setSetupStep(-1); // Complete
+    const unsubscribes: (() => void)[] = [];
+
+    // 1. Subscribe to enrollments
+    const sub1 = sprintService.subscribeToUserEnrollments(user.id, async (userEnrollments) => {
+        try {
+            // Get all unique sprint IDs
+            const sprintIds = Array.from(new Set(userEnrollments.map(en => en.sprint_id)));
+            
+            // Fetch all sprints in parallel
+            const sprintsData = await sprintService.getSprintsByIds(sprintIds);
+            const sprintsMap = Object.fromEntries(sprintsData.map(s => [s.id, s]));
+            
+            // Get all unique coach IDs from the fetched sprints
+            const coachIds = Array.from(new Set(sprintsData.map(s => s.coachId)));
+            
+            // Fetch all coaches in parallel
+            const coachesData = await userService.getUsersByIds(coachIds);
+            const coachesMap = Object.fromEntries(coachesData.map(c => [c.id || (c as any).uid, c as unknown as Coach]));
+            
+            const enriched = userEnrollments.map(en => {
+                const sprint = sprintsMap[en.sprint_id];
+                if (!sprint) return null;
+                const coach = coachesMap[sprint.coachId] || null;
+                return { enrollment: en, sprint, coach };
+            }).filter((x) => x !== null) as any;
+            
+            setEnrollments(enriched);
+            setIsLoading(false);
+        } catch (err) {
+            console.error("Profile enrollment sync failed:", err);
+            setIsLoading(false);
         }
+    });
+    unsubscribes.push(sub1);
 
-      } catch (err) {
-        console.error("Profile sync failed:", err);
-      } finally {
-        setIsLoading(false);
-      }
+    // 2. Subscribe to reflections (posts)
+    const sub2 = shineService.subscribeToPosts((allPosts) => {
+        const userReflections = allPosts.filter(p => p.userId === user.id);
+        setReflections(userReflections);
+    });
+    unsubscribes.push(sub2);
+
+    // 3. Initialize temp states from user
+    const p = user as Participant;
+    setTempPersona(p.persona || null);
+    setTempOnboardingAnswers(p.onboardingAnswers || {});
+    setTempGrowthAreas(p.growthAreas || []);
+    setTempRisePathway(p.risePathway || '');
+    setTempProfileImageUrl(p.profileImageUrl || null);
+
+    // Determine initial setup step if incomplete
+    if (!userService.isIdentitySet(p)) {
+      setSetupStep(0); 
+    } else {
+      setSetupStep(-1); // Complete
+    }
+
+    return () => {
+        unsubscribes.forEach(unsub => unsub());
     };
-    fetchData();
-  }, [user]);
+  }, [user?.id]);
 
   if (!user) return null;
   const p = user as Participant;

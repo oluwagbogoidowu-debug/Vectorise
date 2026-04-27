@@ -125,7 +125,6 @@ const SprintPayment: React.FC = () => {
         description: `Unlocked ${sprintTitle} via Credits`,
         auditId: selectedSprint.id
       });
-      await updateProfile(sanitizeData({ walletBalance: userBalance - sprintPrice }));
       
       const enrollments = await sprintService.getUserEnrollments(user.id);
       const hasActive = enrollments.some(e => e.status === 'active' && e.progress.some(p => !p.completed));

@@ -51,7 +51,7 @@ export const assetService = {
   URLS: {
     // Restored to original Vectorise brand logos
     LOGO_GREEN: 'https://lh3.googleusercontent.com/d/1vYOe4SzIrE7kb6DSFkOp9UYz3tHWPnHw',
-    LOGO_WHITE: 'https://lh3.googleusercontent.com/d/1rlpdJZVVY-aFonII5g-HgNNn7P9KYprl',
+    LOGO_WHITE: 'https://lh3.googleusercontent.com/d/1iPPiCUwdOmGZ-KScVrvOpOw0LiauXE7X',
     // Icon version for specific usage (Onboarding descriptions)
     FAVICON: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd',
     // Global standard fallback for sprint covers

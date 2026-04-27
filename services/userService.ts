@@ -278,6 +278,10 @@ export const userService = {
               userId,
               timestamp: new Date().toISOString()
           });
+          
+          // Use a transaction to ensure the balance update and ledger entry are linked
+          // Actually, for simplicity and consistency with firestore rules, we'll keep it as is 
+          // but ensure it's called within transactions where needed.
           await addDoc(transRef, transactionData);
           const userRef = doc(db, 'users', userId);
           await updateDoc(userRef, { walletBalance: increment(trans.amount) });
@@ -289,21 +293,38 @@ export const userService = {
 
   claimMilestone: async (uid: string, milestoneId: string, points: number, isAutoClaim = false) => {
       try {
+          const { runTransaction } = await import('firebase/firestore');
           const userRef = doc(db, 'users', uid);
-          const userSnap = await getDoc(userRef);
-          if (!userSnap.exists()) return;
-          
-          const userData = userSnap.data() as Participant;
-          if (userData.claimedMilestoneIds?.includes(milestoneId)) return;
+          const transRef = collection(db, 'wallet_transactions');
 
-          await userService.processWalletTransaction(uid, {
-              amount: points,
-              type: 'milestone',
-              description: `Claimed milestone: ${milestoneId}`,
-              auditId: milestoneId
+          await runTransaction(db, async (transaction) => {
+              const userSnap = await transaction.get(userRef);
+              if (!userSnap.exists()) return;
+
+              const userData = userSnap.data() as Participant;
+              if (userData.claimedMilestoneIds?.includes(milestoneId)) {
+                  console.log(`[UserService] Milestone ${milestoneId} already claimed for user ${uid}`);
+                  return;
+              }
+
+              // 1. Log the transaction
+              const transactionDocRef = doc(transRef);
+              const transactionData = sanitizeData({
+                  amount: points,
+                  type: 'milestone',
+                  description: `Claimed milestone: ${milestoneId}`,
+                  auditId: milestoneId,
+                  userId: uid,
+                  timestamp: new Date().toISOString()
+              });
+              transaction.set(transactionDocRef, transactionData);
+
+              // 2. Update user balance and claimed IDs
+              transaction.update(userRef, {
+                  walletBalance: increment(points),
+                  claimedMilestoneIds: arrayUnion(milestoneId)
+              });
           });
-          
-          await updateDoc(userRef, { claimedMilestoneIds: arrayUnion(milestoneId) });
           
           // Only show notification if it's in the Hall of Rise (MILESTONES)
           const milestoneDef = MILESTONES.find(m => m.id === milestoneId);
