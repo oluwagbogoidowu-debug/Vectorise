@@ -23,10 +23,24 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   cancelText = 'Cancel',
   variant = 'info'
 }) => {
+  // Use a ref to track if we was open to handle exit animation text stability
+  const lastActiveData = React.useRef<{title: string, message: string} | null>(null);
+  
+  if (isOpen) {
+    lastActiveData.current = { title, message };
+  }
+
+  const displayTitle = isOpen ? title : lastActiveData.current?.title || title;
+  const displayMessage = isOpen ? message : lastActiveData.current?.message || message;
+
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div 
+          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 pointer-events-auto"
+          aria-modal="true"
+          role="dialog"
+        >
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -38,7 +52,8 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100"
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-sm bg-white rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] overflow-hidden border border-gray-100 z-[1001]"
           >
             <div className="p-8 pb-6 flex flex-col items-center text-center">
               <div className={`w-16 h-16 rounded-3xl mb-6 flex items-center justify-center ${
@@ -52,16 +67,17 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
               </div>
               
               <h2 className="text-xl font-black text-gray-900 mb-2 tracking-tight">
-                {title}
+                {displayTitle}
               </h2>
               <p className="text-gray-500 text-sm font-medium leading-relaxed">
-                {message}
+                {displayMessage}
               </p>
             </div>
             
             <div className="p-8 pt-0 flex flex-col gap-3">
               <button
                 onClick={() => {
+                  console.log("[ConfirmModal] Confirm clicked");
                   onConfirm();
                   onClose();
                 }}
@@ -74,7 +90,10 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                 {confirmText}
               </button>
               <button
-                onClick={onClose}
+                onClick={() => {
+                  console.log("[ConfirmModal] Cancel clicked");
+                  onClose();
+                }}
                 className="w-full py-4 rounded-2xl font-black text-sm text-gray-500 hover:bg-gray-50 transition-colors"
               >
                 {cancelText}

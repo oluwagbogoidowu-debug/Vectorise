@@ -257,8 +257,12 @@ const ParticipantDashboard: React.FC = () => {
   };
 
   const executeCheckIn = async (enrollmentId: string, day: number) => {
+    console.log("[Dashboard] executing check-in for enrollment:", enrollmentId, "day:", day);
     const enrollmentItem = checkInSprints.find(s => s.enrollment.id === enrollmentId);
-    if (!enrollmentItem) return;
+    if (!enrollmentItem) {
+      console.error("[Dashboard] enrollment item not found for check-in");
+      return;
+    }
 
     const isAlreadyCheckedIn = enrollmentItem.enrollment.checkInHistory?.some(h => h.day === day);
     if (isAlreadyCheckedIn) return;
@@ -275,32 +279,6 @@ const ParticipantDashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-[#FDFDFD] font-sans">
-      <ConfirmModal
-        isOpen={!!confirmCheckIn}
-        onClose={() => setConfirmCheckIn(null)}
-        onConfirm={() => {
-          if (confirmCheckIn) {
-            executeCheckIn(confirmCheckIn.enrollmentId, confirmCheckIn.day);
-          }
-        }}
-        title="Check-in Confirmation"
-        message={`Ready to log your consistency for Day ${confirmCheckIn?.day}? This helps you stay aligned with your growth journey.`}
-        confirmText="Confirm Check-in"
-        cancelText="Not Yet"
-        variant="success"
-      />
-      {queuedSprints[0] && (
-          <NextSprintModal 
-            isOpen={isNextSprintModalOpen}
-            sprint={queuedSprints[0].sprint}
-            onStart={handleStartNextSprint}
-            onClose={() => setIsNextSprintModalOpen(false)}
-          />
-      )}
-
-
-
-
       <div className="flex-1 px-4 md:px-6 pt-4 md:pt-6">
           <div className="max-w-screen-md mx-auto w-full flex flex-col">
             
@@ -484,6 +462,34 @@ const ParticipantDashboard: React.FC = () => {
         @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       `}</style>
+
+      {/* Global Modals */}
+      <ConfirmModal
+        isOpen={!!confirmCheckIn}
+        onClose={() => {
+          console.log("[Dashboard] Closing ConfirmModal");
+          setConfirmCheckIn(null);
+        }}
+        onConfirm={() => {
+          if (confirmCheckIn) {
+            console.log("[Dashboard] ConfirmModal Action:", confirmCheckIn);
+            executeCheckIn(confirmCheckIn.enrollmentId, confirmCheckIn.day);
+          }
+        }}
+        title="Check-in Confirmation"
+        message={`Ready to log your consistency for Day ${confirmCheckIn?.day || ''}? This helps you stay aligned with your growth journey.`}
+        confirmText="Confirm Check-in"
+        cancelText="Not Yet"
+        variant="success"
+      />
+      {queuedSprints[0] && (
+          <NextSprintModal 
+            isOpen={isNextSprintModalOpen}
+            sprint={queuedSprints[0].sprint}
+            onStart={handleStartNextSprint}
+            onClose={() => setIsNextSprintModalOpen(false)}
+          />
+      )}
     </div>
   );
 };

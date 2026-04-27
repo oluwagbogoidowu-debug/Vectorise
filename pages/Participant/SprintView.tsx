@@ -629,6 +629,7 @@ const SprintView: React.FC = () => {
 
     const executeCheckIn = async (day: number) => {
         if (!enrollment || !user) return;
+        console.log("[SprintView] executing check-in for day:", day);
         
         // Check if already checked in for this day
         if (enrollment.checkInHistory?.some(h => h.day === day)) return;
@@ -1061,7 +1062,7 @@ const SprintView: React.FC = () => {
                 }
               }}
               title="Check-in Confirmation"
-              message={`Ready to log your consistency for Day ${confirmCheckInDay}? Tracking your progress is a key part of your growth journey.`}
+              message={`Ready to log your consistency for Day ${confirmCheckInDay || ''}? Tracking your progress is a key part of your growth journey.`}
               confirmText="Confirm Check-in"
               cancelText="Wait, not yet"
               variant="success"
