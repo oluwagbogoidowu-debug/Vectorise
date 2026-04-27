@@ -117,22 +117,37 @@ const Badges: React.FC = () => {
 
         const unsubscribes: (() => void)[] = [];
 
-        const sub1 = sprintService.subscribeToUserEnrollments(user.id, (enrollments) => {
-            const sanitizedEnrollments = enrollments.map(e => sanitizeData(e));
-            setEnrollments(sanitizedEnrollments);
-            const sprintIds = Array.from(new Set(sanitizedEnrollments.map(e => e.sprint_id)));
-            Promise.all(sprintIds.map(id => sprintService.getSprintById(id)))
-                .then(sprints => setAllSprintData(sprints.filter((s): s is Sprint => s !== null).map(s => sanitizeData(s))));
+        let enrollmentsSubscribed = false;
+        let reflectionsSubscribed = false;
+
+        const checkLoading = () => {
+            if (enrollmentsSubscribed && reflectionsSubscribed) {
+                setIsLoading(false);
+            }
+        };
+
+        const sub1 = sprintService.subscribeToUserEnrollments(user.id, async (enrollments) => {
+            try {
+                const sanitizedEnrollments = enrollments.map(e => sanitizeData(e));
+                setEnrollments(sanitizedEnrollments);
+                const sprintIds = Array.from(new Set(sanitizedEnrollments.map(e => e.sprint_id)));
+                const sprints = await Promise.all(sprintIds.map(id => sprintService.getSprintById(id)));
+                setAllSprintData(sprints.filter((s): s is Sprint => s !== null).map(s => sanitizeData(s)));
+            } finally {
+                enrollmentsSubscribed = true;
+                checkLoading();
+            }
         });
         unsubscribes.push(sub1);
 
         const sub2 = shineService.subscribeToPosts((posts: ShinePost[]) => {
             const sanitizedPosts = posts.map(p => sanitizeData(p));
             setReflections(sanitizedPosts.filter(p => p.userId === user.id));
+            reflectionsSubscribed = true;
+            checkLoading();
         });
         unsubscribes.push(sub2);
 
-        setIsLoading(false);
 
         return () => {
             unsubscribes.forEach(unsub => unsub());

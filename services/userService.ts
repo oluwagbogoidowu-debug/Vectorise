@@ -144,6 +144,14 @@ export const userService = {
   createUserDocument: async (uid: string, data: Partial<User | Participant | Coach>) => {
     try {
       const userRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userRef);
+      
+      if (userSnap.exists()) {
+        const existingData = userSnap.data();
+        await updateDoc(userRef, sanitizeData(data));
+        return { ...existingData, ...data };
+      }
+
       const userData = sanitizeData({
         id: uid,
         createdAt: new Date().toISOString(),
@@ -161,7 +169,7 @@ export const userService = {
         notificationState: 'New',
         ...data
       });
-      await setDoc(userRef, userData, { merge: true });
+      await setDoc(userRef, userData);
       return userData;
     } catch (error) {
       console.error("Error creating user document:", error);
@@ -295,9 +303,11 @@ export const userService = {
       try {
           const { runTransaction } = await import('firebase/firestore');
           const userRef = doc(db, 'users', uid);
+          const claimRecordRef = doc(db, 'claims', `${uid}_${milestoneId}`);
           const transRef = collection(db, 'wallet_transactions');
 
           await runTransaction(db, async (transaction) => {
+              // 1. Check user doc
               const userSnap = await transaction.get(userRef);
               if (!userSnap.exists()) return;
 
@@ -307,7 +317,18 @@ export const userService = {
                   return;
               }
 
-              // 1. Log the transaction
+              // 2. Secondary check against dedicated claims collection (Fortress Guard)
+              const claimSnap = await transaction.get(claimRecordRef);
+              if (claimSnap.exists()) {
+                  console.log(`[UserService] Milestone ${milestoneId} exists in claims record for user ${uid}`);
+                  // Repair the user doc if it was missing the ID
+                  transaction.update(userRef, {
+                      claimedMilestoneIds: arrayUnion(milestoneId)
+                  });
+                  return;
+              }
+
+              // 3. Log the transaction
               const transactionDocRef = doc(transRef);
               const transactionData = sanitizeData({
                   amount: points,
@@ -319,10 +340,19 @@ export const userService = {
               });
               transaction.set(transactionDocRef, transactionData);
 
-              // 2. Update user balance and claimed IDs
+              // 4. Update user balance and claimed IDs
               transaction.update(userRef, {
                   walletBalance: increment(points),
                   claimedMilestoneIds: arrayUnion(milestoneId)
+              });
+
+              // 5. Record permanent claim (Non-riggable record)
+              transaction.set(claimRecordRef, {
+                  userId: uid,
+                  milestoneId: milestoneId,
+                  points: points,
+                  claimedAt: new Date().toISOString(),
+                  isAutoClaim: isAutoClaim
               });
           });
           

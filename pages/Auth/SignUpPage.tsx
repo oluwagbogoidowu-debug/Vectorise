@@ -84,8 +84,6 @@ const SignUpPage: React.FC = () => {
         profileImageUrl: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=0E7850&color=fff`,
         persona: persona || (isPartnerApplication ? 'Growth Partner' : 'Seeker'),
         onboardingAnswers: answers || {},
-        walletBalance: 0,
-        createdAt: new Date().toISOString(),
         enrolledSprintIds: [],
         isPartner: !!isPartnerApplication,
         partnerData: partnerData || null,

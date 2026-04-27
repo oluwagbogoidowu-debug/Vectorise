@@ -87,9 +87,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   shinePostIds: [],
                   shineCommentIds: [],
                   referralCode: (firebaseUser.uid || '').substring(0, 8).toUpperCase(),
-                  walletBalance: 0,
                   impactStats: { peopleHelped: 0, streak: 0 },
-                  createdAt: new Date().toISOString(),
               };
               
               await userService.createUserDocument(firebaseUser.uid, newUserProfile);
