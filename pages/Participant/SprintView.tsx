@@ -12,6 +12,7 @@ import FormattedText from '../../components/FormattedText';
 import LocalLogo from '../../components/LocalLogo';
 import SprintCompletionModal from '../../components/SprintCompletionModal';
 import PushPermissionModal from '../../components/PushPermissionModal';
+import ConfirmModal from '../../components/ConfirmModal';
 import { Participant } from '../../types';
 
 const ReflectionModal: React.FC<{
@@ -276,6 +277,7 @@ const SprintView: React.FC = () => {
     const [isChatModalOpen, setIsChatModalOpen] = useState(false);
     const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
     const [isPushPermissionModalOpen, setIsPushPermissionModalOpen] = useState(false);
+    const [confirmCheckInDay, setConfirmCheckInDay] = useState<number | null>(null);
     const [isSubmittingPush, setIsSubmittingPush] = useState(false);
     const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
     const [now, setNow] = useState(Date.now());
@@ -622,9 +624,12 @@ const SprintView: React.FC = () => {
     const handleCheckIn = async (day: number) => {
         if (!enrollment || !user) return;
         
-        // Add confirmation popup
-        if (!window.confirm(`Are you sure you want to mark Day ${day} as checked in?`)) return;
+        setConfirmCheckInDay(day);
+    };
 
+    const executeCheckIn = async (day: number) => {
+        if (!enrollment || !user) return;
+        
         // Check if already checked in for this day
         if (enrollment.checkInHistory?.some(h => h.day === day)) return;
 
@@ -1046,6 +1051,20 @@ const SprintView: React.FC = () => {
                 onDecline={handleDeclinePush}
                 onIgnore={handleIgnorePush}
                 isLoading={isSubmittingPush}
+            />
+            <ConfirmModal
+              isOpen={confirmCheckInDay !== null}
+              onClose={() => setConfirmCheckInDay(null)}
+              onConfirm={() => {
+                if (confirmCheckInDay !== null) {
+                  executeCheckIn(confirmCheckInDay);
+                }
+              }}
+              title="Check-in Confirmation"
+              message={`Ready to log your consistency for Day ${confirmCheckInDay}? Tracking your progress is a key part of your growth journey.`}
+              confirmText="Confirm Check-in"
+              cancelText="Wait, not yet"
+              variant="success"
             />
         </>
     );

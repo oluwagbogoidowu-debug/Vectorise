@@ -10,6 +10,7 @@ import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { ARCHETYPES } from '../../constants';
 import NextSprintModal from '../../components/NextSprintModal';
+import ConfirmModal from '../../components/ConfirmModal';
 
 /**
  * Calculates if a day is locked based on the "Next Midnight" logic.
@@ -69,6 +70,7 @@ const ParticipantDashboard: React.FC = () => {
   const [isNextSprintModalOpen, setIsNextSprintModalOpen] = useState(false);
   const [isStartingNext, setIsStartingNext] = useState(false);
   const [checkInSprints, setCheckInSprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
+  const [confirmCheckIn, setConfirmCheckIn] = useState<{ enrollmentId: string, day: number } | null>(null);
   const autoOpenedRef = useRef(false);
 
   const isIdentitySet = userService.isIdentitySet(user as Participant);
@@ -251,10 +253,10 @@ const ParticipantDashboard: React.FC = () => {
 
   const handleCheckIn = async (enrollmentId: string, day: number) => {
     if (!user) return;
-    
-    // Add confirmation popup
-    if (!window.confirm(`Are you sure you want to mark Day ${day} as checked in?`)) return;
-    
+    setConfirmCheckIn({ enrollmentId, day });
+  };
+
+  const executeCheckIn = async (enrollmentId: string, day: number) => {
     const enrollmentItem = checkInSprints.find(s => s.enrollment.id === enrollmentId);
     if (!enrollmentItem) return;
 
@@ -273,6 +275,20 @@ const ParticipantDashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen w-full bg-[#FDFDFD] font-sans">
+      <ConfirmModal
+        isOpen={!!confirmCheckIn}
+        onClose={() => setConfirmCheckIn(null)}
+        onConfirm={() => {
+          if (confirmCheckIn) {
+            executeCheckIn(confirmCheckIn.enrollmentId, confirmCheckIn.day);
+          }
+        }}
+        title="Check-in Confirmation"
+        message={`Ready to log your consistency for Day ${confirmCheckIn?.day}? This helps you stay aligned with your growth journey.`}
+        confirmText="Confirm Check-in"
+        cancelText="Not Yet"
+        variant="success"
+      />
       {queuedSprints[0] && (
           <NextSprintModal 
             isOpen={isNextSprintModalOpen}
