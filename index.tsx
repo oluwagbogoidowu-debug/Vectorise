@@ -11,31 +11,47 @@ analyticsTracker.init();
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      // Check for existing registrations
+      console.log('[ServiceWorker] Checking for registrations...');
       const registrations = await navigator.serviceWorker.getRegistrations();
-      for (const reg of registrations) {
-        // If there's a registration that isn't for our current sw.js, or if it's in a weird state
-        // we might want to unregister it, but for now let's just log
-        console.log('Existing SW found:', reg.scope, reg.active ? 'active' : 'inactive');
+      
+      if (registrations.length === 0) {
+        console.log('[ServiceWorker] No registration found, starting fresh.');
       }
 
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      console.log('SW registered: ', registration);
-      
-      // Listen for updates
+      const registration = await navigator.serviceWorker.register('/sw.js', {
+        scope: '/'
+      });
+
+      console.log('[ServiceWorker] Successfully registered:', registration.scope);
+
+      // Force an update check to ensure we have the latest and it's active
+      registration.update();
+
+      // Listen for updates found
       registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing;
-        if (newWorker) {
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              console.log('New service worker available, please refresh.');
+        const installingWorker = registration.installing;
+        if (installingWorker) {
+          console.log('[ServiceWorker] New version found, installing...');
+          installingWorker.addEventListener('statechange', () => {
+            if (installingWorker.state === 'installed') {
+              if (navigator.serviceWorker.controller) {
+                console.log('[ServiceWorker] New content is available; please refresh.');
+              } else {
+                console.log('[ServiceWorker] Content is cached for offline use.');
+              }
             }
           });
         }
       });
     } catch (error) {
-      console.error('SW registration failed: ', error);
+      console.error('[ServiceWorker] Registration failed:', error);
     }
+  });
+
+  // Handle redundant service workers and takeovers
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    console.log('[ServiceWorker] Controller changed. Site will soon be controlled by a new worker.');
+    // Optional: window.location.reload(); // Usually better to let user decide, but can be forced
   });
 }
 
