@@ -42,17 +42,19 @@ const queueNotification = (type: 'success' | 'info' | 'error', message: string, 
  * and breaks circular references to prevent "Converting circular structure to JSON" errors.
  */
 export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any => {
-    // 0. Depth check to prevent infinite recursion
-    if (maxDepth < 0) return undefined;
-    // 1. Handle null and primitives
+    // 0. Null, undefined and depth check
     if (val === null || typeof val === 'undefined') return undefined;
+    if (maxDepth < 0) return undefined;
+    
+    // 1. Primitive types are safe
     if (typeof val !== 'object' && typeof val !== 'function') return val;
     if (typeof val === 'function') return undefined;
 
-    // 2. Break circular references immediately
+    // 2. Break circular references immediately - CRITICAL for Y2/Ka/src circularity
     if (seen.has(val)) return undefined;
+    seen.add(val);
     
-    // 3. Handle common non-serializable but safe common types
+    // 3. Handle dates and specialized built-ins
     if (val instanceof Date) return val.toISOString();
     if (val instanceof Map || val instanceof Set || val instanceof WeakMap || val instanceof WeakSet) return undefined;
     
@@ -67,7 +69,6 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
     }
 
     // 4. Detect and Strip Firestore/Firebase internal classes and DOM elements
-    // Minified names often follow patterns like Q$1, Sa, Y2, Ka, etc.
     const constructorName = val.constructor?.name || '';
     const isFirebaseInternal = 
         /^[A-Z][a-z0-9]$|^[A-Z]\$[0-9]$/.test(constructorName) || 
@@ -94,7 +95,6 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
 
     // 5. Handle Arrays
     if (Array.isArray(val)) {
-        seen.add(val);
         const result = val
             .map(item => sanitizeData(item, seen, maxDepth - 1))
             .filter(i => i !== undefined);
@@ -112,7 +112,6 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
     }
 
     // 7. Process plain object keys
-    seen.add(val);
     const cleaned: any = {};
     const keys = Object.keys(val);
     

@@ -1,6 +1,7 @@
 import { db } from './firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { PushSubscriptionJSON, Participant } from '../types';
+import { sanitizeData } from './userService';
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -235,7 +236,7 @@ export const pushNotificationService = {
       const responseSub = await fetch(`${window.location.origin}/api/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, subscription: subscriptionJSON })
+        body: JSON.stringify(sanitizeData({ userId, subscription: subscriptionJSON }))
       });
 
       if (!responseSub.ok) {
@@ -275,7 +276,7 @@ export const pushNotificationService = {
       await fetch(`${window.location.origin}/api/notifications/update-state`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, state })
+        body: JSON.stringify(sanitizeData({ userId, state }))
       });
     } catch (error) {
       console.error('Failed to update activity:', error);
@@ -287,7 +288,7 @@ export const pushNotificationService = {
       await fetch(`${window.location.origin}/api/notifications/trigger-completed`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId })
+        body: JSON.stringify(sanitizeData({ userId }))
       });
     } catch (error) {
       console.error('Failed to trigger notification:', error);
@@ -299,7 +300,7 @@ export const pushNotificationService = {
       await fetch(`${window.location.origin}/api/notifications/trigger-update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId })
+        body: JSON.stringify(sanitizeData({ userId }))
       });
     } catch (error) {
       console.error('Failed to trigger notification:', error);
@@ -311,7 +312,7 @@ export const pushNotificationService = {
       await fetch(`${window.location.origin}/api/notifications/send-push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, title, body, url, tag, bypassActiveCheck })
+        body: JSON.stringify(sanitizeData({ userId, title, body, url, tag, bypassActiveCheck }))
       });
     } catch (error) {
       console.error('Failed to send push:', error);

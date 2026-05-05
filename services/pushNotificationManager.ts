@@ -94,10 +94,20 @@ export const pushNotificationManager = {
       console.log(`[PushManager] Successfully sent push to user ${userId}: ${payload.title}`);
       return true;
     } catch (error: any) {
-      console.error(`[PushManager] Failed to send push to user ${userId}:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const statusCode = error.statusCode || (error.response && error.response.status);
+      const errorBody = error.body || '';
+
+      console.error(`[PushManager] Failed to send push to user ${userId}:`, {
+        message: errorMessage,
+        statusCode,
+        body: errorBody.substring(0, 500) // Keep it manageable
+      });
       
       // If subscription is invalid, remove it
-      if (error.statusCode === 410 || error.statusCode === 404) {
+      // 410 Gone: subscription has expired or is no longer valid
+      // 404 Not Found: subscription is not found (similar to 410)
+      if (statusCode === 410 || statusCode === 404) {
         console.log(`[PushManager] Removing invalid subscription for user ${userId}`);
         const userRef = db.collection('users').doc(userId);
         await userRef.update({
