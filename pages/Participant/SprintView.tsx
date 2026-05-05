@@ -798,7 +798,7 @@ const SprintView: React.FC = () => {
 
                                 <div className="space-y-6">
                                     <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                                        <SectionHeading>Today's Action Step</SectionHeading>
+                                        <SectionHeading>Today's Action Steps</SectionHeading>
                                         <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
                                             {dayContent?.taskPrompts && dayContent.taskPrompts.some(p => p.trim()) ? (
                                                 <ul className="space-y-4">

@@ -251,9 +251,12 @@ const EditSprint: React.FC = () => {
         const merged: Sprint = {
             ...found,
             ...(found.pendingChanges || {}),
-            dailyContent: Array.isArray(found.pendingChanges?.dailyContent) 
+            dailyContent: (Array.isArray(found.pendingChanges?.dailyContent) 
                 ? found.pendingChanges.dailyContent 
-                : (Array.isArray(found.dailyContent) ? found.dailyContent : []),
+                : (Array.isArray(found.dailyContent) ? found.dailyContent : [])).map(c => ({
+                    ...c,
+                    taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
+                })),
             duration: found.pendingChanges?.duration || found.duration || 0,
             outcomes: Array.isArray(found.pendingChanges?.outcomes)
                 ? found.pendingChanges.outcomes
@@ -327,12 +330,19 @@ const EditSprint: React.FC = () => {
       day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: '', submissionPrompt: ''
     };
     
-    // Ensure taskPrompts exists and has at least 3 items if it was empty
-    if (!content.taskPrompts || content.taskPrompts.length === 0) {
-      content.taskPrompts = ['', '', ''];
-    }
-    
-    return content;
+    // Return a safe copy with initialized taskPrompts if needed
+    const safePrompts = Array.isArray((content as any).taskPrompts) && (content as any).taskPrompts.length > 0
+      ? (content as any).taskPrompts
+      : [content.taskPrompt || '', '', ''];
+      
+    // Ensure at least 3 elements for the default display if needed
+    const paddedPrompts = [...safePrompts];
+    while (paddedPrompts.length < 3) paddedPrompts.push('');
+
+    return {
+        ...content,
+        taskPrompts: paddedPrompts
+    };
   }, [sprint, selectedDay]);
 
   const handleContentChange = (field: keyof DailyContent, value: any) => {
@@ -363,23 +373,40 @@ const EditSprint: React.FC = () => {
   };
 
   const handleTaskPromptChange = (index: number, value: string) => {
-    const newPrompts = [...(currentContent.taskPrompts || ['', '', ''])];
-    newPrompts[index] = value;
-    
-    // Also update the legacy taskPrompt field with a joined version for backwards compatibility/preview
-    const filtered = newPrompts.filter(p => p.trim());
-    const legacyValue = filtered.join('\n\n');
-    
     setSprint(prev => {
         if (!prev) return null;
         const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
         let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        
+        // Find what the prompts should be relative to current specific day's state
+        const currentPrompts = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskPrompts || [updatedDailyContent[existingContentIndex].taskPrompt || '', '', ''])]
+            : ['', '', ''];
+        
+        while (currentPrompts.length < 3) currentPrompts.push('');
+        currentPrompts[index] = value;
+        
+        const filtered = currentPrompts.filter(p => p.trim());
+        const legacyValue = filtered.join('\n\n');
+        
         if (existingContentIndex >= 0) {
           updatedDailyContent[existingContentIndex] = { 
               ...updatedDailyContent[existingContentIndex], 
-              taskPrompts: newPrompts,
+              taskPrompts: currentPrompts,
               taskPrompt: legacyValue
           };
+        } else {
+          updatedDailyContent.push({
+            day: selectedDay,
+            lessonText: '',
+            taskPrompt: legacyValue,
+            taskPrompts: currentPrompts,
+            coachInsight: '',
+            proofType: 'confirmation',
+            proofOptions: [],
+            reflectionQuestion: '',
+            submissionPrompt: ''
+          });
         }
         return { ...prev, dailyContent: updatedDailyContent };
     });
@@ -409,6 +436,18 @@ const EditSprint: React.FC = () => {
               taskPrompts: newPrompts,
               taskPrompt: legacyValue
           };
+        } else {
+           updatedDailyContent.push({
+            day: selectedDay,
+            lessonText: '',
+            taskPrompt: legacyValue,
+            taskPrompts: newPrompts,
+            coachInsight: '',
+            proofType: 'confirmation',
+            proofOptions: [],
+            reflectionQuestion: '',
+            submissionPrompt: ''
+          });
         }
         return { ...prev, dailyContent: updatedDailyContent };
     });
@@ -715,61 +754,63 @@ const EditSprint: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in" key={selectedDay}>
             {/* EDITOR COLUMN */}
             <div className="space-y-8">
-              <div className="space-y-2">
-                <div className="flex justify-between items-end">
-                  <label className={labelClasses}>Today's Insight</label>
-                  {canEditDirectly && (
-                      <FormattingToolbar 
-                          onFormat={(prefix, suffix) => {
-                              const textarea = lessonTextRef.current;
-                              if (!textarea) return;
-                              const start = textarea.selectionStart;
-                              const end = textarea.selectionEnd;
-                              const text = textarea.value;
-                              const before = text.substring(0, start);
-                              const selection = text.substring(start, end);
-                              const after = text.substring(end);
-                              const newValue = before + prefix + selection + suffix + after;
-                              handleContentChange('lessonText', newValue);
-                              setTimeout(() => {
-                                  textarea.focus();
-                                  textarea.setSelectionRange(start + prefix.length, end + prefix.length);
-                              }, 0);
-                          }}
-                      />
-                  )}
-                </div>
-                {isAdmin && !isFoundational ? (
-                    <DiffHighlight 
-                      label="Today's Insight" 
-                      original={Array.isArray(originalSprint?.dailyContent) ? originalSprint?.dailyContent.find(c => c.day === selectedDay)?.lessonText : undefined} 
-                      updated={currentContent.lessonText} 
-                    />
-                ) : (
+                {/* Today's Insight Section */}
+                <div className="space-y-2">
+                    <div className="flex justify-between items-end">
+                        <label className={labelClasses}>Today's Insight</label>
+                        {canEditDirectly && (
+                            <FormattingToolbar 
+                                onFormat={(prefix, suffix) => {
+                                    const textarea = lessonTextRef.current;
+                                    if (!textarea) return;
+                                    const start = textarea.selectionStart;
+                                    const end = textarea.selectionEnd;
+                                    const text = textarea.value;
+                                    const before = text.substring(0, start);
+                                    const selection = text.substring(start, end);
+                                    const after = text.substring(end);
+                                    const newValue = before + prefix + selection + suffix + after;
+                                    handleContentChange('lessonText', newValue);
+                                    setTimeout(() => {
+                                        textarea.focus();
+                                        textarea.setSelectionRange(start + prefix.length, end + prefix.length);
+                                    }, 0);
+                                }}
+                            />
+                        )}
+                    </div>
+                    {isAdmin && !isFoundational && originalSprint && (
+                        <DiffHighlight 
+                            label="Today's Insight" 
+                            original={Array.isArray(originalSprint.dailyContent) ? originalSprint.dailyContent.find(c => c.day === selectedDay)?.lessonText : undefined} 
+                            updated={currentContent.lessonText} 
+                        />
+                    )}
                     <textarea 
-                      ref={lessonTextRef}
-                      value={currentContent.lessonText || ''} 
-                      onChange={e => handleContentChange('lessonText', e.target.value)} 
-                      rows={8} 
-                      className={editorInputClasses} 
-                      placeholder="Coach curriculum goes here..." 
+                        ref={lessonTextRef}
+                        value={currentContent.lessonText || ''} 
+                        onChange={e => handleContentChange('lessonText', e.target.value)} 
+                        rows={8} 
+                        className={editorInputClasses} 
+                        placeholder="Coach curriculum goes here..." 
                     />
-                )}
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex justify-between items-end">
-                  <label className={labelClasses}>Today's Action Steps</label>
-                  <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">3 Minimum Recommended</p>
                 </div>
-                
-                {isAdmin && !isFoundational ? (
-                    <DiffHighlight 
-                      label="Today's Action Steps" 
-                      original={Array.isArray(originalSprint?.dailyContent) ? (originalSprint?.dailyContent.find(c => c.day === selectedDay)?.taskPrompts || [originalSprint?.dailyContent.find(c => c.day === selectedDay)?.taskPrompt]) : undefined} 
-                      updated={currentContent.taskPrompts} 
-                    />
-                ) : (
+
+                {/* Today's Action Steps Section */}
+                <div className="space-y-4">
+                    <div className="flex justify-between items-end">
+                        <label className={labelClasses}>Today's Action Steps</label>
+                        <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">3 Minimum Recommended</p>
+                    </div>
+                    
+                    {isAdmin && !isFoundational && originalSprint && (
+                        <DiffHighlight 
+                            label="Today's Action Steps" 
+                            original={Array.isArray(originalSprint.dailyContent) ? (originalSprint.dailyContent.find(c => c.day === selectedDay)?.taskPrompts || [originalSprint.dailyContent.find(c => c.day === selectedDay)?.taskPrompt]) : undefined} 
+                            updated={currentContent.taskPrompts} 
+                        />
+                    )}
+                    
                     <div className="space-y-3">
                         {(currentContent.taskPrompts || ['', '', '']).map((prompt, index) => (
                             <div key={index} className="group relative">
@@ -805,8 +846,7 @@ const EditSprint: React.FC = () => {
                             Add Sub-Task
                         </button>
                     </div>
-                )}
-              </div>
+                </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between items-end">
@@ -1029,9 +1069,22 @@ const EditSprint: React.FC = () => {
 
                 <div className="space-y-6">
                     <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                        <SectionHeading>Today's Action Step</SectionHeading>
+                        <SectionHeading>Today's Action Steps</SectionHeading>
                         <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
-                            <FormattedText text={currentContent.taskPrompt || "Action step will appear here..."} />
+                            {currentContent.taskPrompts && currentContent.taskPrompts.some(p => p.trim()) ? (
+                                <ul className="space-y-4">
+                                    {currentContent.taskPrompts.filter(p => p.trim()).map((prompt, i) => (
+                                        <li key={i} className="flex gap-4 items-start">
+                                            <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary flex-shrink-0 mt-0.5">
+                                                {i + 1}
+                                            </div>
+                                            <FormattedText text={prompt} />
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <FormattedText text={currentContent.taskPrompt || "Action steps will appear here..."} />
+                            )}
                         </div>
                         <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
                     </div>

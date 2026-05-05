@@ -28,9 +28,12 @@ const SprintPreviewPage: React.FC = () => {
                     const mergedSprint: Sprint = {
                         ...fetchedSprint,
                         ...(fetchedSprint.pendingChanges || {}),
-                        dailyContent: Array.isArray(fetchedSprint.pendingChanges?.dailyContent) 
+                        dailyContent: (Array.isArray(fetchedSprint.pendingChanges?.dailyContent) 
                             ? fetchedSprint.pendingChanges.dailyContent 
-                            : (Array.isArray(fetchedSprint.dailyContent) ? fetchedSprint.dailyContent : []),
+                            : (Array.isArray(fetchedSprint.dailyContent) ? fetchedSprint.dailyContent : [])).map(c => ({
+                                ...c,
+                                taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
+                            })),
                         outcomes: Array.isArray(fetchedSprint.pendingChanges?.outcomes)
                             ? fetchedSprint.pendingChanges.outcomes
                             : (Array.isArray(fetchedSprint.outcomes) ? fetchedSprint.outcomes : []),
@@ -187,7 +190,9 @@ const SprintPreviewPage: React.FC = () => {
                                     <h5 className="text-xl font-black text-gray-900">Day {selectedDay}: {sprint.title}</h5>
                                     <div className="space-y-4">
                                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Today's Insight</p>
-                                        <p className="text-sm text-gray-700 font-medium leading-relaxed">{currentDailyContent.lessonText || 'No lesson text for this day.'}</p>
+                                        <div className="text-sm text-gray-700 font-medium leading-relaxed">
+                                            <FormattedText text={currentDailyContent.lessonText || 'No lesson text for this day.'} />
+                                        </div>
                                     </div>
                                     <div className="space-y-4">
                                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Today's Action Steps</p>
@@ -198,12 +203,16 @@ const SprintPreviewPage: React.FC = () => {
                                                         <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[8px] font-black text-primary flex-shrink-0 mt-0.5">
                                                             {i + 1}
                                                         </div>
-                                                        <p className="text-sm text-gray-700 font-medium leading-relaxed">{prompt}</p>
+                                                        <div className="text-sm text-gray-700 font-medium leading-relaxed">
+                                                            <FormattedText text={prompt} />
+                                                        </div>
                                                     </li>
                                                 ))}
                                             </ul>
                                         ) : (
-                                            <p className="text-sm text-gray-700 font-medium leading-relaxed">{currentDailyContent.taskPrompt || 'No action step for this day.'}</p>
+                                            <div className="text-sm text-gray-700 font-medium leading-relaxed">
+                                                <FormattedText text={currentDailyContent.taskPrompt || 'No action step for this day.'} />
+                                            </div>
                                         )}
                                     </div>
                                     <div className="space-y-4">

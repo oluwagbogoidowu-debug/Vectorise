@@ -108,7 +108,7 @@ const SprintPreview: React.FC = () => {
                     {/* Action Step - Paragraph Based Lock with Blur */}
                     <div className="space-y-6 relative">
                         <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden">
-                            <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Action Step</h2>
+                            <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Action Steps</h2>
                             <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug relative">
                                 {day1Content?.taskPrompts && day1Content.taskPrompts.some(p => p.trim()) ? (
                                     <ul className="space-y-3">
