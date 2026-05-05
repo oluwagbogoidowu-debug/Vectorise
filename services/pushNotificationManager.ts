@@ -33,7 +33,7 @@ export const pushNotificationManager = {
   /**
    * Send a push notification to a specific user.
    */
-  sendPush: async (userId: string, payload: { title: string; body: string; url?: string; tag?: string }) => {
+  sendPush: async (userId: string, payload: { title: string; body: string; url?: string; tag?: string }, bypassActiveCheck: boolean = false) => {
     try {
       const userRef = db.collection('users').doc(userId);
       const userSnap = await userRef.get();
@@ -45,6 +45,17 @@ export const pushNotificationManager = {
       if (!userData.pushSubscription || userData.notificationsDisabled) {
         console.log(`[PushManager] User ${userId} has no push subscription or notifications disabled.`);
         return false;
+      }
+
+      // Check if user is active right now (within last 3 minutes)
+      if (!bypassActiveCheck) {
+        const lastActivity = userData.lastActivityAt ? new Date(userData.lastActivityAt) : null;
+        const now = new Date();
+        if (lastActivity && (now.getTime() - lastActivity.getTime()) < 3 * 60 * 1000) {
+          console.log(`[PushManager] User ${userId} is currently active. Skipping push.`);
+          // We return true here to signal that the push was "handled" (skipped intentionally)
+          return true; 
+        }
       }
 
       // Check daily cap (Rule 3)

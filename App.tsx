@@ -9,6 +9,7 @@ import { NotificationManager } from './components/NotificationManager';
 import { DormancyPrompt } from './components/DormancyPrompt';
 
 import { sprintService } from './services/sprintService';
+import { pushNotificationService } from './services/pushNotificationService';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import { analyticsTracker } from './services/analyticsTracker';
 import { AppRoutes } from './routes';
@@ -29,10 +30,26 @@ const AppContent: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    let interval: any;
     if (user) {
       analyticsTracker.identify(user.id, user.email);
+      
+      // Update activity state on load
+      pushNotificationService.updateActivity(user.id, 'Active');
+
+      // Periodically update activity while user is active
+      interval = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          pushNotificationService.updateActivity(user.id, 'Active');
+        }
+      }, 2 * 60 * 1000); // Every 2 minutes
     }
+    
     analyticsTracker.trackEvent('page_view', { path: location.pathname + location.hash }, user?.id, user?.email);
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [location.pathname, location.hash, user?.id]);
 
   useEffect(() => {
