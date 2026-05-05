@@ -78,10 +78,12 @@ export const pushNotificationManager = {
       await webpush.sendNotification(
         subscription,
         JSON.stringify({
-          title: payload.title,
-          body: payload.body,
-          url: payload.url || '/',
-          tag: payload.tag || 'default'
+          data: {
+            title: payload.title,
+            body: payload.body,
+            url: payload.url || '/',
+            tag: payload.tag || 'default'
+          }
         })
       );
 
@@ -138,7 +140,7 @@ export const pushNotificationManager = {
             if (!notification.isRead && !notification.pushSent) {
               console.log(`[PushManager] New notification detected for user ${notification.userId}. Sending push...`);
               
-              const success = await pushNotificationManager.sendPush(notification.userId, {
+              const success = await pushNotificationManager.sendPush(notification.userId, notification.data || {
                 title: notification.title,
                 body: notification.body,
                 url: notification.actionUrl || '/',

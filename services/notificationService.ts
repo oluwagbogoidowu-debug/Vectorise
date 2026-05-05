@@ -55,7 +55,13 @@ export const notificationService = {
         pushSent: false,
         createdAt: now.toISOString(),
         expiresAt: expiresAt,
-        bypassActiveCheck: options.bypassActiveCheck || false
+        bypassActiveCheck: options.bypassActiveCheck || false,
+        data: {
+          title,
+          body,
+          tag: type === 'coach_message' ? 'coach-message' : type.replace(/_/g, '-'),
+          url: options.actionUrl || '/'
+        }
       };
 
       const colRef = collection(db, COLLECTION_NAME);

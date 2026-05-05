@@ -381,6 +381,12 @@ export interface Notification {
   pushSent?: boolean;
   context?: any;
   bypassActiveCheck?: boolean;
+  data?: {
+    title: string;
+    body: string;
+    tag: string;
+    url: string;
+  };
 }
 
 export interface ShinePost {

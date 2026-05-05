@@ -103,7 +103,10 @@ self.addEventListener('push', (event) => {
 
   if (event.data) {
     try {
-      const data = event.data.json();
+      const rawData = event.data.json();
+      // Handle nested data as requested by user
+      const data = rawData.data || rawData;
+      
       title = data.title || title;
       
       // Determine icon based on tag
