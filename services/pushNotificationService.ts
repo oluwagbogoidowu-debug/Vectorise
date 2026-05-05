@@ -293,13 +293,25 @@ export const pushNotificationService = {
       console.error('Failed to trigger notification:', error);
     }
   },
+  
+  triggerUpdate: async (userId: string) => {
+    try {
+      await fetch(`${window.location.origin}/api/notifications/trigger-update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+    } catch (error) {
+      console.error('Failed to trigger notification:', error);
+    }
+  },
 
-  sendPush: async (userId: string, title: string, body: string, url?: string, tag?: string) => {
+  sendPush: async (userId: string, title: string, body: string, url?: string, tag?: string, bypassActiveCheck: boolean = false) => {
     try {
       await fetch(`${window.location.origin}/api/notifications/send-push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, title, body, url, tag })
+        body: JSON.stringify({ userId, title, body, url, tag, bypassActiveCheck })
       });
     } catch (error) {
       console.error('Failed to send push:', error);

@@ -36,7 +36,8 @@ export const chatService = {
               sprintId: message.sprintId, 
               day: message.day,
               participantId: message.participantId 
-            }
+            },
+            bypassActiveCheck: true // Always push coach/student messages immediately
           }
         );
       }

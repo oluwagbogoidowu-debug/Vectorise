@@ -654,6 +654,9 @@ const SprintView: React.FC = () => {
             const enrollmentRef = doc(db, 'enrollments', enrollment.id);
             await updateDoc(enrollmentRef, { checkInHistory: updatedHistory });
             toast.success(`Checked in for Day ${day}!`);
+            if (user?.id) {
+                pushNotificationService.triggerUpdate(user.id).catch(e => console.error("Push trigger failed:", e));
+            }
         } catch (err) {
             console.error("Check-in failed", err);
             toast.error("Failed to check in");

@@ -133,7 +133,7 @@ export const pushNotificationManager = {
                 body: notification.body,
                 url: notification.actionUrl || '/',
                 tag: notification.type
-              });
+              }, notification.bypassActiveCheck || false);
 
               if (success) {
                 await db.collection('notifications').doc(notification.id).update({
@@ -160,12 +160,31 @@ export const pushNotificationManager = {
       body: 'That’s how clarity is built.',
       url: '/participant/sprint',
       tag: 'task-completed'
-    });
+    }, true); // Bypass active check
 
     // Update state to Completed
     const userRef = db.collection('users').doc(userId);
     await userRef.update({ 
       notificationState: 'Completed',
+      lastActivityAt: new Date().toISOString()
+    });
+  },
+
+  /**
+   * Trigger the "Register Update" notification immediately.
+   */
+  triggerUpdate: async (userId: string) => {
+    console.log(`[PushManager] Triggering update notification for user ${userId}`);
+    
+    await pushNotificationManager.sendPush(userId, {
+      title: 'Update Registered',
+      body: 'Consistency is exactly how progress is made.',
+      url: '/dashboard',
+      tag: 'register-update'
+    }, true); // Bypass active check
+
+    const userRef = db.collection('users').doc(userId);
+    await userRef.update({ 
       lastActivityAt: new Date().toISOString()
     });
   },

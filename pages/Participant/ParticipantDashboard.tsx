@@ -5,6 +5,7 @@ import { ParticipantSprint, Sprint, Notification, Participant } from '../../type
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { notificationService } from '../../services/notificationService';
+import { pushNotificationService } from '../../services/pushNotificationService';
 import { toast } from 'sonner';
 import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
@@ -271,6 +272,9 @@ const ParticipantDashboard: React.FC = () => {
         const newHistory = [...(enrollmentItem.enrollment.checkInHistory || []), { day, timestamp: new Date().toISOString() }];
         await sprintService.updateEnrollment(enrollmentId, { checkInHistory: newHistory });
         toast.success(`Day ${day} Check-in confirmed!`);
+        if (user?.id) {
+            pushNotificationService.triggerUpdate(user.id).catch(e => console.error("Push trigger failed:", e));
+        }
     } catch (err) {
         console.error("Check-in failed:", err);
         toast.error("Failed to check in. Please try again.");

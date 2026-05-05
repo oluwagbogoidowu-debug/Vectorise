@@ -380,6 +380,7 @@ export interface Notification {
   readAt?: null | string;
   pushSent?: boolean;
   context?: any;
+  bypassActiveCheck?: boolean;
 }
 
 export interface ShinePost {

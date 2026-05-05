@@ -182,7 +182,8 @@ const CoachParticipants: React.FC = () => {
                 'New Coaching Guidance',
                 `Coach ${user.name} sent feedback for Day ${viewingSubmission.day} of ${viewingSubmission.enrollment.sprint.title}`,
                 { 
-                    actionUrl: `/participant/sprint/${viewingSubmission.enrollment.id}?day=${viewingSubmission.day}&openChat=true` 
+                    actionUrl: `/participant/sprint/${viewingSubmission.enrollment.id}?day=${viewingSubmission.day}&openChat=true`,
+                    bypassActiveCheck: true
                 }
             );
 

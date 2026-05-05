@@ -64,12 +64,23 @@ async function startServer() {
       res.status(500).json({ error: 'Failed to trigger notification' });
     }
   });
+  
+  app.post('/api/notifications/trigger-update', async (req, res) => {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'userId is required' });
+    try {
+      await pushNotificationManager.triggerUpdate(userId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to trigger notification' });
+    }
+  });
 
   app.post('/api/notifications/send-push', async (req, res) => {
-    const { userId, title, body, url, tag } = req.body;
+    const { userId, title, body, url, tag, bypassActiveCheck } = req.body;
     if (!userId || !title || !body) return res.status(400).json({ error: 'userId, title, and body are required' });
     try {
-      const success = await pushNotificationManager.sendPush(userId, { title, body, url, tag });
+      const success = await pushNotificationManager.sendPush(userId, { title, body, url, tag }, bypassActiveCheck || false);
       res.json({ success });
     } catch (error) {
       res.status(500).json({ error: 'Failed to send push notification' });

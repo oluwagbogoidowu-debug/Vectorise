@@ -29,7 +29,8 @@ export const notificationService = {
     options: { 
       actionUrl?: string, 
       context?: any, 
-      expiresInDays?: number 
+      expiresInDays?: number,
+      bypassActiveCheck?: boolean
     } = {}
   ) => {
     try {
@@ -53,7 +54,8 @@ export const notificationService = {
         readAt: null,
         pushSent: false,
         createdAt: now.toISOString(),
-        expiresAt: expiresAt
+        expiresAt: expiresAt,
+        bypassActiveCheck: options.bypassActiveCheck || false
       };
 
       const colRef = collection(db, COLLECTION_NAME);
