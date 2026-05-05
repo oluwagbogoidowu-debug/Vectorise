@@ -738,6 +738,57 @@ const EditSprint: React.FC = () => {
                 )}
               </div>
 
+              {/* DYNAMIC TASKS LIST */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <label className={labelClasses}>Sub-Tasks (Optional)</label>
+                  {!isAdmin || isAdmin ? (
+                    <button 
+                      onClick={() => {
+                        const currentTasks = currentContent.tasks || [];
+                        handleContentChange('tasks', [...currentTasks, '']);
+                      }}
+                      className="p-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all group"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  ) : null}
+                </div>
+                <div className="space-y-3">
+                  {(currentContent.tasks || []).map((task, idx) => (
+                    <div key={idx} className="flex gap-2 group animate-slide-up">
+                      <div className="flex-1 relative">
+                        <input 
+                          type="text"
+                          value={task}
+                          onChange={(e) => {
+                            const newTasks = [...(currentContent.tasks || [])];
+                            newTasks[idx] = e.target.value;
+                            handleContentChange('tasks', newTasks);
+                          }}
+                          className={`${editorInputClasses} !py-3 !px-4 !p-0`}
+                          placeholder={`Task ${idx + 1}`}
+                        />
+                      </div>
+                      {!isAdmin || isAdmin ? (
+                        <button 
+                          onClick={() => {
+                            const newTasks = (currentContent.tasks || []).filter((_, i) => i !== idx);
+                            handleContentChange('tasks', newTasks);
+                          }}
+                          className="p-3 text-red-300 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      ) : null}
+                    </div>
+                  ))}
+                  {(!currentContent.tasks || currentContent.tasks.length === 0) && (
+                    <p className="text-[10px] text-gray-300 font-medium italic">No sub-tasks defined for today.</p>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <div className="flex justify-between items-end">
                   <label className={labelClasses}>Coach Insight</label>

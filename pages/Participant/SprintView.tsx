@@ -797,10 +797,64 @@ const SprintView: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-6">
-                                    <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                                        <SectionHeading>Today's Action Step</SectionHeading>
-                                        <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
-                                            <FormattedText text={dayContent?.taskPrompt || ""} />
+                                    <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group overflow-hidden">
+                                        <div className="relative z-10">
+                                            <SectionHeading>Today's Action Step</SectionHeading>
+                                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-6">
+                                                <FormattedText text={dayContent?.taskPrompt || ""} />
+                                            </div>
+
+                                            {/* DYNAMIC SUB-TASKS */}
+                                            {dayContent?.tasks && dayContent.tasks.length > 0 && (
+                                                <div className="space-y-3 mt-4 border-t border-primary/10 pt-6">
+                                                    {dayContent.tasks.map((task, index) => {
+                                                        const isChecked = dayProgress?.taskCompletions?.[index] || false;
+                                                        return (
+                                                            <button 
+                                                                key={index}
+                                                                onClick={async () => {
+                                                                    if (!enrollment || dayProgress?.completed) return;
+                                                                    
+                                                                    const currentCompletions = [...(dayProgress?.taskCompletions || [])];
+                                                                    // Initialize array if empty/short
+                                                                    while (currentCompletions.length < dayContent.tasks!.length) {
+                                                                        currentCompletions.push(false);
+                                                                    }
+                                                                    currentCompletions[index] = !currentCompletions[index];
+
+                                                                    const updatedProgress = enrollment.progress.map(p => 
+                                                                        p.day === viewingDay ? { ...p, taskCompletions: currentCompletions } : p
+                                                                    );
+
+                                                                    try {
+                                                                        const enrollmentRef = doc(db, 'enrollments', enrollment.id);
+                                                                        await updateDoc(enrollmentRef, { progress: updatedProgress });
+                                                                    } catch (err) {
+                                                                        console.error("Failed to update task", err);
+                                                                    }
+                                                                }}
+                                                                disabled={dayProgress?.completed}
+                                                                className={`w-full flex items-center gap-3 p-4 rounded-xl border transition-all ${
+                                                                    isChecked 
+                                                                    ? 'bg-primary/20 border-primary/30 text-primary' 
+                                                                    : 'bg-white/50 border-white/80 text-gray-600 hover:border-primary/20'
+                                                                }`}
+                                                            >
+                                                                <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                                                                    isChecked 
+                                                                    ? 'bg-primary border-primary text-white' 
+                                                                    : 'bg-white border-primary/20'
+                                                                }`}>
+                                                                    {isChecked && <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                                                </div>
+                                                                <span className={`text-[11px] font-black uppercase tracking-tight text-left ${isChecked ? 'line-through opacity-60' : ''}`}>
+                                                                    {task}
+                                                                </span>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
                                     </div>

@@ -276,7 +276,7 @@ export const sprintService = {
             reflectionsDisabled: false,
             soundDisabled: false,
             notificationsDisabled: false,
-            progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
+            progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false, taskCompletions: [] }))
         };
 
         await setDoc(enrollmentRef, sanitizeData(newEnrollment));
