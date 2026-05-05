@@ -94,7 +94,7 @@ const CreateSprint: React.FC = () => {
             day: i + 1,
             lessonText: '',
             taskPrompt: '',
-            tasks: [],
+            taskPrompts: ['', '', ''],
             coachInsight: '',
             reflectionQuestion: 'One idea that shifted my thinking was...',
             submissionType: 'text',

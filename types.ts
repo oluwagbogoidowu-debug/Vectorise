@@ -214,7 +214,6 @@ export interface ParticipantSprint {
     submissionFileUrl?: string;
     reflection?: string;
     proofSelection?: string;
-    taskCompletions?: boolean[];
   }[];
 }
 
@@ -266,7 +265,7 @@ export interface DailyContent {
   day: number;
   lessonText: string;
   taskPrompt: string;
-  tasks?: string[];
+  taskPrompts?: string[];
   coachInsight?: string;
   reflectionQuestion?: string;
   submissionType?: 'text' | 'file' | 'both' | 'none';

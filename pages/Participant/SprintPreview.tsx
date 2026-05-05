@@ -110,8 +110,22 @@ const SprintPreview: React.FC = () => {
                         <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden">
                             <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Action Step</h2>
                             <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug relative">
-                                <FormattedText text={actionParts.visible} />
-                                {actionParts.locked && (
+                                {day1Content?.taskPrompts && day1Content.taskPrompts.some(p => p.trim()) ? (
+                                    <ul className="space-y-3">
+                                        {day1Content.taskPrompts.filter(p => p.trim()).map((prompt, i) => (
+                                            <li key={i} className="flex gap-3 items-start">
+                                                <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[8px] font-black text-primary flex-shrink-0 mt-0.5">
+                                                    {i + 1}
+                                                </div>
+                                                <FormattedText text={prompt} />
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <FormattedText text={actionParts.visible} />
+                                )}
+                                
+                                {(actionParts.locked && (!day1Content?.taskPrompts || day1Content.taskPrompts.length === 0)) && (
                                     <div className="relative mt-4">
                                         <div className="blur-[3px] select-none pointer-events-none opacity-30">
                                             <FormattedText text={actionParts.locked} />

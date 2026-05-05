@@ -321,11 +321,18 @@ const EditSprint: React.FC = () => {
 
   const currentContent = useMemo(() => {
     if (!sprint) return {
-      day: selectedDay, lessonText: '', taskPrompt: '', coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: ''
+      day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: ''
     };
-    return (Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(c => c.day === selectedDay) : undefined) || {
-      day: selectedDay, lessonText: '', taskPrompt: '', coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: '', submissionPrompt: ''
+    const content = (Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(c => c.day === selectedDay) : undefined) || {
+      day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: '', submissionPrompt: ''
     };
+    
+    // Ensure taskPrompts exists and has at least 3 items if it was empty
+    if (!content.taskPrompts || content.taskPrompts.length === 0) {
+      content.taskPrompts = ['', '', ''];
+    }
+    
+    return content;
   }, [sprint, selectedDay]);
 
   const handleContentChange = (field: keyof DailyContent, value: any) => {
@@ -341,6 +348,7 @@ const EditSprint: React.FC = () => {
           day: selectedDay, 
           lessonText: '', 
           taskPrompt: '', 
+          taskPrompts: ['', '', ''],
           coachInsight: '', 
           proofType: 'confirmation', 
           proofOptions: [], 
@@ -350,6 +358,59 @@ const EditSprint: React.FC = () => {
         });
       }
       return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTaskPromptChange = (index: number, value: string) => {
+    const newPrompts = [...(currentContent.taskPrompts || ['', '', ''])];
+    newPrompts[index] = value;
+    
+    // Also update the legacy taskPrompt field with a joined version for backwards compatibility/preview
+    const filtered = newPrompts.filter(p => p.trim());
+    const legacyValue = filtered.join('\n\n');
+    
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        if (existingContentIndex >= 0) {
+          updatedDailyContent[existingContentIndex] = { 
+              ...updatedDailyContent[existingContentIndex], 
+              taskPrompts: newPrompts,
+              taskPrompt: legacyValue
+          };
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const addTaskPrompt = () => {
+    const newPrompts = [...(currentContent.taskPrompts || ['', '', '']), ''];
+    handleContentChange('taskPrompts', newPrompts);
+  };
+
+  const removeTaskPrompt = (index: number) => {
+    const newPrompts = [...(currentContent.taskPrompts || ['', '', ''])];
+    if (newPrompts.length <= 1) return;
+    newPrompts.splice(index, 1);
+    
+    const filtered = newPrompts.filter(p => p.trim());
+    const legacyValue = filtered.join('\n\n');
+
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        if (existingContentIndex >= 0) {
+          updatedDailyContent[existingContentIndex] = { 
+              ...updatedDailyContent[existingContentIndex], 
+              taskPrompts: newPrompts,
+              taskPrompt: legacyValue
+          };
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
     });
     setSaveStatus('idle');
   };
@@ -696,97 +757,55 @@ const EditSprint: React.FC = () => {
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <div className="flex justify-between items-end">
-                  <label className={labelClasses}>Today's Action Step</label>
-                  {canEditDirectly && (
-                      <FormattingToolbar 
-                          onFormat={(prefix, suffix) => {
-                              const textarea = taskPromptRef.current;
-                              if (!textarea) return;
-                              const start = textarea.selectionStart;
-                              const end = textarea.selectionEnd;
-                              const text = textarea.value;
-                              const before = text.substring(0, start);
-                              const selection = text.substring(start, end);
-                              const after = text.substring(end);
-                              const newValue = before + prefix + selection + suffix + after;
-                              handleContentChange('taskPrompt', newValue);
-                              setTimeout(() => {
-                                  textarea.focus();
-                                  textarea.setSelectionRange(start + prefix.length, end + prefix.length);
-                              }, 0);
-                          }}
-                      />
-                  )}
+                  <label className={labelClasses}>Today's Action Steps</label>
+                  <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">3 Minimum Recommended</p>
                 </div>
+                
                 {isAdmin && !isFoundational ? (
                     <DiffHighlight 
-                      label="Today's Action Step" 
-                      original={Array.isArray(originalSprint?.dailyContent) ? originalSprint?.dailyContent.find(c => c.day === selectedDay)?.taskPrompt : undefined} 
-                      updated={currentContent.taskPrompt} 
+                      label="Today's Action Steps" 
+                      original={Array.isArray(originalSprint?.dailyContent) ? (originalSprint?.dailyContent.find(c => c.day === selectedDay)?.taskPrompts || [originalSprint?.dailyContent.find(c => c.day === selectedDay)?.taskPrompt]) : undefined} 
+                      updated={currentContent.taskPrompts} 
                     />
                 ) : (
-                    <textarea 
-                      ref={taskPromptRef}
-                      value={currentContent.taskPrompt || ''} 
-                      onChange={e => handleContentChange('taskPrompt', e.target.value)} 
-                      rows={4} 
-                      className={editorInputClasses} 
-                      placeholder="Daily task prompt..." 
-                    />
-                )}
-              </div>
-
-              {/* DYNAMIC TASKS LIST */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <label className={labelClasses}>Sub-Tasks (Optional)</label>
-                  {!isAdmin || isAdmin ? (
-                    <button 
-                      onClick={() => {
-                        const currentTasks = currentContent.tasks || [];
-                        handleContentChange('tasks', [...currentTasks, '']);
-                      }}
-                      className="p-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all group"
-                    >
-                      <Plus size={16} />
-                    </button>
-                  ) : null}
-                </div>
-                <div className="space-y-3">
-                  {(currentContent.tasks || []).map((task, idx) => (
-                    <div key={idx} className="flex gap-2 group animate-slide-up">
-                      <div className="flex-1 relative">
-                        <input 
-                          type="text"
-                          value={task}
-                          onChange={(e) => {
-                            const newTasks = [...(currentContent.tasks || [])];
-                            newTasks[idx] = e.target.value;
-                            handleContentChange('tasks', newTasks);
-                          }}
-                          className={`${editorInputClasses} !py-3 !px-4 !p-0`}
-                          placeholder={`Task ${idx + 1}`}
-                        />
-                      </div>
-                      {!isAdmin || isAdmin ? (
+                    <div className="space-y-3">
+                        {(currentContent.taskPrompts || ['', '', '']).map((prompt, index) => (
+                            <div key={index} className="group relative">
+                                <div className="absolute -left-10 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-[10px] font-black text-gray-300 group-focus-within:bg-primary/10 group-focus-within:text-primary transition-all">
+                                    {index + 1}
+                                </div>
+                                <div className="flex gap-2 items-center">
+                                    <textarea 
+                                        value={prompt} 
+                                        onChange={e => handleTaskPromptChange(index, e.target.value)} 
+                                        rows={2} 
+                                        className={editorInputClasses + " p-4 !py-4"} 
+                                        placeholder={`Task ${index + 1}...`} 
+                                    />
+                                    {((currentContent.taskPrompts || []).length > 1) && (
+                                        <button 
+                                            onClick={() => removeTaskPrompt(index)}
+                                            className="p-3 text-gray-300 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                            title="Remove Task"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                        
                         <button 
-                          onClick={() => {
-                            const newTasks = (currentContent.tasks || []).filter((_, i) => i !== idx);
-                            handleContentChange('tasks', newTasks);
-                          }}
-                          className="p-3 text-red-300 hover:text-red-500 transition-colors"
+                            onClick={addTaskPrompt}
+                            className="w-full py-4 border-2 border-dashed border-gray-100 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:border-primary/30 hover:text-primary hover:bg-white transition-all active:scale-[0.99]"
                         >
-                          <Trash2 size={16} />
+                            <Plus size={14} />
+                            Add Sub-Task
                         </button>
-                      ) : null}
                     </div>
-                  ))}
-                  {(!currentContent.tasks || currentContent.tasks.length === 0) && (
-                    <p className="text-[10px] text-gray-300 font-medium italic">No sub-tasks defined for today.</p>
-                  )}
-                </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -1014,26 +1033,6 @@ const EditSprint: React.FC = () => {
                         <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
                             <FormattedText text={currentContent.taskPrompt || "Action step will appear here..."} />
                         </div>
-
-                        {/* DYNAMIC SUB-TASKS PREVIEW */}
-                        {currentContent.tasks && currentContent.tasks.length > 0 && (
-                            <div className="space-y-3 mt-4 border-t border-primary/10 pt-6">
-                                {currentContent.tasks.map((task, index) => (
-                                    <div 
-                                        key={index}
-                                        className="flex items-center gap-3 p-4 rounded-xl border border-primary/10 bg-white/50 text-gray-400"
-                                    >
-                                        <div className="w-5 h-5 rounded-md border border-primary/20 bg-white flex items-center justify-center">
-                                            {/* Preview checkmark placeholder */}
-                                        </div>
-                                        <span className="text-[11px] font-black uppercase tracking-tight text-left">
-                                            {task || `[Task ${index + 1} - Pending]`}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
                         <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
                     </div>
 
