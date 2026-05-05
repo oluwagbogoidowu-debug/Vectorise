@@ -805,9 +805,10 @@ const SprintView: React.FC = () => {
                                             </div>
 
                                             {/* DYNAMIC SUB-TASKS */}
-                                            {dayContent?.tasks && dayContent.tasks.length > 0 && (
+                                            {dayContent?.tasks && dayContent.tasks.filter(t => t.trim()).length > 0 && (
                                                 <div className="space-y-3 mt-4 border-t border-primary/10 pt-6">
                                                     {dayContent.tasks.map((task, index) => {
+                                                        if (!task.trim()) return null;
                                                         const isChecked = dayProgress?.taskCompletions?.[index] || false;
                                                         return (
                                                             <button 

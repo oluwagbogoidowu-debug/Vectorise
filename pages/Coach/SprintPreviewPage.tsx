@@ -192,6 +192,16 @@ const SprintPreviewPage: React.FC = () => {
                                     <div className="space-y-4">
                                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Today's Action Step</p>
                                         <p className="text-sm text-gray-700 font-medium leading-relaxed">{currentDailyContent.taskPrompt || 'No action step for this day.'}</p>
+                                        {currentDailyContent.tasks && currentDailyContent.tasks.length > 0 && (
+                                            <div className="space-y-2 mt-4 pl-4 border-l-2 border-primary/20">
+                                                {currentDailyContent.tasks.map((task, idx) => (
+                                                    <div key={idx} className="flex items-center gap-2">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-primary/40"></div>
+                                                        <span className="text-[10px] font-black uppercase text-gray-500 tracking-tight">{task}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="space-y-4">
                                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Coach Insight</p>

@@ -1014,6 +1014,26 @@ const EditSprint: React.FC = () => {
                         <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
                             <FormattedText text={currentContent.taskPrompt || "Action step will appear here..."} />
                         </div>
+
+                        {/* DYNAMIC SUB-TASKS PREVIEW */}
+                        {currentContent.tasks && currentContent.tasks.length > 0 && (
+                            <div className="space-y-3 mt-4 border-t border-primary/10 pt-6">
+                                {currentContent.tasks.map((task, index) => (
+                                    <div 
+                                        key={index}
+                                        className="flex items-center gap-3 p-4 rounded-xl border border-primary/10 bg-white/50 text-gray-400"
+                                    >
+                                        <div className="w-5 h-5 rounded-md border border-primary/20 bg-white flex items-center justify-center">
+                                            {/* Preview checkmark placeholder */}
+                                        </div>
+                                        <span className="text-[11px] font-black uppercase tracking-tight text-left">
+                                            {task || `[Task ${index + 1} - Pending]`}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
                     </div>
 
