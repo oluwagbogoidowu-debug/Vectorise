@@ -674,12 +674,7 @@ const SprintView: React.FC = () => {
     }, [dayContent, proofInput, proofSelected]);
 
     const handleQuickComplete = () => {
-        if (!isProofMet) return;
-        if (reflectionsEnabled) {
-            setIsReflectionModalOpen(true);
-        } else {
-            handleFinishDay("");
-        }
+        handleFinishDay("");
     };
 
     if (!enrollment || !sprint || !enrollment.progress) return <div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
@@ -797,92 +792,35 @@ const SprintView: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-6">
-                                    <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                                        <SectionHeading>Today's Action Steps</SectionHeading>
-                                        <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
-                                            {dayContent?.taskPrompts && dayContent.taskPrompts.some(p => p.trim()) ? (
-                                                <ul className="space-y-4">
-                                                    {dayContent.taskPrompts.filter(p => p.trim()).map((prompt, i) => (
-                                                        <li key={i} className="flex gap-4 items-start">
-                                                            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary flex-shrink-0 mt-0.5">
-                                                                {i + 1}
-                                                            </div>
-                                                            <FormattedText text={prompt} />
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            ) : (
-                                                <FormattedText text={dayContent?.taskPrompt || ""} />
-                                            )}
-                                        </div>
-                                        <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-                                    </div>
-
-                                    {dayContent?.coachInsight && (
-                                        <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
-                                            <SectionHeading color="gray-400">Coach Insight</SectionHeading>
-                                            <div className="text-gray-600 font-medium text-xs md:text-sm leading-relaxed">
-                                                <FormattedText text={dayContent.coachInsight} />
+                                    {dayContent?.taskPrompts && dayContent.taskPrompts.some(p => p.trim()) ? (
+                                        dayContent.taskPrompts.filter(p => p.trim()).map((prompt, i) => (
+                                            <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
+                                                <SectionHeading>Action Step {i + 1}</SectionHeading>
+                                                <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
+                                                    <FormattedText text={prompt} />
+                                                </div>
+                                                <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
                                             </div>
+                                        ))
+                                    ) : (
+                                        <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
+                                            <SectionHeading>Today's Action Steps</SectionHeading>
+                                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
+                                                <FormattedText text={dayContent?.taskPrompt || ""} />
+                                            </div>
+                                            <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
                                         </div>
                                     )}
                                 </div>
 
                                 {!dayProgress?.completed && (
                                     <div className="mt-12 space-y-6 animate-fade-in">
-                                        {dayContent?.proofType === 'picker' && (
-                                            <div className="space-y-4">
-                                                <SectionHeading>Choose from options curated by you</SectionHeading>
-                                                <div className="grid grid-cols-1 gap-3">
-                                                    {dayContent.proofOptions?.map((opt, idx) => (
-                                                        <button 
-                                                            key={idx}
-                                                            onClick={() => setProofSelected(opt)}
-                                                            className={`w-full group relative overflow-hidden py-5 px-6 rounded-2xl transition-all duration-500 border text-center flex items-center justify-center active:scale-95 ${
-                                                                proofSelected === opt 
-                                                                ? 'bg-primary border-primary shadow-xl scale-[1.02]' 
-                                                                : 'bg-white border-gray-100 hover:border-primary/30 hover:bg-gray-50'
-                                                            }`}
-                                                        >
-                                                            <div className="relative z-10 flex items-center gap-3">
-                                                                <span className={`text-[10px] font-black uppercase tracking-[0.15em] transition-colors ${proofSelected === opt ? 'text-white' : 'text-gray-600'}`}>
-                                                                    {opt}
-                                                                </span>
-                                                            </div>
-                                                            {proofSelected === opt && (
-                                                                <div className="absolute right-6 top-1/2 -translate-y-1/2">
-                                                                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
-                                                                </div>
-                                                            )}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {dayContent?.proofType === 'note' && (
-                                            <div className="space-y-3">
-                                                <SectionHeading>Send Submission</SectionHeading>
-                                                {dayContent.submissionPrompt && (
-                                                    <p className="text-[10px] font-bold text-gray-400 mb-2">
-                                                        {dayContent.submissionPrompt}
-                                                    </p>
-                                                )}
-                                                <textarea 
-                                                    value={proofInput}
-                                                    onChange={e => setProofInput(e.target.value)}
-                                                    placeholder="User must write a response"
-                                                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-5 text-sm font-medium min-h-[120px] focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all"
-                                                />
-                                            </div>
-                                        )}
-
                                         <button 
                                           onClick={handleQuickComplete}
-                                          disabled={isSubmitting || !isProofMet}
-                                          className={`w-full py-5 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] shadow-xl transition-all ${isProofMet ? 'bg-[#159E5B] text-white shadow-primary/10 active:scale-95' : 'bg-gray-100 text-gray-300 cursor-not-allowed grayscale'}`}
+                                          disabled={isSubmitting}
+                                          className={`w-full py-5 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] shadow-xl transition-all bg-[#159E5B] text-white shadow-primary/10 active:scale-95 disabled:opacity-50`}
                                         >
-                                          {dayContent?.proofType === 'note' ? 'Send Submission' : "Today's task completed"}
+                                          Today's task completed
                                         </button>
                                     </div>
                                 )}

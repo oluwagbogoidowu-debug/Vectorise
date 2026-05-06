@@ -194,24 +194,22 @@ const SprintPreviewPage: React.FC = () => {
                                             <FormattedText text={currentDailyContent.lessonText || 'No lesson text for this day.'} />
                                         </div>
                                     </div>
-                                    <div className="space-y-4">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Today's Action Steps</p>
+                                    <div className="space-y-6">
                                         {currentDailyContent.taskPrompts && currentDailyContent.taskPrompts.some(p => p.trim()) ? (
-                                            <ul className="space-y-3">
-                                                {currentDailyContent.taskPrompts.filter(p => p.trim()).map((prompt, i) => (
-                                                    <li key={i} className="flex gap-3 items-start">
-                                                        <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[8px] font-black text-primary flex-shrink-0 mt-0.5">
-                                                            {i + 1}
-                                                        </div>
-                                                        <div className="text-sm text-gray-700 font-medium leading-relaxed">
-                                                            <FormattedText text={prompt} />
-                                                        </div>
-                                                    </li>
-                                                ))}
-                                            </ul>
+                                            currentDailyContent.taskPrompts.filter(p => p.trim()).map((prompt, i) => (
+                                                <div key={i} className="space-y-4">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Action Step {i + 1}</p>
+                                                    <div className="text-sm text-gray-700 font-medium leading-relaxed">
+                                                        <FormattedText text={prompt} />
+                                                    </div>
+                                                </div>
+                                            ))
                                         ) : (
-                                            <div className="text-sm text-gray-700 font-medium leading-relaxed">
-                                                <FormattedText text={currentDailyContent.taskPrompt || 'No action step for this day.'} />
+                                            <div className="space-y-4">
+                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Today's Action Step</p>
+                                                <div className="text-sm text-gray-700 font-medium leading-relaxed">
+                                                    <FormattedText text={currentDailyContent.taskPrompt || 'No action step for this day.'} />
+                                                </div>
                                             </div>
                                         )}
                                     </div>

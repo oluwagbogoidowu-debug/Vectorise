@@ -202,7 +202,6 @@ const EditSprint: React.FC = () => {
   // Input Refs for toolbars
   const lessonTextRef = useRef<HTMLTextAreaElement>(null);
   const taskPromptRef = useRef<HTMLTextAreaElement>(null);
-  const coachInsightRef = useRef<HTMLTextAreaElement>(null);
 
   const isAdmin = user?.role === UserRole.ADMIN;
   
@@ -324,10 +323,10 @@ const EditSprint: React.FC = () => {
 
   const currentContent = useMemo(() => {
     if (!sprint) return {
-      day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: ''
+      day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', '']
     };
     const content = (Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(c => c.day === selectedDay) : undefined) || {
-      day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], coachInsight: '', proofType: 'confirmation' as const, proofOptions: [], reflectionQuestion: '', submissionPrompt: ''
+      day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], submissionPrompt: ''
     };
     
     // Return a safe copy with initialized taskPrompts if needed
@@ -800,7 +799,7 @@ const EditSprint: React.FC = () => {
                 <div className="space-y-4">
                     <div className="flex justify-between items-end">
                         <label className={labelClasses}>Today's Action Steps</label>
-                        <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">3 Minimum Recommended</p>
+                        <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">3 Steps Recommended</p>
                     </div>
                     
                     {isAdmin && !isFoundational && originalSprint && (
@@ -812,240 +811,27 @@ const EditSprint: React.FC = () => {
                     )}
                     
                     <div className="space-y-3">
-                        {(currentContent.taskPrompts || ['', '', '']).map((prompt, index) => (
+                        {[0, 1, 2].map((index) => (
                             <div key={index} className="group relative">
                                 <div className="absolute -left-10 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-[10px] font-black text-gray-300 group-focus-within:bg-primary/10 group-focus-within:text-primary transition-all">
                                     {index + 1}
                                 </div>
                                 <div className="flex gap-2 items-center">
                                     <textarea 
-                                        value={prompt} 
+                                        value={currentContent.taskPrompts[index] || ''} 
                                         onChange={e => handleTaskPromptChange(index, e.target.value)} 
                                         rows={2} 
                                         className={editorInputClasses + " p-4 !py-4"} 
-                                        placeholder={`Task ${index + 1}...`} 
+                                        placeholder={`Action Step ${index + 1}...`} 
                                     />
-                                    {((currentContent.taskPrompts || []).length > 1) && (
-                                        <button 
-                                            onClick={() => removeTaskPrompt(index)}
-                                            className="p-3 text-gray-300 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                            title="Remove Task"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    )}
                                 </div>
                             </div>
                         ))}
-                        
-                        <button 
-                            onClick={addTaskPrompt}
-                            className="w-full py-4 border-2 border-dashed border-gray-100 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:border-primary/30 hover:text-primary hover:bg-white transition-all active:scale-[0.99]"
-                        >
-                            <Plus size={14} />
-                            Add Sub-Task
-                        </button>
                     </div>
                 </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-end">
-                  <label className={labelClasses}>Coach Insight</label>
-                  {canEditDirectly && (
-                      <FormattingToolbar 
-                          onFormat={(prefix, suffix) => {
-                              const textarea = coachInsightRef.current;
-                              if (!textarea) return;
-                              const start = textarea.selectionStart;
-                              const end = textarea.selectionEnd;
-                              const text = textarea.value;
-                              const before = text.substring(0, start);
-                              const selection = text.substring(start, end);
-                              const after = text.substring(end);
-                              const newValue = before + prefix + selection + suffix + after;
-                              handleContentChange('coachInsight', newValue);
-                              setTimeout(() => {
-                                  textarea.focus();
-                                  textarea.setSelectionRange(start + prefix.length, end + prefix.length);
-                              }, 0);
-                          }}
-                      />
-                  )}
-                </div>
-                {isAdmin && !isFoundational ? (
-                    <DiffHighlight 
-                      label="Coach Insight" 
-                      original={Array.isArray(originalSprint?.dailyContent) ? originalSprint?.dailyContent.find(c => c.day === selectedDay)?.coachInsight : undefined} 
-                      updated={currentContent.coachInsight} 
-                    />
-                ) : (
-                    <textarea 
-                      ref={coachInsightRef}
-                      value={currentContent.coachInsight || ''} 
-                      onChange={e => handleContentChange('coachInsight', e.target.value)} 
-                      rows={3} 
-                      className={editorInputClasses} 
-                      placeholder="A nugget of wisdom to ground the user..." 
-                    />
-                )}
-              </div>
 
               {/* COMPLETION PROTOCOL CURATION */}
-              <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-8">
-                <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.3em] border-b border-gray-50 pb-4">Day {selectedDay} Daily System</h3>
-                
-                <div className="grid grid-cols-1 gap-8">
-                    <div className="space-y-4">
-                        <label className={labelClasses}>Proof Method</label>
-                        <div className="flex flex-col gap-2">
-                            {[{
-                                  id: 'confirmation', label: 'Simple Button', d: '"Today\'s task completed"' 
-                            },{
-                                  id: 'picker', label: 'Micro Picker', d: 'Choose from options curated by you' 
-                            },{
-                                  id: 'note', label: 'Send Submission', d: 'User must write a response' 
-                            }].map(p => (
-                                <button 
-                                    key={p.id}
-                                    type="button"
-                                    onClick={() => handleContentChange('proofType', p.id)}
-                                    className={`text-left p-4 rounded-2xl border transition-all ${currentContent.proofType === p.id ? 'bg-primary/5 border-primary shadow-sm' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-gray-200'}`}
-                                >
-                                    <p className={`text-xs font-black uppercase tracking-tight ${currentContent.proofType === p.id ? 'text-primary' : 'text-gray-500'}`}>{p.label}</p>
-                                    <p className="text-[10px] font-medium opacity-60 mt-1">{p.d}</p>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="space-y-6">
-                        {currentContent.proofType === 'note' && (
-                            <div className="space-y-3 animate-fade-in">
-                                <label className={labelClasses}>Submission Prompt (Coach's Instruction)</label>
-                                <textarea 
-                                    value={currentContent.submissionPrompt || ''}
-                                    onChange={e => handleContentChange('submissionPrompt', e.target.value)}
-                                    className={editorInputClasses + " h-24"}
-                                    placeholder="Tell the user exactly what to submit (e.g. 'List your top 3 goals')"
-                                />
-                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">This tells the user what response to submit in the text box.</p>
-                            </div>
-                        )}
-                        {currentContent.proofType === 'picker' && (
-                            <div className="space-y-6 animate-fade-in">
-                                <div className="flex justify-between items-center">
-                                    <label className={labelClasses}>Picker Options</label>
-                                    <button 
-                                        onClick={() => {
-                                            const current = currentContent.proofOptions || [];
-                                            handleContentChange('proofOptions', [...current, 'New Option']);
-                                        }}
-                                        className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1 hover:opacity-70 transition-all"
-                                    >
-                                        <Plus className="w-3 h-3" /> Add Option
-                                    </button>
-                                </div>
-                                
-                                <div className="grid grid-cols-1 gap-3">
-                                    {(currentContent.proofOptions || []).map((opt, idx) => (
-                                        <div key={idx} className="flex items-center gap-3 group">
-                                            <div className="flex-1 relative">
-                                                <input 
-                                                    type="text"
-                                                    value={opt}
-                                                    onChange={(e) => {
-                                                        const newOpts = [...(currentContent.proofOptions || [])];
-                                                        newOpts[idx] = e.target.value;
-                                                        handleContentChange('proofOptions', newOpts);
-                                                    }}
-                                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold text-gray-700 focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all"
-                                                    placeholder={`Option ${idx + 1}`}
-                                                />
-                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-300">{idx + 1}</span>
-                                            </div>
-                                            <button 
-                                                onClick={() => {
-                                                    const newOpts = (currentContent.proofOptions || []).filter((_, i) => i !== idx);
-                                                    handleContentChange('proofOptions', newOpts);
-                                                }}
-                                                className="p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                    
-                                    {(currentContent.proofOptions || []).length === 0 && (
-                                        <div className="py-8 border-2 border-dashed border-gray-100 rounded-2xl text-center">
-                                            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">No options defined</p>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="pt-4 border-t border-gray-50">
-                                    <label className={labelClasses}>Bulk Import (comma separated)</label>
-                                    <textarea 
-                                        value={currentContent.proofOptions?.join(', ') || ''}
-                                        onChange={e => handleContentChange('proofOptions', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
-                                        className={editorInputClasses + " h-20 mt-2 text-[10px]"}
-                                        placeholder="Paste comma separated options here..."
-                                    />
-                                </div>
-                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">User must select one to mark day complete.</p>
-                            </div>
-                        )}
-
-                        <div className="space-y-3">
-                            <label className={labelClasses}>Reflection Question</label>
-                            <textarea 
-                                value={currentContent.reflectionQuestion || ''}
-                                onChange={e => handleContentChange('reflectionQuestion', e.target.value)}
-                                className={editorInputClasses + " h-24"}
-                                placeholder="e.g. One idea that shifted my thinking was..."
-                            />
-                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Curate the prompt for the end-of-day reflection modal.</p>
-                        </div>
-
-                        {selectedDay === sprint?.duration && (
-                            <div className="pt-6 border-t border-gray-50 space-y-4 animate-fade-in">
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-1">
-                                        <label className={labelClasses}>Check-in Reminder</label>
-                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Enable daily check-in reminders for the user.</p>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        {sprint?.checkInReminder && (
-                                            <div className="flex items-center gap-2">
-                                                <input 
-                                                    type="number"
-                                                    value={sprint?.checkInReminderDays || 0}
-                                                    onChange={e => setSprint(prev => prev ? { ...prev, checkInReminderDays: Number(e.target.value) } : null)}
-                                                    className="w-16 px-3 py-1 bg-gray-50 border border-gray-100 rounded-lg text-xs font-bold text-gray-700 focus:bg-white focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
-                                                    placeholder="Days"
-                                                />
-                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Days</span>
-                                            </div>
-                                        )}
-                                        <button 
-                                            onClick={() => setSprint(prev => prev ? { ...prev, checkInReminder: !prev.checkInReminder, checkInReminderDays: prev.checkInReminder ? 0 : (prev.checkInReminderDays || 30) } : null)}
-                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${sprint?.checkInReminder ? 'bg-primary' : 'bg-gray-200'}`}
-                                        >
-                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${sprint?.checkInReminder ? 'translate-x-6' : 'translate-x-1'}`} />
-                                        </button>
-                                    </div>
-                                </div>
-                                {sprint?.checkInReminder && (
-                                    <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
-                                        <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">Daily Reminder Active for {sprint?.checkInReminderDays || 30} Days</p>
-                                        <p className="text-[10px] font-medium text-gray-600">The user will receive a daily notification to check in and complete their tasks for {sprint?.checkInReminderDays || 30} days after the sprint.</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
               </div>
-            </div>
 
             {/* PREVIEW COLUMN */}
             <div className="lg:sticky lg:top-8 space-y-6 self-start">
@@ -1068,40 +854,31 @@ const EditSprint: React.FC = () => {
                 </div>
 
                 <div className="space-y-6">
-                    <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                        <SectionHeading>Today's Action Steps</SectionHeading>
-                        <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
-                            {currentContent.taskPrompts && currentContent.taskPrompts.some(p => p.trim()) ? (
-                                <ul className="space-y-4">
-                                    {currentContent.taskPrompts.filter(p => p.trim()).map((prompt, i) => (
-                                        <li key={i} className="flex gap-4 items-start">
-                                            <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary flex-shrink-0 mt-0.5">
-                                                {i + 1}
-                                            </div>
-                                            <FormattedText text={prompt} />
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <FormattedText text={currentContent.taskPrompt || "Action steps will appear here..."} />
-                            )}
-                        </div>
-                        <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-                    </div>
-
-                    {currentContent.coachInsight && (
-                        <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100">
-                            <SectionHeading color="gray-400">Coach Insight</SectionHeading>
-                            <div className="text-gray-600 italic font-medium text-xs md:text-sm leading-relaxed">
-                                <FormattedText text={currentContent.coachInsight} />
+                    {currentContent.taskPrompts && currentContent.taskPrompts.some(p => p.trim()) ? (
+                        currentContent.taskPrompts.filter(p => p.trim()).map((prompt, i) => (
+                            <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
+                                <SectionHeading>Action Step {i + 1}</SectionHeading>
+                                <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
+                                    <FormattedText text={prompt} />
+                                </div>
+                                <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
                             </div>
+                        ))
+                    ) : (
+                        <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
+                            <SectionHeading>Today's Action Step</SectionHeading>
+                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
+                                <FormattedText text={currentContent.taskPrompt || "Action steps will appear here..."} />
+                            </div>
+                            <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
                         </div>
                     )}
+
                 </div>
 
                 <div className="mt-12 space-y-4">
-                  <div className="w-full py-5 bg-gray-100 text-gray-300 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] text-center border border-gray-50">
-                    {currentContent.proofType === 'note' ? 'Send Submission' : "Today's task completed"}
+                  <div className="w-full py-5 bg-[#159E5B] text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] text-center shadow-xl shadow-primary/10">
+                    Today's task completed
                   </div>
                   <p className="text-center text-[8px] font-black text-gray-300 uppercase tracking-widest">Preview of completion button</p>
                 </div>

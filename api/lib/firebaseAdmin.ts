@@ -5,9 +5,38 @@ if (!admin.apps.length) {
 
   if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
     try {
-      config = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-    } catch (e) {
-      console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:", e);
+      let keyVal = process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim();
+      
+      // Handle potential wrapping quotes from shell/env files
+      if ((keyVal.startsWith("'") && keyVal.endsWith("'")) || 
+          (keyVal.startsWith('"') && keyVal.endsWith('"'))) {
+        keyVal = keyVal.slice(1, -1).trim();
+      }
+
+      // 🔍 Attempt to extract JSON if there's wrapping text
+      const firstBrace = keyVal.indexOf('{');
+      const lastBrace = keyVal.lastIndexOf('}');
+      
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        const jsonCandidate = keyVal.substring(firstBrace, lastBrace + 1);
+        try {
+          config = JSON.parse(jsonCandidate);
+        } catch (e: any) {
+          console.error("Failed to parse extracted JSON from FIREBASE_SERVICE_ACCOUNT_KEY:", e.message);
+          // Fallback to trying the whole string if extraction failed for some reason
+          config = JSON.parse(keyVal);
+        }
+      } else {
+        config = JSON.parse(keyVal);
+      }
+    } catch (e: any) {
+      console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:", e.message);
+      const k = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+      if (k) {
+        // Log info without exposing secrets
+        console.error(`Key string info: length=${k.length}, first15="${k.substring(0, 15)}", last15="${k.substring(k.length - 15)}"`);
+        if (k.includes('\n')) console.error("Key contains newlines.");
+      }
     }
   }
 
@@ -50,16 +79,25 @@ if (!admin.apps.length) {
     config.privateKey = `${header}\n${formattedBody}${footer}`;
   }
 
-  if (config) {
-    admin.initializeApp({
-      credential: admin.credential.cert(config),
-    });
+  if (config && config.privateKey && config.clientEmail) {
+    try {
+      admin.initializeApp({
+        credential: admin.credential.cert(config),
+      });
+    } catch (e: any) {
+      console.error("Firebase Admin initialization with cert failed:", e.message);
+      try {
+        admin.initializeApp();
+      } catch (e2) {
+        console.error("Firebase Admin fallback initialization failed:", e2);
+      }
+    }
   } else {
     // Fallback for environments with ambient credentials (like GCP)
     try {
       admin.initializeApp();
     } catch (e) {
-      console.error("Firebase Admin initialization failed: No credentials provided.");
+      console.error("Firebase Admin initialization failed: No credentials provided or invalid config.");
     }
   }
 }

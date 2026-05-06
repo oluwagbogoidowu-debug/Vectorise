@@ -4,11 +4,11 @@ import { db } from '../api/lib/firebaseAdmin.js';
 import { Participant, UserNotificationState, PushSubscriptionJSON, ParticipantSprint, Sprint, Notification } from '../types.js';
 import { notificationEngine } from './notificationEngine.js';
 
-const GCM_API_KEY = process.env.GCM_API_KEY;
-
-if (GCM_API_KEY) {
-  webpush.setGCMAPIKey(GCM_API_KEY);
-}
+// GCM_API_KEY is legacy and can cause 401/403 if invalid. Modern push uses VAPID.
+// const GCM_API_KEY = process.env.GCM_API_KEY;
+// if (GCM_API_KEY) {
+//   webpush.setGCMAPIKey(GCM_API_KEY);
+// }
 
 export const pushNotificationManager = {
   /**
@@ -75,48 +75,57 @@ export const pushNotificationManager = {
 
       const subscription = userData.pushSubscription as unknown as webpush.PushSubscription;
       
-      await webpush.sendNotification(
-        subscription,
-        JSON.stringify({
-          data: {
-            title: payload.title,
-            body: payload.body,
-            url: payload.url || '/',
-            tag: payload.tag || 'default'
-          }
-        })
-      );
+      try {
+        await webpush.sendNotification(
+          subscription,
+          JSON.stringify({
+            data: {
+              title: payload.title,
+              body: payload.body,
+              url: payload.url || '/',
+              tag: payload.tag || 'default'
+            }
+          })
+        );
 
-      // Update user notification stats
-      await userRef.update({
-        notificationsSentToday: sentToday + 1,
-        lastNotificationSentAt: new Date().toISOString()
-      });
-
-      console.log(`[PushManager] Successfully sent push to user ${userId}: ${payload.title}`);
-      return true;
-    } catch (error: any) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const statusCode = error.statusCode || (error.response && error.response.status);
-      const errorBody = error.body || '';
-
-      console.error(`[PushManager] Failed to send push to user ${userId}:`, {
-        message: errorMessage,
-        statusCode,
-        body: errorBody.substring(0, 500) // Keep it manageable
-      });
-      
-      // If subscription is invalid, remove it
-      // 410 Gone: subscription has expired or is no longer valid
-      // 404 Not Found: subscription is not found (similar to 410)
-      if (statusCode === 410 || statusCode === 404) {
-        console.log(`[PushManager] Removing invalid subscription for user ${userId}`);
-        const userRef = db.collection('users').doc(userId);
+        // Update user notification stats
         await userRef.update({
-          pushSubscription: null
+          notificationsSentToday: sentToday + 1,
+          lastNotificationSentAt: new Date().toISOString()
         });
+
+        console.log(`[PushManager] Successfully sent push to user ${userId}: ${payload.title}`);
+        return true;
+      } catch (error: any) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const statusCode = error.statusCode || (error.response && error.response.status);
+        const errorBody = error.body || '';
+
+        console.error(`[PushManager] Failed to send push to user ${userId}:`, {
+          message: errorMessage,
+          statusCode,
+          body: errorBody,
+          headers: error.headers,
+          endpoint: subscription.endpoint,
+          // Log specific web-push error details if available
+          details: error.body || error.message
+        });
+        
+        // If subscription is invalid, remove it
+        // 410 Gone: subscription has expired or is no longer valid
+        // 404 Not Found: subscription is not found (similar to 410)
+        if (statusCode === 410 || statusCode === 404) {
+          console.log(`[PushManager] Removing invalid subscription for user ${userId}`);
+          const userRef = db.collection('users').doc(userId);
+          await userRef.update({
+            pushSubscription: null
+          });
+        }
+        
+        return false;
       }
-      
+    } catch (outerError: any) {
+      console.error(`[PushManager] Critical error in sendPush for user ${userId}:`, outerError);
       return false;
     }
   },
