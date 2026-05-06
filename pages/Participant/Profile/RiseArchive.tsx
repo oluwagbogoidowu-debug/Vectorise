@@ -11,7 +11,6 @@ const RiseArchive: React.FC = () => {
   const { user } = useAuth();
   const [enrollments, setEnrollments] = useState<{ enrollment: ParticipantSprint; sprint: Sprint; coach: Coach | null }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [reflectionSearch, setReflectionSearch] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -37,26 +36,7 @@ const RiseArchive: React.FC = () => {
 
   const completedEntries = useMemo(() => enrollments.filter(e => e.enrollment.progress.every(p => p.completed)), [enrollments]);
 
-  const allReflections = useMemo(() => {
-    return enrollments.flatMap(e => 
-      e.enrollment.progress
-        .filter(p => p.reflection && p.reflection.trim() !== '')
-        .map(p => ({
-          sprintTitle: e.sprint.title,
-          day: p.day,
-          text: p.reflection || '',
-          date: p.completedAt || e.enrollment.started_at
-        }))
-    ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [enrollments]);
-
-  const filteredReflections = useMemo(() => {
-    if (!reflectionSearch.trim()) return allReflections;
-    return allReflections.filter(r => 
-      r.text.toLowerCase().includes(reflectionSearch.toLowerCase()) || 
-      r.sprintTitle.toLowerCase().includes(reflectionSearch.toLowerCase())
-    );
-  }, [allReflections, reflectionSearch]);
+  const filteredReflections = useMemo(() => [], []);
 
   const microDecisions = useMemo(() => {
     return enrollments.flatMap(e => 
@@ -125,34 +105,6 @@ const RiseArchive: React.FC = () => {
               ))
             ) : (
               <div className="w-full py-4 text-center text-gray-300 text-[9px]">Empty Archive</div>
-            )}
-          </div>
-        </section>
-
-        <section>
-          <div className="flex justify-between items-center mb-2 px-1">
-            <SectionLabel text="Reflections" />
-            <input 
-              type="text"
-              value={reflectionSearch}
-              onChange={(e) => setReflectionSearch(e.target.value)}
-              placeholder="Search..."
-              className="text-[8px] font-bold bg-gray-50 border-none rounded-lg px-2 py-1 outline-none w-20 focus:w-32 transition-all"
-            />
-          </div>
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
-            {filteredReflections.length > 0 ? (
-              filteredReflections.map((ref, idx) => (
-                <div key={idx} className="flex-shrink-0 w-48 bg-white rounded-2xl p-4 border border-gray-100 shadow-sm relative overflow-hidden">
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-[7px] font-black text-primary uppercase tracking-widest truncate max-w-[100px]">{ref.sprintTitle}</p>
-                    <p className="text-[6px] font-bold text-gray-300 uppercase">D{ref.day}</p>
-                  </div>
-                  <p className="text-[10px] text-gray-600 font-medium leading-relaxed line-clamp-3">"{ref.text}"</p>
-                </div>
-              ))
-            ) : (
-              <div className="w-full py-4 text-center text-gray-300 text-[9px]">No Patterns Found</div>
             )}
           </div>
         </section>

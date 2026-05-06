@@ -195,31 +195,14 @@ const SprintPreviewPage: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="space-y-6">
-                                        {currentDailyContent.taskPrompts && currentDailyContent.taskPrompts.some(p => p.trim()) ? (
-                                            currentDailyContent.taskPrompts.filter(p => p.trim()).map((prompt, i) => (
-                                                <div key={i} className="space-y-4">
-                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Action Step {i + 1}</p>
-                                                    <div className="text-sm text-gray-700 font-medium leading-relaxed">
-                                                        <FormattedText text={prompt} />
-                                                    </div>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="space-y-4">
-                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Today's Action Step</p>
+                                        {(currentDailyContent.taskPrompts || [currentDailyContent.taskPrompt || '']).concat(['', '', '']).slice(0, 3).map((prompt, i) => (
+                                            <div key={i} className="space-y-4">
+                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Action Step {i + 1}</p>
                                                 <div className="text-sm text-gray-700 font-medium leading-relaxed">
-                                                    <FormattedText text={currentDailyContent.taskPrompt || 'No action step for this day.'} />
+                                                    <FormattedText text={prompt || "Progress for this step will be submitted here."} />
                                                 </div>
                                             </div>
-                                        )}
-                                    </div>
-                                    <div className="space-y-4">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Coach Insight</p>
-                                        <p className="text-sm text-gray-700 font-medium leading-relaxed">{currentDailyContent.coachInsight || 'No coach insight for this day.'}</p>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Reflection Question</p>
-                                        <p className="text-sm text-gray-700 font-medium leading-relaxed">{currentDailyContent.reflectionQuestion || 'No reflection question for this day.'}</p>
+                                        ))}
                                     </div>
                                 </div>
                             ) : (

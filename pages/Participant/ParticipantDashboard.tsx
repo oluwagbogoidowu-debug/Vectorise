@@ -397,7 +397,7 @@ const ParticipantDashboard: React.FC = () => {
                                     <p className="text-[10px] font-bold text-gray-600 line-clamp-2 italic">
                                         "{(() => {
                                             const lastDayProg = enrollment.progress.find(p => p.day === sprint.duration);
-                                            return lastDayProg?.submission || lastDayProg?.reflection || 'No submission recorded';
+                                            return lastDayProg?.submission || 'No submission recorded';
                                         })()}"
                                     </p>
                                 </div>

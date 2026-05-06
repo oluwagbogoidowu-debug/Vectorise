@@ -154,7 +154,7 @@ const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> =
     const fields: (keyof Sprint)[] = [
         'title', 'subtitle', 'coverImageUrl', 'transformation', 'description', 
         'category', 'difficulty', 'price', 'currency', 'pointCost', 
-        'pricingType', 'duration', 'protocol', 'outcomeTag', 'checkInReminder', 'checkInReminderDays'
+        'pricingType', 'duration', 'outcomeTag', 'checkInReminder', 'checkInReminderDays'
     ];
 
     fields.forEach(f => {
@@ -326,7 +326,7 @@ const EditSprint: React.FC = () => {
       day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', '']
     };
     const content = (Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(c => c.day === selectedDay) : undefined) || {
-      day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], submissionPrompt: ''
+      day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', '']
     };
     
     // Return a safe copy with initialized taskPrompts if needed
@@ -358,11 +358,6 @@ const EditSprint: React.FC = () => {
           lessonText: '', 
           taskPrompt: '', 
           taskPrompts: ['', '', ''],
-          coachInsight: '', 
-          proofType: 'confirmation', 
-          proofOptions: [], 
-          reflectionQuestion: '', 
-          submissionPrompt: '',
           [field]: value 
         });
       }
@@ -399,12 +394,7 @@ const EditSprint: React.FC = () => {
             day: selectedDay,
             lessonText: '',
             taskPrompt: legacyValue,
-            taskPrompts: currentPrompts,
-            coachInsight: '',
-            proofType: 'confirmation',
-            proofOptions: [],
-            reflectionQuestion: '',
-            submissionPrompt: ''
+            taskPrompts: currentPrompts
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -440,12 +430,7 @@ const EditSprint: React.FC = () => {
             day: selectedDay,
             lessonText: '',
             taskPrompt: legacyValue,
-            taskPrompts: newPrompts,
-            coachInsight: '',
-            proofType: 'confirmation',
-            proofOptions: [],
-            reflectionQuestion: '',
-            submissionPrompt: ''
+            taskPrompts: newPrompts
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -562,7 +547,6 @@ const EditSprint: React.FC = () => {
       pointCost: editSettings.pointCost,
       pricingType: editSettings.pricingType,
       duration: editSettings.duration,
-      protocol: editSettings.protocol,
       outcomeTag: editSettings.outcomeTag,
     };
 
@@ -576,9 +560,7 @@ const EditSprint: React.FC = () => {
           day: currentDailyContent.length + i + 1,
           lessonText: '',
           taskPrompt: '',
-          coachInsight: '',
-          proofType: 'note' as const,
-          reflectionQuestion: ''
+          taskPrompts: ['', '', '']
         }));
         updatedSprintData.dailyContent = [...currentDailyContent, ...padding];
       } else if (newDuration < currentDailyContent.length) {
@@ -854,26 +836,18 @@ const EditSprint: React.FC = () => {
                 </div>
 
                 <div className="space-y-6">
-                    {currentContent.taskPrompts && currentContent.taskPrompts.some(p => p.trim()) ? (
-                        currentContent.taskPrompts.filter(p => p.trim()).map((prompt, i) => (
-                            <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                                <SectionHeading>Action Step {i + 1}</SectionHeading>
-                                <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
-                                    <FormattedText text={prompt} />
-                                </div>
-                                <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                    {currentContent.taskPrompts?.map((prompt, i) => (
+                        <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
+                            <SectionHeading>Action Step {i + 1}</SectionHeading>
+                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
+                                <FormattedText text={prompt || "Submit your progress for this step."} />
                             </div>
-                        ))
-                    ) : (
-                        <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                            <SectionHeading>Today's Action Step</SectionHeading>
-                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
-                                <FormattedText text={currentContent.taskPrompt || "Action steps will appear here..."} />
+                            <div className="w-full bg-white border border-primary/10 rounded-xl px-4 py-3 text-sm font-bold text-gray-300 italic flex items-center gap-2">
+                                Participant Input Field
                             </div>
                             <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
                         </div>
-                    )}
-
+                    ))}
                 </div>
 
                 <div className="mt-12 space-y-4">
@@ -945,7 +919,6 @@ const EditSprint: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <DiffHighlight label="Duration" original={originalSprint?.duration} updated={editSettings.duration} />
-                                <DiffHighlight label="Daily System" original={originalSprint?.protocol} updated={editSettings.protocol} />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <DiffHighlight label="Sprint Type" original={originalSprint?.sprintType} updated={editSettings.sprintType} />
@@ -1013,14 +986,6 @@ const EditSprint: React.FC = () => {
                                                     <option value="Beginner">Beginner</option>
                                                     <option value="Intermediate">Intermediate</option>
                                                     <option value="Advanced">Advanced</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className={labelClasses}>Daily System</label>
-                                                <select value={editSettings.protocol || 'One action per day'} onChange={e => setEditSettings({...editSettings, protocol: e.target.value as 'One action per day' | 'Guided task' | 'Challenge-based'})} className={registryInputClasses + " mt-2"}>
-                                                    <option value="One action per day">One action per day</option>
-                                                    <option value="Guided task">Guided task</option>
-                                                    <option value="Challenge-based">Challenge-based</option>
                                                 </select>
                                             </div>
                                             <div>

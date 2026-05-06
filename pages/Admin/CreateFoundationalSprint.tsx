@@ -33,7 +33,6 @@ const CreateFoundationalSprint: React.FC = () => {
         currency: string;
         outcomeTag: string;
         sprintType: 'Foundational' | 'Execution' | 'Skill';
-        protocol: 'One action per day' | 'Guided task' | 'Challenge-based';
         pricingType: 'cash' | 'credits';
         pointCost: number;
     }>({
@@ -58,7 +57,6 @@ const CreateFoundationalSprint: React.FC = () => {
         currency: 'NGN',
         outcomeTag: OUTCOME_TAGS[0],
         sprintType: 'Foundational' as 'Foundational' | 'Execution' | 'Skill',
-        protocol: 'One action per day' as 'One action per day' | 'Guided task' | 'Challenge-based',
         pricingType: 'credits',
         pointCost: 30,
     });
@@ -102,12 +100,8 @@ const CreateFoundationalSprint: React.FC = () => {
         const dailyContent: DailyContent[] = Array.from({ length: duration }, (_, i) => ({
             day: i + 1,
             lessonText: '',
-            taskPrompt: '',
-            coachInsight: '',
-            reflectionQuestion: 'One idea that shifted my thinking was...',
-            submissionType: 'text',
-            proofType: 'confirmation',
-            proofOptions: []
+            taskPrompt: '', // Keep for backward compatibility/normalization if needed
+            taskPrompts: ['', '', ''],
         }));
 
         const newSprint: Sprint = {
@@ -129,7 +123,6 @@ const CreateFoundationalSprint: React.FC = () => {
             pricingType: formData.pricingType,
             outcomeTag: formData.outcomeTag,
             sprintType: formData.sprintType,
-            protocol: formData.protocol,
             dynamicSections: formData.dynamicSections,
         };
 
@@ -345,14 +338,6 @@ const CreateFoundationalSprint: React.FC = () => {
                                             <option value="Beginner">Beginner</option>
                                             <option value="Intermediate">Intermediate</option>
                                             <option value="Advanced">Advanced</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className={labelClasses}>Daily System</label>
-                                        <select name="protocol" value={formData.protocol} onChange={handleChange} className={inputClasses + " mt-2"}>
-                                            <option value="One action per day">One action per day</option>
-                                            <option value="Guided task">Guided task</option>
-                                            <option value="Challenge-based">Challenge-based</option>
                                         </select>
                                     </div>
                                     <div>

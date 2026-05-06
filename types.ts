@@ -200,7 +200,6 @@ export interface ParticipantSprint {
   last_activity_at?: string;
   referral_source?: string | null;
   sentNudges?: number[];
-  reflectionsDisabled?: boolean;
   soundDisabled?: boolean;
   notificationsDisabled?: boolean;
   isCommissionTrigger?: boolean; 
@@ -212,7 +211,6 @@ export interface ParticipantSprint {
     completedAt?: string;
     submission?: string;
     submissionFileUrl?: string;
-    reflection?: string;
     proofSelection?: string;
   }[];
 }
@@ -249,7 +247,6 @@ export interface Sprint {
   forWho?: string[];
   notForWho?: string[];
   methodSnapshot?: { verb: string; description: string }[];
-  protocol?: 'One action per day' | 'Guided task' | 'Challenge-based';
   outcomeTag?: string; 
   outcomeStatement?: string;
   sprintType?: 'Foundational' | 'Execution' | 'Skill';
@@ -266,12 +263,6 @@ export interface DailyContent {
   lessonText: string;
   taskPrompt: string;
   taskPrompts?: string[];
-  coachInsight?: string;
-  reflectionQuestion?: string;
-  submissionType?: 'text' | 'file' | 'both' | 'none';
-  proofType?: 'confirmation' | 'picker' | 'note';
-  proofOptions?: string[];
-  submissionPrompt?: string;
 }
 
 export interface User {

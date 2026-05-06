@@ -17,60 +17,14 @@ import { Participant } from '../../types';
 
 import { PushToggle } from '../../components/PushToggle';
 
-const ReflectionModal: React.FC<{
-    day: number;
-    isOpen: boolean;
-    question?: string;
-    onClose: () => void;
-    onFinish: (reflection: string) => void;
-    isSubmitting: boolean;
-}> = ({ isOpen, day, question, onClose, onFinish, isSubmitting }) => {
-    const [text, setText] = useState('');
-    if (!isOpen) return null;
-    return (
-        <div className="modal-overlay animate-fade-in" onClick={onClose}>
-            <div className="modal-content-wrapper" onClick={onClose}>
-                <div className="modal-content w-full max-w-sm bg-white rounded-[2.5rem] relative overflow-y-auto animate-slide-up flex flex-col p-8 max-h-[80vh] custom-scrollbar" onClick={e => e.stopPropagation()}>
-                <h3 className="text-xl font-black text-gray-900 tracking-tight mb-4">Sprint Reflection</h3>
-                <p className="text-[11px] font-black text-primary uppercase tracking-widest mb-6 leading-tight">
-                    {question || "One idea that shifted my thinking was..."}
-                </p>
-                <textarea
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    placeholder="Enter your breakthrough..."
-                    className="w-full bg-[#FAFAFA] border border-gray-100 rounded-2xl p-5 text-sm font-medium min-h-[140px] mb-8"
-                />
-                <button 
-                    onClick={() => onFinish(text)}
-                    disabled={isSubmitting}
-                    className="w-full bg-[#0E7850] text-white py-4 rounded-2xl text-sm font-black uppercase tracking-widest shadow-xl active:scale-95 disabled:opacity-50"
-                >
-                    {isSubmitting ? 'Finalizing...' : `Finish Day ${day}`}
-                </button>
-                <button 
-                    onClick={() => onFinish("")}
-                    disabled={isSubmitting}
-                    className="w-full mt-4 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-colors"
-                >
-                    Skip reflection for today
-                </button>
-            </div>
-        </div>
-    </div>
-    );
-};
-
 const SprintSettingsModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    reflectionsEnabled: boolean;
-    onToggleReflections: () => void;
     soundEnabled: boolean;
     onToggleSound: () => void;
     notificationsEnabled: boolean;
     onToggleNotifications: (state: boolean) => void;
-}> = ({ isOpen, onClose, reflectionsEnabled, onToggleReflections, soundEnabled, onToggleSound, notificationsEnabled, onToggleNotifications }) => {
+}> = ({ isOpen, onClose, soundEnabled, onToggleSound, notificationsEnabled, onToggleNotifications }) => {
     if (!isOpen) return null;
 
     const Toggle = ({ enabled, onToggle, label }: { enabled: boolean, onToggle: () => void, label: string }) => (
@@ -97,7 +51,6 @@ const SprintSettingsModal: React.FC<{
                 </div>
                 
                 <div className="flex-1 overflow-y-auto px-8 py-2 min-h-0 custom-scrollbar">
-                    <Toggle enabled={reflectionsEnabled} onToggle={onToggleReflections} label="Daily Reflections" />
                     <Toggle enabled={soundEnabled} onToggle={onToggleSound} label="Completion Sound" />
                     <div className="py-2.5 border-b border-gray-50 last:border-0">
                         <PushToggle 
@@ -292,11 +245,9 @@ const SprintView: React.FC = () => {
     const [now, setNow] = useState(Date.now());
     const [timeToUnlock, setTimeToUnlock] = useState<string>('00:00:00');
     
-    // Day Completion State (Proof)
-    const [proofInput, setProofInput] = useState('');
-    const [proofSelected, setProofSelected] = useState('');
+    // Day Completion State (Task Inputs)
+    const [taskInputs, setTaskInputs] = useState<string[]>(['', '', '']);
 
-    const [reflectionsEnabled, setReflectionsEnabled] = useState(true);
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [globalSettings, setGlobalSettings] = useState<GlobalOrchestrationSettings | null>(null);
@@ -306,9 +257,6 @@ const SprintView: React.FC = () => {
         const unsubscribe = sprintService.subscribeToEnrollment(enrollmentId, async (data) => {
             if (data) {
                 setEnrollment(data);
-                if (data.reflectionsDisabled !== undefined) {
-                    setReflectionsEnabled(!data.reflectionsDisabled);
-                }
                 if (data.soundDisabled !== undefined) {
                     setSoundEnabled(!data.soundDisabled);
                 }
@@ -362,8 +310,7 @@ const SprintView: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        setProofInput('');
-        setProofSelected('');
+        setTaskInputs(['', '', '']);
     }, [viewingDay]);
 
     useEffect(() => {
@@ -440,18 +387,6 @@ const SprintView: React.FC = () => {
         }
     }, [dayLockDetails, now]);
 
-    const toggleReflectionState = async () => {
-        if (!enrollment) return;
-        const newState = !reflectionsEnabled;
-        setReflectionsEnabled(newState);
-        try {
-            const enrollmentRef = doc(db, 'enrollments', enrollment.id);
-            await updateDoc(enrollmentRef, { reflectionsDisabled: !newState });
-        } catch (err) {
-            console.error("Toggle reflection state failed", err);
-        }
-    };
-
     const toggleSoundState = async () => {
         if (!enrollment) return;
         const newState = !soundEnabled;
@@ -527,7 +462,7 @@ const SprintView: React.FC = () => {
         setIsPushPermissionModalOpen(false);
     };
 
-    const handleFinishDay = async (reflection: string) => {
+    const handleFinishDay = async () => {
         if (!enrollment || !user || isSubmitting || !enrollment.progress) return;
         setIsSubmitting(true);
         try {
@@ -538,9 +473,7 @@ const SprintView: React.FC = () => {
                     ...p, 
                     completed: true, 
                     completedAt: timestamp, 
-                    reflection: reflection.trim(),
-                    submission: proofInput,
-                    proofSelection: proofSelected
+                    submission: taskInputs.filter(ti => ti.trim()).join(' | ')
                 } : p
             );
             
@@ -663,18 +596,33 @@ const SprintView: React.FC = () => {
         }
     };
 
-    const dayContent = Array.isArray(sprint?.dailyContent) ? sprint?.dailyContent.find(dc => dc.day === viewingDay) : undefined;
+    const dayContentRaw = Array.isArray(sprint?.dailyContent) ? sprint?.dailyContent.find(dc => dc.day === viewingDay) : undefined;
+    const dayContent = useMemo(() => {
+        if (!dayContentRaw) return undefined;
+        // Normalize taskPrompts to always have 3 entries for consistency in Participant View
+        const prompts = Array.isArray(dayContentRaw.taskPrompts) ? [...dayContentRaw.taskPrompts] : [];
+        if (prompts.length === 0 && dayContentRaw.taskPrompt) {
+            prompts.push(dayContentRaw.taskPrompt);
+        }
+        while (prompts.length < 3) {
+            prompts.push(""); // Pad with empty strings if fewer than 3
+        }
+        return {
+            ...dayContentRaw,
+            taskPrompts: prompts
+        };
+    }, [dayContentRaw]);
+
     const dayProgress = enrollment?.progress?.find(p => p.day === viewingDay);
 
     const isProofMet = useMemo(() => {
         if (!dayContent) return false;
-        if (dayContent.proofType === 'picker') return !!proofSelected;
-        if (dayContent.proofType === 'note') return proofInput.trim().length > 2;
-        return true; // confirmation
-    }, [dayContent, proofInput, proofSelected]);
+        // We require all 3 inputs to have at least 1 character if the daily system is active
+        return taskInputs.every(ti => ti.trim().length > 0);
+    }, [dayContent, taskInputs]);
 
     const handleQuickComplete = () => {
-        handleFinishDay("");
+        handleFinishDay();
     };
 
     if (!enrollment || !sprint || !enrollment.progress) return <div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
@@ -792,33 +740,42 @@ const SprintView: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-6">
-                                    {dayContent?.taskPrompts && dayContent.taskPrompts.some(p => p.trim()) ? (
-                                        dayContent.taskPrompts.filter(p => p.trim()).map((prompt, i) => (
-                                            <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                                                <SectionHeading>Action Step {i + 1}</SectionHeading>
-                                                <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
-                                                    <FormattedText text={prompt} />
+                                    {dayContent?.taskPrompts?.map((prompt, i) => (
+                                        <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
+                                            <SectionHeading>Action Step {i + 1}</SectionHeading>
+                                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
+                                                <FormattedText text={prompt || "Submit your progress for this step."} />
+                                            </div>
+                                            {!dayProgress?.completed && (
+                                                <input 
+                                                    type="text"
+                                                    value={taskInputs[i] || ''}
+                                                    onChange={(e) => {
+                                                        const newInputs = [...taskInputs];
+                                                        newInputs[i] = e.target.value;
+                                                        setTaskInputs(newInputs);
+                                                    }}
+                                                    placeholder="Your response..."
+                                                    className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all"
+                                                />
+                                            )}
+                                            {dayProgress?.completed && (
+                                                <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex items-center gap-2">
+                                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                                                    {taskInputs[i] || 'Completed'}
                                                 </div>
-                                                <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                                            <SectionHeading>Today's Action Steps</SectionHeading>
-                                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
-                                                <FormattedText text={dayContent?.taskPrompt || ""} />
-                                            </div>
-                                            <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                                            )}
+                                            {!dayProgress?.completed && <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>}
                                         </div>
-                                    )}
+                                    ))}
                                 </div>
 
                                 {!dayProgress?.completed && (
                                     <div className="mt-12 space-y-6 animate-fade-in">
                                         <button 
-                                          onClick={handleQuickComplete}
-                                          disabled={isSubmitting}
-                                          className={`w-full py-5 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] shadow-xl transition-all bg-[#159E5B] text-white shadow-primary/10 active:scale-95 disabled:opacity-50`}
+                                          onClick={handleFinishDay}
+                                          disabled={isSubmitting || !isProofMet}
+                                          className={`w-full py-5 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] shadow-xl transition-all ${isProofMet ? 'bg-[#159E5B] text-white shadow-primary/10 active:scale-95' : 'bg-gray-100 text-gray-400 cursor-not-allowed'} disabled:opacity-50`}
                                         >
                                           Today's task completed
                                         </button>
@@ -852,16 +809,6 @@ const SprintView: React.FC = () => {
                                             </div>
                                         )}
 
-                                        {dayProgress.reflection && (
-                                            <div className="animate-fade-in pt-4 border-t border-gray-50">
-                                                <p className="text-[7px] font-black text-primary uppercase tracking-[0.2em] mb-4">Your Breakthrough</p>
-                                                <div className="bg-primary/5 rounded-[1.5rem] p-6 border border-primary/10">
-                                                    <p className="text-gray-800 font-medium text-sm leading-relaxed">
-                                                        {dayProgress.reflection}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
                                 )}
 
@@ -898,7 +845,7 @@ const SprintView: React.FC = () => {
                                             <p className="text-[10px] font-bold text-gray-600 line-clamp-2 italic">
                                                 "{(() => {
                                                     const lastDayProg = enrollment.progress.find(p => p.day === sprint.duration);
-                                                    return lastDayProg?.submission || lastDayProg?.reflection || 'No submission recorded';
+                                                    return lastDayProg?.submission || 'No submission recorded';
                                                 })()}"
                                             </p>
                                         </div>
@@ -981,8 +928,6 @@ const SprintView: React.FC = () => {
             <SprintSettingsModal 
                 isOpen={isSettingsModalOpen}
                 onClose={() => setIsSettingsModalOpen(false)}
-                reflectionsEnabled={reflectionsEnabled}
-                onToggleReflections={toggleReflectionState}
                 soundEnabled={soundEnabled}
                 onToggleSound={toggleSoundState}
                 notificationsEnabled={notificationsEnabled}
@@ -995,14 +940,6 @@ const SprintView: React.FC = () => {
                 participantId={user?.id || ''}
                 day={viewingDay}
                 sprintTitle={sprint.title}
-            />
-            <ReflectionModal 
-                isOpen={isReflectionModalOpen} 
-                day={viewingDay} 
-                question={dayContent?.reflectionQuestion}
-                onClose={() => setIsReflectionModalOpen(false)} 
-                onFinish={handleFinishDay} 
-                isSubmitting={isSubmitting} 
             />
             <SprintCompletionModal
                 isOpen={isCompletionModalOpen}
