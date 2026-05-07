@@ -498,6 +498,45 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
+  const handleToggleLinkToNext = (index: number) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        if (existingContentIndex < 0) return prev;
+        
+        let updatedDailyContent = [...prev.dailyContent];
+        let currentLinked = [...(updatedDailyContent[existingContentIndex].taskLinkedToNext || [])];
+        
+        while (currentLinked.length <= index) currentLinked.push(false);
+        const newState = !currentLinked[index];
+        currentLinked[index] = newState;
+        
+        let currentPrompts = [...(updatedDailyContent[existingContentIndex].taskPrompts || [])];
+        let currentTypes = [...(updatedDailyContent[existingContentIndex].taskInputTypes || [])];
+        let currentOptions = [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])];
+        
+        if (newState) {
+            if (currentPrompts.length <= index + 1) {
+                currentPrompts.push('');
+                currentTypes.push('poll');
+                currentOptions.push([]);
+            } else {
+                currentTypes[index + 1] = 'poll';
+            }
+        }
+        
+        updatedDailyContent[existingContentIndex] = {
+            ...updatedDailyContent[existingContentIndex],
+            taskLinkedToNext: currentLinked,
+            taskPrompts: currentPrompts,
+            taskInputTypes: currentTypes,
+            taskPollOptions: currentOptions
+        };
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
   const addTaskPrompt = () => {
     setSprint(prev => {
         if (!prev) return null;
@@ -946,96 +985,122 @@ const EditSprint: React.FC = () => {
                         />
                     )}
                     
-                    <div className="space-y-3">
-                        {(currentContent.taskPrompts || ['', '', '']).map((prompt, index) => (
-                            <div key={index} className="group relative">
-                                <div className="absolute -left-10 top-6 w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-[10px] font-black text-gray-300 group-focus-within:bg-primary/10 group-focus-within:text-primary transition-all">
-                                    {index + 1}
-                                </div>
-                                <div className="flex gap-2 items-start">
-                                    <div className="flex-1 space-y-2">
-                                        <textarea 
-                                            value={prompt} 
-                                            onChange={e => handleTaskPromptChange(index, e.target.value)} 
-                                            rows={2} 
-                                            className={editorInputClasses + " p-4 !py-4 w-full"} 
-                                            placeholder={`Action Step ${index + 1}...`} 
-                                        />
-                                        <div className="flex items-center justify-between mt-2">
-                                            <div className="flex items-center gap-2">
-                                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Input Type:</label>
-                                                <div className="flex p-0.5 bg-gray-100 rounded-lg">
-                                                    <button 
-                                                        onClick={() => handleTaskPromptTypeChange(index, 'text')}
-                                                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                                    >
-                                                        Text
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => handleTaskPromptTypeChange(index, 'tags')}
-                                                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                                    >
-                                                        Tags
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => handleTaskPromptTypeChange(index, 'poll')}
-                                                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                                    >
-                                                        Poll
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {currentContent.taskInputTypes?.[index] === 'poll' && (
-                                            <div className="mt-3 pl-2 border-l-2 border-primary/20 space-y-2">
-                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2">Poll Options (at least 4)</label>
-                                                {(currentContent.taskPollOptions?.[index] || ['', '', '', '']).map((opt, optIndex) => (
-                                                    <div key={optIndex} className="flex gap-2 items-center group/opt">
-                                                        <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-100 text-gray-400 text-xs font-bold shrink-0">
-                                                            {String.fromCharCode(65 + optIndex)}
-                                                        </div>
-                                                        <input 
-                                                            type="text"
-                                                            value={opt}
-                                                            onChange={(e) => handleTaskPollOptionChange(index, optIndex, e.target.value)}
-                                                            className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
-                                                            placeholder={`Option ${optIndex + 1}`}
-                                                        />
-                                                        {((currentContent.taskPollOptions?.[index]?.length || 4) > 4) && (
+                    <div className="space-y-4 relative">
+                        {(currentContent.taskPrompts || ['', '', '']).map((prompt, index) => {
+                            const isLinkedFromPrevious = index > 0 && currentContent.taskLinkedToNext?.[index - 1];
+                            return (
+                                <div key={index} className={`group relative ${isLinkedFromPrevious ? 'ml-8' : ''}`}>
+                                    {isLinkedFromPrevious && (
+                                        <div className="absolute -left-[24px] -top-8 w-4 h-12 border-l-2 border-b-2 border-gray-300 rounded-bl-xl border-dashed" />
+                                    )}
+                                    <div className={`absolute ${isLinkedFromPrevious ? '-left-10' : '-left-10'} top-6 w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-[10px] font-black text-gray-300 group-focus-within:bg-primary/10 group-focus-within:text-primary transition-all z-10`}>
+                                        {index + 1}
+                                    </div>
+                                    <div className="flex gap-2 items-start relative z-20">
+                                        <div className="flex-1 space-y-2">
+                                            <textarea 
+                                                value={prompt} 
+                                                onChange={e => handleTaskPromptChange(index, e.target.value)} 
+                                                rows={2} 
+                                                className={editorInputClasses + " p-4 !py-4 w-full"} 
+                                                placeholder={isLinkedFromPrevious ? `Follow-up Poll Step ${index + 1}...` : `Action Step ${index + 1}...`} 
+                                            />
+                                            <div className="flex items-center justify-between mt-2">
+                                                <div className="flex items-center gap-2">
+                                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Input Type:</label>
+                                                    <div className="flex items-center gap-1">
+                                                        <div className="flex p-0.5 bg-gray-100 rounded-lg">
                                                             <button 
-                                                                type="button"
-                                                                onClick={() => removeTaskPollOption(index, optIndex)}
-                                                                className="p-2 text-red-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-all opacity-0 group-hover/opt:opacity-100"
+                                                                onClick={() => !isLinkedFromPrevious && handleTaskPromptTypeChange(index, 'text')}
+                                                                disabled={isLinkedFromPrevious}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'} disabled:opacity-50 disabled:cursor-not-allowed`}
                                                             >
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                Text
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => !isLinkedFromPrevious && handleTaskPromptTypeChange(index, 'tags')}
+                                                                disabled={isLinkedFromPrevious}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                                                            >
+                                                                Tags
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => !isLinkedFromPrevious && handleTaskPromptTypeChange(index, 'poll')}
+                                                                disabled={isLinkedFromPrevious}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                                                            >
+                                                                Poll
+                                                            </button>
+                                                        </div>
+                                                        {currentContent.taskInputTypes?.[index] === 'tags' && (
+                                                            <button 
+                                                                onClick={() => handleToggleLinkToNext(index)}
+                                                                title="Auto-Poll: Ask a follow-up poll using the user's tags"
+                                                                className={`ml-2 p-1.5 rounded-md transition-all flex items-center justify-center ${currentContent.taskLinkedToNext?.[index] ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
                                                             </button>
                                                         )}
                                                     </div>
-                                                ))}
-                                                <button 
-                                                    onClick={() => {
-                                                        const currentLength = currentContent.taskPollOptions?.[index]?.length || 4;
-                                                        handleTaskPollOptionChange(index, currentLength, '');
-                                                    }}
-                                                    className="pl-7 text-xs font-bold text-primary hover:text-primary/70 transition-colors"
-                                                >
-                                                    + Add Option
-                                                </button>
+                                                </div>
                                             </div>
+                                            {currentContent.taskInputTypes?.[index] === 'poll' && (
+                                                <div className="mt-3 pl-2 border-l-2 border-primary/20 space-y-2">
+                                                    {isLinkedFromPrevious ? (
+                                                        <p className="text-xs font-medium text-primary italic px-2">Poll options will be generated automatically from the participant's tags in the previous step.</p>
+                                                    ) : (
+                                                        <>
+                                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2">Poll Options (at least 4)</label>
+                                                            {(currentContent.taskPollOptions?.[index]?.length ? currentContent.taskPollOptions[index] : ['', '', '', '']).map((opt, optIndex) => (
+                                                                <div key={optIndex} className="flex gap-2 items-center group/opt">
+                                                                    <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-100 text-gray-400 text-xs font-bold shrink-0">
+                                                                        {String.fromCharCode(65 + optIndex)}
+                                                                    </div>
+                                                                    <input 
+                                                                        type="text"
+                                                                        value={opt}
+                                                                        onChange={(e) => handleTaskPollOptionChange(index, optIndex, e.target.value)}
+                                                                        className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                                                                        placeholder={`Option ${optIndex + 1}`}
+                                                                    />
+                                                                    {((currentContent.taskPollOptions?.[index]?.length || 4) > 4) && (
+                                                                        <button 
+                                                                            type="button"
+                                                                            onClick={() => removeTaskPollOption(index, optIndex)}
+                                                                            className="p-2 text-red-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-all opacity-0 group-hover/opt:opacity-100"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                            <button 
+                                                                onClick={() => {
+                                                                    const currentLength = currentContent.taskPollOptions?.[index]?.length || 4;
+                                                                    handleTaskPollOptionChange(index, currentLength, '');
+                                                                }}
+                                                                className="pl-7 text-xs font-bold text-primary hover:text-primary/70 transition-colors"
+                                                            >
+                                                                + Add Option
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {(currentContent.taskPrompts?.length || 3) > 1 && (
+                                            <button 
+                                                onClick={() => removeTaskPrompt(index)}
+                                                className="p-3 text-red-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all self-stretch flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                                title="Remove Step"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                            </button>
                                         )}
                                     </div>
-                                    {(currentContent.taskPrompts?.length || 3) > 1 && (
-                                        <button 
-                                            onClick={() => removeTaskPrompt(index)}
-                                            className="p-3 text-red-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all self-stretch flex items-center justify-center opacity-0 group-hover:opacity-100"
-                                            title="Remove Step"
-                                        >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                        </button>
-                                    )}
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                     
                     <button 

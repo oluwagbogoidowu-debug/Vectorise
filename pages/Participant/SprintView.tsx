@@ -728,13 +728,19 @@ const SprintView: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-6">
-                                    {dayContent?.taskPrompts && dayContent.taskPrompts.some(p => p.trim()) ? (
-                                        dayContent.taskPrompts.filter(p => p.trim()).map((prompt, i) => (
-                                            <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                                                <SectionHeading>Action Step {i + 1}</SectionHeading>
-                                                <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
-                                                    <FormattedText text={prompt} />
-                                                </div>
+                                    {dayContent?.taskPrompts && dayContent.taskPrompts.length > 1 ? (
+                                        dayContent.taskPrompts.map((prompt, i) => {
+                                            const isLinkedFromPrevious = i > 0 && dayContent.taskLinkedToNext?.[i - 1];
+                                            return (
+                                            <div key={i} className={`p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group ${isLinkedFromPrevious ? 'ml-6 sm:ml-12' : ''}`}>
+                                                {isLinkedFromPrevious && (
+                                                    <div className="absolute -left-6 sm:-left-12 -top-10 w-6 sm:w-12 h-[calc(50%+2.5rem)] border-l-2 border-b-2 border-primary/20 rounded-bl-xl border-dashed pointer-events-none z-0" />
+                                                )}
+                                                <div className="relative z-10">
+                                                    <SectionHeading>{isLinkedFromPrevious ? 'Follow-up Poll' : `Action Step ${i + 1}`}</SectionHeading>
+                                                    <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
+                                                        <FormattedText text={prompt} />
+                                                    </div>
                                                 {!dayProgress?.completed && (
                                                     dayContent.taskInputTypes?.[i] === 'tags' ? (
                                                         <div className="w-full bg-white border border-primary/10 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-primary/5 focus-within:border-primary transition-all">
@@ -794,20 +800,30 @@ const SprintView: React.FC = () => {
                                                         </div>
                                                     ) : dayContent.taskInputTypes?.[i] === 'poll' ? (
                                                         <div className="space-y-2">
-                                                            {(dayContent.taskPollOptions?.[i] || []).filter(Boolean).map((opt, optIndex) => (
-                                                                <button
-                                                                    key={optIndex}
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        const newInputs = [...taskInputs];
-                                                                        newInputs[i] = opt;
-                                                                        setTaskInputs(newInputs);
-                                                                    }}
-                                                                    className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[i] === opt ? 'bg-primary/10 border-primary text-primary' : 'bg-white border-primary/10 hover:border-primary/30 text-gray-700'}`}
-                                                                >
-                                                                    {String.fromCharCode(65 + optIndex)}. {opt}
-                                                                </button>
-                                                            ))}
+                                                            {(() => {
+                                                                let pollOptions = dayContent.taskPollOptions?.[i] || [];
+                                                                if (i > 0 && dayContent.taskLinkedToNext?.[i - 1] && taskInputs[i - 1]) {
+                                                                    try {
+                                                                        pollOptions = taskInputs[i - 1].startsWith('[') ? JSON.parse(taskInputs[i - 1] || '[]') : taskInputs[i - 1].split(',').filter(Boolean);
+                                                                    } catch (e) {
+                                                                        pollOptions = [];
+                                                                    }
+                                                                }
+                                                                return (pollOptions).filter(Boolean).map((opt: string, optIndex: number) => (
+                                                                    <button
+                                                                        key={optIndex}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const newInputs = [...taskInputs];
+                                                                            newInputs[i] = opt;
+                                                                            setTaskInputs(newInputs);
+                                                                        }}
+                                                                        className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[i] === opt ? 'bg-primary/10 border-primary text-primary' : 'bg-white border-primary/10 hover:border-primary/30 text-gray-700'}`}
+                                                                    >
+                                                                        {String.fromCharCode(65 + optIndex)}. {opt}
+                                                                    </button>
+                                                                ));
+                                                            })()}
                                                         </div>
                                                     ) : (
                                                         <input 
@@ -838,8 +854,10 @@ const SprintView: React.FC = () => {
                                                     </div>
                                                 )}
                                                 {!dayProgress?.completed && <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>}
+                                                </div>
                                             </div>
-                                        ))
+                                            );
+                                        })
                                     ) : (
                                         <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
                                             <SectionHeading>Today's Action Steps</SectionHeading>
