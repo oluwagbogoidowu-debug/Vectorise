@@ -185,7 +185,7 @@ const SectionHeading: React.FC<{ children: React.ReactNode; color?: string }> = 
 const EditSprint: React.FC = () => {
   const { sprintId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, activeRole } = useAuth();
   
   const [originalSprint, setOriginalSprint] = useState<Sprint | null>(null);
   const [sprint, setSprint] = useState<Sprint | null>(null);
@@ -203,7 +203,7 @@ const EditSprint: React.FC = () => {
   const lessonTextRef = useRef<HTMLTextAreaElement>(null);
   const taskPromptRef = useRef<HTMLTextAreaElement>(null);
 
-  const isAdmin = user?.role === UserRole.ADMIN;
+  const isAdmin = activeRole === UserRole.ADMIN;
   
   const isFoundational = useMemo(() => {
     const cat = editSettings.category || sprint?.category;
@@ -705,7 +705,7 @@ const EditSprint: React.FC = () => {
           // Pass the full merged sprint to ensure all changes (registry + curriculum) are pushed live
           await sprintService.approveSprint(sprintId, sprint);
           alert("Updates approved and pushed live.");
-          navigate('/admin/dashboard');
+          navigate('/dashboard');
       } catch (err: any) {
           alert(err.message || "Approval failed.");
           setApprovalStatus('idle');
@@ -719,7 +719,7 @@ const EditSprint: React.FC = () => {
           const updated = { ...sprint, approvalStatus: 'rejected' as const, reviewFeedback };
           await sprintService.updateSprint(sprintId, updated);
           alert("Amendments sent to coach.");
-          navigate('/admin/dashboard');
+          navigate('/dashboard');
       } catch (err) { setApprovalStatus('idle'); }
   };
 
