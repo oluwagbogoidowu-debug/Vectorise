@@ -777,6 +777,10 @@ const SprintView: React.FC = () => {
                                                                                     }
                                                                                 }
                                                                                 if (!tags.includes(val)) {
+                                                                                    if (tags.length >= 5) {
+                                                                                        alert('You can only add up to 5 tags.');
+                                                                                        return;
+                                                                                    }
                                                                                     const newInputs = [...taskInputs];
                                                                                     newInputs[i] = JSON.stringify([...tags, val]);
                                                                                     setTaskInputs(newInputs);
@@ -787,6 +791,23 @@ const SprintView: React.FC = () => {
                                                                     }}
                                                                 />
                                                             </div>
+                                                        </div>
+                                                    ) : dayContent.taskInputTypes?.[i] === 'poll' ? (
+                                                        <div className="space-y-2">
+                                                            {(dayContent.taskPollOptions?.[i] || []).filter(Boolean).map((opt, optIndex) => (
+                                                                <button
+                                                                    key={optIndex}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const newInputs = [...taskInputs];
+                                                                        newInputs[i] = opt;
+                                                                        setTaskInputs(newInputs);
+                                                                    }}
+                                                                    className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[i] === opt ? 'bg-primary/10 border-primary text-primary' : 'bg-white border-primary/10 hover:border-primary/30 text-gray-700'}`}
+                                                                >
+                                                                    {String.fromCharCode(65 + optIndex)}. {opt}
+                                                                </button>
+                                                            ))}
                                                         </div>
                                                     ) : (
                                                         <input 
@@ -867,6 +888,10 @@ const SprintView: React.FC = () => {
                                                                                 }
                                                                             }
                                                                             if (!tags.includes(val)) {
+                                                                                if (tags.length >= 5) {
+                                                                                    alert('You can only add up to 5 tags.');
+                                                                                    return;
+                                                                                }
                                                                                 const newInputs = [...taskInputs];
                                                                                 newInputs[0] = JSON.stringify([...tags, val]);
                                                                                 setTaskInputs(newInputs);
@@ -877,6 +902,23 @@ const SprintView: React.FC = () => {
                                                                 }}
                                                             />
                                                         </div>
+                                                    </div>
+                                                ) : dayContent?.taskInputTypes?.[0] === 'poll' ? (
+                                                    <div className="space-y-2">
+                                                        {(dayContent.taskPollOptions?.[0] || []).filter(Boolean).map((opt, optIndex) => (
+                                                            <button
+                                                                key={optIndex}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const newInputs = [...taskInputs];
+                                                                    newInputs[0] = opt;
+                                                                    setTaskInputs(newInputs);
+                                                                }}
+                                                                className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[0] === opt ? 'bg-primary/10 border-primary text-primary' : 'bg-white border-primary/10 hover:border-primary/30 text-gray-700'}`}
+                                                            >
+                                                                {String.fromCharCode(65 + optIndex)}. {opt}
+                                                            </button>
+                                                        ))}
                                                     </div>
                                                 ) : (
                                                     <input 

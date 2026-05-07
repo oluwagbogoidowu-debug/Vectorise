@@ -402,7 +402,7 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
-  const handleTaskPromptTypeChange = (index: number, type: 'text' | 'tags') => {
+  const handleTaskPromptTypeChange = (index: number, type: 'text' | 'tags' | 'poll') => {
     setSprint(prev => {
         if (!prev) return null;
         const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
@@ -415,10 +415,23 @@ const EditSprint: React.FC = () => {
         while (currentTypes.length <= index) currentTypes.push('text');
         currentTypes[index] = type;
         
+        let currentOptions = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])] 
+            : [];
+            
+        if (type === 'poll' && (!currentOptions[index] || currentOptions[index].length < 4)) {
+            while (currentOptions.length <= index) currentOptions.push([]);
+            const needed = 4 - currentOptions[index].length;
+            if (needed > 0) {
+                currentOptions[index] = [...currentOptions[index], ...Array(needed).fill('')];
+            }
+        }
+        
         if (existingContentIndex >= 0) {
           updatedDailyContent[existingContentIndex] = { 
               ...updatedDailyContent[existingContentIndex], 
-              taskInputTypes: currentTypes
+              taskInputTypes: currentTypes,
+              taskPollOptions: currentOptions
           };
         } else {
           updatedDailyContent.push({
@@ -426,9 +439,60 @@ const EditSprint: React.FC = () => {
             lessonText: '',
             taskPrompt: '',
             taskPrompts: ['', '', ''],
-            taskInputTypes: currentTypes
+            taskInputTypes: currentTypes,
+            taskPollOptions: currentOptions
           });
         }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTaskPollOptionChange = (promptIndex: number, optionIndex: number, value: string) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        if (existingContentIndex < 0) return prev;
+        
+        let updatedDailyContent = [...prev.dailyContent];
+        let currentOptions = [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])];
+        
+        while (currentOptions.length <= promptIndex) currentOptions.push([]);
+        let optionsForPrompt = [...currentOptions[promptIndex]];
+        while (optionsForPrompt.length <= optionIndex) optionsForPrompt.push('');
+        
+        optionsForPrompt[optionIndex] = value;
+        currentOptions[promptIndex] = optionsForPrompt;
+        
+        updatedDailyContent[existingContentIndex] = {
+            ...updatedDailyContent[existingContentIndex],
+            taskPollOptions: currentOptions
+        };
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const removeTaskPollOption = (promptIndex: number, optionIndex: number) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        if (existingContentIndex < 0) return prev;
+        
+        let updatedDailyContent = [...prev.dailyContent];
+        let currentOptions = [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])];
+        if (!currentOptions[promptIndex]) return prev;
+        
+        let optionsForPrompt = [...currentOptions[promptIndex]];
+        if (optionsForPrompt.length <= 4) return prev; // Keep at least 4
+        
+        optionsForPrompt.splice(optionIndex, 1);
+        currentOptions[promptIndex] = optionsForPrompt;
+        
+        updatedDailyContent[existingContentIndex] = {
+            ...updatedDailyContent[existingContentIndex],
+            taskPollOptions: currentOptions
+        };
         return { ...prev, dailyContent: updatedDailyContent };
     });
     setSaveStatus('idle');
@@ -447,15 +511,21 @@ const EditSprint: React.FC = () => {
         const currentTypes = existingContentIndex >= 0 
             ? [...(updatedDailyContent[existingContentIndex].taskInputTypes || Array(currentPrompts.length).fill('text'))]
             : ['text', 'text', 'text'];
+
+        let currentOptions = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])]
+            : [];
             
         currentPrompts.push('');
         currentTypes.push('text');
+        currentOptions.push([]);
         
         if (existingContentIndex >= 0) {
           updatedDailyContent[existingContentIndex] = { 
               ...updatedDailyContent[existingContentIndex], 
               taskPrompts: currentPrompts,
-              taskInputTypes: currentTypes
+              taskInputTypes: currentTypes,
+              taskPollOptions: currentOptions
           };
         } else {
           updatedDailyContent.push({
@@ -463,7 +533,8 @@ const EditSprint: React.FC = () => {
             lessonText: '',
             taskPrompt: '',
             taskPrompts: currentPrompts,
-            taskInputTypes: currentTypes
+            taskInputTypes: currentTypes,
+            taskPollOptions: currentOptions
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -486,9 +557,14 @@ const EditSprint: React.FC = () => {
         const currentTypes = existingContentIndex >= 0 
             ? [...(updatedDailyContent[existingContentIndex].taskInputTypes || Array(currentPrompts.length).fill('text'))]
             : ['text', 'text', 'text'];
+
+        let currentOptions = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])]
+            : [];
             
         currentPrompts.splice(index, 1);
         currentTypes.splice(index, 1);
+        currentOptions.splice(index, 1);
         
         const filtered = currentPrompts.filter(p => p.trim());
         const legacyValue = filtered.join('\n\n');
@@ -498,7 +574,8 @@ const EditSprint: React.FC = () => {
               ...updatedDailyContent[existingContentIndex], 
               taskPrompts: currentPrompts,
               taskPrompt: legacyValue,
-              taskInputTypes: currentTypes
+              taskInputTypes: currentTypes,
+              taskPollOptions: currentOptions
           };
         } else {
           updatedDailyContent.push({
@@ -506,7 +583,8 @@ const EditSprint: React.FC = () => {
             lessonText: '',
             taskPrompt: legacyValue,
             taskPrompts: currentPrompts,
-            taskInputTypes: currentTypes
+            taskInputTypes: currentTypes,
+            taskPollOptions: currentOptions
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -899,9 +977,52 @@ const EditSprint: React.FC = () => {
                                                     >
                                                         Tags
                                                     </button>
+                                                    <button 
+                                                        onClick={() => handleTaskPromptTypeChange(index, 'poll')}
+                                                        className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                    >
+                                                        Poll
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
+                                        {currentContent.taskInputTypes?.[index] === 'poll' && (
+                                            <div className="mt-3 pl-2 border-l-2 border-primary/20 space-y-2">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2">Poll Options (at least 4)</label>
+                                                {(currentContent.taskPollOptions?.[index] || ['', '', '', '']).map((opt, optIndex) => (
+                                                    <div key={optIndex} className="flex gap-2 items-center group/opt">
+                                                        <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-100 text-gray-400 text-xs font-bold shrink-0">
+                                                            {String.fromCharCode(65 + optIndex)}
+                                                        </div>
+                                                        <input 
+                                                            type="text"
+                                                            value={opt}
+                                                            onChange={(e) => handleTaskPollOptionChange(index, optIndex, e.target.value)}
+                                                            className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                                                            placeholder={`Option ${optIndex + 1}`}
+                                                        />
+                                                        {((currentContent.taskPollOptions?.[index]?.length || 4) > 4) && (
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => removeTaskPollOption(index, optIndex)}
+                                                                className="p-2 text-red-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-all opacity-0 group-hover/opt:opacity-100"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                <button 
+                                                    onClick={() => {
+                                                        const currentLength = currentContent.taskPollOptions?.[index]?.length || 4;
+                                                        handleTaskPollOptionChange(index, currentLength, '');
+                                                    }}
+                                                    className="pl-7 text-xs font-bold text-primary hover:text-primary/70 transition-colors"
+                                                >
+                                                    + Add Option
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                     {(currentContent.taskPrompts?.length || 3) > 1 && (
                                         <button 

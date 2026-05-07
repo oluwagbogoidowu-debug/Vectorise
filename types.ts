@@ -264,7 +264,8 @@ export interface DailyContent {
   lessonText: string;
   taskPrompt: string;
   taskPrompts?: string[];
-  taskInputTypes?: ('text' | 'tags')[];
+  taskInputTypes?: ('text' | 'tags' | 'poll')[];
+  taskPollOptions?: string[][];
   submissionType?: 'text' | 'file' | 'both' | 'none';
   submissionPrompt?: string;
   proofType?: 'picker' | 'note' | 'confirmation';
