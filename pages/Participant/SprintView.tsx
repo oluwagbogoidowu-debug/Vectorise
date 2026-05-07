@@ -736,22 +736,84 @@ const SprintView: React.FC = () => {
                                                     <FormattedText text={prompt} />
                                                 </div>
                                                 {!dayProgress?.completed && (
-                                                    <input 
-                                                        type="text"
-                                                        value={taskInputs[i] || ''}
-                                                        onChange={(e) => {
-                                                            const newInputs = [...taskInputs];
-                                                            newInputs[i] = e.target.value;
-                                                            setTaskInputs(newInputs);
-                                                        }}
-                                                        placeholder="Your response..."
-                                                        className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all"
-                                                    />
+                                                    dayContent.taskInputTypes?.[i] === 'tags' ? (
+                                                        <div className="w-full bg-white border border-primary/10 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-primary/5 focus-within:border-primary transition-all">
+                                                            <div className="flex flex-wrap gap-2 p-3">
+                                                                {(taskInputs[i] && taskInputs[i].startsWith('[') ? JSON.parse(taskInputs[i] || '[]') : taskInputs[i] ? taskInputs[i].split(',').filter(Boolean) : []).map((tag: string, tIndex: number) => (
+                                                                    <span key={tIndex} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold leading-none bg-primary/10 text-primary">
+                                                                        {tag}
+                                                                        <button 
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                try {
+                                                                                    let tags: string[] = taskInputs[i].startsWith('[') ? JSON.parse(taskInputs[i]) : taskInputs[i].split(',').filter(Boolean);
+                                                                                    tags.splice(tIndex, 1);
+                                                                                    const newInputs = [...taskInputs];
+                                                                                    newInputs[i] = JSON.stringify(tags);
+                                                                                    setTaskInputs(newInputs);
+                                                                                } catch (e) {}
+                                                                            }}
+                                                                            className="hover:text-primary transition-colors hover:bg-primary/20 rounded-full p-0.5 ml-1"
+                                                                        >
+                                                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                        </button>
+                                                                    </span>
+                                                                ))}
+                                                                <input 
+                                                                    type="text"
+                                                                    placeholder="Type and press Enter to add tags..."
+                                                                    className="flex-1 min-w-[120px] px-2 py-1 text-sm font-medium outline-none bg-transparent"
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            e.preventDefault();
+                                                                            const val = e.currentTarget.value.trim();
+                                                                            if (val) {
+                                                                                let tags: string[] = [];
+                                                                                if (taskInputs[i]) {
+                                                                                    if (taskInputs[i].startsWith('[')) {
+                                                                                        try { tags = JSON.parse(taskInputs[i]); } catch (err) {}
+                                                                                    } else {
+                                                                                        tags = taskInputs[i].split(',').filter(Boolean);
+                                                                                    }
+                                                                                }
+                                                                                if (!tags.includes(val)) {
+                                                                                    const newInputs = [...taskInputs];
+                                                                                    newInputs[i] = JSON.stringify([...tags, val]);
+                                                                                    setTaskInputs(newInputs);
+                                                                                }
+                                                                                e.currentTarget.value = '';
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <input 
+                                                            type="text"
+                                                            value={taskInputs[i] || ''}
+                                                            onChange={(e) => {
+                                                                const newInputs = [...taskInputs];
+                                                                newInputs[i] = e.target.value;
+                                                                setTaskInputs(newInputs);
+                                                            }}
+                                                            placeholder="Your response..."
+                                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all"
+                                                        />
+                                                    )
                                                 )}
                                                 {dayProgress?.completed && (
-                                                    <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex items-center gap-2">
-                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                                                        {taskInputs[i] || 'Completed'}
+                                                    <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex gap-2 overflow-hidden flex-wrap w-full items-center">
+                                                        <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                                                        {dayContent.taskInputTypes?.[i] === 'tags' ? (
+                                                            (taskInputs[i] && taskInputs[i].startsWith('[') ? JSON.parse(taskInputs[i] || '[]') : taskInputs[i] ? taskInputs[i].split(',').filter(Boolean) : []).map((tag: string, tIndex: number) => (
+                                                                <span key={tIndex} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary">
+                                                                    {tag}
+                                                                </span>
+                                                            ))
+                                                        ) : (
+                                                            taskInputs[i] || 'Completed'
+                                                        )}
                                                     </div>
                                                 )}
                                                 {!dayProgress?.completed && <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>}
@@ -764,22 +826,84 @@ const SprintView: React.FC = () => {
                                                 <FormattedText text={dayContent?.taskPrompt || ""} />
                                             </div>
                                             {!dayProgress?.completed && (
-                                                <input 
-                                                    type="text"
-                                                    value={taskInputs[0] || ''}
-                                                    onChange={(e) => {
-                                                        const newInputs = [...taskInputs];
-                                                        newInputs[0] = e.target.value;
-                                                        setTaskInputs(newInputs);
-                                                    }}
-                                                    placeholder="Your response..."
-                                                    className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all"
-                                                />
+                                                dayContent?.taskInputTypes?.[0] === 'tags' ? (
+                                                    <div className="w-full bg-white border border-primary/10 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-primary/5 focus-within:border-primary transition-all">
+                                                        <div className="flex flex-wrap gap-2 p-3">
+                                                            {(taskInputs[0] && taskInputs[0].startsWith('[') ? JSON.parse(taskInputs[0] || '[]') : taskInputs[0] ? taskInputs[0].split(',').filter(Boolean) : []).map((tag: string, tIndex: number) => (
+                                                                <span key={tIndex} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold leading-none bg-primary/10 text-primary">
+                                                                    {tag}
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            try {
+                                                                                let tags: string[] = taskInputs[0].startsWith('[') ? JSON.parse(taskInputs[0]) : taskInputs[0].split(',').filter(Boolean);
+                                                                                tags.splice(tIndex, 1);
+                                                                                const newInputs = [...taskInputs];
+                                                                                newInputs[0] = JSON.stringify(tags);
+                                                                                setTaskInputs(newInputs);
+                                                                            } catch (e) {}
+                                                                        }}
+                                                                        className="hover:text-primary transition-colors hover:bg-primary/20 rounded-full p-0.5 ml-1"
+                                                                    >
+                                                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                    </button>
+                                                                </span>
+                                                            ))}
+                                                            <input 
+                                                                type="text"
+                                                                placeholder="Type and press Enter to add tags..."
+                                                                className="flex-1 min-w-[120px] px-2 py-1 text-sm font-medium outline-none bg-transparent"
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.preventDefault();
+                                                                        const val = e.currentTarget.value.trim();
+                                                                        if (val) {
+                                                                            let tags: string[] = [];
+                                                                            if (taskInputs[0]) {
+                                                                                if (taskInputs[0].startsWith('[')) {
+                                                                                    try { tags = JSON.parse(taskInputs[0]); } catch (err) {}
+                                                                                } else {
+                                                                                    tags = taskInputs[0].split(',').filter(Boolean);
+                                                                                }
+                                                                            }
+                                                                            if (!tags.includes(val)) {
+                                                                                const newInputs = [...taskInputs];
+                                                                                newInputs[0] = JSON.stringify([...tags, val]);
+                                                                                setTaskInputs(newInputs);
+                                                                            }
+                                                                            e.currentTarget.value = '';
+                                                                        }
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <input 
+                                                        type="text"
+                                                        value={taskInputs[0] || ''}
+                                                        onChange={(e) => {
+                                                            const newInputs = [...taskInputs];
+                                                            newInputs[0] = e.target.value;
+                                                            setTaskInputs(newInputs);
+                                                        }}
+                                                        placeholder="Your response..."
+                                                        className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all"
+                                                    />
+                                                )
                                             )}
                                             {dayProgress?.completed && (
-                                                <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex items-center gap-2">
-                                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                                                    {taskInputs[0] || 'Completed'}
+                                                <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex gap-2 overflow-hidden flex-wrap w-full items-center">
+                                                    <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                                                    {dayContent?.taskInputTypes?.[0] === 'tags' ? (
+                                                        (taskInputs[0] && taskInputs[0].startsWith('[') ? JSON.parse(taskInputs[0] || '[]') : taskInputs[0] ? taskInputs[0].split(',').filter(Boolean) : []).map((tag: string, tIndex: number) => (
+                                                            <span key={tIndex} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary">
+                                                                {tag}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        taskInputs[0] || 'Completed'
+                                                    )}
                                                 </div>
                                             )}
                                             {!dayProgress?.completed && <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>}
