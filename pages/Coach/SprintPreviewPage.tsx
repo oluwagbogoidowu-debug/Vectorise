@@ -195,7 +195,7 @@ const SprintPreviewPage: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="space-y-6">
-                                        {(currentDailyContent.taskPrompts || [currentDailyContent.taskPrompt || '']).concat(['', '', '']).slice(0, 3).map((prompt, i) => (
+                                        {(currentDailyContent.taskPrompts || ['', '', '']).map((prompt, i) => (
                                             <div key={i} className="space-y-4">
                                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Action Step {i + 1}</p>
                                                 <div className="text-sm text-gray-700 font-medium leading-relaxed">

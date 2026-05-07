@@ -154,7 +154,7 @@ const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> =
     const fields: (keyof Sprint)[] = [
         'title', 'subtitle', 'coverImageUrl', 'transformation', 'description', 
         'category', 'difficulty', 'price', 'currency', 'pointCost', 
-        'pricingType', 'duration', 'outcomeTag', 'checkInReminder', 'checkInReminderDays'
+        'pricingType', 'duration', 'protocol', 'outcomeTag', 'checkInReminder', 'checkInReminderDays'
     ];
 
     fields.forEach(f => {
@@ -372,7 +372,6 @@ const EditSprint: React.FC = () => {
         const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
         let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
         
-        // Find what the prompts should be relative to current specific day's state
         const currentPrompts = existingContentIndex >= 0 
             ? [...(updatedDailyContent[existingContentIndex].taskPrompts || [updatedDailyContent[existingContentIndex].taskPrompt || '', '', ''])]
             : ['', '', ''];
@@ -395,42 +394,6 @@ const EditSprint: React.FC = () => {
             lessonText: '',
             taskPrompt: legacyValue,
             taskPrompts: currentPrompts
-          });
-        }
-        return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const addTaskPrompt = () => {
-    const newPrompts = [...(currentContent.taskPrompts || ['', '', '']), ''];
-    handleContentChange('taskPrompts', newPrompts);
-  };
-
-  const removeTaskPrompt = (index: number) => {
-    const newPrompts = [...(currentContent.taskPrompts || ['', '', ''])];
-    if (newPrompts.length <= 1) return;
-    newPrompts.splice(index, 1);
-    
-    const filtered = newPrompts.filter(p => p.trim());
-    const legacyValue = filtered.join('\n\n');
-
-    setSprint(prev => {
-        if (!prev) return null;
-        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
-        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
-        if (existingContentIndex >= 0) {
-          updatedDailyContent[existingContentIndex] = { 
-              ...updatedDailyContent[existingContentIndex], 
-              taskPrompts: newPrompts,
-              taskPrompt: legacyValue
-          };
-        } else {
-           updatedDailyContent.push({
-            day: selectedDay,
-            lessonText: '',
-            taskPrompt: legacyValue,
-            taskPrompts: newPrompts
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -800,7 +763,7 @@ const EditSprint: React.FC = () => {
                                 </div>
                                 <div className="flex gap-2 items-center">
                                     <textarea 
-                                        value={currentContent.taskPrompts[index] || ''} 
+                                        value={currentContent.taskPrompts?.[index] || ''} 
                                         onChange={e => handleTaskPromptChange(index, e.target.value)} 
                                         rows={2} 
                                         className={editorInputClasses + " p-4 !py-4"} 

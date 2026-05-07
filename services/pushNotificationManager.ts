@@ -114,12 +114,13 @@ export const pushNotificationManager = {
         // If subscription is invalid, remove it
         // 410 Gone: subscription has expired or is no longer valid
         // 404 Not Found: subscription is not found (similar to 410)
-        if (statusCode === 410 || statusCode === 404) {
-          console.log(`[PushManager] Removing invalid subscription for user ${userId}`);
+        // 401, 403, 400: auth issues, keys mismatch or changed
+        if (statusCode === 410 || statusCode === 404 || statusCode === 401 || statusCode === 403 || statusCode === 400) {
+          console.log(`[PushManager] Removing invalid/unauthorized subscription for user ${userId} (status ${statusCode})`);
           const userRef = db.collection('users').doc(userId);
           await userRef.update({
             pushSubscription: null
-          });
+          }).catch(err => console.error(`Failed to remove invalid subscription for ${userId}:`, err));
         }
         
         return false;
@@ -156,11 +157,11 @@ export const pushNotificationManager = {
                 tag: notification.type
               }, notification.bypassActiveCheck || false);
 
-              if (success) {
-                await db.collection('notifications').doc(notification.id).update({
-                  pushSent: true
-                });
-              }
+              // Always mark as pushSent (or handled) so we don't repeatedly retry failing pushes or users without subscriptions
+              // on every server restart.
+              await db.collection('notifications').doc(notification.id).update({
+                pushSent: true
+              });
             }
           }
         }

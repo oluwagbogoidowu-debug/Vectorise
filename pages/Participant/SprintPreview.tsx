@@ -108,14 +108,34 @@ const SprintPreview: React.FC = () => {
                     {/* Action Step - Paragraph Based Lock with Blur */}
                     <div className="space-y-6 relative">
                         {day1Content?.taskPrompts && day1Content.taskPrompts.some(p => p.trim()) ? (
-                            day1Content.taskPrompts.filter(p => p.trim()).map((prompt, i) => (
+                            day1Content.taskPrompts.filter(p => p.trim()).map((prompt, i) => {
+                                const isLocked = i > 0;
+                                return (
                                 <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden">
                                      <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Action Step {i + 1}</h2>
                                      <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug relative">
-                                        <FormattedText text={prompt} />
+                                        {isLocked ? (
+                                            <div className="relative mt-4">
+                                                <div className="blur-[3px] select-none pointer-events-none opacity-30">
+                                                    <FormattedText text={prompt} />
+                                                </div>
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                                                    <Link 
+                                                        to="/signup" 
+                                                        state={{ prefilledEmail, targetSprintId: sprintId }}
+                                                        className="text-[10px] font-black text-primary hover:underline tracking-widest bg-white/90 px-4 py-2 rounded-full shadow-sm backdrop-blur-sm text-center px-4"
+                                                    >
+                                                        Unlock full sprint to view
+                                                    </Link>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <FormattedText text={prompt || "Action step goes here..."} />
+                                        )}
                                      </div>
                                 </div>
-                            ))
+                                );
+                            })
                         ) : (
                             <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden">
                                 <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Action Steps</h2>

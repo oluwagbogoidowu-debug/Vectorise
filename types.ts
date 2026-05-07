@@ -247,6 +247,7 @@ export interface Sprint {
   forWho?: string[];
   notForWho?: string[];
   methodSnapshot?: { verb: string; description: string }[];
+  protocol?: 'One action per day' | 'Guided task' | 'Challenge-based';
   outcomeTag?: string; 
   outcomeStatement?: string;
   sprintType?: 'Foundational' | 'Execution' | 'Skill';
@@ -263,6 +264,9 @@ export interface DailyContent {
   lessonText: string;
   taskPrompt: string;
   taskPrompts?: string[];
+  submissionType?: 'text' | 'file' | 'both' | 'none';
+  submissionPrompt?: string;
+  proofType?: 'picker' | 'note' | 'confirmation';
 }
 
 export interface User {

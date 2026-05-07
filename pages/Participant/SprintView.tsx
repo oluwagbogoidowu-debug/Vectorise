@@ -596,29 +596,17 @@ const SprintView: React.FC = () => {
         }
     };
 
-    const dayContentRaw = Array.isArray(sprint?.dailyContent) ? sprint?.dailyContent.find(dc => dc.day === viewingDay) : undefined;
-    const dayContent = useMemo(() => {
-        if (!dayContentRaw) return undefined;
-        // Normalize taskPrompts to always have 3 entries for consistency in Participant View
-        const prompts = Array.isArray(dayContentRaw.taskPrompts) ? [...dayContentRaw.taskPrompts] : [];
-        if (prompts.length === 0 && dayContentRaw.taskPrompt) {
-            prompts.push(dayContentRaw.taskPrompt);
-        }
-        while (prompts.length < 3) {
-            prompts.push(""); // Pad with empty strings if fewer than 3
-        }
-        return {
-            ...dayContentRaw,
-            taskPrompts: prompts
-        };
-    }, [dayContentRaw]);
+    const dayContent = Array.isArray(sprint?.dailyContent) ? sprint?.dailyContent.find(dc => dc.day === viewingDay) : undefined;
 
     const dayProgress = enrollment?.progress?.find(p => p.day === viewingDay);
 
     const isProofMet = useMemo(() => {
         if (!dayContent) return false;
-        // We require all 3 inputs to have at least 1 character if the daily system is active
-        return taskInputs.every(ti => ti.trim().length > 0);
+        
+        const activePrompts = dayContent.taskPrompts?.filter(p => p && p.trim()) || [];
+        if (activePrompts.length === 0) return true;
+        
+        return activePrompts.every((_, i) => taskInputs[i]?.trim().length > 0);
     }, [dayContent, taskInputs]);
 
     const handleQuickComplete = () => {
@@ -740,19 +728,48 @@ const SprintView: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-6">
-                                    {dayContent?.taskPrompts?.map((prompt, i) => (
-                                        <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                                            <SectionHeading>Action Step {i + 1}</SectionHeading>
+                                    {dayContent?.taskPrompts && dayContent.taskPrompts.some(p => p.trim()) ? (
+                                        dayContent.taskPrompts.filter(p => p.trim()).map((prompt, i) => (
+                                            <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
+                                                <SectionHeading>Action Step {i + 1}</SectionHeading>
+                                                <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
+                                                    <FormattedText text={prompt} />
+                                                </div>
+                                                {!dayProgress?.completed && (
+                                                    <input 
+                                                        type="text"
+                                                        value={taskInputs[i] || ''}
+                                                        onChange={(e) => {
+                                                            const newInputs = [...taskInputs];
+                                                            newInputs[i] = e.target.value;
+                                                            setTaskInputs(newInputs);
+                                                        }}
+                                                        placeholder="Your response..."
+                                                        className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all"
+                                                    />
+                                                )}
+                                                {dayProgress?.completed && (
+                                                    <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex items-center gap-2">
+                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                                                        {taskInputs[i] || 'Completed'}
+                                                    </div>
+                                                )}
+                                                {!dayProgress?.completed && <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
+                                            <SectionHeading>Today's Action Steps</SectionHeading>
                                             <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
-                                                <FormattedText text={prompt || "Submit your progress for this step."} />
+                                                <FormattedText text={dayContent?.taskPrompt || ""} />
                                             </div>
                                             {!dayProgress?.completed && (
                                                 <input 
                                                     type="text"
-                                                    value={taskInputs[i] || ''}
+                                                    value={taskInputs[0] || ''}
                                                     onChange={(e) => {
                                                         const newInputs = [...taskInputs];
-                                                        newInputs[i] = e.target.value;
+                                                        newInputs[0] = e.target.value;
                                                         setTaskInputs(newInputs);
                                                     }}
                                                     placeholder="Your response..."
@@ -762,12 +779,12 @@ const SprintView: React.FC = () => {
                                             {dayProgress?.completed && (
                                                 <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex items-center gap-2">
                                                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                                                    {taskInputs[i] || 'Completed'}
+                                                    {taskInputs[0] || 'Completed'}
                                                 </div>
                                             )}
                                             {!dayProgress?.completed && <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>}
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
 
                                 {!dayProgress?.completed && (
