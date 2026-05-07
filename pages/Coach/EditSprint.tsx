@@ -1047,7 +1047,18 @@ const EditSprint: React.FC = () => {
                                             {currentContent.taskInputTypes?.[index] === 'poll' && (
                                                 <div className="mt-3 pl-2 border-l-2 border-primary/20 space-y-2">
                                                     {isLinkedFromPrevious ? (
-                                                        <p className="text-xs font-medium text-primary italic px-2">Poll options will be generated automatically from the participant's tags in the previous step.</p>
+                                                        <div className="space-y-3">
+                                                            <p className="text-xs font-medium text-primary italic px-2">Poll options will be generated automatically from the participant's tags in the root step.</p>
+                                                            {!currentContent.taskLinkedToNext?.[index] && (
+                                                                <button
+                                                                    onClick={() => handleToggleLinkToNext(index)}
+                                                                    className="px-3 py-1.5 ml-2 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors flex items-center gap-1"
+                                                                >
+                                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                                                    Add another Follow-up Poll
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     ) : (
                                                         <>
                                                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2">Poll Options (at least 4)</label>

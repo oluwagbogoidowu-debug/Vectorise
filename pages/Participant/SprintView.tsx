@@ -802,9 +802,21 @@ const SprintView: React.FC = () => {
                                                         <div className="space-y-2">
                                                             {(() => {
                                                                 let pollOptions = dayContent.taskPollOptions?.[i] || [];
-                                                                if (i > 0 && dayContent.taskLinkedToNext?.[i - 1] && taskInputs[i - 1]) {
+                                                                let linkedSourceIndex = -1;
+                                                                for (let prevIndex = i - 1; prevIndex >= 0; prevIndex--) {
+                                                                    if (dayContent.taskLinkedToNext?.[prevIndex]) {
+                                                                        if (dayContent.taskInputTypes?.[prevIndex] === 'tags') {
+                                                                            linkedSourceIndex = prevIndex;
+                                                                            break;
+                                                                        }
+                                                                    } else {
+                                                                        break;
+                                                                    }
+                                                                }
+                                                                
+                                                                if (linkedSourceIndex !== -1 && taskInputs[linkedSourceIndex]) {
                                                                     try {
-                                                                        pollOptions = taskInputs[i - 1].startsWith('[') ? JSON.parse(taskInputs[i - 1] || '[]') : taskInputs[i - 1].split(',').filter(Boolean);
+                                                                        pollOptions = taskInputs[linkedSourceIndex].startsWith('[') ? JSON.parse(taskInputs[linkedSourceIndex] || '[]') : taskInputs[linkedSourceIndex].split(',').filter(Boolean);
                                                                     } catch (e) {
                                                                         pollOptions = [];
                                                                     }
