@@ -17,6 +17,34 @@ import { Participant } from '../../types';
 
 import { PushToggle } from '../../components/PushToggle';
 
+const DayCompletionModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    day: number;
+}> = ({ isOpen, onClose, day }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 max-w-sm w-full text-center relative overflow-hidden animate-slide-up border border-gray-100">
+                <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6 text-green-500 relative">
+                    <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-20"></div>
+                    <svg className="w-12 h-12 relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <h3 className="text-3xl font-black text-gray-900 tracking-tight mb-2">Great Job!</h3>
+                <p className="text-gray-500 font-medium mb-8">You've successfully completed Day {day} of the sprint. Keep up the momentum!</p>
+                <button 
+                    onClick={onClose}
+                    className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-800 transition-colors shadow-lg active:scale-95"
+                >
+                    Continue
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const SprintSettingsModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
@@ -235,6 +263,7 @@ const SprintView: React.FC = () => {
     const [viewingDay, setViewingDay] = useState<number>(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isReflectionModalOpen, setIsReflectionModalOpen] = useState(false);
+    const [isDayCompletionModalOpen, setIsDayCompletionModalOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
     const [isChatModalOpen, setIsChatModalOpen] = useState(false);
     const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
@@ -247,6 +276,7 @@ const SprintView: React.FC = () => {
     
     // Day Completion State (Task Inputs)
     const [taskInputs, setTaskInputs] = useState<string[]>(['', '', '']);
+    const [activeTaskIndex, setActiveTaskIndex] = useState(0);
 
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -311,6 +341,7 @@ const SprintView: React.FC = () => {
 
     useEffect(() => {
         setTaskInputs(['', '', '']);
+        setActiveTaskIndex(0);
     }, [viewingDay]);
 
     useEffect(() => {
@@ -508,6 +539,8 @@ const SprintView: React.FC = () => {
 
             if (isLastDay && updatedProgress.every(p => p.completed)) {
                 setIsCompletionModalOpen(true);
+            } else {
+                setIsDayCompletionModalOpen(true);
             }
 
             // Trigger push permission request if it's the first submission or based on logic
@@ -729,7 +762,7 @@ const SprintView: React.FC = () => {
 
                                 <div className="space-y-6">
                                     {dayContent?.taskPrompts && dayContent.taskPrompts.length > 1 ? (
-                                        dayContent.taskPrompts.map((prompt, i) => {
+                                        (dayProgress?.completed ? dayContent.taskPrompts : dayContent.taskPrompts.slice(0, activeTaskIndex + 1)).map((prompt, i) => {
                                             const isLinkedFromPrevious = i > 0 && dayContent.taskLinkedToNext?.[i - 1];
                                             return (
                                             <div key={i} className={`p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group ${isLinkedFromPrevious ? 'ml-6 sm:ml-12' : ''}`}>
@@ -866,6 +899,18 @@ const SprintView: React.FC = () => {
                                                     </div>
                                                 )}
                                                 {!dayProgress?.completed && <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>}
+                                                {!dayProgress?.completed && i === activeTaskIndex && i < dayContent.taskPrompts.length! - 1 && (
+                                                    <div className="mt-4 flex justify-end">
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => setActiveTaskIndex(i + 1)} 
+                                                            disabled={!taskInputs[i]?.trim() && taskInputs[i]?.trim().length !== 0 ? false : taskInputs[i] && taskInputs[i] !== '[]' ? false : true}
+                                                            className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${taskInputs[i] && taskInputs[i] !== '[]' && taskInputs[i].trim().length > 0 ? 'bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                                                        >
+                                                            Next
+                                                        </button>
+                                                    </div>
+                                                )}
                                                 </div>
                                             </div>
                                             );
@@ -983,7 +1028,7 @@ const SprintView: React.FC = () => {
                                     )}
                                 </div>
 
-                                {!dayProgress?.completed && (
+                                {!dayProgress?.completed && (activeTaskIndex === (dayContent?.taskPrompts?.length || 1) - 1 || !dayContent?.taskPrompts || dayContent.taskPrompts.length <= 1) && (
                                     <div className="mt-12 space-y-6 animate-fade-in">
                                         <button 
                                           onClick={handleFinishDay}
@@ -1153,6 +1198,11 @@ const SprintView: React.FC = () => {
                 participantId={user?.id || ''}
                 day={viewingDay}
                 sprintTitle={sprint.title}
+            />
+            <DayCompletionModal
+                isOpen={isDayCompletionModalOpen}
+                onClose={() => setIsDayCompletionModalOpen(false)}
+                day={viewingDay}
             />
             <SprintCompletionModal
                 isOpen={isCompletionModalOpen}

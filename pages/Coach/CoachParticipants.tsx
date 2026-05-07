@@ -25,6 +25,7 @@ const CoachParticipants: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     
     const [viewingSubmission, setViewingSubmission] = useState<{enrollment: ExtendedEnrollment, day: number} | null>(null);
+    const [activePreviewTaskIndex, setActivePreviewTaskIndex] = useState(0);
     const [isContentExpanded, setIsContentExpanded] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [feedbackText, setFeedbackText] = useState('');
@@ -122,6 +123,8 @@ const CoachParticipants: React.FC = () => {
             setDayComments([]);
             return;
         }
+        
+        setActivePreviewTaskIndex(0);
 
         const fetchChat = async () => {
             const dayMessages = await chatService.getConversation(
@@ -405,10 +408,19 @@ const CoachParticipants: React.FC = () => {
                                                     </p>
                                                 </div>
                                                 <div>
-                                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-3">Task Prompt</h4>
-                                                    <p className="text-sm text-gray-900 font-bold leading-tight bg-primary/5 p-4 rounded-2xl border border-primary/10">
-                                                        "{Array.isArray(viewingSubmission.enrollment.sprint.dailyContent) ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c.day === viewingSubmission.day)?.taskPrompt : ""}"
-                                                    </p>
+                                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-3">Task Prompt(s)</h4>
+                                                    {(() => {
+                                                        const contentData = Array.isArray(viewingSubmission.enrollment.sprint.dailyContent) ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c.day === viewingSubmission.day) : null;
+                                                        const prompts = contentData?.taskPrompts || (contentData?.taskPrompt ? [contentData.taskPrompt] : []);
+                                                        return prompts.map((prompt, idx) => (
+                                                            <div key={idx} className="mb-2">
+                                                                <span className="text-[10px] font-bold text-gray-400 mr-2">Q{idx + 1}.</span>
+                                                                <p className="text-sm text-gray-900 font-bold leading-tight bg-primary/5 p-4 rounded-2xl border border-primary/10 inline-block w-full">
+                                                                    "{prompt}"
+                                                                </p>
+                                                            </div>
+                                                        ))
+                                                    })()}
                                                 </div>
                                             </div>
                                         )}
@@ -420,15 +432,46 @@ const CoachParticipants: React.FC = () => {
                                             <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Student's Submission</h4>
                                         </div>
                                         
-                                        {viewingSubmission.enrollment.progress.find(p => p.day === viewingSubmission.day)?.submission ? (
-                                            <div className="p-6 bg-white rounded-[2rem] border-2 border-gray-100 text-gray-900 font-bold text-lg whitespace-pre-wrap leading-tight shadow-sm min-h-[120px]">
-                                                {viewingSubmission.enrollment.progress.find(p => p.day === viewingSubmission.day)?.submission}
-                                            </div>
-                                        ) : (
-                                            <div className="p-10 bg-gray-50 rounded-[2rem] border border-dashed border-gray-200 text-center">
-                                                <p className="text-gray-400 italic text-sm font-bold uppercase tracking-widest">No text content provided</p>
-                                            </div>
-                                        )}
+                                        {(() => {
+                                            const sub = viewingSubmission.enrollment.progress.find(p => p.day === viewingSubmission.day)?.submission;
+                                            if (!sub) {
+                                                return (
+                                                    <div className="p-10 bg-gray-50 rounded-[2rem] border border-dashed border-gray-200 text-center">
+                                                        <p className="text-gray-400 italic text-sm font-bold uppercase tracking-widest">No text content provided</p>
+                                                    </div>
+                                                );
+                                            }
+                                            const parts = sub.split(' | ');
+                                            const isMultiple = parts.length > 1;
+                                            return (
+                                                <div className="relative p-6 bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm min-h-[120px]">
+                                                    {isMultiple && (
+                                                        <div className="flex justify-between items-center mb-4">
+                                                            <button 
+                                                                onClick={() => setActivePreviewTaskIndex(prev => Math.max(0, prev - 1))}
+                                                                disabled={activePreviewTaskIndex === 0}
+                                                                className={`p-1 rounded-full ${activePreviewTaskIndex === 0 ? 'text-gray-300' : 'text-primary hover:bg-primary/10'}`}
+                                                            >
+                                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                                            </button>
+                                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                                                Response {activePreviewTaskIndex + 1} of {parts.length}
+                                                            </span>
+                                                            <button 
+                                                                onClick={() => setActivePreviewTaskIndex(prev => Math.min(parts.length - 1, prev + 1))}
+                                                                disabled={activePreviewTaskIndex === parts.length - 1}
+                                                                className={`p-1 rounded-full ${activePreviewTaskIndex === parts.length - 1 ? 'text-gray-300' : 'text-primary hover:bg-primary/10'}`}
+                                                            >
+                                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    <div className="text-gray-900 font-bold text-lg whitespace-pre-wrap leading-tight">
+                                                        {parts[isMultiple ? activePreviewTaskIndex : 0]}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
 
                                         {viewingSubmission.enrollment.progress.find(p => p.day === viewingSubmission.day)?.submissionFileUrl && (
                                             <div className="flex items-center gap-4 p-5 bg-blue-50 border-2 border-blue-100 rounded-[1.5rem]">
