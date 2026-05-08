@@ -3,8 +3,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { db } from '../../../services/firebase';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
-import { Participant, Referral, UserRole } from '../../../types';
+import { Participant, Referral, UserRole, Sprint, ParticipantSprint } from '../../../types';
 import { sanitizeData } from '../../../services/userService';
+import { sprintService } from '../../../services/sprintService';
+import { Share2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const IMPACT_DEGREE_POINTS: Record<string, number> = {
     'i1': 5, 'i3': 15, 'i5': 25, 'i10': 50, 'i15': 75, 'i20': 100, 'i25': 125, 'i30': 150, 'i35': 175, 'i40': 200, 'i45': 225, 'i50': 250
@@ -16,11 +19,22 @@ const ImpactDashboard: React.FC = () => {
     const [referrals, setReferrals] = useState<Referral[]>([]);
     const [leaders, setLeaders] = useState<Participant[]>([]);
     const [fullLeaderboard, setFullLeaderboard] = useState<Participant[]>([]);
+    const [enrolledSprints, setEnrolledSprints] = useState<{sprint: Sprint, enrollment: ParticipantSprint}[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         if (!user) return;
         
+        const unsubEnrollments = sprintService.subscribeToUserEnrollments(user.id, async (enrollments) => {
+            const sprintPromises = enrollments.map(e => sprintService.getSprint(e.sprint_id));
+            const sprints = await Promise.all(sprintPromises);
+            const combined = enrollments.map((enrollment, idx) => ({
+                enrollment,
+                sprint: sprints[idx]!
+            })).filter(item => item.sprint);
+            setEnrolledSprints(combined);
+        });
+
         // Subscribe to my referrals
         const qRef = query(collection(db, 'referrals'), where('referrerId', '==', user.id));
         const unsubRef = onSnapshot(qRef, (snap) => {
@@ -42,7 +56,7 @@ const ImpactDashboard: React.FC = () => {
             setIsLoading(false);
         });
 
-        return () => { unsubRef(); unsubLead(); };
+        return () => { unsubEnrollments(); unsubRef(); unsubLead(); };
     }, [user]);
 
     if (!user) return null;
@@ -51,6 +65,13 @@ const ImpactDashboard: React.FC = () => {
     const impactCredits = useMemo(() => {
         return (p.claimedMilestoneIds || []).reduce((acc, id) => acc + (IMPACT_DEGREE_POINTS[id] || 0), 0);
     }, [p.claimedMilestoneIds]);
+
+    const handleShareSprint = (sprintId: string) => {
+        const shareUrl = `https://${window.location.host}/?ref=${p.referralCode}&sprintId=${sprintId}#/sprint/${sprintId}`;
+        navigator.clipboard.writeText(shareUrl)
+            .then(() => toast.success('Sprint invite link copied!'))
+            .catch(() => toast.error('Failed to copy link.'));
+    };
 
     const SectionLabel = ({ text }: { text: string }) => (
         <h2 className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2 px-1">{text}</h2>
@@ -130,6 +151,32 @@ const ImpactDashboard: React.FC = () => {
                         </div>
                     </div>
                 </section>
+
+                {/* ENROLLED SPRINTS */}
+                {enrolledSprints.length > 0 && (
+                    <section>
+                        <SectionLabel text="My Sprints" />
+                        <div className="flex flex-col gap-3">
+                            {enrolledSprints.map(({ sprint, enrollment }) => (
+                                <div key={enrollment.id} className="flex bg-white rounded-2xl p-3 border border-gray-100 shadow-sm items-center gap-3">
+                                    <div className="w-12 h-12 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden">
+                                        <img src={sprint.coverImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(sprint.title)}&background=0E7850&color=fff`} alt={sprint.title} className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-black text-gray-900 truncate">{sprint.title}</p>
+                                        <p className="text-[9px] font-bold text-gray-400 capitalize">{enrollment.status}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleShareSprint(sprint.id || '')}
+                                        className="p-2.5 bg-gray-50 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors shrink-0"
+                                    >
+                                        <Share2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
 
                 {/* HORIZONTAL HISTORY */}
                 <section>
