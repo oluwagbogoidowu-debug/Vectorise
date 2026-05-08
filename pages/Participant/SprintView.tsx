@@ -764,14 +764,10 @@ const SprintView: React.FC = () => {
                                     {dayContent?.taskPrompts && dayContent.taskPrompts.length > 1 ? (
                                         dayContent.taskPrompts.map((prompt, i) => {
                                             if (!dayProgress?.completed && i !== activeTaskIndex) return null;
-                                            const isLinkedFromPrevious = i > 0 && dayContent.taskLinkedToNext?.[i - 1];
                                             return (
-                                            <div key={i} className={`p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group ${isLinkedFromPrevious ? 'ml-6 sm:ml-12' : ''}`}>
-                                                {isLinkedFromPrevious && (
-                                                    <div className="absolute -left-6 sm:-left-12 -top-10 w-6 sm:w-12 h-[calc(50%+2.5rem)] border-l-2 border-b-2 border-primary/20 rounded-bl-xl border-dashed pointer-events-none z-0" />
-                                                )}
+                                            <div key={i} className={`p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group`}>
                                                 <div className="relative z-10">
-                                                    <SectionHeading>{isLinkedFromPrevious ? 'Follow-up Poll' : `Action Step ${i + 1}`}</SectionHeading>
+                                                    <SectionHeading>{`Action Step ${i + 1}`}</SectionHeading>
                                                     <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
                                                         <FormattedText text={prompt} />
                                                     </div>
