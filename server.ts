@@ -2,8 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { pushNotificationManager } from './services/pushNotificationManager.js';
+import { db } from './api/lib/firebaseAdmin.js';
 
 // @ts-ignore
 import provisionPartner from './api/admin/provision-partner.js';
@@ -110,12 +112,63 @@ async function startServer() {
     });
   }, 30 * 60 * 1000);
 
-  // Vite middleware for development
+  let vite: any;
   if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
+    vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
+  }
+
+  // Intercept paths that contain sprintId query param OR are exact /share routes for dynamic OG tags
+  app.get('/*', async (req, res, next) => {
+    const sprintId = req.query.sprintId;
+    if (sprintId && typeof sprintId === 'string' && !req.path.startsWith('/api')) {
+      try {
+        const sprintDoc = await db.collection('sprints').doc(sprintId).get();
+        if (sprintDoc.exists) {
+          const sprint = sprintDoc.data() as any;
+          
+          let htmlPath = process.env.NODE_ENV === 'production' 
+            ? path.join(__dirname, 'dist', 'index.html')
+            : path.join(__dirname, 'index.html');
+          
+          let html = fs.readFileSync(htmlPath, 'utf-8');
+          
+          const title = sprint.title || "Vectorise - Personal Growth Sprints";
+          const description = sprint.subtitle || sprint.description || "Start a personal growth sprint today.";
+          const image = sprint.coverImageUrl || "https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd";
+          const url = \`https://\${req.hostname}/?sprintId=\${sprintId}#/sprint/\${sprintId}\`;
+          
+          const ogTags = \`
+    <meta property="og:title" content="\${title.replace(/"/g, '&quot;')}" />
+    <meta property="og:description" content="\${description.replace(/"/g, '&quot;')}" />
+    <meta property="og:image" content="\${image}" />
+    <meta property="og:url" content="\${url}" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="\${title.replace(/"/g, '&quot;')}" />
+    <meta name="twitter:description" content="\${description.replace(/"/g, '&quot;')}" />
+    <meta name="twitter:image" content="\${image}" />
+          \`;
+
+          html = html.replace('</title>', \`</title>\n\${ogTags}\`);
+          
+          if (process.env.NODE_ENV !== 'production' && vite) {
+            html = await vite.transformIndexHtml(req.url, html);
+          }
+          
+          return res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
+        }
+      } catch (err) {
+        console.error('Error serving dynamic OG tags:', err);
+      }
+    }
+    next();
+  });
+
+  // Vite middleware for development
+  if (process.env.NODE_ENV !== 'production' && vite) {
     app.use(vite.middlewares);
   } else {
     // Serve static files in production
@@ -126,7 +179,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(\`Server running on http://localhost:\${PORT}\`);
     
     // Start real-time notification listener for pushes
     pushNotificationManager.startNotificationListener();
@@ -141,3 +194,4 @@ async function startServer() {
 startServer().catch((err) => {
   console.error('Failed to start server:', err);
 });
+

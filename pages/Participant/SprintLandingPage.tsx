@@ -10,8 +10,9 @@ import { analyticsTracker } from '../../services/analyticsTracker';
 import FormattedText from '../../components/FormattedText';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import LocalLogo from '../../components/LocalLogo';
+import { toast } from 'sonner';
 
-import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, ShieldCheck, Share2 } from 'lucide-react';
 
 interface SectionHeadingProps {
   children: React.ReactNode;
@@ -62,6 +63,7 @@ const SprintLandingPage: React.FC = () => {
                 setSprint(data);
                 
                 if (data) {
+                    document.title = `${data.title} - Vectorise`;
                     const dbCoach = await userService.getUserDocument(data.coachId);
                     setFetchedCoach((dbCoach as Coach) || vectoriseCoach);
                     
@@ -154,6 +156,14 @@ const SprintLandingPage: React.FC = () => {
 
     const hasDynamicContent = Array.isArray(sprint.dynamicSections) && sprint.dynamicSections.some(s => s.body && s.body.trim().length > 0);
 
+    const handleShare = () => {
+        if (!sprint) return;
+        const shareUrl = `https://${window.location.host}/?sprintId=${sprint.id}#/sprint/${sprint.id}`;
+        navigator.clipboard.writeText(shareUrl)
+            .then(() => toast.success('Share link copied to clipboard!'))
+            .catch(() => toast.error('Failed to copy link.'));
+    };
+
     return (
         <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
             <div className="max-w-screen-lg mx-auto px-4 pt-4">
@@ -171,9 +181,18 @@ const SprintLandingPage: React.FC = () => {
                     ) : (
                         <LocalLogo type="green" className="h-8 w-auto" />
                     )}
-                    <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
-                        <LocalLogo type="favicon" className="h-3 w-auto" />
-                        {isFoundational ? 'FOUNDATIONAL PATH' : 'FOUNDATION PATH'}
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleShare}
+                            className="bg-white px-4 py-1.5 rounded-xl border border-gray-200 text-gray-500 hover:text-primary transition-colors flex items-center gap-2 text-[11px] font-black uppercase tracking-widest shadow-sm"
+                        >
+                            <Share2 className="w-3.5 h-3.5" />
+                            Share
+                        </button>
+                        <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest hidden sm:flex items-center gap-2">
+                            <LocalLogo type="favicon" className="h-3 w-auto" />
+                            {isFoundational ? 'FOUNDATIONAL PATH' : 'FOUNDATION PATH'}
+                        </div>
                     </div>
                 </div>
 

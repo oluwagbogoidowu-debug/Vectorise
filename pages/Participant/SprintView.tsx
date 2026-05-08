@@ -1083,17 +1083,6 @@ const SprintView: React.FC = () => {
                                             Mission Complete
                                         </div>
 
-                                        {dayProgress.submission && (
-                                            <div className="animate-fade-in pt-4 border-t border-gray-50">
-                                                <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Your Submission</p>
-                                                <div className="bg-gray-50 rounded-[1.5rem] p-6 border border-gray-100">
-                                                    <p className="text-gray-700 font-bold text-sm leading-relaxed">
-                                                        {dayProgress.submission}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
-
                                         {dayProgress.proofSelection && (
                                             <div className="animate-fade-in pt-4 border-t border-gray-50">
                                                 <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Confirmed Outcome</p>
