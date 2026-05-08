@@ -609,9 +609,25 @@ const EditSprint: React.FC = () => {
             ? [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])]
             : [];
             
+        let currentLinked = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskLinkedToNext || [])]
+            : [];
+            
         currentPrompts.splice(index, 1);
         currentTypes.splice(index, 1);
         currentOptions.splice(index, 1);
+        
+        if (index > 0 && currentLinked.length > index - 1) {
+            currentLinked[index - 1] = false;
+        }
+        currentLinked.splice(index, 1);
+        
+        while (currentPrompts.length < 3) {
+            currentPrompts.push('');
+            currentTypes.push('text');
+            currentOptions.push('[]');
+            currentLinked.push(false);
+        }
         
         const filtered = currentPrompts.filter(p => p.trim());
         const legacyValue = filtered.join('\n\n');
@@ -622,7 +638,8 @@ const EditSprint: React.FC = () => {
               taskPrompts: currentPrompts,
               taskPrompt: legacyValue,
               taskInputTypes: currentTypes,
-              taskPollOptions: currentOptions
+              taskPollOptions: currentOptions,
+              taskLinkedToNext: currentLinked
           };
         } else {
           updatedDailyContent.push({
@@ -631,7 +648,8 @@ const EditSprint: React.FC = () => {
             taskPrompt: legacyValue,
             taskPrompts: currentPrompts,
             taskInputTypes: currentTypes,
-            taskPollOptions: currentOptions
+            taskPollOptions: currentOptions,
+            taskLinkedToNext: currentLinked
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -997,11 +1015,8 @@ const EditSprint: React.FC = () => {
                         {(currentContent.taskPrompts || ['', '', '']).map((prompt, index) => {
                             const isLinkedFromPrevious = index > 0 && currentContent.taskLinkedToNext?.[index - 1];
                             return (
-                                <div key={index} className={`group relative ${isLinkedFromPrevious ? 'ml-8' : ''}`}>
-                                    {isLinkedFromPrevious && (
-                                        <div className="absolute -left-[24px] -top-8 w-4 h-12 border-l-2 border-b-2 border-gray-300 rounded-bl-xl border-dashed" />
-                                    )}
-                                    <div className={`absolute ${isLinkedFromPrevious ? '-left-10' : '-left-10'} top-6 w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-[10px] font-black text-gray-300 group-focus-within:bg-primary/10 group-focus-within:text-primary transition-all z-10`}>
+                                <div key={index} className="group relative">
+                                    <div className="absolute -left-10 top-6 w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-[10px] font-black text-gray-300 group-focus-within:bg-primary/10 group-focus-within:text-primary transition-all z-10">
                                         {index + 1}
                                     </div>
                                     <div className="flex gap-2 items-start relative z-20">
@@ -1011,7 +1026,7 @@ const EditSprint: React.FC = () => {
                                                 onChange={e => handleTaskPromptChange(index, e.target.value)} 
                                                 rows={2} 
                                                 className={editorInputClasses + " p-4 !py-4 w-full"} 
-                                                placeholder={isLinkedFromPrevious ? `Follow-up Poll Step ${index + 1}...` : `Action Step ${index + 1}...`} 
+                                                placeholder={`Action Step ${index + 1}...`} 
                                             />
                                             <div className="flex items-center justify-between mt-2">
                                                 <div className="flex items-center gap-2">

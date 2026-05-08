@@ -901,14 +901,21 @@ const SprintView: React.FC = () => {
                                                 {!dayProgress?.completed && <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>}
                                                 {!dayProgress?.completed && i === activeTaskIndex && i < dayContent.taskPrompts.length! - 1 && (
                                                     <div className="mt-4 flex justify-end">
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => setActiveTaskIndex(i + 1)} 
-                                                            disabled={!taskInputs[i]?.trim() && taskInputs[i]?.trim().length !== 0 ? false : taskInputs[i] && taskInputs[i] !== '[]' ? false : true}
-                                                            className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${taskInputs[i] && taskInputs[i] !== '[]' && taskInputs[i].trim().length > 0 ? 'bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-                                                        >
-                                                            Next
-                                                        </button>
+                                                        {(() => {
+                                                            const val = taskInputs[i];
+                                                            const isTags = dayContent.taskInputTypes?.[i] === 'tags';
+                                                            const isValid = !!val && (isTags ? val !== '[]' && val !== '' : val.trim().length > 0);
+                                                            return (
+                                                                <button 
+                                                                    type="button" 
+                                                                    onClick={() => setActiveTaskIndex(i + 1)} 
+                                                                    disabled={!isValid}
+                                                                    className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${isValid ? 'bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                                                                >
+                                                                    Next
+                                                                </button>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 )}
                                                 </div>
