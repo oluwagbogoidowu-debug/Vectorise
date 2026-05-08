@@ -763,7 +763,7 @@ const SprintView: React.FC = () => {
                                 <div className="space-y-6">
                                     {dayContent?.taskPrompts && dayContent.taskPrompts.length > 1 ? (
                                         dayContent.taskPrompts.map((prompt, i) => {
-                                            if (!dayProgress?.completed && i !== activeTaskIndex) return null;
+                                            if (i !== activeTaskIndex) return null;
                                             return (
                                             <div key={i} className={`p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group`}>
                                                 <div className="relative z-10">
@@ -899,12 +899,22 @@ const SprintView: React.FC = () => {
                                                     </div>
                                                 )}
                                                 {!dayProgress?.completed && <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>}
-                                                {!dayProgress?.completed && i === activeTaskIndex && i < dayContent.taskPrompts.length! - 1 && (
-                                                    <div className="mt-4 flex justify-end">
-                                                        {(() => {
+                                                {i === activeTaskIndex && (
+                                                    <div className="mt-4 flex justify-between items-center gap-4">
+                                                        {i > 0 ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setActiveTaskIndex(i - 1)}
+                                                                className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30"
+                                                            >
+                                                                Back
+                                                            </button>
+                                                        ) : <div></div>}
+                                                        
+                                                        {i < dayContent.taskPrompts.length! - 1 && (() => {
                                                             const val = taskInputs[i];
                                                             const isTags = dayContent.taskInputTypes?.[i] === 'tags';
-                                                            const isValid = !!val && (isTags ? val !== '[]' && val !== '' : val.trim().length > 0);
+                                                            const isValid = !!dayProgress?.completed || (!!val && (isTags ? val !== '[]' && val !== '' : val.trim().length > 0));
                                                             return (
                                                                 <button 
                                                                     type="button" 
@@ -1037,12 +1047,18 @@ const SprintView: React.FC = () => {
                                             {!dayProgress?.completed && <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>}
                                         </div>
                                     )}
-                                    {dayContent?.taskPrompts && dayContent.taskPrompts.length > 1 && !dayProgress?.completed && (
+                                    {dayContent?.taskPrompts && dayContent.taskPrompts.length > 1 && (
                                         <div className="flex justify-center items-center gap-2 mt-8">
                                             {dayContent.taskPrompts.map((_, idx) => (
-                                                <div 
+                                                <button
+                                                    type="button"
                                                     key={idx} 
-                                                    className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeTaskIndex ? 'w-8 bg-primary' : idx < activeTaskIndex ? 'w-2 bg-primary/40' : 'w-2 bg-gray-200'}`}
+                                                    onClick={() => {
+                                                        if (dayProgress?.completed || idx < activeTaskIndex) {
+                                                            setActiveTaskIndex(idx);
+                                                        }
+                                                    }}
+                                                    className={`h-1.5 rounded-full transition-all duration-300 ${(dayProgress?.completed || idx < activeTaskIndex) ? 'cursor-pointer' : 'cursor-not-allowed'} ${idx === activeTaskIndex ? 'w-8 bg-primary' : idx < activeTaskIndex ? 'w-2 bg-primary/40 hover:bg-primary/60' : dayProgress?.completed ? 'w-2 bg-primary/40 hover:bg-primary/60' : 'w-2 bg-gray-200'}`}
                                                 />
                                             ))}
                                         </div>

@@ -143,7 +143,7 @@ const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> =
         if (a === b) return false;
         if (!a || !b) return true;
         try {
-            return JSON.stringify(sanitizeData(a)) !== JSON.stringify(sanitizeData(b));
+            return JSON.stringify(a) !== JSON.stringify(b);
         } catch (e) {
             console.warn("Circular structure detected in comparison, defaulting to true", e);
             return true;
@@ -446,7 +446,8 @@ const EditSprint: React.FC = () => {
             taskPrompt: '',
             taskPrompts: ['', '', ''],
             taskInputTypes: currentTypes,
-            taskPollOptions: currentOptions
+            taskPollOptions: currentOptions,
+            taskLinkedToNext: []
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -613,14 +614,19 @@ const EditSprint: React.FC = () => {
             ? [...(updatedDailyContent[existingContentIndex].taskLinkedToNext || [])]
             : [];
             
-        currentPrompts.splice(index, 1);
-        currentTypes.splice(index, 1);
-        currentOptions.splice(index, 1);
+        let deleteCount = 1;
+        if (currentLinked[index]) {
+            deleteCount = 2; // Also delete the branch poll to complement for default 3
+        }
+            
+        currentPrompts.splice(index, deleteCount);
+        currentTypes.splice(index, deleteCount);
+        currentOptions.splice(index, deleteCount);
         
-        if (index > 0 && currentLinked.length > index - 1) {
+        if (index > 0 && currentLinked.length >= index && currentLinked[index - 1]) {
             currentLinked[index - 1] = false;
         }
-        currentLinked.splice(index, 1);
+        currentLinked.splice(index, deleteCount);
         
         while (currentPrompts.length < 3) {
             currentPrompts.push('');
@@ -1034,6 +1040,7 @@ const EditSprint: React.FC = () => {
                                                     <div className="flex items-center gap-1">
                                                         <div className="flex p-0.5 bg-gray-100 rounded-lg">
                                                             <button 
+                                                                type="button"
                                                                 onClick={() => !isLinkedFromPrevious && handleTaskPromptTypeChange(index, 'text')}
                                                                 disabled={isLinkedFromPrevious}
                                                                 className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'} disabled:opacity-50 disabled:cursor-not-allowed`}
@@ -1041,6 +1048,7 @@ const EditSprint: React.FC = () => {
                                                                 Text
                                                             </button>
                                                             <button 
+                                                                type="button"
                                                                 onClick={() => !isLinkedFromPrevious && handleTaskPromptTypeChange(index, 'tags')}
                                                                 disabled={isLinkedFromPrevious}
                                                                 className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'} disabled:opacity-50 disabled:cursor-not-allowed`}
@@ -1048,6 +1056,7 @@ const EditSprint: React.FC = () => {
                                                                 Tags
                                                             </button>
                                                             <button 
+                                                                type="button"
                                                                 onClick={() => !isLinkedFromPrevious && handleTaskPromptTypeChange(index, 'poll')}
                                                                 disabled={isLinkedFromPrevious}
                                                                 className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'} disabled:opacity-50 disabled:cursor-not-allowed`}
@@ -1057,6 +1066,7 @@ const EditSprint: React.FC = () => {
                                                         </div>
                                                         {currentContent.taskInputTypes?.[index] === 'tags' && (
                                                             <button 
+                                                                type="button"
                                                                 onClick={() => handleToggleLinkToNext(index)}
                                                                 title="Auto-Poll: Ask a follow-up poll using the user's tags"
                                                                 className={`ml-2 p-1.5 rounded-md transition-all flex items-center justify-center ${currentContent.taskLinkedToNext?.[index] ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
@@ -1074,6 +1084,7 @@ const EditSprint: React.FC = () => {
                                                             <p className="text-xs font-medium text-primary italic px-2">Poll options will be generated automatically from the participant's tags in the root step.</p>
                                                             {!currentContent.taskLinkedToNext?.[index] && (
                                                                 <button
+                                                                    type="button"
                                                                     onClick={() => handleToggleLinkToNext(index)}
                                                                     className="px-3 py-1.5 ml-2 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors flex items-center gap-1"
                                                                 >
@@ -1132,6 +1143,7 @@ const EditSprint: React.FC = () => {
                                         </div>
                                         {(currentContent.taskPrompts?.length || 3) > 1 && (
                                             <button 
+                                                type="button"
                                                 onClick={() => removeTaskPrompt(index)}
                                                 className="p-3 text-red-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all self-stretch flex items-center justify-center opacity-0 group-hover:opacity-100"
                                                 title="Remove Step"
@@ -1146,6 +1158,7 @@ const EditSprint: React.FC = () => {
                     </div>
                     
                     <button 
+                        type="button"
                         onClick={addTaskPrompt}
                         className="w-full py-3 bg-white border border-gray-200 border-dashed rounded-xl text-sm font-bold text-gray-400 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center justify-center gap-2"
                     >
