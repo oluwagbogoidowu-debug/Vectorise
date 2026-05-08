@@ -419,12 +419,18 @@ const EditSprint: React.FC = () => {
             ? [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])] 
             : [];
             
-        if (type === 'poll' && (!currentOptions[index] || currentOptions[index].length < 4)) {
-            while (currentOptions.length <= index) currentOptions.push([]);
-            const needed = 4 - currentOptions[index].length;
-            if (needed > 0) {
-                currentOptions[index] = [...currentOptions[index], ...Array(needed).fill('')];
+        if (type === 'poll') {
+            const currentOptsStr = currentOptions[index];
+            let currentOptsArr: string[] = [];
+            if (currentOptsStr) {
+                try { currentOptsArr = JSON.parse(currentOptsStr); } catch (e) {}
             }
+            if (!Array.isArray(currentOptsArr)) currentOptsArr = [];
+            while (currentOptsArr.length < 4) {
+               currentOptsArr.push('');
+            }
+            while (currentOptions.length <= index) currentOptions.push('[]');
+            currentOptions[index] = JSON.stringify(currentOptsArr);
         }
         
         if (existingContentIndex >= 0) {
@@ -457,12 +463,13 @@ const EditSprint: React.FC = () => {
         let updatedDailyContent = [...prev.dailyContent];
         let currentOptions = [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])];
         
-        while (currentOptions.length <= promptIndex) currentOptions.push([]);
-        let optionsForPrompt = [...currentOptions[promptIndex]];
+        while (currentOptions.length <= promptIndex) currentOptions.push('[]');
+        let optionsForPrompt: string[] = [];
+        try { optionsForPrompt = JSON.parse(currentOptions[promptIndex] || '[]'); } catch (e) {}
         while (optionsForPrompt.length <= optionIndex) optionsForPrompt.push('');
         
         optionsForPrompt[optionIndex] = value;
-        currentOptions[promptIndex] = optionsForPrompt;
+        currentOptions[promptIndex] = JSON.stringify(optionsForPrompt);
         
         updatedDailyContent[existingContentIndex] = {
             ...updatedDailyContent[existingContentIndex],
@@ -483,11 +490,12 @@ const EditSprint: React.FC = () => {
         let currentOptions = [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])];
         if (!currentOptions[promptIndex]) return prev;
         
-        let optionsForPrompt = [...currentOptions[promptIndex]];
+        let optionsForPrompt: string[] = [];
+        try { optionsForPrompt = JSON.parse(currentOptions[promptIndex]); } catch (e) {}
         if (optionsForPrompt.length <= 4) return prev; // Keep at least 4
         
         optionsForPrompt.splice(optionIndex, 1);
-        currentOptions[promptIndex] = optionsForPrompt;
+        currentOptions[promptIndex] = JSON.stringify(optionsForPrompt);
         
         updatedDailyContent[existingContentIndex] = {
             ...updatedDailyContent[existingContentIndex],
@@ -519,7 +527,7 @@ const EditSprint: React.FC = () => {
             if (currentPrompts.length <= index + 1) {
                 currentPrompts.push('');
                 currentTypes.push('poll');
-                currentOptions.push([]);
+                currentOptions.push(JSON.stringify(['', '', '', '']));
             } else {
                 currentTypes[index + 1] = 'poll';
             }
@@ -557,7 +565,7 @@ const EditSprint: React.FC = () => {
             
         currentPrompts.push('');
         currentTypes.push('text');
-        currentOptions.push([]);
+        currentOptions.push('[]');
         
         if (existingContentIndex >= 0) {
           updatedDailyContent[existingContentIndex] = { 
@@ -668,10 +676,10 @@ const EditSprint: React.FC = () => {
 
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (err) { 
+    } catch (err: any) { 
         console.error("Save failed:", err);
         setSaveStatus('idle'); 
-        alert("Save failed."); 
+        alert(`Save failed: ${err.message || String(err)}`); 
     }
   };
 
@@ -1062,7 +1070,13 @@ const EditSprint: React.FC = () => {
                                                     ) : (
                                                         <>
                                                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2">Poll Options (at least 4)</label>
-                                                            {(currentContent.taskPollOptions?.[index]?.length ? currentContent.taskPollOptions[index] : ['', '', '', '']).map((opt, optIndex) => (
+                                                            {(() => {
+                                                                let opts = ['', '', '', ''];
+                                                                if (currentContent.taskPollOptions?.[index]) {
+                                                                    try { opts = JSON.parse(currentContent.taskPollOptions[index]); } catch(e) {}
+                                                                }
+                                                                if (opts.length < 4) opts = [...opts, ...Array(4 - opts.length).fill('')];
+                                                                return opts.map((opt, optIndex) => (
                                                                 <div key={optIndex} className="flex gap-2 items-center group/opt">
                                                                     <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-100 text-gray-400 text-xs font-bold shrink-0">
                                                                         {String.fromCharCode(65 + optIndex)}
@@ -1074,7 +1088,7 @@ const EditSprint: React.FC = () => {
                                                                         className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
                                                                         placeholder={`Option ${optIndex + 1}`}
                                                                     />
-                                                                    {((currentContent.taskPollOptions?.[index]?.length || 4) > 4) && (
+                                                                    {(opts.length > 4) && (
                                                                         <button 
                                                                             type="button"
                                                                             onClick={() => removeTaskPollOption(index, optIndex)}
@@ -1084,10 +1098,12 @@ const EditSprint: React.FC = () => {
                                                                         </button>
                                                                     )}
                                                                 </div>
-                                                            ))}
+                                                                ));
+                                                            })()}
                                                             <button 
                                                                 onClick={() => {
-                                                                    const currentLength = currentContent.taskPollOptions?.[index]?.length || 4;
+                                                                    let currentLength = 4;
+                                                                    try { currentLength = JSON.parse(currentContent.taskPollOptions?.[index] || '[]').length || 4; } catch(e) {}
                                                                     handleTaskPollOptionChange(index, currentLength, '');
                                                                 }}
                                                                 className="pl-7 text-xs font-bold text-primary hover:text-primary/70 transition-colors"

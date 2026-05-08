@@ -762,7 +762,8 @@ const SprintView: React.FC = () => {
 
                                 <div className="space-y-6">
                                     {dayContent?.taskPrompts && dayContent.taskPrompts.length > 1 ? (
-                                        (dayProgress?.completed ? dayContent.taskPrompts : dayContent.taskPrompts.slice(0, activeTaskIndex + 1)).map((prompt, i) => {
+                                        dayContent.taskPrompts.map((prompt, i) => {
+                                            if (!dayProgress?.completed && i !== activeTaskIndex) return null;
                                             const isLinkedFromPrevious = i > 0 && dayContent.taskLinkedToNext?.[i - 1];
                                             return (
                                             <div key={i} className={`p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group ${isLinkedFromPrevious ? 'ml-6 sm:ml-12' : ''}`}>
@@ -834,7 +835,10 @@ const SprintView: React.FC = () => {
                                                     ) : dayContent.taskInputTypes?.[i] === 'poll' ? (
                                                         <div className="space-y-2">
                                                             {(() => {
-                                                                let pollOptions = dayContent.taskPollOptions?.[i] || [];
+                                                                let pollOptions: string[] = [];
+                                                                if (dayContent.taskPollOptions?.[i]) {
+                                                                    try { pollOptions = JSON.parse(dayContent.taskPollOptions[i]); } catch(e) {}
+                                                                }
                                                                 let linkedSourceIndex = -1;
                                                                 for (let prevIndex = i - 1; prevIndex >= 0; prevIndex--) {
                                                                     if (dayContent.taskLinkedToNext?.[prevIndex]) {
@@ -980,20 +984,24 @@ const SprintView: React.FC = () => {
                                                     </div>
                                                 ) : dayContent?.taskInputTypes?.[0] === 'poll' ? (
                                                     <div className="space-y-2">
-                                                        {(dayContent.taskPollOptions?.[0] || []).filter(Boolean).map((opt, optIndex) => (
-                                                            <button
-                                                                key={optIndex}
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const newInputs = [...taskInputs];
-                                                                    newInputs[0] = opt;
-                                                                    setTaskInputs(newInputs);
-                                                                }}
-                                                                className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[0] === opt ? 'bg-primary/10 border-primary text-primary' : 'bg-white border-primary/10 hover:border-primary/30 text-gray-700'}`}
-                                                            >
-                                                                {String.fromCharCode(65 + optIndex)}. {opt}
-                                                            </button>
-                                                        ))}
+                                                        {(() => {
+                                                            let pollOpts: string[] = [];
+                                                            try { pollOpts = JSON.parse(dayContent.taskPollOptions?.[0] || '[]'); } catch(e) {}
+                                                            return pollOpts.filter(Boolean).map((opt, optIndex) => (
+                                                                <button
+                                                                    key={optIndex}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const newInputs = [...taskInputs];
+                                                                        newInputs[0] = opt;
+                                                                        setTaskInputs(newInputs);
+                                                                    }}
+                                                                    className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[0] === opt ? 'bg-primary/10 border-primary text-primary' : 'bg-white border-primary/10 hover:border-primary/30 text-gray-700'}`}
+                                                                >
+                                                                    {String.fromCharCode(65 + optIndex)}. {opt}
+                                                                </button>
+                                                            ));
+                                                        })()}
                                                     </div>
                                                 ) : (
                                                     <input 
@@ -1024,6 +1032,16 @@ const SprintView: React.FC = () => {
                                                 </div>
                                             )}
                                             {!dayProgress?.completed && <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>}
+                                        </div>
+                                    )}
+                                    {dayContent?.taskPrompts && dayContent.taskPrompts.length > 1 && !dayProgress?.completed && (
+                                        <div className="flex justify-center items-center gap-2 mt-8">
+                                            {dayContent.taskPrompts.map((_, idx) => (
+                                                <div 
+                                                    key={idx} 
+                                                    className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeTaskIndex ? 'w-8 bg-primary' : idx < activeTaskIndex ? 'w-2 bg-primary/40' : 'w-2 bg-gray-200'}`}
+                                                />
+                                            ))}
                                         </div>
                                     )}
                                 </div>

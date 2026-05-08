@@ -265,7 +265,7 @@ export interface DailyContent {
   taskPrompt: string;
   taskPrompts?: string[];
   taskInputTypes?: ('text' | 'tags' | 'poll')[];
-  taskPollOptions?: string[][];
+  taskPollOptions?: string[];
   taskLinkedToNext?: boolean[];
   submissionType?: 'text' | 'file' | 'both' | 'none';
   submissionPrompt?: string;
