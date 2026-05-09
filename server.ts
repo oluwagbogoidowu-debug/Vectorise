@@ -161,25 +161,33 @@ ${urls.map(url => `  <url>
     });
   }
 
-  // Intercept exact /sprint routes for dynamic OG tags
-  app.get('/sprint/:sprintId', async (req, res, next) => {
+  // Intercept exact /sprint and /track routes for dynamic OG tags
+  app.get(['/sprint/:sprintId', '/track/:trackId'], async (req, res, next) => {
     const sprintId = req.params.sprintId;
-    if (sprintId && typeof sprintId === 'string') {
+    const trackId = req.params.trackId;
+    
+    if ((sprintId && typeof sprintId === 'string') || (trackId && typeof trackId === 'string')) {
       try {
-        const sprintDoc = await db.collection('sprints').doc(sprintId).get();
-        if (sprintDoc.exists) {
-          const sprint = sprintDoc.data() as any;
-          
+        let docData: any = null;
+        if (sprintId) {
+          const doc = await db.collection('sprints').doc(sprintId).get();
+          if (doc.exists) docData = doc.data();
+        } else if (trackId) {
+          const doc = await db.collection('tracks').doc(trackId).get();
+          if (doc.exists) docData = doc.data();
+        }
+
+        if (docData) {
           let htmlPath = process.env.NODE_ENV === 'production' 
             ? path.join(__dirname, 'dist', 'index.html')
             : path.join(__dirname, 'index.html');
           
           let html = fs.readFileSync(htmlPath, 'utf-8');
           
-          const title = sprint.title || "Vectorise - Personal Growth Sprints";
-          const description = sprint.subtitle || sprint.description || "Start a personal growth sprint today.";
-          const image = sprint.coverImageUrl || "https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd";
-          const url = \`https://\${req.hostname}/sprint/\${sprintId}\`;
+          const title = docData.title || "Vectorise";
+          const description = docData.subtitle || docData.description || "Start your personal growth journey today.";
+          const image = docData.coverImageUrl || "https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd";
+          const url = \`https://\${req.hostname}\${req.url}\`;
           
           const ogTags = \`
     <meta property="og:title" content="\${title.replace(/"/g, '&quot;')}" />
@@ -193,7 +201,7 @@ ${urls.map(url => `  <url>
     <meta name="twitter:image" content="\${image}" />
           \`;
 
-          html = html.replace('</title>', \`</title>\n\${ogTags}\`);
+          html = html.replace('</title>', \`</title>\\n\${ogTags}\`);
           
           if (process.env.NODE_ENV !== 'production' && vite) {
             html = await vite.transformIndexHtml(req.url, html);

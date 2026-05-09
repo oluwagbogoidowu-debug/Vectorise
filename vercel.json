@@ -1,6 +1,8 @@
 {
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "/api/sitemap" },
+    { "source": "/sprint/:id", "destination": "/api/sprint?id=:id" },
+    { "source": "/track/:id", "destination": "/api/track?id=:id" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
