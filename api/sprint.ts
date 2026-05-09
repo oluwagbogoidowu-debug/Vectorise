@@ -16,7 +16,7 @@ export default async function handler(req: Request, res: Response) {
 
     const title = sprintData?.title || "Vectorise - Personal Growth Sprints";
     const description = sprintData?.subtitle || sprintData?.description || "Start a personal growth sprint today.";
-    const image = (sprintData?.coverImageUrl || "https://vectorise.online/default-share.png").replace(/&/g, '&amp;'); 
+    const image = (sprintData?.coverImageUrl || "https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd").replace(/&/g, '&amp;'); 
     
     // Determine the base URL internally
     const protocol = req.headers['x-forwarded-proto'] || 'https';
