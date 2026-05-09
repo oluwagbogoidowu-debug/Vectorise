@@ -153,11 +153,11 @@ const ImpactDashboard: React.FC = () => {
                 </section>
 
                 {/* ENROLLED SPRINTS */}
-                {enrolledSprints.length > 0 && (
-                    <section>
-                        <SectionLabel text="My Sprints" />
-                        <div className="flex flex-col gap-3">
-                            {enrolledSprints.map(({ sprint, enrollment }) => (
+                <section>
+                    <SectionLabel text="My Sprints" />
+                    <div className="flex flex-col gap-3">
+                        {enrolledSprints.length > 0 ? (
+                            enrolledSprints.map(({ sprint, enrollment }) => (
                                 <div key={enrollment.id} className="flex bg-white rounded-2xl p-3 border border-gray-100 shadow-sm items-center gap-3">
                                     <div className="w-12 h-12 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden">
                                         <img src={sprint.coverImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(sprint.title)}&background=0E7850&color=fff`} alt={sprint.title} className="w-full h-full object-cover" />
@@ -173,10 +173,21 @@ const ImpactDashboard: React.FC = () => {
                                         <Share2 className="w-4 h-4" />
                                     </button>
                                 </div>
-                            ))}
-                        </div>
-                    </section>
-                )}
+                            ))
+                        ) : (
+                            <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col items-center justify-center text-center">
+                                <p className="text-xs font-bold text-gray-400 mb-1">No Sprints Yet</p>
+                                <p className="text-[10px] text-gray-400 mb-4 max-w-[200px]">Enroll in a sprint to share it with your community and track your impact.</p>
+                                <button
+                                    onClick={() => navigate('/discover')}
+                                    className="px-6 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-black text-gray-500 uppercase tracking-widest hover:text-primary hover:border-primary/30 transition-all"
+                                >
+                                    Discover Sprints
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </section>
 
                 {/* HORIZONTAL HISTORY */}
                 <section>

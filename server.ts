@@ -105,6 +105,47 @@ async function startServer() {
     res.json({ status: 'ok' });
   });
 
+  // Dynamic Sitemap
+  app.get('/sitemap.xml', async (req, res) => {
+    try {
+      const [sprintsSnap, tracksSnap] = await Promise.all([
+        db.collection('sprints').where('status', 'in', ['published', 'active']).get(),
+        db.collection('tracks').where('status', 'in', ['published', 'active']).get()
+      ]);
+
+      const hostname = `https://${req.hostname}`;
+
+      const staticPaths = [
+        '/',
+        '/#/discover',
+        '/#/partner',
+        '/#/login',
+        '/#/signup'
+      ];
+
+      const sprintPaths = sprintsSnap.docs.map(doc => `/?sprintId=${doc.id}#/sprint/${doc.id}`);
+      const trackPaths = tracksSnap.docs.map(doc => `/?trackId=${doc.id}#/track/${doc.id}`);
+
+      const urls = [...staticPaths, ...sprintPaths, ...trackPaths];
+
+      const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map(url => `  <url>
+    <loc>${hostname}${url.replace(/&/g, '&amp;')}</loc>
+    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
+    <changefreq>${url === '/' ? 'daily' : 'weekly'}</changefreq>
+    <priority>${url === '/' ? '1.0' : '0.8'}</priority>
+  </url>`).join('\n')}
+</urlset>`;
+
+      res.header('Content-Type', 'application/xml');
+      res.send(sitemap);
+    } catch (error) {
+      console.error('Error generating sitemap:', error);
+      res.status(500).send('Error generating sitemap');
+    }
+  });
+
   // Background Job for Push Notifications (runs every 30 minutes)
   setInterval(() => {
     pushNotificationManager.processTriggers().catch(err => {
