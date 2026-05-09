@@ -56,7 +56,7 @@ const GrowthRewards: React.FC = () => {
                 </div>
 
                 <Button 
-                    onClick={() => navigate('/discover')}
+                    onClick={() => navigate('/explore')}
                     className="w-full py-5 bg-primary text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-lg shadow-primary/10 transition-transform active:scale-95"
                 >
                     Use Coins for Sprints

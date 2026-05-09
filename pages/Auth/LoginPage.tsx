@@ -120,7 +120,7 @@ const LoginPage: React.FC = () => {
                       }
 
                       // 4. No active or queued sprints - go to explore
-                      navigate('/discover', { replace: true });
+                      navigate('/explore', { replace: true });
                       return;
                   } catch (e) {
                       console.error("Redirect tracking error", e);

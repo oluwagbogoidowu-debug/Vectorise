@@ -165,7 +165,7 @@ const MySprints: React.FC = () => {
                         ) : (
                             <div className="flex flex-col items-center justify-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                                 <p className="text-gray-400 mb-4 font-medium text-xs">No active programs.</p>
-                                <Link to="/discover">
+                                <Link to="/explore">
                                     <Button className="rounded-xl px-8 py-2.5 text-[9px] font-black uppercase tracking-widest">Find a Path</Button>
                                 </Link>
                             </div>

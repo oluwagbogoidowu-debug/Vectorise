@@ -179,7 +179,7 @@ const ImpactDashboard: React.FC = () => {
                                 <p className="text-xs font-bold text-gray-400 mb-1">No Sprints Yet</p>
                                 <p className="text-[10px] text-gray-400 mb-4 max-w-[200px]">Enroll in a sprint to share it with your community and track your impact.</p>
                                 <button
-                                    onClick={() => navigate('/discover')}
+                                    onClick={() => navigate('/explore')}
                                     className="px-6 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-black text-gray-500 uppercase tracking-widest hover:text-primary hover:border-primary/30 transition-all"
                                 >
                                     Discover Sprints

@@ -574,7 +574,7 @@ const SprintView: React.FC = () => {
                 if (hasSaved) {
                     navigate('/participant/my-sprints', { replace: true });
                 } else {
-                    navigate('/discover', { replace: true });
+                    navigate('/explore', { replace: true });
                 }
             }
         } catch (err) {

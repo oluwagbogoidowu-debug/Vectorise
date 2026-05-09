@@ -144,7 +144,7 @@ const SprintLandingPage: React.FC = () => {
     };
 
     if (isLoading) return <div className="flex items-center justify-center min-h-screen bg-light text-[8px] font-black uppercase tracking-[0.2em] text-gray-300">Synchronizing registry...</div>;
-    if (!sprint) return <div className="min-h-screen flex flex-col items-center justify-center bg-light text-center px-4"><h2 className="text-base font-black mb-2">Registry item not found.</h2><Button onClick={() => navigate('/discover')}>Discover Paths</Button></div>;
+    if (!sprint) return <div className="min-h-screen flex flex-col items-center justify-center bg-light text-center px-4"><h2 className="text-base font-black mb-2">Registry item not found.</h2><Button onClick={() => navigate('/explore')}>Discover Paths</Button></div>;
 
     const isFoundational = sprint.sprintType === 'Foundational' || 
                            sprint.category === 'Core Platform Sprint' || 
@@ -158,7 +158,7 @@ const SprintLandingPage: React.FC = () => {
 
     const handleShare = () => {
         if (!sprint) return;
-        const shareUrl = `https://${window.location.host}/?sprintId=${sprint.id}#/sprint/${sprint.id}`;
+        const shareUrl = `https://${window.location.host}/sprint/${sprint.id}`;
         navigator.clipboard.writeText(shareUrl)
             .then(() => toast.success('Share link copied to clipboard!'))
             .catch(() => toast.error('Failed to copy link.'));
@@ -170,7 +170,7 @@ const SprintLandingPage: React.FC = () => {
                 <div className="flex justify-between items-center mb-6">
                     {user ? (
                         <button 
-                            onClick={() => navigate('/discover')} 
+                            onClick={() => navigate('/explore')} 
                             className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-2 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>

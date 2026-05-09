@@ -30,7 +30,7 @@ export const DormancyPrompt: React.FC = () => {
       // In a real app, you might reset progress or just navigate to the start
       await pushNotificationService.updateActivity(user.id, 'Active');
       setShowPrompt(false);
-      navigate('/participant/discover');
+      navigate('/explore');
     }
   };
 

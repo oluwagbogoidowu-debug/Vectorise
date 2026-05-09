@@ -116,8 +116,9 @@ async function startServer() {
       const hostname = 'https://vectorise.online';
 
       const staticPaths = [
-        '/',
+        '/home',
         '/discover',
+        '/explore',
         '/partner',
         '/login',
         '/signup'
@@ -133,8 +134,8 @@ async function startServer() {
 ${urls.map(url => `  <url>
     <loc>${hostname}${url.replace(/&/g, '&amp;')}</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
-    <changefreq>${url === '/' ? 'daily' : 'weekly'}</changefreq>
-    <priority>${url === '/' ? '1.0' : '0.8'}</priority>
+    <changefreq>${url === '/home' ? 'daily' : 'weekly'}</changefreq>
+    <priority>${url === '/home' ? '1.0' : '0.8'}</priority>
   </url>`).join('\n')}
 </urlset>`;
 
@@ -186,13 +187,17 @@ ${urls.map(url => `  <url>
           
           const title = docData.title || "Vectorise";
           const description = docData.subtitle || docData.description || "Start your personal growth journey today.";
-          const image = docData.coverImageUrl || "https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd";
+          const image = (docData.coverImageUrl || "https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd").replace(/&/g, '&amp;');
           const url = \`https://\${req.hostname}\${req.url}\`;
           
           const ogTags = \`
     <meta property="og:title" content="\${title.replace(/"/g, '&quot;')}" />
     <meta property="og:description" content="\${description.replace(/"/g, '&quot;')}" />
     <meta property="og:image" content="\${image}" />
+    <meta property="og:image:secure_url" content="\${image}" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:url" content="\${url}" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />

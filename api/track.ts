@@ -16,7 +16,7 @@ export default async function handler(req: Request, res: Response) {
 
     const title = trackData?.title || "Vectorise - Personal Growth Tracks";
     const description = trackData?.description || "Start a personal growth track today.";
-    const image = trackData?.coverImageUrl || "https://vectorise.online/default-share.png"; 
+    const image = (trackData?.coverImageUrl || "https://vectorise.online/default-share.png").replace(/&/g, '&amp;'); 
     
     // Determine the base URL internally
     const protocol = req.headers['x-forwarded-proto'] || 'https';
@@ -35,6 +35,10 @@ export default async function handler(req: Request, res: Response) {
     <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
     <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
     <meta property="og:image" content="${image}" />
+    <meta property="og:image:secure_url" content="${image}" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:url" content="${url}" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />

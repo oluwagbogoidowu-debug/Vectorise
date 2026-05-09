@@ -20,6 +20,7 @@ import CreateTrack from './pages/Admin/CreateTrack';
 import EditTrack from './pages/Admin/EditTrack';
 import RoleSelectorPage from './pages/Admin/RoleSelectorPage';
 import TrackDescriptionPage from './pages/TrackDescriptionPage';
+import PublicDiscover from './pages/PublicDiscover';
 import { UserRole } from './types';
 import { Welcome } from './pages/Onboarding/Welcome';
 import QuizIntro from './pages/Onboarding/QuizIntro';
@@ -165,8 +166,11 @@ export const AppRoutes: React.FC = () => {
       <Route path="/coach/sprint/preview/:sprintId" element={<ProtectedRoute roles={[UserRole.COACH, UserRole.ADMIN]}><SprintPreviewPage /></ProtectedRoute>} /> {/* New Route */}
       
       {/* Participant Track */}
+      {/* Public Discover */}
+      <Route path="/discover" element={<PublicDiscover />} />
+
       <Route element={<ProtectedRoute roles={[UserRole.PARTICIPANT, UserRole.PARTNER]}><ParticipantLayout /></ProtectedRoute>}>
-         <Route path="/discover" element={<DiscoverSprints />} />
+         <Route path="/explore" element={<DiscoverSprints />} />
          <Route path="/my-sprints" element={<MySprints />} />
          <Route path="/profile" element={<Profile />} />
          <Route path="/profile/settings" element={<AccountSettings />} />

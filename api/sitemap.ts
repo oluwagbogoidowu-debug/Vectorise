@@ -11,8 +11,9 @@ export default async function handler(req: Request, res: Response) {
     const hostname = 'https://vectorise.online';
 
     const staticPaths = [
-      '/',
+      '/home',
       '/discover',
+      '/explore',
       '/partner',
       '/login',
       '/signup'
@@ -28,8 +29,8 @@ export default async function handler(req: Request, res: Response) {
 ${urls.map(url => `  <url>
     <loc>${hostname}${url.replace(/&/g, '&amp;')}</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
-    <changefreq>${url === '/' ? 'daily' : 'weekly'}</changefreq>
-    <priority>${url === '/' ? '1.0' : '0.8'}</priority>
+    <changefreq>${url === '/home' ? 'daily' : 'weekly'}</changefreq>
+    <priority>${url === '/home' ? '1.0' : '0.8'}</priority>
   </url>`).join('\n')}
 </urlset>`;
 

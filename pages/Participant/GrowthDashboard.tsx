@@ -406,7 +406,7 @@ const GrowthDashboard: React.FC = () => {
                                     </div>
                                 </div>
                                 <button 
-                                    onClick={() => navigate('/discover')}
+                                    onClick={() => navigate('/explore')}
                                     className="px-8 py-4 bg-primary text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 active:scale-95 transition-all"
                                 >
                                     Continue the Journey
