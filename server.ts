@@ -113,14 +113,12 @@ async function startServer() {
         db.collection('tracks').where('status', 'in', ['published', 'active']).get()
       ]);
 
-      const hostname = `https://${req.hostname}`;
+      const hostname = 'https://vectorise.online';
 
       const staticPaths = [
         '/',
-        '/#/discover',
-        '/#/partner',
-        '/#/login',
-        '/#/signup'
+        '/?path=sprint',
+        '/?path=tracks'
       ];
 
       const sprintPaths = sprintsSnap.docs.map(doc => `/?sprintId=${doc.id}#/sprint/${doc.id}`);
