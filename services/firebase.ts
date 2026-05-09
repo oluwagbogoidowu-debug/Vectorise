@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
-import { initializeFirestore, enableIndexedDbPersistence, terminate } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence, terminate } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDEijT9QTC6wTyv_u2BN_UTC3NeOmADkI8",
@@ -16,14 +16,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 /**
- * Hardened Firestore configuration.
- * experimentalForceLongPolling: true is required for environments where WebSockets are blocked.
- * useFetchStreams: false prevents connectivity issues in browsers with restrictive streaming policies.
+ * Standard Firestore configuration.
  */
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-  ignoreUndefinedProperties: true
-});
+export const db = getFirestore(app);
 
 export const auth = getAuth(app);
 const analytics = getAnalytics(app);
@@ -46,12 +41,16 @@ export interface FirestoreErrorInfo {
     email?: string | null;
     emailVerified?: boolean | null;
     isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
   }
 }
 
 /**
  * Hardened error handler for Firestore operations.
- * Uses a safe approach to stringification to avoid circular structure errors.
  */
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   // Capture base error info
@@ -63,18 +62,21 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
       emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
     },
     operationType,
     path
   };
 
-  // Safely log the error info without using JSON.stringify directly on potentially circular objects
-  console.error(`[Firestore Error] ${operationType} on ${path}:`, errorMessage);
   console.error('[Firestore Context]:', errInfo);
 
-  // Still throw for the application to handle, but with a safe string
-  throw new Error(`Firestore ${operationType} failed: ${errorMessage}`);
+  // CRITICAL: Must be a JSON string for the system to diagnose security rule issues properly
+  throw new Error(JSON.stringify(errInfo));
 }
 
 // Enable persistence for offline capability with more robust error checking
