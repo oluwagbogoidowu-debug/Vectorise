@@ -67,7 +67,7 @@ const ImpactDashboard: React.FC = () => {
     }, [p.claimedMilestoneIds]);
 
     const handleShareSprint = (sprintId: string) => {
-        const shareUrl = `https://${window.location.host}/?ref=${p.referralCode}&sprintId=${sprintId}#/sprint/${sprintId}`;
+        const shareUrl = `https://${window.location.host}/sprint/${sprintId}?ref=${p.referralCode}`;
         navigator.clipboard.writeText(shareUrl)
             .then(() => toast.success('Sprint invite link copied!'))
             .catch(() => toast.error('Failed to copy link.'));
@@ -121,13 +121,13 @@ const ImpactDashboard: React.FC = () => {
                     <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
                         <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2">Personal Message</p>
                         <p className="text-xs text-gray-600 leading-relaxed">
-                            {`"I found a platform that helps me stay consistent with my growth. Join me on this path: https://www.vectorise.online/?ref=${p.referralCode}#/"`}
+                            {`"I found a platform that helps me stay consistent with my growth. Join me on this path: https://www.vectorise.online/?ref=${p.referralCode}"`}
                         </p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                         <a 
-                            href={`https://wa.me/?text=I found a platform that helps me stay consistent with my growth. Join me on this path: https://www.vectorise.online/?ref=${p.referralCode}#/`}
+                            href={`https://wa.me/?text=I found a platform that helps me stay consistent with my growth. Join me on this path: https://www.vectorise.online/?ref=${p.referralCode}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center justify-center gap-2 bg-white border border-gray-100 shadow-sm rounded-xl py-3 text-center text-[10px] font-black text-gray-900 uppercase tracking-widest active:scale-95 transition-transform"
@@ -136,7 +136,7 @@ const ImpactDashboard: React.FC = () => {
                             <span>WhatsApp</span>
                         </a>
                         <a 
-                            href={`mailto:?subject=Join me on Vectorise&body=I found a platform that helps me stay consistent with my growth. Join me on this path: https://www.vectorise.online/?ref=${p.referralCode}#/`}
+                            href={`mailto:?subject=Join me on Vectorise&body=I found a platform that helps me stay consistent with my growth. Join me on this path: https://www.vectorise.online/?ref=${p.referralCode}`}
                             className="flex items-center justify-center gap-2 bg-white border border-gray-100 shadow-sm rounded-xl py-3 text-center text-[10px] font-black text-gray-900 uppercase tracking-widest active:scale-95 transition-transform"
                         >
                             <span>✉️</span>
@@ -147,7 +147,7 @@ const ImpactDashboard: React.FC = () => {
                     <div>
                         <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2">🔗 Unified Invite Link</p>
                         <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 text-center">
-                            <p className="text-xs text-primary font-mono break-all">{`https://www.vectorise.online/?ref=${p.referralCode}#/`}</p>
+                            <p className="text-xs text-primary font-mono break-all">{`https://www.vectorise.online/?ref=${p.referralCode}`}</p>
                         </div>
                     </div>
                 </section>

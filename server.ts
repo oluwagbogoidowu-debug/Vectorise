@@ -117,12 +117,14 @@ async function startServer() {
 
       const staticPaths = [
         '/',
-        '/?path=sprint',
-        '/?path=tracks'
+        '/discover',
+        '/partner',
+        '/login',
+        '/signup'
       ];
 
-      const sprintPaths = sprintsSnap.docs.map(doc => `/?sprintId=${doc.id}#/sprint/${doc.id}`);
-      const trackPaths = tracksSnap.docs.map(doc => `/?trackId=${doc.id}#/track/${doc.id}`);
+      const sprintPaths = sprintsSnap.docs.map(doc => `/sprint/${doc.id}`);
+      const trackPaths = tracksSnap.docs.map(doc => `/track/${doc.id}`);
 
       const urls = [...staticPaths, ...sprintPaths, ...trackPaths];
 
@@ -159,10 +161,10 @@ ${urls.map(url => `  <url>
     });
   }
 
-  // Intercept paths that contain sprintId query param OR are exact /share routes for dynamic OG tags
-  app.get('/*', async (req, res, next) => {
-    const sprintId = req.query.sprintId;
-    if (sprintId && typeof sprintId === 'string' && !req.path.startsWith('/api')) {
+  // Intercept exact /sprint routes for dynamic OG tags
+  app.get('/sprint/:sprintId', async (req, res, next) => {
+    const sprintId = req.params.sprintId;
+    if (sprintId && typeof sprintId === 'string') {
       try {
         const sprintDoc = await db.collection('sprints').doc(sprintId).get();
         if (sprintDoc.exists) {
@@ -177,7 +179,7 @@ ${urls.map(url => `  <url>
           const title = sprint.title || "Vectorise - Personal Growth Sprints";
           const description = sprint.subtitle || sprint.description || "Start a personal growth sprint today.";
           const image = sprint.coverImageUrl || "https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd";
-          const url = \`https://\${req.hostname}/?sprintId=\${sprintId}#/sprint/\${sprintId}\`;
+          const url = \`https://\${req.hostname}/sprint/\${sprintId}\`;
           
           const ogTags = \`
     <meta property="og:title" content="\${title.replace(/"/g, '&quot;')}" />
