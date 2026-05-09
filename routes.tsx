@@ -206,6 +206,10 @@ export const AppRoutes: React.FC = () => {
       <Route path="/track/:trackId" element={<TrackDescriptionPage />} />
       
       <Route path="/sprint/preview/:sprintId" element={<SprintPreview />} />
+      <Route path="/sprint" element={<Navigate to="/discover" replace />} />
+      <Route path="/sprints" element={<Navigate to="/discover" replace />} />
+      <Route path="/track" element={<Navigate to="/discover" replace />} />
+      <Route path="/tracks" element={<Navigate to="/discover" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
