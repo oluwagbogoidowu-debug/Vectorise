@@ -911,7 +911,7 @@ const SprintView: React.FC = () => {
                                                             </button>
                                                         ) : <div></div>}
                                                         
-                                                        {i < dayContent.taskPrompts.length! - 1 && (() => {
+                                                        {i < (dayContent.taskPrompts?.length || 0) - 1 && (() => {
                                                             const val = taskInputs[i];
                                                             const isTags = dayContent.taskInputTypes?.[i] === 'tags';
                                                             const isValid = !!dayProgress?.completed || (!!val && (isTags ? val !== '[]' && val !== '' : val.trim().length > 0));

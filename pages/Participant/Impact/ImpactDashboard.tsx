@@ -26,7 +26,7 @@ const ImpactDashboard: React.FC = () => {
         if (!user) return;
         
         const unsubEnrollments = sprintService.subscribeToUserEnrollments(user.id, async (enrollments) => {
-            const sprintPromises = enrollments.map(e => sprintService.getSprint(e.sprint_id));
+            const sprintPromises = enrollments.map(e => sprintService.getSprintById(e.sprint_id));
             const sprints = await Promise.all(sprintPromises);
             const combined = enrollments.map((enrollment, idx) => ({
                 enrollment,

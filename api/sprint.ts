@@ -16,12 +16,11 @@ export default async function handler(req: Request, res: Response) {
 
     const title = sprintData?.title || "Vectorise - Personal Growth Sprints";
     const description = sprintData?.subtitle || sprintData?.description || "Start a personal growth sprint today.";
-    const image = (sprintData?.coverImageUrl || "https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd").replace(/&/g, '&amp;'); 
-    
-    // Determine the base URL internally
+    const rawImage = sprintData?.coverImageUrl || "https://vectorise.online/default-share.png";
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     const baseUrl = `${protocol}://${host}`;
+    const image = `${baseUrl}/api/og-image?url=${encodeURIComponent(rawImage)}&ext=.jpg`.replace(/&/g, '&amp;');
     const url = `${baseUrl}/sprint/${sprintId}`;
 
     // Read the vanilla index.html that Vercel serves for the SPA

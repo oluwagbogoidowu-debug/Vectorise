@@ -18,8 +18,8 @@ const PublicDiscover: React.FC = () => {
           trackService.getAllTracks()
         ]);
         // Filter to only approved and active sprints if needed
-        setSprints(fetchedSprints.filter(s => s.status === 'published' || s.status === 'active' || s.approvalStatus === 'approved'));
-        setTracks(fetchedTracks.filter(t => t.status === 'published' || t.status === 'active'));
+        setSprints(fetchedSprints.filter(s => s.published || s.approvalStatus === 'approved'));
+        setTracks(fetchedTracks.filter(t => t.published));
       } catch (error) {
         console.error('Failed to fetch public registry', error);
       } finally {
@@ -36,7 +36,7 @@ const PublicDiscover: React.FC = () => {
       <div className="w-full bg-white border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
-                <img src={assetService.URLS.VECTOR_LOGO} alt="Vectorise" className="h-6" />
+                <img src={assetService.URLS.LOGO_GREEN} alt="Vectorise" className="h-6" />
                 <span className="font-black tracking-tighter text-sm uppercase">Vectorise</span>
             </Link>
             <div className="flex items-center gap-4">
@@ -81,7 +81,7 @@ const PublicDiscover: React.FC = () => {
                               </div>
                               <p className="text-xs text-gray-500 line-clamp-2 mt-1">{track.description}</p>
                               <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 text-[9px] font-black text-gray-400 mt-2 uppercase tracking-widest">
-                                  <span className="px-2 py-1 bg-gray-50 rounded-lg">{track.enrollmentCost} Coins</span>
+                                  <span className="px-2 py-1 bg-gray-50 rounded-lg">Bundle Discount</span>
                               </div>
                           </div>
                           <div className="flex items-center gap-2 w-full sm:w-auto mt-4 sm:mt-0">

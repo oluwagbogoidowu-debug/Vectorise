@@ -109,8 +109,8 @@ async function startServer() {
   app.get('/sitemap.xml', async (req, res) => {
     try {
       const [sprintsSnap, tracksSnap] = await Promise.all([
-        db.collection('sprints').where('status', 'in', ['published', 'active']).get(),
-        db.collection('tracks').where('status', 'in', ['published', 'active']).get()
+        db.collection('sprints').where('published', '==', true).get(),
+        db.collection('tracks').where('published', '==', true).get()
       ]);
 
       const hostname = 'https://vectorise.online';
@@ -162,6 +162,23 @@ ${urls.map(url => `  <url>
     });
   }
 
+  // Image proxy for OG tags
+  app.get('/api/og-image', async (req, res) => {
+    const url = req.query.url as string;
+    if (!url) return res.status(400).send('No URL provided');
+    try {
+      const resp = await fetch(decodeURIComponent(url));
+      if (!resp.ok) throw new Error('Fetch failed');
+      const type = resp.headers.get('content-type') || 'image/jpeg';
+      res.setHeader('Content-Type', type);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      const arrayBuffer = await resp.arrayBuffer();
+      res.send(Buffer.from(arrayBuffer));
+    } catch (err) {
+      res.status(500).send('Error');
+    }
+  });
+
   // Intercept exact /sprint and /track routes for dynamic OG tags
   app.get(['/sprint/:sprintId', '/track/:trackId'], async (req, res, next) => {
     const sprintId = req.params.sprintId;
@@ -169,11 +186,11 @@ ${urls.map(url => `  <url>
     
     if ((sprintId && typeof sprintId === 'string') || (trackId && typeof trackId === 'string')) {
       try {
-        let docData: any = null;
-        if (sprintId) {
+                let docData: any = null;
+        if (sprintId && typeof sprintId === 'string') {
           const doc = await db.collection('sprints').doc(sprintId).get();
           if (doc.exists) docData = doc.data();
-        } else if (trackId) {
+        } else if (trackId && typeof trackId === 'string') {
           const doc = await db.collection('tracks').doc(trackId).get();
           if (doc.exists) docData = doc.data();
         }
@@ -187,26 +204,30 @@ ${urls.map(url => `  <url>
           
           const title = docData.title || "Vectorise";
           const description = docData.subtitle || docData.description || "Start your personal growth journey today.";
-          const image = (docData.coverImageUrl || "https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd").replace(/&/g, '&amp;');
-          const url = \`https://\${req.hostname}\${req.url}\`;
+          const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+          const host = req.headers['x-forwarded-host'] || req.get('host');
+          const baseUrl = `${protocol}://${host}`;
+          let rawImage = docData.coverImageUrl || "https://vectorise.online/default-share.png";
+          const image = `${baseUrl}/api/og-image?url=${encodeURIComponent(rawImage)}&ext=.jpg`.replace(/&/g, '&amp;');
+          const url = `https://${req.hostname}${req.url}`;
           
-          const ogTags = \`
-    <meta property="og:title" content="\${title.replace(/"/g, '&quot;')}" />
-    <meta property="og:description" content="\${description.replace(/"/g, '&quot;')}" />
-    <meta property="og:image" content="\${image}" />
-    <meta property="og:image:secure_url" content="\${image}" />
+          const ogTags = `
+    <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
+    <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
+    <meta property="og:image" content="${image}" />
+    <meta property="og:image:secure_url" content="${image}" />
     <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:url" content="\${url}" />
+    <meta property="og:url" content="${url}" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="\${title.replace(/"/g, '&quot;')}" />
-    <meta name="twitter:description" content="\${description.replace(/"/g, '&quot;')}" />
-    <meta name="twitter:image" content="\${image}" />
-          \`;
+    <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
+    <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
+    <meta name="twitter:image" content="${image}" />
+          `;
 
-          html = html.replace('</title>', \`</title>\\n\${ogTags}\`);
+          html = html.replace('</title>', `</title>\n${ogTags}`);
           
           if (process.env.NODE_ENV !== 'production' && vite) {
             html = await vite.transformIndexHtml(req.url, html);
@@ -233,7 +254,7 @@ ${urls.map(url => `  <url>
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(\`Server running on http://localhost:\${PORT}\`);
+    console.log(`Server running on http://localhost:${PORT}`);
     
     // Start real-time notification listener for pushes
     pushNotificationManager.startNotificationListener();

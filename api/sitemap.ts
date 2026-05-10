@@ -4,8 +4,8 @@ import type { Request, Response } from 'express';
 export default async function handler(req: Request, res: Response) {
   try {
     const [sprintsSnap, tracksSnap] = await Promise.all([
-      db.collection('sprints').where('status', 'in', ['published', 'active']).get(),
-      db.collection('tracks').where('status', 'in', ['published', 'active']).get()
+      db.collection('sprints').where('published', '==', true).get(),
+      db.collection('tracks').where('published', '==', true).get()
     ]);
 
     const hostname = 'https://vectorise.online';

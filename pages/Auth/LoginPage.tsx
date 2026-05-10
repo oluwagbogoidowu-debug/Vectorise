@@ -91,16 +91,17 @@ const LoginPage: React.FC = () => {
                               }
                           }
 
-                          const sprint = await sprintService.getSprintById(targetSprintId);
-                          if (sprint) {
-                              const isFoundational = sprint.category === 'Core Platform Sprint' || sprint.category === 'Growth Fundamentals';
-                              if (isFoundational || sprint.price === 0) {
-                                  const enrollment = await sprintService.enrollUser(user.id, targetSprintId, sprint.duration);
-                                  navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
-                                  return;
-                              }
-                              
-                              navigate('/onboarding/sprint-payment', { state: { sprint: sprint, prefilledEmail: user.email } });
+                          // Check if they are in ANOTHER active sprint
+                          const activeOtherSprint = enrollments.find(e => e.status === 'active' && e.sprint_id !== targetSprintId && e.progress.some(p => !p.completed));
+
+                          const targetSprint = await sprintService.getSprintById(targetSprintId);
+                          if (activeOtherSprint) {
+                              navigate(`/sprint/${targetSprintId}`, { replace: true, state: { showWaitlistPopup: true, targetSprint }});
+                              return;
+                          }
+
+                          if (targetSprint) {
+                              navigate('/onboarding/commitment', { state: { sprintId: targetSprintId, sprint: targetSprint, prefilledEmail: user.email }});
                               return;
                           }
                       }

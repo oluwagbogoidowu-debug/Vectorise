@@ -16,12 +16,11 @@ export default async function handler(req: Request, res: Response) {
 
     const title = trackData?.title || "Vectorise - Personal Growth Tracks";
     const description = trackData?.description || "Start a personal growth track today.";
-    const image = (trackData?.coverImageUrl || "https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd").replace(/&/g, '&amp;'); 
-    
-    // Determine the base URL internally
+    const rawImage = trackData?.coverImageUrl || "https://vectorise.online/default-share.png";
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     const baseUrl = `${protocol}://${host}`;
+    const image = `${baseUrl}/api/og-image?url=${encodeURIComponent(rawImage)}&ext=.jpg`.replace(/&/g, '&amp;');
     const url = `${baseUrl}/track/${trackId}`;
 
     const indexHtmlRes = await fetch(`${baseUrl}/index.html`);
