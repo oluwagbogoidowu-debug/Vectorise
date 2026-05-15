@@ -147,6 +147,25 @@ ${urls.map(url => `  <url>
     }
   });
 
+  app.get('/sw.js', (req, res) => {
+    const swPath = process.env.NODE_ENV === 'production' 
+      ? path.join(__dirname, 'dist', 'sw.js')
+      : path.join(__dirname, 'public', 'sw.js');
+    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Service-Worker-Allowed', '/');
+    res.sendFile(swPath);
+  });
+
+  app.get('/manifest.json', (req, res) => {
+    const mPath = process.env.NODE_ENV === 'production' 
+      ? path.join(__dirname, 'dist', 'manifest.json')
+      : path.join(__dirname, 'public', 'manifest.json');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(mPath);
+  });
+
   // Background Job for Push Notifications (runs every 30 minutes)
   setInterval(() => {
     pushNotificationManager.processTriggers().catch(err => {
