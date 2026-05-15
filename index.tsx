@@ -4,6 +4,47 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { analyticsTracker } from './services/analyticsTracker';
 
+// Safe global JSON.stringify patch to prevent circular structure crashes (e.g. Firebase Y2/Ka/src)
+if (typeof JSON !== 'undefined') {
+  const originalStringify = JSON.stringify;
+  JSON.stringify = function (value, replacer, space) {
+    const seen = new WeakSet();
+    const cycleReplacer = (key: string, val: any) => {
+      if (typeof val === "object" && val !== null) {
+        if (seen.has(val)) {
+          return "[Circular]";
+        }
+        seen.add(val);
+      }
+      return val;
+    };
+
+    let newReplacer: any;
+    if (typeof replacer === 'function') {
+        newReplacer = (key: string, val: any) => {
+            return replacer(key, cycleReplacer(key, val));
+        };
+    } else if (Array.isArray(replacer)) {
+        newReplacer = (key: string, val: any) => {
+            if (key !== '' && !replacer.includes(key)) return undefined;
+            return cycleReplacer(key, val);
+        }
+    } else {
+        newReplacer = cycleReplacer;
+    }
+
+    try {
+      return originalStringify(value, newReplacer as any, space);
+    } catch (e) {
+      if (e instanceof TypeError && e.message.includes('circular')) {
+         return '"[Unserializable Circular Reference]"';
+      }
+      // Provide fallback for objects with throwing getters
+      return '"[Unserializable Object]"';
+    }
+  };
+}
+
 // Initialize Analytics Tracking
 analyticsTracker.init();
 

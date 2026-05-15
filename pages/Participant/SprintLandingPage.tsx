@@ -174,6 +174,13 @@ const SprintLandingPage: React.FC = () => {
             return;
         }
 
+        // User is logged in. Check if they have another active sprint.
+        const activeOtherSprint = userEnrollments.find(e => e.status === 'active' && e.sprint_id !== sprint.id && e.progress.some(p => !p.completed));
+        if (activeOtherSprint) {
+            setIsWaitlistModalOpen(true);
+            return;
+        }
+
         analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId }, user?.id);
         navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus } });
     };
