@@ -186,11 +186,11 @@ ${urls.map(url => `  <url>
     
     if ((sprintId && typeof sprintId === 'string') || (trackId && typeof trackId === 'string')) {
       try {
-                let docData: any = null;
-        if (sprintId && typeof sprintId === 'string') {
+        let docData: any = null;
+        if (sprintId) {
           const doc = await db.collection('sprints').doc(sprintId).get();
           if (doc.exists) docData = doc.data();
-        } else if (trackId && typeof trackId === 'string') {
+        } else if (trackId) {
           const doc = await db.collection('tracks').doc(trackId).get();
           if (doc.exists) docData = doc.data();
         }
@@ -209,25 +209,25 @@ ${urls.map(url => `  <url>
           const baseUrl = `${protocol}://${host}`;
           let rawImage = docData.coverImageUrl || "https://vectorise.online/default-share.png";
           const image = `${baseUrl}/api/og-image?url=${encodeURIComponent(rawImage)}&ext=.jpg`.replace(/&/g, '&amp;');
-          const url = `https://${req.hostname}${req.url}`;
+          const url = \`https://\${req.hostname}\${req.url}\`;
           
-          const ogTags = `
-    <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
-    <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
-    <meta property="og:image" content="${image}" />
-    <meta property="og:image:secure_url" content="${image}" />
+          const ogTags = \`
+    <meta property="og:title" content="\${title.replace(/"/g, '&quot;')}" />
+    <meta property="og:description" content="\${description.replace(/"/g, '&quot;')}" />
+    <meta property="og:image" content="\${image}" />
+    <meta property="og:image:secure_url" content="\${image}" />
     <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:url" content="${url}" />
+    <meta property="og:url" content="\${url}" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
-    <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
-    <meta name="twitter:image" content="${image}" />
-          `;
+    <meta name="twitter:title" content="\${title.replace(/"/g, '&quot;')}" />
+    <meta name="twitter:description" content="\${description.replace(/"/g, '&quot;')}" />
+    <meta name="twitter:image" content="\${image}" />
+          \`;
 
-          html = html.replace('</title>', `</title>\n${ogTags}`);
+          html = html.replace('</title>', \`</title>\\n\${ogTags}\`);
           
           if (process.env.NODE_ENV !== 'production' && vite) {
             html = await vite.transformIndexHtml(req.url, html);
@@ -254,7 +254,7 @@ ${urls.map(url => `  <url>
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(\`Server running on http://localhost:\${PORT}\`);
     
     // Start real-time notification listener for pushes
     pushNotificationManager.startNotificationListener();

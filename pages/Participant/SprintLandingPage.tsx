@@ -14,8 +14,6 @@ import { toast } from 'sonner';
 
 import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, ShieldCheck, Share2 } from 'lucide-react';
 
-import ConfirmModal from '../../components/ConfirmModal';
-
 interface SectionHeadingProps {
   children: React.ReactNode;
   color?: string;
@@ -38,9 +36,6 @@ const SprintLandingPage: React.FC = () => {
     const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [imageError, setImageError] = useState(false);
-    
-    const [isWaitlistModalOpen, setIsWaitlistModalOpen] = useState(false);
-    const [isAddingToWaitlist, setIsAddingToWaitlist] = useState(false);
 
     const vectoriseCoach: Coach = {
         id: 'vectorise',
@@ -55,14 +50,6 @@ const SprintLandingPage: React.FC = () => {
     
     const fallbackImage = assetService.URLS.DEFAULT_SPRINT_COVER;
     const selectedFocus = location.state?.selectedFocus;
-
-    useEffect(() => {
-        if (location.state?.showWaitlistPopup) {
-            setIsWaitlistModalOpen(true);
-            // clear the state so it doesn't reopen on refresh
-            navigate(location.pathname, { replace: true, state: {} });
-        }
-    }, [location.state, navigate]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -120,28 +107,6 @@ const SprintLandingPage: React.FC = () => {
     const [guestEmail, setGuestEmail] = useState('');
     const [isCheckingEmail, setIsCheckingEmail] = useState(false);
     const [emailError, setEmailError] = useState('');
-
-    const handleAddToWaitlist = async () => {
-        if (!user || !sprint) return;
-        setIsAddingToWaitlist(true);
-        try {
-            const p = user as Participant;
-            const currentQueue = p.wishlistSprintIds || [];
-            if (!currentQueue.includes(sprint.id)) {
-                await userService.updateUserDocument(user.id, { wishlistSprintIds: [...currentQueue, sprint.id] });
-                toast.success('Added to waitlist successfully!');
-            } else {
-                toast.success('Already in your waitlist!');
-            }
-            navigate('/my-sprints', { replace: true });
-        } catch (error) {
-            console.error("Failed to add to waitlist:", error);
-            toast.error("Failed to add to waitlist. Please try again.");
-        } finally {
-            setIsWaitlistModalOpen(false);
-            setIsAddingToWaitlist(false);
-        }
-    };
 
     const handleJoinClick = async () => {
         if (!sprint) return;
@@ -428,17 +393,6 @@ const SprintLandingPage: React.FC = () => {
                     </aside>
                 </div>
             </div>
-            
-            <ConfirmModal
-                isOpen={isWaitlistModalOpen}
-                onClose={() => setIsWaitlistModalOpen(false)}
-                onConfirm={handleAddToWaitlist}
-                title="Active Sprint Detected"
-                message={`You are currently active in another sprint. You must finish it before joining a new one. Would you like to add "${sprint.title}" to your waitlist?`}
-                confirmText={isAddingToWaitlist ? "Adding..." : "Add to Waitlist"}
-                cancelText="Not Yet"
-                variant="info"
-            />
         </div>
     );
 };
