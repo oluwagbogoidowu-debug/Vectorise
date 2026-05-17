@@ -378,8 +378,8 @@ const Profile: React.FC = () => {
 
               {/* Step 0: Start Screen */}
               {setupStep === 0 && (
-                <div className="animate-fade-in py-4 text-center flex flex-col items-center justify-center min-h-[240px]">
-                  <div className="w-16 h-16 bg-[#E6F2ED] rounded-3xl flex items-center justify-center mx-auto mb-6">
+                <div className="animate-fade-in py-8 text-center flex flex-col items-center justify-center min-h-[320px]">
+                  <div className="w-20 h-20 bg-[#E6F2ED] rounded-3xl flex items-center justify-center mx-auto mb-8">
                     <span className="text-3xl">👋</span>
                   </div>
                   <h3 className="text-xl font-black text-gray-900 mb-3">Welcome to your journey</h3>
@@ -391,7 +391,7 @@ const Profile: React.FC = () => {
 
               {/* Step 1: Persona */}
               {setupStep === 1 && (
-                <div className="animate-fade-in min-h-[240px]">
+                <div className="animate-fade-in min-h-[320px]">
                   <h3 className="text-sm font-black text-gray-900 mb-1">Which best describes you today?</h3>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your persona</p>
                   <div className="grid grid-cols-2 gap-2">
@@ -410,7 +410,7 @@ const Profile: React.FC = () => {
 
               {/* Steps 2-4: Persona Questions */}
               {setupStep >= 2 && setupStep <= 4 && tempPersona && currentQuiz && currentQuiz[setupStep - 2] && (
-                <div className="animate-fade-in min-h-[240px]">
+                <div className="animate-fade-in min-h-[320px]">
                   <h3 className="text-sm font-black text-gray-900 mb-1" dangerouslySetInnerHTML={{ __html: currentQuiz[setupStep - 2].title }} />
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Question {setupStep - 1}/3</p>
                   <div className="space-y-2">
@@ -429,7 +429,7 @@ const Profile: React.FC = () => {
 
               {/* Steps 5-9: Growth Areas */}
               {setupStep >= 5 && setupStep <= 9 && currentGrowthGroup && (
-                <div className="animate-fade-in min-h-[240px]">
+                <div className="animate-fade-in min-h-[320px]">
                   <h3 className="text-sm font-black text-gray-900 mb-1">Where do you want to grow next?</h3>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Pick one from each group ({currentTaskGroupIdx + 1}/5)</p>
                   
@@ -452,7 +452,7 @@ const Profile: React.FC = () => {
 
               {/* Step 10: Rise Pathway */}
               {setupStep === 10 && (
-                <div className="animate-fade-in min-h-[240px]">
+                <div className="animate-fade-in min-h-[320px]">
                   <h3 className="text-sm font-black text-gray-900 mb-1">What best describes your current focus?</h3>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your Rise Pathway.</p>
                   
@@ -481,7 +481,7 @@ const Profile: React.FC = () => {
 
               {/* Step 11: Avatar Setup */}
               {setupStep === 11 && (
-                <div className="animate-fade-in min-h-[240px] flex flex-col items-center justify-center py-4">
+                <div className="animate-fade-in min-h-[320px] flex flex-col items-center justify-center py-4">
                   <h3 className="text-sm font-black text-gray-900 mb-1">Final Touch: Your Avatar</h3>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-8 text-center">Upload a photo to complete your profile</p>
                   

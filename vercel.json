@@ -1,5 +1,4 @@
 {
-  "framework": "vite",
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "/api/sitemap" },
     { "source": "/sprint/:id", "destination": "/api/sprint?id=:id" },

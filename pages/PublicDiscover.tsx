@@ -37,6 +37,7 @@ const PublicDiscover: React.FC = () => {
         <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
                 <img src={assetService.URLS.LOGO_GREEN} alt="Vectorise" className="h-6" />
+                <span className="font-black tracking-tighter text-sm uppercase">Vectorise</span>
             </Link>
             <div className="flex items-center gap-4">
                 <Link to="/login" className="text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-primary transition-colors">Log In</Link>
