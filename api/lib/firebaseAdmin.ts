@@ -13,6 +13,11 @@ if (!admin.apps.length) {
         keyVal = keyVal.slice(1, -1).trim();
       }
 
+      // If the user copied the contents without the curly braces
+      if (keyVal.startsWith('"type"') || keyVal.startsWith("'type'") || keyVal.startsWith("type")) {
+        keyVal = "{" + keyVal + "}";
+      }
+
       // 🔍 Attempt to extract JSON if there's wrapping text
       const firstBrace = keyVal.indexOf('{');
       const lastBrace = keyVal.lastIndexOf('}');

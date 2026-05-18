@@ -101,24 +101,32 @@ const HomePage: React.FC = () => {
       </nav>
 
       {/* HERO SECTION */}
-      <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 flex flex-col items-center justify-center px-6 text-center animate-fade-in flex-shrink-0">
+      <section className="relative pt-16 pb-12 md:pt-40 md:pb-28 flex flex-col items-center justify-center px-6 text-center animate-fade-in flex-shrink-0">
         <div className="max-w-5xl mx-auto flex flex-col items-center">
           <h1 className="text-6xl md:text-[110px] font-black text-gray-900 tracking-tighter leading-[0.85] mb-8">
             Grow into who <br/> <span className="italic">you’re <span className="text-primary">becoming.</span></span>
           </h1>
           
-          <div className="max-w-2xl mx-auto mb-10 space-y-4">
+          <div className="max-w-2xl mx-auto mb-10 space-y-5">
             <div className="space-y-1">
                 <p className="text-lg md:text-2xl text-black font-bold leading-tight">
                     You don’t lack ambition.
                 </p>
                 <p className="text-lg md:text-2xl text-black font-bold leading-tight">
-                    You lack clarity on what move actually matters now.
+                    You lack structured direction for growth that actually compounds.
                 </p>
             </div>
-            <p className="text-[12px] text-gray-400 font-medium max-w-lg mx-auto leading-relaxed">
-              Vectorise helps you gain clarity at critical transition points and turn it into focused action through short, guided sprints.
+            <p className="text-[14px] text-gray-600 font-medium max-w-lg mx-auto leading-relaxed">
+              Most effort stays scattered because there’s no system shaping what you learn, practice, and apply next.
             </p>
+            <p className="text-[12px] text-gray-400 font-medium max-w-lg mx-auto leading-relaxed">
+              Vectorise is a guided development system built to help you grow through focused sprints — combining clarity, skill-building, and real-world application.
+            </p>
+            
+            <div className="pt-2 flex flex-col items-center gap-1">
+                <span className="text-[11px] font-black uppercase tracking-widest text-primary">Not more content.</span>
+                <span className="text-[11px] font-black uppercase tracking-widest text-black">A clear path of progression.</span>
+            </div>
           </div>
 
           <div className="flex flex-col items-center gap-6">
@@ -130,7 +138,7 @@ const HomePage: React.FC = () => {
                   Start your Rise
               </button>
               <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-3">
-                Get clear on what matters now
+                Begin your structured growth
               </p>
             </div>
             <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest">
