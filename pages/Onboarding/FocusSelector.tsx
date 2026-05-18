@@ -177,14 +177,6 @@ const FocusSelector: React.FC = () => {
     }
   };
 
-  const handleSpecify = () => {
-    if (activeOption && currentLevel < 3) {
-      setSelections([...selections, activeOption]);
-      setCurrentLevel(currentLevel + 1);
-      setActiveOption(null);
-    }
-  };
-
   const handlePrevious = () => {
     if (currentLevel > 0) {
       const newSelections = [...selections];
@@ -192,13 +184,6 @@ const FocusSelector: React.FC = () => {
       setSelections(newSelections);
       setCurrentLevel(currentLevel - 1);
       setActiveOption(null);
-    }
-  };
-
-  const handleFinalContinue = () => {
-    if (activeOption) {
-      const fullPath = [...selections, activeOption];
-      handleSelect(activeOption, fullPath);
     }
   };
 
@@ -252,8 +237,28 @@ const FocusSelector: React.FC = () => {
               {currentOptions.map((option: string, idx: number) => (
                 <button
                   key={idx}
-                  onClick={() => setActiveOption(option)}
-                  className={`w-full group relative overflow-hidden py-5 px-6 rounded-2xl transition-all duration-500 border flex items-center justify-center ${
+                  onClick={() => {
+                    setActiveOption(option);
+                    const isSimpleList = activeAssignment?.availableFocusOptions && activeAssignment.availableFocusOptions.length > 0;
+                    
+                    if (isSimpleList || currentLevel >= 3) {
+                      handleSelect(option, [...selections, option]);
+                    } else {
+                      const persona = currentLevel === 0 ? option : selections[0];
+                      const levels = PERSONA_HIERARCHY[persona];
+                      
+                      if (levels && levels.length > currentLevel) {
+                        setTimeout(() => {
+                          setSelections([...selections, option]);
+                          setCurrentLevel(currentLevel + 1);
+                          setActiveOption(null);
+                        }, 250);
+                      } else {
+                        handleSelect(option, [...selections, option]);
+                      }
+                    }
+                  }}
+                  className={`w-full group relative overflow-hidden py-5 px-6 rounded-2xl transition-all duration-300 border flex items-center justify-center ${
                     activeOption === option 
                       ? 'bg-white border-white scale-[1.02] shadow-xl' 
                       : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
@@ -271,26 +276,6 @@ const FocusSelector: React.FC = () => {
             </div>
 
             <div className="mt-10 space-y-4 animate-fade-in">
-              {activeOption && (
-                <div className="space-y-3">
-                  <button 
-                    onClick={handleFinalContinue}
-                    className="w-full py-4 bg-white text-primary font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl active:scale-95 transition-all"
-                  >
-                    Continue with {activeOption}
-                  </button>
-                  
-                  {currentLevel < 3 && (!activeAssignment?.availableFocusOptions || activeAssignment.availableFocusOptions.length === 0) && (
-                    <button 
-                      onClick={handleSpecify}
-                      className="w-full py-3 text-[9px] font-black text-white uppercase tracking-[0.2em] hover:text-white/80 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <span className="opacity-40">──</span> Specify Further <span className="opacity-40">──</span>
-                    </button>
-                  )}
-                </div>
-              )}
-
               <div className="flex items-center justify-center gap-6 pt-4">
                 {currentLevel > 0 && (
                   <button 

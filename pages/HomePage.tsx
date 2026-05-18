@@ -139,7 +139,7 @@ const HomePage: React.FC = () => {
           
           <div className="max-w-2xl mx-auto mb-10 space-y-5">
             <div className="py-4 md:py-6 text-center">
-                <p className="text-lg md:text-2xl text-black font-bold leading-tight">
+                <p className="text-base md:text-lg text-black font-bold leading-tight">
                     You don’t lack ambition but a clear structure that compounds into intentional growth.
                 </p>
             </div>
@@ -230,13 +230,11 @@ const HomePage: React.FC = () => {
                 <div className="pl-6 md:pl-10 space-y-6">
                   <p>I didn’t build this as a theory.<br />I built it from trying to grow without a system.</p>
                   <p>I was learning, switching focus, picking up skills, trying to improve — but nothing connected.<br />I wasn’t progressing. I was accumulating random effort.</p>
-                  <div className="bg-gray-50/80 p-6 md:p-8 rounded-3xl border border-gray-100 mt-8 relative">
-                    <p className="text-gray-900 font-bold relative z-10 text-base md:text-lg">
-                      Until I started building structured cycles for focus, practice, and reflection.<br />
-                      That’s when growth started compounding.<br />
-                      <span className="text-primary italic font-black text-xl md:text-2xl block mt-4 tracking-tight">Not faster. Just structured.</span>
-                    </p>
-                  </div>
+                  <p className="text-gray-900 font-bold text-base md:text-lg mt-8">
+                    Until I started building structured cycles for focus, practice, and reflection.<br />
+                    That’s when growth started compounding.<br />
+                    <span className="text-primary italic font-black text-xl md:text-2xl block mt-4 tracking-tight">Not faster. Just structured.</span>
+                  </p>
                 </div>
               </div>
             </div>
@@ -254,13 +252,6 @@ const HomePage: React.FC = () => {
                </div>
                <p className="mt-8 text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] text-center leading-relaxed">BUILT BY SOMEONE WHO LEARNED <br/> THAT EFFORT WITHOUT STRUCTURE DOESN’T COMPOUND.</p>
             </div>
-          </div>
-
-          <div className="mt-20 max-w-4xl mx-auto bg-gray-50 rounded-[2rem] p-10 md:p-14 text-center border border-gray-100 shadow-inner">
-             <p className="text-lg md:text-2xl text-gray-900 font-black italic">
-                "Vectorise exists so others don’t have to <br className="hidden md:block" />
-                <span className="text-primary underline decoration-primary/20 underline-offset-8">learn this late.</span>"
-             </p>
           </div>
         </div>
       </section>
@@ -336,13 +327,13 @@ const HomePage: React.FC = () => {
       <section className="py-24 md:py-40 bg-gray-50 border-y border-gray-100 px-6">
         <div className="max-w-5xl mx-auto text-center">
             <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-none mb-6">Who this is for</h2>
-            <p className="text-gray-400 font-medium italic text-xs md:text-sm mb-16 uppercase tracking-widest">Vectorise is for people at a transition point.</p>
+            <p className="text-gray-400 font-medium italic text-xs md:text-sm mb-16 uppercase tracking-widest">Vectorise is for people in transition and growth phases.</p>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
                 {[
-                    { t: "Students", s: "FINAL YEAR", d: "Unsure of what comes next after graduation." },
-                    { t: "Professionals", s: "EARLY CAREER", d: "Questioning direction and seeking alignment." },
-                    { t: "Creators", s: "BUILDERS", d: "Recalibrating focus to scale what actually works." }
+                    { t: "Students", s: "PREPARING", d: "Preparing for real-world expectations." },
+                    { t: "Early professionals", s: "BUILDING", d: "Building competence and direction." },
+                    { t: "Builders/Creators", s: "DEVELOPING", d: "Developing themselves to match their ambitions." }
                 ].map((item, i) => (
                     <div key={i} className="bg-white p-8 rounded-[2rem] border border-gray-200 shadow-sm flex flex-col text-left h-full">
                         <h4 className="text-lg font-black text-gray-900 italic mb-1">{item.t}</h4>
@@ -353,34 +344,6 @@ const HomePage: React.FC = () => {
             </div>
 
             <p className="text-lg md:text-2xl font-black italic tracking-tight text-gray-900 leading-tight">
-                "If you’re tired of moving without certainty, <span className="text-primary underline decoration-primary/20 underline-offset-8">you belong here.</span>"
-            </p>
-        </div>
-      </section>
-
-      {/* WHO THIS IS FOR SECTION */}
-      <section className="py-24 md:py-40 bg-gray-50 px-6">
-        <div className="max-w-5xl mx-auto text-center">
-            <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-none mb-6">Who this is for.</h2>
-            <p className="text-gray-500 font-medium text-sm md:text-base max-w-lg mx-auto mb-20">
-                Vectorise is for people in transition and growth phases.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 text-left mb-20 relative">
-                {[
-                    { title: "Students", desc: "Preparing for real-world expectations." },
-                    { title: "Early professionals", desc: "Building competence and direction." },
-                    { title: "Builders/Creators", desc: "Developing themselves to match their ambitions." }
-                ].map((item, i) => (
-                    <div key={i} className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-primary/20 group-hover:bg-primary transition-colors"></div>
-                        <h4 className="text-xl md:text-2xl font-black text-gray-900 mb-3">{item.title}</h4>
-                        <p className="text-gray-500 text-sm font-medium leading-relaxed">{item.desc}</p>
-                    </div>
-                ))}
-            </div>
-            
-            <p className="text-xl md:text-3xl font-black text-gray-900 tracking-tight leading-tight italic max-w-3xl mx-auto">
                 "If you feel like you’re learning a lot but not becoming more effective, <span className="text-primary underline decoration-primary/20 underline-offset-8">this is for you.</span>"
             </p>
         </div>
