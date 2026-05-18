@@ -113,16 +113,15 @@ const HomePage: React.FC = () => {
                     You don’t lack ambition but a clear structure that compounds into intentional growth.
                 </p>
             </div>
-            <p className="text-[14px] text-gray-600 font-medium max-w-lg mx-auto leading-relaxed">
-              Your effort is scattered because nothing connects learning, practice, and application.
-            </p>
-            <p className="text-[12px] text-gray-400 font-medium max-w-lg mx-auto leading-relaxed">
-              <strong className="text-primary font-bold">Vectorise</strong> is a <strong className="text-gray-600 font-bold">guided development system</strong> built to help you grow through <strong className="text-gray-600 font-bold">focused sprints</strong> — combining <strong className="text-gray-600 font-bold">clarity</strong>, <strong className="text-gray-600 font-bold">skill-building</strong>, and <strong className="text-gray-600 font-bold">real-world application</strong>.
-            </p>
             
-            <div className="pt-2 flex flex-col items-center gap-1">
-                <span className="text-[11px] font-black uppercase tracking-widest text-primary">Not more content.</span>
-                <span className="text-[11px] font-black uppercase tracking-widest text-black">A clear path of progression.</span>
+            <div className="bg-gray-50 rounded-[2rem] p-8 md:p-10 text-center border border-gray-100 shadow-inner mt-8">
+              <p className="text-[16px] md:text-lg text-gray-600 font-medium leading-relaxed mb-6">
+                <strong className="text-primary font-bold">Vectorise</strong> is a <strong className="text-gray-800 font-bold">guided development system</strong> built around <strong className="text-gray-800 font-bold">focused sprints</strong> — where <strong className="text-gray-800 font-bold">clarity</strong>, <strong className="text-gray-800 font-bold">skill-building</strong>, and <strong className="text-gray-800 font-bold">real-world application</strong> move together.
+              </p>
+              
+              <div className="flex flex-col items-center gap-1">
+                  <span className="text-[11px] font-black uppercase tracking-widest text-black"><span className="text-primary">It is </span>A clear path of progression.</span>
+              </div>
             </div>
           </div>
 
@@ -144,7 +143,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* THE REAL PROBLEM SECTION */}
-      <section className="relative py-16 md:py-24 bg-white px-6 text-center flex-shrink-0">
+      <section className="relative py-16 md:py-24 bg-gray-50 border-y border-gray-100 px-6 text-center flex-shrink-0">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-5xl md:text-[80px] font-black text-gray-900 tracking-tighter leading-none mb-10">
             The <span className="text-primary italic">Real</span> Problem.
