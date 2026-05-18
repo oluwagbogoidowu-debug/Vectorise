@@ -101,7 +101,7 @@ const HomePage: React.FC = () => {
       </nav>
 
       {/* HERO SECTION */}
-      <section className="relative pt-16 pb-12 md:pt-40 md:pb-28 flex flex-col items-center justify-center px-6 text-center animate-fade-in flex-shrink-0">
+      <section className="relative pt-[100px] pb-10 md:pt-40 md:pb-28 flex flex-col items-center justify-center px-6 text-center animate-fade-in flex-shrink-0">
         <div className="max-w-5xl mx-auto flex flex-col items-center">
           <h1 className="text-6xl md:text-[110px] font-black text-gray-900 tracking-tighter leading-[0.85] mb-8">
             Grow into who <br/> <span className="italic">you’re <span className="text-primary">becoming.</span></span>
@@ -110,17 +110,14 @@ const HomePage: React.FC = () => {
           <div className="max-w-2xl mx-auto mb-10 space-y-5">
             <div className="space-y-1">
                 <p className="text-lg md:text-2xl text-black font-bold leading-tight">
-                    You don’t lack ambition.
-                </p>
-                <p className="text-lg md:text-2xl text-black font-bold leading-tight">
-                    You lack structured direction for growth that actually compounds.
+                    You don’t lack ambition. You lack structure that compounds.
                 </p>
             </div>
             <p className="text-[14px] text-gray-600 font-medium max-w-lg mx-auto leading-relaxed">
-              Most effort stays scattered because there’s no system shaping what you learn, practice, and apply next.
+              Your effort is scattered because nothing connects learning, practice, and application.
             </p>
             <p className="text-[12px] text-gray-400 font-medium max-w-lg mx-auto leading-relaxed">
-              Vectorise is a guided development system built to help you grow through focused sprints — combining clarity, skill-building, and real-world application.
+              Vectorise is a <strong className="text-gray-600 font-bold">guided development system</strong> built to help you grow through <strong className="text-gray-600 font-bold">focused sprints</strong> — combining <strong className="text-gray-600 font-bold">clarity</strong>, <strong className="text-gray-600 font-bold">skill-building</strong>, and <strong className="text-gray-600 font-bold">real-world application</strong>.
             </p>
             
             <div className="pt-2 flex flex-col items-center gap-1">
@@ -137,9 +134,6 @@ const HomePage: React.FC = () => {
               >
                   Start your Rise
               </button>
-              <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-3">
-                Begin your structured growth
-              </p>
             </div>
             <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest">
                 ALREADY HAVE AN ACCOUNT? <Link to="/login" className="text-black hover:underline ml-1">CONTINUE YOUR RISE</Link>
