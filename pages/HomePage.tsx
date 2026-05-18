@@ -43,7 +43,7 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentFlowIndex((prev) => (prev + 1) % PROBLEM_FLOWS.length);
-    }, 3500);
+    }, 7000);
     return () => clearInterval(interval);
   }, []);
 
@@ -225,24 +225,34 @@ const HomePage: React.FC = () => {
                  </p>
               </div>
               
-              <div className="space-y-6 text-[12px] text-gray-500 font-medium leading-relaxed max-w-lg">
-                <p>I learned this the hard way.</p>
-                <p>I had vision. I had ambition. But no clear starting point. I kept moving, yet nothing compounded.</p>
-                <p className="text-gray-900 font-black">
-                  Once clarity entered the picture, everything changed. My actions became intentional. My progress stopped being random.
-                </p>
+              <div className="space-y-6 text-[15px] md:text-[17px] text-gray-600 font-medium leading-[1.8] max-w-lg relative">
+                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-gray-100 via-gray-200 to-primary/20 rounded-full"></div>
+                <div className="pl-6 md:pl-10 space-y-6">
+                  <p>I didn’t build this as a theory.<br />I built it from trying to grow without a system.</p>
+                  <p>I was learning, switching focus, picking up skills, trying to improve — but nothing connected.<br />I wasn’t progressing. I was accumulating random effort.</p>
+                  <div className="bg-gray-50/80 p-6 md:p-8 rounded-3xl border border-gray-100 mt-8 relative">
+                    <p className="text-gray-900 font-bold relative z-10 text-base md:text-lg">
+                      Until I started building structured cycles for focus, practice, and reflection.<br />
+                      That’s when growth started compounding.<br />
+                      <span className="text-primary italic font-black text-xl md:text-2xl block mt-4 tracking-tight">Not faster. Just structured.</span>
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
             <div className="lg:col-span-5 flex flex-col items-center">
-               <div className="relative w-full aspect-[4/5] bg-yellow-400 rounded-[3rem] overflow-hidden shadow-2xl">
+               <div className="relative w-full aspect-[4/5] bg-white rounded-[3rem] p-2 md:p-3 shadow-2xl ring-1 ring-gray-900/5">
+                 <div className="w-full h-full rounded-[2.5rem] overflow-hidden bg-gray-100 relative">
                   <img 
                     src="https://lh3.googleusercontent.com/d/1adBe3Z_E3_9mAPPG86f67dYENzT1jR7O" 
                     className="w-full h-full object-cover animate-grayscale-loop" 
                     alt="Founder Story" 
                   />
+                  <div className="absolute inset-0 ring-1 ring-inset ring-black/10 rounded-[2.5rem]"></div>
+                 </div>
                </div>
-               <p className="mt-6 text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] text-center leading-relaxed">BUILT BY SOMEONE WHO'S WALKED THE PATH FROM <br/> CONFUSION TO CLARITY.</p>
+               <p className="mt-8 text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] text-center leading-relaxed">BUILT BY SOMEONE WHO LEARNED <br/> THAT EFFORT WITHOUT STRUCTURE DOESN’T COMPOUND.</p>
             </div>
           </div>
 
@@ -255,35 +265,35 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* THE SYSTEM SECTION (DARK) */}
+      {/* THE PRINCIPLE SECTION (DARK) */}
       <section className="py-24 md:py-40 bg-dark text-white px-6">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-[80px] font-black italic tracking-tighter leading-none mb-8">The System.</h2>
-            <p className="text-white/40 font-bold text-xs md:text-base max-w-md mx-auto leading-relaxed uppercase tracking-[0.1em]">
-                Vectorise is not a marketplace of programs. <br/>
-                It's a guided growth system designed to force focus.
+            <h2 className="text-4xl md:text-[80px] font-black italic tracking-tighter leading-none mb-8">The Principle.</h2>
+            <p className="text-white/60 font-medium text-xs md:text-sm max-w-lg mx-auto leading-relaxed uppercase tracking-[0.1em]">
+                Vectorise is built on a simple idea. Growth compounds when it’s structured. Not a collection of courses.<br/>
+                <span className="text-white font-black">A progression system.</span>
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[
-              { label: "PROTOCOL", title: "Sprints", desc: "Short, outcome-driven growth cycles." },
-              { label: "STRATEGY", title: "One Focus", desc: "Every sprint solves one clear problem." },
-              { label: "EXECUTION", title: "Daily Action", desc: "You act, not just consume content." },
-              { label: "SUPPORT", title: "Coach Guidance", desc: "Access when friction shows up." }
+              { label: "PROTOCOL", title: "Sprints", desc: "One outcome." },
+              { label: "STRATEGY", title: "One Focus", desc: "No split attention." },
+              { label: "EXECUTION", title: "Daily Action", desc: "Execution, not theory." },
+              { label: "SUPPORT", title: "Guidance", desc: "Clarity when stuck." }
             ].map((item, i) => (
               <div key={i} className="bg-white/[0.03] border border-white/10 p-8 rounded-[1.5rem] group hover:bg-white/[0.05] transition-all">
                 <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-4">{item.label}</p>
                 <h4 className="text-xl font-black mb-2 italic">{item.title}</h4>
-                <p className="text-[10px] text-white/40 font-medium italic">"{item.desc}"</p>
+                <p className="text-[12px] md:text-sm text-white/40 font-medium italic">"{item.desc}"</p>
               </div>
             ))}
           </div>
 
           <div className="mt-20 text-center">
             <p className="text-lg md:text-2xl font-black italic tracking-tight opacity-80 leading-snug">
-                "Finish one sprint. Then decide your next move. That’s <br className="hidden md:block" /> how real growth compounds."
+                Finish a sprint. Build the next capability. <br className="hidden md:block" /> That’s how development stacks.
             </p>
           </div>
         </div>
@@ -296,24 +306,28 @@ const HomePage: React.FC = () => {
                 <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-[1] mb-8">
                     When you click <br/><span className="text-primary italic">Start.</span>
                 </h2>
-                <p className="text-gray-400 font-bold text-xs md:text-sm leading-relaxed max-w-xs italic uppercase tracking-widest">
-                    No theory overload. No pressure to have life figured out. Just clarity you can build on.
-                </p>
             </div>
             
             <div className="lg:col-span-7 space-y-3">
                 {[
-                    "You enter a structured 5-day experience",
-                    "Each day gives you one prompt and one action",
-                    "You learn by doing, not overthinking",
-                    "You reflect on real signals, not guesses",
-                    "You leave with direction and momentum"
+                    "You enter a guided growth cycle.",
+                    "You focus on one capability for a short period.",
+                    "You learn by doing, not consuming.",
+                    "You apply in real situations immediately.",
+                    "You reflect on what changed in your thinking and behavior."
                 ].map((text, i) => (
                     <div key={i} className="bg-gray-50 border border-gray-100 p-5 md:p-6 rounded-[1.5rem] flex items-center gap-6">
                         <span className="text-lg md:text-xl font-black text-gray-200 italic">0{i+1}</span>
-                        <p className="text-sm md:text-base font-black text-gray-900 tracking-tight leading-none">{text}</p>
+                        <p className="text-sm md:text-base font-black text-gray-900 tracking-tight leading-snug">{text}</p>
                     </div>
                 ))}
+                
+                <div className="pt-8 md:pt-12">
+                    <p className="text-xl md:text-3xl font-black text-gray-900 tracking-tight leading-tight italic">
+                        You don’t just understand more.<br/>
+                        <span className="text-primary">You become more capable.</span>
+                    </p>
+                </div>
             </div>
         </div>
       </section>
@@ -344,27 +358,31 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* THE PROMISE SECTION */}
-      <section className="py-24 md:py-40 bg-white px-6">
-        <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-5xl md:text-[80px] font-black text-gray-900 tracking-tighter leading-none mb-10 italic">The Promise.</h2>
-            <div className="space-y-2 mb-20">
-                <p className="text-[12px] text-gray-400 font-medium italic">You don’t leave Vectorise with motivation.</p>
-                <p className="text-sm md:text-xl font-black text-gray-900 uppercase tracking-[0.3em] leading-none">You leave with:</p>
-            </div>
+      {/* WHO THIS IS FOR SECTION */}
+      <section className="py-24 md:py-40 bg-gray-50 px-6">
+        <div className="max-w-5xl mx-auto text-center">
+            <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-none mb-6">Who this is for.</h2>
+            <p className="text-gray-500 font-medium text-sm md:text-base max-w-lg mx-auto mb-20">
+                Vectorise is for people in transition and growth phases.
+            </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 text-left mb-20 relative">
                 {[
-                    { t: "Clarity", s: "ON WHAT MATTERS NOW" },
-                    { t: "Momentum", s: "FROM REAL ACTION" },
-                    { t: "Proof", s: "YOU CAN BUILD ON" }
+                    { title: "Students", desc: "Preparing for real-world expectations." },
+                    { title: "Early professionals", desc: "Building competence and direction." },
+                    { title: "Builders/Creators", desc: "Developing themselves to match their ambitions." }
                 ].map((item, i) => (
-                    <div key={i} className="space-y-2">
-                        <h4 className="text-3xl md:text-4xl font-black text-primary italic leading-none">{item.t}</h4>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">{item.s}</p>
+                    <div key={i} className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-primary/20 group-hover:bg-primary transition-colors"></div>
+                        <h4 className="text-xl md:text-2xl font-black text-gray-900 mb-3">{item.title}</h4>
+                        <p className="text-gray-500 text-sm font-medium leading-relaxed">{item.desc}</p>
                     </div>
                 ))}
             </div>
+            
+            <p className="text-xl md:text-3xl font-black text-gray-900 tracking-tight leading-tight italic max-w-3xl mx-auto">
+                "If you feel like you’re learning a lot but not becoming more effective, <span className="text-primary underline decoration-primary/20 underline-offset-8">this is for you.</span>"
+            </p>
         </div>
       </section>
 
@@ -372,10 +390,10 @@ const HomePage: React.FC = () => {
       <section className="bg-primary py-24 md:py-40 px-6 relative overflow-hidden flex-shrink-0">
         <div className="max-w-4xl mx-auto text-center relative z-10 flex flex-col items-center">
             <h2 className="text-4xl md:text-[80px] font-black text-white italic tracking-tighter leading-[1] mb-10">
-                Clarity on your <br className="hidden md:block" /> next move.
+                You don’t need <br className="hidden md:block" /> more information.
             </h2>
-            <p className="text-white/60 text-[12px] font-medium italic max-w-sm mx-auto mb-12 leading-relaxed">
-                You don't need to figure out your whole future. <br className="hidden md:block" /> You just need to act today.
+            <p className="text-white/60 text-[12px] md:text-sm font-bold uppercase tracking-widest max-w-sm mx-auto mb-12 leading-relaxed">
+                You need structured growth.
             </p>
             <button 
                 onClick={handleStartAction}
