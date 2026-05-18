@@ -1,5 +1,27 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
+
+const PROBLEM_FLOWS = [
+  [
+    { text: "Big goals.", color: "bg-emerald-50 text-emerald-800 border-emerald-100" },
+    { text: "Too many options.", color: "bg-indigo-50 text-indigo-800 border-indigo-100" },
+    { text: "Too much content.", color: "bg-orange-50 text-orange-800 border-orange-100" },
+    { text: "No real traction.", color: "bg-rose-50 text-rose-800 border-rose-100" }
+  ],
+  [
+    { text: "Focus keeps shifting.", color: "bg-emerald-50 text-emerald-800 border-emerald-100" },
+    { text: "Effort gets scattered.", color: "bg-indigo-50 text-indigo-800 border-indigo-100" },
+    { text: "Nothing sticks.", color: "bg-orange-50 text-orange-800 border-orange-100" },
+    { text: "Nothing compounds.", color: "bg-rose-50 text-rose-800 border-rose-100" }
+  ],
+  [
+    { text: "You stay active.", color: "bg-emerald-50 text-emerald-800 border-emerald-100" },
+    { text: "But not advancing.", color: "bg-indigo-50 text-indigo-800 border-indigo-100" },
+    { text: "Time keeps moving.", color: "bg-orange-50 text-orange-800 border-orange-100" },
+    { text: "You stay in place.", color: "bg-rose-50 text-rose-800 border-rose-100" }
+  ]
+];
 import LocalLogo from '../components/LocalLogo';
 import { sprintService } from '../services/sprintService';
 import { GlobalOrchestrationSettings, MicroSelector, LifecycleSlotAssignment } from '../types';
@@ -16,6 +38,14 @@ const HomePage: React.FC = () => {
   const [showMicroSelector, setShowMicroSelector] = useState(false);
   const [activeSelector, setActiveSelector] = useState<MicroSelector | null>(null);
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
+  const [currentFlowIndex, setCurrentFlowIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentFlowIndex((prev) => (prev + 1) % PROBLEM_FLOWS.length);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const unsubSettings = sprintService.subscribeToGlobalSettings((settings) => setGlobalSettings(settings));
@@ -108,20 +138,19 @@ const HomePage: React.FC = () => {
           </h1>
           
           <div className="max-w-2xl mx-auto mb-10 space-y-5">
-            <div className="space-y-1">
+            <div className="py-4 md:py-6 text-center">
                 <p className="text-lg md:text-2xl text-black font-bold leading-tight">
                     You don’t lack ambition but a clear structure that compounds into intentional growth.
                 </p>
             </div>
             
-            <div className="bg-gray-50 rounded-[2rem] p-8 md:p-10 text-center border border-gray-100 shadow-inner mt-8">
-              <p className="text-[16px] md:text-lg text-gray-600 font-medium leading-relaxed mb-6">
-                <strong className="text-primary font-bold">Vectorise</strong> is a <strong className="text-gray-800 font-bold">guided development system</strong> built around <strong className="text-gray-800 font-bold">focused sprints</strong> — where <strong className="text-gray-800 font-bold">clarity</strong>, <strong className="text-gray-800 font-bold">skill-building</strong>, and <strong className="text-gray-800 font-bold">real-world application</strong> move together.
+            <div className="bg-gray-50 rounded-[2rem] p-8 md:p-10 text-center border border-gray-100 shadow-inner mt-8 mb-6">
+              <p className="text-[14px] md:text-[16px] text-gray-600 font-medium leading-relaxed">
+                <strong className="text-primary font-bold">Vectorise</strong> is a <strong className="text-gray-800 font-bold">guided system</strong> for building real progress through <strong className="text-gray-800 font-bold">focused sprints</strong> — linking <strong className="text-gray-800 font-bold">clarity</strong>, <strong className="text-gray-800 font-bold">skill-building</strong>, and <strong className="text-gray-800 font-bold">real-world application</strong>.
               </p>
-              
-              <div className="flex flex-col items-center gap-1">
-                  <span className="text-[11px] font-black uppercase tracking-widest text-black"><span className="text-primary">It is </span>A clear path of progression.</span>
-              </div>
+            </div>
+            <div className="flex flex-col items-center gap-1 mb-8">
+                <span className="text-[11px] font-black uppercase tracking-widest text-black"><span className="text-primary">It is </span>A clear path of progression.</span>
             </div>
           </div>
 
@@ -146,30 +175,36 @@ const HomePage: React.FC = () => {
       <section className="relative py-16 md:py-24 bg-gray-50 border-y border-gray-100 px-6 text-center flex-shrink-0">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-5xl md:text-[80px] font-black text-gray-900 tracking-tighter leading-none mb-10">
-            The <span className="text-primary italic">Real</span> Problem.
+            Here's the <span className="text-primary italic">problem</span>.
           </h2>
           
           <div className="max-w-3xl mx-auto mb-16">
             <p className="text-[12px] text-gray-500 font-medium leading-relaxed mb-12">
-              Most people don’t fail because they’re lazy. They fail because effort is scattered.
+              Without a system connecting learning, practice, and application, effort becomes scattered.
             </p>
             
-            <div className="flex flex-wrap justify-center gap-3 md:gap-4 mb-16">
-              {[
-                { text: "Big goals.", color: "bg-emerald-50 text-emerald-800 border-emerald-100" },
-                { text: "Too many options.", color: "bg-indigo-50 text-indigo-800 border-indigo-100" },
-                { text: "Endless content.", color: "bg-orange-50 text-orange-800 border-orange-100" },
-                { text: "No real traction.", color: "bg-rose-50 text-rose-800 border-rose-100" }
-              ].map((item, i) => (
-                <div key={i} className={`${item.color} px-4 py-2 md:px-6 md:py-3 rounded-full border font-black italic text-[12px] md:text-sm shadow-sm`}>
-                  {item.text}
-                </div>
-              ))}
+            <div className="relative min-h-[120px] md:min-h-[60px] flex justify-center items-center mb-16 w-full">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentFlowIndex}
+                  initial={{ opacity: 0, x: 50 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -50 }}
+                  transition={{ duration: 0.5, ease: "easeInOut" }}
+                  className="flex flex-wrap justify-center gap-3 md:gap-4 absolute w-full px-4"
+                >
+                  {PROBLEM_FLOWS[currentFlowIndex].map((item, i) => (
+                    <div key={i} className={`${item.color} px-4 py-2 md:px-6 md:py-3 rounded-full border font-black italic text-[12px] md:text-sm shadow-sm whitespace-nowrap`}>
+                      {item.text}
+                    </div>
+                  ))}
+                </motion.div>
+              </AnimatePresence>
             </div>
 
             <div className="max-w-2xl mx-auto">
                 <p className="text-lg md:text-2xl text-gray-900 font-black leading-[1.2] tracking-tight">
-                    "You want to move forward, but you’re unsure which direction is worth committing to. That uncertainty quietly wastes years."
+                    "Effort isn’t the issue. Structure is."
                 </p>
             </div>
           </div>
@@ -183,10 +218,10 @@ const HomePage: React.FC = () => {
             <div className="lg:col-span-7 space-y-12">
               <div className="space-y-4">
                  <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-[1]">
-                    Clarity doesn’t come from more planning.
+                    You stay active.<br />But nothing stacks.
                  </h2>
-                 <p className="text-2xl md:text-4xl font-black text-gray-300 tracking-tight leading-none italic">
-                    It comes from intentional action.
+                 <p className="text-2xl md:text-4xl font-black text-gray-300 tracking-tight leading-[1] italic mt-4">
+                    Growth stays uneven.<br />Nothing compounds.
                  </p>
               </div>
               
