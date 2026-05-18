@@ -117,7 +117,7 @@ const HomePage: React.FC = () => {
               Your effort is scattered because nothing connects learning, practice, and application.
             </p>
             <p className="text-[12px] text-gray-400 font-medium max-w-lg mx-auto leading-relaxed">
-              Vectorise is a <strong className="text-gray-600 font-bold">guided development system</strong> built to help you grow through <strong className="text-gray-600 font-bold">focused sprints</strong> — combining <strong className="text-gray-600 font-bold">clarity</strong>, <strong className="text-gray-600 font-bold">skill-building</strong>, and <strong className="text-gray-600 font-bold">real-world application</strong>.
+              <strong className="text-primary font-bold">Vectorise</strong> is a <strong className="text-gray-600 font-bold">guided development system</strong> built to help you grow through <strong className="text-gray-600 font-bold">focused sprints</strong> — combining <strong className="text-gray-600 font-bold">clarity</strong>, <strong className="text-gray-600 font-bold">skill-building</strong>, and <strong className="text-gray-600 font-bold">real-world application</strong>.
             </p>
             
             <div className="pt-2 flex flex-col items-center gap-1">
