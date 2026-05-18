@@ -101,13 +101,13 @@ const HomePage: React.FC = () => {
       </nav>
 
       {/* HERO SECTION */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-12 text-center animate-fade-in flex-shrink-0">
+      <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 flex flex-col items-center justify-center px-6 text-center animate-fade-in flex-shrink-0">
         <div className="max-w-5xl mx-auto flex flex-col items-center">
-          <h1 className="text-6xl md:text-[110px] font-black text-gray-900 tracking-tighter leading-[0.85] mb-12">
+          <h1 className="text-6xl md:text-[110px] font-black text-gray-900 tracking-tighter leading-[0.85] mb-8">
             Grow into who <br/> <span className="italic">you’re <span className="text-primary">becoming.</span></span>
           </h1>
           
-          <div className="max-w-2xl mx-auto mb-16 space-y-6">
+          <div className="max-w-2xl mx-auto mb-10 space-y-4">
             <div className="space-y-1">
                 <p className="text-lg md:text-2xl text-black font-bold leading-tight">
                     You don’t lack ambition.
@@ -142,7 +142,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* THE REAL PROBLEM SECTION */}
-      <section className="relative py-24 md:py-40 bg-white px-6 text-center flex-shrink-0">
+      <section className="relative py-16 md:py-24 bg-white px-6 text-center flex-shrink-0">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-5xl md:text-[80px] font-black text-gray-900 tracking-tighter leading-none mb-10">
             The <span className="text-primary italic">Real</span> Problem.
