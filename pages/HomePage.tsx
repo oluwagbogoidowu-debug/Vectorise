@@ -110,7 +110,7 @@ const HomePage: React.FC = () => {
           <div className="max-w-2xl mx-auto mb-10 space-y-5">
             <div className="space-y-1">
                 <p className="text-lg md:text-2xl text-black font-bold leading-tight">
-                    You don’t lack ambition. You lack structure that compounds.
+                    You don’t lack ambition but a clear structure that compounds into intentional growth.
                 </p>
             </div>
             <p className="text-[14px] text-gray-600 font-medium max-w-lg mx-auto leading-relaxed">
