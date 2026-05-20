@@ -572,20 +572,11 @@ const TagInput: React.FC<{
         />
       </div>
 
-      <div className="flex justify-between items-center mt-2 px-1 text-[10px] font-black uppercase tracking-widest text-gray-400">
-        <div>
-          {error ? (
-            <span className="text-red-500 font-bold lowercase first-letter:uppercase">{error}</span>
-          ) : (
-            <span>Press Enter, comma, or semicolon to add</span>
-          )}
+      {error && (
+        <div className="mt-2 px-1 text-[10px] font-black uppercase tracking-widest text-red-500 font-bold lowercase first-letter:uppercase animate-fade-in">
+          {error}
         </div>
-        <div>
-          <span className={tags.length >= maxTags ? "text-primary font-bold" : "text-gray-400"}>
-            {tags.length} / {maxTags} tags
-          </span>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

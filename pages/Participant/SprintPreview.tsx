@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Sprint, DailyContent } from '../../types';
 import { sprintService } from '../../services/sprintService';
@@ -8,6 +8,188 @@ import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
 
 import { toast } from 'sonner';
+
+const AutoGrowingTextarea: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  className?: string;
+}> = ({ value, onChange, placeholder = "What's on your mind...", className = "" }) => {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  const adjustHeight = () => {
+    const el = ref.current;
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+    }
+  };
+
+  useEffect(() => {
+    adjustHeight();
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className={`${className} overflow-y-auto min-h-[80px]`}
+      style={{ maxHeight: "180px" }}
+    />
+  );
+};
+
+const TagInput: React.FC<{
+  value: string;
+  onChange: (newVal: string) => void;
+  maxTags?: number;
+  placeholder?: string;
+  onNext?: () => void;
+}> = ({ value, onChange, maxTags = 5, placeholder = "Type and press Enter...", onNext }) => {
+  const [inputValue, setInputValue] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const tags = useMemo<string[]>(() => {
+    if (!value) return [];
+    if (value.startsWith("[")) {
+      try {
+        return JSON.parse(value);
+      } catch (err) {
+        return [];
+      }
+    }
+    return value.split(",").filter(Boolean);
+  }, [value]);
+
+  const addTag = (tag: string) => {
+    const cleaned = tag.trim().replace(/^[,\s;]+|[,\s;]+$/g, "");
+    if (!cleaned) return;
+    
+    if (tags.length >= maxTags) {
+      setError(`Maximum of ${maxTags} tags allowed`);
+      toast.error(`You can only add up to ${maxTags} tags.`);
+      return;
+    }
+
+    if (tags.some(t => t.toLowerCase() === cleaned.toLowerCase())) {
+      setError("This tag is already added");
+      return;
+    }
+
+    const newTags = [...tags, cleaned];
+    onChange(JSON.stringify(newTags));
+    setInputValue("");
+    setError(null);
+  };
+
+  const removeTag = (tIndex: number) => {
+    const newTags = [...tags];
+    newTags.splice(tIndex, 1);
+    onChange(JSON.stringify(newTags));
+    setError(null);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === "," || e.key === ";") {
+      e.preventDefault();
+      const val = inputValue.trim();
+      if (val) {
+        addTag(val);
+      } else if (e.key === "Enter" && onNext) {
+        onNext();
+      }
+    } else if (e.key === "Backspace" && !inputValue && tags.length > 0) {
+      removeTag(tags.length - 1);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData("text");
+    if (!text) return;
+
+    const rawTokens = text.split(/[,;\n]+/).map(t => t.trim()).filter(Boolean);
+    if (rawTokens.length === 0) return;
+
+    let addedCount = 0;
+    const currentTags = [...tags];
+
+    for (const token of rawTokens) {
+      if (currentTags.length >= maxTags) {
+        setError(`Maximum of ${maxTags} tags allowed. Paste truncated.`);
+        toast.error(`You can only add up to ${maxTags} tags.`);
+        break;
+      }
+      if (!currentTags.some(t => t.toLowerCase() === token.toLowerCase())) {
+        currentTags.push(token);
+        addedCount++;
+      }
+    }
+
+    if (addedCount > 0) {
+      onChange(JSON.stringify(currentTags));
+      setInputValue("");
+      setError(null);
+    }
+  };
+
+  return (
+    <div className="w-full text-left">
+      <div className="w-full bg-white border border-gray-200 focus-within:ring-4 focus-within:ring-primary/5 focus-within:border-primary transition-all duration-200 rounded-2xl p-3 flex flex-wrap gap-2 items-center">
+        {tags.map((tag, tIndex) => (
+          <span
+            key={tIndex}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black tracking-tight bg-primary/5 text-primary border border-primary/10 hover:bg-primary/10 transition-colors select-none"
+          >
+            {tag}
+            <button
+              type="button"
+              onClick={() => removeTag(tIndex)}
+              className="text-primary/40 hover:text-primary transition-colors hover:bg-primary/15 rounded-full p-0.5"
+              title={`Remove ${tag}`}
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={3}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </span>
+        ))}
+        
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+            if (error) setError(null);
+          }}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          placeholder={tags.length === 0 ? placeholder : "Add tag..."}
+          disabled={tags.length >= maxTags}
+          className="flex-1 min-w-[145px] px-2 py-1 text-sm font-medium text-gray-900 outline-none bg-transparent disabled:opacity-50"
+        />
+      </div>
+
+      {error && (
+        <div className="mt-2 px-1 text-[10px] font-black uppercase tracking-widest text-red-500 font-bold lowercase first-letter:uppercase animate-fade-in">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const SprintPreview: React.FC = () => {
     const { sprintId } = useParams();
@@ -76,7 +258,7 @@ const SprintPreview: React.FC = () => {
                     ))}
                 </div>
 
-                <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden">
+                <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden min-h-[400px]">
                     <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day 1 (Preview)</h2>
                     
                     {/* Lesson Content - Fully Visible */}
@@ -127,17 +309,150 @@ const SprintPreview: React.FC = () => {
                                                 )}
                                             </div>
                                         )}
-                                        <textarea 
-                                            rows={4}
-                                            value={taskInputs[i] || ''}
-                                            onChange={(e) => {
-                                                const newInputs = [...taskInputs];
-                                                newInputs[i] = e.target.value;
-                                                setTaskInputs(newInputs);
-                                            }}
-                                            placeholder="What's on your mind..."
-                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all mb-4 resize-none"
-                                        />
+                                        {day1Content?.taskInputTypes?.[i] === "tags" ? (
+                                            <TagInput
+                                                value={taskInputs[i] || ""}
+                                                onChange={(newVal) => {
+                                                    const newInputs = [...taskInputs];
+                                                    newInputs[i] = newVal;
+                                                    setTaskInputs(newInputs);
+                                                }}
+                                                onNext={() => {
+                                                    const tagsVal = taskInputs[i];
+                                                    const isValid = !!tagsVal && tagsVal !== "[]" && tagsVal !== "";
+                                                    if (isValid) {
+                                                        if (i < activePrompts.length - 1) {
+                                                            setActiveTaskIndex(i + 1);
+                                                        } else if (!user) {
+                                                            const pendingObj = {
+                                                                sprintId: sprint.id,
+                                                                pricingType: sprint.pricingType || 'cash',
+                                                                firstActionInput: taskInputs[0],
+                                                                prefilledEmail: prefilledEmail || ''
+                                                            };
+                                                            localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
+                                                            setShowLockModal(true);
+                                                        } else {
+                                                            setShowSignupModal(true);
+                                                        }
+                                                    }
+                                                }}
+                                                placeholder="Type and press Enter to add tags..."
+                                            />
+                                        ) : day1Content?.taskInputTypes?.[i] === "poll" ? (
+                                            <div className="space-y-2 mb-4">
+                                                {(() => {
+                                                    let pollOptions: string[] = [];
+                                                    let customOptions: string[] = [];
+                                                    if (day1Content.taskPollOptions?.[i]) {
+                                                        try {
+                                                            customOptions = JSON.parse(
+                                                                day1Content.taskPollOptions[i],
+                                                            );
+                                                        } catch (e) {}
+                                                    }
+                                                    customOptions = customOptions.filter(Boolean);
+
+                                                    let linkedSourceIndex = -1;
+                                                    for (
+                                                        let prevIndex = i - 1;
+                                                        prevIndex >= 0;
+                                                        prevIndex--
+                                                    ) {
+                                                        const isLinked = 
+                                                            day1Content.taskLinkedToNext?.[prevIndex] === true ||
+                                                            (day1Content.taskLinkedToNext?.[prevIndex] as any) === "true";
+                                                        if (isLinked) {
+                                                            const inputType = String(
+                                                                day1Content.taskInputTypes?.[prevIndex] || ""
+                                                            ).trim().toLowerCase();
+                                                            if (inputType === "tags") {
+                                                                linkedSourceIndex = prevIndex;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // Robust fallback: if not explicitly linked, use closest previous tags step
+                                                    if (linkedSourceIndex === -1) {
+                                                        for (
+                                                            let prevIndex = i - 1;
+                                                            prevIndex >= 0;
+                                                            prevIndex--
+                                                        ) {
+                                                            const inputType = String(
+                                                                day1Content.taskInputTypes?.[prevIndex] || ""
+                                                            ).trim().toLowerCase();
+                                                            if (inputType === "tags") {
+                                                                linkedSourceIndex = prevIndex;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+
+                                                    let dynamicOptions: string[] = [];
+                                                    if (
+                                                        linkedSourceIndex !== -1 &&
+                                                        taskInputs[linkedSourceIndex]
+                                                    ) {
+                                                        try {
+                                                            dynamicOptions = taskInputs[
+                                                                linkedSourceIndex
+                                                            ].startsWith("[")
+                                                                ? JSON.parse(
+                                                                        taskInputs[linkedSourceIndex] ||
+                                                                            "[]",
+                                                                    )
+                                                                : taskInputs[linkedSourceIndex]
+                                                                        .split(",")
+                                                                        .filter(Boolean);
+                                                        } catch (e) {
+                                                            dynamicOptions = [];
+                                                        }
+                                                    }
+                                                    dynamicOptions = dynamicOptions.filter(Boolean);
+
+                                                    pollOptions = linkedSourceIndex !== -1
+                                                        ? [...dynamicOptions, ...customOptions]
+                                                        : customOptions;
+
+                                                    return pollOptions
+                                                        .filter(Boolean)
+                                                        .map(
+                                                            (opt: string, optIndex: number) => (
+                                                                <button
+                                                                    key={optIndex}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const newInputs = [
+                                                                            ...taskInputs,
+                                                                        ];
+                                                                        newInputs[i] = opt;
+                                                                        setTaskInputs(newInputs);
+                                                                    }}
+                                                                    className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[i] === opt ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
+                                                                >
+                                                                    {String.fromCharCode(
+                                                                        65 + optIndex,
+                                                                    )}
+                                                                    . {opt}
+                                                                </button>
+                                                            ),
+                                                        );
+                                                })()}
+                                            </div>
+                                        ) : (
+                                            <AutoGrowingTextarea 
+                                                value={taskInputs[i] || ''}
+                                                onChange={(val) => {
+                                                    const newInputs = [...taskInputs];
+                                                    newInputs[i] = val;
+                                                    setTaskInputs(newInputs);
+                                                }}
+                                                placeholder="What's on your mind..."
+                                                className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all mb-4 resize-none"
+                                            />
+                                        )}
                                         
                                         <div className="flex justify-between items-center gap-4 pt-4">
                                             {i > 0 ? (
@@ -153,7 +468,10 @@ const SprintPreview: React.FC = () => {
                                             <button
                                                 type="button"
                                                 onClick={() => {
-                                                    if (!taskInputs[i] || !taskInputs[i].trim()) {
+                                                    const isTags = day1Content?.taskInputTypes?.[i] === "tags";
+                                                    const val = taskInputs[i];
+                                                    const isValid = val && (isTags ? (val !== "[]" && val !== "") : val.trim().length > 0);
+                                                    if (!isValid) {
                                                         toast.error("Please provide an answer to continue.");
                                                         return;
                                                     }
