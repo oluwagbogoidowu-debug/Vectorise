@@ -320,7 +320,13 @@ export default function AdminUserDetail() {
                                                     // Handle Firestore Timestamps or generic objects safely
                                                     ('seconds' in value && 'nanoseconds' in value)
                                                         ? new Date((value as any).seconds * 1000).toLocaleString()
-                                                        : JSON.stringify(sanitizeData(value), null, 2)
+                                                        : (() => {
+                                                            try {
+                                                                return JSON.stringify(sanitizeData(value), null, 2);
+                                                            } catch (e) {
+                                                                return '[Complex Object]';
+                                                            }
+                                                        })()
                                                 ) : String(value)}
                                             </p>
                                         </div>

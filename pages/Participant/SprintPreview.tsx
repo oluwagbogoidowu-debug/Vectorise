@@ -6,6 +6,8 @@ import FormattedText from '../../components/FormattedText';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 
+import { toast } from 'sonner';
+
 const SprintPreview: React.FC = () => {
     const { sprintId } = useParams();
     const navigate = useNavigate();
@@ -14,6 +16,10 @@ const SprintPreview: React.FC = () => {
     
     const [sprint, setSprint] = useState<Sprint | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [activeTaskIndex, setActiveTaskIndex] = useState(0);
+    const [taskInputs, setTaskInputs] = useState<string[]>([]);
+    const [showSignupModal, setShowSignupModal] = useState(false);
+    const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
 
     const prefilledEmail = location.state?.prefilledEmail;
 
@@ -38,18 +44,7 @@ const SprintPreview: React.FC = () => {
 
     const day1Content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
     
-    const splitByParagraphs = (text: string, percentage: number) => {
-        if (!text) return { visible: "", locked: "" };
-        const paragraphs = text.split(/\n\s*\n/);
-        const count = Math.max(1, Math.floor(paragraphs.length * (percentage / 100)));
-        return {
-            visible: paragraphs.slice(0, count).join("\n\n"),
-            locked: paragraphs.slice(count).join("\n\n")
-        };
-    };
-
-    const insightParts = splitByParagraphs(day1Content?.lessonText || "", 70);
-    const actionParts = splitByParagraphs(day1Content?.taskPrompt || "", 40);
+    const insightParts = { visible: day1Content?.lessonText || "", locked: "" };
 
     return (
         <div className="w-full bg-[#FAFAFA] min-h-screen flex flex-col font-sans text-dark animate-fade-in pb-24">
@@ -105,59 +100,117 @@ const SprintPreview: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Action Step - Paragraph Based Lock with Blur */}
+                    {/* Action Step */}
                     <div className="space-y-6 relative">
                         {day1Content?.taskPrompts && day1Content.taskPrompts.some(p => p.trim()) ? (
-                            day1Content.taskPrompts.filter(p => p.trim()).map((prompt, i) => {
-                                const isLocked = i > 0;
+                            day1Content.taskPrompts.map((prompt, i) => {
+                                if (i !== activeTaskIndex) return null;
                                 return (
                                 <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden">
-                                     <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Action Step {i + 1}</h2>
-                                     <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug relative">
-                                        {isLocked ? (
-                                            <div className="relative mt-4">
-                                                <div className="blur-[3px] select-none pointer-events-none opacity-30">
-                                                    <FormattedText text={prompt} />
+                                    <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Action Step {i + 1}</h2>
+                                    <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug relative mb-4">
+                                        <FormattedText text={prompt} />
+                                    </div>
+                                    {day1Content.taskHints?.[i] && (
+                                        <div className="mb-4">
+                                            <button 
+                                                type="button"
+                                                onClick={() => setRevealedHints(prev => ({ ...prev, [i]: !prev[i] }))}
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${revealedHints[i] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                            >
+                                                <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${revealedHints[i] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                {revealedHints[i] ? 'Hide Hint' : 'View Hint'}
+                                            </button>
+                                            {revealedHints[i] && (
+                                                <div className="mt-3 p-4 bg-amber-50/50 border border-amber-100 rounded-xl text-sm font-medium text-amber-900 animate-fade-in leading-relaxed italic">
+                                                    <FormattedText text={day1Content.taskHints[i]} />
                                                 </div>
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                                                    <Link 
-                                                        to="/signup" 
-                                                        state={{ prefilledEmail, targetSprintId: sprintId }}
-                                                        className="text-[10px] font-black text-primary hover:underline tracking-widest bg-white/90 px-4 py-2 rounded-full shadow-sm backdrop-blur-sm text-center px-4"
-                                                    >
-                                                        Unlock full sprint to view
-                                                    </Link>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <FormattedText text={prompt || "Action step goes here..."} />
-                                        )}
-                                     </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    <input 
+                                        type="text"
+                                        value={taskInputs[i] || ''}
+                                        onChange={(e) => {
+                                            const newInputs = [...taskInputs];
+                                            newInputs[i] = e.target.value;
+                                            setTaskInputs(newInputs);
+                                        }}
+                                        placeholder="Your response..."
+                                        className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all mb-4"
+                                    />
+                                    
+                                    <div className="flex justify-end pt-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (!taskInputs[i] || !taskInputs[i].trim()) {
+                                                    toast.error("Please provide an answer to continue.");
+                                                    return;
+                                                }
+                                                // Always prompt signup after the first step in preview
+                                                setShowSignupModal(true);
+                                            }}
+                                            className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95"
+                                        >
+                                            Next Action Step
+                                        </button>
+                                    </div>
                                 </div>
                                 );
                             })
                         ) : (
                             <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden">
                                 <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Action Steps</h2>
-                                <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug relative">
-                                    <FormattedText text={actionParts.visible} />
-                                    
-                                    {actionParts.locked && (
-                                        <div className="relative mt-4">
-                                            <div className="blur-[3px] select-none pointer-events-none opacity-30">
-                                                <FormattedText text={actionParts.locked} />
+                                <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug relative mb-4">
+                                    <FormattedText text={day1Content?.taskPrompt || "Action step..."} />
+                                </div>
+                                {day1Content?.taskHints?.[0] && (
+                                    <div className="mb-4">
+                                        <button 
+                                            type="button"
+                                            onClick={() => setRevealedHints(prev => ({ ...prev, 0: !prev[0] }))}
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${revealedHints[0] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                        >
+                                            <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${revealedHints[0] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            {revealedHints[0] ? 'Hide Hint' : 'View Hint'}
+                                        </button>
+                                        {revealedHints[0] && (
+                                            <div className="mt-3 p-4 bg-amber-50/50 border border-amber-100 rounded-xl text-sm font-medium text-amber-900 animate-fade-in leading-relaxed italic">
+                                                <FormattedText text={day1Content.taskHints[0]} />
                                             </div>
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                                                <Link 
-                                                    to="/signup" 
-                                                    state={{ prefilledEmail, targetSprintId: sprintId }}
-                                                    className="text-[10px] font-black text-primary hover:underline tracking-widest bg-white/90 px-4 py-2 rounded-full shadow-sm backdrop-blur-sm text-center"
-                                                >
-                                                    Finish setting up your account to unlock the full sprint.
-                                                </Link>
-                                            </div>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
+                                )}
+                                <input 
+                                    type="text"
+                                    value={taskInputs[0] || ''}
+                                    onChange={(e) => {
+                                        const newInputs = [...taskInputs];
+                                        newInputs[0] = e.target.value;
+                                        setTaskInputs(newInputs);
+                                    }}
+                                    placeholder="Your response..."
+                                    className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all mb-4"
+                                />
+                                
+                                <div className="flex justify-end pt-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (!taskInputs[0] || !taskInputs[0].trim()) {
+                                                return;
+                                            }
+                                            setShowSignupModal(true);
+                                        }}
+                                        className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95"
+                                    >
+                                        Next
+                                    </button>
                                 </div>
                             </div>
                         )}
@@ -173,6 +226,35 @@ const SprintPreview: React.FC = () => {
                 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
                 .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
             `}</style>
+            
+            {showSignupModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 max-w-sm w-full text-center relative overflow-hidden animate-slide-up border border-gray-100">
+                        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 text-primary">
+                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Unlock Full Sprint</h3>
+                        <p className="text-gray-500 font-medium mb-8 text-sm">Sign up to save your progress and continue with the next execution steps.</p>
+                        
+                        <div className="space-y-3">
+                            <button 
+                                onClick={() => navigate('/signup', { state: { prefilledEmail, targetSprintId: sprintId } })}
+                                className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-primary/90 transition-colors shadow-lg active:scale-95"
+                            >
+                                Sign Up to Continue
+                            </button>
+                            <button 
+                                onClick={() => setShowSignupModal(false)}
+                                className="w-full py-4 text-gray-500 rounded-2xl font-black uppercase tracking-widest text-[9px] hover:bg-gray-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -30,7 +30,11 @@ const DiffHighlight: React.FC<{ original: any; updated: any; label: string }> = 
                     if ('verb' in item && 'description' in item) return `${item.verb}: ${item.description}`;
                     if ('title' in item && 'body' in item) return `[${item.title}]\n${item.body}`;
                     if ('day' in item) return `Day ${item.day}: ${(item.lessonText || '').substring(0, 30)}...`;
-                    return JSON.stringify(sanitizeData(item));
+                    try {
+                        return JSON.stringify(sanitizeData(item));
+                    } catch (e) {
+                        return `[Complex Object]`;
+                    }
                 }
                 return String(item);
             }).join('\n---\n');
@@ -143,7 +147,7 @@ const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> =
         if (a === b) return false;
         if (!a || !b) return true;
         try {
-            return JSON.stringify(a) !== JSON.stringify(b);
+            return JSON.stringify(sanitizeData(a)) !== JSON.stringify(sanitizeData(b));
         } catch (e) {
             console.warn("Circular structure detected in comparison, defaulting to true", e);
             return true;
@@ -323,10 +327,10 @@ const EditSprint: React.FC = () => {
 
   const currentContent = useMemo(() => {
     if (!sprint) return {
-      day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', '']
+      day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], taskHints: []
     };
     const content = (Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(c => c.day === selectedDay) : undefined) || {
-      day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', '']
+      day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], taskHints: []
     };
     
     // Return a safe copy with initialized taskPrompts if needed
@@ -338,9 +342,14 @@ const EditSprint: React.FC = () => {
     const paddedPrompts = [...safePrompts];
     while (paddedPrompts.length < 3) paddedPrompts.push('');
 
+    const safeHints = Array.isArray((content as any).taskHints)
+      ? (content as any).taskHints
+      : [];
+
     return {
         ...content,
-        taskPrompts: paddedPrompts
+        taskPrompts: paddedPrompts,
+        taskHints: safeHints
     };
   }, [sprint, selectedDay]);
 
@@ -395,6 +404,38 @@ const EditSprint: React.FC = () => {
             taskPrompt: legacyValue,
             taskPrompts: currentPrompts,
             taskInputTypes: currentPrompts.map(() => 'text')
+          });
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTaskHintChange = (index: number, value: string) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        
+        const currentHints = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskHints || [])]
+            : [];
+        
+        while (currentHints.length <= index) currentHints.push('');
+        currentHints[index] = value;
+        
+        if (existingContentIndex >= 0) {
+          updatedDailyContent[existingContentIndex] = { 
+              ...updatedDailyContent[existingContentIndex], 
+              taskHints: currentHints,
+          };
+        } else {
+          updatedDailyContent.push({
+            day: selectedDay,
+            lessonText: '',
+            taskPrompt: '',
+            taskPrompts: ['', '', ''],
+            taskHints: currentHints,
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -1076,7 +1117,50 @@ const EditSprint: React.FC = () => {
                                                         )}
                                                     </div>
                                                 </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const currentHint = currentContent.taskHints?.[index];
+                                                            if (currentHint === undefined || currentHint === null) {
+                                                                handleTaskHintChange(index, '');
+                                                            } else {
+                                                                // Toggle - if it exists we can just show/hide the input
+                                                                // but here it's always visible if it's not undefined
+                                                            }
+                                                        }}
+                                                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${currentContent.taskHints?.[index] !== undefined ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                    >
+                                                        <Plus size={14} />
+                                                        {currentContent.taskHints?.[index] !== undefined ? 'Hint Active' : 'Add Hint'}
+                                                    </button>
+                                                </div>
                                             </div>
+                                            {currentContent.taskHints?.[index] !== undefined && (
+                                                <div className="mt-2 animate-fade-in">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <label className="text-[9px] font-black text-amber-500 uppercase tracking-widest px-1">Task Hint</label>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => {
+                                                                const newHints = [...(currentContent.taskHints || [])];
+                                                                newHints.splice(index, 1);
+                                                                handleContentChange('taskHints', newHints);
+                                                            }}
+                                                            className="text-gray-300 hover:text-red-500 transition-colors"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    </div>
+                                                    <textarea 
+                                                        value={currentContent.taskHints[index]} 
+                                                        onChange={e => handleTaskHintChange(index, e.target.value)} 
+                                                        rows={2} 
+                                                        className={editorInputClasses + " p-4 !py-3 w-full border-amber-100 bg-amber-50/20 text-gray-700"} 
+                                                        placeholder="Add a hint to help the participant..." 
+                                                    />
+                                                </div>
+                                            )}
                                             {currentContent.taskInputTypes?.[index] === 'poll' && (
                                                 <div className="mt-3 pl-2 border-l-2 border-primary/20 space-y-2">
                                                     {isLinkedFromPrevious ? (
@@ -1197,6 +1281,19 @@ const EditSprint: React.FC = () => {
                             <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
                                 <FormattedText text={prompt || "Submit your progress for this step."} />
                             </div>
+                            {currentContent.taskHints?.[i] && (
+                                <div className="mb-4">
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest bg-amber-100 text-amber-700 w-fit">
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Hint Preview
+                                    </div>
+                                    <div className="mt-2 p-3 bg-amber-50/50 border border-amber-100 rounded-xl text-xs font-medium text-amber-900 italic">
+                                        <FormattedText text={currentContent.taskHints[i]} />
+                                    </div>
+                                </div>
+                            )}
                             <div className="w-full bg-white border border-primary/10 rounded-xl px-4 py-3 text-sm font-bold text-gray-300 italic flex items-center gap-2">
                                 {currentContent.taskInputTypes?.[i] === 'tags' ? "Participant Tag Input" : "Participant Text Input"}
                             </div>

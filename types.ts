@@ -264,6 +264,7 @@ export interface DailyContent {
   lessonText: string;
   taskPrompt: string;
   taskPrompts?: string[];
+  taskHints?: string[];
   taskInputTypes?: ('text' | 'tags' | 'poll')[];
   taskPollOptions?: string[];
   taskLinkedToNext?: boolean[];

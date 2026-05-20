@@ -277,6 +277,7 @@ const SprintView: React.FC = () => {
     // Day Completion State (Task Inputs)
     const [taskInputs, setTaskInputs] = useState<string[]>(['', '', '']);
     const [activeTaskIndex, setActiveTaskIndex] = useState(0);
+    const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
 
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -342,6 +343,7 @@ const SprintView: React.FC = () => {
     useEffect(() => {
         setTaskInputs(['', '', '']);
         setActiveTaskIndex(0);
+        setRevealedHints({});
     }, [viewingDay]);
 
     useEffect(() => {
@@ -771,6 +773,25 @@ const SprintView: React.FC = () => {
                                                     <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
                                                         <FormattedText text={prompt} />
                                                     </div>
+                                                    {dayContent.taskHints?.[i] && (
+                                                        <div className="mb-4">
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => setRevealedHints(prev => ({ ...prev, [i]: !prev[i] }))}
+                                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${revealedHints[i] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                            >
+                                                                <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${revealedHints[i] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                </svg>
+                                                                {revealedHints[i] ? 'Hide Hint' : 'View Hint'}
+                                                            </button>
+                                                            {revealedHints[i] && (
+                                                                <div className="mt-3 p-4 bg-amber-50/50 border border-amber-100 rounded-xl text-sm font-medium text-amber-900 animate-fade-in leading-relaxed italic">
+                                                                    <FormattedText text={dayContent.taskHints[i]} />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 {!dayProgress?.completed && (
                                                     dayContent.taskInputTypes?.[i] === 'tags' ? (
                                                         <div className="w-full bg-white border border-primary/10 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-primary/5 focus-within:border-primary transition-all">
@@ -938,6 +959,25 @@ const SprintView: React.FC = () => {
                                             <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
                                                 <FormattedText text={dayContent?.taskPrompt || ""} />
                                             </div>
+                                            {dayContent?.taskHints?.[0] && (
+                                                <div className="mb-4">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => setRevealedHints(prev => ({ ...prev, 0: !prev[0] }))}
+                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${revealedHints[0] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                    >
+                                                        <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${revealedHints[0] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        {revealedHints[0] ? 'Hide Hint' : 'View Hint'}
+                                                    </button>
+                                                    {revealedHints[0] && (
+                                                        <div className="mt-3 p-4 bg-amber-50/50 border border-amber-100 rounded-xl text-sm font-medium text-amber-900 animate-fade-in leading-relaxed italic">
+                                                            <FormattedText text={dayContent.taskHints[0]} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                             {!dayProgress?.completed && (
                                                 dayContent?.taskInputTypes?.[0] === 'tags' ? (
                                                     <div className="w-full bg-white border border-primary/10 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-primary/5 focus-within:border-primary transition-all">
