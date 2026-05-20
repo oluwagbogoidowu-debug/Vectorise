@@ -194,6 +194,12 @@ const EditSprint: React.FC = () => {
   const [originalSprint, setOriginalSprint] = useState<Sprint | null>(null);
   const [sprint, setSprint] = useState<Sprint | null>(null);
   const [selectedDay, setSelectedDay] = useState(1);
+  const [previewTaskIndex, setPreviewTaskIndex] = useState(0);
+
+  useEffect(() => {
+    setPreviewTaskIndex(0);
+  }, [selectedDay]);
+
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [settingsSaveStatus, setSettingsSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [approvalStatus, setApprovalStatus] = useState<'idle' | 'processing'>('idle');
@@ -1275,31 +1281,83 @@ const EditSprint: React.FC = () => {
                 </div>
 
                 <div className="space-y-6">
-                    {currentContent.taskPrompts?.map((prompt, i) => (
-                        <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                            <SectionHeading>Action Step {i + 1}</SectionHeading>
-                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
-                                <FormattedText text={prompt || "Submit your progress for this step."} />
-                            </div>
-                            {currentContent.taskHints?.[i] && (
-                                <div className="mb-4">
-                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest bg-amber-100 text-amber-700 w-fit">
-                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        Hint Preview
+                    {(() => {
+                        const activePrompts = currentContent.taskPrompts?.filter(p => p && p.trim()) || (currentContent.taskPrompt ? [currentContent.taskPrompt] : []);
+                        if (activePrompts.length === 0) {
+                            return (
+                                <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden text-center text-gray-400 font-medium text-xs">
+                                    No action steps defined yet. Use the curriculum section on the left to add your execution steps.
+                                </div>
+                            );
+                        }
+                        
+                        const validIndex = Math.min(previewTaskIndex, activePrompts.length - 1);
+                        const prompt = activePrompts[validIndex] || "";
+                        const i = validIndex;
+                        
+                        return (
+                            <>
+                                <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group mb-4 animate-fade-in">
+                                    <SectionHeading>Action Step {i + 1} of {activePrompts.length}</SectionHeading>
+                                    <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
+                                        <FormattedText text={prompt || "Submit your progress for this step."} />
                                     </div>
-                                    <div className="mt-2 p-3 bg-amber-50/50 border border-amber-100 rounded-xl text-xs font-medium text-amber-900 italic">
-                                        <FormattedText text={currentContent.taskHints[i]} />
+                                    {currentContent.taskHints?.[i] && (
+                                        <div className="mb-4">
+                                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest bg-amber-100 text-amber-700 w-fit">
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                Hint Preview
+                                            </div>
+                                            <div className="mt-2 p-3 bg-amber-50/50 border border-amber-100 rounded-xl text-xs font-medium text-amber-900 italic">
+                                                <FormattedText text={currentContent.taskHints[i]} />
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="w-full bg-white border border-primary/10 rounded-xl px-4 py-3 text-sm font-bold text-gray-400 italic flex items-center gap-2">
+                                        {currentContent.taskInputTypes?.[i] === 'tags' ? "Participant Tag Input" : "Participant Text Input"}
+                                    </div>
+                                    <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+
+                                    <div className="flex justify-between items-center gap-4 mt-6">
+                                        {i > 0 ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setPreviewTaskIndex(i - 1)}
+                                                className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold text-gray-500 hover:text-primary transition-colors bg-white active:scale-95"
+                                            >
+                                                Back
+                                            </button>
+                                        ) : <div />}
+                                        
+                                        {i < activePrompts.length - 1 ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setPreviewTaskIndex(i + 1)}
+                                                className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold shadow-sm shadow-primary/10 active:scale-95"
+                                            >
+                                                Next
+                                            </button>
+                                        ) : <div />}
                                     </div>
                                 </div>
-                            )}
-                            <div className="w-full bg-white border border-primary/10 rounded-xl px-4 py-3 text-sm font-bold text-gray-300 italic flex items-center gap-2">
-                                {currentContent.taskInputTypes?.[i] === 'tags' ? "Participant Tag Input" : "Participant Text Input"}
-                            </div>
-                            <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-                        </div>
-                    ))}
+
+                                {activePrompts.length > 1 && (
+                                    <div className="flex justify-center items-center gap-2 mt-4">
+                                        {activePrompts.map((_, idx) => (
+                                            <button
+                                                type="button"
+                                                key={idx} 
+                                                onClick={() => setPreviewTaskIndex(idx)}
+                                                className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${idx === validIndex ? 'w-8 bg-primary' : 'w-2 bg-gray-200 hover:bg-primary/40'}`}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        );
+                    })()}
                 </div>
 
                 <div className="mt-12 space-y-4">

@@ -102,118 +102,107 @@ const SprintPreview: React.FC = () => {
 
                     {/* Action Step */}
                     <div className="space-y-6 relative">
-                        {day1Content?.taskPrompts && day1Content.taskPrompts.some(p => p.trim()) ? (
-                            day1Content.taskPrompts.map((prompt, i) => {
-                                if (i !== activeTaskIndex) return null;
+                        {(() => {
+                            const activePrompts = day1Content?.taskPrompts?.filter(p => p && p.trim()) || (day1Content?.taskPrompt ? [day1Content.taskPrompt] : []);
+                            if (activePrompts.length === 0) {
                                 return (
-                                <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden">
-                                    <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Action Step {i + 1}</h2>
-                                    <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug relative mb-4">
-                                        <FormattedText text={prompt} />
+                                    <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden text-center text-gray-400 font-medium text-xs">
+                                        No action steps defined yet for Day 1.
                                     </div>
-                                    {day1Content.taskHints?.[i] && (
-                                        <div className="mb-4">
-                                            <button 
-                                                type="button"
-                                                onClick={() => setRevealedHints(prev => ({ ...prev, [i]: !prev[i] }))}
-                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${revealedHints[i] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
-                                            >
-                                                <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${revealedHints[i] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                </svg>
-                                                {revealedHints[i] ? 'Hide Hint' : 'View Hint'}
-                                            </button>
-                                            {revealedHints[i] && (
-                                                <div className="mt-3 p-4 bg-amber-50/50 border border-amber-100 rounded-xl text-sm font-medium text-amber-900 animate-fade-in leading-relaxed italic">
-                                                    <FormattedText text={day1Content.taskHints[i]} />
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                    <input 
-                                        type="text"
-                                        value={taskInputs[i] || ''}
-                                        onChange={(e) => {
-                                            const newInputs = [...taskInputs];
-                                            newInputs[i] = e.target.value;
-                                            setTaskInputs(newInputs);
-                                        }}
-                                        placeholder="Your response..."
-                                        className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all mb-4"
-                                    />
-                                    
-                                    <div className="flex justify-end pt-4">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                if (!taskInputs[i] || !taskInputs[i].trim()) {
-                                                    toast.error("Please provide an answer to continue.");
-                                                    return;
-                                                }
-                                                // Always prompt signup after the first step in preview
-                                                setShowSignupModal(true);
-                                            }}
-                                            className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95"
-                                        >
-                                            Next Action Step
-                                        </button>
-                                    </div>
-                                </div>
                                 );
-                            })
-                        ) : (
-                            <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden">
-                                <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Action Steps</h2>
-                                <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug relative mb-4">
-                                    <FormattedText text={day1Content?.taskPrompt || "Action step..."} />
-                                </div>
-                                {day1Content?.taskHints?.[0] && (
-                                    <div className="mb-4">
-                                        <button 
-                                            type="button"
-                                            onClick={() => setRevealedHints(prev => ({ ...prev, 0: !prev[0] }))}
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${revealedHints[0] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
-                                        >
-                                            <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${revealedHints[0] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                            {revealedHints[0] ? 'Hide Hint' : 'View Hint'}
-                                        </button>
-                                        {revealedHints[0] && (
-                                            <div className="mt-3 p-4 bg-amber-50/50 border border-amber-100 rounded-xl text-sm font-medium text-amber-900 animate-fade-in leading-relaxed italic">
-                                                <FormattedText text={day1Content.taskHints[0]} />
+                            }
+                            
+                            const prompt = activePrompts[activeTaskIndex] || activePrompts[0] || "";
+                            const i = activeTaskIndex;
+                            return (
+                                <>
+                                    <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden animate-fade-in">
+                                        <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Action Step {i + 1} of {activePrompts.length}</h2>
+                                        <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug relative mb-4">
+                                            <FormattedText text={prompt} />
+                                        </div>
+                                        {day1Content?.taskHints?.[i] && (
+                                            <div className="mb-4">
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => setRevealedHints(prev => ({ ...prev, [i]: !prev[i] }))}
+                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${revealedHints[i] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                >
+                                                    <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${revealedHints[i] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    {revealedHints[i] ? 'Hide Hint' : 'View Hint'}
+                                                </button>
+                                                {revealedHints[i] && (
+                                                    <div className="mt-3 p-4 bg-amber-50/50 border border-amber-100 rounded-xl text-sm font-medium text-amber-900 animate-fade-in leading-relaxed italic">
+                                                        <FormattedText text={day1Content.taskHints[i]} />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
+                                        <input 
+                                            type="text"
+                                            value={taskInputs[i] || ''}
+                                            onChange={(e) => {
+                                                const newInputs = [...taskInputs];
+                                                newInputs[i] = e.target.value;
+                                                setTaskInputs(newInputs);
+                                            }}
+                                            placeholder="Your response..."
+                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all mb-4"
+                                        />
+                                        
+                                        <div className="flex justify-between items-center gap-4 pt-4">
+                                            {i > 0 ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setActiveTaskIndex(i - 1)}
+                                                    className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95"
+                                                >
+                                                    Back
+                                                </button>
+                                            ) : <div />}
+                                            
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (!taskInputs[i] || !taskInputs[i].trim()) {
+                                                        toast.error("Please provide an answer to continue.");
+                                                        return;
+                                                    }
+                                                    if (i < activePrompts.length - 1) {
+                                                        setActiveTaskIndex(i + 1);
+                                                    } else {
+                                                        // Last step prompts the signup modal
+                                                        setShowSignupModal(true);
+                                                    }
+                                                }}
+                                                className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95"
+                                            >
+                                                {i < activePrompts.length - 1 ? 'Next Step' : 'Complete Action'}
+                                            </button>
+                                        </div>
                                     </div>
-                                )}
-                                <input 
-                                    type="text"
-                                    value={taskInputs[0] || ''}
-                                    onChange={(e) => {
-                                        const newInputs = [...taskInputs];
-                                        newInputs[0] = e.target.value;
-                                        setTaskInputs(newInputs);
-                                    }}
-                                    placeholder="Your response..."
-                                    className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all mb-4"
-                                />
-                                
-                                <div className="flex justify-end pt-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (!taskInputs[0] || !taskInputs[0].trim()) {
-                                                return;
-                                            }
-                                            setShowSignupModal(true);
-                                        }}
-                                        className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95"
-                                    >
-                                        Next
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                                    
+                                    {activePrompts.length > 1 && (
+                                        <div className="flex justify-center items-center gap-2 mt-8">
+                                            {activePrompts.map((_, idx) => (
+                                                <button
+                                                    type="button"
+                                                    key={idx} 
+                                                    onClick={() => {
+                                                        if (idx <= activeTaskIndex) {
+                                                            setActiveTaskIndex(idx);
+                                                        }
+                                                    }}
+                                                    className={`h-1.5 rounded-full transition-all duration-300 ${idx <= activeTaskIndex ? 'cursor-pointer' : 'cursor-not-allowed'} ${idx === activeTaskIndex ? 'w-8 bg-primary' : idx < activeTaskIndex ? 'w-2 bg-primary/40 hover:bg-primary/60' : 'w-2 bg-gray-200'}`}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
             </div>

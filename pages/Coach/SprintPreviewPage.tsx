@@ -16,6 +16,11 @@ const SprintPreviewPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [previewType, setPreviewType] = useState<'card' | 'landing' | 'daily'>('landing');
     const [selectedDay, setSelectedDay] = useState(1);
+    const [previewTaskIndex, setPreviewTaskIndex] = useState(0);
+
+    useEffect(() => {
+        setPreviewTaskIndex(0);
+    }, [selectedDay]);
 
     useEffect(() => {
         const fetchSprint = async () => {
@@ -194,15 +199,76 @@ const SprintPreviewPage: React.FC = () => {
                                             <FormattedText text={currentDailyContent.lessonText || 'No lesson text for this day.'} />
                                         </div>
                                     </div>
-                                    <div className="space-y-6">
-                                        {(currentDailyContent.taskPrompts || ['', '', '']).map((prompt, i) => (
-                                            <div key={i} className="space-y-4">
-                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Action Step {i + 1}</p>
-                                                <div className="text-sm text-gray-700 font-medium leading-relaxed">
-                                                    <FormattedText text={prompt || "Progress for this step will be submitted here."} />
+                                    <div className="space-y-6 pt-4 border-t border-gray-50 font-sans">
+                                        {(() => {
+                                            const activePrompts = currentDailyContent.taskPrompts?.filter(p => p && p.trim()) || (currentDailyContent.taskPrompt ? [currentDailyContent.taskPrompt] : []);
+                                            if (activePrompts.length === 0) {
+                                                return (
+                                                    <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden text-center text-gray-400 font-medium text-xs">
+                                                        No action steps defined yet for Day {selectedDay}.
+                                                    </div>
+                                                );
+                                            }
+
+                                            const validIndex = Math.min(previewTaskIndex, activePrompts.length - 1);
+                                            const prompt = activePrompts[validIndex] || "";
+                                            const i = validIndex;
+
+                                            return (
+                                                <div className="space-y-6">
+                                                    <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden animate-fade-in">
+                                                        <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-4">Action Step {i + 1} of {activePrompts.length}</p>
+                                                        <div className="text-gray-900 font-bold leading-relaxed mb-4 text-sm sm:text-base">
+                                                            <FormattedText text={prompt || "Progress for this step will be submitted here."} />
+                                                        </div>
+
+                                                        {currentDailyContent.taskHints?.[i] && (
+                                                            <div className="mb-4">
+                                                                <div className="text-xs font-black text-amber-700 uppercase tracking-wider mb-2">Hint Preview:</div>
+                                                                <div className="p-4 bg-amber-50/50 rounded-xl text-xs font-medium text-amber-900 border border-amber-100 italic">
+                                                                    <FormattedText text={currentDailyContent.taskHints[i]} />
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="flex justify-between items-center gap-4 pt-4 border-t border-gray-100/50">
+                                                            {i > 0 ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setPreviewTaskIndex(i - 1)}
+                                                                    className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-bold text-gray-500 hover:text-primary transition-colors bg-white active:scale-95"
+                                                                >
+                                                                    Back
+                                                                </button>
+                                                            ) : <div />}
+
+                                                            {i < activePrompts.length - 1 ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setPreviewTaskIndex(i + 1)}
+                                                                    className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold shadow-sm shadow-primary/10 active:scale-95"
+                                                                >
+                                                                    Next
+                                                                </button>
+                                                            ) : <div />}
+                                                        </div>
+                                                    </div>
+
+                                                    {activePrompts.length > 1 && (
+                                                        <div className="flex justify-center items-center gap-2 mt-4">
+                                                            {activePrompts.map((_, idx) => (
+                                                                <button
+                                                                    type="button"
+                                                                    key={idx} 
+                                                                    onClick={() => setPreviewTaskIndex(idx)}
+                                                                    className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${idx === validIndex ? 'w-8 bg-primary' : 'w-2 bg-gray-200 hover:bg-primary/40'}`}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             ) : (
