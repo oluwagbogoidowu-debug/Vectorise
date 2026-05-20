@@ -262,6 +262,20 @@ const DiscoverSprints: React.FC = () => {
         return results;
     }, [orchestration, user, sprints, tracks]);
 
+    const nextSteps = useMemo(() => {
+        const list: Sprint[] = [];
+        if (resolvedSlots['slot_dir_paid']) list.push(resolvedSlots['slot_dir_paid']);
+        if (resolvedSlots['slot_dir_growth']) list.push(resolvedSlots['slot_dir_growth']);
+        if (resolvedSlots['slot_dir_core']) list.push(resolvedSlots['slot_dir_core']);
+        
+        const seen = new Set<string>();
+        return list.filter(item => {
+            if (seen.has(item.id)) return false;
+            seen.add(item.id);
+            return true;
+        });
+    }, [resolvedSlots]);
+
     if (isLoading) {
         return null;
     }
@@ -303,59 +317,25 @@ const DiscoverSprints: React.FC = () => {
                     </section>
                 )}
 
-                {/* SECTION 2: FIRST PAID SPRINT */}
-                {resolvedSlots['slot_dir_paid'] && (
+                {/* SECTION 2: RECOMMENDED NEXT STEP */}
+                {nextSteps.length > 0 && (
                     <section className="mb-16">
                         <div className="mb-6 px-2">
                             <div className="flex items-center gap-2 mb-1">
-                                <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Recommended First Step</h2>
+                                <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Recommended Next Step</h2>
                                 <Sparkles className="w-3 h-3 text-primary" />
                             </div>
-                            <p className="text-xs text-gray-400 font-medium">The most impactful place to start</p>
+                            <p className="text-xs text-gray-400 font-medium">Build your foundation with these selected essential programs</p>
                         </div>
                         
-                        <div className="px-2">
-                            <SprintCard 
-                                sprint={resolvedSlots['slot_dir_paid']} 
-                                coach={coaches.find(c => c.id === resolvedSlots['slot_dir_paid'].coachId) || ({} as Coach)} 
-                            />
-                        </div>
-                    </section>
-                )}
-
-                {/* SECTION 3: GROWTH & CORE SLOTS */}
-                {(resolvedSlots['slot_dir_growth'] || resolvedSlots['slot_dir_core']) && (
-                    <section className="mb-16">
-                        <div className="mb-6 px-2">
-                            <div className="flex items-center gap-2 mb-1">
-                                <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Growth & Core Fundamentals</h2>
-                            </div>
-                            <p className="text-xs text-gray-400 font-medium">Build your foundation with these essential programs</p>
-                        </div>
-                        
-                        <div className="flex gap-6 overflow-x-auto pb-8 no-scrollbar px-2 -mx-2">
-                            {resolvedSlots['slot_dir_growth'] && (
-                                <div className="flex-shrink-0 w-[85%] md:w-80">
-                                    <div className="mb-2 px-4">
-                                        <span className="text-[8px] font-black text-primary uppercase tracking-widest">Growth Fundamental</span>
-                                    </div>
-                                    <SprintCard 
-                                        sprint={resolvedSlots['slot_dir_growth']} 
-                                        coach={coaches.find(c => c.id === resolvedSlots['slot_dir_growth'].coachId) || ({} as Coach)} 
-                                    />
-                                </div>
-                            )}
-                            {resolvedSlots['slot_dir_core'] && (
-                                <div className="flex-shrink-0 w-[85%] md:w-80">
-                                    <div className="mb-2 px-4">
-                                        <span className="text-[8px] font-black text-primary uppercase tracking-widest">Platform Core</span>
-                                    </div>
-                                    <SprintCard 
-                                        sprint={resolvedSlots['slot_dir_core']} 
-                                        coach={coaches.find(c => c.id === resolvedSlots['slot_dir_core'].coachId) || ({} as Coach)} 
-                                    />
-                                </div>
-                            )}
+                        <div className="space-y-6 px-2">
+                            {nextSteps.map(sprint => (
+                                <SprintCard 
+                                    key={sprint.id}
+                                    sprint={sprint} 
+                                    coach={coaches.find(c => c.id === sprint.coachId) || ({} as Coach)} 
+                                />
+                            ))}
                         </div>
                     </section>
                 )}
