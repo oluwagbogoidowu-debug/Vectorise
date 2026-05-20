@@ -230,7 +230,7 @@ const DiscoverSprints: React.FC = () => {
 
     // 2. Track & Other options
     const resolvedSlots = useMemo(() => {
-        const slots = ['slot_dir_track', 'slot_dir_paid', 'slot_dir_growth', 'slot_dir_core'];
+        const slots = ['slot_dir_track', 'slot_dir_sprint'];
         const results: Record<string, any> = {};
         
         const participant = user as Participant;
@@ -264,9 +264,7 @@ const DiscoverSprints: React.FC = () => {
 
     const nextSteps = useMemo(() => {
         const list: Sprint[] = [];
-        if (resolvedSlots['slot_dir_paid']) list.push(resolvedSlots['slot_dir_paid']);
-        if (resolvedSlots['slot_dir_growth']) list.push(resolvedSlots['slot_dir_growth']);
-        if (resolvedSlots['slot_dir_core']) list.push(resolvedSlots['slot_dir_core']);
+        if (resolvedSlots['slot_dir_sprint']) list.push(resolvedSlots['slot_dir_sprint']);
         
         const seen = new Set<string>();
         return list.filter(item => {

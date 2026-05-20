@@ -193,11 +193,9 @@ export const LIFECYCLE_SLOTS: LifecycleSlot[] = [
     { id: 'slot_found_orient', stage: 'Foundation', type: 'Diagnostic', name: 'Orientation', required: true, maxCount: 1 },
     { id: 'slot_found_core', stage: 'Foundation', type: 'Execution', name: 'Core Foundation', required: true, maxCount: 1 },
     
-    // Direction stage slots - 4 slots as requested
+    // Direction stage slots - Only track card and sprint card exist as requested
     { id: 'slot_dir_track', stage: 'Direction', type: 'Narrowing', name: 'Track Card', required: true, maxCount: 1 },
-    { id: 'slot_dir_paid', stage: 'Direction', type: 'Narrowing', name: 'First Paid Sprint', required: true, maxCount: 1 },
-    { id: 'slot_dir_growth', stage: 'Direction', type: 'Narrowing', name: 'Growth Fundamental', required: true, maxCount: 1 },
-    { id: 'slot_dir_core', stage: 'Direction', type: 'Narrowing', name: 'Platform Core', required: true, maxCount: 1 },
+    { id: 'slot_dir_sprint', stage: 'Direction', type: 'Narrowing', name: 'Sprint Card', required: true, maxCount: 1 },
     { id: 'slot_exec_primary', stage: 'Execution', type: 'Execution', name: 'Mapping Slot', required: true, maxCount: 1 },
     { id: 'slot_proof_primary', stage: 'Proof', type: 'Expression', name: 'Mapping Slot', required: true, maxCount: 1 },
     { id: 'slot_pos_primary', stage: 'Positioning', type: 'Expression', name: 'Mapping Slot', required: true, maxCount: 1 },
