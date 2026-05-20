@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { sprintService } from '../services/sprintService';
 import { userService } from '../services/userService';
 import { toast } from 'sonner';
+import { createPortal } from 'react-dom';
 
 interface ParticipantLayoutProps {
   children?: React.ReactNode;
@@ -61,7 +62,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
       </main>
       <BottomNav />
       
-      {showCoinPopup && pendingSprint && (
+      {showCoinPopup && pendingSprint && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 max-w-sm w-full text-center relative overflow-hidden animate-slide-up border border-gray-100">
             {/* Interactive bouncing coin graphic */}
@@ -157,7 +158,8 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <style>{`
