@@ -90,8 +90,6 @@ export const CATEGORY_TO_STAGE_MAP: Record<string, LifecycleStage> = {
     'Burnout Recovery': 'Foundation',
     'Faith-Based': 'Foundation',
     'Inner Peace': 'Foundation',
-    'Growth Fundamentals': 'Foundation', // Platform Core
-    'Core Platform Sprint': 'Foundation', // Platform Core
     'Clarity': 'Foundation', // Explicitly mapped to Foundation for the Clarity Slot
 
     // 02. Direction: Helping people understand who they are and where they’re headed.

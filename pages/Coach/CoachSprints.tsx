@@ -86,12 +86,17 @@ const CoachSprints: React.FC = () => {
   }, [user, location.key]);
 
   const filteredSprints = useMemo(() => {
-    if (filter === 'all') return sprints;
-    if (filter === 'published') return sprints.filter(s => s.published);
-    if (filter === 'pending') return sprints.filter(s => s.approvalStatus === 'pending_approval');
-    if (filter === 'rejected') return sprints.filter(s => s.approvalStatus === 'rejected');
-    if (filter === 'draft') return sprints.filter(s => s.approvalStatus === 'draft');
-    return sprints;
+    let filtered = sprints;
+    if (filter === 'published') filtered = sprints.filter(s => s.published);
+    else if (filter === 'pending') filtered = sprints.filter(s => s.approvalStatus === 'pending_approval');
+    else if (filter === 'rejected') filtered = sprints.filter(s => s.approvalStatus === 'rejected');
+    else if (filter === 'draft') filtered = sprints.filter(s => s.approvalStatus === 'draft');
+    
+    return [...filtered].sort((a, b) => {
+      const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return timeB - timeA;
+    });
   }, [sprints, filter]);
 
   const handleDelete = async (id: string) => {

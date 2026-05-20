@@ -250,7 +250,7 @@ export interface Sprint {
   protocol?: 'One action per day' | 'Guided task' | 'Challenge-based';
   outcomeTag?: string; 
   outcomeStatement?: string;
-  sprintType?: 'Foundational' | 'Execution' | 'Skill';
+  sprintType?: 'Fundamentals' | 'Core' | 'Expert' | 'Foundational' | 'Execution' | 'Skill';
   reviewFeedback?: Record<string, string>;
   pendingChanges?: Partial<Sprint>;
   targeting?: any;

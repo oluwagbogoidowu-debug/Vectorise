@@ -93,7 +93,12 @@ const LoginPage: React.FC = () => {
 
                           const sprint = await sprintService.getSprintById(targetSprintId);
                           if (sprint) {
-                              const isFoundational = sprint.category === 'Core Platform Sprint' || sprint.category === 'Growth Fundamentals';
+                              const isFoundational = sprint.sprintType === 'Foundational' || 
+                                                     sprint.sprintType === 'Fundamentals' ||
+                                                     sprint.sprintType === 'Core' ||
+                                                     sprint.sprintType === 'Expert' ||
+                                                     sprint.category === 'Core Platform Sprint' || 
+                                                     sprint.category === 'Growth Fundamentals';
                               if (isFoundational || sprint.price === 0) {
                                   const enrollment = await sprintService.enrollUser(user.id, targetSprintId, sprint.duration);
                                   navigate(`/participant/sprint/${enrollment.id}`, { replace: true });

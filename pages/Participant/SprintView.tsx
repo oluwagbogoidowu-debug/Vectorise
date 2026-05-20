@@ -399,6 +399,38 @@ const SectionHeading: React.FC<SectionHeadingProps> = ({
   </h2>
 );
 
+const AutoGrowingTextarea: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  className?: string;
+}> = ({ value, onChange, placeholder = "What's on your mind...", className = "" }) => {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  const adjustHeight = () => {
+    const el = ref.current;
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+    }
+  };
+
+  useEffect(() => {
+    adjustHeight();
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className={`${className} overflow-y-auto min-h-[80px]`}
+      style={{ maxHeight: "180px" }}
+    />
+  );
+};
+
 const SprintView: React.FC = () => {
   const { user } = useAuth();
   const { enrollmentId } = useParams();
@@ -1249,6 +1281,16 @@ const SprintView: React.FC = () => {
                                                 setTaskInputs(newInputs);
                                               }
                                               e.currentTarget.value = "";
+                                            } else {
+                                              const tagsVal = taskInputs[i];
+                                              const isValid = !!tagsVal && tagsVal !== "[]" && tagsVal !== "";
+                                              if (isValid) {
+                                                if (i < (dayContent.taskPrompts?.length || 0) - 1) {
+                                                  setActiveTaskIndex(i + 1);
+                                                } else if (isProofMet) {
+                                                  handleFinishDay();
+                                                }
+                                              }
                                             }
                                           }
                                         }}
@@ -1346,16 +1388,15 @@ const SprintView: React.FC = () => {
                                     })()}
                                   </div>
                                 ) : (
-                                  <textarea
-                                    rows={4}
+                                  <AutoGrowingTextarea
                                     value={taskInputs[i] || ""}
-                                    onChange={(e) => {
+                                    onChange={(val) => {
                                       const newInputs = [...taskInputs];
-                                      newInputs[i] = e.target.value;
+                                      newInputs[i] = val;
                                       setTaskInputs(newInputs);
                                     }}
                                     placeholder="What's on your mind..."
-                                    className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                                    className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none animate-fade-in"
                                   />
                                 ))}
                               {dayProgress?.completed && (
@@ -1565,6 +1606,12 @@ const SprintView: React.FC = () => {
                                           setTaskInputs(newInputs);
                                         }
                                         e.currentTarget.value = "";
+                                      } else {
+                                        const tagsVal = taskInputs[0];
+                                        const isValid = !!tagsVal && tagsVal !== "[]" && tagsVal !== "";
+                                        if (isValid && isProofMet) {
+                                          handleFinishDay();
+                                        }
                                       }
                                     }
                                   }}
@@ -1600,16 +1647,15 @@ const SprintView: React.FC = () => {
                               })()}
                             </div>
                           ) : (
-                            <textarea
-                              rows={4}
+                            <AutoGrowingTextarea
                               value={taskInputs[0] || ""}
-                              onChange={(e) => {
+                              onChange={(val) => {
                                 const newInputs = [...taskInputs];
-                                newInputs[0] = e.target.value;
+                                newInputs[0] = val;
                                 setTaskInputs(newInputs);
                               }}
                               placeholder="What's on your mind..."
-                              className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                              className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none animate-fade-in"
                             />
                           ))}
                         {dayProgress?.completed && (

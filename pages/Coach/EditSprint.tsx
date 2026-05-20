@@ -980,12 +980,12 @@ const EditSprint: React.FC = () => {
                     <Button variant="secondary" onClick={handleSaveDraft} disabled={saveStatus === 'saving'} className="bg-white border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] rounded-xl px-6">
                       {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save Draft'}
                     </Button>
-                    {!isAdmin && (
+                    {!isAdmin && !registryIncomplete && !curriculumIncomplete && (
                         <Button 
                             onClick={handleSubmitForReview} 
                             isLoading={isSubmittingReview}
-                            disabled={registryIncomplete || curriculumIncomplete || isSubmittingReview} 
-                            className="font-black uppercase tracking-widest text-[10px] rounded-xl px-6"
+                            disabled={isSubmittingReview} 
+                            className="font-black uppercase tracking-widest text-[10px] rounded-xl px-6 animate-fade-in"
                         >
                         {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
                         </Button>
@@ -1209,6 +1209,9 @@ const EditSprint: React.FC = () => {
                                                                     if (currentContent.taskPollOptions?.[index]) {
                                                                         try { opts = JSON.parse(currentContent.taskPollOptions[index]); } catch(e) {}
                                                                     }
+                                                                    if (opts.length === 0) {
+                                                                        opts = [''];
+                                                                    }
                                                                     return opts.map((opt, optIndex) => (
                                                                         <div key={optIndex} className="flex gap-2 items-center group/opt">
                                                                             <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-50 text-gray-400 text-xs font-bold shrink-0">
@@ -1221,13 +1224,15 @@ const EditSprint: React.FC = () => {
                                                                                 className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
                                                                                 placeholder="Add custom option..."
                                                                             />
-                                                                            <button 
-                                                                                type="button"
-                                                                                onClick={() => removeTaskPollOption(index, optIndex)}
-                                                                                className="p-2 text-red-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-all opacity-0 group-hover/opt:opacity-100"
-                                                                            >
-                                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                                            </button>
+                                                                            {opts.length > 1 && (
+                                                                                <button 
+                                                                                    type="button"
+                                                                                    onClick={() => removeTaskPollOption(index, optIndex)}
+                                                                                    className="p-2 text-red-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-all opacity-0 group-hover/opt:opacity-100"
+                                                                                >
+                                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                                </button>
+                                                                            )}
                                                                         </div>
                                                                     ));
                                                                 })()}
@@ -1235,7 +1240,10 @@ const EditSprint: React.FC = () => {
                                                                     type="button"
                                                                     onClick={() => {
                                                                         let currentLength = 0;
-                                                                        try { currentLength = JSON.parse(currentContent.taskPollOptions?.[index] || '[]').length; } catch(e) {}
+                                                                        try { 
+                                                                            const parsed = JSON.parse(currentContent.taskPollOptions?.[index] || '[]');
+                                                                            currentLength = parsed.length === 0 ? 1 : parsed.length;
+                                                                        } catch(e) {}
                                                                         handleTaskPollOptionChange(index, currentLength, '');
                                                                     }}
                                                                     className="pl-7 text-xs font-bold text-primary hover:text-primary/70 transition-colors flex items-center gap-1 mt-1"
@@ -1594,10 +1602,10 @@ const EditSprint: React.FC = () => {
                                             </div>
                                             <div>
                                                 <label className={labelClasses}>Sprint Type</label>
-                                                <select value={editSettings.sprintType || 'Execution'} onChange={e => setEditSettings({...editSettings, sprintType: e.target.value as 'Foundational' | 'Execution' | 'Skill'})} className={registryInputClasses + " mt-2"}>
-                                                    <option value="Foundational">Foundational</option>
-                                                    <option value="Execution">Execution</option>
-                                                    <option value="Skill">Skill</option>
+                                                <select value={editSettings.sprintType || 'Core'} onChange={e => setEditSettings({...editSettings, sprintType: e.target.value as any})} className={registryInputClasses + " mt-2"}>
+                                                    <option value="Fundamentals">Fundamentals</option>
+                                                    <option value="Core">Core</option>
+                                                    <option value="Expert">Expert</option>
                                                 </select>
                                             </div>
                                         </div>

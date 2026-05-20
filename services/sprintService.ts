@@ -97,11 +97,18 @@ export const sprintService = {
     getAdminCoachSprints: async () => {
         const q = query(
             collection(db, SPRINTS_COLLECTION), 
-            where("category", "in", ["Growth Fundamentals", "Core Platform Sprint"]), 
             where("deleted", "==", false)
         );
         const snap = await getDocs(q);
-        return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+        const allSprints = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+        return allSprints.filter(s => 
+            s.sprintType === 'Foundational' || 
+            s.sprintType === 'Fundamentals' || 
+            s.sprintType === 'Core' || 
+            s.sprintType === 'Expert' || 
+            s.category === 'Core Platform Sprint' || 
+            s.category === 'Growth Fundamentals'
+        );
     },
 
     subscribeToCoachSprints: (coachId: string, callback: (sprints: Sprint[]) => void) => {

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Sprint, Coach, UserRole } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
-import LandingPreview from '../../components/LandingPreview';
+import { Clock } from 'lucide-react';
 import SprintCard from '../../components/SprintCard';
 import FormattedText from '../../components/FormattedText';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
@@ -109,6 +109,15 @@ const SprintPreviewPage: React.FC = () => {
         );
     }
 
+    const isFoundational = sprint.sprintType === 'Foundational' || 
+                           sprint.sprintType === 'Fundamentals' ||
+                           sprint.sprintType === 'Core' ||
+                           sprint.sprintType === 'Expert' ||
+                           sprint.category === 'Core Platform Sprint' || 
+                           sprint.category === 'Growth Fundamentals';
+
+    const displayCoachName = isFoundational ? 'Vectorise' : (coach.name || 'Vectorise');
+    const displayCoachImage = isFoundational ? 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd' : (coach.profileImageUrl || 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd');
     const currentDailyContent = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(content => content.day === selectedDay) : undefined;
 
     return (
@@ -122,7 +131,7 @@ const SprintPreviewPage: React.FC = () => {
                     </button>
                     <div>
                         <h1 className="text-3xl font-black text-gray-900 tracking-tight">Sprint Preview</h1>
-                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{sprint.title}</p>
+                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-4">Gain Clarity First</p>
                     </div>
                 </header>
 
@@ -149,9 +158,9 @@ const SprintPreviewPage: React.FC = () => {
                     </div>
 
                     {previewType === 'card' && (
-                        <div className="animate-fade-in flex flex-col items-center">
-                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6 px-4">Registry Card Preview</h4>
-                            <div className="w-full max-w-[320px]">
+                        <div className="animate-fade-in flex flex-col items-center py-6">
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6 text-center">Registry Card Preview</h4>
+                            <div className="w-full max-w-[320px] text-left">
                                 <SprintCard 
                                     sprint={sprint} 
                                     coach={coach} 
@@ -163,14 +172,97 @@ const SprintPreviewPage: React.FC = () => {
                     )}
 
                     {previewType === 'landing' && (
-                        <div className="animate-fade-in text-left">
-                            <div className="space-y-8">
-                                {Array.isArray(sprint.dynamicSections) && sprint.dynamicSections.map((section, index) => (
-                                    <section key={index} className="bg-white rounded-[2.5rem] p-10 md:p-14 border border-gray-100 shadow-sm">
-                                        <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">{section.title}</h2>
-                                        <DynamicSectionRenderer section={section} />
-                                    </section>
-                                ))}
+                        <div className="animate-fade-in text-left bg-[#F8F9FA] -mx-8 -mb-8 p-6 md:p-10 rounded-b-[2.5rem] border-t border-gray-100">
+                            <div className="max-w-screen-lg mx-auto">
+                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                                    <div className="lg:col-span-8 space-y-8">
+                                        {/* HERO SECTION */}
+                                        <div className="relative h-[280px] sm:h-[340px] rounded-[3rem] overflow-hidden shadow-2xl group border-4 border-white bg-dark">
+                                            <img 
+                                                src={sprint.coverImageUrl || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80'} 
+                                                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                                                alt={sprint.title} 
+                                                referrerPolicy="no-referrer"
+                                                onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80'; }}
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
+                                            <div className="absolute bottom-10 left-10 right-10 text-white">
+                                                <div className="mb-4">
+                                                    <span className="pl-3 pr-2 py-1.5 bg-[#0E7850] text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg inline-flex items-center">
+                                                        {isFoundational ? 'FOUNDATIONAL PATH' : 'PREMIUM SPRINT'}
+                                                    </span>
+                                                </div>
+                                                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-4">
+                                                    <FormattedText text={sprint.title} inline />
+                                                </h1>
+                                                {sprint.subtitle && (
+                                                    <p className="text-white/70 text-sm md:text-base font-medium tracking-tight mb-6 leading-snug max-w-xl">
+                                                        {sprint.subtitle}
+                                                    </p>
+                                                )}
+                                                <div className="flex items-center gap-2 text-white/40 text-[11px] font-black uppercase tracking-[0.2em]">
+                                                    <Clock className="w-3 h-3" />
+                                                    {sprint.duration} DAY JOURNEY
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* MAIN CONTENT */}
+                                        <div className="space-y-8">
+                                            <section className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-sm animate-fade-in">
+                                                <h2 className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-4">Sprint Overview</h2>
+                                                
+                                                <div className="space-y-8">
+                                                    {(sprint.description || sprint.subtitle) && (
+                                                        <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed">
+                                                            {sprint.description || sprint.subtitle}
+                                                        </p>
+                                                    )}
+
+                                                    {Array.isArray(sprint.dynamicSections) && sprint.dynamicSections
+                                                        .filter(section => section.body && section.body.trim().length > 0)
+                                                        .map((section, index) => (
+                                                            <div key={index} className="animate-fade-in pt-4 border-t border-gray-50">
+                                                                {section.id !== 'overview' && <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">{section.title}</h3>}
+                                                                <DynamicSectionRenderer section={section} />
+                                                            </div>
+                                                        ))
+                                                    }
+                                                </div>
+                                            </section>
+                                        </div>
+                                    </div>
+
+                                    <aside className="lg:col-span-4 space-y-6">
+                                        <div className="bg-white rounded-[3rem] p-10 border border-gray-100 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] overflow-hidden relative group/card text-center">
+                                            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary/40 via-primary to-primary/40"></div>
+                                            <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl group-hover/card:bg-primary/10 transition-colors duration-700"></div>
+
+                                            <div className="text-center mb-10 relative z-10">
+                                                <h2 className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-4">Sprint Status</h2>
+                                                <div className="flex flex-col items-center">
+                                                    <h3 className="text-4.5xl font-black text-gray-900 tracking-tighter leading-none mb-1">
+                                                        {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost || 0}` : `₦${(sprint.price || 0).toLocaleString()}`}
+                                                    </h3>
+                                                    <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Authorized Access</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Coach Info */}
+                                            <div className="pt-8 border-t border-gray-100 relative z-10 text-left">
+                                                <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-4 text-center">Grounded Mentor</p>
+                                                <div className="flex items-center gap-4">
+                                                    <img src={displayCoachImage} className="w-14 h-14 rounded-2xl object-cover border-2 border-white shadow-md" alt="" />
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-black text-gray-900 tracking-tight leading-none mb-1 uppercase">{displayCoachName}</p>
+                                                        <p className="text-[10px] font-black text-[#159E6A]/80 uppercase tracking-widest mb-1">{isFoundational ? 'AI Coach' : (coach.niche || 'Grounded Specialist')}</p>
+                                                    </div>
+                                                </div>
+                                                <p className="mt-4 text-[11px] text-gray-500 font-medium leading-relaxed italic">{isFoundational ? 'Systems architect for the Vectorise core training modules.' : (coach.bio || 'Authorised Mentor.')}</p>
+                                            </div>
+                                        </div>
+                                    </aside>
+                                </div>
                             </div>
                         </div>
                     )}

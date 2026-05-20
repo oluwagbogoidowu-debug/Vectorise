@@ -25,13 +25,37 @@ const AdminSprints: React.FC = () => {
   }, []);
 
   const filteredSprints = useMemo(() => {
+    let filtered: Sprint[] = [];
     switch (sprintFilter) {
-      case 'active': return sprints.filter(s => s.approvalStatus === 'approved');
-      case 'core': return sprints.filter(s => s.category === 'Core Platform Sprint' || s.category === 'Growth Fundamentals');
-      case 'pending': return sprints.filter(s => s.approvalStatus === 'pending_approval');
-      case 'rejected': return sprints.filter(s => s.approvalStatus === 'rejected');
-      default: return sprints;
+      case 'active':
+        filtered = sprints.filter(s => s.approvalStatus === 'approved');
+        break;
+      case 'core':
+        filtered = sprints.filter(s => 
+          s.sprintType === 'Foundational' || 
+          s.sprintType === 'Fundamentals' || 
+          s.sprintType === 'Core' || 
+          s.sprintType === 'Expert' || 
+          s.category === 'Core Platform Sprint' || 
+          s.category === 'Growth Fundamentals'
+        );
+        break;
+      case 'pending':
+        filtered = sprints.filter(s => s.approvalStatus === 'pending_approval');
+        break;
+      case 'rejected':
+        filtered = sprints.filter(s => s.approvalStatus === 'rejected');
+        break;
+      default:
+        filtered = sprints;
+        break;
     }
+
+    return [...filtered].sort((a, b) => {
+      const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return timeB - timeA;
+    });
   }, [sprints, sprintFilter]);
 
   const handleDelete = async () => {
@@ -102,12 +126,7 @@ const AdminSprints: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-        <div>
-          <h3 className="text-2xl font-black text-gray-900 tracking-tight italic">Registry Catalog</h3>
-        </div>
-        <Link to="/admin/sprint/new"><Button className="px-8 py-3.5 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20">+ Launch Platform Sprint</Button></Link>
-      </div>
+
       <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar border-b border-gray-50">
         {['all', 'active', 'core', 'pending', 'rejected'].map(f => (
           <button key={f} onClick={() => setSprintFilter(f as SprintFilter)} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap border ${sprintFilter === f ? 'bg-primary text-white border-primary shadow-md' : 'bg-white text-gray-400 border-gray-100 hover:border-primary/20 hover:text-primary'}`}>{f.replace('_', ' ')}</button>

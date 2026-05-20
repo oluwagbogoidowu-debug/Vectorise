@@ -147,6 +147,9 @@ const SprintLandingPage: React.FC = () => {
     if (!sprint) return <div className="min-h-screen flex flex-col items-center justify-center bg-light text-center px-4"><h2 className="text-base font-black mb-2">Registry item not found.</h2><Button onClick={() => navigate('/explore')}>Discover Paths</Button></div>;
 
     const isFoundational = sprint.sprintType === 'Foundational' || 
+                           sprint.sprintType === 'Fundamentals' ||
+                           sprint.sprintType === 'Core' ||
+                           sprint.sprintType === 'Expert' ||
                            sprint.category === 'Core Platform Sprint' || 
                            sprint.category === 'Growth Fundamentals';
 

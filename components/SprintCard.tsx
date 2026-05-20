@@ -77,6 +77,9 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
 
     const displayCoach = useMemo(() => {
         const isFoundational = sprint.sprintType === 'Foundational' || 
+                              sprint.sprintType === 'Fundamentals' ||
+                              sprint.sprintType === 'Core' ||
+                              sprint.sprintType === 'Expert' ||
                               sprint.category === 'Growth Fundamentals' || 
                               sprint.category === 'Core Platform Sprint';
         

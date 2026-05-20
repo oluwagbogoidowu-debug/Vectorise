@@ -26,6 +26,9 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
     const isFoundational = sprint.sprintType === 'Foundational' || 
+                           sprint.sprintType === 'Fundamentals' ||
+                           sprint.sprintType === 'Core' ||
+                           sprint.sprintType === 'Expert' ||
                            sprint.category === 'Core Platform Sprint' || 
                            sprint.category === 'Growth Fundamentals';
 

@@ -194,6 +194,9 @@ const ProgramDescription: React.FC = () => {
   }
 
   const isFoundational = sprint.sprintType === 'Foundational' || 
+                         sprint.sprintType === 'Fundamentals' ||
+                         sprint.sprintType === 'Core' ||
+                         sprint.sprintType === 'Expert' ||
                          sprint.category === 'Core Platform Sprint' || 
                          sprint.category === 'Growth Fundamentals';
 

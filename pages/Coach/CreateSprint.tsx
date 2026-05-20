@@ -45,7 +45,7 @@ const CreateSprint: React.FC = () => {
         duration: number;
         price: string;
         outcomeTag: string;
-        sprintType: 'Foundational' | 'Execution' | 'Skill';
+        sprintType: 'Fundamentals' | 'Core' | 'Expert';
         pricingType: 'cash' | 'credits';
         pointCost: number;
     }>({
@@ -60,7 +60,7 @@ const CreateSprint: React.FC = () => {
         duration: 7,
         price: '0',
         outcomeTag: OUTCOME_TAGS[0],
-        sprintType: 'Execution' as 'Foundational' | 'Execution' | 'Skill',
+        sprintType: 'Fundamentals' as 'Fundamentals' | 'Core' | 'Expert',
         pricingType: 'cash',
         pointCost: 0,
     });
@@ -280,9 +280,9 @@ const CreateSprint: React.FC = () => {
                                     <div>
                                         <label className={labelClasses}>Sprint Type</label>
                                         <select name="sprintType" value={formData.sprintType} onChange={handleChange} className={inputClasses + " mt-2"}>
-                                            <option value="Foundational">Foundational</option>
-                                            <option value="Execution">Execution</option>
-                                            <option value="Skill">Skill</option>
+                                            <option value="Fundamentals">Fundamentals</option>
+                                            <option value="Core">Core</option>
+                                            <option value="Expert">Expert</option>
                                         </select>
                                     </div>
                                 </div>
@@ -371,9 +371,9 @@ const CreateSprint: React.FC = () => {
                             </div>
 
                             {previewType === 'card' ? (
-                                <div className="animate-fade-in flex flex-col items-center">
-                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6 px-4">Registry Card Preview</h4>
-                                    <div className="w-full max-w-[320px]">
+                                <div className="animate-fade-in flex flex-col items-center text-left">
+                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6 px-4 text-center w-full">Registry Card Preview</h4>
+                                    <div className="w-full max-w-[320px] text-left">
                                         <SprintCard 
                                             sprint={previewSprint as Sprint} 
                                             coach={user as Coach} 
@@ -383,7 +383,7 @@ const CreateSprint: React.FC = () => {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="animate-fade-in">
+                                <div className="animate-fade-in text-left">
                                     <LandingPreview sprint={previewSprint} coach={user as Coach} />
                                 </div>
                             )}

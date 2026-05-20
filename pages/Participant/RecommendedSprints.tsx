@@ -35,13 +35,23 @@ const RecommendedSprints: React.FC = () => {
 
     // Phase 01: Strictly 1 Platform-Owned Foundational Sprint
     let foundational = availableSprints.find(s => 
-        s.category === 'Growth Fundamentals' || s.category === 'Core Platform Sprint'
+        s.sprintType === 'Foundational' ||
+        s.sprintType === 'Fundamentals' ||
+        s.sprintType === 'Core' ||
+        s.sprintType === 'Expert' ||
+        s.category === 'Growth Fundamentals' || 
+        s.category === 'Core Platform Sprint'
     );
     if (!foundational) foundational = availableSprints[0];
 
     // Phase 02: Strictly 1 Coach-Led Registry Sprint
     const registrySprints = availableSprints.filter(s => 
-        s.category !== 'Growth Fundamentals' && s.category !== 'Core Platform Sprint'
+        s.sprintType !== 'Foundational' &&
+        s.sprintType !== 'Fundamentals' &&
+        s.sprintType !== 'Core' &&
+        s.sprintType !== 'Expert' &&
+        s.category !== 'Growth Fundamentals' && 
+        s.category !== 'Core Platform Sprint'
     );
     
     let nextPath = registrySprints.find(s => s.id === targetSprintId);

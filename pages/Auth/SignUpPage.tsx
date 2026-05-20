@@ -124,7 +124,12 @@ const SignUpPage: React.FC = () => {
                   const sprint = await sprintService.getSprintById(targetSprintId);
                   if (sprint) {
                       // Check if it's a foundational/free sprint or if they came from payment
-                      const isFoundational = sprint.category === 'Core Platform Sprint' || sprint.category === 'Growth Fundamentals';
+                      const isFoundational = sprint.sprintType === 'Foundational' || 
+                                             sprint.sprintType === 'Fundamentals' ||
+                                             sprint.sprintType === 'Core' ||
+                                             sprint.sprintType === 'Expert' ||
+                                             sprint.category === 'Core Platform Sprint' || 
+                                             sprint.category === 'Growth Fundamentals';
                       if (fromPayment || isFoundational || sprint.price === 0) {
                           const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprintId, sprint.duration);
                           navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
@@ -144,11 +149,21 @@ const SignUpPage: React.FC = () => {
               
               // Recalculate path (same logic as RecommendedSprints.tsx)
               let foundational = availableSprints.find(s => 
-                  s.category === 'Growth Fundamentals' || s.category === 'Core Platform Sprint'
+                  s.sprintType === 'Foundational' ||
+                  s.sprintType === 'Fundamentals' ||
+                  s.sprintType === 'Core' ||
+                  s.sprintType === 'Expert' ||
+                  s.category === 'Growth Fundamentals' || 
+                  s.category === 'Core Platform Sprint'
               );
               
               const registrySprints = availableSprints.filter(s => 
-                  s.category !== 'Growth Fundamentals' && s.category !== 'Core Platform Sprint'
+                  s.sprintType !== 'Foundational' &&
+                  s.sprintType !== 'Fundamentals' &&
+                  s.sprintType !== 'Core' &&
+                  s.sprintType !== 'Expert' &&
+                  s.category !== 'Growth Fundamentals' && 
+                  s.category !== 'Core Platform Sprint'
               );
               
               let nextPath = registrySprints.find(s => s.id === targetSprintId);
