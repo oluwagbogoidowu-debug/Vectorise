@@ -87,7 +87,7 @@ const SignUpPage: React.FC = () => {
         enrolledSprintIds: [],
         isPartner: !!isPartnerApplication,
         partnerData: partnerData || null,
-        walletBalance: 200, // Explicit account creation coin gift
+        walletBalance: 50, // Explicit account creation coin gift
         
         // ATTACH REFERRAL DATA PERMANENTLY
         referrerId: referrerId || null,

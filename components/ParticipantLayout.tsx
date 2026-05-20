@@ -69,7 +69,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
             <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6 relative animate-bounce">
               <span className="text-4xl">🪙</span>
               <div className="absolute -top-1 -right-1 bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                +200 FREE
+                +50 FREE
               </div>
             </div>
 
@@ -78,7 +78,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
               Your account is open!
             </p>
             <p className="text-gray-500 font-medium text-xs sm:text-sm leading-relaxed mb-6">
-              You've been successfully registered and awarded an account creation gift of <span className="text-gray-950 font-black">200 coins</span>! 🪙
+              You've been successfully registered and awarded an account creation gift of <span className="text-gray-950 font-black">50 coins</span>! 🪙
               <br />
               <span className="inline-block mt-2">
                 Use your coins to unlock the full <span className="text-gray-900 font-bold italic">"{pendingSprint.title}"</span> sprint and complete the remaining Day 1 actions.
@@ -92,7 +92,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
               </div>
               <div className="text-right">
                 <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Your Gift Balance</p>
-                <p className="text-sm font-black text-emerald-600">🪙 {(user as any)?.walletBalance ?? 200} coins</p>
+                <p className="text-sm font-black text-emerald-600">🪙 {(user as any)?.walletBalance ?? 50} coins</p>
               </div>
             </div>
 
@@ -109,7 +109,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                     // Award coins if their current balance doesn't cover it (already handles the free award UX beautifully)
                     const userBalance = (user as any).walletBalance ?? 0;
                     if (userBalance < cost) {
-                      await userService.updateUserDocument(user.id, { walletBalance: 200 });
+                      await userService.updateUserDocument(user.id, { walletBalance: 50 });
                     }
 
                     // Deduct standard coins
