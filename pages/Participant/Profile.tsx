@@ -89,7 +89,7 @@ const Profile: React.FC = () => {
 
     // Determine initial setup step if incomplete
     if (!userService.isIdentitySet(p)) {
-      setSetupStep(0); 
+      setSetupStep(1); 
     } else {
       setSetupStep(-1); // Complete
     }
@@ -288,8 +288,8 @@ const Profile: React.FC = () => {
     }
   };
 
-  const totalSetupSteps = 12;
-  const setupProgress = (isLoading || setupStep === -2) ? 0 : (setupStep === -1 ? 100 : Math.max(0, Math.min(99, Math.round((Math.max(0, setupStep) / totalSetupSteps) * 100))));
+  const totalSetupSteps = 11;
+  const setupProgress = (isLoading || setupStep === -2) ? 0 : (setupStep === -1 ? 100 : Math.max(0, Math.min(99, Math.round(((setupStep - 1) / (totalSetupSteps - 1)) * 100))));
 
   const SectionLabel = ({ text }: { text: string }) => (
     <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2 px-1">
@@ -375,19 +375,6 @@ const Profile: React.FC = () => {
                   style={{ width: `${setupProgress}%` }}
                 />
               </div>
-
-              {/* Step 0: Start Screen */}
-              {setupStep === 0 && (
-                <div className="animate-fade-in py-8 text-center flex flex-col items-center justify-center min-h-[320px]">
-                  <div className="w-20 h-20 bg-[#E6F2ED] rounded-3xl flex items-center justify-center mx-auto mb-8">
-                    <span className="text-3xl">👋</span>
-                  </div>
-                  <h3 className="text-xl font-black text-gray-900 mb-3">Welcome to your journey</h3>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.05em] leading-relaxed px-4">
-                    We're excited to help you grow. Let's start by setting up your identity profile.
-                  </p>
-                </div>
-              )}
 
               {/* Step 1: Persona */}
               {setupStep === 1 && (
@@ -527,16 +514,9 @@ const Profile: React.FC = () => {
               )}
 
               {/* Navigation Controls for Quiz Steps */}
-              {setupStep >= 0 && setupStep < 11 && (
+              {setupStep >= 1 && setupStep < 11 && (
                 <div className="mt-4 flex gap-2">
-                  {setupStep === 0 ? (
-                    <button 
-                      onClick={handleStartSetup}
-                      className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-[0.15em] text-[11px] shadow-lg shadow-emerald-900/10 active:scale-95 transition-all"
-                    >
-                      Let us get to know you better
-                    </button>
-                  ) : setupStep === 1 ? (
+                  {setupStep === 1 ? (
                     <button 
                       onClick={() => setSetupStep(2)}
                       disabled={!tempPersona}

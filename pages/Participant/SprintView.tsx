@@ -628,6 +628,12 @@ const SprintView: React.FC = () => {
   const [globalSettings, setGlobalSettings] =
     useState<GlobalOrchestrationSettings | null>(null);
 
+  const dayContent = Array.isArray(sprint?.dailyContent)
+    ? sprint?.dailyContent.find((dc) => dc.day === viewingDay)
+    : undefined;
+
+  const dayProgress = enrollment?.progress?.find((p) => p.day === viewingDay);
+
   useEffect(() => {
     if (!enrollmentId) return;
     const unsubscribe = sprintService.subscribeToEnrollment(
@@ -698,24 +704,36 @@ const SprintView: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const pendingRaw = localStorage.getItem('pending_first_action');
-    if (viewingDay === 1 && pendingRaw && sprint) {
-      try {
-        const pending = JSON.parse(pendingRaw);
-        if (pending && pending.sprintId === sprint.id && pending.firstActionInput) {
-          setTaskInputs([pending.firstActionInput, "", ""]);
-        } else {
-          setTaskInputs(["", "", ""]);
-        }
-      } catch (err) {
-        setTaskInputs(["", "", ""]);
-      }
+    const promptsLength = dayContent?.taskPrompts?.length || 1;
+    
+    if (dayProgress?.answers && Array.isArray(dayProgress.answers)) {
+      const loaded = Array.from({ length: promptsLength }, (_, idx) => dayProgress.answers?.[idx] || "");
+      setTaskInputs(loaded);
+    } else if (dayProgress?.submission) {
+      const parts = dayProgress.submission.split(" | ");
+      const loaded = Array.from({ length: promptsLength }, (_, idx) => parts[idx] || "");
+      setTaskInputs(loaded);
     } else {
-      setTaskInputs(["", "", ""]);
+      const pendingRaw = localStorage.getItem('pending_first_action');
+      if (viewingDay === 1 && pendingRaw && sprint) {
+        try {
+          const pending = JSON.parse(pendingRaw);
+          if (pending && pending.sprintId === sprint.id && pending.firstActionInput) {
+            const loaded = Array.from({ length: promptsLength }, (_, idx) => idx === 0 ? pending.firstActionInput : "");
+            setTaskInputs(loaded);
+          } else {
+            setTaskInputs(Array(promptsLength).fill(""));
+          }
+        } catch (err) {
+          setTaskInputs(Array(promptsLength).fill(""));
+        }
+      } else {
+        setTaskInputs(Array(promptsLength).fill(""));
+      }
     }
     setActiveTaskIndex(0);
     setRevealedHints({});
-  }, [viewingDay, sprint]);
+  }, [viewingDay, sprint, dayProgress, dayContent]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
@@ -934,6 +952,7 @@ const SprintView: React.FC = () => {
               completed: true,
               completedAt: timestamp,
               submission: taskInputs.filter((ti) => ti.trim()).join(" | "),
+              answers: taskInputs,
             }
           : p,
       );
@@ -1071,12 +1090,6 @@ const SprintView: React.FC = () => {
       toast.error("Failed to check in");
     }
   };
-
-  const dayContent = Array.isArray(sprint?.dailyContent)
-    ? sprint?.dailyContent.find((dc) => dc.day === viewingDay)
-    : undefined;
-
-  const dayProgress = enrollment?.progress?.find((p) => p.day === viewingDay);
 
   const isProofMet = useMemo(() => {
     if (!dayContent) return false;
@@ -1398,21 +1411,34 @@ const SprintView: React.FC = () => {
                                         prevIndex >= 0;
                                         prevIndex--
                                       ) {
-                                        if (
-                                          dayContent.taskLinkedToNext?.[
-                                            prevIndex
-                                          ]
-                                        ) {
-                                          if (
-                                            dayContent.taskInputTypes?.[
-                                              prevIndex
-                                            ] === "tags"
-                                          ) {
+                                        const isLinked = 
+                                          dayContent.taskLinkedToNext?.[prevIndex] === true ||
+                                          (dayContent.taskLinkedToNext?.[prevIndex] as any) === "true";
+                                        if (isLinked) {
+                                          const inputType = String(
+                                            dayContent.taskInputTypes?.[prevIndex] || ""
+                                          ).trim().toLowerCase();
+                                          if (inputType === "tags") {
                                             linkedSourceIndex = prevIndex;
                                             break;
                                           }
-                                        } else {
-                                          break;
+                                        }
+                                      }
+
+                                      // Robust fallback: if not explicitly linked, use closest previous tags step
+                                      if (linkedSourceIndex === -1) {
+                                        for (
+                                          let prevIndex = i - 1;
+                                          prevIndex >= 0;
+                                          prevIndex--
+                                        ) {
+                                          const inputType = String(
+                                            dayContent.taskInputTypes?.[prevIndex] || ""
+                                          ).trim().toLowerCase();
+                                          if (inputType === "tags") {
+                                            linkedSourceIndex = prevIndex;
+                                            break;
+                                          }
                                         }
                                       }
 

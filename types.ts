@@ -212,6 +212,7 @@ export interface ParticipantSprint {
     submission?: string;
     submissionFileUrl?: string;
     proofSelection?: string;
+    answers?: string[];
   }[];
 }
 
