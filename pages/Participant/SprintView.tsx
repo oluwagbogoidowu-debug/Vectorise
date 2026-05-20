@@ -1331,10 +1331,10 @@ const SprintView: React.FC = () => {
                                         [i]: !prev[i],
                                       }))
                                     }
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
+                                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest transition-all ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
                                   >
                                     <svg
-                                      className={`w-3.5 h-3.5 transition-transform duration-300 ${revealedHints[i] ? "rotate-180" : ""}`}
+                                      className={`w-3 h-3 transition-transform duration-300 ${revealedHints[i] ? "rotate-180" : ""}`}
                                       fill="none"
                                       viewBox="0 0 24 24"
                                       stroke="currentColor"
@@ -1351,7 +1351,7 @@ const SprintView: React.FC = () => {
                                       : "View Hint"}
                                   </button>
                                   {revealedHints[i] && (
-                                    <div className="mt-3 p-4 bg-amber-50/50 border border-amber-100 rounded-xl text-sm font-medium text-amber-900 animate-fade-in leading-relaxed italic">
+                                    <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
                                       <FormattedText
                                         text={dayContent.taskHints[i]}
                                       />
@@ -1594,10 +1594,10 @@ const SprintView: React.FC = () => {
                                   0: !prev[0],
                                 }))
                               }
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${revealedHints[0] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
+                              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest transition-all ${revealedHints[0] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
                             >
                               <svg
-                                className={`w-3.5 h-3.5 transition-transform duration-300 ${revealedHints[0] ? "rotate-180" : ""}`}
+                                className={`w-3 h-3 transition-transform duration-300 ${revealedHints[0] ? "rotate-180" : ""}`}
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -1612,7 +1612,7 @@ const SprintView: React.FC = () => {
                               {revealedHints[0] ? "Hide Hint" : "View Hint"}
                             </button>
                             {revealedHints[0] && (
-                              <div className="mt-3 p-4 bg-amber-50/50 border border-amber-100 rounded-xl text-sm font-medium text-amber-900 animate-fade-in leading-relaxed italic">
+                              <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
                                 <FormattedText text={dayContent.taskHints[0]} />
                               </div>
                             )}
