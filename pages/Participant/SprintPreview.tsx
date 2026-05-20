@@ -43,8 +43,6 @@ const SprintPreview: React.FC = () => {
     if (!sprint) return <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center"><h2 className="text-base font-black mb-4">Sprint not found.</h2><button onClick={() => navigate('/discover')} className="text-primary font-black uppercase tracking-widest text-xs">Back to Discover</button></div>;
 
     const day1Content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
-    
-    const insightParts = { visible: day1Content?.lessonText || "", locked: "" };
 
     return (
         <div className="w-full bg-[#FAFAFA] min-h-screen flex flex-col font-sans text-dark animate-fade-in pb-24">
@@ -79,24 +77,11 @@ const SprintPreview: React.FC = () => {
                 <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden">
                     <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day 1 (Preview)</h2>
                     
-                    {/* Lesson Content - Paragraph Based Lock with Blur */}
-                    <div className="space-y-2 mb-10 relative">
+                    {/* Lesson Content - Fully Visible */}
+                    <div className="space-y-2 mb-10">
                         <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Insight</h2>
-                        <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch] relative">
-                            <FormattedText text={insightParts.visible} />
-                            {insightParts.locked && (
-                                <div className="relative mt-4">
-                                    <div className="blur-[4px] select-none pointer-events-none opacity-40">
-                                        <FormattedText text={insightParts.locked} />
-                                    </div>
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                        <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-white/80 px-4 py-2 rounded-full shadow-sm backdrop-blur-sm">
-                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                                            Sprint Locked
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+                        <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
+                            <FormattedText text={day1Content?.lessonText || ""} />
                         </div>
                     </div>
 
