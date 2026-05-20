@@ -1260,13 +1260,16 @@ const SprintView: React.FC = () => {
                                   <div className="space-y-2">
                                     {(() => {
                                       let pollOptions: string[] = [];
+                                      let customOptions: string[] = [];
                                       if (dayContent.taskPollOptions?.[i]) {
                                         try {
-                                          pollOptions = JSON.parse(
+                                          customOptions = JSON.parse(
                                             dayContent.taskPollOptions[i],
                                           );
                                         } catch (e) {}
                                       }
+                                      customOptions = customOptions.filter(Boolean);
+
                                       let linkedSourceIndex = -1;
                                       for (
                                         let prevIndex = i - 1;
@@ -1291,12 +1294,13 @@ const SprintView: React.FC = () => {
                                         }
                                       }
 
+                                      let dynamicOptions: string[] = [];
                                       if (
                                         linkedSourceIndex !== -1 &&
                                         taskInputs[linkedSourceIndex]
                                       ) {
                                         try {
-                                          pollOptions = taskInputs[
+                                          dynamicOptions = taskInputs[
                                             linkedSourceIndex
                                           ].startsWith("[")
                                             ? JSON.parse(
@@ -1307,9 +1311,15 @@ const SprintView: React.FC = () => {
                                                 .split(",")
                                                 .filter(Boolean);
                                         } catch (e) {
-                                          pollOptions = [];
+                                          dynamicOptions = [];
                                         }
                                       }
+                                      dynamicOptions = dynamicOptions.filter(Boolean);
+
+                                      pollOptions = linkedSourceIndex !== -1
+                                        ? [...dynamicOptions, ...customOptions]
+                                        : customOptions;
+
                                       return pollOptions
                                         .filter(Boolean)
                                         .map(

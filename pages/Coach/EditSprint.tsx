@@ -542,7 +542,9 @@ const EditSprint: React.FC = () => {
         
         let optionsForPrompt: string[] = [];
         try { optionsForPrompt = JSON.parse(currentOptions[promptIndex]); } catch (e) {}
-        if (optionsForPrompt.length <= 4) return prev; // Keep at least 4
+        
+        const isLinked = promptIndex > 0 && updatedDailyContent[existingContentIndex].taskLinkedToNext?.[promptIndex - 1];
+        if (!isLinked && optionsForPrompt.length <= 4) return prev; // Keep at least 4
         
         optionsForPrompt.splice(optionIndex, 1);
         currentOptions[promptIndex] = JSON.stringify(optionsForPrompt);
@@ -577,9 +579,10 @@ const EditSprint: React.FC = () => {
             if (currentPrompts.length <= index + 1) {
                 currentPrompts.push('');
                 currentTypes.push('poll');
-                currentOptions.push(JSON.stringify(['', '', '', '']));
+                currentOptions.push(JSON.stringify([]));
             } else {
                 currentTypes[index + 1] = 'poll';
+                currentOptions[index + 1] = JSON.stringify([]);
             }
         }
         
@@ -1190,12 +1193,61 @@ const EditSprint: React.FC = () => {
                                                 <div className="mt-3 pl-2 border-l-2 border-primary/20 space-y-2">
                                                     {isLinkedFromPrevious ? (
                                                         <div className="space-y-3">
-                                                            <p className="text-xs font-medium text-primary italic px-2">Poll options will be generated automatically from the participant's tags in the root step.</p>
+                                                            <div className="bg-primary/5 rounded-xl p-3 border border-primary/10">
+                                                                <p className="text-xs font-medium text-primary italic flex items-center gap-1.5">
+                                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                                                    <span>Poll options will be generated automatically from the participant's tags in the root step.</span>
+                                                                </p>
+                                                            </div>
+                                                            <div className="mt-3 pt-3 border-t border-dashed border-gray-100 space-y-2">
+                                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2 flex items-center gap-1">
+                                                                    <span>Additional Custom Options</span>
+                                                                    <span className="text-gray-300 font-normal lowercase">(optional)</span>
+                                                                </label>
+                                                                {(() => {
+                                                                    let opts: string[] = [];
+                                                                    if (currentContent.taskPollOptions?.[index]) {
+                                                                        try { opts = JSON.parse(currentContent.taskPollOptions[index]); } catch(e) {}
+                                                                    }
+                                                                    return opts.map((opt, optIndex) => (
+                                                                        <div key={optIndex} className="flex gap-2 items-center group/opt">
+                                                                            <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-50 text-gray-400 text-xs font-bold shrink-0">
+                                                                                +
+                                                                            </div>
+                                                                            <input 
+                                                                                type="text"
+                                                                                value={opt}
+                                                                                onChange={(e) => handleTaskPollOptionChange(index, optIndex, e.target.value)}
+                                                                                className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                                                                                placeholder="Add custom option..."
+                                                                            />
+                                                                            <button 
+                                                                                type="button"
+                                                                                onClick={() => removeTaskPollOption(index, optIndex)}
+                                                                                className="p-2 text-red-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-all opacity-0 group-hover/opt:opacity-100"
+                                                                            >
+                                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                            </button>
+                                                                        </div>
+                                                                    ));
+                                                                })()}
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        let currentLength = 0;
+                                                                        try { currentLength = JSON.parse(currentContent.taskPollOptions?.[index] || '[]').length; } catch(e) {}
+                                                                        handleTaskPollOptionChange(index, currentLength, '');
+                                                                    }}
+                                                                    className="pl-7 text-xs font-bold text-primary hover:text-primary/70 transition-colors flex items-center gap-1 mt-1"
+                                                                >
+                                                                    <Plus size={12} /> Add Custom Option
+                                                                </button>
+                                                            </div>
                                                             {!currentContent.taskLinkedToNext?.[index] && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleToggleLinkToNext(index)}
-                                                                    className="px-3 py-1.5 ml-2 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors flex items-center gap-1"
+                                                                    className="px-3 py-1.5 ml-2 mt-4 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors flex items-center gap-1"
                                                                 >
                                                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                                                                     Add another Follow-up Poll
