@@ -121,15 +121,19 @@ const SprintLandingPage: React.FC = () => {
             setEmailError('');
             try {
                 const emailExists = await userService.checkEmailExists(guestEmail);
-                if (emailExists) {
-                    // User exists, must login
-                    analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, existing_user: true }, undefined, guestEmail);
-                    navigate('/login', { state: { prefilledEmail: guestEmail, targetSprintId: sprint.id } });
-                } else {
-                    // New user, proceed to commitment
-                    analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, existing_user: false }, undefined, guestEmail);
-                    navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus, prefilledEmail: guestEmail } });
-                }
+                localStorage.setItem('guest_email', guestEmail);
+                
+                // Always proceed to commitment & preview flow to allow preview before logging in (as requested)
+                analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, existing_user: emailExists }, undefined, guestEmail);
+                navigate('/onboarding/commitment', { 
+                    state: { 
+                        sprintId: sprint.id, 
+                        sprint: sprint, 
+                        selectedFocus, 
+                        prefilledEmail: guestEmail,
+                        emailExists: emailExists
+                    } 
+                });
             } catch (err) {
                 console.error("Error checking email:", err);
                 setEmailError("Something went wrong. Please try again.");

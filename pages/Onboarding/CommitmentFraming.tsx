@@ -55,18 +55,10 @@ const CommitmentFraming: React.FC = () => {
     if (!isCommitted) return;
     
     setIsNavigating(true);
-    
-    const isFoundational = sprint && (
-      sprint.sprintType === 'Foundational' || 
-      sprint.sprintType === 'Fundamentals' || 
-      sprint.sprintType === 'Core' || 
-      sprint.sprintType === 'Expert' || 
-      sprint.category === 'Core Platform Sprint' || 
-      sprint.category === 'Growth Fundamentals'
-    );
 
     setTimeout(() => {
-      if (!user && isFoundational && sprint) {
+      if (!user && sprint) {
+        // Guest users (not logged in) always proceed to the preview page to execute action step 1 (as requested)
         navigate(`/sprint/preview/${sprint.id}`, { 
           state: { ...state } 
         });

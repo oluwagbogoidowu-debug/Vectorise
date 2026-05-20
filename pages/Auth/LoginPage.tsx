@@ -79,6 +79,28 @@ const LoginPage: React.FC = () => {
                           navigate('/participant/dashboard', { replace: true });
                           return;
                       } else if (targetSprintId) {
+                          const pendingFirstActionRaw = localStorage.getItem('pending_first_action');
+                          let pendingFirstAction = null;
+                          try {
+                              if (pendingFirstActionRaw) {
+                                  pendingFirstAction = JSON.parse(pendingFirstActionRaw);
+                              }
+                          } catch (err) {
+                              console.error("Error parsing pending_first_action:", err);
+                          }
+
+                          if (pendingFirstAction && pendingFirstAction.sprintId === targetSprintId) {
+                              if (pendingFirstAction.pricingType === 'cash') {
+                                  const sprint = await sprintService.getSprintById(targetSprintId);
+                                  navigate('/onboarding/sprint-payment', { state: { sprint: sprint, prefilledEmail: user.email } });
+                                  return;
+                              } else {
+                                  // Coin-based sprint target => redirect to dashboard where the coin award/unlock popup will trigger
+                                  navigate('/dashboard', { replace: true });
+                                  return;
+                              }
+                          }
+
                           const existing = enrollments.find(e => e.sprint_id === targetSprintId);
                           
                           if (existing) {

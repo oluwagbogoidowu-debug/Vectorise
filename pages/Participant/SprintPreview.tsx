@@ -19,9 +19,10 @@ const SprintPreview: React.FC = () => {
     const [activeTaskIndex, setActiveTaskIndex] = useState(0);
     const [taskInputs, setTaskInputs] = useState<string[]>([]);
     const [showSignupModal, setShowSignupModal] = useState(false);
+    const [showLockModal, setShowLockModal] = useState(false);
     const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
 
-    const prefilledEmail = location.state?.prefilledEmail;
+    const prefilledEmail = location.state?.prefilledEmail || localStorage.getItem('guest_email');
 
     useEffect(() => {
         const fetchSprint = async () => {
@@ -155,6 +156,20 @@ const SprintPreview: React.FC = () => {
                                                         toast.error("Please provide an answer to continue.");
                                                         return;
                                                     }
+
+                                                    if (!user) {
+                                                        // Explicit guest check. First action goes through but next action is locked
+                                                        const pendingObj = {
+                                                            sprintId: sprint.id,
+                                                            pricingType: sprint.pricingType || 'cash',
+                                                            firstActionInput: taskInputs[0],
+                                                            prefilledEmail: prefilledEmail || ''
+                                                        };
+                                                        localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
+                                                        setShowLockModal(true);
+                                                        return;
+                                                    }
+
                                                     if (i < activePrompts.length - 1) {
                                                         setActiveTaskIndex(i + 1);
                                                     } else {
@@ -201,6 +216,67 @@ const SprintPreview: React.FC = () => {
                 .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
             `}</style>
             
+            {showLockModal && sprint && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 max-w-sm w-full text-center relative overflow-hidden animate-slide-up border border-gray-100">
+                        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 text-primary">
+                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2 col-auto">Unlock Full Sprint</h3>
+                        <p className="text-amber-600 font-extrabold text-[10px] uppercase tracking-widest mb-4">
+                            Unlock full sprint at log in / sign up
+                        </p>
+                        <p className="text-gray-500 font-medium text-xs leading-relaxed mb-8">
+                            {sprint.pricingType === 'credits'
+                                ? "This is a coin-based sprint! Sign up now to receive your free coins gift and pay to unlock the full daily process."
+                                : "Check out securely to save your Day 1 progress and continue with the remaining steps."
+                            }
+                        </p>
+                        
+                        <div className="space-y-3">
+                            <button 
+                                onClick={() => {
+                                    const pendingObj = {
+                                        sprintId: sprint.id,
+                                        pricingType: sprint.pricingType || 'cash',
+                                        firstActionInput: taskInputs[0],
+                                        prefilledEmail: prefilledEmail || ''
+                                    };
+                                    localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
+                                    navigate('/signup', { state: { prefilledEmail, targetSprintId: sprintId } });
+                                }}
+                                className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-[#0b5d3e] transition-colors shadow-lg active:scale-95"
+                            >
+                                Sign Up and Unlock
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    const pendingObj = {
+                                        sprintId: sprint.id,
+                                        pricingType: sprint.pricingType || 'cash',
+                                        firstActionInput: taskInputs[0],
+                                        prefilledEmail: prefilledEmail || ''
+                                    };
+                                    localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
+                                    navigate('/login', { state: { prefilledEmail, targetSprintId: sprintId } });
+                                }}
+                                className="w-full py-4 bg-gray-50 text-gray-700 rounded-2xl font-black uppercase tracking-widest text-[9px] hover:bg-gray-100 transition-colors"
+                            >
+                                Log In to Unlock
+                            </button>
+                            <button 
+                                onClick={() => setShowLockModal(false)}
+                                className="w-full py-4 text-gray-400 rounded-2xl font-black uppercase tracking-widest text-[9px] hover:text-gray-500 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {showSignupModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 max-w-sm w-full text-center relative overflow-hidden animate-slide-up border border-gray-100">

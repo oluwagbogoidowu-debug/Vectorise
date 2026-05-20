@@ -87,6 +87,7 @@ const SignUpPage: React.FC = () => {
         enrolledSprintIds: [],
         isPartner: !!isPartnerApplication,
         partnerData: partnerData || null,
+        walletBalance: 200, // Explicit account creation coin gift
         
         // ATTACH REFERRAL DATA PERMANENTLY
         referrerId: referrerId || null,
@@ -114,6 +115,28 @@ const SignUpPage: React.FC = () => {
       document.cookie = "vectorise_ref=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
       // 5. Post-Payment, Preview, or Recommended Path Fulfillment
+      const pendingFirstActionRaw = localStorage.getItem('pending_first_action');
+      let pendingFirstAction = null;
+      try {
+          if (pendingFirstActionRaw) {
+              pendingFirstAction = JSON.parse(pendingFirstActionRaw);
+          }
+      } catch (err) {
+          console.error("Error parsing pending_first_action in SignUpPage:", err);
+      }
+
+      if (pendingFirstAction && pendingFirstAction.sprintId === targetSprintId) {
+          if (pendingFirstAction.pricingType === 'cash') {
+              const sprint = await sprintService.getSprintById(targetSprintId);
+              navigate('/onboarding/sprint-payment', { state: { sprint: sprint, prefilledEmail: email } });
+              return;
+          } else {
+              // Coin-based sprint target => redirect to dashboard where the coin award and unlock modal will trigger
+              navigate('/dashboard', { replace: true });
+              return;
+          }
+      }
+
       if (fromPayment || targetSprintId) {
           if (targetTrackId) {
               // For tracks, we redirect to dashboard
