@@ -380,7 +380,6 @@ export const userService = {
 
     const getStatValue = (id: string) => {
         switch(id) {
-            case 's1': return stats.started;
             case 's2': return stats.completed;
             case 's4': return stats.completed;
             case 'cm1': return stats.daysActive;
@@ -461,6 +460,8 @@ export const userService = {
 
   isIdentitySet: (user: Participant | null): boolean => {
     if (!user) return false;
+    if (user.isIdentityComplete) return true;
+    if (user.claimedMilestoneIds?.includes('setup_identity')) return true;
     return (user.growthAreas?.length || 0) === 5 && !!user.risePathway && !!user.profileImageUrl;
   }
 };

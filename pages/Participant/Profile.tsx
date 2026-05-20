@@ -27,6 +27,7 @@ const Profile: React.FC = () => {
   const [tempGrowthAreas, setTempGrowthAreas] = useState<string[]>([]);
   const [tempRisePathway, setTempRisePathway] = useState<string>('');
   const [tempProfileImageUrl, setTempProfileImageUrl] = useState<string | null>(null);
+  const [tempArchetype, setTempArchetype] = useState<string | null>(null);
   const [isSavingIdentity, setIsSavingIdentity] = useState(false);
 
   // Quiz Step Logic
@@ -86,6 +87,7 @@ const Profile: React.FC = () => {
     setTempGrowthAreas(p.growthAreas || []);
     setTempRisePathway(p.risePathway || '');
     setTempProfileImageUrl(p.profileImageUrl || null);
+    setTempArchetype(p.archetype || null);
 
     // Determine initial setup step if incomplete
     if (!userService.isIdentitySet(p)) {
@@ -130,7 +132,6 @@ const Profile: React.FC = () => {
 
     const getStatValue = (id: string) => {
         switch(id) {
-            case 's1': return startedSprints;
             case 's2': return completedSprints;
             case 's4': return totalTaskDays;
             case 'cm1': return totalTaskDays;
@@ -207,7 +208,7 @@ const Profile: React.FC = () => {
       setCurrentTaskGroupIdx(currentCount);
     }
     else if (!p.risePathway) setSetupStep(10);
-    else if (!p.profileImageUrl) setSetupStep(11);
+    else if (!p.archetype) setSetupStep(11);
     else setSetupStep(-1);
   };
 
@@ -231,18 +232,18 @@ const Profile: React.FC = () => {
   const handleSaveIdentity = async () => {
     setIsSavingIdentity(true);
     try {
+      const isComplete = setupStep === 11;
       await updateProfile(sanitizeData({ 
         persona: tempPersona,
         onboardingAnswers: tempOnboardingAnswers,
         growthAreas: tempGrowthAreas,
         risePathway: tempRisePathway,
-        profileImageUrl: tempProfileImageUrl
+        archetype: tempArchetype ?? p.archetype,
+        isIdentityComplete: isComplete || p.isIdentityComplete || false
       }));
       // If we just finished the last step, set setupStep to -1
       if (setupStep === 11) {
         setSetupStep(-1);
-        // Auto-claim Identity Setup
-        await userService.claimMilestone(user.id, 'setup_identity', 20, true);
       }
     } catch (e) {
       userService.queueNotification('error', "Failed to save identity settings.", { duration: 3000 });
@@ -466,50 +467,43 @@ const Profile: React.FC = () => {
                 </div>
               )}
 
-              {/* Step 11: Avatar Setup */}
+              {/* Step 11: Choose Archetype */}
               {setupStep === 11 && (
-                <div className="animate-fade-in min-h-[320px] flex flex-col items-center justify-center py-4">
-                  <h3 className="text-sm font-black text-gray-900 mb-1">Final Touch: Your Avatar</h3>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-8 text-center">Upload a photo to complete your profile</p>
+                <div className="animate-fade-in min-h-[320px]">
+                  <h3 className="text-sm font-black text-gray-900 mb-1">Choose Archetype</h3>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-6">Select the energy you want to embody.</p>
                   
-                  <div className="relative mb-8 group">
-                    <div className="w-32 h-32 rounded-[2.5rem] bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden relative">
-                      {tempProfileImageUrl ? (
-                        <img src={tempProfileImageUrl} alt="Preview" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="text-center">
-                          <svg className="w-8 h-8 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                          </svg>
-                          <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">Add Photo</span>
-                        </div>
-                      )}
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handleAvatarUpload}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                      />
-                    </div>
-                    {tempProfileImageUrl && (
-                      <button 
-                        onClick={() => setTempProfileImageUrl(null)}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all"
+                  <div className="grid grid-cols-2 gap-2 mb-6">
+                    {ARCHETYPES.map(arch => (
+                      <button
+                        key={arch.id}
+                        onClick={() => setTempArchetype(arch.id)}
+                        className={`p-3 rounded-2xl border text-[10px] font-bold text-left transition-all ${tempArchetype === arch.id ? 'bg-[#0E7850] text-white border-[#0E7850] shadow-md scale-[1.02]' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <div className="flex items-center gap-1.5 mb-1 text-base">
+                          <span>{arch.icon}</span>
+                        </div>
+                        <h4 className="font-black truncate">{arch.name}</h4>
+                        <p className="text-[8px] opacity-70 line-clamp-2 mt-0.5">{arch.description}</p>
                       </button>
-                    )}
+                    ))}
                   </div>
 
-                  <button 
-                    onClick={handleSaveIdentity}
-                    disabled={isSavingIdentity}
-                    className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-[0.15em] text-[11px] shadow-lg shadow-emerald-900/10 active:scale-95 transition-all"
-                  >
-                    {isSavingIdentity ? 'Saving...' : 'Complete Setup'}
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setSetupStep(10)}
+                      className="flex-1 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black uppercase tracking-widest text-[10px] border border-gray-100"
+                    >
+                      Back
+                    </button>
+                    <button 
+                      onClick={handleSaveIdentity}
+                      disabled={!tempArchetype || isSavingIdentity}
+                      className="flex-1 py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-[0.15em] text-[11px] shadow-lg shadow-emerald-900/10 active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      {isSavingIdentity ? 'Saving...' : 'Complete Setup'}
+                    </button>
+                  </div>
                 </div>
               )}
 

@@ -104,14 +104,6 @@ const ParticipantDashboard: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     
-    // Auto-claim First Sprint
-    const checkFirstSprint = async () => {
-      const p = user as Participant;
-      if (mySprints.length > 0 && !p.claimedMilestoneIds?.includes('s1')) {
-        await userService.claimMilestone(user.id, 's1', 5, true);
-      }
-    };
-
     const checkOtherMilestones = async () => {
       const p = user as Participant;
       const completedSprints = mySprints.filter(e => e.enrollment.progress.every(day => day.completed)).length;
@@ -130,7 +122,6 @@ const ParticipantDashboard: React.FC = () => {
     };
 
     if (!isLoading) {
-      checkFirstSprint();
       checkOtherMilestones();
     }
   }, [user, mySprints.length, isLoading]);

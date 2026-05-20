@@ -297,6 +297,7 @@ export interface Participant extends User {
   archetype?: string;
   growthAreas?: string[];
   risePathway?: string;
+  isIdentityComplete?: boolean;
   partnerCommissionClosed?: boolean;
   impactStats?: { peopleHelped: number; streak: number };
   occupation?: string;

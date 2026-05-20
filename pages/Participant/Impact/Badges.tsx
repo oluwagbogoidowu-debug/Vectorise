@@ -201,7 +201,6 @@ const Badges: React.FC = () => {
         
         const getStatValue = (id: string) => {
             switch(id) {
-                case 's1': return stats.started;
                 case 's2': return stats.completed;
                 case 's4': return stats.totalTaskDays;
                 case 'cm1': return stats.totalTaskDays;
