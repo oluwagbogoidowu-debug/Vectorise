@@ -125,16 +125,16 @@ const SprintPreview: React.FC = () => {
                                                 )}
                                             </div>
                                         )}
-                                        <input 
-                                            type="text"
+                                        <textarea 
+                                            rows={4}
                                             value={taskInputs[i] || ''}
                                             onChange={(e) => {
                                                 const newInputs = [...taskInputs];
                                                 newInputs[i] = e.target.value;
                                                 setTaskInputs(newInputs);
                                             }}
-                                            placeholder="Your response..."
-                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all mb-4"
+                                            placeholder="What's on your mind..."
+                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all mb-4 resize-none"
                                         />
                                         
                                         <div className="flex justify-between items-center gap-4 pt-4">

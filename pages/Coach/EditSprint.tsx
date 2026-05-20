@@ -195,9 +195,11 @@ const EditSprint: React.FC = () => {
   const [sprint, setSprint] = useState<Sprint | null>(null);
   const [selectedDay, setSelectedDay] = useState(1);
   const [previewTaskIndex, setPreviewTaskIndex] = useState(0);
+  const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
 
   useEffect(() => {
     setPreviewTaskIndex(0);
+    setConfirmDeleteIndex(null);
   }, [selectedDay]);
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -1140,6 +1142,23 @@ const EditSprint: React.FC = () => {
                                                         <Plus size={14} />
                                                         {currentContent.taskHints?.[index] !== undefined ? 'Hint Active' : 'Add Hint'}
                                                     </button>
+
+                                                    {(currentContent.taskPrompts?.length || 3) > 1 && (
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => {
+                                                                 if (prompt && prompt.trim() !== "") {
+                                                                     setConfirmDeleteIndex(index);
+                                                                 } else {
+                                                                     removeTaskPrompt(index);
+                                                                 }
+                                                             }}
+                                                            className="p-1 px-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50/50 rounded-lg transition-colors flex items-center justify-center ml-1"
+                                                            title="Remove Step"
+                                                        >
+                                                            <Trash2 size={13} strokeWidth={2} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                             {currentContent.taskHints?.[index] !== undefined && (
@@ -1231,16 +1250,7 @@ const EditSprint: React.FC = () => {
                                                 </div>
                                             )}
                                         </div>
-                                        {(currentContent.taskPrompts?.length || 3) > 1 && (
-                                            <button 
-                                                type="button"
-                                                onClick={() => removeTaskPrompt(index)}
-                                                className="p-3 text-red-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all self-stretch flex items-center justify-center opacity-0 group-hover:opacity-100"
-                                                title="Remove Step"
-                                            >
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                            </button>
-                                        )}
+
                                     </div>
                                 </div>
                             );
@@ -1371,6 +1381,38 @@ const EditSprint: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Action Step Confirmation Modal */}
+      {confirmDeleteIndex !== null && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl border border-gray-100 flex flex-col items-center text-center animate-scale-up">
+            <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-4">
+              <Trash2 size={24} />
+            </div>
+            <h3 className="text-base font-black text-gray-900 uppercase tracking-wider mb-2">Delete Action Step</h3>
+            <p className="text-xs text-gray-500 mb-6 leading-relaxed">This action step has written content. Are you sure you want to delete it permanently?</p>
+            <div className="flex gap-3 w-full">
+              <button 
+                type="button"
+                onClick={() => setConfirmDeleteIndex(null)}
+                className="flex-1 py-3 border border-gray-200 rounded-xl text-xs font-bold text-gray-500 hover:text-gray-700 bg-white active:scale-95 transition-all"
+              >
+                No, Keep
+              </button>
+              <button 
+                type="button"
+                onClick={() => {
+                  removeTaskPrompt(confirmDeleteIndex);
+                  setConfirmDeleteIndex(null);
+                }}
+                className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Registry Settings Modal */}
       {showSettings && (

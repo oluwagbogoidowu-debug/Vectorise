@@ -1,1208 +1,1796 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { ParticipantSprint, Sprint, DailyContent, GlobalOrchestrationSettings, MicroSelector, MicroSelectorStep, CoachingComment } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
-import { sprintService } from '../../services/sprintService';
-import { chatService } from '../../services/chatService';
-import { pushNotificationService } from '../../services/pushNotificationService';
-import { doc, updateDoc } from 'firebase/firestore';
-import { toast } from 'sonner';
-import { db } from '../../services/firebase';
-import FormattedText from '../../components/FormattedText';
-import LocalLogo from '../../components/LocalLogo';
-import SprintCompletionModal from '../../components/SprintCompletionModal';
-import PushPermissionModal from '../../components/PushPermissionModal';
-import ConfirmModal from '../../components/ConfirmModal';
-import { Participant } from '../../types';
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
+import {
+  ParticipantSprint,
+  Sprint,
+  DailyContent,
+  GlobalOrchestrationSettings,
+  MicroSelector,
+  MicroSelectorStep,
+  CoachingComment,
+} from "../../types";
+import { useAuth } from "../../contexts/AuthContext";
+import { sprintService } from "../../services/sprintService";
+import { chatService } from "../../services/chatService";
+import { pushNotificationService } from "../../services/pushNotificationService";
+import { doc, updateDoc } from "firebase/firestore";
+import { toast } from "sonner";
+import { db } from "../../services/firebase";
+import FormattedText from "../../components/FormattedText";
+import LocalLogo from "../../components/LocalLogo";
+import SprintCompletionModal from "../../components/SprintCompletionModal";
+import PushPermissionModal from "../../components/PushPermissionModal";
+import ConfirmModal from "../../components/ConfirmModal";
+import { Participant } from "../../types";
 
-import { PushToggle } from '../../components/PushToggle';
+import { PushToggle } from "../../components/PushToggle";
 
 const DayCompletionModal: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    day: number;
+  isOpen: boolean;
+  onClose: () => void;
+  day: number;
 }> = ({ isOpen, onClose, day }) => {
-    if (!isOpen) return null;
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 max-w-sm w-full text-center relative overflow-hidden animate-slide-up border border-gray-100">
-                <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6 text-green-500 relative">
-                    <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-20"></div>
-                    <svg className="w-12 h-12 relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                </div>
-                <h3 className="text-3xl font-black text-gray-900 tracking-tight mb-2">Great Job!</h3>
-                <p className="text-gray-500 font-medium mb-8">You've successfully completed Day {day} of the sprint. Keep up the momentum!</p>
-                <button 
-                    onClick={onClose}
-                    className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-800 transition-colors shadow-lg active:scale-95"
-                >
-                    Continue
-                </button>
-            </div>
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 max-w-sm w-full text-center relative overflow-hidden animate-slide-up border border-gray-100">
+        <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6 text-green-500 relative">
+          <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-20"></div>
+          <svg
+            className="w-12 h-12 relative z-10"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={3}
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
         </div>
-    );
+        <h3 className="text-3xl font-black text-gray-900 tracking-tight mb-2">
+          Great Job!
+        </h3>
+        <p className="text-gray-500 font-medium mb-8">
+          You've successfully completed Day {day} of the sprint. Keep up the
+          momentum!
+        </p>
+        <button
+          onClick={onClose}
+          className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-800 transition-colors shadow-lg active:scale-95"
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  );
 };
 
 const SprintSettingsModal: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    soundEnabled: boolean;
-    onToggleSound: () => void;
-    notificationsEnabled: boolean;
-    onToggleNotifications: (state: boolean) => void;
-}> = ({ isOpen, onClose, soundEnabled, onToggleSound, notificationsEnabled, onToggleNotifications }) => {
-    if (!isOpen) return null;
+  isOpen: boolean;
+  onClose: () => void;
+  soundEnabled: boolean;
+  onToggleSound: () => void;
+  notificationsEnabled: boolean;
+  onToggleNotifications: (state: boolean) => void;
+}> = ({
+  isOpen,
+  onClose,
+  soundEnabled,
+  onToggleSound,
+  notificationsEnabled,
+  onToggleNotifications,
+}) => {
+  if (!isOpen) return null;
 
-    const Toggle = ({ enabled, onToggle, label }: { enabled: boolean, onToggle: () => void, label: string }) => (
-        <div className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0">
-            <span className="text-xs font-black text-gray-700 uppercase tracking-widest">{label}</span>
-            <button 
-                onClick={onToggle}
-                className={`w-12 h-6 rounded-full transition-all duration-300 relative ${enabled ? 'bg-primary' : 'bg-gray-200'}`}
-            >
-                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${enabled ? 'right-1' : 'left-1'}`} />
-            </button>
-        </div>
-    );
-
-    return (
-        <div className="modal-overlay animate-fade-in" onClick={onClose}>
-            <div className="modal-content-wrapper" onClick={onClose}>
-                <div className="modal-content w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden animate-slide-up flex flex-col max-h-[80vh] border border-gray-100" onClick={e => e.stopPropagation()}>
-                <div className="p-8 pb-4 flex justify-between items-center flex-shrink-0">
-                    <h3 className="text-xl font-black text-gray-900 tracking-tight">Sprint Settings</h3>
-                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-dark transition-colors">
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
-                
-                <div className="flex-1 overflow-y-auto px-8 py-2 min-h-0 custom-scrollbar">
-                    <Toggle enabled={soundEnabled} onToggle={onToggleSound} label="Completion Sound" />
-                    <div className="py-2.5 border-b border-gray-50 last:border-0">
-                        <PushToggle 
-                            label="Unlock Notifications" 
-                            showSubLabel={false}
-                            labelClassName="text-xs font-black text-gray-700 uppercase tracking-widest"
-                            onToggleSuccess={(state) => onToggleNotifications(state)} 
-                        />
-                    </div>
-                </div>
-
-                <div className="p-8 pt-4 flex-shrink-0">
-                    <button 
-                        onClick={onClose}
-                        className="w-full bg-dark text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95"
-                    >
-                        Done
-                    </button>
-                </div>
-            </div>
-        </div>
+  const Toggle = ({
+    enabled,
+    onToggle,
+    label,
+  }: {
+    enabled: boolean;
+    onToggle: () => void;
+    label: string;
+  }) => (
+    <div className="flex items-center justify-between py-4 border-b border-gray-50 last:border-0">
+      <span className="text-xs font-black text-gray-700 uppercase tracking-widest">
+        {label}
+      </span>
+      <button
+        onClick={onToggle}
+        className={`w-12 h-6 rounded-full transition-all duration-300 relative ${enabled ? "bg-primary" : "bg-gray-200"}`}
+      >
+        <div
+          className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${enabled ? "right-1" : "left-1"}`}
+        />
+      </button>
     </div>
-    );
+  );
+
+  return (
+    <div className="modal-overlay animate-fade-in" onClick={onClose}>
+      <div className="modal-content-wrapper" onClick={onClose}>
+        <div
+          className="modal-content w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden animate-slide-up flex flex-col max-h-[80vh] border border-gray-100"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="p-8 pb-4 flex justify-between items-center flex-shrink-0">
+            <h3 className="text-xl font-black text-gray-900 tracking-tight">
+              Sprint Settings
+            </h3>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-dark transition-colors"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={3}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-8 py-2 min-h-0 custom-scrollbar">
+            <Toggle
+              enabled={soundEnabled}
+              onToggle={onToggleSound}
+              label="Completion Sound"
+            />
+            <div className="py-2.5 border-b border-gray-50 last:border-0">
+              <PushToggle
+                label="Unlock Notifications"
+                showSubLabel={false}
+                labelClassName="text-xs font-black text-gray-700 uppercase tracking-widest"
+                onToggleSuccess={(state) => onToggleNotifications(state)}
+              />
+            </div>
+          </div>
+
+          <div className="p-8 pt-4 flex-shrink-0">
+            <button
+              onClick={onClose}
+              className="w-full bg-dark text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const CoachingChatModal: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    sprintId: string;
-    participantId: string;
-    day: number;
-    sprintTitle: string;
+  isOpen: boolean;
+  onClose: () => void;
+  sprintId: string;
+  participantId: string;
+  day: number;
+  sprintTitle: string;
 }> = ({ isOpen, onClose, sprintId, participantId, day, sprintTitle }) => {
-    const [messages, setMessages] = useState<CoachingComment[]>([]);
-    const [newMessage, setNewMessage] = useState('');
-    const [isSending, setIsSending] = useState(false);
-    const scrollRef = useRef<HTMLDivElement>(null);
+  const [messages, setMessages] = useState<CoachingComment[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        if (isOpen) {
-            const fetchMessages = async () => {
-                const conversation = await chatService.getConversation(sprintId, participantId, day);
-                setMessages(conversation);
-                // Mark as read
-                await chatService.markMessagesAsRead(sprintId, participantId, day, participantId);
-            };
-            fetchMessages();
-        }
-    }, [isOpen, sprintId, participantId, day]);
+  useEffect(() => {
+    if (isOpen) {
+      const fetchMessages = async () => {
+        const conversation = await chatService.getConversation(
+          sprintId,
+          participantId,
+          day,
+        );
+        setMessages(conversation);
+        // Mark as read
+        await chatService.markMessagesAsRead(
+          sprintId,
+          participantId,
+          day,
+          participantId,
+        );
+      };
+      fetchMessages();
+    }
+  }, [isOpen, sprintId, participantId, day]);
 
-    useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-    }, [messages]);
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
 
-    const handleSend = async () => {
-        if (!newMessage.trim() || isSending) return;
-        setIsSending(true);
-        try {
-            const msg = await chatService.sendMessage({
-                sprintId,
-                participantId,
-                authorId: participantId,
-                content: newMessage.trim(),
-                day,
-                timestamp: new Date().toISOString(),
-                read: false
-            });
-            setMessages(prev => [...prev, msg]);
-            setNewMessage('');
-        } catch (error) {
-            console.error("Failed to send message", error);
-        } finally {
-            setIsSending(false);
-        }
-    };
+  const handleSend = async () => {
+    if (!newMessage.trim() || isSending) return;
+    setIsSending(true);
+    try {
+      const msg = await chatService.sendMessage({
+        sprintId,
+        participantId,
+        authorId: participantId,
+        content: newMessage.trim(),
+        day,
+        timestamp: new Date().toISOString(),
+        read: false,
+      });
+      setMessages((prev) => [...prev, msg]);
+      setNewMessage("");
+    } catch (error) {
+      console.error("Failed to send message", error);
+    } finally {
+      setIsSending(false);
+    }
+  };
 
-    if (!isOpen) return null;
+  if (!isOpen) return null;
 
-    return (
-        <div className="modal-overlay animate-fade-in" onClick={onClose}>
-            <div className="modal-content-wrapper" onClick={onClose}>
-                <div className="modal-content w-full max-w-md bg-white rounded-[2.5rem] overflow-hidden flex flex-col animate-slide-up h-[70vh] max-h-[80vh] border border-gray-100" onClick={e => e.stopPropagation()}>
-                {/* Header */}
-                <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-white flex-shrink-0">
-                    <div>
-                        <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Private Coaching Chat</h3>
-                        <p className="text-sm font-black text-gray-900 truncate max-w-[200px]">{sprintTitle}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <div className="bg-gray-50 px-3 py-1.5 rounded-full">
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Day {day}</span>
-                        </div>
-                        <button onClick={onClose} className="p-2 text-gray-400 hover:text-dark transition-colors">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                    </div>
-                </div>
-
-                {/* Messages */}
-                <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#FAFAFA] min-h-0 custom-scrollbar">
-                    {messages.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
-                            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                                <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                            </div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">No messages yet</p>
-                            <p className="text-[9px] font-medium text-gray-400 mt-2">Start the conversation with your coach.</p>
-                        </div>
-                    ) : (
-                        messages.map((msg, idx) => {
-                            const isMe = msg.authorId === participantId;
-                            return (
-                                <div key={msg.id || idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[85%] p-4 rounded-2xl text-sm ${
-                                        isMe 
-                                        ? 'bg-primary text-white rounded-tr-none shadow-lg shadow-primary/10' 
-                                        : 'bg-white text-gray-800 rounded-tl-none border border-gray-100 shadow-sm'
-                                    }`}>
-                                        <p className="font-medium leading-relaxed">{msg.content}</p>
-                                        <p className={`text-[8px] mt-2 font-black uppercase tracking-widest opacity-40 ${isMe ? 'text-white text-right' : 'text-gray-400'}`}>
-                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </p>
-                                    </div>
-                                </div>
-                            );
-                        })
-                    )}
-                </div>
-
-                {/* Input */}
-                <div className="p-6 bg-white border-t border-gray-50 flex-shrink-0">
-                    <div className="relative flex items-center gap-2">
-                        <textarea
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleSend();
-                                }
-                            }}
-                            placeholder="Type your message..."
-                            className="flex-1 bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-medium focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none max-h-32"
-                            rows={1}
-                        />
-                        <button 
-                            onClick={handleSend}
-                            disabled={!newMessage.trim() || isSending}
-                            className="w-12 h-12 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 active:scale-95 disabled:opacity-50 disabled:grayscale transition-all"
-                        >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-                        </button>
-                    </div>
-                </div>
+  return (
+    <div className="modal-overlay animate-fade-in" onClick={onClose}>
+      <div className="modal-content-wrapper" onClick={onClose}>
+        <div
+          className="modal-content w-full max-w-md bg-white rounded-[2.5rem] overflow-hidden flex flex-col animate-slide-up h-[70vh] max-h-[80vh] border border-gray-100"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-white flex-shrink-0">
+            <div>
+              <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">
+                Private Coaching Chat
+              </h3>
+              <p className="text-sm font-black text-gray-900 truncate max-w-[200px]">
+                {sprintTitle}
+              </p>
             </div>
+            <div className="flex items-center gap-3">
+              <div className="bg-gray-50 px-3 py-1.5 rounded-full">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  Day {day}
+                </span>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 text-gray-400 hover:text-dark transition-colors"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={3}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto p-6 space-y-4 bg-[#FAFAFA] min-h-0 custom-scrollbar"
+          >
+            {messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
+                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <svg
+                    className="w-6 h-6 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    />
+                  </svg>
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                  No messages yet
+                </p>
+                <p className="text-[9px] font-medium text-gray-400 mt-2">
+                  Start the conversation with your coach.
+                </p>
+              </div>
+            ) : (
+              messages.map((msg, idx) => {
+                const isMe = msg.authorId === participantId;
+                return (
+                  <div
+                    key={msg.id || idx}
+                    className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-[85%] p-4 rounded-2xl text-sm ${
+                        isMe
+                          ? "bg-primary text-white rounded-tr-none shadow-lg shadow-primary/10"
+                          : "bg-white text-gray-800 rounded-tl-none border border-gray-100 shadow-sm"
+                      }`}
+                    >
+                      <p className="font-medium leading-relaxed">
+                        {msg.content}
+                      </p>
+                      <p
+                        className={`text-[8px] mt-2 font-black uppercase tracking-widest opacity-40 ${isMe ? "text-white text-right" : "text-gray-400"}`}
+                      >
+                        {new Date(msg.timestamp).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Input */}
+          <div className="p-6 bg-white border-t border-gray-50 flex-shrink-0">
+            <div className="relative flex items-center gap-2">
+              <textarea
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder="Type your message..."
+                className="flex-1 bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-medium focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none max-h-32"
+                rows={1}
+              />
+              <button
+                onClick={handleSend}
+                disabled={!newMessage.trim() || isSending}
+                className="w-12 h-12 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 active:scale-95 disabled:opacity-50 disabled:grayscale transition-all"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={3}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5 10l7-7m0 0l7 7m-7-7v18"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
+      </div>
     </div>
-    );
+  );
 };
 
 interface SectionHeadingProps {
-    children: React.ReactNode;
-    color?: string;
+  children: React.ReactNode;
+  color?: string;
 }
 
-const SectionHeading: React.FC<SectionHeadingProps> = ({ children, color = "primary" }) => (
-    <h2 className={`text-[8px] font-black text-${color} uppercase tracking-[0.4em] mb-4`}>
-        {children}
-    </h2>
+const SectionHeading: React.FC<SectionHeadingProps> = ({
+  children,
+  color = "primary",
+}) => (
+  <h2
+    className={`text-[8px] font-black text-${color} uppercase tracking-[0.4em] mb-4`}
+  >
+    {children}
+  </h2>
 );
 
 const SprintView: React.FC = () => {
-    const { user } = useAuth();
-    const { enrollmentId } = useParams();
-    const navigate = useNavigate();
-    const location = useLocation();
-    
-    const [enrollment, setEnrollment] = useState<ParticipantSprint | null>(null);
-    const [sprint, setSprint] = useState<Sprint | null>(null);
-    const [viewingDay, setViewingDay] = useState<number>(1);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isReflectionModalOpen, setIsReflectionModalOpen] = useState(false);
-    const [isDayCompletionModalOpen, setIsDayCompletionModalOpen] = useState(false);
-    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-    const [isChatModalOpen, setIsChatModalOpen] = useState(false);
-    const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
-    const [isPushPermissionModalOpen, setIsPushPermissionModalOpen] = useState(false);
-    const [confirmCheckInDay, setConfirmCheckInDay] = useState<number | null>(null);
-    const [isSubmittingPush, setIsSubmittingPush] = useState(false);
-    const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
-    const [now, setNow] = useState(Date.now());
-    const [timeToUnlock, setTimeToUnlock] = useState<string>('00:00:00');
-    
-    // Day Completion State (Task Inputs)
-    const [taskInputs, setTaskInputs] = useState<string[]>(['', '', '']);
-    const [activeTaskIndex, setActiveTaskIndex] = useState(0);
-    const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
+  const { user } = useAuth();
+  const { enrollmentId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-    const [soundEnabled, setSoundEnabled] = useState(true);
-    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-    const [globalSettings, setGlobalSettings] = useState<GlobalOrchestrationSettings | null>(null);
+  const [enrollment, setEnrollment] = useState<ParticipantSprint | null>(null);
+  const [sprint, setSprint] = useState<Sprint | null>(null);
+  const [viewingDay, setViewingDay] = useState<number>(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isReflectionModalOpen, setIsReflectionModalOpen] = useState(false);
+  const [isDayCompletionModalOpen, setIsDayCompletionModalOpen] =
+    useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
+  const [isPushPermissionModalOpen, setIsPushPermissionModalOpen] =
+    useState(false);
+  const [confirmCheckInDay, setConfirmCheckInDay] = useState<number | null>(
+    null,
+  );
+  const [isSubmittingPush, setIsSubmittingPush] = useState(false);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const [timeToUnlock, setTimeToUnlock] = useState<string>("00:00:00");
 
-    useEffect(() => {
-        if (!enrollmentId) return;
-        const unsubscribe = sprintService.subscribeToEnrollment(enrollmentId, async (data) => {
-            if (data) {
-                setEnrollment(data);
-                if (data.soundDisabled !== undefined) {
-                    setSoundEnabled(!data.soundDisabled);
-                }
-                if (data.notificationsDisabled !== undefined) {
-                    setNotificationsEnabled(!data.notificationsDisabled);
-                }
-                if (!sprint) {
-                    const found = await sprintService.getSprintById(data.sprint_id);
-                    setSprint(found);
-                    
-                    // Handle deep linking from query params
-                    const params = new URLSearchParams(location.search);
-                    const dayParam = params.get('day');
-                    const openChatParam = params.get('openChat');
-                    
-                    if (dayParam) {
-                        setViewingDay(parseInt(dayParam));
-                        if (openChatParam === 'true') {
-                            setIsChatModalOpen(true);
-                        }
-                    } else {
-                        const firstIncomplete = data.progress?.find(p => !p.completed);
-                        setViewingDay(firstIncomplete ? firstIncomplete.day : (data.progress?.length || 1));
-                    }
-                }
+  // Day Completion State (Task Inputs)
+  const [taskInputs, setTaskInputs] = useState<string[]>(["", "", ""]);
+  const [activeTaskIndex, setActiveTaskIndex] = useState(0);
+  const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>(
+    {},
+  );
+
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [globalSettings, setGlobalSettings] =
+    useState<GlobalOrchestrationSettings | null>(null);
+
+  useEffect(() => {
+    if (!enrollmentId) return;
+    const unsubscribe = sprintService.subscribeToEnrollment(
+      enrollmentId,
+      async (data) => {
+        if (data) {
+          setEnrollment(data);
+          if (data.soundDisabled !== undefined) {
+            setSoundEnabled(!data.soundDisabled);
+          }
+          if (data.notificationsDisabled !== undefined) {
+            setNotificationsEnabled(!data.notificationsDisabled);
+          }
+          if (!sprint) {
+            const found = await sprintService.getSprintById(data.sprint_id);
+            setSprint(found);
+
+            // Handle deep linking from query params
+            const params = new URLSearchParams(location.search);
+            const dayParam = params.get("day");
+            const openChatParam = params.get("openChat");
+
+            if (dayParam) {
+              setViewingDay(parseInt(dayParam));
+              if (openChatParam === "true") {
+                setIsChatModalOpen(true);
+              }
+            } else {
+              const firstIncomplete = data.progress?.find((p) => !p.completed);
+              setViewingDay(
+                firstIncomplete
+                  ? firstIncomplete.day
+                  : data.progress?.length || 1,
+              );
             }
-        });
-        return () => unsubscribe();
-    }, [enrollmentId, sprint, location.search]);
+          }
+        }
+      },
+    );
+    return () => unsubscribe();
+  }, [enrollmentId, sprint, location.search]);
 
-    // Check for unread messages
-    useEffect(() => {
-        if (!enrollment || !user || isChatModalOpen) return;
-        
-        const checkUnread = async () => {
-            const hasUnread = await chatService.hasUnreadMessages(enrollment.sprint_id, user.id, viewingDay, user.id);
-            setHasUnreadMessages(hasUnread);
-        };
-        
-        checkUnread();
-        const interval = setInterval(checkUnread, 10000); // Check every 10s
-        return () => clearInterval(interval);
-    }, [enrollment, user, viewingDay, isChatModalOpen]);
+  // Check for unread messages
+  useEffect(() => {
+    if (!enrollment || !user || isChatModalOpen) return;
 
-    useEffect(() => {
-      const loadSettings = async () => {
-        const settings = await sprintService.getGlobalOrchestrationSettings();
-        setGlobalSettings(settings);
+    const checkUnread = async () => {
+      const hasUnread = await chatService.hasUnreadMessages(
+        enrollment.sprint_id,
+        user.id,
+        viewingDay,
+        user.id,
+      );
+      setHasUnreadMessages(hasUnread);
+    };
+
+    checkUnread();
+    const interval = setInterval(checkUnread, 10000); // Check every 10s
+    return () => clearInterval(interval);
+  }, [enrollment, user, viewingDay, isChatModalOpen]);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const settings = await sprintService.getGlobalOrchestrationSettings();
+      setGlobalSettings(settings);
+    };
+    loadSettings();
+  }, []);
+
+  useEffect(() => {
+    setTaskInputs(["", "", ""]);
+    setActiveTaskIndex(0);
+    setRevealedHints({});
+  }, [viewingDay]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!notificationsEnabled || !enrollment || !sprint || !enrollment.progress)
+      return;
+
+    // Check if the next day is unlocked
+    const firstIncomplete = enrollment.progress.find((p) => !p.completed);
+    if (firstIncomplete && firstIncomplete.day > 1) {
+      const prevDay = enrollment.progress.find(
+        (p) => p.day === firstIncomplete.day - 1,
+      );
+      if (prevDay?.completedAt) {
+        const completedDate = new Date(prevDay.completedAt);
+        const nextMidnight = new Date(
+          completedDate.getFullYear(),
+          completedDate.getMonth(),
+          completedDate.getDate() + 1,
+          0,
+          0,
+          0,
+        ).getTime();
+
+        // If it's exactly midnight or just passed it, show a notification
+        // We'll use a ref to prevent multiple notifications for the same day
+        const lastNotifiedDay = localStorage.getItem(
+          `last_notified_day_${enrollment.id}`,
+        );
+        if (
+          now >= nextMidnight &&
+          lastNotifiedDay !== firstIncomplete.day.toString()
+        ) {
+          toast.success(`Day ${firstIncomplete.day} is now unlocked!`, {
+            description: "Time to take action.",
+            icon: (
+              <svg
+                className="w-5 h-5 text-primary"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            ),
+          });
+          localStorage.setItem(
+            `last_notified_day_${enrollment.id}`,
+            firstIncomplete.day.toString(),
+          );
+        }
+      }
+    }
+  }, [now, notificationsEnabled, enrollment, sprint]);
+
+  const dayLockDetails = useMemo(() => {
+    if (!enrollment || !sprint || !enrollment.progress)
+      return { isLocked: false, unlockTime: 0 };
+
+    if (viewingDay === 1) return { isLocked: false, unlockTime: 0 };
+
+    const prevDay = enrollment.progress.find((p) => p.day === viewingDay - 1);
+
+    if (!prevDay?.completed)
+      return {
+        isLocked: true,
+        unlockTime: 0,
+        reason: "Complete previous day first.",
       };
-      loadSettings();
-    }, []);
 
-    useEffect(() => {
-        setTaskInputs(['', '', '']);
-        setActiveTaskIndex(0);
-        setRevealedHints({});
-    }, [viewingDay]);
+    if (prevDay.completedAt) {
+      const completedDate = new Date(prevDay.completedAt);
+      const nextMidnight = new Date(
+        completedDate.getFullYear(),
+        completedDate.getMonth(),
+        completedDate.getDate() + 1,
+        0,
+        0,
+        0,
+      ).getTime();
 
-    useEffect(() => {
-        const interval = setInterval(() => setNow(Date.now()), 1000);
-        return () => clearInterval(interval);
-    }, []);
+      const isLocked = now < nextMidnight;
+      return { isLocked, unlockTime: nextMidnight };
+    }
 
-    useEffect(() => {
-        if (!notificationsEnabled || !enrollment || !sprint || !enrollment.progress) return;
-        
-        // Check if the next day is unlocked
-        const firstIncomplete = enrollment.progress.find(p => !p.completed);
-        if (firstIncomplete && firstIncomplete.day > 1) {
-            const prevDay = enrollment.progress.find(p => p.day === firstIncomplete.day - 1);
-            if (prevDay?.completedAt) {
-                const completedDate = new Date(prevDay.completedAt);
-                const nextMidnight = new Date(
-                    completedDate.getFullYear(),
-                    completedDate.getMonth(),
-                    completedDate.getDate() + 1,
-                    0, 0, 0
-                ).getTime();
-                
-                // If it's exactly midnight or just passed it, show a notification
-                // We'll use a ref to prevent multiple notifications for the same day
-                const lastNotifiedDay = localStorage.getItem(`last_notified_day_${enrollment.id}`);
-                if (now >= nextMidnight && lastNotifiedDay !== firstIncomplete.day.toString()) {
-                    toast.success(`Day ${firstIncomplete.day} is now unlocked!`, {
-                        description: "Time to take action.",
-                        icon: <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                    });
-                    localStorage.setItem(`last_notified_day_${enrollment.id}`, firstIncomplete.day.toString());
-                }
+    return { isLocked: false, unlockTime: 0 };
+  }, [enrollment, sprint, viewingDay, now]);
+
+  useEffect(() => {
+    if (dayLockDetails.isLocked && dayLockDetails.unlockTime) {
+      const diff = dayLockDetails.unlockTime - now;
+      if (diff > 0) {
+        const h = Math.floor(diff / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
+        setTimeToUnlock(
+          `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`,
+        );
+      } else {
+        setTimeToUnlock("00:00:00");
+      }
+    }
+  }, [dayLockDetails, now]);
+
+  const toggleSoundState = async () => {
+    if (!enrollment) return;
+    const newState = !soundEnabled;
+    setSoundEnabled(newState);
+    try {
+      const enrollmentRef = doc(db, "enrollments", enrollment.id);
+      await updateDoc(enrollmentRef, { soundDisabled: !newState });
+    } catch (err) {
+      console.error("Toggle sound state failed", err);
+    }
+  };
+
+  const toggleNotificationsState = async (forcedState?: boolean) => {
+    if (!enrollment || !user) return;
+    const newState =
+      forcedState !== undefined ? forcedState : !notificationsEnabled;
+    setNotificationsEnabled(newState);
+    try {
+      const enrollmentRef = doc(db, "enrollments", enrollment.id);
+      await updateDoc(enrollmentRef, { notificationsDisabled: !newState });
+
+      if (
+        newState &&
+        pushNotificationService.shouldShowPermissionRequest(user as Participant)
+      ) {
+        setIsPushPermissionModalOpen(true);
+      }
+    } catch (err) {
+      console.error("Toggle notifications state failed", err);
+    }
+  };
+
+  const handleAcceptPush = async () => {
+    if (!user) return;
+    setIsSubmittingPush(true);
+    const toastId = toast.loading("Setting up notifications...");
+    try {
+      console.log("Attempting push subscription for user:", user.id);
+      const sub = await pushNotificationService.subscribeUser(user.id);
+      console.log("Subscription result:", sub);
+
+      await pushNotificationService.recordPermissionResponse(
+        user.id,
+        user as Participant,
+        "accepted",
+      );
+      setNotificationsEnabled(true);
+
+      const enrollmentRef = doc(db, "enrollments", enrollment!.id);
+      await updateDoc(enrollmentRef, { notificationsDisabled: false });
+
+      toast.success("Notifications activated!", { id: toastId });
+
+      // Trigger a test notification immediately
+      await pushNotificationService.sendPush(
+        user.id,
+        "Notifications Active!",
+        "You'll now receive timely reminders for your sprint.",
+        "/participant/sprint",
+        "test-notification",
+      );
+
+      setIsPushPermissionModalOpen(false);
+    } catch (err: any) {
+      console.error("Push subscription failed", err);
+      toast.error(`Failed to activate: ${err.message || "Unknown error"}`, {
+        id: toastId,
+      });
+    } finally {
+      setIsSubmittingPush(false);
+    }
+  };
+
+  const handleDeclinePush = async () => {
+    if (!user) return;
+    await pushNotificationService.recordPermissionResponse(
+      user.id,
+      user as Participant,
+      "denied",
+    );
+    setIsPushPermissionModalOpen(false);
+  };
+
+  const handleIgnorePush = async () => {
+    if (!user) return;
+    await pushNotificationService.recordPermissionResponse(
+      user.id,
+      user as Participant,
+      "ignored",
+    );
+    setIsPushPermissionModalOpen(false);
+  };
+
+  const handleFinishDay = async () => {
+    if (!enrollment || !user || isSubmitting || !enrollment.progress) return;
+    setIsSubmitting(true);
+    try {
+      const timestamp = new Date().toISOString();
+      const isLastDay = viewingDay === enrollment.progress.length;
+      const updatedProgress = enrollment.progress.map((p) =>
+        p.day === viewingDay
+          ? {
+              ...p,
+              completed: true,
+              completedAt: timestamp,
+              submission: taskInputs.filter((ti) => ti.trim()).join(" | "),
             }
-        }
-    }, [now, notificationsEnabled, enrollment, sprint]);
+          : p,
+      );
 
-    const dayLockDetails = useMemo(() => {
-        if (!enrollment || !sprint || !enrollment.progress) return { isLocked: false, unlockTime: 0 };
-        
-        if (viewingDay === 1) return { isLocked: false, unlockTime: 0 };
+      const enrollmentRef = doc(db, "enrollments", enrollment.id);
+      const updatePayload: any = {
+        progress: updatedProgress,
+        last_activity_at: timestamp,
+      };
 
-        const prevDay = enrollment.progress.find(p => p.day === viewingDay - 1);
-        
-        if (!prevDay?.completed) return { isLocked: true, unlockTime: 0, reason: 'Complete previous day first.' };
+      if (isLastDay && updatedProgress.every((p) => p.completed)) {
+        updatePayload.completed_at = timestamp;
+        updatePayload.status = "completed";
+      }
 
-        if (prevDay.completedAt) {
-            const completedDate = new Date(prevDay.completedAt);
-            const nextMidnight = new Date(
-                completedDate.getFullYear(),
-                completedDate.getMonth(),
-                completedDate.getDate() + 1,
-                0, 0, 0
-            ).getTime();
-            
-            const isLocked = now < nextMidnight;
-            return { isLocked, unlockTime: nextMidnight };
-        }
+      await updateDoc(enrollmentRef, updatePayload);
+      setIsReflectionModalOpen(false);
 
-        return { isLocked: false, unlockTime: 0 };
-    }, [enrollment, sprint, viewingDay, now]);
+      // Trigger push notification for task completion
+      if (user?.id) {
+        pushNotificationService
+          .triggerCompletedTask(user.id)
+          .catch((e) => console.error("Push trigger failed:", e));
+      }
 
-    useEffect(() => {
-        if (dayLockDetails.isLocked && dayLockDetails.unlockTime) {
-            const diff = dayLockDetails.unlockTime - now;
-            if (diff > 0) {
-                const h = Math.floor(diff / (1000 * 60 * 60));
-                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                const s = Math.floor((diff % (1000 * 60)) / 1000);
-                setTimeToUnlock(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
-            } else {
-                setTimeToUnlock('00:00:00');
-            }
-        }
-    }, [dayLockDetails, now]);
-
-    const toggleSoundState = async () => {
-        if (!enrollment) return;
-        const newState = !soundEnabled;
-        setSoundEnabled(newState);
+      // Play completion sound if enabled
+      if (soundEnabled) {
         try {
-            const enrollmentRef = doc(db, 'enrollments', enrollment.id);
-            await updateDoc(enrollmentRef, { soundDisabled: !newState });
-        } catch (err) {
-            console.error("Toggle sound state failed", err);
+          const audio = new Audio(
+            "https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3",
+          );
+          audio.play().catch((e) => console.error("Sound playback failed:", e));
+        } catch (e) {
+          console.error("Audio initialization failed:", e);
         }
-    };
+      }
 
-    const toggleNotificationsState = async (forcedState?: boolean) => {
-        if (!enrollment || !user) return;
-        const newState = forcedState !== undefined ? forcedState : !notificationsEnabled;
-        setNotificationsEnabled(newState);
-        try {
-            const enrollmentRef = doc(db, 'enrollments', enrollment.id);
-            await updateDoc(enrollmentRef, { notificationsDisabled: !newState });
-            
-            if (newState && pushNotificationService.shouldShowPermissionRequest(user as Participant)) {
-                setIsPushPermissionModalOpen(true);
-            }
-        } catch (err) {
-            console.error("Toggle notifications state failed", err);
+      if (isLastDay && updatedProgress.every((p) => p.completed)) {
+        setIsCompletionModalOpen(true);
+      } else {
+        setIsDayCompletionModalOpen(true);
+      }
+
+      // Trigger push permission request if it's the first submission or based on logic
+      if (
+        user &&
+        pushNotificationService.shouldShowPermissionRequest(user as Participant)
+      ) {
+        setIsPushPermissionModalOpen(true);
+      }
+    } catch (err) {
+      console.error("Completion failed", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCompletionModalAction = async (rating: number) => {
+    if (!user) return;
+
+    try {
+      // Log rating if needed, for now just proceed
+      const enrollments = await sprintService.getUserEnrollments(user.id);
+      const queued = enrollments.filter((e) => e.status === "queued");
+
+      if (queued.length > 0) {
+        // Activate instantly
+        await sprintService.startNextQueuedSprint(user.id);
+        navigate("/dashboard", { replace: true });
+      } else {
+        // Check for saved sprints
+        const p = user as Participant;
+        const hasSaved =
+          (p.savedSprintIds || []).length > 0 ||
+          (p.wishlistSprintIds || []).length > 0;
+
+        if (hasSaved) {
+          navigate("/participant/my-sprints", { replace: true });
+        } else {
+          navigate("/explore", { replace: true });
         }
+      }
+    } catch (err) {
+      console.error("Navigation after completion failed", err);
+      navigate("/dashboard", { replace: true });
+    }
+  };
+
+  const handleToggleReminder = async () => {
+    if (!enrollment) return;
+    const newState = !enrollment.checkInReminderEnabled;
+    try {
+      const enrollmentRef = doc(db, "enrollments", enrollment.id);
+      await updateDoc(enrollmentRef, { checkInReminderEnabled: newState });
+      toast.success(
+        newState ? "Daily reminders enabled" : "Daily reminders disabled",
+      );
+    } catch (err) {
+      console.error("Toggle reminder failed", err);
+      toast.error("Failed to update reminder setting");
+    }
+  };
+
+  const handleCheckIn = async (day: number) => {
+    if (!enrollment || !user) return;
+
+    setConfirmCheckInDay(day);
+  };
+
+  const executeCheckIn = async (day: number) => {
+    if (!enrollment || !user) return;
+    console.log("[SprintView] executing check-in for day:", day);
+
+    // Check if already checked in for this day
+    if (enrollment.checkInHistory?.some((h) => h.day === day)) return;
+
+    const newCheckIn = {
+      day,
+      timestamp: new Date().toISOString(),
     };
 
-    const handleAcceptPush = async () => {
-        if (!user) return;
-        setIsSubmittingPush(true);
-        const toastId = toast.loading("Setting up notifications...");
-        try {
-            console.log("Attempting push subscription for user:", user.id);
-            const sub = await pushNotificationService.subscribeUser(user.id);
-            console.log("Subscription result:", sub);
-            
-            await pushNotificationService.recordPermissionResponse(user.id, user as Participant, 'accepted');
-            setNotificationsEnabled(true);
-            
-            const enrollmentRef = doc(db, 'enrollments', enrollment!.id);
-            await updateDoc(enrollmentRef, { notificationsDisabled: false });
-            
-            toast.success("Notifications activated!", { id: toastId });
-            
-            // Trigger a test notification immediately
-            await pushNotificationService.sendPush(
-                user.id, 
-                "Notifications Active!", 
-                "You'll now receive timely reminders for your sprint.",
-                "/participant/sprint",
-                "test-notification"
-            );
-            
-            setIsPushPermissionModalOpen(false);
-        } catch (err: any) {
-            console.error("Push subscription failed", err);
-            toast.error(`Failed to activate: ${err.message || "Unknown error"}`, { id: toastId });
-        } finally {
-            setIsSubmittingPush(false);
-        }
-    };
+    const updatedHistory = [...(enrollment.checkInHistory || []), newCheckIn];
 
-    const handleDeclinePush = async () => {
-        if (!user) return;
-        await pushNotificationService.recordPermissionResponse(user.id, user as Participant, 'denied');
-        setIsPushPermissionModalOpen(false);
-    };
+    try {
+      const enrollmentRef = doc(db, "enrollments", enrollment.id);
+      await updateDoc(enrollmentRef, { checkInHistory: updatedHistory });
+      toast.success(`Checked in for Day ${day}!`);
+      if (user?.id) {
+        pushNotificationService
+          .triggerUpdate(user.id)
+          .catch((e) => console.error("Push trigger failed:", e));
+      }
+    } catch (err) {
+      console.error("Check-in failed", err);
+      toast.error("Failed to check in");
+    }
+  };
 
-    const handleIgnorePush = async () => {
-        if (!user) return;
-        await pushNotificationService.recordPermissionResponse(user.id, user as Participant, 'ignored');
-        setIsPushPermissionModalOpen(false);
-    };
+  const dayContent = Array.isArray(sprint?.dailyContent)
+    ? sprint?.dailyContent.find((dc) => dc.day === viewingDay)
+    : undefined;
 
-    const handleFinishDay = async () => {
-        if (!enrollment || !user || isSubmitting || !enrollment.progress) return;
-        setIsSubmitting(true);
-        try {
-            const timestamp = new Date().toISOString();
-            const isLastDay = viewingDay === enrollment.progress.length;
-            const updatedProgress = enrollment.progress.map(p => 
-                p.day === viewingDay ? { 
-                    ...p, 
-                    completed: true, 
-                    completedAt: timestamp, 
-                    submission: taskInputs.filter(ti => ti.trim()).join(' | ')
-                } : p
-            );
-            
-            const enrollmentRef = doc(db, 'enrollments', enrollment.id);
-            const updatePayload: any = { 
-                progress: updatedProgress,
-                last_activity_at: timestamp
-            };
+  const dayProgress = enrollment?.progress?.find((p) => p.day === viewingDay);
 
-            if (isLastDay && updatedProgress.every(p => p.completed)) {
-                updatePayload.completed_at = timestamp;
-                updatePayload.status = 'completed';
-            }
+  const isProofMet = useMemo(() => {
+    if (!dayContent) return false;
 
-            await updateDoc(enrollmentRef, updatePayload);
-            setIsReflectionModalOpen(false);
+    const activePrompts =
+      dayContent.taskPrompts?.filter((p) => p && p.trim()) || [];
+    if (activePrompts.length === 0) return true;
 
-            // Trigger push notification for task completion
-            if (user?.id) {
-                pushNotificationService.triggerCompletedTask(user.id).catch(e => console.error("Push trigger failed:", e));
-            }
+    return activePrompts.every((_, i) => taskInputs[i]?.trim().length > 0);
+  }, [dayContent, taskInputs]);
 
-            // Play completion sound if enabled
-            if (soundEnabled) {
-                try {
-                    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
-                    audio.play().catch(e => console.error("Sound playback failed:", e));
-                } catch (e) {
-                    console.error("Audio initialization failed:", e);
-                }
-            }
+  const handleQuickComplete = () => {
+    handleFinishDay();
+  };
 
-            if (isLastDay && updatedProgress.every(p => p.completed)) {
-                setIsCompletionModalOpen(true);
-            } else {
-                setIsDayCompletionModalOpen(true);
-            }
-
-            // Trigger push permission request if it's the first submission or based on logic
-            if (user && pushNotificationService.shouldShowPermissionRequest(user as Participant)) {
-                setIsPushPermissionModalOpen(true);
-            }
-        } catch (err) {
-            console.error("Completion failed", err);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleCompletionModalAction = async (rating: number) => {
-        if (!user) return;
-        
-        try {
-            // Log rating if needed, for now just proceed
-            const enrollments = await sprintService.getUserEnrollments(user.id);
-            const queued = enrollments.filter(e => e.status === 'queued');
-            
-            if (queued.length > 0) {
-                // Activate instantly
-                await sprintService.startNextQueuedSprint(user.id);
-                navigate('/dashboard', { replace: true });
-            } else {
-                // Check for saved sprints
-                const p = user as Participant;
-                const hasSaved = (p.savedSprintIds || []).length > 0 || (p.wishlistSprintIds || []).length > 0;
-                
-                if (hasSaved) {
-                    navigate('/participant/my-sprints', { replace: true });
-                } else {
-                    navigate('/explore', { replace: true });
-                }
-            }
-        } catch (err) {
-            console.error("Navigation after completion failed", err);
-            navigate('/dashboard', { replace: true });
-        }
-    };
-
-    const handleToggleReminder = async () => {
-        if (!enrollment) return;
-        const newState = !enrollment.checkInReminderEnabled;
-        try {
-            const enrollmentRef = doc(db, 'enrollments', enrollment.id);
-            await updateDoc(enrollmentRef, { checkInReminderEnabled: newState });
-            toast.success(newState ? "Daily reminders enabled" : "Daily reminders disabled");
-        } catch (err) {
-            console.error("Toggle reminder failed", err);
-            toast.error("Failed to update reminder setting");
-        }
-    };
-
-    const handleCheckIn = async (day: number) => {
-        if (!enrollment || !user) return;
-        
-        setConfirmCheckInDay(day);
-    };
-
-    const executeCheckIn = async (day: number) => {
-        if (!enrollment || !user) return;
-        console.log("[SprintView] executing check-in for day:", day);
-        
-        // Check if already checked in for this day
-        if (enrollment.checkInHistory?.some(h => h.day === day)) return;
-
-        const newCheckIn = {
-            day,
-            timestamp: new Date().toISOString()
-        };
-
-        const updatedHistory = [...(enrollment.checkInHistory || []), newCheckIn];
-
-        try {
-            const enrollmentRef = doc(db, 'enrollments', enrollment.id);
-            await updateDoc(enrollmentRef, { checkInHistory: updatedHistory });
-            toast.success(`Checked in for Day ${day}!`);
-            if (user?.id) {
-                pushNotificationService.triggerUpdate(user.id).catch(e => console.error("Push trigger failed:", e));
-            }
-        } catch (err) {
-            console.error("Check-in failed", err);
-            toast.error("Failed to check in");
-        }
-    };
-
-    const dayContent = Array.isArray(sprint?.dailyContent) ? sprint?.dailyContent.find(dc => dc.day === viewingDay) : undefined;
-
-    const dayProgress = enrollment?.progress?.find(p => p.day === viewingDay);
-
-    const isProofMet = useMemo(() => {
-        if (!dayContent) return false;
-        
-        const activePrompts = dayContent.taskPrompts?.filter(p => p && p.trim()) || [];
-        if (activePrompts.length === 0) return true;
-        
-        return activePrompts.every((_, i) => taskInputs[i]?.trim().length > 0);
-    }, [dayContent, taskInputs]);
-
-    const handleQuickComplete = () => {
-        handleFinishDay();
-    };
-
-    if (!enrollment || !sprint || !enrollment.progress) return <div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
-
+  if (!enrollment || !sprint || !enrollment.progress)
     return (
-        <>
-            <div className="page-content w-full bg-[#FAFAFA] flex flex-col font-sans text-dark animate-fade-in pb-24">
-                <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
-                <div className="flex items-center justify-between">
-                    <button onClick={() => navigate('/dashboard')} className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-                    </button>
-                    <div className="text-center flex-1 mx-4 min-w-0">
-                        <h1 className="text-lg font-black text-gray-900 truncate">{sprint.title}</h1>
-                    </div>
-                    <div className="flex gap-2">
-                        <Link to={`/sprint/${sprint.id}`} className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        </Link>
-                        <button 
-                            onClick={() => setIsChatModalOpen(true)}
-                            disabled={dayLockDetails.isLocked}
-                            className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm transition-all relative ${dayLockDetails.isLocked ? 'opacity-40 cursor-not-allowed' : 'text-gray-400 active:scale-95'}`}
-                            title={dayLockDetails.isLocked ? "Complete previous day first" : "Coaching Chat"}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                            {!dayLockDetails.isLocked && hasUnreadMessages && (
-                                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse"></span>
-                            )}
-                        </button>
-                        <button 
-                            onClick={() => setIsSettingsModalOpen(true)}
-                            className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
-                            title="Sprint Settings"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        </button>
-                    </div>
-                </div>
-            </header>
+      <div className="flex items-center justify-center h-screen">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
 
-            <div className="px-6 max-w-2xl mx-auto w-full space-y-6 mt-4">
-                <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1">
-                    {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => {
-                        const isActive = viewingDay === day;
-                        const prog = enrollment.progress?.find(p => p.day === day);
-                        const isCompleted = prog?.completed;
-                        
-                        const firstIncomplete = enrollment.progress?.find(p => !p.completed)?.day || sprint.duration;
-                        const isDisabled = day > firstIncomplete;
-
-                        return (
-                            <button
-                                key={day}
-                                disabled={isDisabled}
-                                onClick={() => setViewingDay(day)}
-                                className={`flex-shrink-0 w-20 h-20 rounded-[1.5rem] flex flex-col items-center justify-center relative transition-all duration-300 active:scale-95 ${
-                                    isActive
-                                        ? 'bg-[#0E7850] text-white shadow-xl shadow-primary/20 scale-105'
-                                        : isDisabled 
-                                        ? 'bg-[#F3F4F6] text-gray-200 cursor-not-allowed opacity-50'
-                                        : 'bg-[#F3F4F6] text-gray-400'
-                                }`}
-                            >
-                                {isCompleted && (
-                                    <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${isActive ? 'bg-white' : 'bg-[#0E7850]'}`}></div>
-                                )}
-                                <span className={`text-[8px] font-black uppercase tracking-widest ${isActive ? 'text-white/60' : 'text-gray-300'}`}>Day</span>
-                                <span className="text-3xl font-black leading-none">{day}</span>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                <div className={`rounded-3xl animate-slide-up relative overflow-hidden transition-all duration-500 ${dayLockDetails.isLocked || enrollment.status === 'queued' ? 'bg-transparent border-none shadow-none min-h-[70vh]' : 'bg-white p-6 md:p-10 border border-gray-100 shadow-sm min-h-[400px]'}`}>
-                    {enrollment.status === 'queued' ? (
-                        <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in min-h-[60vh] w-full">
-                            <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-4">In the Queue.</h2>
-                            <p className="text-sm text-gray-500 font-medium mb-12 max-w-sm leading-relaxed">
-                                You have an active sprint running. This journey will automatically unlock once your current focus is complete.
-                            </p>
-                            <button 
-                                onClick={() => navigate('/dashboard')}
-                                className="px-10 py-5 bg-primary text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-primary/20 active:scale-95 transition-all hover:scale-[1.02]"
-                            >
-                                Return to Active Focus
-                            </button>
-                        </div>
-                    ) : dayLockDetails.isLocked ? (
-                        <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in min-h-[60vh] w-full">
-                            <div className="p-10 bg-white rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-200/50 w-full max-w-sm">
-                                <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-4">Access Locked.</h2>
-                                <p className="text-sm text-gray-500 font-medium mb-12 leading-relaxed">
-                                    {dayLockDetails.unlockTime 
-                                        ? `Next lesson unlocks at midnight.`
-                                        : dayLockDetails.reason || 'Complete previous day first.'}
-                                </p>
-                                
-                                {dayLockDetails.unlockTime && (
-                                    <>
-                                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-6">Available In</p>
-                                        <p className="text-5xl font-black text-gray-900 tabular-nums tracking-tighter">{timeToUnlock}</p>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="animate-fade-in">
-                                <div className="space-y-2 mb-10">
-                                    <SectionHeading>Today's Insight</SectionHeading>
-                                    <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
-                                        <FormattedText text={dayContent?.lessonText || ""} />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-6">
-                                    {dayContent?.taskPrompts && dayContent.taskPrompts.length > 1 ? (
-                                        dayContent.taskPrompts.map((prompt, i) => {
-                                            if (i !== activeTaskIndex) return null;
-                                            return (
-                                            <div key={i} className={`p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group`}>
-                                                <div className="relative z-10">
-                                                    <SectionHeading>{`Action Step ${i + 1}`}</SectionHeading>
-                                                    <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
-                                                        <FormattedText text={prompt} />
-                                                    </div>
-                                                    {dayContent.taskHints?.[i] && (
-                                                        <div className="mb-4">
-                                                            <button 
-                                                                type="button"
-                                                                onClick={() => setRevealedHints(prev => ({ ...prev, [i]: !prev[i] }))}
-                                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${revealedHints[i] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
-                                                            >
-                                                                <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${revealedHints[i] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                                </svg>
-                                                                {revealedHints[i] ? 'Hide Hint' : 'View Hint'}
-                                                            </button>
-                                                            {revealedHints[i] && (
-                                                                <div className="mt-3 p-4 bg-amber-50/50 border border-amber-100 rounded-xl text-sm font-medium text-amber-900 animate-fade-in leading-relaxed italic">
-                                                                    <FormattedText text={dayContent.taskHints[i]} />
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                {!dayProgress?.completed && (
-                                                    dayContent.taskInputTypes?.[i] === 'tags' ? (
-                                                        <div className="w-full bg-white border border-primary/10 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-primary/5 focus-within:border-primary transition-all">
-                                                            <div className="flex flex-wrap gap-2 p-3">
-                                                                {(taskInputs[i] && taskInputs[i].startsWith('[') ? JSON.parse(taskInputs[i] || '[]') : taskInputs[i] ? taskInputs[i].split(',').filter(Boolean) : []).map((tag: string, tIndex: number) => (
-                                                                    <span key={tIndex} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold leading-none bg-primary/10 text-primary">
-                                                                        {tag}
-                                                                        <button 
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                try {
-                                                                                    let tags: string[] = taskInputs[i].startsWith('[') ? JSON.parse(taskInputs[i]) : taskInputs[i].split(',').filter(Boolean);
-                                                                                    tags.splice(tIndex, 1);
-                                                                                    const newInputs = [...taskInputs];
-                                                                                    newInputs[i] = JSON.stringify(tags);
-                                                                                    setTaskInputs(newInputs);
-                                                                                } catch (e) {}
-                                                                            }}
-                                                                            className="hover:text-primary transition-colors hover:bg-primary/20 rounded-full p-0.5 ml-1"
-                                                                        >
-                                                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-                                                                        </button>
-                                                                    </span>
-                                                                ))}
-                                                                <input 
-                                                                    type="text"
-                                                                    placeholder="Type and press Enter to add tags..."
-                                                                    className="flex-1 min-w-[120px] px-2 py-1 text-sm font-medium outline-none bg-transparent"
-                                                                    onKeyDown={(e) => {
-                                                                        if (e.key === 'Enter') {
-                                                                            e.preventDefault();
-                                                                            const val = e.currentTarget.value.trim();
-                                                                            if (val) {
-                                                                                let tags: string[] = [];
-                                                                                if (taskInputs[i]) {
-                                                                                    if (taskInputs[i].startsWith('[')) {
-                                                                                        try { tags = JSON.parse(taskInputs[i]); } catch (err) {}
-                                                                                    } else {
-                                                                                        tags = taskInputs[i].split(',').filter(Boolean);
-                                                                                    }
-                                                                                }
-                                                                                if (!tags.includes(val)) {
-                                                                                    if (tags.length >= 5) {
-                                                                                        alert('You can only add up to 5 tags.');
-                                                                                        return;
-                                                                                    }
-                                                                                    const newInputs = [...taskInputs];
-                                                                                    newInputs[i] = JSON.stringify([...tags, val]);
-                                                                                    setTaskInputs(newInputs);
-                                                                                }
-                                                                                e.currentTarget.value = '';
-                                                                            }
-                                                                        }
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    ) : dayContent.taskInputTypes?.[i] === 'poll' ? (
-                                                        <div className="space-y-2">
-                                                            {(() => {
-                                                                let pollOptions: string[] = [];
-                                                                if (dayContent.taskPollOptions?.[i]) {
-                                                                    try { pollOptions = JSON.parse(dayContent.taskPollOptions[i]); } catch(e) {}
-                                                                }
-                                                                let linkedSourceIndex = -1;
-                                                                for (let prevIndex = i - 1; prevIndex >= 0; prevIndex--) {
-                                                                    if (dayContent.taskLinkedToNext?.[prevIndex]) {
-                                                                        if (dayContent.taskInputTypes?.[prevIndex] === 'tags') {
-                                                                            linkedSourceIndex = prevIndex;
-                                                                            break;
-                                                                        }
-                                                                    } else {
-                                                                        break;
-                                                                    }
-                                                                }
-                                                                
-                                                                if (linkedSourceIndex !== -1 && taskInputs[linkedSourceIndex]) {
-                                                                    try {
-                                                                        pollOptions = taskInputs[linkedSourceIndex].startsWith('[') ? JSON.parse(taskInputs[linkedSourceIndex] || '[]') : taskInputs[linkedSourceIndex].split(',').filter(Boolean);
-                                                                    } catch (e) {
-                                                                        pollOptions = [];
-                                                                    }
-                                                                }
-                                                                return (pollOptions).filter(Boolean).map((opt: string, optIndex: number) => (
-                                                                    <button
-                                                                        key={optIndex}
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            const newInputs = [...taskInputs];
-                                                                            newInputs[i] = opt;
-                                                                            setTaskInputs(newInputs);
-                                                                        }}
-                                                                        className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[i] === opt ? 'bg-primary/10 border-primary text-primary' : 'bg-white border-primary/10 hover:border-primary/30 text-gray-700'}`}
-                                                                    >
-                                                                        {String.fromCharCode(65 + optIndex)}. {opt}
-                                                                    </button>
-                                                                ));
-                                                            })()}
-                                                        </div>
-                                                    ) : (
-                                                        <input 
-                                                            type="text"
-                                                            value={taskInputs[i] || ''}
-                                                            onChange={(e) => {
-                                                                const newInputs = [...taskInputs];
-                                                                newInputs[i] = e.target.value;
-                                                                setTaskInputs(newInputs);
-                                                            }}
-                                                            placeholder="Your response..."
-                                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all"
-                                                        />
-                                                    )
-                                                )}
-                                                {dayProgress?.completed && (
-                                                    <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex gap-2 overflow-hidden flex-wrap w-full items-center">
-                                                        <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                                                        {dayContent.taskInputTypes?.[i] === 'tags' ? (
-                                                            (taskInputs[i] && taskInputs[i].startsWith('[') ? JSON.parse(taskInputs[i] || '[]') : taskInputs[i] ? taskInputs[i].split(',').filter(Boolean) : []).map((tag: string, tIndex: number) => (
-                                                                <span key={tIndex} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary">
-                                                                    {tag}
-                                                                </span>
-                                                            ))
-                                                        ) : (
-                                                            taskInputs[i] || 'Completed'
-                                                        )}
-                                                    </div>
-                                                )}
-                                                {!dayProgress?.completed && <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>}
-                                                {i === activeTaskIndex && (
-                                                    <div className="mt-4 flex justify-between items-center gap-4">
-                                                        {i > 0 ? (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setActiveTaskIndex(i - 1)}
-                                                                className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30"
-                                                            >
-                                                                Back
-                                                            </button>
-                                                        ) : <div></div>}
-                                                        
-                                                        {i < (dayContent.taskPrompts?.length || 0) - 1 && (() => {
-                                                            const val = taskInputs[i];
-                                                            const isTags = dayContent.taskInputTypes?.[i] === 'tags';
-                                                            const isValid = !!dayProgress?.completed || (!!val && (isTags ? val !== '[]' && val !== '' : val.trim().length > 0));
-                                                            return (
-                                                                <button 
-                                                                    type="button" 
-                                                                    onClick={() => setActiveTaskIndex(i + 1)} 
-                                                                    disabled={!isValid}
-                                                                    className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${isValid ? 'bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-                                                                >
-                                                                    Next
-                                                                </button>
-                                                            );
-                                                        })()}
-                                                    </div>
-                                                )}
-                                                </div>
-                                            </div>
-                                            );
-                                        })
-                                    ) : (
-                                        <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                                            <SectionHeading>Today's Action Steps</SectionHeading>
-                                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
-                                                <FormattedText text={dayContent?.taskPrompt || ""} />
-                                            </div>
-                                            {dayContent?.taskHints?.[0] && (
-                                                <div className="mb-4">
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => setRevealedHints(prev => ({ ...prev, 0: !prev[0] }))}
-                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${revealedHints[0] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
-                                                    >
-                                                        <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${revealedHints[0] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                        </svg>
-                                                        {revealedHints[0] ? 'Hide Hint' : 'View Hint'}
-                                                    </button>
-                                                    {revealedHints[0] && (
-                                                        <div className="mt-3 p-4 bg-amber-50/50 border border-amber-100 rounded-xl text-sm font-medium text-amber-900 animate-fade-in leading-relaxed italic">
-                                                            <FormattedText text={dayContent.taskHints[0]} />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                            {!dayProgress?.completed && (
-                                                dayContent?.taskInputTypes?.[0] === 'tags' ? (
-                                                    <div className="w-full bg-white border border-primary/10 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-primary/5 focus-within:border-primary transition-all">
-                                                        <div className="flex flex-wrap gap-2 p-3">
-                                                            {(taskInputs[0] && taskInputs[0].startsWith('[') ? JSON.parse(taskInputs[0] || '[]') : taskInputs[0] ? taskInputs[0].split(',').filter(Boolean) : []).map((tag: string, tIndex: number) => (
-                                                                <span key={tIndex} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold leading-none bg-primary/10 text-primary">
-                                                                    {tag}
-                                                                    <button 
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            try {
-                                                                                let tags: string[] = taskInputs[0].startsWith('[') ? JSON.parse(taskInputs[0]) : taskInputs[0].split(',').filter(Boolean);
-                                                                                tags.splice(tIndex, 1);
-                                                                                const newInputs = [...taskInputs];
-                                                                                newInputs[0] = JSON.stringify(tags);
-                                                                                setTaskInputs(newInputs);
-                                                                            } catch (e) {}
-                                                                        }}
-                                                                        className="hover:text-primary transition-colors hover:bg-primary/20 rounded-full p-0.5 ml-1"
-                                                                    >
-                                                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-                                                                    </button>
-                                                                </span>
-                                                            ))}
-                                                            <input 
-                                                                type="text"
-                                                                placeholder="Type and press Enter to add tags..."
-                                                                className="flex-1 min-w-[120px] px-2 py-1 text-sm font-medium outline-none bg-transparent"
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        e.preventDefault();
-                                                                        const val = e.currentTarget.value.trim();
-                                                                        if (val) {
-                                                                            let tags: string[] = [];
-                                                                            if (taskInputs[0]) {
-                                                                                if (taskInputs[0].startsWith('[')) {
-                                                                                    try { tags = JSON.parse(taskInputs[0]); } catch (err) {}
-                                                                                } else {
-                                                                                    tags = taskInputs[0].split(',').filter(Boolean);
-                                                                                }
-                                                                            }
-                                                                            if (!tags.includes(val)) {
-                                                                                if (tags.length >= 5) {
-                                                                                    alert('You can only add up to 5 tags.');
-                                                                                    return;
-                                                                                }
-                                                                                const newInputs = [...taskInputs];
-                                                                                newInputs[0] = JSON.stringify([...tags, val]);
-                                                                                setTaskInputs(newInputs);
-                                                                            }
-                                                                            e.currentTarget.value = '';
-                                                                        }
-                                                                    }
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                ) : dayContent?.taskInputTypes?.[0] === 'poll' ? (
-                                                    <div className="space-y-2">
-                                                        {(() => {
-                                                            let pollOpts: string[] = [];
-                                                            try { pollOpts = JSON.parse(dayContent.taskPollOptions?.[0] || '[]'); } catch(e) {}
-                                                            return pollOpts.filter(Boolean).map((opt, optIndex) => (
-                                                                <button
-                                                                    key={optIndex}
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        const newInputs = [...taskInputs];
-                                                                        newInputs[0] = opt;
-                                                                        setTaskInputs(newInputs);
-                                                                    }}
-                                                                    className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[0] === opt ? 'bg-primary/10 border-primary text-primary' : 'bg-white border-primary/10 hover:border-primary/30 text-gray-700'}`}
-                                                                >
-                                                                    {String.fromCharCode(65 + optIndex)}. {opt}
-                                                                </button>
-                                                            ));
-                                                        })()}
-                                                    </div>
-                                                ) : (
-                                                    <input 
-                                                        type="text"
-                                                        value={taskInputs[0] || ''}
-                                                        onChange={(e) => {
-                                                            const newInputs = [...taskInputs];
-                                                            newInputs[0] = e.target.value;
-                                                            setTaskInputs(newInputs);
-                                                        }}
-                                                        placeholder="Your response..."
-                                                        className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all"
-                                                    />
-                                                )
-                                            )}
-                                            {dayProgress?.completed && (
-                                                <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex gap-2 overflow-hidden flex-wrap w-full items-center">
-                                                    <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                                                    {dayContent?.taskInputTypes?.[0] === 'tags' ? (
-                                                        (taskInputs[0] && taskInputs[0].startsWith('[') ? JSON.parse(taskInputs[0] || '[]') : taskInputs[0] ? taskInputs[0].split(',').filter(Boolean) : []).map((tag: string, tIndex: number) => (
-                                                            <span key={tIndex} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary">
-                                                                {tag}
-                                                            </span>
-                                                        ))
-                                                    ) : (
-                                                        taskInputs[0] || 'Completed'
-                                                    )}
-                                                </div>
-                                            )}
-                                            {!dayProgress?.completed && <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>}
-                                        </div>
-                                    )}
-                                    {dayContent?.taskPrompts && dayContent.taskPrompts.length > 1 && (
-                                        <div className="flex justify-center items-center gap-2 mt-8">
-                                            {dayContent.taskPrompts.map((_, idx) => (
-                                                <button
-                                                    type="button"
-                                                    key={idx} 
-                                                    onClick={() => {
-                                                        if (dayProgress?.completed || idx < activeTaskIndex) {
-                                                            setActiveTaskIndex(idx);
-                                                        }
-                                                    }}
-                                                    className={`h-1.5 rounded-full transition-all duration-300 ${(dayProgress?.completed || idx < activeTaskIndex) ? 'cursor-pointer' : 'cursor-not-allowed'} ${idx === activeTaskIndex ? 'w-8 bg-primary' : idx < activeTaskIndex ? 'w-2 bg-primary/40 hover:bg-primary/60' : dayProgress?.completed ? 'w-2 bg-primary/40 hover:bg-primary/60' : 'w-2 bg-gray-200'}`}
-                                                />
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {!dayProgress?.completed && (activeTaskIndex === (dayContent?.taskPrompts?.length || 1) - 1 || !dayContent?.taskPrompts || dayContent.taskPrompts.length <= 1) && (
-                                    <div className="mt-12 space-y-6 animate-fade-in">
-                                        <button 
-                                          onClick={handleFinishDay}
-                                          disabled={isSubmitting || !isProofMet}
-                                          className={`w-full py-5 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] shadow-xl transition-all ${isProofMet ? 'bg-[#159E5B] text-white shadow-primary/10 active:scale-95' : 'bg-gray-100 text-gray-400 cursor-not-allowed'} disabled:opacity-50`}
-                                        >
-                                          Today's task completed
-                                        </button>
-                                    </div>
-                                )}
-
-                                {dayProgress?.completed && (
-                                    <div className="mt-12 space-y-6">
-                                        <div className="w-full py-5 bg-gray-50 text-gray-400 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] text-center border border-gray-100">
-                                            Mission Complete
-                                        </div>
-
-                                        {dayProgress.proofSelection && (
-                                            <div className="animate-fade-in pt-4 border-t border-gray-50">
-                                                <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Confirmed Outcome</p>
-                                                <div className="bg-gray-50 rounded-[1.5rem] p-4 border border-gray-100 flex items-center gap-3">
-                                                    <div className="w-2 h-2 rounded-full bg-primary"></div>
-                                                    <p className="text-xs font-black uppercase text-gray-700">{dayProgress.proofSelection}</p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                    </div>
-                                )}
-
-                                {sprint.checkInReminder && viewingDay === sprint.duration && (
-                                    <div className="flex items-center justify-between py-6 border-t border-gray-50 mt-12 animate-fade-in">
-                                        <div>
-                                            <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest block mb-1">Daily Check-in Reminder</span>
-                                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Enable to stay consistent after the sprint</p>
-                                        </div>
-                                        <button 
-                                            onClick={handleToggleReminder}
-                                            className={`w-12 h-6 rounded-full transition-all duration-300 relative ${enrollment.checkInReminderEnabled ? 'bg-primary shadow-lg shadow-primary/20' : 'bg-gray-200'}`}
-                                        >
-                                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${enrollment.checkInReminderEnabled ? 'right-1' : 'left-1'}`} />
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {enrollment.checkInReminderEnabled && viewingDay === sprint.duration && (
-                                <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm animate-fade-in mt-6">
-                                    <div className="flex justify-between items-start mb-6">
-                                        <div>
-                                            <button 
-                                                onClick={() => setViewingDay(sprint.duration)}
-                                                className="group/title block text-left"
-                                            >
-                                                <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1 group-hover/title:text-primary/70 transition-colors">Daily Check-in</h3>
-                                            </button>
-                                            <p className="text-sm font-black text-gray-900">Active for {sprint.checkInReminderDays || 0} days</p>
-                                        </div>
-                                        <div className="text-right max-w-[150px]">
-                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Last Sprint Submission</p>
-                                            <p className="text-[10px] font-bold text-gray-600 line-clamp-2 italic">
-                                                "{(() => {
-                                                    const lastDayProg = enrollment.progress.find(p => p.day === sprint.duration);
-                                                    return lastDayProg?.submission || 'No submission recorded';
-                                                })()}"
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-wrap gap-2">
-                                        {Array.from({ length: sprint.checkInReminderDays || 0 }, (_, i) => i + 1).map((day) => {
-                                            const isCheckedIn = enrollment.checkInHistory?.some(h => h.day === day);
-                                            return (
-                                                <button
-                                                    key={day}
-                                                    onClick={() => handleCheckIn(day)}
-                                                    disabled={isCheckedIn}
-                                                    className={`px-3 py-2 rounded-xl text-[10px] font-black transition-all active:scale-95 ${
-                                                        isCheckedIn 
-                                                        ? 'bg-primary/10 text-primary border border-primary/20' 
-                                                        : 'bg-gray-50 text-gray-400 border border-gray-100 hover:border-primary/30'
-                                                    }`}
-                                                >
-                                                    Day {day} {isCheckedIn ? '✓' : ''}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                    <p className="text-[9px] text-gray-400 mt-4 font-medium">Click a day to confirm your daily check-in.</p>
-                                </div>
-                            )}
-                        </>
-                    )}
-                </div>
+  return (
+    <>
+      <div className="page-content w-full bg-[#FAFAFA] flex flex-col font-sans text-dark animate-fade-in pb-24">
+        <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={3}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+            <div className="text-center flex-1 mx-4 min-w-0">
+              <h1 className="text-lg font-black text-gray-900 truncate">
+                {sprint.title}
+              </h1>
             </div>
+            <div className="flex gap-2">
+              <Link
+                to={`/sprint/${sprint.id}`}
+                className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </Link>
+              <button
+                onClick={() => setIsChatModalOpen(true)}
+                disabled={dayLockDetails.isLocked}
+                className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm transition-all relative ${dayLockDetails.isLocked ? "opacity-40 cursor-not-allowed" : "text-gray-400 active:scale-95"}`}
+                title={
+                  dayLockDetails.isLocked
+                    ? "Complete previous day first"
+                    : "Coaching Chat"
+                }
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                  />
+                </svg>
+                {!dayLockDetails.isLocked && hasUnreadMessages && (
+                  <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse"></span>
+                )}
+              </button>
+              <button
+                onClick={() => setIsSettingsModalOpen(true)}
+                className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
+                title="Sprint Settings"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </header>
 
-            <style>{`
+        <div className="px-6 max-w-2xl mx-auto w-full space-y-6 mt-4">
+          <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1">
+            {Array.from({ length: sprint.duration }, (_, i) => i + 1).map(
+              (day) => {
+                const isActive = viewingDay === day;
+                const prog = enrollment.progress?.find((p) => p.day === day);
+                const isCompleted = prog?.completed;
+
+                const firstIncomplete =
+                  enrollment.progress?.find((p) => !p.completed)?.day ||
+                  sprint.duration;
+                const isDisabled = day > firstIncomplete;
+
+                return (
+                  <button
+                    key={day}
+                    disabled={isDisabled}
+                    onClick={() => setViewingDay(day)}
+                    className={`flex-shrink-0 w-20 h-20 rounded-[1.5rem] flex flex-col items-center justify-center relative transition-all duration-300 active:scale-95 ${
+                      isActive
+                        ? "bg-[#0E7850] text-white shadow-xl shadow-primary/20 scale-105"
+                        : isDisabled
+                          ? "bg-[#F3F4F6] text-gray-200 cursor-not-allowed opacity-50"
+                          : "bg-[#F3F4F6] text-gray-400"
+                    }`}
+                  >
+                    {isCompleted && (
+                      <div
+                        className={`absolute top-3 right-3 w-2 h-2 rounded-full ${isActive ? "bg-white" : "bg-[#0E7850]"}`}
+                      ></div>
+                    )}
+                    <span
+                      className={`text-[8px] font-black uppercase tracking-widest ${isActive ? "text-white/60" : "text-gray-300"}`}
+                    >
+                      Day
+                    </span>
+                    <span className="text-3xl font-black leading-none">
+                      {day}
+                    </span>
+                  </button>
+                );
+              },
+            )}
+          </div>
+
+          <div
+            className={`rounded-3xl animate-slide-up relative overflow-hidden transition-all duration-500 ${dayLockDetails.isLocked || enrollment.status === "queued" ? "bg-transparent border-none shadow-none min-h-[70vh]" : "bg-white p-6 md:p-10 border border-gray-100 shadow-sm min-h-[400px]"}`}
+          >
+            {enrollment.status === "queued" ? (
+              <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in min-h-[60vh] w-full">
+                <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-4">
+                  In the Queue.
+                </h2>
+                <p className="text-sm text-gray-500 font-medium mb-12 max-w-sm leading-relaxed">
+                  You have an active sprint running. This journey will
+                  automatically unlock once your current focus is complete.
+                </p>
+                <button
+                  onClick={() => navigate("/dashboard")}
+                  className="px-10 py-5 bg-primary text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-primary/20 active:scale-95 transition-all hover:scale-[1.02]"
+                >
+                  Return to Active Focus
+                </button>
+              </div>
+            ) : dayLockDetails.isLocked ? (
+              <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in min-h-[60vh] w-full">
+                <div className="p-10 bg-white rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-200/50 w-full max-w-sm">
+                  <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-4">
+                    Access Locked.
+                  </h2>
+                  <p className="text-sm text-gray-500 font-medium mb-12 leading-relaxed">
+                    {dayLockDetails.unlockTime
+                      ? `Next lesson unlocks at midnight.`
+                      : dayLockDetails.reason || "Complete previous day first."}
+                  </p>
+
+                  {dayLockDetails.unlockTime && (
+                    <>
+                      <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-6">
+                        Available In
+                      </p>
+                      <p className="text-5xl font-black text-gray-900 tabular-nums tracking-tighter">
+                        {timeToUnlock}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="animate-fade-in">
+                  <div className="space-y-2 mb-10">
+                    <SectionHeading>Today's Insight</SectionHeading>
+                    <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
+                      <FormattedText text={dayContent?.lessonText || ""} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    {dayContent?.taskPrompts &&
+                    dayContent.taskPrompts.length > 1 ? (
+                      dayContent.taskPrompts.map((prompt, i) => {
+                        if (i !== activeTaskIndex) return null;
+                        return (
+                          <div
+                            key={i}
+                            className={`p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group`}
+                          >
+                            <div className="relative z-10">
+                              <SectionHeading>{`Action Step ${i + 1}`}</SectionHeading>
+                              <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
+                                <FormattedText text={prompt} />
+                              </div>
+                              {dayContent.taskHints?.[i] && (
+                                <div className="mb-4">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setRevealedHints((prev) => ({
+                                        ...prev,
+                                        [i]: !prev[i],
+                                      }))
+                                    }
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
+                                  >
+                                    <svg
+                                      className={`w-3.5 h-3.5 transition-transform duration-300 ${revealedHints[i] ? "rotate-180" : ""}`}
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={3}
+                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                      />
+                                    </svg>
+                                    {revealedHints[i]
+                                      ? "Hide Hint"
+                                      : "View Hint"}
+                                  </button>
+                                  {revealedHints[i] && (
+                                    <div className="mt-3 p-4 bg-amber-50/50 border border-amber-100 rounded-xl text-sm font-medium text-amber-900 animate-fade-in leading-relaxed italic">
+                                      <FormattedText
+                                        text={dayContent.taskHints[i]}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {!dayProgress?.completed &&
+                                (dayContent.taskInputTypes?.[i] === "tags" ? (
+                                  <div className="w-full bg-white border border-primary/10 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-primary/5 focus-within:border-primary transition-all">
+                                    <div className="flex flex-wrap gap-2 p-3">
+                                      {(taskInputs[i] &&
+                                      taskInputs[i].startsWith("[")
+                                        ? JSON.parse(taskInputs[i] || "[]")
+                                        : taskInputs[i]
+                                          ? taskInputs[i]
+                                              .split(",")
+                                              .filter(Boolean)
+                                          : []
+                                      ).map((tag: string, tIndex: number) => (
+                                        <span
+                                          key={tIndex}
+                                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold leading-none bg-primary/10 text-primary"
+                                        >
+                                          {tag}
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              try {
+                                                let tags: string[] = taskInputs[
+                                                  i
+                                                ].startsWith("[")
+                                                  ? JSON.parse(taskInputs[i])
+                                                  : taskInputs[i]
+                                                      .split(",")
+                                                      .filter(Boolean);
+                                                tags.splice(tIndex, 1);
+                                                const newInputs = [
+                                                  ...taskInputs,
+                                                ];
+                                                newInputs[i] =
+                                                  JSON.stringify(tags);
+                                                setTaskInputs(newInputs);
+                                              } catch (e) {}
+                                            }}
+                                            className="hover:text-primary transition-colors hover:bg-primary/20 rounded-full p-0.5 ml-1"
+                                          >
+                                            <svg
+                                              className="w-3 h-3"
+                                              fill="none"
+                                              viewBox="0 0 24 24"
+                                              stroke="currentColor"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={3}
+                                                d="M6 18L18 6M6 6l12 12"
+                                              />
+                                            </svg>
+                                          </button>
+                                        </span>
+                                      ))}
+                                      <input
+                                        type="text"
+                                        placeholder="Type and press Enter to add tags..."
+                                        className="flex-1 min-w-[120px] px-2 py-1 text-sm font-medium outline-none bg-transparent"
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            const val =
+                                              e.currentTarget.value.trim();
+                                            if (val) {
+                                              let tags: string[] = [];
+                                              if (taskInputs[i]) {
+                                                if (
+                                                  taskInputs[i].startsWith("[")
+                                                ) {
+                                                  try {
+                                                    tags = JSON.parse(
+                                                      taskInputs[i],
+                                                    );
+                                                  } catch (err) {}
+                                                } else {
+                                                  tags = taskInputs[i]
+                                                    .split(",")
+                                                    .filter(Boolean);
+                                                }
+                                              }
+                                              if (!tags.includes(val)) {
+                                                if (tags.length >= 5) {
+                                                  alert(
+                                                    "You can only add up to 5 tags.",
+                                                  );
+                                                  return;
+                                                }
+                                                const newInputs = [
+                                                  ...taskInputs,
+                                                ];
+                                                newInputs[i] = JSON.stringify([
+                                                  ...tags,
+                                                  val,
+                                                ]);
+                                                setTaskInputs(newInputs);
+                                              }
+                                              e.currentTarget.value = "";
+                                            }
+                                          }
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                ) : dayContent.taskInputTypes?.[i] ===
+                                  "poll" ? (
+                                  <div className="space-y-2">
+                                    {(() => {
+                                      let pollOptions: string[] = [];
+                                      if (dayContent.taskPollOptions?.[i]) {
+                                        try {
+                                          pollOptions = JSON.parse(
+                                            dayContent.taskPollOptions[i],
+                                          );
+                                        } catch (e) {}
+                                      }
+                                      let linkedSourceIndex = -1;
+                                      for (
+                                        let prevIndex = i - 1;
+                                        prevIndex >= 0;
+                                        prevIndex--
+                                      ) {
+                                        if (
+                                          dayContent.taskLinkedToNext?.[
+                                            prevIndex
+                                          ]
+                                        ) {
+                                          if (
+                                            dayContent.taskInputTypes?.[
+                                              prevIndex
+                                            ] === "tags"
+                                          ) {
+                                            linkedSourceIndex = prevIndex;
+                                            break;
+                                          }
+                                        } else {
+                                          break;
+                                        }
+                                      }
+
+                                      if (
+                                        linkedSourceIndex !== -1 &&
+                                        taskInputs[linkedSourceIndex]
+                                      ) {
+                                        try {
+                                          pollOptions = taskInputs[
+                                            linkedSourceIndex
+                                          ].startsWith("[")
+                                            ? JSON.parse(
+                                                taskInputs[linkedSourceIndex] ||
+                                                  "[]",
+                                              )
+                                            : taskInputs[linkedSourceIndex]
+                                                .split(",")
+                                                .filter(Boolean);
+                                        } catch (e) {
+                                          pollOptions = [];
+                                        }
+                                      }
+                                      return pollOptions
+                                        .filter(Boolean)
+                                        .map(
+                                          (opt: string, optIndex: number) => (
+                                            <button
+                                              key={optIndex}
+                                              type="button"
+                                              onClick={() => {
+                                                const newInputs = [
+                                                  ...taskInputs,
+                                                ];
+                                                newInputs[i] = opt;
+                                                setTaskInputs(newInputs);
+                                              }}
+                                              className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[i] === opt ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
+                                            >
+                                              {String.fromCharCode(
+                                                65 + optIndex,
+                                              )}
+                                              . {opt}
+                                            </button>
+                                          ),
+                                        );
+                                    })()}
+                                  </div>
+                                ) : (
+                                  <textarea
+                                    rows={4}
+                                    value={taskInputs[i] || ""}
+                                    onChange={(e) => {
+                                      const newInputs = [...taskInputs];
+                                      newInputs[i] = e.target.value;
+                                      setTaskInputs(newInputs);
+                                    }}
+                                    placeholder="What's on your mind..."
+                                    className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                                  />
+                                ))}
+                              {dayProgress?.completed && (
+                                <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex gap-2 overflow-hidden flex-wrap w-full items-center">
+                                  <svg
+                                    className="w-4 h-4 shrink-0"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                  {dayContent.taskInputTypes?.[i] === "tags"
+                                    ? (taskInputs[i] &&
+                                      taskInputs[i].startsWith("[")
+                                        ? JSON.parse(taskInputs[i] || "[]")
+                                        : taskInputs[i]
+                                          ? taskInputs[i]
+                                              .split(",")
+                                              .filter(Boolean)
+                                          : []
+                                      ).map((tag: string, tIndex: number) => (
+                                        <span
+                                          key={tIndex}
+                                          className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary"
+                                        >
+                                          {tag}
+                                        </span>
+                                      ))
+                                    : taskInputs[i] || "Completed"}
+                                </div>
+                              )}
+                              {!dayProgress?.completed && (
+                                <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                              )}
+                              {i === activeTaskIndex && (
+                                <div className="mt-4 flex justify-between items-center gap-4">
+                                  {i > 0 ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveTaskIndex(i - 1)}
+                                      className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30"
+                                    >
+                                      Back
+                                    </button>
+                                  ) : (
+                                    <div></div>
+                                  )}
+
+                                  {i <
+                                    (dayContent.taskPrompts?.length || 0) - 1 &&
+                                    (() => {
+                                      const val = taskInputs[i];
+                                      const isTags =
+                                        dayContent.taskInputTypes?.[i] ===
+                                        "tags";
+                                      const isValid =
+                                        !!dayProgress?.completed ||
+                                        (!!val &&
+                                          (isTags
+                                            ? val !== "[]" && val !== ""
+                                            : val.trim().length > 0));
+                                      return (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setActiveTaskIndex(i + 1)
+                                          }
+                                          disabled={!isValid}
+                                          className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${isValid ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                        >
+                                          Next
+                                        </button>
+                                      );
+                                    })()}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
+                        <SectionHeading>Today's Action Steps</SectionHeading>
+                        <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
+                          <FormattedText text={dayContent?.taskPrompt || ""} />
+                        </div>
+                        {dayContent?.taskHints?.[0] && (
+                          <div className="mb-4">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setRevealedHints((prev) => ({
+                                  ...prev,
+                                  0: !prev[0],
+                                }))
+                              }
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${revealedHints[0] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
+                            >
+                              <svg
+                                className={`w-3.5 h-3.5 transition-transform duration-300 ${revealedHints[0] ? "rotate-180" : ""}`}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={3}
+                                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                              {revealedHints[0] ? "Hide Hint" : "View Hint"}
+                            </button>
+                            {revealedHints[0] && (
+                              <div className="mt-3 p-4 bg-amber-50/50 border border-amber-100 rounded-xl text-sm font-medium text-amber-900 animate-fade-in leading-relaxed italic">
+                                <FormattedText text={dayContent.taskHints[0]} />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {!dayProgress?.completed &&
+                          (dayContent?.taskInputTypes?.[0] === "tags" ? (
+                            <div className="w-full bg-white border border-primary/10 rounded-xl overflow-hidden focus-within:ring-4 focus-within:ring-primary/5 focus-within:border-primary transition-all">
+                              <div className="flex flex-wrap gap-2 p-3">
+                                {(taskInputs[0] && taskInputs[0].startsWith("[")
+                                  ? JSON.parse(taskInputs[0] || "[]")
+                                  : taskInputs[0]
+                                    ? taskInputs[0].split(",").filter(Boolean)
+                                    : []
+                                ).map((tag: string, tIndex: number) => (
+                                  <span
+                                    key={tIndex}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold leading-none bg-primary/10 text-primary"
+                                  >
+                                    {tag}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        try {
+                                          let tags: string[] =
+                                            taskInputs[0].startsWith("[")
+                                              ? JSON.parse(taskInputs[0])
+                                              : taskInputs[0]
+                                                  .split(",")
+                                                  .filter(Boolean);
+                                          tags.splice(tIndex, 1);
+                                          const newInputs = [...taskInputs];
+                                          newInputs[0] = JSON.stringify(tags);
+                                          setTaskInputs(newInputs);
+                                        } catch (e) {}
+                                      }}
+                                      className="hover:text-primary transition-colors hover:bg-primary/20 rounded-full p-0.5 ml-1"
+                                    >
+                                      <svg
+                                        className="w-3 h-3"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={3}
+                                          d="M6 18L18 6M6 6l12 12"
+                                        />
+                                      </svg>
+                                    </button>
+                                  </span>
+                                ))}
+                                <input
+                                  type="text"
+                                  placeholder="Type and press Enter to add tags..."
+                                  className="flex-1 min-w-[120px] px-2 py-1 text-sm font-medium outline-none bg-transparent"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      const val = e.currentTarget.value.trim();
+                                      if (val) {
+                                        let tags: string[] = [];
+                                        if (taskInputs[0]) {
+                                          if (taskInputs[0].startsWith("[")) {
+                                            try {
+                                              tags = JSON.parse(taskInputs[0]);
+                                            } catch (err) {}
+                                          } else {
+                                            tags = taskInputs[0]
+                                              .split(",")
+                                              .filter(Boolean);
+                                          }
+                                        }
+                                        if (!tags.includes(val)) {
+                                          if (tags.length >= 5) {
+                                            alert(
+                                              "You can only add up to 5 tags.",
+                                            );
+                                            return;
+                                          }
+                                          const newInputs = [...taskInputs];
+                                          newInputs[0] = JSON.stringify([
+                                            ...tags,
+                                            val,
+                                          ]);
+                                          setTaskInputs(newInputs);
+                                        }
+                                        e.currentTarget.value = "";
+                                      }
+                                    }
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ) : dayContent?.taskInputTypes?.[0] === "poll" ? (
+                            <div className="space-y-2">
+                              {(() => {
+                                let pollOpts: string[] = [];
+                                try {
+                                  pollOpts = JSON.parse(
+                                    dayContent.taskPollOptions?.[0] || "[]",
+                                  );
+                                } catch (e) {}
+                                return pollOpts
+                                  .filter(Boolean)
+                                  .map((opt, optIndex) => (
+                                    <button
+                                      key={optIndex}
+                                      type="button"
+                                      onClick={() => {
+                                        const newInputs = [...taskInputs];
+                                        newInputs[0] = opt;
+                                        setTaskInputs(newInputs);
+                                      }}
+                                      className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[0] === opt ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
+                                    >
+                                      {String.fromCharCode(65 + optIndex)}.{" "}
+                                      {opt}
+                                    </button>
+                                  ));
+                              })()}
+                            </div>
+                          ) : (
+                            <textarea
+                              rows={4}
+                              value={taskInputs[0] || ""}
+                              onChange={(e) => {
+                                const newInputs = [...taskInputs];
+                                newInputs[0] = e.target.value;
+                                setTaskInputs(newInputs);
+                              }}
+                              placeholder="What's on your mind..."
+                              className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                            />
+                          ))}
+                        {dayProgress?.completed && (
+                          <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex gap-2 overflow-hidden flex-wrap w-full items-center">
+                            <svg
+                              className="w-4 h-4 shrink-0"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            {dayContent?.taskInputTypes?.[0] === "tags"
+                              ? (taskInputs[0] && taskInputs[0].startsWith("[")
+                                  ? JSON.parse(taskInputs[0] || "[]")
+                                  : taskInputs[0]
+                                    ? taskInputs[0].split(",").filter(Boolean)
+                                    : []
+                                ).map((tag: string, tIndex: number) => (
+                                  <span
+                                    key={tIndex}
+                                    className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))
+                              : taskInputs[0] || "Completed"}
+                          </div>
+                        )}
+                        {!dayProgress?.completed && (
+                          <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                        )}
+                      </div>
+                    )}
+                    {dayContent?.taskPrompts &&
+                      dayContent.taskPrompts.length > 1 && (
+                        <div className="flex justify-center items-center gap-2 mt-8">
+                          {dayContent.taskPrompts.map((_, idx) => (
+                            <button
+                              type="button"
+                              key={idx}
+                              onClick={() => {
+                                if (
+                                  dayProgress?.completed ||
+                                  idx < activeTaskIndex
+                                ) {
+                                  setActiveTaskIndex(idx);
+                                }
+                              }}
+                              className={`h-1.5 rounded-full transition-all duration-300 ${dayProgress?.completed || idx < activeTaskIndex ? "cursor-pointer" : "cursor-not-allowed"} ${idx === activeTaskIndex ? "w-8 bg-primary" : idx < activeTaskIndex ? "w-2 bg-primary/40 hover:bg-primary/60" : dayProgress?.completed ? "w-2 bg-primary/40 hover:bg-primary/60" : "w-2 bg-gray-200"}`}
+                            />
+                          ))}
+                        </div>
+                      )}
+                  </div>
+
+                  {!dayProgress?.completed &&
+                    (activeTaskIndex ===
+                      (dayContent?.taskPrompts?.length || 1) - 1 ||
+                      !dayContent?.taskPrompts ||
+                      dayContent.taskPrompts.length <= 1) && (
+                      <div className="mt-12 space-y-6 animate-fade-in">
+                        <button
+                          onClick={handleFinishDay}
+                          disabled={isSubmitting || !isProofMet}
+                          className={`w-full py-5 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] shadow-xl transition-all ${isProofMet ? "bg-[#159E5B] text-white shadow-primary/10 active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"} disabled:opacity-50`}
+                        >
+                          Today's task completed
+                        </button>
+                      </div>
+                    )}
+
+                  {dayProgress?.completed && (
+                    <div className="mt-12 space-y-6">
+                      <div className="w-full py-5 bg-gray-50 text-gray-400 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] text-center border border-gray-100">
+                        Mission Complete
+                      </div>
+
+                      {dayProgress.proofSelection && (
+                        <div className="animate-fade-in pt-4 border-t border-gray-50">
+                          <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">
+                            Confirmed Outcome
+                          </p>
+                          <div className="bg-gray-50 rounded-[1.5rem] p-4 border border-gray-100 flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-primary"></div>
+                            <p className="text-xs font-black uppercase text-gray-700">
+                              {dayProgress.proofSelection}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {sprint.checkInReminder && viewingDay === sprint.duration && (
+                    <div className="flex items-center justify-between py-6 border-t border-gray-50 mt-12 animate-fade-in">
+                      <div>
+                        <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest block mb-1">
+                          Daily Check-in Reminder
+                        </span>
+                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">
+                          Enable to stay consistent after the sprint
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleToggleReminder}
+                        className={`w-12 h-6 rounded-full transition-all duration-300 relative ${enrollment.checkInReminderEnabled ? "bg-primary shadow-lg shadow-primary/20" : "bg-gray-200"}`}
+                      >
+                        <div
+                          className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${enrollment.checkInReminderEnabled ? "right-1" : "left-1"}`}
+                        />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {enrollment.checkInReminderEnabled &&
+                  viewingDay === sprint.duration && (
+                    <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm animate-fade-in mt-6">
+                      <div className="flex justify-between items-start mb-6">
+                        <div>
+                          <button
+                            onClick={() => setViewingDay(sprint.duration)}
+                            className="group/title block text-left"
+                          >
+                            <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1 group-hover/title:text-primary/70 transition-colors">
+                              Daily Check-in
+                            </h3>
+                          </button>
+                          <p className="text-sm font-black text-gray-900">
+                            Active for {sprint.checkInReminderDays || 0} days
+                          </p>
+                        </div>
+                        <div className="text-right max-w-[150px]">
+                          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                            Last Sprint Submission
+                          </p>
+                          <p className="text-[10px] font-bold text-gray-600 line-clamp-2 italic">
+                            "
+                            {(() => {
+                              const lastDayProg = enrollment.progress.find(
+                                (p) => p.day === sprint.duration,
+                              );
+                              return (
+                                lastDayProg?.submission ||
+                                "No submission recorded"
+                              );
+                            })()}
+                            "
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from(
+                          { length: sprint.checkInReminderDays || 0 },
+                          (_, i) => i + 1,
+                        ).map((day) => {
+                          const isCheckedIn = enrollment.checkInHistory?.some(
+                            (h) => h.day === day,
+                          );
+                          return (
+                            <button
+                              key={day}
+                              onClick={() => handleCheckIn(day)}
+                              disabled={isCheckedIn}
+                              className={`px-3 py-2 rounded-xl text-[10px] font-black transition-all active:scale-95 ${
+                                isCheckedIn
+                                  ? "bg-primary/10 text-primary border border-primary/20"
+                                  : "bg-gray-50 text-gray-400 border border-gray-100 hover:border-primary/30"
+                              }`}
+                            >
+                              Day {day} {isCheckedIn ? "✓" : ""}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[9px] text-gray-400 mt-4 font-medium">
+                        Click a day to confirm your daily check-in.
+                      </p>
+                    </div>
+                  )}
+              </>
+            )}
+          </div>
+        </div>
+
+        <style>{`
                 .modal-overlay {
                   position: fixed;
                   top: 0;
@@ -1247,57 +1835,57 @@ const SprintView: React.FC = () => {
                 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
                 .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
             `}</style>
-            </div>
+      </div>
 
-            <SprintSettingsModal 
-                isOpen={isSettingsModalOpen}
-                onClose={() => setIsSettingsModalOpen(false)}
-                soundEnabled={soundEnabled}
-                onToggleSound={toggleSoundState}
-                notificationsEnabled={notificationsEnabled}
-                onToggleNotifications={toggleNotificationsState}
-            />
-            <CoachingChatModal 
-                isOpen={isChatModalOpen}
-                onClose={() => setIsChatModalOpen(false)}
-                sprintId={sprint.id}
-                participantId={user?.id || ''}
-                day={viewingDay}
-                sprintTitle={sprint.title}
-            />
-            <DayCompletionModal
-                isOpen={isDayCompletionModalOpen}
-                onClose={() => setIsDayCompletionModalOpen(false)}
-                day={viewingDay}
-            />
-            <SprintCompletionModal
-                isOpen={isCompletionModalOpen}
-                onClose={() => navigate('/dashboard', { replace: true })}
-                onStartNext={handleCompletionModalAction}
-            />
-            <PushPermissionModal 
-                isOpen={isPushPermissionModalOpen}
-                onAccept={handleAcceptPush}
-                onDecline={handleDeclinePush}
-                onIgnore={handleIgnorePush}
-                isLoading={isSubmittingPush}
-            />
-            <ConfirmModal
-              isOpen={confirmCheckInDay !== null}
-              onClose={() => setConfirmCheckInDay(null)}
-              onConfirm={() => {
-                if (confirmCheckInDay !== null) {
-                  executeCheckIn(confirmCheckInDay);
-                }
-              }}
-              title="Check-in Confirmation"
-              message={`Ready to log your consistency for Day ${confirmCheckInDay || ''}? Tracking your progress is a key part of your growth journey.`}
-              confirmText="Confirm Check-in"
-              cancelText="Wait, not yet"
-              variant="success"
-            />
-        </>
-    );
+      <SprintSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        soundEnabled={soundEnabled}
+        onToggleSound={toggleSoundState}
+        notificationsEnabled={notificationsEnabled}
+        onToggleNotifications={toggleNotificationsState}
+      />
+      <CoachingChatModal
+        isOpen={isChatModalOpen}
+        onClose={() => setIsChatModalOpen(false)}
+        sprintId={sprint.id}
+        participantId={user?.id || ""}
+        day={viewingDay}
+        sprintTitle={sprint.title}
+      />
+      <DayCompletionModal
+        isOpen={isDayCompletionModalOpen}
+        onClose={() => setIsDayCompletionModalOpen(false)}
+        day={viewingDay}
+      />
+      <SprintCompletionModal
+        isOpen={isCompletionModalOpen}
+        onClose={() => navigate("/dashboard", { replace: true })}
+        onStartNext={handleCompletionModalAction}
+      />
+      <PushPermissionModal
+        isOpen={isPushPermissionModalOpen}
+        onAccept={handleAcceptPush}
+        onDecline={handleDeclinePush}
+        onIgnore={handleIgnorePush}
+        isLoading={isSubmittingPush}
+      />
+      <ConfirmModal
+        isOpen={confirmCheckInDay !== null}
+        onClose={() => setConfirmCheckInDay(null)}
+        onConfirm={() => {
+          if (confirmCheckInDay !== null) {
+            executeCheckIn(confirmCheckInDay);
+          }
+        }}
+        title="Check-in Confirmation"
+        message={`Ready to log your consistency for Day ${confirmCheckInDay || ""}? Tracking your progress is a key part of your growth journey.`}
+        confirmText="Confirm Check-in"
+        cancelText="Wait, not yet"
+        variant="success"
+      />
+    </>
+  );
 };
 
 export default SprintView;
