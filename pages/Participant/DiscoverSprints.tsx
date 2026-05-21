@@ -6,7 +6,7 @@ import { trackService } from '../../services/trackService';
 import { userService } from '../../services/userService';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
-import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
+import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS, LIFECYCLE_SLOTS } from '../../services/mockData';
 import LocalLogo from '../../components/LocalLogo';
 import SprintCard from '../../components/SprintCard';
 import TrackCard from '../../components/TrackCard';
@@ -242,9 +242,61 @@ const DiscoverSprints: React.FC = () => {
             if (!mapping) return;
 
             let resolvedId = null;
-            if (userFocus) {
-                const focusMap = mapping.sprintFocusMap || {};
-                resolvedId = Object.keys(focusMap).find(id => focusMap[id]?.includes(userFocus));
+            const slotDef = LIFECYCLE_SLOTS.find(s => s.id === slotId);
+            const isFoundation = slotDef?.stage === 'Foundation';
+
+            if (isFoundation) {
+                if (userFocus) {
+                    const focusMap = mapping.sprintFocusMap || {};
+                    const matches = Object.keys(focusMap).filter(id => focusMap[id]?.includes(userFocus));
+                    if (matches.length > 0) {
+                        const priorities = mapping.focusOptionPriorityMap?.[userFocus] || [];
+                        if (priorities.length > 0) {
+                            matches.sort((a, b) => {
+                                const idxA = priorities.indexOf(a);
+                                const idxB = priorities.indexOf(b);
+                                if (idxA > -1 && idxB > -1) return idxA - idxB;
+                                if (idxA > -1) return -1;
+                                if (idxB > -1) return 1;
+                                return 0;
+                            });
+                        }
+                        resolvedId = matches[0];
+                    }
+                }
+            } else {
+                // Connected to the participant account through their identity setup growthAreas
+                const growthAreas = participant?.growthAreas || [];
+                if (growthAreas.length > 0) {
+                    const focusMap = mapping.sprintFocusMap || {};
+                    const prioritiesMap = mapping.focusOptionPriorityMap || {};
+                    const candidateMatches: { sprintId: string; priorityScore: number; areaIndex: number }[] = [];
+
+                    for (let areaIdx = 0; areaIdx < growthAreas.length; areaIdx++) {
+                        const area = growthAreas[areaIdx];
+                        const matches = Object.keys(focusMap).filter(id => focusMap[id]?.includes(area));
+                        
+                        matches.forEach(sId => {
+                            const optPriorities = prioritiesMap[area] || [];
+                            const priorityIndex = optPriorities.indexOf(sId);
+                            const priorityScore = priorityIndex > -1 ? priorityIndex : 999;
+                            candidateMatches.push({
+                                sprintId: sId,
+                                priorityScore,
+                                areaIndex: areaIdx
+                            });
+                        });
+                    }
+
+                    if (candidateMatches.length > 0) {
+                        // First prioritize based on growthAreas selection order, then orchestrator priority Map
+                        candidateMatches.sort((a, b) => {
+                            if (a.areaIndex !== b.areaIndex) return a.areaIndex - b.areaIndex;
+                            return a.priorityScore - b.priorityScore;
+                        });
+                        resolvedId = candidateMatches[0].sprintId;
+                    }
+                }
             }
 
             if (!resolvedId) {

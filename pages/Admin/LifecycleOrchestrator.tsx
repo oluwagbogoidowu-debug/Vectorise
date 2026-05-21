@@ -14,17 +14,6 @@ interface OrchestratorProps {
 
 const STAGES: LifecycleStage[] = ['Foundation', 'Direction', 'Execution', 'Proof', 'Positioning', 'Stability', 'Expansion'];
 
-const TRIGGER_STATES: { id: OrchestrationTrigger; label: string }[] = [
-    { id: 'after_homepage', label: 'After Homepage' },
-    { id: 'skip_clarity', label: 'Skip Clarity' },
-    { id: 'payment_hesitation', label: 'Payment Hesitation' },
-    { id: 'after_1_sprint', label: 'After 1 Sprint' },
-    { id: 'after_1_paid_sprint', label: 'After 1 Paid Sprint' },
-    { id: 'after_2_sprints', label: 'After 2 Sprints' },
-    { id: 'after_2_paid_sprints', label: 'After 2 Paid Sprints' },
-    { id: 'after_3_sprints', label: 'After 3 Sprints' }
-];
-
 const SYSTEM_DESTINATIONS = [
     { id: 'system_map', title: 'The Map', category: 'System Overview', coverImageUrl: 'https://images.unsplash.com/photo-1526628953301-3e589a6a8b74?auto=format&fit=crop&w=800&q=80', duration: 0 }
 ];
@@ -39,11 +28,9 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
     const [isSaving, setIsSaving] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-    const [editingFocusSlot, setEditingFocusSlot] = useState<string | null>(null);
-    const [activeTriggerPicker, setActiveTriggerPicker] = useState<string | null>(null);
     const [activeSprintPicker, setActiveSprintPicker] = useState<string | null>(null);
-    const [specificationSteps, setSpecificationSteps] = useState<Record<string, number>>({});
     const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
+    const [expandedSprints, setExpandedSprints] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         setIsInitialLoading(true);
@@ -53,14 +40,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
         });
         return () => unsubscribe();
     }, [refreshKey]);
-
-    const usedTriggerStates = useMemo(() => {
-        return new Set(
-            (Object.values(assignments) as LifecycleSlotAssignment[])
-                .map(a => a.stateTrigger)
-                .filter((t): t is OrchestrationTrigger => !!t)
-        );
-    }, [assignments]);
 
     const currentStageConfig = LIFECYCLE_STAGES_CONFIG[selectedStage];
     const currentSlots = LIFECYCLE_SLOTS.filter(s => s.stage === selectedStage);
@@ -97,19 +76,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
             setActiveSprintPicker(null);
         } catch (err) {
             toast.error("Update failed.");
-        }
-    };
-
-    const handleTriggerAssign = async (slotId: string, triggerId: OrchestrationTrigger | undefined) => {
-        const defaultOptions = getSlotDefaultOptions(slotId);
-        const current = assignments[slotId] || { sprintId: '', focusCriteria: [], availableFocusOptions: [...defaultOptions] };
-        const newAssignment = { ...current, stateTrigger: triggerId };
-        
-        try {
-            await sprintService.saveSlotAssignment(slotId, newAssignment);
-            setActiveTriggerPicker(null);
-        } catch (err) {
-            toast.error("Trigger update failed.");
         }
     };
 
@@ -168,64 +134,9 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
         }
     };
 
-    const handleUpdateFocusOptionText = async (slotId: string, optIdx: number, newText: string) => {
-        const defaultOptions = getSlotDefaultOptions(slotId);
-        const current = assignments[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...defaultOptions] };
-        const options = [...(current.availableFocusOptions || defaultOptions)];
-        const oldText = options[optIdx];
-        options[optIdx] = newText;
-        
-        const focusMap = { ...(current.sprintFocusMap || {}) };
-        Object.keys(focusMap).forEach(sId => {
-            focusMap[sId] = (focusMap[sId] as string[]).map(f => f === oldText ? newText : f);
-        });
-
-        const newAssignment = { ...current, availableFocusOptions: options, sprintFocusMap: focusMap };
-        try {
-            await sprintService.saveSlotAssignment(slotId, newAssignment);
-        } catch (err) {
-            toast.error("Label update failed.");
-        }
-    };
-
-    const handleAddFocusOption = async (slotId: string) => {
-        const defaultOptions = getSlotDefaultOptions(slotId);
-        const current = assignments[slotId] || { sprintId: '', focusCriteria: [], availableFocusOptions: [...defaultOptions] };
-        const options = [...(current.availableFocusOptions || defaultOptions), 'New focus path'];
-        const newAssignment = { ...current, availableFocusOptions: options };
-        
-        try {
-            await sprintService.saveSlotAssignment(slotId, newAssignment);
-        } catch (err) {
-            toast.error("Add focus failed.");
-        }
-    };
-
-    const handleRemoveFocusOption = async (slotId: string, optIdx: number) => {
-        const defaultOptions = getSlotDefaultOptions(slotId);
-        const current = assignments[slotId] || { sprintId: '', focusCriteria: [], availableFocusOptions: [...defaultOptions] };
-        const options = [...(current.availableFocusOptions || defaultOptions)];
-        const removedText = options[optIdx];
-        options.splice(optIdx, 1);
-        
-        const focusMap = { ...(current.sprintFocusMap || {}) };
-        Object.keys(focusMap).forEach(sId => {
-            focusMap[sId] = (focusMap[sId] as string[]).filter(c => c !== removedText);
-        });
-        
-        const newAssignment = { ...current, availableFocusOptions: options, sprintFocusMap: focusMap };
-        try {
-            await sprintService.saveSlotAssignment(slotId, newAssignment);
-        } catch (err) {
-            toast.error("Remove focus failed.");
-        }
-    };
-
-    const handleSetStep = (slotId: string, sId: string, step: number) => {
-        setSpecificationSteps(prev => ({
-            ...prev,
-            [`${slotId}-${sId}`]: step
-        }));
+    const toggleExpand = (slotId: string, sId: string) => {
+        const key = `${slotId}_${sId}`;
+        setExpandedSprints(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
     const handleClearAll = async () => {
@@ -300,10 +211,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                         const assignment = assignments[slot.id] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...defaultOptions] };
                         const assignedSprintIds = assignment.sprintIds || (assignment.sprintId ? [assignment.sprintId] : []);
                         
-                        const isTriggerOpen = activeTriggerPicker === slot.id;
                         const isSprintPickerOpen = activeSprintPicker === slot.id;
-                        // Fix: Corrected typo 'editingFocusText' to 'isEditingFocusText'
-                        const isEditingFocusText = editingFocusSlot === slot.id;
                         
                         const slotFocusOptions = assignment.availableFocusOptions || defaultOptions;
                         const availableSprintsForPicker = allSprints
@@ -322,38 +230,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                     <div className="flex items-center gap-3 mb-1">
                                         <h4 className="text-lg font-black text-gray-900 tracking-tight italic">{slot.name}</h4>
                                         <div className="flex items-center gap-1.5">
-                                            <div className="relative">
-                                                <button 
-                                                    onClick={() => setActiveTriggerPicker(isTriggerOpen ? null : slot.id)}
-                                                    className={`p-1.5 rounded-lg transition-all border ${assignment.stateTrigger ? 'bg-primary text-white border-primary' : 'text-gray-300 border-transparent hover:border-gray-100 hover:text-primary active:scale-90'}`}
-                                                    title="Set Activation State"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 10-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                                                    </svg>
-                                                </button>
-                                                {isTriggerOpen && (
-                                                    <div className="absolute top-full left-0 mt-3 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100 z-[100] p-4 animate-slide-up">
-                                                        <div className="flex justify-between items-center mb-4 px-2">
-                                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Activation Point</p>
-                                                            <button onClick={() => setActiveTriggerPicker(null)} className="text-gray-300 hover:text-gray-900"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
-                                                        </div>
-                                                        <div className="space-y-1.5 max-h-64 overflow-y-auto no-scrollbar">
-                                                            {TRIGGER_STATES.map(ts => {
-                                                                const isUsedByOthers = usedTriggerStates.has(ts.id) && assignment.stateTrigger !== ts.id;
-                                                                if (isUsedByOthers) return null;
-                                                                return (
-                                                                    <button key={ts.id} onClick={() => handleTriggerAssign(slot.id, assignment.stateTrigger === ts.id ? undefined : ts.id)} className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between group ${assignment.stateTrigger === ts.id ? 'bg-primary text-white' : 'hover:bg-gray-50'}`}>
-                                                                        <span className={`text-[10px] font-bold uppercase tracking-tight ${assignment.stateTrigger === ts.id ? 'text-white' : 'text-gray-600'}`}>{ts.label}</span>
-                                                                        {assignment.stateTrigger === ts.id && <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                            <button onClick={() => handleTriggerAssign(slot.id, undefined)} className="w-full text-center py-3 text-[9px] font-black text-red-400 uppercase tracking-widest hover:bg-red-50 rounded-xl">Clear</button>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
                                             <button 
                                                 onClick={() => {
                                                     if (window.confirm(`Clear all assignments for ${slot.name}?`)) {
@@ -369,11 +245,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                             </button>
                                         </div>
                                     </div>
-                                    {assignment.stateTrigger && (
-                                        <div className="px-3 py-1 bg-primary/10 text-primary rounded-lg border border-primary/5">
-                                            <span className="text-[8px] font-black uppercase tracking-widest leading-none block">{TRIGGER_STATES.find(ts => ts.id === assignment.stateTrigger)?.label}</span>
-                                        </div>
-                                    )}
                                 </div>
 
                                 <div className="space-y-4">
@@ -411,21 +282,45 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                                         const isSystem = sId.startsWith('system_');
                                                         const isTrack = 'sprintIds' in s && !isSystem;
 
+                                                        const expandedKey = `${slot.id}_${sId}`;
+                                                        const isExpanded = !!expandedSprints[expandedKey];
+
                                                         return (
-                                                            <div key={sId} className={`w-full p-5 rounded-[2rem] border transition-all flex items-center justify-between bg-gray-50/50 hover:bg-gray-50/80 ${isSystem ? 'border-primary/10 bg-primary/5' : isTrack ? 'border-orange-100 bg-orange-50/20' : 'border-gray-100 bg-white'}`}>
-                                                                <div className="flex items-center gap-4 min-w-0">
-                                                                    <div className={`w-11 h-11 rounded-xl overflow-hidden shadow-sm border border-gray-100 flex items-center justify-center flex-shrink-0 ${isSystem || isTrack ? 'bg-white text-lg' : ''}`}>
-                                                                        {isSystem ? '🗺️' : isTrack ? '🚀' : <img src={(s as Sprint).coverImageUrl} className="w-full h-full object-cover" alt="" />}
+                                                            <div key={sId} className={`w-full p-5 rounded-[2rem] border transition-all flex flex-col gap-3 bg-gray-50/50 hover:bg-gray-50/80 ${isSystem ? 'border-primary/10 bg-primary/5' : isTrack ? 'border-orange-100 bg-orange-50/20' : 'border-gray-100 bg-white'}`}>
+                                                                <div className="flex items-center justify-between gap-4 min-w-0">
+                                                                    <div className="flex items-center gap-4 min-w-0">
+                                                                        <div className={`w-11 h-11 rounded-xl overflow-hidden shadow-sm border border-gray-100 flex items-center justify-center flex-shrink-0 ${isSystem || isTrack ? 'bg-white text-lg' : ''}`}>
+                                                                            {isSystem ? '🗺️' : isTrack ? '🚀' : <img src={(s as Sprint).coverImageUrl} className="w-full h-full object-cover" alt="" />}
+                                                                        </div>
+                                                                        <div className="text-left min-w-0">
+                                                                            <p className={`text-[8px] font-black uppercase tracking-widest leading-none mb-1 ${isSystem ? 'text-primary' : isTrack ? 'text-orange-500' : 'text-gray-400'}`}>
+                                                                                {isSystem ? 'System Link' : isTrack ? 'Track' : 'Program'}
+                                                                            </p>
+                                                                            <h6 className="text-[13px] font-black tracking-tight text-gray-900 truncate">
+                                                                                {s.title}
+                                                                            </h6>
+                                                                        </div>
                                                                     </div>
-                                                                    <div className="text-left min-w-0">
-                                                                        <p className={`text-[8px] font-black uppercase tracking-widest leading-none mb-1 ${isSystem ? 'text-primary' : isTrack ? 'text-orange-500' : 'text-gray-400'}`}>
-                                                                            {isSystem ? 'System Link' : isTrack ? 'Track' : 'Program'}
-                                                                        </p>
-                                                                        <h6 className="text-[13px] font-black tracking-tight text-gray-900 truncate">
-                                                                            {s.title}
-                                                                        </h6>
+                                                                    
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            toggleExpand(slot.id, sId);
+                                                                        }}
+                                                                        className="p-1.5 rounded-lg border border-gray-100 bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-all flex items-center justify-center active:scale-95 flex-shrink-0"
+                                                                        title={isExpanded ? "Hide Poll Options" : "Show Poll Options"}
+                                                                    >
+                                                                        <svg className={`w-3.5 h-3.5 transform transition-transform duration-255 ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                                                        </svg>
+                                                                    </button>
+                                                                </div>
+
+                                                                {isExpanded && (
+                                                                    <div className="border-t border-gray-100 pt-3 animate-fade-in text-left">
                                                                         {sprintFocus.length > 0 ? (
-                                                                            <div className="flex flex-wrap gap-1 mt-1.5">
+                                                                            <div className="flex flex-wrap gap-1">
                                                                                 {sprintFocus.map((f, fIdx) => (
                                                                                     <span key={fIdx} className="px-2 py-0.5 bg-[#0E7850]/5 text-[#0E7850] rounded-md text-[8px] font-bold uppercase tracking-wider leading-none">
                                                                                         {f}
@@ -433,10 +328,10 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                                                                 ))}
                                                                             </div>
                                                                         ) : (
-                                                                            <p className="text-[8px] font-bold text-gray-300 uppercase tracking-wider mt-1.5">No tags bound</p>
+                                                                            <p className="text-[8px] font-bold text-gray-300 uppercase tracking-wider">No polls options selected</p>
                                                                         )}
                                                                     </div>
-                                                                </div>
+                                                                )}
                                                             </div>
                                                         );
                                                     })}
@@ -464,14 +359,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <button 
-                                                        onClick={() => setEditingFocusSlot(isEditingFocusText ? null : slot.id)}
-                                                        className={`p-1.5 rounded-lg border transition-all active:scale-90 ${isEditingFocusText ? 'bg-orange-100 text-orange-600 border-orange-200' : 'bg-white hover:bg-gray-50 border-gray-100 text-gray-400'}`}
-                                                        title="Edit Option Labels"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                                    </button>
-                                                    <button 
                                                         onClick={() => {
                                                             setEditingSlotId(null);
                                                             toast.success("Assignments updated successfully!");
@@ -485,43 +372,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                                     </button>
                                                 </div>
                                             </div>
-
-                                            {isEditingFocusText && (
-                                                <div className="space-y-3 animate-fade-in mb-8">
-                                                    <p className="text-[8px] font-black text-orange-400 uppercase tracking-widest px-1">Edit Poll Labels</p>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                        {slotFocusOptions.map((opt, idx) => (
-                                                            <div key={idx} className="flex items-center gap-2 bg-gray-50 p-2 rounded-2xl border border-gray-100 hover:border-primary/20 transition-all group">
-                                                                <span className="text-[8px] font-black text-gray-300 px-2">{idx + 1}</span>
-                                                                <input 
-                                                                    type="text" 
-                                                                    value={opt}
-                                                                    onChange={(e) => handleUpdateFocusOptionText(slot.id, idx, e.target.value)}
-                                                                    className="flex-1 bg-transparent border-none focus:ring-0 text-[10px] font-bold text-gray-700 outline-none px-2"
-                                                                />
-                                                                <button 
-                                                                    onClick={() => handleRemoveFocusOption(slot.id, idx)}
-                                                                    className="p-2 text-red-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                                                                >
-                                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12"/></svg>
-                                                                </button>
-                                                            </div>
-                                                        ))}
-                                                        <button 
-                                                            onClick={() => handleAddFocusOption(slot.id)}
-                                                            className="border-2 border-dashed border-gray-100 rounded-2xl p-4 text-[9px] font-black text-gray-400 uppercase tracking-widest hover:bg-gray-50 hover:border-primary/20 transition-all flex items-center justify-center gap-2"
-                                                        >
-                                                            <span className="text-sm">+</span> Add Focus Path
-                                                        </button>
-                                                    </div>
-                                                    <button 
-                                                        onClick={() => setEditingFocusSlot(null)}
-                                                        className="w-full py-2 bg-primary text-white rounded-xl text-[8px] font-black uppercase tracking-widest shadow-md active:scale-95 transition-all font-sans"
-                                                    >
-                                                        Done Editing Labels
-                                                    </button>
-                                                </div>
-                                            )}
 
                                             <div className="relative">
                                                 <button 
@@ -698,96 +548,50 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                                                             >
                                                                                 Clear Focus
                                                                             </button>
-                                                                            {(specificationSteps[`${slot.id}-${sId}`] || 0) > 0 && (
-                                                                                <button 
-                                                                                    onClick={() => handleSetStep(slot.id, sId, (specificationSteps[`${slot.id}-${sId}`] || 0) - 1)}
-                                                                                    className="text-[8px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-1"
-                                                                                >
-                                                                                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                                                                                    Previous
-                                                                                </button>
-                                                                            )}
-                                                                            {(() => {
-                                                                                const currentStep = specificationSteps[`${slot.id}-${sId}`] || 0;
-                                                                                const selectedPersonas = sprintFocus.filter(f => PERSONAS.includes(f));
-                                                                                const canSpecify = selectedPersonas.length > 0 && currentStep < 3;
-                                                                                
-                                                                                if (!canSpecify) return null;
-                                                                                
-                                                                                return (
-                                                                                    <button 
-                                                                                        onClick={() => handleSetStep(slot.id, sId, currentStep + 1)}
-                                                                                        className="text-[8px] font-black text-primary uppercase tracking-widest hover:underline transition-all flex items-center gap-1"
-                                                                                    >
-                                                                                        Specify
-                                                                                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
-                                                                                    </button>
-                                                                                );
-                                                                            })()}
                                                                         </div>
                                                                     </div>
                                                                     
                                                                     <div className="flex flex-wrap gap-2">
-                                                                        {(() => {
-                                                                            const currentStep = specificationSteps[`${slot.id}-${sId}`] || 0;
-                                                                            let visibleOptions: string[] = [];
+                                                                        {slotFocusOptions.map((opt) => {
+                                                                            const isSelected = sprintFocus.includes(opt);
+                                                                            const isFoundationSlot = slot.stage === 'Foundation';
+                                                                            const isTaken = isFoundationSlot && focusTakenByOthers.includes(opt);
+                                                                            const isShared = !isFoundationSlot && focusTakenByOthers.includes(opt);
+                                                                            const optIdx = slotFocusOptions.indexOf(opt);
                                                                             
-                                                                            if (currentStep === 0) {
-                                                                                const allHierarchyOptions = Object.values(PERSONA_HIERARCHY).flat(2);
-                                                                                visibleOptions = slotFocusOptions.filter(opt => PERSONAS.includes(opt) || !allHierarchyOptions.includes(opt));
-                                                                            } else {
-                                                                                const selectedPersonas = sprintFocus.filter(f => PERSONAS.includes(f));
-                                                                                const options: string[] = [];
-                                                                                selectedPersonas.forEach(p => {
-                                                                                    const levels = PERSONA_HIERARCHY[p];
-                                                                                    if (levels && levels[currentStep - 1]) {
-                                                                                        options.push(...levels[currentStep - 1]);
-                                                                                    }
-                                                                                });
-                                                                                visibleOptions = slotFocusOptions.filter(opt => options.includes(opt));
-                                                                            }
-
-                                                                            return visibleOptions.map((opt) => {
-                                                                                const isSelected = sprintFocus.includes(opt);
-                                                                                const isFoundationSlot = slot.stage === 'Foundation';
-                                                                                const isTaken = isFoundationSlot && focusTakenByOthers.includes(opt);
-                                                                                const isShared = !isFoundationSlot && focusTakenByOthers.includes(opt);
-                                                                                const optIdx = slotFocusOptions.indexOf(opt);
-                                                                                
-                                                                                const priorityList = assignment.focusOptionPriorityMap?.[opt] || [];
-                                                                                const priorityIndex = priorityList.indexOf(sId);
-                                                                                const priorityLabel = priorityIndex > -1 ? `${priorityIndex + 1}${priorityIndex === 0 ? 'st' : priorityIndex === 1 ? 'nd' : priorityIndex === 2 ? 'rd' : 'th'} priority` : '';
-                                                                                
-                                                                                return (
-                                                                                    <button
-                                                                                        key={opt}
-                                                                                        disabled={isTaken}
-                                                                                        onClick={() => handleToggleSprintFocus(slot.id, sId, opt)}
-                                                                                        className={`px-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-2.5 group relative ${
-                                                                                            isSelected 
-                                                                                            ? 'bg-primary text-white border-primary shadow-lg scale-[1.02]' 
-                                                                                            : isTaken
-                                                                                            ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-40'
-                                                                                            : isShared
-                                                                                            ? 'bg-white text-gray-400 border-orange-200 hover:border-primary/20 hover:text-primary hover:bg-orange-50/10'
-                                                                                            : 'bg-white text-gray-400 border-gray-100 hover:border-primary/20 hover:text-primary'
-                                                                                        }`}
-                                                                                        title={isTaken ? 'Already mapped to another destination in this slot' : isShared ? 'Shared option (priority-enabled)' : ''}
-                                                                                    >
-                                                                                        <span className={`w-5 h-5 rounded-lg flex items-center justify-center text-[8px] font-black ${isSelected ? 'bg-white/20 text-white' : isTaken ? 'bg-gray-100 text-gray-200' : 'bg-gray-50 text-gray-300 group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                                                                                            {optIdx + 1}
-                                                                                        </span>
-                                                                                        {opt}
-                                                                                        {isSelected && priorityLabel && (
-                                                                                            <span className="absolute -top-2 -right-1 bg-white text-primary text-[6px] font-black px-1.5 py-0.5 rounded-md border border-primary/20 shadow-sm whitespace-nowrap uppercase tracking-wider">{priorityLabel}</span>
-                                                                                        )}
-                                                                                        {!isSelected && isShared && (
-                                                                                            <span className="absolute -top-2 -right-1 bg-white text-orange-500 text-[6px] font-black px-1.5 py-0.5 rounded-md border border-orange-200 shadow-sm whitespace-nowrap uppercase tracking-wider">Shared</span>
-                                                                                        )}
-                                                                                    </button>
-                                                                                );
-                                                                            });
-                                                                        })()}
+                                                                            const priorityList = assignment.focusOptionPriorityMap?.[opt] || [];
+                                                                            const priorityIndex = priorityList.indexOf(sId);
+                                                                            const priorityLabel = priorityIndex > -1 ? `${priorityIndex + 1}${priorityIndex === 0 ? 'st' : priorityIndex === 1 ? 'nd' : priorityIndex === 2 ? 'rd' : 'th'} priority` : '';
+                                                                            
+                                                                            return (
+                                                                                <button
+                                                                                    key={opt}
+                                                                                    disabled={isTaken}
+                                                                                    onClick={() => handleToggleSprintFocus(slot.id, sId, opt)}
+                                                                                    className={`px-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-2.5 group relative ${
+                                                                                        isSelected 
+                                                                                        ? 'bg-primary text-white border-primary shadow-lg scale-[1.02]' 
+                                                                                        : isTaken
+                                                                                        ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-40'
+                                                                                        : isShared
+                                                                                        ? 'bg-white text-gray-400 border-orange-200 hover:border-primary/20 hover:text-primary hover:bg-orange-50/10'
+                                                                                        : 'bg-white text-gray-400 border-gray-100 hover:border-primary/20 hover:text-primary'
+                                                                                    }`}
+                                                                                    title={isTaken ? 'Already mapped to another destination in this slot' : isShared ? 'Shared option (priority-enabled)' : ''}
+                                                                                >
+                                                                                    <span className={`w-5 h-5 rounded-lg flex items-center justify-center text-[8px] font-black ${isSelected ? 'bg-white/20 text-white' : isTaken ? 'bg-gray-100 text-gray-200' : 'bg-gray-50 text-gray-300 group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                                                                                        {optIdx + 1}
+                                                                                    </span>
+                                                                                    {opt}
+                                                                                    {isSelected && priorityLabel && (
+                                                                                        <span className="absolute -top-2 -right-1 bg-white text-primary text-[6px] font-black px-1.5 py-0.5 rounded-md border border-primary/20 shadow-sm whitespace-nowrap uppercase tracking-wider">{priorityLabel}</span>
+                                                                                    )}
+                                                                                    {!isSelected && isShared && (
+                                                                                        <span className="absolute -top-2 -right-1 bg-white text-orange-500 text-[6px] font-black px-1.5 py-0.5 rounded-md border border-orange-200 shadow-sm whitespace-nowrap uppercase tracking-wider">Shared</span>
+                                                                                    )}
+                                                                                </button>
+                                                                            );
+                                                                        })}
                                                                     </div>
                                                                     {sprintFocus.length > 0 && (
                                                                         <p className="text-[8px] font-bold text-primary italic uppercase tracking-widest mt-1">
