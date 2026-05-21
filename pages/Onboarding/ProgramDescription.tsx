@@ -49,6 +49,7 @@ const ProgramDescription: React.FC = () => {
 
   const selectedFocus = location.state?.selectedFocus;
   const activeTrigger = location.state?.trigger || 'after_homepage';
+  const allMatchedSprintIds = location.state?.allMatchedSprintIds || [];
 
   const fallbackImage = "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80";
 
@@ -61,24 +62,52 @@ const ProgramDescription: React.FC = () => {
         if (selectedFocus && activeTrigger) {
             const slots = Object.entries(orchestrationMapping);
             let resolvedSprintId: string | null = null;
+            let currentMatchedIds: string[] = [];
             
             // 1. Priority check within the triggering slot
             const triggerEntry = slots.find(([_, val]) => val.stateTrigger === activeTrigger);
             if (triggerEntry && triggerEntry[1].sprintFocusMap) {
-                resolvedSprintId = Object.keys(triggerEntry[1].sprintFocusMap).find(
+                const matches = Object.keys(triggerEntry[1].sprintFocusMap).filter(
                     sId => triggerEntry[1].sprintFocusMap?.[sId]?.includes(selectedFocus)
-                ) || null;
+                );
+                if (matches.length > 0) {
+                    const priorities = triggerEntry[1].focusOptionPriorityMap?.[selectedFocus] || [];
+                    if (priorities.length > 0) {
+                        matches.sort((a, b) => {
+                            const idxA = priorities.indexOf(a);
+                            const idxB = priorities.indexOf(b);
+                            if (idxA > -1 && idxB > -1) return idxA - idxB;
+                            if (idxA > -1) return -1;
+                            if (idxB > -1) return 1;
+                            return 0;
+                        });
+                    }
+                    resolvedSprintId = matches[0];
+                    currentMatchedIds = matches;
+                }
             }
             
             // 2. Global registry check
             if (!resolvedSprintId) {
                 for (const [_, mapping] of slots) {
                     if (mapping.sprintFocusMap) {
-                        const match = Object.keys(mapping.sprintFocusMap).find(
+                        const matches = Object.keys(mapping.sprintFocusMap).filter(
                             sId => mapping.sprintFocusMap?.[sId]?.includes(selectedFocus)
                         );
-                        if (match) {
-                            resolvedSprintId = match;
+                        if (matches.length > 0) {
+                            const priorities = mapping.focusOptionPriorityMap?.[selectedFocus] || [];
+                            if (priorities.length > 0) {
+                                matches.sort((a, b) => {
+                                    const idxA = priorities.indexOf(a);
+                                    const idxB = priorities.indexOf(b);
+                                    if (idxA > -1 && idxB > -1) return idxA - idxB;
+                                    if (idxA > -1) return -1;
+                                    if (idxB > -1) return 1;
+                                    return 0;
+                                });
+                            }
+                            resolvedSprintId = matches[0];
+                            currentMatchedIds = matches;
                             break;
                         }
                     }
@@ -88,7 +117,7 @@ const ProgramDescription: React.FC = () => {
             if (resolvedSprintId && resolvedSprintId !== sprintId) {
                 // The orchestrator has changed the mapping for this focus!
                 navigate(`/onboarding/description/${resolvedSprintId}`, { 
-                    state: { selectedFocus, trigger: activeTrigger },
+                    state: { selectedFocus, trigger: activeTrigger, allMatchedSprintIds: currentMatchedIds },
                     replace: true 
                 });
             }
@@ -169,7 +198,7 @@ const ProgramDescription: React.FC = () => {
   const handleProceed = () => {
     if (!sprint) return;
     analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, onboarding: true }, user?.id);
-    navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus, trigger: activeTrigger } });
+    navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus, trigger: activeTrigger, allMatchedSprintIds } });
   };
 
   const handleRefineFocus = () => {

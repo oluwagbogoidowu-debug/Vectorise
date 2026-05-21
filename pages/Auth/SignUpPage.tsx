@@ -43,7 +43,8 @@ const SignUpPage: React.FC = () => {
     isPartnerApplication,
     partnerData,
     authMessage,
-    isQueued
+    isQueued,
+    allMatchedSprintIds
   } = onboardingState;
 
   const [firstName, setFirstName] = useState(prefilledFirstName || '');
@@ -229,6 +230,18 @@ const SignUpPage: React.FC = () => {
               // Enroll in Next Path (If Queued)
               if (isQueued && nextPath) {
                   await sprintService.enrollUser(firebaseUser.uid, nextPath.id, nextPath.duration, { source: 'queued' as any });
+              }
+
+              // Enroll in remaining matched focus sprints to follow accordingly in priority order
+              if (isQueued && allMatchedSprintIds && Array.isArray(allMatchedSprintIds)) {
+                  for (const otherSId of allMatchedSprintIds) {
+                      if (otherSId !== nextPath?.id && otherSId !== foundational?.id) {
+                          const otherSprint = registrySprints.find(s => s.id === otherSId);
+                          if (otherSprint) {
+                              await sprintService.enrollUser(firebaseUser.uid, otherSprint.id, otherSprint.duration, { source: 'queued' as any });
+                          }
+                      }
+                  }
               }
           } catch (pathError) {
               console.error("Recommended path enrollment failed:", pathError);

@@ -118,19 +118,49 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
         const current = assignments[slotId] || { sprintId: '', sprintIds: [], focusCriteria: [], sprintFocusMap: {}, availableFocusOptions: [...defaultOptions] };
         const focusMap = { ...(current.sprintFocusMap || {}) };
         
-        const isUsedByOther = Object.entries(focusMap).some(([otherId, options]) => 
-            otherId !== sprintId && (options as string[]).includes(option)
-        );
-        if (isUsedByOther) return;
+        // Foundation slots are still unique / exclusive as requested ("Except for the foundation part")
+        const slotDef = LIFECYCLE_SLOTS.find(s => s.id === slotId);
+        const isFoundationSlot = slotDef?.stage === 'Foundation';
+
+        if (isFoundationSlot) {
+            const isUsedByOther = Object.entries(focusMap).some(([otherId, options]) => 
+                otherId !== sprintId && (options as string[]).includes(option)
+            );
+            if (isUsedByOther) return;
+        }
 
         const currentFocus = [...((focusMap[sprintId] as string[]) || [])];
         const idx = currentFocus.indexOf(option);
-        if (idx > -1) currentFocus.splice(idx, 1);
-        else currentFocus.push(option);
+        
+        // Priority tracking map
+        const priorityMap = { ...(current.focusOptionPriorityMap || {}) };
+        const optionPriorities = [...(priorityMap[option] || [])];
+
+        if (idx > -1) {
+            currentFocus.splice(idx, 1);
+            const pIdx = optionPriorities.indexOf(sprintId);
+            if (pIdx > -1) {
+                optionPriorities.splice(pIdx, 1);
+            }
+        } else {
+            currentFocus.push(option);
+            if (!optionPriorities.includes(sprintId)) {
+                optionPriorities.push(sprintId);
+            }
+        }
         
         focusMap[sprintId] = currentFocus;
+        if (optionPriorities.length > 0) {
+            priorityMap[option] = optionPriorities;
+        } else {
+            delete priorityMap[option];
+        }
         
-        const newAssignment = { ...current, sprintFocusMap: focusMap };
+        const newAssignment = { 
+            ...current, 
+            sprintFocusMap: focusMap,
+            focusOptionPriorityMap: priorityMap
+        };
         try {
             await sprintService.saveSlotAssignment(slotId, newAssignment);
         } catch (err) {
@@ -719,8 +749,14 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
 
                                                                             return visibleOptions.map((opt) => {
                                                                                 const isSelected = sprintFocus.includes(opt);
-                                                                                const isTaken = focusTakenByOthers.includes(opt);
+                                                                                const isFoundationSlot = slot.stage === 'Foundation';
+                                                                                const isTaken = isFoundationSlot && focusTakenByOthers.includes(opt);
+                                                                                const isShared = !isFoundationSlot && focusTakenByOthers.includes(opt);
                                                                                 const optIdx = slotFocusOptions.indexOf(opt);
+                                                                                
+                                                                                const priorityList = assignment.focusOptionPriorityMap?.[opt] || [];
+                                                                                const priorityIndex = priorityList.indexOf(sId);
+                                                                                const priorityLabel = priorityIndex > -1 ? `${priorityIndex + 1}${priorityIndex === 0 ? 'st' : priorityIndex === 1 ? 'nd' : priorityIndex === 2 ? 'rd' : 'th'} priority` : '';
                                                                                 
                                                                                 return (
                                                                                     <button
@@ -732,16 +768,21 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                                                                             ? 'bg-primary text-white border-primary shadow-lg scale-[1.02]' 
                                                                                             : isTaken
                                                                                             ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-40'
+                                                                                            : isShared
+                                                                                            ? 'bg-white text-gray-400 border-orange-200 hover:border-primary/20 hover:text-primary hover:bg-orange-50/10'
                                                                                             : 'bg-white text-gray-400 border-gray-100 hover:border-primary/20 hover:text-primary'
                                                                                         }`}
-                                                                                        title={isTaken ? 'Already mapped to another destination in this slot' : ''}
+                                                                                        title={isTaken ? 'Already mapped to another destination in this slot' : isShared ? 'Shared option (priority-enabled)' : ''}
                                                                                     >
                                                                                         <span className={`w-5 h-5 rounded-lg flex items-center justify-center text-[8px] font-black ${isSelected ? 'bg-white/20 text-white' : isTaken ? 'bg-gray-100 text-gray-200' : 'bg-gray-50 text-gray-300 group-hover:bg-primary/10 group-hover:text-primary'}`}>
                                                                                             {optIdx + 1}
                                                                                         </span>
                                                                                         {opt}
-                                                                                        {isTaken && (
-                                                                                            <span className="absolute -top-2 -right-1 bg-white text-gray-400 text-[6px] font-black px-1 rounded-sm border border-gray-100 shadow-sm whitespace-nowrap">Assigned</span>
+                                                                                        {isSelected && priorityLabel && (
+                                                                                            <span className="absolute -top-2 -right-1 bg-white text-primary text-[6px] font-black px-1.5 py-0.5 rounded-md border border-primary/20 shadow-sm whitespace-nowrap uppercase tracking-wider">{priorityLabel}</span>
+                                                                                        )}
+                                                                                        {!isSelected && isShared && (
+                                                                                            <span className="absolute -top-2 -right-1 bg-white text-orange-500 text-[6px] font-black px-1.5 py-0.5 rounded-md border border-orange-200 shadow-sm whitespace-nowrap uppercase tracking-wider">Shared</span>
                                                                                         )}
                                                                                     </button>
                                                                                 );

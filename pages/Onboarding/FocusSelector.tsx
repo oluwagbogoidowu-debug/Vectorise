@@ -109,6 +109,7 @@ const FocusSelector: React.FC = () => {
       let resolvedSprintId: string | null = null;
       let resolvedSlotId: string = 'unknown';
       let finalUsedOption: string = option;
+      let allMatchedSprintIds: string[] = [];
 
       // Prioritized lookup: Check path in reverse order (most specific first)
       for (let i = path.length - 1; i >= 0; i--) {
@@ -116,11 +117,23 @@ const FocusSelector: React.FC = () => {
         
         // 1. Priority check within the triggering slot
         if (activeAssignment?.sprintFocusMap) {
-            resolvedSprintId = Object.keys(activeAssignment.sprintFocusMap).find(
+            const matches = Object.keys(activeAssignment.sprintFocusMap).filter(
                 sId => activeAssignment.sprintFocusMap?.[sId]?.includes(currentOption)
-            ) || null;
-            
-            if (resolvedSprintId) {
+            );
+            if (matches.length > 0) {
+              const priorities = activeAssignment.focusOptionPriorityMap?.[currentOption] || [];
+              if (priorities.length > 0) {
+                 matches.sort((a, b) => {
+                     const idxA = priorities.indexOf(a);
+                     const idxB = priorities.indexOf(b);
+                     if (idxA > -1 && idxB > -1) return idxA - idxB;
+                     if (idxA > -1) return -1;
+                     if (idxB > -1) return 1;
+                     return 0;
+                 });
+              }
+              resolvedSprintId = matches[0];
+              allMatchedSprintIds = matches;
               const slotEntry = slots.find(([_, val]) => val.stateTrigger === activeTrigger);
               resolvedSlotId = slotEntry ? slotEntry[0] : 'trigger_match';
               finalUsedOption = currentOption;
@@ -132,11 +145,23 @@ const FocusSelector: React.FC = () => {
         if (!resolvedSprintId) {
             for (const [slotId, mapping] of slots) {
                 if (mapping.sprintFocusMap) {
-                    const match = Object.keys(mapping.sprintFocusMap).find(
+                    const matches = Object.keys(mapping.sprintFocusMap).filter(
                         sId => mapping.sprintFocusMap?.[sId]?.includes(currentOption)
                     );
-                    if (match) {
-                        resolvedSprintId = match;
+                    if (matches.length > 0) {
+                        const priorities = mapping.focusOptionPriorityMap?.[currentOption] || [];
+                        if (priorities.length > 0) {
+                           matches.sort((a, b) => {
+                               const idxA = priorities.indexOf(a);
+                               const idxB = priorities.indexOf(b);
+                               if (idxA > -1 && idxB > -1) return idxA - idxB;
+                               if (idxA > -1) return -1;
+                               if (idxB > -1) return 1;
+                               return 0;
+                           });
+                        }
+                        resolvedSprintId = matches[0];
+                        allMatchedSprintIds = matches;
                         resolvedSlotId = slotId;
                         finalUsedOption = currentOption;
                         break;
@@ -159,11 +184,11 @@ const FocusSelector: React.FC = () => {
 
           if (resolvedSprintId === 'system_map') {
             navigate('/onboarding/map', { 
-              state: { selectedFocus: finalUsedOption, trigger: activeTrigger } 
+              state: { selectedFocus: finalUsedOption, trigger: activeTrigger, allMatchedSprintIds } 
             });
           } else {
             navigate(`/onboarding/description/${resolvedSprintId}`, { 
-              state: { selectedFocus: finalUsedOption, sprintId: resolvedSprintId, trigger: activeTrigger } 
+              state: { selectedFocus: finalUsedOption, sprintId: resolvedSprintId, trigger: activeTrigger, allMatchedSprintIds } 
             });
           }
       } else {

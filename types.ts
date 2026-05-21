@@ -160,6 +160,7 @@ export interface LifecycleSlotAssignment {
   sprintIds?: string[];
   focusCriteria: string[];
   sprintFocusMap?: Record<string, string[]>;
+  focusOptionPriorityMap?: Record<string, string[]>;
   stateTrigger?: OrchestrationTrigger; 
   availableFocusOptions?: string[];
 }
