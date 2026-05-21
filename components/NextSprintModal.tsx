@@ -22,10 +22,10 @@ const NextSprintModal: React.FC<NextSprintModalProps> = ({ isOpen, sprint, onSta
                     </div>
                     
                     <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-tight italic mb-2">
-                        Next Focus Ready
+                        Keep your growth going
                     </h2>
                     <p className="text-xs text-gray-400 font-medium leading-relaxed mb-8">
-                        You've completed your last focus. Your next journey is waiting in the queue.
+                        Your next sprint builds on this
                     </p>
 
                     <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 mb-8 text-left">
@@ -43,7 +43,7 @@ const NextSprintModal: React.FC<NextSprintModalProps> = ({ isOpen, sprint, onSta
                             onClick={onStart}
                             className="w-full py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95"
                         >
-                            Start Next Sprint &rarr;
+                            Start Next Sprint
                         </Button>
                         <button 
                             onClick={onClose}
