@@ -398,7 +398,7 @@ const ParticipantDashboard: React.FC = () => {
                                                         } else if (dayNum === current) {
                                                             return (
                                                                 <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider animate-pulse">
-                                                                    Day {dayNum} 🔒 (unlocking)
+                                                                    Day {dayNum} 🔒
                                                                 </span>
                                                             );
                                                         } else {
@@ -445,21 +445,23 @@ const ParticipantDashboard: React.FC = () => {
             </div>
 
             {isAfterDay1OfFirstSprint && (
-                <div className="mb-8 bg-emerald-50/30 border border-emerald-100/75 p-5 rounded-[1.8rem] flex items-center gap-4 animate-fade-in relative overflow-hidden">
-                    <div className="w-10 h-10 bg-[#0E7850]/10 rounded-2xl flex items-center justify-center text-[#0E7850] flex-shrink-0 shadow-sm border border-[#0E7850]/10">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
+                <Link to="/impact" className="block group mb-8 animate-fade-in">
+                    <div className="bg-emerald-50/30 border border-emerald-100/75 p-5 rounded-[1.8rem] flex items-center gap-4 relative overflow-hidden hover:shadow-md hover:border-emerald-200/90 transition-all duration-300">
+                        <div className="w-10 h-10 bg-[#0E7850]/10 rounded-2xl flex items-center justify-center text-[#0E7850] flex-shrink-0 shadow-sm border border-[#0E7850]/10 group-hover:scale-110 transition-transform duration-300">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs md:text-sm font-bold text-gray-900 leading-snug">You’ve started well.</p>
+                            <p className="text-[13px] md:text-sm font-black text-[#0E7850] mt-0.5">You can become a Catalyst also.</p>
+                            <p className="text-[11px] md:text-xs text-gray-500 font-medium mt-1 leading-relaxed">
+                                And Catalysts don’t grow alone —<br />they bring others along.
+                            </p>
+                        </div>
+                        <div className="absolute -right-8 -bottom-8 w-24 h-24 bg-[#0E7850]/5 rounded-full blur-2xl pointer-events-none"></div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-xs md:text-sm font-bold text-gray-900 leading-snug">You've started well</p>
-                        <p className="text-[13px] md:text-sm font-black text-[#0E7850] mt-0.5">You're also a Catalyst</p>
-                        <p className="text-[11px] md:text-xs text-gray-500 font-medium mt-1 leading-relaxed">
-                            And catalysts don’t grow alone — they bring others along.
-                        </p>
-                    </div>
-                    <div className="absolute -right-8 -bottom-8 w-24 h-24 bg-[#0E7850]/5 rounded-full blur-2xl pointer-events-none"></div>
-                </div>
+                </Link>
             )}
 
             {checkInSprints.length > 0 && (
