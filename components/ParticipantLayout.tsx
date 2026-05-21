@@ -24,6 +24,12 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
   const [showCoinPopup, setShowCoinPopup] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
 
+  // Dynamic coin calculations
+  const sprintCost = pendingSprint?.pointCost || 30;
+  const userWalletBalance = (user as any)?.walletBalance ?? 50;
+  const walletDisplayBalance = userWalletBalance <= 0 ? 50 : userWalletBalance;
+  const remainingCoins = walletDisplayBalance - sprintCost;
+
   useEffect(() => {
     if (!user) return;
     const pendingRaw = localStorage.getItem('pending_first_action');
@@ -73,26 +79,24 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
               </div>
             </div>
 
-            <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2 col-auto">Congratulations! 🎉</h3>
-            <p className="text-emerald-600 font-extrabold text-xs uppercase tracking-widest mb-4">
-              Your account is open!
-            </p>
-            <p className="text-gray-500 font-medium text-xs sm:text-sm leading-relaxed mb-6">
-              You've been successfully registered and awarded an account creation gift of <span className="text-gray-950 font-black">50 coins</span>! 🪙
-              <br />
-              <span className="inline-block mt-2">
-                Use your coins to unlock the full <span className="text-gray-900 font-bold italic">"{pendingSprint.title}"</span> sprint and complete the remaining Day 1 actions.
-              </span>
+            <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2 col-auto">You’ve begun your first sprint</h3>
+            <p className="text-[#0E7850] font-extrabold text-[12px] uppercase tracking-wider mb-6">
+              Let’s keep it going
             </p>
 
-            <div className="bg-gray-50 rounded-2xl p-4 mb-8 flex justify-between items-center text-left border border-gray-100">
-              <div>
-                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Sprint Unlock Cost</p>
-                <p className="text-sm font-black text-gray-800">🪙 {pendingSprint.pointCost || 50} coins</p>
+            <div className="bg-gray-50 rounded-[1.5rem] p-5 mb-8 border border-gray-100/70 text-left space-y-3 font-semibold text-xs sm:text-sm text-gray-600">
+              <div className="flex justify-between items-center font-bold">
+                <span>You have:</span>
+                <span className="text-gray-950 font-black">{walletDisplayBalance} coins</span>
               </div>
-              <div className="text-right">
-                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Your Gift Balance</p>
-                <p className="text-sm font-black text-emerald-600">🪙 {(user as any)?.walletBalance ?? 50} coins</p>
+              <div className="flex justify-between items-center font-bold">
+                <span>This sprint uses:</span>
+                <span className="text-gray-950 font-black">{sprintCost} coins</span>
+              </div>
+              <div className="h-px bg-gray-200/60 my-2" />
+              <div className="flex justify-between items-center text-[#0E7850] font-black text-[13px] sm:text-[14px]">
+                <span>You’ll have:</span>
+                <span>{remainingCoins} coins left</span>
               </div>
             </div>
 
@@ -104,7 +108,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                   if (!user) return;
                   setIsUnlocking(true);
                   try {
-                    const cost = pendingSprint.pointCost || 50;
+                    const cost = pendingSprint.pointCost || 30;
                     
                     // Award coins if their current balance doesn't cover it (already handles the free award UX beautifully)
                     const userBalance = (user as any).walletBalance ?? 0;
@@ -141,7 +145,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                 {isUnlocking ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 ) : (
-                  <>Pay with Gift Coins & Start</>
+                  <>Continue Sprint</>
                 )}
               </button>
 

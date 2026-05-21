@@ -206,6 +206,13 @@ const ParticipantDashboard: React.FC = () => {
       return totalDays > 0 ? Math.round((completedDays / totalDays) * 100) : 0;
   }, [mySprints]);
 
+  const isAfterDay1OfFirstSprint = useMemo(() => {
+      return mySprints.some(item => 
+          item.enrollment.progress.some(p => p.day === 1 && p.completed) ||
+          item.enrollment.progress.some(p => p.day > 1 && p.completed)
+      );
+  }, [mySprints]);
+
   if (!user) return null;
 
   const isMainTaskLocked = mainTask?.status?.isLocked;
@@ -372,6 +379,24 @@ const ParticipantDashboard: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {isAfterDay1OfFirstSprint && (
+                <div className="mb-8 bg-emerald-50/30 border border-emerald-100/75 p-5 rounded-[1.8rem] flex items-center gap-4 animate-fade-in relative overflow-hidden">
+                    <div className="w-10 h-10 bg-[#0E7850]/10 rounded-2xl flex items-center justify-center text-[#0E7850] flex-shrink-0 shadow-sm border border-[#0E7850]/10">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-xs md:text-sm font-bold text-gray-900 leading-snug">You've started well</p>
+                        <p className="text-[13px] md:text-sm font-black text-[#0E7850] mt-0.5">You're also a Catalyst</p>
+                        <p className="text-[11px] md:text-xs text-gray-500 font-medium mt-1 leading-relaxed">
+                            And catalysts don’t grow alone — they bring others along.
+                        </p>
+                    </div>
+                    <div className="absolute -right-8 -bottom-8 w-24 h-24 bg-[#0E7850]/5 rounded-full blur-2xl pointer-events-none"></div>
+                </div>
+            )}
 
             {checkInSprints.length > 0 && (
                 <div className="mb-8 space-y-4">
