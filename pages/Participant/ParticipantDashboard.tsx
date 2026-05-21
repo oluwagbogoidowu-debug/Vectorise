@@ -288,7 +288,7 @@ const ParticipantDashboard: React.FC = () => {
                 <div className={`bg-[#0E7850] text-white p-3 md:p-4 rounded-[1.5rem] shadow-lg flex items-center gap-3 relative overflow-hidden transition-transform active:scale-[0.98] ${allTasksDoneToday ? 'justify-center' : ''}`}>
                     {allTasksDoneToday ? (
                         <div className="animate-fade-in relative z-10 flex flex-col items-center">
-                            <h3 className="text-[10px] md:text-[11px] font-black leading-tight uppercase tracking-widest">Rest & Integrate</h3>
+                            <h3 className="text-[10px] md:text-[11px] font-black leading-tight uppercase tracking-widest">{mainTask ? `Day ${mainTask.status.day - 1 || 1} Complete` : "Day 1 Complete"}</h3>
                         </div>
                     ) : (
                         <>
@@ -327,7 +327,7 @@ const ParticipantDashboard: React.FC = () => {
 
             <div className="flex justify-between items-end mb-6 px-1">
                 <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">
-                    {allTasksDoneToday ? 'Integrate & Rest' : "Today's Focus"}
+                    {allTasksDoneToday ? (mainTask ? `Day ${mainTask.status.day} Unlocks Soon` : "Next Day Unlocks Soon") : "Today's Focus"}
                 </h2>
                 <Link to="/my-sprints" className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] hover:opacity-80 transition-opacity mb-1">
                     View Journey
@@ -344,14 +344,7 @@ const ParticipantDashboard: React.FC = () => {
                             
                             <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col">
                                 <div className="mb-6 md:mb-8">
-                                    {isMainTaskLocked ? (
-                                        <div className="mb-4 bg-emerald-50/40 border border-emerald-100/60 p-4 rounded-2xl">
-                                            <p className="text-[#0E7850] font-extrabold text-[12px] md:text-sm uppercase tracking-wider">Day {mainTask.status.day - 1 || 1} Complete</p>
-                                            <p className="text-gray-500 font-medium text-xs sm:text-sm mt-0.5">You’ve started strong.</p>
-                                        </div>
-                                    ) : (
-                                        <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">{mainTask.sprint.category}</p>
-                                    )}
+                                    <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">{mainTask.sprint.category}</p>
                                     <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight mt-1">{mainTask.sprint.title}</h3>
                                     <p className="text-[9px] md:text-[10px] font-black text-gray-500 uppercase tracking-widest mt-2">Day {mainTask.status.day} of {mainTask.sprint.duration}</p>
                                 </div>
@@ -372,7 +365,7 @@ const ParticipantDashboard: React.FC = () => {
                                             </div>
 
                                             {/* Sliding Window Day Tags next to each other */}
-                                            <div className="flex flex-wrap gap-2 items-center">
+                                            <div className="flex flex-row flex-nowrap gap-2 items-center overflow-x-auto whitespace-nowrap scrollbar-none">
                                                 {(() => {
                                                     const total = mainTask.sprint.duration || 3;
                                                     const current = mainTask.status.day || 1;
@@ -391,19 +384,19 @@ const ParticipantDashboard: React.FC = () => {
                                                     return visibleDays.map((dayNum) => {
                                                         if (dayNum < current) {
                                                             return (
-                                                                <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 border border-emerald-100 text-[#0E7850] rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider">
+                                                                <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 border border-emerald-100 text-[#0E7850] rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider flex-shrink-0">
                                                                     Day {dayNum} ✅
                                                                 </span>
                                                             );
                                                         } else if (dayNum === current) {
                                                             return (
-                                                                <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider animate-pulse">
+                                                                <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider animate-pulse flex-shrink-0">
                                                                     Day {dayNum} 🔒
                                                                 </span>
                                                             );
                                                         } else {
                                                             return (
-                                                                <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-50 border border-gray-100 text-gray-400 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider">
+                                                                <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-50 border border-gray-100 text-gray-400 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider flex-shrink-0">
                                                                     Day {dayNum} 🔒
                                                                 </span>
                                                             );
@@ -454,7 +447,7 @@ const ParticipantDashboard: React.FC = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-xs md:text-sm font-bold text-gray-900 leading-snug">You’ve started well.</p>
-                            <p className="text-[13px] md:text-sm font-black text-[#0E7850] mt-0.5">You can become a Catalyst also.</p>
+                            <p className="text-[13px] md:text-sm font-black text-[#0E7850] mt-0.5">You can become a Catalyst.</p>
                             <p className="text-[11px] md:text-xs text-gray-500 font-medium mt-1 leading-relaxed">
                                 And Catalysts don’t grow alone —<br />they bring others along.
                             </p>
