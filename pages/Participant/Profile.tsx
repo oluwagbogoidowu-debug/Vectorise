@@ -91,7 +91,22 @@ const Profile: React.FC = () => {
 
     // Determine initial setup step if incomplete
     if (!userService.isIdentitySet(p)) {
-      setSetupStep(1); 
+      if (!p.persona) {
+        setSetupStep(1);
+      } else if (!p.onboardingAnswers || Object.keys(p.onboardingAnswers || {}).length < 3) {
+        const onboardingKeysCount = Object.keys(p.onboardingAnswers || {}).length;
+        setSetupStep(2 + onboardingKeysCount);
+      } else if (!p.growthAreas || p.growthAreas.length < 5) {
+        const currentCount = p.growthAreas?.length || 0;
+        setSetupStep(5 + currentCount);
+        setCurrentTaskGroupIdx(currentCount);
+      } else if (!p.risePathway) {
+        setSetupStep(10);
+      } else if (!p.archetype) {
+        setSetupStep(11);
+      } else {
+        setSetupStep(-1);
+      }
     } else {
       setSetupStep(-1); // Complete
     }
@@ -212,21 +227,28 @@ const Profile: React.FC = () => {
     else setSetupStep(-1);
   };
 
-  const handleToggleGrowthArea = (area: string) => {
-    setTempGrowthAreas(prev => {
-      const currentGroup = GROWTH_AREAS[currentTaskGroupIdx];
-      const otherAreas = prev.filter(a => !currentGroup.options.includes(a));
-      const newAreas = [...otherAreas, area];
-      
+  const handleToggleGrowthArea = async (area: string) => {
+    const currentGroup = GROWTH_AREAS[currentTaskGroupIdx];
+    const otherAreas = tempGrowthAreas.filter(a => !currentGroup.options.includes(a));
+    const newAreas = [...otherAreas, area];
+    setTempGrowthAreas(newAreas);
+    
+    setIsSavingIdentity(true);
+    try {
+      await updateProfile(sanitizeData({
+        growthAreas: newAreas
+      }));
       if (currentTaskGroupIdx < GROWTH_AREAS.length - 1) {
         setCurrentTaskGroupIdx(prevIdx => prevIdx + 1);
         setSetupStep(prevStep => prevStep + 1);
       } else {
         setSetupStep(10); // Move to Rise Pathway
       }
-      
-      return newAreas;
-    });
+    } catch (e) {
+      userService.queueNotification('error', "Failed to save growth areas.", { duration: 3000 });
+    } finally {
+      setIsSavingIdentity(false);
+    }
   };
 
   const handleSaveIdentity = async () => {
@@ -252,16 +274,27 @@ const Profile: React.FC = () => {
     }
   };
 
-  const handleQuizOptionSelect = (option: string) => {
+  const handleQuizOptionSelect = async (option: string) => {
     if (setupStep === 1) {
       setTempPersona(option);
     } else if (setupStep >= 2 && setupStep <= 4) {
-      setTempOnboardingAnswers(prev => ({ ...prev, [setupStep - 1]: option }));
-      if (setupStep === 4) {
-        setSetupStep(5);
-        setCurrentTaskGroupIdx(0);
-      } else {
-        setSetupStep(prev => prev + 1);
+      const nextAnswers = { ...tempOnboardingAnswers, [setupStep - 1]: option };
+      setTempOnboardingAnswers(nextAnswers);
+      setIsSavingIdentity(true);
+      try {
+        await updateProfile(sanitizeData({
+          onboardingAnswers: nextAnswers
+        }));
+        if (setupStep === 4) {
+          setSetupStep(5);
+          setCurrentTaskGroupIdx(0);
+        } else {
+          setSetupStep(prev => prev + 1);
+        }
+      } catch (err) {
+        userService.queueNotification('error', "Failed to save answer.", { duration: 3000 });
+      } finally {
+        setIsSavingIdentity(false);
       }
     }
   };
@@ -458,11 +491,23 @@ const Profile: React.FC = () => {
                   </div>
                   
                   <button 
-                    onClick={() => setSetupStep(11)}
-                    disabled={!tempRisePathway}
+                    onClick={async () => {
+                      setIsSavingIdentity(true);
+                      try {
+                        await updateProfile(sanitizeData({
+                          risePathway: tempRisePathway
+                        }));
+                        setSetupStep(11);
+                      } catch (e) {
+                        userService.queueNotification('error', "Failed to save Pathway.", { duration: 3000 });
+                      } finally {
+                        setIsSavingIdentity(false);
+                      }
+                    }}
+                    disabled={!tempRisePathway || isSavingIdentity}
                     className="w-full py-3 bg-[#0E7850] text-white rounded-xl font-black uppercase tracking-[0.15em] text-[10px] shadow-md disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
                   >
-                    Continue
+                    {isSavingIdentity ? 'Saving...' : 'Continue'}
                   </button>
                 </div>
               )}
@@ -512,11 +557,23 @@ const Profile: React.FC = () => {
                 <div className="mt-4 flex gap-2">
                   {setupStep === 1 ? (
                     <button 
-                      onClick={() => setSetupStep(2)}
-                      disabled={!tempPersona}
+                      onClick={async () => {
+                        setIsSavingIdentity(true);
+                        try {
+                          await updateProfile(sanitizeData({
+                            persona: tempPersona
+                          }));
+                          setSetupStep(2);
+                        } catch (e) {
+                          userService.queueNotification('error', "Failed to save persona.", { duration: 3000 });
+                        } finally {
+                          setIsSavingIdentity(false);
+                        }
+                      }}
+                      disabled={!tempPersona || isSavingIdentity}
                       className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-[0.15em] text-[11px] shadow-lg shadow-emerald-900/10 active:scale-95 transition-all disabled:opacity-50"
                     >
-                      Continue
+                      {isSavingIdentity ? 'Saving...' : 'Continue'}
                     </button>
                   ) : setupStep === 10 ? (
                     null // Handled inside step 10 UI

@@ -287,8 +287,8 @@ const ParticipantDashboard: React.FC = () => {
             <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
                 <div className={`bg-[#0E7850] text-white p-3 md:p-4 rounded-[1.5rem] shadow-lg flex items-center gap-3 relative overflow-hidden transition-transform active:scale-[0.98] ${allTasksDoneToday ? 'justify-center' : ''}`}>
                     {allTasksDoneToday ? (
-                        <div className="animate-fade-in relative z-10 flex flex-col items-center">
-                            <h3 className="text-[10px] md:text-[11px] font-black leading-tight uppercase tracking-widest">{mainTask ? `Day ${mainTask.status.day - 1 || 1} Complete` : "Day 1 Complete"}</h3>
+                        <div className="animate-fade-in relative z-10 flex flex-col items-center text-center">
+                            <h3 className="text-[10px] md:text-[11px] font-black leading-tight uppercase tracking-widest">Well<br/>Done 👏</h3>
                         </div>
                     ) : (
                         <>
@@ -327,7 +327,7 @@ const ParticipantDashboard: React.FC = () => {
 
             <div className="flex justify-between items-end mb-6 px-1">
                 <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">
-                    {allTasksDoneToday ? (mainTask ? `Day ${mainTask.status.day} Unlocks Soon` : "Next Day Unlocks Soon") : "Today's Focus"}
+                    {allTasksDoneToday ? (mainTask ? `Day ${mainTask.status.day - 1 || 1} Complete` : "Day 1 Complete") : "Today's Focus"}
                 </h2>
                 <Link to="/my-sprints" className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] hover:opacity-80 transition-opacity mb-1">
                     View Journey
