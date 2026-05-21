@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ParticipantSprint, Sprint, Notification, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
@@ -73,6 +74,14 @@ const ParticipantDashboard: React.FC = () => {
   const [checkInSprints, setCheckInSprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
   const [confirmCheckIn, setConfirmCheckIn] = useState<{ enrollmentId: string, day: number } | null>(null);
   const autoOpenedRef = useRef(false);
+  const [activeSlide, setActiveSlide] = useState<'timer' | 'days'>('timer');
+
+  useEffect(() => {
+    const slideTimer = setInterval(() => {
+      setActiveSlide(prev => (prev === 'timer' ? 'days' : 'timer'));
+    }, 5000);
+    return () => clearInterval(slideTimer);
+  }, []);
 
   const isIdentitySet = userService.isIdentitySet(user as Participant);
 
@@ -358,59 +367,77 @@ const ParticipantDashboard: React.FC = () => {
 
                                 <div className={`mt-auto ${isMainTaskLocked ? 'pt-3 md:pt-4' : 'pt-8'}`}>
                                     {isMainTaskLocked && (
-                                        <div className="mb-4 md:mb-5">
-                                            {/* Timer Countdown just above the separate tags */}
-                                            <div className="flex items-center gap-2 mb-3 self-start">
-                                                <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-100/60 text-amber-800 px-3 py-1.5 rounded-xl">
-                                                    <svg className="w-3.5 h-3.5 animate-pulse text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                                    </svg>
-                                                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-wide">
-                                                        Next step unlocks in <span className="font-mono text-[11px] sm:text-[13px]">{timeToMidnight}</span>
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Sliding Window Day Tags next to each other */}
-                                            <div className="flex flex-row flex-nowrap gap-2 items-center overflow-x-auto whitespace-nowrap scrollbar-none">
-                                                {(() => {
-                                                    const total = mainTask.sprint.duration || 3;
-                                                    const current = mainTask.status.day || 1;
-                                                    let visibleDays: number[] = [];
-                                                    if (total <= 3) {
-                                                        visibleDays = Array.from({ length: total }, (_, idx) => idx + 1);
-                                                    } else {
-                                                        if (current === 1) {
-                                                            visibleDays = [1, 2, 3];
-                                                        } else if (current === total) {
-                                                            visibleDays = [total - 2, total - 1, total];
-                                                        } else {
-                                                            visibleDays = [current - 1, current, current + 1];
-                                                        }
-                                                    }
-                                                    return visibleDays.map((dayNum) => {
-                                                        if (dayNum < current) {
-                                                            return (
-                                                                <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 border border-emerald-100 text-[#0E7850] rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider flex-shrink-0">
-                                                                    Day {dayNum} ✅
-                                                                </span>
-                                                            );
-                                                        } else if (dayNum === current) {
-                                                            return (
-                                                                <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider animate-pulse flex-shrink-0">
-                                                                    Day {dayNum} 🔒
-                                                                </span>
-                                                            );
-                                                        } else {
-                                                            return (
-                                                                <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-50 border border-gray-100 text-gray-400 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider flex-shrink-0">
-                                                                    Day {dayNum} 🔒
-                                                                </span>
-                                                            );
-                                                        }
-                                                    });
-                                                })()}
-                                            </div>
+                                        <div className="relative py-6 my-1 overflow-hidden flex items-center min-h-[58px]">
+                                            <AnimatePresence mode="wait">
+                                                {activeSlide === 'timer' ? (
+                                                    <motion.div
+                                                        key="timer"
+                                                        initial={{ opacity: 0, x: 20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        exit={{ opacity: 0, x: -20 }}
+                                                        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                                                        className="w-full flex items-center justify-start"
+                                                    >
+                                                        <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-100/60 text-amber-800 px-3 py-1.5 rounded-xl">
+                                                            <svg className="w-3.5 h-3.5 animate-pulse text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                            </svg>
+                                                            <span className="text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                                                                Next step unlocks in <span className="font-mono text-[11px] sm:text-[13px]">{timeToMidnight}</span>
+                                                            </span>
+                                                        </div>
+                                                    </motion.div>
+                                                ) : (
+                                                    <motion.div
+                                                        key="days"
+                                                        initial={{ opacity: 0, x: 20 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        exit={{ opacity: 0, x: -20 }}
+                                                        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                                                        className="w-full"
+                                                    >
+                                                        <div className="flex flex-row flex-nowrap gap-2 items-center overflow-x-auto whitespace-nowrap scrollbar-none">
+                                                            {(() => {
+                                                                const total = mainTask.sprint.duration || 3;
+                                                                const current = mainTask.status.day || 1;
+                                                                let visibleDays: number[] = [];
+                                                                if (total <= 3) {
+                                                                    visibleDays = Array.from({ length: total }, (_, idx) => idx + 1);
+                                                                } else {
+                                                                    if (current === 1) {
+                                                                        visibleDays = [1, 2, 3];
+                                                                    } else if (current === total) {
+                                                                        visibleDays = [total - 2, total - 1, total];
+                                                                    } else {
+                                                                        visibleDays = [current - 1, current, current + 1];
+                                                                    }
+                                                                }
+                                                                return visibleDays.map((dayNum) => {
+                                                                    if (dayNum < current) {
+                                                                        return (
+                                                                            <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 border border-emerald-100 text-[#0E7850] rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider flex-shrink-0">
+                                                                                Day {dayNum} ✅
+                                                                            </span>
+                                                                        );
+                                                                    } else if (dayNum === current) {
+                                                                        return (
+                                                                            <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider animate-pulse flex-shrink-0">
+                                                                                Day {dayNum} 🔒
+                                                                            </span>
+                                                                        );
+                                                                    } else {
+                                                                        return (
+                                                                            <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-50 border border-gray-100 text-gray-400 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider flex-shrink-0">
+                                                                                Day {dayNum} 🔒
+                                                                            </span>
+                                                                        );
+                                                                    }
+                                                                });
+                                                            })()}
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
                                         </div>
                                     )}
 

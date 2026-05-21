@@ -49,7 +49,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               let dbUser = sanitizeData(docSnap.data()) as User | Participant | Coach;
 
               // Automatic Role Healing/Recovery for the owner/admin
-              if (dbUser.email && dbUser.email.toLowerCase().trim() === 'oluwagbogoidowu@gmail.com' && dbUser.role !== UserRole.ADMIN) {
+              if (dbUser.email && dbUser.email.toLowerCase().trim() === 'vectorise.io@gmail.com' && dbUser.role !== UserRole.ADMIN) {
                   console.log("Root Cause Corrected: Healing Admin account role in the database.");
                   dbUser.role = UserRole.ADMIN;
                   await userService.updateUserDocument(dbUser.id, { role: UserRole.ADMIN });

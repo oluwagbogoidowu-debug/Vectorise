@@ -83,6 +83,32 @@ const Quiz: React.FC = () => {
     }
   };
 
+  const handleOptionSelectAndAdvance = (option: string) => {
+    // Select option
+    setAnswers(prev => ({ ...prev, [step]: option }));
+    let nextPersona = selectedPersona;
+    if (step === 0) {
+      nextPersona = option;
+      setSelectedPersona(option);
+      if (selectedPersona && selectedPersona !== option) {
+          setAnswers({ 0: option });
+      }
+    }
+
+    // Determine path count logic dynamically
+    const personaQuestions = nextPersona ? PERSONA_QUIZZES[nextPersona] : [];
+    const stepCountForTarget = nextPersona ? 1 + personaQuestions.length : 1;
+
+    // Auto advance block with a brief sleek transition
+    setTimeout(() => {
+      if (step >= stepCountForTarget - 1) {
+        setShowSummary(true);
+      } else {
+        setStep((prev: number) => prev + 1);
+      }
+    }, 280);
+  };
+
   const handleNext = () => {
      const personaQuestions = selectedPersona ? PERSONA_QUIZZES[selectedPersona] : [];
      if (step >= totalSteps - 1) setShowSummary(true);
@@ -161,22 +187,60 @@ const Quiz: React.FC = () => {
 
       <h1 className="text-2xl font-black text-white text-center mb-6 leading-tight flex-shrink-0 tracking-tight" dangerouslySetInnerHTML={{ __html: currentQuestion?.title || "" }} />
 
-      <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 mb-4 px-1 space-y-2.5">
-          {currentQuestion?.options.map((option: string) => {
+      <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 mb-4 px-1 space-y-3.5 py-2">
+          {currentQuestion?.options.map((option: string, index: number) => {
             const isSelected = answers[step] === option;
             return (
-              <button
+              <div 
                 key={option}
-                onClick={() => handleOptionSelect(option)}
-                className={`w-full py-4 px-6 rounded-2xl border-2 flex items-center justify-between transition-all duration-300 group text-left text-base font-bold ${
-                  isSelected ? 'bg-white border-white text-primary shadow-xl scale-[1.01]' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
-                }`}
+                className="flex items-center w-full gap-3 group"
               >
-                <span className="leading-tight">{option}</span>
-                <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${isSelected ? 'border-primary bg-primary' : 'border-white/20 group-hover:border-white/40'}`}>
-                  {isSelected && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7"></path></svg>}
-                </div>
-              </button>
+                {/* Numbered circular badge on the left - selects/marks but does NOT auto-advance */}
+                <button
+                  type="button"
+                  id={`option-badge-${index + 1}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOptionSelect(option);
+                  }}
+                  className={`w-11 h-11 rounded-full border flex items-center justify-center font-black text-xs transition-all duration-300 flex-shrink-0 active:scale-90 cursor-pointer ${
+                    isSelected 
+                      ? 'bg-white text-primary border-white shadow-md' 
+                      : 'bg-white/10 text-white border-white/20 hover:bg-white/20'
+                  }`}
+                >
+                  {isSelected ? (
+                    <svg className="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={4}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <span>{index + 1}</span>
+                  )}
+                </button>
+
+                {/* Main Option button on the right - selects AND auto-advances to the next step */}
+                <button
+                  type="button"
+                  id={`option-text-${option.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                  onClick={() => handleOptionSelectAndAdvance(option)}
+                  className={`flex-1 py-4 px-5 rounded-2xl border-2 flex items-center justify-between transition-all duration-300 text-left text-base font-extrabold active:scale-[0.99] cursor-pointer ${
+                    isSelected 
+                      ? 'bg-white border-white text-primary shadow-xl scale-[1.01]' 
+                      : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
+                  }`}
+                >
+                  <span className="leading-tight">{option}</span>
+                  <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${
+                    isSelected ? 'border-primary bg-primary' : 'border-white/20'
+                  }`}>
+                    {isSelected && (
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={4}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                </button>
+              </div>
             );
           })}
       </div>
