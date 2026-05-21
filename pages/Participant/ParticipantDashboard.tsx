@@ -338,18 +338,82 @@ const ParticipantDashboard: React.FC = () => {
                 {isLoading ? (
                     <div className="bg-white rounded-[2.5rem] h-64 animate-pulse border border-gray-100 shadow-sm"></div>
                 ) : mainTask && mainTask.sprint ? (
-                    <Link to={`/participant/sprint/${mainTask.enrollment.id}`} className="block group">
+                    <Link to={isMainTaskLocked ? '#' : `/participant/sprint/${mainTask.enrollment.id}`} className={isMainTaskLocked ? 'block cursor-default pointer-events-none' : 'block group'}>
                         <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-100 relative overflow-hidden flex animate-fade-in group-hover:shadow-xl transition-all duration-500">
-                            <div className={`w-2 md:w-3 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-gray-200' : 'bg-[#0E7850]'}`}></div>
+                            <div className={`w-2 md:w-3 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-amber-400' : 'bg-[#0E7850]'}`}></div>
                             
                             <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col">
                                 <div className="mb-6 md:mb-8">
-                                    <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">{mainTask.sprint.category}</p>
+                                    {isMainTaskLocked ? (
+                                        <div className="mb-4 bg-emerald-50/40 border border-emerald-100/60 p-4 rounded-2xl">
+                                            <p className="text-[#0E7850] font-extrabold text-[12px] md:text-sm uppercase tracking-wider">Day {mainTask.status.day - 1 || 1} Complete</p>
+                                            <p className="text-gray-500 font-medium text-xs sm:text-sm mt-0.5">You’ve started strong.</p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">{mainTask.sprint.category}</p>
+                                    )}
                                     <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight mt-1">{mainTask.sprint.title}</h3>
                                     <p className="text-[9px] md:text-[10px] font-black text-gray-500 uppercase tracking-widest mt-2">Day {mainTask.status.day} of {mainTask.sprint.duration}</p>
                                 </div>
 
                                 <div className="mt-auto pt-8">
+                                    {isMainTaskLocked && (
+                                        <div className="mb-6">
+                                            {/* Timer Countdown just above the separate tags */}
+                                            <div className="flex items-center gap-2 mb-3 self-start">
+                                                <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-100/60 text-amber-800 px-3 py-1.5 rounded-xl">
+                                                    <svg className="w-3.5 h-3.5 animate-pulse text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                    </svg>
+                                                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                                                        Next step unlocks in <span className="font-mono text-[11px] sm:text-[13px]">{timeToMidnight}</span>
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Sliding Window Day Tags next to each other */}
+                                            <div className="flex flex-wrap gap-2 items-center">
+                                                {(() => {
+                                                    const total = mainTask.sprint.duration || 3;
+                                                    const current = mainTask.status.day || 1;
+                                                    let visibleDays: number[] = [];
+                                                    if (total <= 3) {
+                                                        visibleDays = Array.from({ length: total }, (_, idx) => idx + 1);
+                                                    } else {
+                                                        if (current === 1) {
+                                                            visibleDays = [1, 2, 3];
+                                                        } else if (current === total) {
+                                                            visibleDays = [total - 2, total - 1, total];
+                                                        } else {
+                                                            visibleDays = [current - 1, current, current + 1];
+                                                        }
+                                                    }
+                                                    return visibleDays.map((dayNum) => {
+                                                        if (dayNum < current) {
+                                                            return (
+                                                                <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 border border-emerald-100 text-[#0E7850] rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider">
+                                                                    Day {dayNum} ✅
+                                                                </span>
+                                                            );
+                                                        } else if (dayNum === current) {
+                                                            return (
+                                                                <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider animate-pulse">
+                                                                    Day {dayNum} 🔒 (unlocking)
+                                                                </span>
+                                                            );
+                                                        } else {
+                                                            return (
+                                                                <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-50 border border-gray-100 text-gray-400 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider">
+                                                                    Day {dayNum} 🔒
+                                                                </span>
+                                                            );
+                                                        }
+                                                    });
+                                                })()}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="flex justify-between items-center mb-1">
                                         <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Progress</p>
                                         <p className="text-xs font-black text-gray-900">{mainTaskProgress}%</p>
