@@ -140,8 +140,11 @@ export const userService = {
       
       if (userSnap.exists()) {
         const existingData = userSnap.data();
-        await updateDoc(userRef, sanitizeData(data));
-        return { ...existingData, ...data };
+        // Crucial bugfix: If the user document already exists, we MUST return their existing 
+        // profile exactly as is. We must NEVER call updateDoc with default/basic onboarding 
+        // fields that would overwrite their account data or downgrade their user role (especially 
+        // from ADMIN/COACH to PARTICIPANT).
+        return sanitizeData(existingData) as User | Participant | Coach;
       }
 
       const userData = sanitizeData({
