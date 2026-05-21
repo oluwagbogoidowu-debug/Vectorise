@@ -22,6 +22,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
   const [pendingAction, setPendingAction] = useState<any>(null);
   const [pendingSprint, setPendingSprint] = useState<any>(null);
   const [showCoinPopup, setShowCoinPopup] = useState(false);
+  const [showAlreadyDonePopup, setShowAlreadyDonePopup] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
 
   // Dynamic coin calculations
@@ -39,16 +40,22 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
       if (pending && pending.pricingType === 'credits') {
         sprintService.getSprintById(pending.sprintId).then((sprint) => {
           if (sprint) {
-            // Only show if the user isn't already active/queued in this sprint
             sprintService.getUserEnrollments(user.id).then((enrollments) => {
-              const alreadyEnrolled = enrollments.some(e => e.sprint_id === pending.sprintId);
-              if (!alreadyEnrolled) {
+              const existingEnrollment = enrollments.find(e => e.sprint_id === pending.sprintId);
+              if (!existingEnrollment) {
+                // Case 3: Not done at all, show Coin balance option
                 setPendingAction(pending);
                 setPendingSprint(sprint);
                 setShowCoinPopup(true);
+              } else if (existingEnrollment.status === 'completed') {
+                // Case 1: Already completed/done before, show "Check out recommended sprint" popup
+                setPendingSprint(sprint);
+                setShowAlreadyDonePopup(true);
               } else {
-                // Already enrolled, clear pending action
+                // Case 2: In-progress/active, resume automatically
+                toast.success("Resuming your active sprint...");
                 localStorage.removeItem('pending_first_action');
+                navigate(`/participant/sprint/${existingEnrollment.id}?day=1`);
               }
             });
           }
@@ -159,6 +166,51 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                 className="w-full py-4 text-gray-400 rounded-2xl font-black uppercase tracking-widest text-[9px] hover:text-gray-600 transition-colors"
               >
                 Not Now
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {showAlreadyDonePopup && pendingSprint && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 max-w-sm w-full text-center relative overflow-hidden animate-slide-up border border-gray-100">
+            <div className="w-16 h-16 bg-[#0E7850]/10 rounded-full flex items-center justify-center mx-auto mb-6 text-[#0E7850]">
+              <span className="text-3xl">🎯</span>
+            </div>
+
+            <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2 col-auto">You’ve done this before!</h3>
+            <p className="text-[#0E7850] font-extrabold text-[12px] uppercase tracking-wider mb-6">
+              Sprint Already Completed
+            </p>
+
+            <p className="text-gray-500 font-medium text-xs leading-relaxed mb-8">
+              You have already finished <strong>{pendingSprint.title}</strong> previously. Ready to explore another amazing sprint to level up?
+            </p>
+
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAlreadyDonePopup(false);
+                  localStorage.removeItem('pending_first_action');
+                  navigate('/explore');
+                }}
+                className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-[#0b5d3e] transition-colors shadow-lg active:scale-95 flex items-center justify-center gap-2"
+              >
+                Check out recommended sprint
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAlreadyDonePopup(false);
+                  localStorage.removeItem('pending_first_action');
+                }}
+                className="w-full py-3 text-gray-400 rounded-2xl font-black uppercase tracking-widest text-[9px] hover:text-gray-600 transition-colors"
+              >
+                Dismiss
               </button>
             </div>
           </div>
