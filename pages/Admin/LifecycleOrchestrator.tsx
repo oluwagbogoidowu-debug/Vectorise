@@ -43,6 +43,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
     const [activeTriggerPicker, setActiveTriggerPicker] = useState<string | null>(null);
     const [activeSprintPicker, setActiveSprintPicker] = useState<string | null>(null);
     const [specificationSteps, setSpecificationSteps] = useState<Record<string, number>>({});
+    const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
 
     useEffect(() => {
         setIsInitialLoading(true);
@@ -346,322 +347,433 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                 </div>
 
                                 <div className="space-y-4">
-                                    <div className="flex items-center gap-2 px-1">
-                                        <div className="flex items-center gap-2">
-                                            <h5 className="text-[9px] font-black text-gray-300 uppercase tracking-[0.25em]">Registry Assignment</h5>
-                                            <button 
-                                                onClick={() => setEditingFocusSlot(isEditingFocusText ? null : slot.id)}
-                                                className={`p-1 transition-all active:scale-90 ${isEditingFocusText ? 'text-primary' : 'text-gray-300 hover:text-primary'}`}
-                                                title="Edit Focus Option Labels"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                            </button>
-                                        </div>
-                                        <div className="h-px bg-gray-50 flex-1"></div>
-                                    </div>
-
-                                    {isEditingFocusText && (
-                                        <div className="space-y-3 animate-fade-in mb-8">
-                                            <p className="text-[8px] font-black text-orange-400 uppercase tracking-widest px-1">Edit Poll Labels</p>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                {slotFocusOptions.map((opt, idx) => (
-                                                    <div key={idx} className="flex items-center gap-2 bg-gray-50 p-2 rounded-2xl border border-gray-100 hover:border-primary/20 transition-all group">
-                                                        <span className="text-[8px] font-black text-gray-300 px-2">{idx + 1}</span>
-                                                        <input 
-                                                            type="text" 
-                                                            value={opt}
-                                                            onChange={(e) => handleUpdateFocusOptionText(slot.id, idx, e.target.value)}
-                                                            className="flex-1 bg-transparent border-none focus:ring-0 text-[10px] font-bold text-gray-700 outline-none px-2"
-                                                        />
-                                                        <button 
-                                                            onClick={() => handleRemoveFocusOption(slot.id, idx)}
-                                                            className="p-2 text-red-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                                                        >
-                                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12"/></svg>
-                                                        </button>
-                                                    </div>
-                                                ))}
+                                    {editingSlotId !== slot.id ? (
+                                        <div className="space-y-6">
+                                            <div className="flex items-center justify-between gap-2 px-1">
+                                                <div className="flex items-center gap-2">
+                                                    <h5 className="text-[9px] font-black text-gray-450 uppercase tracking-[0.25em]">Registry Assignment</h5>
+                                                    {assignedSprintIds.length > 0 && (
+                                                        <span className="px-2 py-0.5 bg-green-50 text-[8px] font-black text-green-600 rounded-full border border-green-100 uppercase tracking-widest">
+                                                            Active
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <button 
-                                                    onClick={() => handleAddFocusOption(slot.id)}
-                                                    className="border-2 border-dashed border-gray-100 rounded-2xl p-4 text-[9px] font-black text-gray-400 uppercase tracking-widest hover:bg-gray-50 hover:border-primary/20 transition-all flex items-center justify-center gap-2"
+                                                    onClick={() => setEditingSlotId(slot.id)}
+                                                    className="px-4 py-1.5 bg-[#0E7850]/10 text-[#0E7850] hover:bg-[#0E7850]/20 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 active:scale-95"
+                                                    title="Configure this assignment"
                                                 >
-                                                    <span className="text-sm">+</span> Add Focus Path
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                    Edit
                                                 </button>
                                             </div>
-                                            <button 
-                                                onClick={() => setEditingFocusSlot(null)}
-                                                className="w-full py-2 bg-primary text-white rounded-xl text-[8px] font-black uppercase tracking-widest shadow-md active:scale-95 transition-all"
-                                            >
-                                                Done Editing Labels
-                                            </button>
+
+                                            {assignedSprintIds.length > 0 ? (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {assignedSprintIds.map((sId) => {
+                                                        const s = allSprints.find(x => x.id === sId) || 
+                                                                 SYSTEM_DESTINATIONS.find(x => x.id === sId) ||
+                                                                 allTracks.find(x => x.id === sId);
+                                                        if (!s) return null;
+                                                        const sprintFocus = (assignment.sprintFocusMap || {})[sId] || [];
+                                                        const isSystem = sId.startsWith('system_');
+                                                        const isTrack = 'sprintIds' in s && !isSystem;
+
+                                                        return (
+                                                            <div key={sId} className={`w-full p-5 rounded-[2rem] border transition-all flex items-center justify-between bg-gray-50/50 hover:bg-gray-50/80 ${isSystem ? 'border-primary/10 bg-primary/5' : isTrack ? 'border-orange-100 bg-orange-50/20' : 'border-gray-100 bg-white'}`}>
+                                                                <div className="flex items-center gap-4 min-w-0">
+                                                                    <div className={`w-11 h-11 rounded-xl overflow-hidden shadow-sm border border-gray-100 flex items-center justify-center flex-shrink-0 ${isSystem || isTrack ? 'bg-white text-lg' : ''}`}>
+                                                                        {isSystem ? '🗺️' : isTrack ? '🚀' : <img src={(s as Sprint).coverImageUrl} className="w-full h-full object-cover" alt="" />}
+                                                                    </div>
+                                                                    <div className="text-left min-w-0">
+                                                                        <p className={`text-[8px] font-black uppercase tracking-widest leading-none mb-1 ${isSystem ? 'text-primary' : isTrack ? 'text-orange-500' : 'text-gray-400'}`}>
+                                                                            {isSystem ? 'System Link' : isTrack ? 'Track' : 'Program'}
+                                                                        </p>
+                                                                        <h6 className="text-[13px] font-black tracking-tight text-gray-900 truncate">
+                                                                            {s.title}
+                                                                        </h6>
+                                                                        {sprintFocus.length > 0 ? (
+                                                                            <div className="flex flex-wrap gap-1 mt-1.5">
+                                                                                {sprintFocus.map((f, fIdx) => (
+                                                                                    <span key={fIdx} className="px-2 py-0.5 bg-[#0E7850]/5 text-[#0E7850] rounded-md text-[8px] font-bold uppercase tracking-wider leading-none">
+                                                                                        {f}
+                                                                                    </span>
+                                                                                ))}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <p className="text-[8px] font-bold text-gray-300 uppercase tracking-wider mt-1.5">No tags bound</p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div className="py-8 text-center bg-gray-50/50 rounded-[2rem] border border-dashed border-gray-200/50 flex flex-col items-center justify-center gap-3">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No programs aligned to this slot yet</p>
+                                                    <button 
+                                                        onClick={() => setEditingSlotId(slot.id)}
+                                                        className="px-5 py-2.5 bg-[#0E7850] text-white hover:bg-[#0b5d3e] rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center gap-1.5"
+                                                    >
+                                                        Assign Program
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-
-                                    <div className="relative">
-                                        <button 
-                                            onClick={() => setActiveSprintPicker(isSprintPickerOpen ? null : slot.id)}
-                                            className="w-full py-5 px-8 rounded-3xl border border-gray-100 bg-gray-50 hover:border-primary/20 transition-all flex items-center justify-between group active:scale-[0.98]"
-                                        >
-                                            <div className="flex items-center gap-5">
-                                                <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-xl text-gray-300 shadow-sm border border-gray-50">
-                                                    +
+                                    ) : (
+                                        <div className="space-y-6">
+                                            <div className="flex items-center justify-between gap-2 px-1 bg-[#0E7850]/5 p-3 rounded-2xl border border-[#0E7850]/15 mb-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="relative">
+                                                        <span className="text-sm animate-pulse block">🛠️</span>
+                                                    </div>
+                                                    <h5 className="text-[9px] font-black text-[#0E7850] uppercase tracking-wider">Configure Assignments & Focus Mapping</h5>
                                                 </div>
-                                                <div className="text-left">
-                                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                                        Available Pool
-                                                    </p>
-                                                    <h6 className="text-base font-black tracking-tight text-gray-300 italic">
-                                                        Select from Registry...
-                                                    </h6>
+                                                <div className="flex items-center gap-2">
+                                                    <button 
+                                                        onClick={() => setEditingFocusSlot(isEditingFocusText ? null : slot.id)}
+                                                        className={`p-1.5 rounded-lg border transition-all active:scale-90 ${isEditingFocusText ? 'bg-orange-100 text-orange-600 border-orange-200' : 'bg-white hover:bg-gray-50 border-gray-100 text-gray-400'}`}
+                                                        title="Edit Option Labels"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => {
+                                                            setEditingSlotId(null);
+                                                            toast.success("Assignments updated successfully!");
+                                                        }}
+                                                        className="px-4 py-1.5 bg-[#0E7850] text-white hover:bg-[#0b5d3e] rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center gap-1 font-sans"
+                                                    >
+                                                        <svg className="w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                        Save
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <svg className={`w-6 h-6 text-gray-300 transition-transform ${isSprintPickerOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                                        </button>
 
-                                        {isSprintPickerOpen && (
-                                            <div className="absolute top-full left-0 right-0 mt-3 bg-white rounded-[2.5rem] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.15)] border border-gray-100 z-[110] p-8 animate-slide-up overflow-hidden">
-                                                <div className="flex justify-between items-center mb-6 px-2 border-b border-gray-50 pb-4">
-                                                    <div>
-                                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Registry Selection</p>
-                                                        <p className="text-[8px] font-bold text-primary uppercase mt-1">Available for this slot</p>
+                                            {isEditingFocusText && (
+                                                <div className="space-y-3 animate-fade-in mb-8">
+                                                    <p className="text-[8px] font-black text-orange-400 uppercase tracking-widest px-1">Edit Poll Labels</p>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        {slotFocusOptions.map((opt, idx) => (
+                                                            <div key={idx} className="flex items-center gap-2 bg-gray-50 p-2 rounded-2xl border border-gray-100 hover:border-primary/20 transition-all group">
+                                                                <span className="text-[8px] font-black text-gray-300 px-2">{idx + 1}</span>
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={opt}
+                                                                    onChange={(e) => handleUpdateFocusOptionText(slot.id, idx, e.target.value)}
+                                                                    className="flex-1 bg-transparent border-none focus:ring-0 text-[10px] font-bold text-gray-700 outline-none px-2"
+                                                                />
+                                                                <button 
+                                                                    onClick={() => handleRemoveFocusOption(slot.id, idx)}
+                                                                    className="p-2 text-red-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                                                                >
+                                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12"/></svg>
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                        <button 
+                                                            onClick={() => handleAddFocusOption(slot.id)}
+                                                            className="border-2 border-dashed border-gray-100 rounded-2xl p-4 text-[9px] font-black text-gray-400 uppercase tracking-widest hover:bg-gray-50 hover:border-primary/20 transition-all flex items-center justify-center gap-2"
+                                                        >
+                                                            <span className="text-sm">+</span> Add Focus Path
+                                                        </button>
                                                     </div>
-                                                    <button onClick={() => setActiveSprintPicker(null)} className="text-gray-300 hover:text-gray-900 transition-colors"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+                                                    <button 
+                                                        onClick={() => setEditingFocusSlot(null)}
+                                                        className="w-full py-2 bg-primary text-white rounded-xl text-[8px] font-black uppercase tracking-widest shadow-md active:scale-95 transition-all font-sans"
+                                                    >
+                                                        Done Editing Labels
+                                                    </button>
                                                 </div>
-                                                <div className="space-y-6 max-h-80 overflow-y-auto custom-scrollbar pr-2 mt-4">
-                                                    
-                                                    {/* Tracks Section (Only for Track slots) */}
-                                                    {slot.name.toLowerCase().includes('track') && availableTracksForPicker.length > 0 && (
-                                                        <div className="space-y-2">
-                                                            <p className="text-[8px] font-black text-orange-400 uppercase tracking-[0.3em] px-4 mb-3">Available Tracks</p>
-                                                            {availableTracksForPicker.map(t => (
-                                                                <button 
-                                                                    key={t.id} 
-                                                                    onClick={() => handleSprintAssign(slot.id, t.id)}
-                                                                    className="w-full text-left p-5 rounded-[2rem] transition-all flex items-center justify-between border bg-orange-50/30 border-orange-100 hover:bg-orange-50 hover:border-orange-200"
-                                                                >
-                                                                    <div className="flex items-center gap-5">
-                                                                        <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-xl shadow-sm border border-orange-100">
-                                                                            🚀
-                                                                        </div>
-                                                                        <div>
-                                                                            <p className="text-sm font-black text-gray-900 tracking-tight leading-none mb-1.5">{t.title}</p>
-                                                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{t.sprintIds.length} Sprints • Track</p>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="w-8 h-8 bg-orange-100 text-orange-400 rounded-full flex items-center justify-center text-xs font-black shadow-inner">+</div>
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    )}
+                                            )}
 
-                                                    {/* System Destinations Section */}
-                                                    {availableSystemForPicker.length > 0 && (
-                                                        <div className="space-y-2">
-                                                            <p className="text-[8px] font-black text-primary uppercase tracking-[0.3em] px-4 mb-3">System Destinations</p>
-                                                            {availableSystemForPicker.map(s => (
-                                                                <button 
-                                                                    key={s.id} 
-                                                                    onClick={() => handleSprintAssign(slot.id, s.id)}
-                                                                    className="w-full text-left p-4 rounded-2xl transition-all flex items-center justify-between border bg-primary/5 border-primary/10 hover:bg-primary/10"
-                                                                >
-                                                                    <div className="flex items-center gap-4">
-                                                                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-lg shadow-sm">🗺️</div>
-                                                                        <div>
-                                                                            <p className="text-sm font-black text-primary tracking-tight leading-none mb-1">{s.title}</p>
-                                                                            <p className="text-[9px] font-black text-primary/40 uppercase tracking-widest">{s.category}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="w-7 h-7 bg-primary text-white rounded-full flex items-center justify-center text-[10px] font-black shadow-lg">+</div>
-                                                                </button>
-                                                            ))}
+                                            <div className="relative">
+                                                <button 
+                                                    onClick={() => setActiveSprintPicker(isSprintPickerOpen ? null : slot.id)}
+                                                    className="w-full py-5 px-8 rounded-3xl border border-gray-100 bg-gray-50 hover:border-primary/20 transition-all flex items-center justify-between group active:scale-[0.98]"
+                                                >
+                                                    <div className="flex items-center gap-5">
+                                                        <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-xl text-gray-300 shadow-sm border border-gray-50">
+                                                            +
                                                         </div>
-                                                    )}
-
-                                                    {/* Sprints Section */}
-                                                    <div className="space-y-2">
-                                                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] px-4 mb-3">Coach Sprints</p>
-                                                        {availableSprintsForPicker.length > 0 ? availableSprintsForPicker.map(s => {
-                                                            return (
-                                                                <button 
-                                                                    key={s.id} 
-                                                                    onClick={() => handleSprintAssign(slot.id, s.id)}
-                                                                    className="w-full text-left p-5 rounded-[2rem] transition-all flex items-center justify-between border bg-white border-transparent hover:bg-gray-50 hover:border-gray-100"
-                                                                >
-                                                                    <div className="flex items-center gap-5">
-                                                                        <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100">
-                                                                            <img src={s.coverImageUrl} className="w-full h-full object-cover" alt="" />
-                                                                        </div>
-                                                                        <div>
-                                                                            <p className="text-sm font-black text-gray-900 tracking-tight leading-none mb-1.5">{s.title}</p>
-                                                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{s.duration} Days • {s.category}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="w-8 h-8 bg-gray-50 text-gray-300 rounded-full flex items-center justify-center text-xs font-black shadow-inner">+</div>
-                                                                </button>
-                                                            );
-                                                        }) : availableSystemForPicker.length === 0 && (
-                                                            <div className="py-12 text-center">
-                                                                <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">No additional items available.</p>
-                                                            </div>
-                                                        )}
+                                                        <div className="text-left">
+                                                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                                                Available Pool
+                                                            </p>
+                                                            <h6 className="text-base font-black tracking-tight text-gray-300 italic">
+                                                                Select from Registry...
+                                                            </h6>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
+                                                    <svg className={`w-6 h-6 text-gray-300 transition-transform ${isSprintPickerOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                                                </button>
 
-                                    {assignedSprintIds.length > 0 && (
-                                        <div className="space-y-8 animate-fade-in mt-10">
-                                            {assignedSprintIds.map((sId) => {
-                                                const s = allSprints.find(x => x.id === sId) || 
-                                                         SYSTEM_DESTINATIONS.find(x => x.id === sId) ||
-                                                         allTracks.find(x => x.id === sId);
-                                                if (!s) return null;
-                                                const sprintFocus = (assignment.sprintFocusMap || {})[sId] || [];
-                                                const isSystem = sId.startsWith('system_');
-                                                const isTrack = 'sprintIds' in s && !isSystem;
-                                                
-                                                // UNIFIED UNIQUENESS LOGIC: Find focus options taken by OTHER items in THIS slot
-                                                const focusTakenByOthers = Object.entries(assignment.sprintFocusMap || {})
-                                                    .filter(([otherId]) => otherId !== sId)
-                                                    .flatMap(([_, options]) => options as string[]);
-
-                                                return (
-                                                    <div key={sId} className={`w-full p-8 rounded-[2.5rem] border shadow-md flex flex-col gap-6 group transition-all hover:shadow-lg ${isSystem ? 'bg-primary/5 border-primary/20' : isTrack ? 'bg-orange-50/30 border-orange-200' : 'bg-white border-primary/10'}`}>
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className={`w-12 h-12 rounded-xl overflow-hidden shadow-sm border border-gray-100 flex items-center justify-center ${isSystem || isTrack ? 'bg-white text-xl' : ''}`}>
-                                                                    {isSystem ? '🗺️' : isTrack ? '🚀' : <img src={(s as Sprint).coverImageUrl} className="w-full h-full object-cover" alt="" />}
-                                                                </div>
-                                                                <div className="text-left">
-                                                                    <p className={`text-[9px] font-black uppercase tracking-widest ${isSystem ? 'text-primary' : isTrack ? 'text-orange-500' : 'text-primary'}`}>
-                                                                        {isSystem ? 'System Link' : isTrack ? 'Assigned Track' : 'Assigned Program'}
-                                                                    </p>
-                                                                    <h6 className="text-lg font-black tracking-tight text-gray-900 italic">
-                                                                        {s.title}
-                                                                    </h6>
-                                                                </div>
+                                                {isSprintPickerOpen && (
+                                                    <div className="absolute top-full left-0 right-0 mt-3 bg-white rounded-[2.5rem] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.15)] border border-gray-100 z-[110] p-8 animate-slide-up overflow-hidden">
+                                                        <div className="flex justify-between items-center mb-6 px-2 border-b border-gray-50 pb-4">
+                                                            <div>
+                                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Registry Selection</p>
+                                                                <p className="text-[8px] font-bold text-primary uppercase mt-1">Available for this slot</p>
                                                             </div>
-                                                            <button 
-                                                                onClick={() => handleSprintAssign(slot.id, sId)}
-                                                                className="p-2.5 text-gray-300 hover:text-red-500 transition-colors bg-white rounded-xl shadow-sm border border-gray-100"
-                                                                title="Unassign Program"
-                                                            >
-                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                                                            </button>
+                                                            <button onClick={() => setActiveSprintPicker(null)} className="text-gray-300 hover:text-gray-900 transition-colors"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
                                                         </div>
-
-                                                        <div className="space-y-4 pt-4 border-t border-gray-50">
-                                                            <div className="flex items-center justify-between">
-                                                                <div className="flex items-center gap-3">
-                                                                    <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Map Focus Criteria</h5>
-                                                                    <div className="h-px bg-gray-50 w-12"></div>
-                                                                </div>
-                                                                <div className="flex items-center gap-4">
-                                                                    <button 
-                                                                        onClick={() => {
-                                                                            setAssignments(prev => {
-                                                                                const current = prev[slot.id];
-                                                                                const focusMap = { ...(current.sprintFocusMap || {}) };
-                                                                                delete focusMap[sId];
-                                                                                return { ...prev, [slot.id]: { ...current, sprintFocusMap: focusMap } };
-                                                                            });
-                                                                            toast.info(`Cleared focus criteria for ${s.title}`);
-                                                                        }}
-                                                                        className="text-[8px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors"
-                                                                    >
-                                                                        Clear Focus
-                                                                    </button>
-                                                                    {(specificationSteps[`${slot.id}-${sId}`] || 0) > 0 && (
-                                                                        <button 
-                                                                            onClick={() => handleSetStep(slot.id, sId, (specificationSteps[`${slot.id}-${sId}`] || 0) - 1)}
-                                                                            className="text-[8px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-1"
-                                                                        >
-                                                                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                                                                            Previous
-                                                                        </button>
-                                                                    )}
-                                                                    {(() => {
-                                                                        const currentStep = specificationSteps[`${slot.id}-${sId}`] || 0;
-                                                                        const selectedPersonas = sprintFocus.filter(f => PERSONAS.includes(f));
-                                                                        const canSpecify = selectedPersonas.length > 0 && currentStep < 3;
-                                                                        
-                                                                        if (!canSpecify) return null;
-                                                                        
-                                                                        return (
-                                                                            <button 
-                                                                                onClick={() => handleSetStep(slot.id, sId, currentStep + 1)}
-                                                                                className="text-[8px] font-black text-primary uppercase tracking-widest hover:underline transition-all flex items-center gap-1"
-                                                                            >
-                                                                                Specify
-                                                                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
-                                                                            </button>
-                                                                        );
-                                                                    })()}
-                                                                </div>
-                                                            </div>
+                                                        <div className="space-y-6 max-h-80 overflow-y-auto custom-scrollbar pr-2 mt-4">
                                                             
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {(() => {
-                                                                    const currentStep = specificationSteps[`${slot.id}-${sId}`] || 0;
-                                                                    let visibleOptions: string[] = [];
-                                                                    
-                                                                    if (currentStep === 0) {
-                                                                        const allHierarchyOptions = Object.values(PERSONA_HIERARCHY).flat(2);
-                                                                        visibleOptions = slotFocusOptions.filter(opt => PERSONAS.includes(opt) || !allHierarchyOptions.includes(opt));
-                                                                    } else {
-                                                                        const selectedPersonas = sprintFocus.filter(f => PERSONAS.includes(f));
-                                                                        const options: string[] = [];
-                                                                        selectedPersonas.forEach(p => {
-                                                                            const levels = PERSONA_HIERARCHY[p];
-                                                                            if (levels && levels[currentStep - 1]) {
-                                                                                options.push(...levels[currentStep - 1]);
-                                                                            }
-                                                                        });
-                                                                        visibleOptions = slotFocusOptions.filter(opt => options.includes(opt));
-                                                                    }
-
-                                                                    return visibleOptions.map((opt) => {
-                                                                        const isSelected = sprintFocus.includes(opt);
-                                                                        const isTaken = focusTakenByOthers.includes(opt);
-                                                                        const optIdx = slotFocusOptions.indexOf(opt);
-                                                                        
-                                                                        return (
-                                                                            <button
-                                                                                key={opt}
-                                                                                disabled={isTaken}
-                                                                                onClick={() => handleToggleSprintFocus(slot.id, sId, opt)}
-                                                                                className={`px-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-2.5 group relative ${
-                                                                                    isSelected 
-                                                                                    ? 'bg-primary text-white border-primary shadow-lg scale-[1.02]' 
-                                                                                    : isTaken
-                                                                                    ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-40'
-                                                                                    : 'bg-white text-gray-400 border-gray-100 hover:border-primary/20 hover:text-primary'
-                                                                                }`}
-                                                                                title={isTaken ? 'Already mapped to another destination in this slot' : ''}
-                                                                            >
-                                                                                <span className={`w-5 h-5 rounded-lg flex items-center justify-center text-[8px] font-black ${isSelected ? 'bg-white/20 text-white' : isTaken ? 'bg-gray-100 text-gray-200' : 'bg-gray-50 text-gray-300 group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                                                                                    {optIdx + 1}
-                                                                                </span>
-                                                                                {opt}
-                                                                                {isTaken && (
-                                                                                    <span className="absolute -top-2 -right-1 bg-white text-gray-400 text-[6px] font-black px-1 rounded-sm border border-gray-100 shadow-sm whitespace-nowrap">Assigned</span>
-                                                                                )}
-                                                                            </button>
-                                                                        );
-                                                                    });
-                                                                })()}
-                                                            </div>
-                                                            {sprintFocus.length > 0 && (
-                                                                <p className="text-[8px] font-bold text-primary italic uppercase tracking-widest mt-1">
-                                                                    Tags: {sprintFocus.map(f => slotFocusOptions.indexOf(f) + 1).join(', ')} assigned to this destination.
-                                                                </p>
+                                                            {/* Tracks Section (Only for Track slots) */}
+                                                            {slot.name.toLowerCase().includes('track') && availableTracksForPicker.length > 0 && (
+                                                                <div className="space-y-2">
+                                                                    <p className="text-[8px] font-black text-orange-400 uppercase tracking-[0.3em] px-4 mb-3">Available Tracks</p>
+                                                                    {availableTracksForPicker.map(t => (
+                                                                        <button 
+                                                                            key={t.id} 
+                                                                            onClick={() => handleSprintAssign(slot.id, t.id)}
+                                                                            className="w-full text-left p-5 rounded-[2rem] transition-all flex items-center justify-between border bg-orange-50/30 border-orange-100 hover:bg-orange-50 hover:border-orange-200"
+                                                                        >
+                                                                            <div className="flex items-center gap-5">
+                                                                                <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-xl shadow-sm border border-orange-100">
+                                                                                    🚀
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-sm font-black text-gray-900 tracking-tight leading-none mb-1.5">{t.title}</p>
+                                                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{t.sprintIds.length} Sprints • Track</p>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="w-8 h-8 bg-orange-100 text-orange-400 rounded-full flex items-center justify-center text-xs font-black shadow-inner">+</div>
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
                                                             )}
+
+                                                            {/* System Destinations Section */}
+                                                            {availableSystemForPicker.length > 0 && (
+                                                                <div className="space-y-2">
+                                                                    <p className="text-[8px] font-black text-primary uppercase tracking-[0.3em] px-4 mb-3">System Destinations</p>
+                                                                    {availableSystemForPicker.map(s => (
+                                                                        <button 
+                                                                            key={s.id} 
+                                                                            onClick={() => handleSprintAssign(slot.id, s.id)}
+                                                                            className="w-full text-left p-4 rounded-2xl transition-all flex items-center justify-between border bg-primary/5 border-primary/10 hover:bg-primary/10"
+                                                                        >
+                                                                            <div className="flex items-center gap-4">
+                                                                                <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-lg shadow-sm">🗺️</div>
+                                                                                <div>
+                                                                                    <p className="text-sm font-black text-primary tracking-tight leading-none mb-1">{s.title}</p>
+                                                                                    <p className="text-[9px] font-black text-primary/40 uppercase tracking-widest">{s.category}</p>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="w-7 h-7 bg-primary text-white rounded-full flex items-center justify-center text-[10px] font-black shadow-lg">+</div>
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Sprints Section */}
+                                                            <div className="space-y-2">
+                                                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] px-4 mb-3">Coach Sprints</p>
+                                                                {availableSprintsForPicker.length > 0 ? availableSprintsForPicker.map(s => {
+                                                                    return (
+                                                                        <button 
+                                                                            key={s.id} 
+                                                                            onClick={() => handleSprintAssign(slot.id, s.id)}
+                                                                            className="w-full text-left p-5 rounded-[2rem] transition-all flex items-center justify-between border bg-white border-transparent hover:bg-gray-50 hover:border-gray-100"
+                                                                        >
+                                                                            <div className="flex items-center gap-5">
+                                                                                <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 shadow-sm border border-gray-100">
+                                                                                    <img src={s.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-sm font-black text-gray-900 tracking-tight leading-none mb-1.5">{s.title}</p>
+                                                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{s.duration} Days • {s.category}</p>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="w-8 h-8 bg-gray-50 text-gray-300 rounded-full flex items-center justify-center text-xs font-black shadow-inner">+</div>
+                                                                        </button>
+                                                                    );
+                                                                }) : availableSystemForPicker.length === 0 && (
+                                                                    <div className="py-12 text-center">
+                                                                        <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">No additional items available.</p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                );
-                                            })}
+                                                )}
+                                            </div>
+
+                                            {assignedSprintIds.length > 0 && (
+                                                <div className="space-y-8 animate-fade-in mt-10">
+                                                    {assignedSprintIds.map((sId) => {
+                                                        const s = allSprints.find(x => x.id === sId) || 
+                                                                 SYSTEM_DESTINATIONS.find(x => x.id === sId) ||
+                                                                 allTracks.find(x => x.id === sId);
+                                                        if (!s) return null;
+                                                        const sprintFocus = (assignment.sprintFocusMap || {})[sId] || [];
+                                                        const isSystem = sId.startsWith('system_');
+                                                        const isTrack = 'sprintIds' in s && !isSystem;
+                                                        
+                                                        // UNIFIED UNIQUENESS LOGIC: Find focus options taken by OTHER items in THIS slot
+                                                        const focusTakenByOthers = Object.entries(assignment.sprintFocusMap || {})
+                                                            .filter(([otherId]) => otherId !== sId)
+                                                            .flatMap(([_, options]) => options as string[]);
+
+                                                        return (
+                                                            <div key={sId} className={`w-full p-8 rounded-[2.5rem] border shadow-md flex flex-col gap-6 group transition-all hover:shadow-lg ${isSystem ? 'bg-primary/5 border-primary/20' : isTrack ? 'bg-orange-50/30 border-orange-200' : 'bg-white border-primary/10'}`}>
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-4">
+                                                                        <div className={`w-12 h-12 rounded-xl overflow-hidden shadow-sm border border-gray-100 flex items-center justify-center flex-shrink-0 ${isSystem || isTrack ? 'bg-white text-xl' : ''}`}>
+                                                                            {isSystem ? '🗺️' : isTrack ? '🚀' : <img src={(s as Sprint).coverImageUrl} className="w-full h-full object-cover" alt="" />}
+                                                                        </div>
+                                                                        <div className="text-left">
+                                                                            <p className={`text-[9px] font-black uppercase tracking-widest ${isSystem ? 'text-primary' : isTrack ? 'text-orange-500' : 'text-primary'}`}>
+                                                                                {isSystem ? 'System Link' : isTrack ? 'Assigned Track' : 'Assigned Program'}
+                                                                            </p>
+                                                                            <h6 className="text-lg font-black tracking-tight text-gray-900 italic">
+                                                                                {s.title}
+                                                                            </h6>
+                                                                        </div>
+                                                                    </div>
+                                                                    <button 
+                                                                        onClick={() => handleSprintAssign(slot.id, sId)}
+                                                                        className="p-2.5 text-gray-300 hover:text-red-500 transition-colors bg-white rounded-xl shadow-sm border border-gray-100"
+                                                                        title="Unassign Program"
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                                    </button>
+                                                                </div>
+
+                                                                <div className="space-y-4 pt-4 border-t border-gray-50">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <h5 className="text-[9px] font-black text-gray-450 uppercase tracking-[0.2em]">Map Focus Criteria</h5>
+                                                                            <div className="h-px bg-gray-50 w-12"></div>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-4">
+                                                                            <button 
+                                                                                onClick={() => {
+                                                                                    setAssignments(prev => {
+                                                                                        const current = prev[slot.id];
+                                                                                        const focusMap = { ...(current.sprintFocusMap || {}) };
+                                                                                        delete focusMap[sId];
+                                                                                        return { ...prev, [slot.id]: { ...current, sprintFocusMap: focusMap } };
+                                                                                    });
+                                                                                    toast.info(`Cleared focus criteria for ${s.title}`);
+                                                                                }}
+                                                                                className="text-[8px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors"
+                                                                            >
+                                                                                Clear Focus
+                                                                            </button>
+                                                                            {(specificationSteps[`${slot.id}-${sId}`] || 0) > 0 && (
+                                                                                <button 
+                                                                                    onClick={() => handleSetStep(slot.id, sId, (specificationSteps[`${slot.id}-${sId}`] || 0) - 1)}
+                                                                                    className="text-[8px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-colors flex items-center gap-1"
+                                                                                >
+                                                                                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                                                                                    Previous
+                                                                                </button>
+                                                                            )}
+                                                                            {(() => {
+                                                                                const currentStep = specificationSteps[`${slot.id}-${sId}`] || 0;
+                                                                                const selectedPersonas = sprintFocus.filter(f => PERSONAS.includes(f));
+                                                                                const canSpecify = selectedPersonas.length > 0 && currentStep < 3;
+                                                                                
+                                                                                if (!canSpecify) return null;
+                                                                                
+                                                                                return (
+                                                                                    <button 
+                                                                                        onClick={() => handleSetStep(slot.id, sId, currentStep + 1)}
+                                                                                        className="text-[8px] font-black text-primary uppercase tracking-widest hover:underline transition-all flex items-center gap-1"
+                                                                                    >
+                                                                                        Specify
+                                                                                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                                                                                    </button>
+                                                                                );
+                                                                            })()}
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        {(() => {
+                                                                            const currentStep = specificationSteps[`${slot.id}-${sId}`] || 0;
+                                                                            let visibleOptions: string[] = [];
+                                                                            
+                                                                            if (currentStep === 0) {
+                                                                                const allHierarchyOptions = Object.values(PERSONA_HIERARCHY).flat(2);
+                                                                                visibleOptions = slotFocusOptions.filter(opt => PERSONAS.includes(opt) || !allHierarchyOptions.includes(opt));
+                                                                            } else {
+                                                                                const selectedPersonas = sprintFocus.filter(f => PERSONAS.includes(f));
+                                                                                const options: string[] = [];
+                                                                                selectedPersonas.forEach(p => {
+                                                                                    const levels = PERSONA_HIERARCHY[p];
+                                                                                    if (levels && levels[currentStep - 1]) {
+                                                                                        options.push(...levels[currentStep - 1]);
+                                                                                    }
+                                                                                });
+                                                                                visibleOptions = slotFocusOptions.filter(opt => options.includes(opt));
+                                                                            }
+
+                                                                            return visibleOptions.map((opt) => {
+                                                                                const isSelected = sprintFocus.includes(opt);
+                                                                                const isTaken = focusTakenByOthers.includes(opt);
+                                                                                const optIdx = slotFocusOptions.indexOf(opt);
+                                                                                
+                                                                                return (
+                                                                                    <button
+                                                                                        key={opt}
+                                                                                        disabled={isTaken}
+                                                                                        onClick={() => handleToggleSprintFocus(slot.id, sId, opt)}
+                                                                                        className={`px-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all border flex items-center gap-2.5 group relative ${
+                                                                                            isSelected 
+                                                                                            ? 'bg-primary text-white border-primary shadow-lg scale-[1.02]' 
+                                                                                            : isTaken
+                                                                                            ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-40'
+                                                                                            : 'bg-white text-gray-400 border-gray-100 hover:border-primary/20 hover:text-primary'
+                                                                                        }`}
+                                                                                        title={isTaken ? 'Already mapped to another destination in this slot' : ''}
+                                                                                    >
+                                                                                        <span className={`w-5 h-5 rounded-lg flex items-center justify-center text-[8px] font-black ${isSelected ? 'bg-white/20 text-white' : isTaken ? 'bg-gray-100 text-gray-200' : 'bg-gray-50 text-gray-300 group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                                                                                            {optIdx + 1}
+                                                                                        </span>
+                                                                                        {opt}
+                                                                                        {isTaken && (
+                                                                                            <span className="absolute -top-2 -right-1 bg-white text-gray-400 text-[6px] font-black px-1 rounded-sm border border-gray-100 shadow-sm whitespace-nowrap">Assigned</span>
+                                                                                        )}
+                                                                                    </button>
+                                                                                );
+                                                                            });
+                                                                        })()}
+                                                                    </div>
+                                                                    {sprintFocus.length > 0 && (
+                                                                        <p className="text-[8px] font-bold text-primary italic uppercase tracking-widest mt-1">
+                                                                            Tags: {sprintFocus.map(f => slotFocusOptions.indexOf(f) + 1).join(', ')} assigned to this destination.
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            <div className="flex justify-end pt-4 border-t border-gray-50 mt-6">
+                                                <button 
+                                                    onClick={() => {
+                                                        setEditingSlotId(null);
+                                                        toast.success("Assignments saved successfully!");
+                                                    }}
+                                                    className="px-6 py-3 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center gap-2"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                    Done & Save Configuration
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
                                 </div>

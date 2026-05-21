@@ -131,12 +131,19 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                     });
 
                     // Enroll
-                    const enrollment = await sprintService.enrollUser(user.id, pendingSprint.id, pendingSprint.duration);
+                    const enrollment = await sprintService.enrollUser(user.id, pendingSprint.id, pendingSprint.duration, {
+                      firstActionInput: pendingAction?.firstActionInput
+                    });
 
-                    toast.success(`Sprint unlocked! Paid 🪙 ${cost} coins.`);
+                    if (enrollment.status === 'queued') {
+                      toast.success(`Paid 🪙 ${cost} coins. Added to waitlist since you have another active sprint! Day 1 progress saved.`);
+                    } else {
+                      toast.success(`Sprint unlocked! Paid 🪙 ${cost} coins.`);
+                    }
 
                     // Close and clear state
                     setShowCoinPopup(false);
+                    localStorage.removeItem('pending_first_action');
 
                     // Navigate straight to active sprint view to complete actions
                     navigate(`/participant/sprint/${enrollment.id}?day=1`);

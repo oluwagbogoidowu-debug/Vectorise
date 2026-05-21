@@ -248,7 +248,8 @@ export const sprintService = {
             pricePaid?: number, 
             currency?: string,
             source?: PaymentSource, 
-            referral?: string | null 
+            referral?: string | null,
+            firstActionInput?: string
         }
     ) => {
         const enrollmentId = `enrollment_${userId}_${sprintId}`;
@@ -282,7 +283,12 @@ export const sprintService = {
             sentNudges: [],
             soundDisabled: false,
             notificationsDisabled: false,
-            progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
+            progress: Array.from({ length: duration }, (_, i) => ({
+                day: i + 1,
+                completed: false,
+                answers: (i === 0 && commercial?.firstActionInput) ? [commercial.firstActionInput] : [],
+                submission: (i === 0 && commercial?.firstActionInput) ? commercial.firstActionInput : ""
+            }))
         };
 
         await setDoc(enrollmentRef, sanitizeData(newEnrollment));

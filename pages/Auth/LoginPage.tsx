@@ -7,6 +7,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { sprintService } from '../../services/sprintService';
 import { UserRole } from '../../types';
+import { toast } from 'sonner';
 
 const LoginPage: React.FC = () => {
   const { user, forgotPassword } = useAuth();
@@ -122,7 +123,13 @@ const LoginPage: React.FC = () => {
                                                      sprint.category === 'Core Platform Sprint' || 
                                                      sprint.category === 'Growth Fundamentals';
                               if (isFoundational || sprint.price === 0) {
-                                  const enrollment = await sprintService.enrollUser(user.id, targetSprintId, sprint.duration);
+                                  const enrollment = await sprintService.enrollUser(user.id, targetSprintId, sprint.duration, {
+                                      firstActionInput: pendingFirstAction?.firstActionInput
+                                  });
+                                  if (enrollment.status === 'queued') {
+                                      toast.success("Added to waitlist since you have another active sprint! Progress saved.");
+                                  }
+                                  localStorage.removeItem('pending_first_action');
                                   navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
                                   return;
                               }

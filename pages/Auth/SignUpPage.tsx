@@ -154,7 +154,24 @@ const SignUpPage: React.FC = () => {
                                              sprint.category === 'Core Platform Sprint' || 
                                              sprint.category === 'Growth Fundamentals';
                       if (fromPayment || isFoundational || sprint.price === 0) {
-                          const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprintId, sprint.duration);
+                          const pendingFirstActionRaw = localStorage.getItem('pending_first_action');
+                          let pendingFirstAction = null;
+                          try {
+                              if (pendingFirstActionRaw) {
+                                  pendingFirstAction = JSON.parse(pendingFirstActionRaw);
+                              }
+                          } catch (err) {
+                              console.error("Error parsing pending_first_action in SignUpPage:", err);
+                          }
+
+                          const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprintId, sprint.duration, {
+                              firstActionInput: pendingFirstAction?.firstActionInput
+                          });
+
+                          if (enrollment.status === 'queued') {
+                              toast.success("Added to waitlist since you have another active sprint! Progress saved.");
+                          }
+                          localStorage.removeItem('pending_first_action');
                           navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
                           return;
                       }

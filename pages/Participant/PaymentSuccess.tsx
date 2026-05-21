@@ -4,6 +4,8 @@ import { paymentService } from '../../services/paymentService';
 import { userService } from '../../services/userService';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
+import { db } from '../../services/firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 const PaymentSuccess: React.FC = () => {
     const location = useLocation();
@@ -53,6 +55,38 @@ const PaymentSuccess: React.FC = () => {
                     
                     // Redirect logic
                     setTimeout(async () => {
+                        const finalUserId = user?.id || data.userId;
+                        
+                        // If they are logged in (not a guest), save the first action input to the enrollment doc in db!
+                        const pendingRaw = localStorage.getItem('pending_first_action');
+                        if (pendingRaw && data.sprintId && finalUserId && !finalUserId.startsWith('guest_')) {
+                            try {
+                                const pending = JSON.parse(pendingRaw);
+                                if (pending && pending.sprintId === data.sprintId && pending.firstActionInput) {
+                                    const enrollmentId = `enrollment_${finalUserId}_${data.sprintId}`;
+                                    const enrollmentRef = doc(db, 'enrollments', enrollmentId);
+                                    const enrollmentSnap = await getDoc(enrollmentRef);
+                                    if (enrollmentSnap.exists()) {
+                                        const enrollmentData = enrollmentSnap.data() as any;
+                                        const updatedProgress = (enrollmentData.progress || []).map((p: any) => 
+                                            p.day === 1 ? {
+                                                ...p,
+                                                answers: [pending.firstActionInput],
+                                                submission: pending.firstActionInput
+                                            } : p
+                                        );
+                                        await updateDoc(enrollmentRef, {
+                                            progress: updatedProgress
+                                        });
+                                        console.log("[PaymentSuccess] Saved pending first action input directly to Firestore Day 1!");
+                                    }
+                                }
+                            } catch (err) {
+                                console.error("[PaymentSuccess] Error saving pending first action:", err);
+                            }
+                            localStorage.removeItem('pending_first_action');
+                        }
+
                         if (data.coinPackageId) {
                             // Coin purchase flow
                             if (data.sprintId || data.trackId) {
