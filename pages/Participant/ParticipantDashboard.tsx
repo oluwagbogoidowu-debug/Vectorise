@@ -285,11 +285,18 @@ const ParticipantDashboard: React.FC = () => {
           <div className="max-w-screen-md mx-auto w-full flex flex-col">
             
             <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                <div className={`bg-[#0E7850] text-white p-3 md:p-4 rounded-[1.5rem] shadow-lg flex items-center gap-3 relative overflow-hidden transition-transform active:scale-[0.98] ${allTasksDoneToday ? 'justify-center' : ''}`}>
+                <div className="bg-[#0E7850] text-white p-3 md:p-4 rounded-[1.5rem] shadow-lg flex items-center gap-3 relative overflow-hidden transition-transform active:scale-[0.98]">
                     {allTasksDoneToday ? (
-                        <div className="animate-fade-in relative z-10 flex flex-col items-center text-center">
-                            <h3 className="text-[10px] md:text-[11px] font-black leading-tight uppercase tracking-widest">Well<br/>Done 👏</h3>
-                        </div>
+                        <>
+                            <div className="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                                <span className="text-sm md:text-base leading-none">👏</span>
+                            </div>
+                            <div className="relative z-10 min-w-0 animate-fade-in">
+                                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] text-white leading-tight">
+                                    Well<br/>Done
+                                </p>
+                            </div>
+                        </>
                     ) : (
                         <>
                             <div className="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -343,15 +350,15 @@ const ParticipantDashboard: React.FC = () => {
                             <div className={`w-2 md:w-3 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-amber-400' : 'bg-[#0E7850]'}`}></div>
                             
                             <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col">
-                                <div className="mb-6 md:mb-8">
+                                <div className={isMainTaskLocked ? "mb-3 md:mb-4" : "mb-6 md:mb-8"}>
                                     <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">{mainTask.sprint.category}</p>
                                     <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight mt-1">{mainTask.sprint.title}</h3>
                                     <p className="text-[9px] md:text-[10px] font-black text-gray-500 uppercase tracking-widest mt-2">Day {mainTask.status.day} of {mainTask.sprint.duration}</p>
                                 </div>
 
-                                <div className="mt-auto pt-8">
+                                <div className={`mt-auto ${isMainTaskLocked ? 'pt-3 md:pt-4' : 'pt-8'}`}>
                                     {isMainTaskLocked && (
-                                        <div className="mb-6">
+                                        <div className="mb-4 md:mb-5">
                                             {/* Timer Countdown just above the separate tags */}
                                             <div className="flex items-center gap-2 mb-3 self-start">
                                                 <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-100/60 text-amber-800 px-3 py-1.5 rounded-xl">
@@ -411,7 +418,7 @@ const ParticipantDashboard: React.FC = () => {
                                         <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Progress</p>
                                         <p className="text-xs font-black text-gray-900">{mainTaskProgress}%</p>
                                     </div>
-                                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden mb-6">
+                                    <div className={`h-2 w-full bg-gray-100 rounded-full overflow-hidden ${isMainTaskLocked ? 'mb-2 md:mb-3' : 'mb-6'}`}>
                                         <div className="h-full bg-[#0E7850] rounded-full" style={{ width: `${mainTaskProgress}%` }}></div>
                                     </div>
                                     {!isMainTaskLocked && (
