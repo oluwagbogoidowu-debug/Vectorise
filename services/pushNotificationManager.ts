@@ -1,6 +1,6 @@
 
 import webpush from '../utils/webpush.js';
-import { db } from '../api/lib/firebaseAdmin.js';
+import admin, { db } from '../api/lib/firebaseAdmin.js';
 import { Participant, UserNotificationState, PushSubscriptionJSON, ParticipantSprint, Sprint, Notification } from '../types.js';
 import { notificationEngine } from './notificationEngine.js';
 
@@ -20,7 +20,8 @@ export const pushNotificationManager = {
       await userRef.update({
         pushSubscription: subscription,
         notificationsDisabled: false,
-        lastActivityAt: new Date().toISOString()
+        lastActivityAt: new Date().toISOString(),
+        pushSubscriptionInvalidCount: 0 // Reset any previous failures
       });
       console.log(`[PushManager] Saved subscription for user ${userId}`);
       return true;
@@ -38,27 +39,32 @@ export const pushNotificationManager = {
       const userRef = db.collection('users').doc(userId);
       const userSnap = await userRef.get();
       
-      if (!userSnap.exists) return false;
+      if (!userSnap.exists) {
+        console.log({
+          userId,
+          attempted: false,
+          success: false,
+          reason: 'user document not found in database'
+        });
+        return false;
+      }
       
       const userData = userSnap.data() as Participant;
       
       if (!userData.pushSubscription || userData.notificationsDisabled) {
         console.log(`[PushManager] User ${userId} has no push subscription or notifications disabled.`);
+        console.log({
+          userId,
+          attempted: false,
+          success: false,
+          reason: !userData.pushSubscription ? 'no push subscription' : 'notifications disabled'
+        });
         return false;
       }
 
-      // Check if user is active right now (within last 3 minutes)
-      if (!bypassActiveCheck) {
-        const lastActivity = userData.lastActivityAt ? new Date(userData.lastActivityAt) : null;
-        const now = new Date();
-        if (lastActivity && (now.getTime() - lastActivity.getTime()) < 3 * 60 * 1000) {
-          console.log(`[PushManager] User ${userId} is currently active. Skipping push.`);
-          // We return true here to signal that the push was "handled" (skipped intentionally)
-          return true; 
-        }
-      }
+      // Always attempt delivery - active user blocker removed as requested
 
-      // Check daily cap (Rule 3)
+      // Check daily cap (Relaxed daily cap to 100)
       const today = new Date().toISOString().split('T')[0];
       const lastSentAt = userData.lastNotificationSentAt || '';
       const lastSentDate = lastSentAt.split('T')[0];
@@ -68,8 +74,14 @@ export const pushNotificationManager = {
         sentToday = 0;
       }
 
-      if (sentToday >= 10) {
-        console.log(`[PushManager] User ${userId} reached daily notification cap.`);
+      if (sentToday >= 100) {
+        console.log(`[PushManager] User ${userId} reached daily notification cap of 100.`);
+        console.log({
+          userId,
+          attempted: false,
+          success: false,
+          reason: 'daily notification cap of 100 exceeded'
+        });
         return false;
       }
 
@@ -79,9 +91,11 @@ export const pushNotificationManager = {
         await webpush.sendNotification(
           subscription,
           JSON.stringify({
-            data: {
+            notification: {
               title: payload.title,
-              body: payload.body,
+              body: payload.body
+            },
+            data: {
               url: payload.url || '/',
               tag: payload.tag || 'default'
             }
@@ -91,10 +105,18 @@ export const pushNotificationManager = {
         // Update user notification stats
         await userRef.update({
           notificationsSentToday: sentToday + 1,
-          lastNotificationSentAt: new Date().toISOString()
+          lastNotificationSentAt: new Date().toISOString(),
+          pushSubscriptionInvalidCount: 0 // Reset invalid subscription count on successful delivery
         });
 
         console.log(`[PushManager] Successfully sent push to user ${userId}: ${payload.title}`);
+        console.log({
+          userId,
+          attempted: true,
+          success: true,
+          reason: null
+        });
+
         return true;
       } catch (error: any) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -107,26 +129,46 @@ export const pushNotificationManager = {
           body: errorBody,
           headers: error.headers,
           endpoint: subscription.endpoint,
-          // Log specific web-push error details if available
           details: error.body || error.message
         });
         
-        // If subscription is invalid, remove it
-        // 410 Gone: subscription has expired or is no longer valid
-        // 404 Not Found: subscription is not found (similar to 410)
-        // 401, 403, 400: auth issues, keys mismatch or changed
+        console.log({
+          userId,
+          attempted: true,
+          success: false,
+          reason: `web-push error status=${statusCode}: ${errorMessage}`
+        });
+        
+        // Relax subscription deletion: require 3 failed attempts
         if (statusCode === 410 || statusCode === 404 || statusCode === 401 || statusCode === 403 || statusCode === 400) {
-          console.log(`[PushManager] Removing invalid/unauthorized subscription for user ${userId} (status ${statusCode})`);
-          const userRef = db.collection('users').doc(userId);
-          await userRef.update({
-            pushSubscription: null
-          }).catch(err => console.error(`Failed to remove invalid subscription for ${userId}:`, err));
+          const currentInvalid = (userData as any).pushSubscriptionInvalidCount || 0;
+          const nextInvalid = currentInvalid + 1;
+          
+          console.log(`[PushManager] Subscription status ${statusCode} for user ${userId}. Failure count: ${nextInvalid}/3`);
+          
+          if (nextInvalid >= 3) {
+            console.log(`[PushManager] Removing invalid/unauthorized subscription for user ${userId} after 3 sequence failures.`);
+            await userRef.update({
+              pushSubscription: null,
+              pushSubscriptionInvalidCount: 0
+            }).catch(err => console.error(`Failed to remove subscription for ${userId}:`, err));
+          } else {
+            await userRef.update({
+              pushSubscriptionInvalidCount: nextInvalid
+            }).catch(err => console.error(`Failed to update subscription error counter for ${userId}:`, err));
+          }
         }
         
         return false;
       }
     } catch (outerError: any) {
       console.error(`[PushManager] Critical error in sendPush for user ${userId}:`, outerError);
+      console.log({
+        userId,
+        attempted: false,
+        success: false,
+        reason: outerError instanceof Error ? outerError.message : String(outerError)
+      });
       return false;
     }
   },
@@ -146,8 +188,10 @@ export const pushNotificationManager = {
           if (change.type === 'added') {
             const notification = { id: change.doc.id, ...change.doc.data() } as Notification;
             
-            // Only push if it's unread and hasn't been pushed yet
-            if (!notification.isRead && !notification.pushSent) {
+            // Only push if it's unread, hasn't been pushed yet, and hasn't failed yet
+            // This prevents local infinite trigger loops when failure properties are updated on the doc.
+            const hasNotTriedOrFailed = !notification.pushFailed && (!notification.retryCount || notification.retryCount === 0);
+            if (!notification.isRead && !notification.pushSent && hasNotTriedOrFailed) {
               console.log(`[PushManager] New notification detected for user ${notification.userId}. Sending push...`);
               
               const success = await pushNotificationManager.sendPush(notification.userId, notification.data || {
@@ -157,17 +201,84 @@ export const pushNotificationManager = {
                 tag: notification.type
               }, notification.bypassActiveCheck || false);
 
-              // Always mark as pushSent (or handled) so we don't repeatedly retry failing pushes or users without subscriptions
-              // on every server restart.
-              await db.collection('notifications').doc(notification.id).update({
-                pushSent: true
-              });
+              // Only mark pushSent on actual success
+              if (success) {
+                await db.collection('notifications').doc(notification.id).update({
+                  pushSent: true,
+                  pushSentAt: new Date().toISOString(),
+                  pushFailed: false
+                });
+              } else {
+                // Save first failure trace and set backoff timers
+                const delay = Math.pow(2, 0) * 60 * 1000; // 1 minute
+                await db.collection('notifications').doc(notification.id).update({
+                  pushFailed: true,
+                  lastPushError: 'First push attempt returned false status or was skipped',
+                  retryCount: 1,
+                  nextRetryAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + delay))
+                });
+              }
             }
           }
         }
       }, (error) => {
         console.error('[PushManager] Notification listener error:', error);
       });
+  },
+
+  /**
+   * Process and retry pending/failed notifications on a queue timer.
+   */
+  processPendingNotifications: async () => {
+    try {
+      console.log('[PushManager] Processing pending/failed notification retries...');
+      const now = new Date();
+      
+      const snapshot = await db.collection('notifications')
+        .where('pushSent', '==', false)
+        .where('pushFailed', '==', true)
+        .where('retryCount', '<', 5)
+        .get();
+
+      console.log(`[PushManager] Found ${snapshot.size} notifications marked for active retry queue.`);
+
+      for (const doc of snapshot.docs) {
+        const notification = { id: doc.id, ...doc.data() } as any;
+        
+        if (notification.isRead) continue;
+
+        const nextRetryAt = notification.nextRetryAt ? notification.nextRetryAt.toDate() : null;
+        if (nextRetryAt && nextRetryAt <= now) {
+          console.log(`[PushManager] Retrying notification ${notification.id} for user ${notification.userId} (Attempt #${notification.retryCount + 1})...`);
+          
+          const success = await pushNotificationManager.sendPush(notification.userId, notification.data || {
+            title: notification.title,
+            body: notification.body,
+            url: notification.actionUrl || '/',
+            tag: notification.type
+          }, notification.bypassActiveCheck || false);
+
+          if (success) {
+            await db.collection('notifications').doc(notification.id).update({
+              pushSent: true,
+              pushSentAt: new Date().toISOString(),
+              pushFailed: false
+            });
+          } else {
+            const nextRetryCount = (notification.retryCount || 1) + 1;
+            const delay = Math.pow(2, nextRetryCount - 1) * 60 * 1000; // 1min (retry=1) -> 2min (retry=2) -> 4min -> 8min...
+            await db.collection('notifications').doc(notification.id).update({
+              pushFailed: true,
+              lastPushError: `Retry effort ${nextRetryCount} unsuccessful`,
+              retryCount: admin.firestore.FieldValue.increment(1),
+              nextRetryAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + delay))
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[PushManager] Error in background queued notification worker:', err);
+    }
   },
 
   /**

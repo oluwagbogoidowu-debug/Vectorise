@@ -196,9 +196,20 @@ async function startServer() {
     // Start real-time notification listener for pushes
     pushNotificationManager.startNotificationListener();
 
-    // Run initial trigger check on startup
+    // Start background processor for failed/pending pushes and retry queue
+    setInterval(() => {
+      pushNotificationManager.processPendingNotifications().catch(err => {
+        console.error('[Server] Pending notifications processing failed:', err);
+      });
+    }, 60 * 1000);
+
+    // Run initial trigger check and pending processor on startup
     pushNotificationManager.processTriggers().catch(err => {
       console.error('[Server] Initial push trigger processing failed:', err);
+    });
+
+    pushNotificationManager.processPendingNotifications().catch(err => {
+      console.error('[Server] Initial push pending retrieval failed:', err);
     });
   });
 }

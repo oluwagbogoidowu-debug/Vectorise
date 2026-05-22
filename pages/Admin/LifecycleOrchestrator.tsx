@@ -32,6 +32,82 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
     const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
     const [expandedSprints, setExpandedSprints] = useState<Record<string, boolean>>({});
 
+    const [selectedPriorityPoll, setSelectedPriorityPoll] = useState<string>('');
+    const [priorityPollSearch, setPriorityPollSearch] = useState<string>('');
+    const [isPriorityDropdownOpen, setIsPriorityDropdownOpen] = useState<boolean>(false);
+
+    const filteredPriorityPollOptions = useMemo(() => {
+        const query = priorityPollSearch.trim().toLowerCase();
+        if (!query) return FOCUS_OPTIONS;
+        return FOCUS_OPTIONS.filter(opt => opt.toLowerCase().includes(query));
+    }, [priorityPollSearch]);
+
+    const prioritySprintsForSelectedPoll = useMemo(() => {
+        if (!selectedPriorityPoll) return [];
+        
+        const results: {
+            sprint: Sprint | { id: string; title: string; category: string; coverImageUrl?: string; duration?: number } | Track;
+            slotName: string;
+            isSystem: boolean;
+            isTrack: boolean;
+            priorityLabel: string;
+            priorityNum: number;
+        }[] = [];
+
+        // Filter slots for the current selectedStage
+        const currentSlots = LIFECYCLE_SLOTS.filter(s => s.stage === selectedStage);
+
+        currentSlots.forEach(slot => {
+            const assignment = assignments[slot.id];
+            if (!assignment) return;
+
+            const assignedSprintIds = assignment.sprintIds || (assignment.sprintId ? [assignment.sprintId] : []);
+            
+            assignedSprintIds.forEach(sId => {
+                const sprintFocus = (assignment.sprintFocusMap || {})[sId] || [];
+                
+                // If the sprint's focus criteria includes the selected poll option (poll)
+                if (sprintFocus.includes(selectedPriorityPoll)) {
+                    const s = allSprints.find(x => x.id === sId) || 
+                             SYSTEM_DESTINATIONS.find(x => x.id === sId) ||
+                             allTracks.find(x => x.id === sId);
+                    
+                    if (s) {
+                        const isSystem = sId.startsWith('system_');
+                        const isTrack = 'sprintIds' in s && !isSystem;
+
+                        // Calculate priority label
+                        const priorityList = assignment.focusOptionPriorityMap?.[selectedPriorityPoll] || [];
+                        const priorityIndex = priorityList.indexOf(sId);
+                        
+                        const priorityLabel = priorityIndex > -1 
+                            ? `${priorityIndex + 1}${priorityIndex === 0 ? 'st' : priorityIndex === 1 ? 'nd' : priorityIndex === 2 ? 'rd' : 'th'} priority` 
+                            : 'Unprioritized';
+                        
+                        const priorityNum = priorityIndex > -1 ? priorityIndex + 1 : 999;
+
+                        results.push({
+                            sprint: s,
+                            slotName: slot.name,
+                            isSystem,
+                            isTrack,
+                            priorityLabel,
+                            priorityNum
+                        });
+                    }
+                }
+            });
+        });
+
+        // Sort by slot name, then priorityNum
+        return results.sort((a, b) => {
+            if (a.slotName !== b.slotName) {
+                return a.slotName.localeCompare(b.slotName);
+            }
+            return a.priorityNum - b.priorityNum;
+        });
+    }, [selectedPriorityPoll, selectedStage, assignments, allSprints, allTracks]);
+
     useEffect(() => {
         setIsInitialLoading(true);
         const unsubscribe = sprintService.subscribeToOrchestration((liveMapping) => {
@@ -626,6 +702,148 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                         );
                     })}
                 </div>
+
+                {/* Priority List Subsession for stages from Direction to the end */}
+                {selectedStage !== 'Foundation' && (
+                    <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm flex flex-col gap-6 mt-8">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-50 pb-6">
+                            <div>
+                                <h3 className="text-xl font-black text-gray-900 tracking-tight italic">Priority List</h3>
+                                <p className="text-xs font-semibold text-gray-400 mt-1">Select a focus option (onboarding poll) to reveal and audit mapped sprints and prioritizing queues.</p>
+                            </div>
+                            <span className="px-3 py-1 bg-primary/5 text-[8px] font-black text-primary rounded-full border border-primary/10 uppercase tracking-widest leading-none">
+                                {selectedStage} Registry Profile
+                            </span>
+                        </div>
+
+                        {/* Interactive Dropdown */}
+                        <div className="relative max-w-xl w-full">
+                            <label className="block text-[9px] font-black text-gray-400 uppercase tracking-wider mb-2">
+                                Choose Poll Option
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setIsPriorityDropdownOpen(!isPriorityDropdownOpen)}
+                                className="w-full py-4 px-6 rounded-2xl border border-gray-100 bg-gray-50 hover:border-primary/20 hover:bg-white transition-all flex items-center justify-between group text-left cursor-pointer"
+                            >
+                                <span className={selectedPriorityPoll ? "text-sm font-bold text-gray-900" : "text-sm font-medium text-gray-400"}>
+                                    {selectedPriorityPoll || "Select a poll option..."}
+                                </span>
+                                <svg 
+                                    className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isPriorityDropdownOpen ? 'rotate-180' : ''}`} 
+                                    fill="none" 
+                                    viewBox="0 0 24 24" 
+                                    stroke="currentColor" 
+                                    strokeWidth={3}
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+
+                            {isPriorityDropdownOpen && (
+                                <div className="absolute top-full left-0 right-0 mt-3 bg-white rounded-[2rem] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.12)] border border-gray-150 z-[120] p-5 animate-slide-up flex flex-col gap-3">
+                                    <input 
+                                        type="text"
+                                        value={priorityPollSearch}
+                                        onChange={(e) => setPriorityPollSearch(e.target.value)}
+                                        placeholder="Search poll options..."
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all placeholder-gray-300"
+                                    />
+                                    
+                                    <div className="max-h-60 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-1">
+                                        {filteredPriorityPollOptions.map((opt) => (
+                                            <button
+                                                key={opt}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedPriorityPoll(opt);
+                                                    setPriorityPollSearch('');
+                                                    setIsPriorityDropdownOpen(false);
+                                                }}
+                                                className={`w-full text-left p-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between group cursor-pointer ${
+                                                    selectedPriorityPoll === opt 
+                                                    ? 'bg-primary/10 text-primary' 
+                                                    : 'hover:bg-gray-50 text-gray-600 hover:text-gray-900'
+                                                }`}
+                                            >
+                                                <span>{opt}</span>
+                                                {selectedPriorityPoll === opt && (
+                                                    <span className="text-primary text-[10px] font-black uppercase">Active</span>
+                                                )}
+                                            </button>
+                                        ))}
+                                        {filteredPriorityPollOptions.length === 0 && (
+                                            <p className="text-center text-[10px] font-black text-gray-300 uppercase py-6">No matching options</p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Full list of sprint for that poll */}
+                        <div className="mt-4">
+                            {selectedPriorityPoll ? (
+                                prioritySprintsForSelectedPoll.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {prioritySprintsForSelectedPoll.map(({ sprint, slotName, isSystem, isTrack, priorityLabel, priorityNum }, kIdx) => {
+                                            const sId = sprint.id;
+                                            return (
+                                                <div 
+                                                    key={`${sId}_${kIdx}`} 
+                                                    className={`w-full p-5 rounded-[2rem] border transition-all flex flex-col gap-3 bg-gray-50/50 hover:bg-gray-50/80 ${
+                                                        isSystem 
+                                                        ? 'border-primary/10 bg-primary/5' 
+                                                        : isTrack 
+                                                        ? 'border-orange-100 bg-orange-50/20' 
+                                                        : 'border-gray-100 bg-white'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center justify-between gap-4 min-w-0">
+                                                        <div className="flex items-center gap-4 min-w-0">
+                                                            <div className={`w-11 h-11 rounded-xl overflow-hidden shadow-sm border border-gray-100 flex items-center justify-center flex-shrink-0 ${isSystem || isTrack ? 'bg-white text-lg' : ''}`}>
+                                                                {isSystem ? '🗺️' : isTrack ? '🚀' : <img src={(sprint as Sprint).coverImageUrl} className="w-full h-full object-cover" alt="" />}
+                                                            </div>
+                                                            <div className="text-left min-w-0">
+                                                                <p className={`text-[8px] font-black uppercase tracking-widest leading-none mb-1 ${isSystem ? 'text-primary' : isTrack ? 'text-orange-500' : 'text-gray-400'}`}>
+                                                                    {isSystem ? 'System Link' : isTrack ? 'Track' : 'Program'}
+                                                                </p>
+                                                                <h6 className="text-[13px] font-black tracking-tight text-gray-900 truncate">
+                                                                    {sprint.title}
+                                                                </h6>
+                                                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                                                                    Slot: <span className="text-gray-600 font-extrabold">{slotName}</span>
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Priority indicator */}
+                                                        <span className={`px-2.5 py-1 text-[8px] font-black uppercase tracking-widest rounded-lg border flex-shrink-0 ${
+                                                            priorityNum <= 3 
+                                                            ? 'bg-primary/5 border-primary/10 text-primary' 
+                                                            : 'bg-gray-50 border-gray-150 text-gray-400'
+                                                        }`}>
+                                                            {priorityLabel}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="py-12 bg-gray-50/50 border border-dashed border-gray-200/50 rounded-[2.5rem] flex flex-col items-center justify-center text-center p-6">
+                                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No Active Match Found</p>
+                                        <p className="text-[10px] font-bold text-gray-300 mt-2 max-w-sm">No programs in the {selectedStage} stage are mapped to: "{selectedPriorityPoll}". Go to a destination card above and map this option in Focus Criteria.</p>
+                                    </div>
+                                )
+                            ) : (
+                                <div className="py-12 bg-gray-50/50 border border-dashed border-gray-200/50 rounded-[2.5rem] flex flex-col items-center justify-center text-center p-6">
+                                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Reveal Prioritized Programs</p>
+                                    <p className="text-[10px] font-bold text-gray-300 mt-2 max-w-xs">Select a poll option from the dropdown above to view all mapped active sprints.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 <div className="flex justify-end pt-8">
                     <div className="px-8 py-4 bg-primary/5 rounded-2xl border border-primary/10">

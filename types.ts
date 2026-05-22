@@ -382,6 +382,10 @@ export interface Notification {
   expiresAt?: string | null;
   readAt?: null | string;
   pushSent?: boolean;
+  pushFailed?: boolean;
+  lastPushError?: string;
+  retryCount?: number;
+  nextRetryAt?: any;
   context?: any;
   bypassActiveCheck?: boolean;
   data?: {

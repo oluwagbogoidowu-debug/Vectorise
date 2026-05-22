@@ -118,10 +118,9 @@ const DiscoverSprints: React.FC = () => {
         return () => unsubscribe();
     }, [user]);
 
-    // Identity the active sprint to exclude it from discovery
-    const activeSprintId = useMemo(() => {
-        const active = userEnrollments.find(e => e.status === 'active' && e.progress.some(p => !p.completed));
-        return active?.sprint_id;
+    // Identify all sprints that are currently in progress or have been finished/completed
+    const enrolledSprintIds = useMemo(() => {
+        return new Set(userEnrollments.map(e => e.sprint_id));
     }, [userEnrollments]);
 
     // 1. Recommended Logic
@@ -144,9 +143,9 @@ const DiscoverSprints: React.FC = () => {
             if (matchedGroups.length > 0) {
                 // Get all possible sprint titles from matched groups
                 const targetSprintTitles = matchedGroups.flatMap(g => g.sprints);
-                // Find a sprint that matches one of these titles and isn't the active one
+                // Find a sprint that matches one of these titles and isn't enrolled
                 const matchedSprint = sprints.find(s => 
-                    targetSprintTitles.includes(s.title) && s.id !== activeSprintId
+                    targetSprintTitles.includes(s.title) && !enrolledSprintIds.has(s.id)
                 );
                 
                 if (matchedSprint) {
@@ -172,7 +171,7 @@ const DiscoverSprints: React.FC = () => {
                 
                 const targetTitles = pathwaySprintMap[pathwayId] || [];
                 const matchedSprint = sprints.find(s => 
-                    targetTitles.includes(s.title) && s.id !== activeSprintId
+                    targetTitles.includes(s.title) && !enrolledSprintIds.has(s.id)
                 );
                 
                 if (matchedSprint) {
@@ -195,7 +194,7 @@ const DiscoverSprints: React.FC = () => {
                     const matchedSprintId = Object.keys(focusMap).find(sId => focusMap[sId]?.includes(userFocus));
                     
                     if (matchedSprintId) {
-                        const matchedSprint = sprints.find(s => s.id === matchedSprintId && s.id !== activeSprintId);
+                        const matchedSprint = sprints.find(s => s.id === matchedSprintId && !enrolledSprintIds.has(s.id));
                         if (matchedSprint) {
                             setRecommendationReason(`Aligned with your focus on ${userFocus}`);
                             return matchedSprint;
@@ -209,7 +208,7 @@ const DiscoverSprints: React.FC = () => {
         const stageSprint = sprints.find(s => 
             CATEGORY_TO_STAGE_MAP[s.category] === targetStage && 
             s.pricingType === 'cash' &&
-            s.id !== activeSprintId
+            !enrolledSprintIds.has(s.id)
         );
         
         if (stageSprint) {
@@ -217,8 +216,8 @@ const DiscoverSprints: React.FC = () => {
             return stageSprint;
         }
 
-        return sprints.find(s => s.pricingType === 'cash' && s.id !== activeSprintId) || sprints[0];
-    }, [sprints, user, orchestration, activeSprintId]);
+        return sprints.find(s => s.pricingType === 'cash' && !enrolledSprintIds.has(s.id)) || sprints.find(s => !enrolledSprintIds.has(s.id)) || null;
+    }, [sprints, user, orchestration, enrolledSprintIds]);
 
     const recommendedCoach = useMemo(() => {
         if (!recommendedSprint) return null;
@@ -248,7 +247,7 @@ const DiscoverSprints: React.FC = () => {
             if (isFoundation) {
                 if (userFocus) {
                     const focusMap = mapping.sprintFocusMap || {};
-                    const matches = Object.keys(focusMap).filter(id => focusMap[id]?.includes(userFocus));
+                    const matches = Object.keys(focusMap).filter(id => focusMap[id]?.includes(userFocus) && !enrolledSprintIds.has(id));
                     if (matches.length > 0) {
                         const priorities = mapping.focusOptionPriorityMap?.[userFocus] || [];
                         if (priorities.length > 0) {
@@ -274,7 +273,7 @@ const DiscoverSprints: React.FC = () => {
 
                     for (let areaIdx = 0; areaIdx < growthAreas.length; areaIdx++) {
                         const area = growthAreas[areaIdx];
-                        const matches = Object.keys(focusMap).filter(id => focusMap[id]?.includes(area));
+                        const matches = Object.keys(focusMap).filter(id => focusMap[id]?.includes(area) && !enrolledSprintIds.has(id));
                         
                         matches.forEach(sId => {
                             const optPriorities = prioritiesMap[area] || [];
@@ -300,7 +299,17 @@ const DiscoverSprints: React.FC = () => {
             }
 
             if (!resolvedId) {
-                resolvedId = mapping.sprintIds?.[0] || mapping.sprintId;
+                if (slotId === 'slot_dir_track') {
+                    resolvedId = mapping.sprintIds?.[0] || mapping.sprintId;
+                } else {
+                    const sprintIds = mapping.sprintIds || (mapping.sprintId ? [mapping.sprintId] : []);
+                    resolvedId = sprintIds.find(id => !enrolledSprintIds.has(id)) || null;
+
+                    if (!resolvedId) {
+                        const fallbackSprint = sprints.find(s => s.pricingType === 'cash' && !enrolledSprintIds.has(s.id));
+                        resolvedId = fallbackSprint ? fallbackSprint.id : null;
+                    }
+                }
             }
 
             if (resolvedId) {
@@ -312,7 +321,7 @@ const DiscoverSprints: React.FC = () => {
             }
         });
         return results;
-    }, [orchestration, user, sprints, tracks]);
+    }, [orchestration, user, sprints, tracks, enrolledSprintIds]);
 
     const nextSteps = useMemo(() => {
         const list: Sprint[] = [];
