@@ -116,16 +116,16 @@ export default function AdminDashboard() {
                         <nav className="-mb-px flex space-x-12">
                             {[
                                 { id: 'pulse', label: 'Pulse' },
-                                { id: 'orchestrator', label: 'Orchestrator' },
+                                { id: 'users', label: 'Users' },
                                 { id: 'analytics', label: 'Analytics' },
-                                { id: 'earning', label: 'Earning' },
                                 { id: 'sprints', label: 'Sprints' },
                                 { id: 'tracks', label: 'Tracks' },
+                                { id: 'orchestrator', label: 'Orchestrator' },
+                                { id: 'earning', label: 'Earning' },
+                                { id: 'roles', label: 'System' },
                                 { id: 'coaches', label: 'Coaches' },
-                                { id: 'users', label: 'Users' },
                                 { id: 'partners', label: 'Partners' },
-                                { id: 'quotes', label: 'Quotes' },
-                                { id: 'roles', label: 'System' }
+                                { id: 'quotes', label: 'Quotes' }
                             ].map(t => (
                                 <button key={t.id} onClick={() => setActiveTab(t.id as Tab)} className={`whitespace-nowrap py-8 px-1 border-b-4 font-black text-[11px] uppercase tracking-widest transition-all cursor-pointer ${activeTab === t.id ? 'border-primary text-primary' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>{t.label}</button>
                             ))}
@@ -177,21 +177,43 @@ export default function AdminDashboard() {
                             </div>
                         )}
 
-                        {activeTab === 'orchestrator' && <LifecycleOrchestrator allSprints={sprints} allTracks={tracks} refreshKey={refreshKey} />}
-                        
+                        {activeTab === 'users' && <AdminUsers />}
+
                         {activeTab === 'analytics' && <AdminAnalytics />}
-                        
-                        {activeTab === 'earning' && <AdminEarnings />}
 
                         {activeTab === 'sprints' && <AdminSprints />}
 
                         {activeTab === 'tracks' && <AdminTracks />}
 
+                        {activeTab === 'orchestrator' && <LifecycleOrchestrator allSprints={sprints} allTracks={tracks} refreshKey={refreshKey} />}
+
+                        {activeTab === 'earning' && <AdminEarnings />}
+
+                        {activeTab === 'roles' && (
+                            <div id="admin-system-panel" className="animate-fade-in max-w-xl mx-auto py-12 text-center space-y-6">
+                                <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                                    </svg>
+                                </div>
+                                <div className="space-y-1">
+                                    <h3 className="text-xl font-black text-gray-900 tracking-tight leading-none italic">System Mode Selector</h3>
+                                    <p className="text-gray-400 text-sm font-medium leading-relaxed max-w-sm mx-auto">
+                                        Configure platform configurations or toggle active role modes.
+                                    </p>
+                                </div>
+                                <div className="flex gap-4 justify-center">
+                                    <Button id="btn-open-role-selector" variant="primary" onClick={() => navigate('/admin/role-selector')}>
+                                        Open Role Selector
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
                         {activeTab === 'coaches' && <AdminCoaches />}
 
-                        {activeTab === 'users' && <AdminUsers />}
-
                         {activeTab === 'partners' && <AdminPartners />}
+
                         {activeTab === 'quotes' && <AdminQuotes />}
                     </div>
                 </div>

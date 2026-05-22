@@ -65,6 +65,7 @@ const ParticipantDashboard: React.FC = () => {
   const location = useLocation();
   const [mySprints, setMySprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
   const [queuedSprints, setQueuedSprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
+  const [allEnrollments, setAllEnrollments] = useState<ParticipantSprint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
   const [timeToMidnight, setTimeToMidnight] = useState<string>('00:00:00');
@@ -156,9 +157,10 @@ const ParticipantDashboard: React.FC = () => {
                 return item !== null && item.enrollment.checkInReminderEnabled === true;
             });
 
-            setMySprints(activeOnly);
-            setQueuedSprints(queuedOnly);
-            setCheckInSprints(checkInOnly);
+             setMySprints(activeOnly);
+             setQueuedSprints(queuedOnly);
+             setCheckInSprints(checkInOnly);
+             setAllEnrollments(enrollments);
         } catch (err) {
             console.error("Error enriching enrollments:", err);
         } finally {
@@ -208,12 +210,36 @@ const ParticipantDashboard: React.FC = () => {
     }
   }, [mainTask, now]);
   
+  const isNoProgress = useMemo(() => {
+      const completedEvents = allEnrollments.filter(e => e.status === 'completed' || e.progress?.every(p => p.completed));
+      if (completedEvents.length > 0) {
+          const sortedCompleted = [...completedEvents].sort((a, b) => {
+              const dateA = a.completed_at ? new Date(a.completed_at).getTime() : new Date(a.started_at).getTime();
+              const dateB = b.completed_at ? new Date(b.completed_at).getTime() : new Date(b.started_at).getTime();
+              return dateA - dateB;
+          });
+          const firstFinished = sortedCompleted[0];
+          const finishTime = firstFinished.completed_at ? new Date(firstFinished.completed_at).getTime() : null;
+          if (finishTime !== null && !isNaN(finishTime)) {
+              const otherSprints = allEnrollments.filter(e => e.id !== firstFinished.id);
+              const hasProceeded = otherSprints.length > 0;
+              const timeSinceFinish = Date.now() - finishTime;
+              const oneDay = 24 * 60 * 60 * 1000;
+              if (!hasProceeded && timeSinceFinish >= oneDay) {
+                  return true;
+              }
+          }
+      }
+      return false;
+  }, [allEnrollments]);
+
   const overallProgress = useMemo(() => {
+      if (isNoProgress) return 0;
       if (mySprints.length === 0) return 0;
       const totalDays = mySprints.reduce((acc, curr) => acc + (curr.sprint?.duration || 0), 0);
       const completedDays = mySprints.reduce((acc, curr) => acc + (curr.enrollment?.progress?.filter(p => p.completed).length || 0), 0);
       return totalDays > 0 ? Math.round((completedDays / totalDays) * 100) : 0;
-  }, [mySprints]);
+  }, [mySprints, isNoProgress]);
 
   const isAfterDay1OfFirstSprint = useMemo(() => {
       return mySprints.some(item => 
@@ -292,6 +318,18 @@ const ParticipantDashboard: React.FC = () => {
     <div className="flex flex-col min-h-screen w-full bg-[#FDFDFD] font-sans">
       <div className="flex-1 px-4 md:px-6 pt-4 md:pt-6">
           <div className="max-w-screen-md mx-auto w-full flex flex-col">
+            
+            {isNoProgress && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-[1.5rem] flex items-start gap-4 animate-pulse">
+                    <span className="text-xl">⚠️</span>
+                    <div>
+                        <h4 className="text-[10px] font-black text-red-900 uppercase tracking-widest leading-none mb-1">No Progress State</h4>
+                        <p className="text-xs text-red-700 font-bold leading-relaxed">
+                            Your progress is currently suspended. Please start a new sprint from the Explore page today to proceed with your goals.
+                        </p>
+                    </div>
+                </div>
+            )}
             
             <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
                 <div className="bg-[#0E7850] text-white p-3 md:p-4 rounded-[1.5rem] shadow-lg flex items-center gap-3 relative overflow-hidden transition-transform active:scale-[0.98]">

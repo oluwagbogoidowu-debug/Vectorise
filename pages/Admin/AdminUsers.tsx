@@ -34,27 +34,101 @@ export default function AdminUsers() {
     }, []);
 
     const userStats = useMemo(() => {
-        return participants.map(user => {
+        const mapped = participants.map(user => {
             const userEnrollments = enrollments.filter(e => e.user_id === user.id);
             const activeEnrollment = userEnrollments.find(e => e.status === 'active') || userEnrollments[0];
             const sprint = activeEnrollment ? sprints.find(s => s.id === activeEnrollment.sprint_id) : null;
             
+            // 1. Inactivity calculation: "In the whole system a user is inactive once it's a day after the last submission of the last task."
+            const completedTimestamps = userEnrollments.flatMap(e => 
+                (e.progress || [])
+                    .filter(p => p.completed && p.completedAt)
+                    .map(p => p.completedAt ? new Date(p.completedAt).getTime() : 0)
+            ).filter(t => t > 0 && !isNaN(t));
+
+            let lastSubmissionTime: number | null = null;
+            if (completedTimestamps.length > 0) {
+                lastSubmissionTime = Math.max(...completedTimestamps);
+            }
+
+            let isActive = true;
+            const oneDay = 24 * 60 * 60 * 1000;
+
+            if (lastSubmissionTime !== null) {
+                if (Date.now() - lastSubmissionTime >= oneDay) {
+                    isActive = false;
+                }
+            } else {
+                // No submissions at all. Fallback to start dates or joined date.
+                const startDates = userEnrollments.map(e => new Date(e.started_at).getTime()).filter(t => !isNaN(t));
+                if (startDates.length > 0) {
+                    const earliestStart = Math.min(...startDates);
+                    if (Date.now() - earliestStart >= oneDay) {
+                        isActive = false;
+                    }
+                } else if (user.createdAt) {
+                    const joinedAt = new Date(user.createdAt).getTime();
+                    if (!isNaN(joinedAt) && (Date.now() - joinedAt >= oneDay)) {
+                        isActive = false;
+                    }
+                }
+            }
+
+            // 2. "No progress when they didn't proceed with a new sprint the next day after they finished the first."
+            const completedEnrollments = userEnrollments.filter(e => e.status === 'completed' || e.progress?.every(p => p.completed));
+            let isNoProgress = false;
+            if (completedEnrollments.length > 0) {
+                const sortedCompleted = [...completedEnrollments].sort((a, b) => {
+                    const dateA = a.completed_at ? new Date(a.completed_at).getTime() : new Date(a.started_at).getTime();
+                    const dateB = b.completed_at ? new Date(b.completed_at).getTime() : new Date(b.started_at).getTime();
+                    return dateA - dateB;
+                });
+                const firstFinished = sortedCompleted[0];
+                const finishTime = firstFinished.completed_at ? new Date(firstFinished.completed_at).getTime() : null;
+
+                if (finishTime !== null && !isNaN(finishTime)) {
+                    const otherSprints = userEnrollments.filter(e => e.id !== firstFinished.id);
+                    const hasProceeded = otherSprints.length > 0;
+                    const timeSinceFinish = Date.now() - finishTime;
+                    if (!hasProceeded && timeSinceFinish >= oneDay) {
+                        isNoProgress = true;
+                    }
+                }
+            }
+
+            const actualCompletionRate = activeEnrollment 
+                ? (activeEnrollment.progress.filter(p => p.completed).length / activeEnrollment.progress.length) * 100 
+                : 0;
+            const rate = isNoProgress ? 0 : actualCompletionRate;
+
+            const actualTasksCompleted = activeEnrollment 
+                ? activeEnrollment.progress.filter(p => p.completed).length 
+                : 0;
+            const tasksCompleted = isNoProgress ? 0 : actualTasksCompleted;
+
             return {
                 ...user,
                 activeEnrollment,
-                sprintTitle: sprint?.title || 'No active sprint',
-                completionRate: activeEnrollment 
-                    ? (activeEnrollment.progress.filter(p => p.completed).length / activeEnrollment.progress.length) * 100 
-                    : 0,
-                tasksCompleted: activeEnrollment 
-                    ? activeEnrollment.progress.filter(p => p.completed).length 
-                    : 0,
-                totalTasks: activeEnrollment ? activeEnrollment.progress.length : 0
+                sprintTitle: isNoProgress ? 'No active sprint' : (sprint?.title || 'No active sprint'),
+                completionRate: rate,
+                tasksCompleted: tasksCompleted,
+                totalTasks: activeEnrollment ? activeEnrollment.progress.length : 0,
+                isActive,
+                isNoProgress
             };
-        }).filter(u => 
+        });
+
+        const filtered = mapped.filter(u => 
             u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
             u.email.toLowerCase().includes(searchTerm.toLowerCase())
         );
+
+        // Sort by active first, then inactive
+        return filtered.sort((a, b) => {
+            if (a.isActive && !b.isActive) return -1;
+            if (!a.isActive && b.isActive) return 1;
+            return 0; // maintain relative order
+        });
     }, [participants, enrollments, sprints, searchTerm]);
 
     if (isLoading) {
@@ -134,36 +208,47 @@ export default function AdminUsers() {
                                     </div>
                                 </td>
                                 <td className="px-8 py-6">
-                                    <div className="flex flex-col items-center gap-3">
-                                        <div className="flex gap-1">
-                                            {user.activeEnrollment?.progress.map((p, i) => (
-                                                <div 
-                                                    key={i}
-                                                    className={`w-2 h-2 rounded-sm ${p.completed ? 'bg-primary' : 'bg-gray-100'}`}
-                                                    title={`Day ${p.day}: ${p.completed ? 'Completed' : 'Pending'}`}
-                                                />
-                                            ))}
-                                        </div>
+                                    {user.isNoProgress ? (
                                         <div className="flex flex-col items-center gap-1">
-                                            <div className="w-32 h-1 bg-gray-100 rounded-full overflow-hidden">
-                                                <div 
-                                                    className="h-full bg-primary rounded-full transition-all duration-500" 
-                                                    style={{ width: `${user.completionRate}%` }}
-                                                ></div>
+                                            <div className="w-32 h-1 bg-red-100 rounded-full overflow-hidden">
+                                                <div className="h-full bg-red-400 rounded-full" style={{ width: '0%' }}></div>
                                             </div>
-                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
-                                                {user.tasksCompleted}/{user.totalTasks} Tasks
+                                            <p className="text-[7px] font-black text-red-500 uppercase tracking-widest animate-pulse">
+                                                No Progress (Pending New Sprint)
                                             </p>
                                         </div>
-                                    </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="flex gap-1">
+                                                {user.activeEnrollment?.progress.map((p, i) => (
+                                                    <div 
+                                                        key={i}
+                                                        className={`w-2 h-2 rounded-sm ${p.completed ? 'bg-primary' : 'bg-gray-100'}`}
+                                                        title={`Day ${p.day}: ${p.completed ? 'Completed' : 'Pending'}`}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <div className="flex flex-col items-center gap-1">
+                                                <div className="w-32 h-1 bg-gray-100 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-primary rounded-full transition-all duration-500" 
+                                                        style={{ width: `${user.completionRate}%` }}
+                                                    ></div>
+                                                </div>
+                                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
+                                                    {user.tasksCompleted}/{user.totalTasks} Tasks
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </td>
                                 <td className="px-8 py-6 text-right">
                                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                        user.activeEnrollment?.status === 'active' 
-                                            ? 'bg-green-50 text-green-600' 
-                                            : 'bg-gray-50 text-gray-400'
+                                        user.isActive 
+                                             ? 'bg-green-50 text-green-600' 
+                                             : 'bg-gray-50 text-gray-400'
                                     }`}>
-                                        {user.activeEnrollment?.status || 'Inactive'}
+                                        {user.isActive ? 'Active' : 'Inactive'}
                                     </span>
                                 </td>
                             </tr>
@@ -195,38 +280,53 @@ export default function AdminUsers() {
                                 <p className="text-[10px] font-bold text-gray-400 truncate">{user.email}</p>
                             </div>
                             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
-                                user.activeEnrollment?.status === 'active' 
+                                user.isActive 
                                     ? 'bg-green-50 text-green-600' 
                                     : 'bg-gray-50 text-gray-400'
                             }`}>
-                                {user.activeEnrollment?.status || 'Inactive'}
+                                {user.isActive ? 'Active' : 'Inactive'}
                             </span>
                         </div>
 
-                        <div className="pt-4 border-t border-gray-50 grid grid-cols-2 gap-4">
-                            <div>
-                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Present Sprint</p>
-                                <p className="text-xs font-black text-gray-700 italic truncate">{user.sprintTitle}</p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Completion</p>
-                                <div className="flex justify-end gap-0.5 mt-1">
-                                    {user.activeEnrollment?.progress.map((p, i) => (
-                                        <div 
-                                            key={i}
-                                            className={`w-1.5 h-1.5 rounded-sm ${p.completed ? 'bg-primary' : 'bg-gray-100'}`}
-                                        />
-                                    ))}
+                        {user.isNoProgress ? (
+                            <div className="pt-4 border-t border-gray-50 space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Present Sprint</p>
+                                    <p className="text-[8px] font-black text-red-500 uppercase tracking-widest animate-pulse">Pending New Sprint</p>
+                                </div>
+                                <p className="text-xs font-black text-gray-700 italic truncate">No active sprint</p>
+                                <div className="w-full h-1.5 bg-red-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-red-400 rounded-full" style={{ width: '0%' }}></div>
                                 </div>
                             </div>
-                        </div>
+                        ) : (
+                            <>
+                                <div className="pt-4 border-t border-gray-50 grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Present Sprint</p>
+                                        <p className="text-xs font-black text-gray-700 italic truncate">{user.sprintTitle}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Completion</p>
+                                        <div className="flex justify-end gap-0.5 mt-1">
+                                            {user.activeEnrollment?.progress.map((p, i) => (
+                                                <div 
+                                                    key={i}
+                                                    className={`w-1.5 h-1.5 rounded-sm ${p.completed ? 'bg-primary' : 'bg-gray-100'}`}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
 
-                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div 
-                                className="h-full bg-primary rounded-full transition-all duration-500" 
-                                style={{ width: `${user.completionRate}%` }}
-                            ></div>
-                        </div>
+                                <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-primary rounded-full transition-all duration-500" 
+                                        style={{ width: `${user.completionRate}%` }}
+                                    ></div>
+                                </div>
+                            </>
+                        )}
                     </div>
                 ))}
             </div>

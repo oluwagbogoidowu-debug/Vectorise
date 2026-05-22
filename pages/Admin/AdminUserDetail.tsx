@@ -74,16 +74,66 @@ export default function AdminUserDetail() {
 
     // Inactivity logic
     let inactivityWarning = null;
-    if (activeEnrollment) {
-        const lastActivity = activeEnrollment.last_activity_at ? parseISO(activeEnrollment.last_activity_at) : parseISO(activeEnrollment.started_at);
-        const daysSinceLastActivity = differenceInDays(new Date(), lastActivity);
-        if (daysSinceLastActivity >= 1) {
-            inactivityWarning = `${daysSinceLastActivity} day${daysSinceLastActivity > 1 ? 's' : ''} inactive in current sprint`;
+    
+    // Check if they are inactive based on: "In the whole system a user is inactive once it's a day after the last submission of the last task."
+    const completedTimestamps = enrollments.flatMap(e => 
+        (e.progress || [])
+            .filter(p => p.completed && p.completedAt)
+            .map(p => p.completedAt ? new Date(p.completedAt).getTime() : 0)
+    ).filter(t => t > 0 && !isNaN(t));
+
+    let lastSubmissionTime: number | null = null;
+    if (completedTimestamps.length > 0) {
+        lastSubmissionTime = Math.max(...completedTimestamps);
+    }
+
+    let isInactiveSystem = false;
+    const oneDay = 24 * 60 * 60 * 1000;
+
+    if (lastSubmissionTime !== null) {
+        if (Date.now() - lastSubmissionTime >= oneDay) {
+            isInactiveSystem = true;
+            const daysInactive = Math.floor((Date.now() - lastSubmissionTime) / oneDay);
+            inactivityWarning = `Inactive (${daysInactive} day${daysInactive > 1 ? 's' : ''} since last task submission)`;
         }
-    } else if (lastCompletedEnrollment && lastCompletedEnrollment.completed_at) {
-        const daysSinceLastSprint = differenceInDays(new Date(), parseISO(lastCompletedEnrollment.completed_at));
-        if (daysSinceLastSprint > 0) {
-            inactivityWarning = `${daysSinceLastSprint} day${daysSinceLastSprint > 1 ? 's' : ''} without a new sprint`;
+    } else {
+        // No submissions at all. Let's check start or join time.
+        const startDates = enrollments.map(e => new Date(e.started_at).getTime()).filter(t => !isNaN(t));
+        if (startDates.length > 0) {
+            const earliestStart = Math.min(...startDates);
+            if (Date.now() - earliestStart >= oneDay) {
+                isInactiveSystem = true;
+                inactivityWarning = `Inactive (No task submitted within a day of starting first sprint)`;
+            }
+        } else if (user.createdAt) {
+            const joinedAt = new Date(user.createdAt).getTime();
+            if (!isNaN(joinedAt) && (Date.now() - joinedAt >= oneDay)) {
+                isInactiveSystem = true;
+                inactivityWarning = `Inactive (No task submitted within a day of joining)`;
+            }
+        }
+    }
+
+    // Checking "No progress when they didn't proceed with a new sprint the next day after they finished the first"
+    const completedSprints = enrollments.filter(e => e.status === 'completed' || e.progress?.every(p => p.completed));
+    let isNoProgress = false;
+    if (completedSprints.length > 0) {
+        const sortedCompleted = [...completedSprints].sort((a, b) => {
+            const dateA = a.completed_at ? new Date(a.completed_at).getTime() : new Date(a.started_at).getTime();
+            const dateB = b.completed_at ? new Date(b.completed_at).getTime() : new Date(b.started_at).getTime();
+            return dateA - dateB;
+        });
+        const firstFinished = sortedCompleted[0];
+        const finishTime = firstFinished.completed_at ? new Date(firstFinished.completed_at).getTime() : null;
+
+        if (finishTime !== null && !isNaN(finishTime)) {
+            const otherSprints = enrollments.filter(e => e.id !== firstFinished.id);
+            const hasProceeded = otherSprints.length > 0;
+            const timeSinceFinish = Date.now() - finishTime;
+            if (!hasProceeded && timeSinceFinish >= oneDay) {
+                isNoProgress = true;
+                inactivityWarning = `No Progress: Pending New Sprint (Finished first sprint but didn't start another the next day)`;
+            }
         }
     }
 
@@ -352,8 +402,9 @@ export default function AdminUserDetail() {
                             <div className="space-y-6">
                                 {sortedEnrollments.length > 0 ? (
                                     sortedEnrollments.map((enrollment, idx) => {
-                                        const completionRate = (enrollment.progress.filter(p => p.completed).length / enrollment.progress.length) * 100;
+                                        const actualCompletionRate = (enrollment.progress.filter(p => p.completed).length / enrollment.progress.length) * 100;
                                         const isCurrent = enrollment.status === 'active';
+                                        const completionRate = (isNoProgress && isCurrent) ? 0 : actualCompletionRate;
                                         
                                         return (
                                             <div 
@@ -403,12 +454,14 @@ export default function AdminUserDetail() {
                                                         </p>
                                                     </div>
                                                     <div className="col-span-2">
-                                                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-2">Daily Progress</p>
+                                                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                                            {(isNoProgress && isCurrent) ? 'Daily Progress (Suspended: No Sprint)' : 'Daily Progress'}
+                                                        </p>
                                                         <div className="flex gap-1">
                                                             {enrollment.progress.map((p, i) => (
                                                                 <div 
                                                                     key={i}
-                                                                    className={`flex-1 h-2 rounded-sm ${p.completed ? 'bg-primary' : 'bg-gray-200'}`}
+                                                                    className={`flex-1 h-2 rounded-sm ${(p.completed && !(isNoProgress && isCurrent)) ? 'bg-primary' : 'bg-gray-200'}`}
                                                                     title={`Day ${p.day}`}
                                                                 />
                                                             ))}
