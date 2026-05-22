@@ -42,93 +42,98 @@ const queueNotification = (type: 'success' | 'info' | 'error', message: string, 
  * and breaks circular references to prevent "Converting circular structure to JSON" errors.
  */
 export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any => {
-    // 0. Null, undefined and depth check
-    if (val === null || typeof val === 'undefined') return undefined;
-    if (maxDepth < 0) return undefined;
-    
-    // 1. Primitive types are safe
-    if (typeof val !== 'object' && typeof val !== 'function') return val;
-    if (typeof val === 'function') return undefined;
+    try {
+        // 0. Null, undefined and depth check
+        if (val === null || typeof val === 'undefined') return undefined;
+        if (maxDepth < 0) return undefined;
+        
+        // 1. Primitive types are safe
+        if (typeof val !== 'object' && typeof val !== 'function') return val;
+        if (typeof val === 'function') return undefined;
 
-    // 2. Break circular references immediately - CRITICAL for Y2/Ka/src circularity
-    if (seen.has(val)) return undefined;
-    seen.add(val);
-    
-    // 3. Handle dates and specialized built-ins
-    if (val instanceof Date) return val.toISOString();
-    if (val instanceof Map || val instanceof Set || val instanceof WeakMap || val instanceof WeakSet) return undefined;
-    
-    // Handle Firestore Timestamps
-    if (typeof val.toDate === 'function') {
-        try {
-            const date = val.toDate();
-            return date instanceof Date ? date.toISOString() : undefined;
-        } catch (e) {
+        // 2. Break circular references immediately - CRITICAL for Y2/Ka/src circularity
+        if (seen.has(val)) return undefined;
+        seen.add(val);
+        
+        // 3. Handle dates and specialized built-ins
+        if (val instanceof Date) return val.toISOString();
+        if (val instanceof Map || val instanceof Set || val instanceof WeakMap || val instanceof WeakSet) return undefined;
+        
+        // Handle Firestore Timestamps
+        if (typeof val.toDate === 'function') {
+            try {
+                const date = val.toDate();
+                return date instanceof Date ? date.toISOString() : undefined;
+            } catch (e) {
+                return undefined;
+            }
+        }
+
+        // 4. Detect and Strip Firestore/Firebase internal classes and DOM elements
+        const constructorName = val.constructor?.name || '';
+        const isFirebaseInternal = 
+            /^[A-Z][a-z0-9]$|^[A-Z]\$[0-9]$/.test(constructorName) || 
+            ['Y2', 'Ka', 'Sa', 'Q$1', 't', 'Reference', 'Query', 'Snapshot'].includes(constructorName) ||
+            constructorName.includes('Firebase') || 
+            constructorName.includes('Firestore') ||
+            constructorName.includes('Transaction');
+
+        // Pattern matching for specific SDK circular structures (e.g., Query.i.src)
+        const hasSDKMarkers = !!(
+            val.onSnapshot || 
+            val.getDoc || 
+            val.firestore || 
+            val._database ||
+            val._path ||
+            (val.i && typeof val.i === 'object' && (val.src || (val.i && val.i.src))) ||
+            (val.src && typeof val.src === 'object' && (val.src.i || val.src.src)) ||
+            (val.type === 'document' && val.path && val.id)
+        );
+
+        if (isFirebaseInternal || hasSDKMarkers || val instanceof Element || (val.i && val.src && !val.constructor)) {
             return undefined;
         }
-    }
 
-    // 4. Detect and Strip Firestore/Firebase internal classes and DOM elements
-    const constructorName = val.constructor?.name || '';
-    const isFirebaseInternal = 
-        /^[A-Z][a-z0-9]$|^[A-Z]\$[0-9]$/.test(constructorName) || 
-        ['Y2', 'Ka', 'Sa', 'Q$1', 't', 'Reference', 'Query', 'Snapshot'].includes(constructorName) ||
-        constructorName.includes('Firebase') || 
-        constructorName.includes('Firestore') ||
-        constructorName.includes('Transaction');
-
-    // Pattern matching for specific SDK circular structures (e.g., Query.i.src)
-    const hasSDKMarkers = !!(
-        val.onSnapshot || 
-        val.getDoc || 
-        val.firestore || 
-        val._database ||
-        val._path ||
-        (val.i && typeof val.i === 'object' && (val.src || (val.i && val.i.src))) ||
-        (val.src && typeof val.src === 'object' && (val.src.i || val.src.src)) ||
-        (val.type === 'document' && val.path && val.id)
-    );
-
-    if (isFirebaseInternal || hasSDKMarkers || val instanceof Element || (val.i && val.src && !val.constructor)) {
-        return undefined;
-    }
-
-    // 5. Handle Arrays
-    if (Array.isArray(val)) {
-        const result = val
-            .map(item => sanitizeData(item, seen, maxDepth - 1))
-            .filter(i => i !== undefined);
-        return result;
-    }
-
-    // 6. Strict "Plain Object" check
-    // We only want to serialize things that are pure data containers.
-    // Class instances, Proxies, or SDK internals that pass step 4 will be caught here.
-    const proto = Object.getPrototypeOf(val);
-    const isPlain = proto === null || proto === Object.prototype;
-    
-    if (!isPlain) {
-        return undefined;
-    }
-
-    // 7. Process plain object keys
-    const cleaned: any = {};
-    const keys = Object.keys(val);
-    
-    for (const key of keys) {
-        // Skip internal/private keys
-        if (key.startsWith('_') || key.startsWith('$')) continue;
-        
-        try {
-            const sanitizedVal = sanitizeData(val[key], seen, maxDepth - 1);
-            if (sanitizedVal !== undefined) {
-                cleaned[key] = sanitizedVal;
-            }
-        } catch (e) {
-            continue;
+        // 5. Handle Arrays
+        if (Array.isArray(val)) {
+            const result = val
+                .map(item => sanitizeData(item, seen, maxDepth - 1))
+                .filter(i => i !== undefined);
+            return result;
         }
+
+        // 6. Strict "Plain Object" check
+        // We only want to serialize things that are pure data containers.
+        // Class instances, Proxies, or SDK internals that pass step 4 will be caught here.
+        const proto = Object.getPrototypeOf(val);
+        const isPlain = proto === null || proto === Object.prototype;
+        
+        if (!isPlain) {
+            return undefined;
+        }
+
+        // 7. Process plain object keys
+        const cleaned: any = {};
+        const keys = Object.keys(val);
+        
+        for (const key of keys) {
+            // Skip internal/private keys
+            if (key.startsWith('_') || key.startsWith('$')) continue;
+            
+            try {
+                const sanitizedVal = sanitizeData(val[key], seen, maxDepth - 1);
+                if (sanitizedVal !== undefined) {
+                    cleaned[key] = sanitizedVal;
+                }
+            } catch (e) {
+                continue;
+            }
+        }
+        return cleaned;
+    } catch (e) {
+        console.error("[sanitizeData] Safe-fallout caught error sanitizing object:", e);
+        return undefined;
     }
-    return cleaned;
 };
 
 export const userService = {

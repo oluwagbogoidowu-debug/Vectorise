@@ -92,30 +92,36 @@ export default function AdminUserDetail() {
         );
     }
 
-    const activeEnrollment = enrollments.find(e => e.status === 'active');
-    const sortedEnrollments = [...enrollments].sort((a, b) => {
-        const timeA = a.started_at ? new Date(a.started_at).getTime() : 0;
-        const timeB = b.started_at ? new Date(b.started_at).getTime() : 0;
-        return timeB - timeA;
-    });
+    const activeEnrollment = enrollments ? enrollments.find(e => e && e.status === 'active') : null;
+    const sortedEnrollments = Array.isArray(enrollments)
+        ? [...enrollments].sort((a, b) => {
+            const timeA = a && a.started_at ? new Date(a.started_at).getTime() : 0;
+            const timeB = b && b.started_at ? new Date(b.started_at).getTime() : 0;
+            return timeB - timeA;
+        })
+        : [];
     
-    const lastCompletedEnrollment = enrollments
-        .filter(e => e.status === 'completed')
-        .sort((a, b) => {
-            const dateA = a.completed_at ? new Date(a.completed_at).getTime() : 0;
-            const dateB = b.completed_at ? new Date(b.completed_at).getTime() : 0;
-            return dateB - dateA;
-        })[0];
+    const lastCompletedEnrollment = Array.isArray(enrollments)
+        ? enrollments
+            .filter(e => e && e.status === 'completed')
+            .sort((a, b) => {
+                const dateA = a && a.completed_at ? new Date(a.completed_at).getTime() : 0;
+                const dateB = b && b.completed_at ? new Date(b.completed_at).getTime() : 0;
+                return dateB - dateA;
+            })[0]
+        : undefined;
 
     // Inactivity logic
     let inactivityWarning = null;
     
     // Check if they are inactive based on: "In the whole system a user is inactive once it's a day after the last submission of the last task."
-    const completedTimestamps = enrollments.flatMap(e => 
-        (e.progress || [])
-            .filter(p => p.completed && p.completedAt)
-            .map(p => p.completedAt ? new Date(p.completedAt).getTime() : 0)
-    ).filter(t => t > 0 && !isNaN(t));
+    const completedTimestamps = Array.isArray(enrollments) 
+        ? enrollments.flatMap(e => 
+            (e && e.progress || [])
+                .filter(p => p && p.completed && p.completedAt)
+                .map(p => p.completedAt ? new Date(p.completedAt).getTime() : 0)
+        ).filter(t => t > 0 && !isNaN(t))
+        : [];
 
     let lastSubmissionTime: number | null = null;
     if (completedTimestamps.length > 0) {
@@ -133,7 +139,9 @@ export default function AdminUserDetail() {
         }
     } else {
         // No submissions at all. Let's check start or join time.
-        const startDates = enrollments.map(e => new Date(e.started_at).getTime()).filter(t => !isNaN(t));
+        const startDates = Array.isArray(enrollments) 
+            ? enrollments.map(e => e && e.started_at ? new Date(e.started_at).getTime() : 0).filter(t => t > 0 && !isNaN(t))
+            : [];
         if (startDates.length > 0) {
             const earliestStart = Math.min(...startDates);
             if (Date.now() - earliestStart >= oneDay) {
@@ -150,19 +158,21 @@ export default function AdminUserDetail() {
     }
 
     // Checking "No progress when they didn't proceed with a new sprint the next day after they finished the first"
-    const completedSprints = enrollments.filter(e => e.status === 'completed' || e.progress?.every(p => p.completed));
+    const completedSprints = Array.isArray(enrollments)
+        ? enrollments.filter(e => e && (e.status === 'completed' || e.progress?.every(p => p && p.completed)))
+        : [];
     let isNoProgress = false;
     if (completedSprints.length > 0) {
         const sortedCompleted = [...completedSprints].sort((a, b) => {
-            const dateA = a.completed_at ? new Date(a.completed_at).getTime() : new Date(a.started_at).getTime();
-            const dateB = b.completed_at ? new Date(b.completed_at).getTime() : new Date(b.started_at).getTime();
+            const dateA = a && a.completed_at ? new Date(a.completed_at).getTime() : (a && a.started_at ? new Date(a.started_at).getTime() : 0);
+            const dateB = b && b.completed_at ? new Date(b.completed_at).getTime() : (b && b.started_at ? new Date(b.started_at).getTime() : 0);
             return dateA - dateB;
         });
         const firstFinished = sortedCompleted[0];
-        const finishTime = firstFinished.completed_at ? new Date(firstFinished.completed_at).getTime() : null;
+        const finishTime = firstFinished && firstFinished.completed_at ? new Date(firstFinished.completed_at).getTime() : null;
 
         if (finishTime !== null && !isNaN(finishTime)) {
-            const otherSprints = enrollments.filter(e => e.id !== firstFinished.id);
+            const otherSprints = Array.isArray(enrollments) ? enrollments.filter(e => e && e.id !== firstFinished.id) : [];
             const hasProceeded = otherSprints.length > 0;
             const timeSinceFinish = Date.now() - finishTime;
             if (!hasProceeded && timeSinceFinish >= oneDay) {
@@ -239,11 +249,15 @@ export default function AdminUserDetail() {
                     <div>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Growth Focus</p>
                         <div className="flex flex-wrap gap-2">
-                            {user.growthAreas?.map((area, idx) => (
-                                <span key={idx} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-emerald-100">
-                                    {area}
-                                </span>
-                            )) || <p className="text-xs font-bold text-gray-400 italic">No growth areas defined</p>}
+                            {Array.isArray(user.growthAreas) && user.growthAreas.length > 0 ? (
+                                user.growthAreas.map((area, idx) => (
+                                    <span key={idx} className="px-3 py-1.5 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-emerald-100">
+                                        {area}
+                                    </span>
+                                ))
+                            ) : (
+                                <p className="text-xs font-bold text-gray-400 italic">No growth areas defined</p>
+                            )}
                         </div>
                     </div>
 
@@ -275,16 +289,23 @@ export default function AdminUserDetail() {
             icon: <Calendar className="w-5 h-5 text-blue-600" />,
             content: (
                 <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1 py-1 custom-scrollbar">
-                    {user.onboardingAnswers && Object.keys(user.onboardingAnswers).length > 0 ? (
+                    {user.onboardingAnswers && typeof user.onboardingAnswers === 'object' && !Array.isArray(user.onboardingAnswers) && Object.keys(user.onboardingAnswers).length > 0 ? (
                         Object.entries(user.onboardingAnswers).map(([key, value], idx) => (
                             <div key={idx} className="border-b border-gray-100 pb-2.5 last:border-0 last:pb-0">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{key.replace(/_/g, ' ')}</p>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{key ? String(key).replace(/_/g, ' ') : ''}</p>
                                 <p className="text-xs font-bold text-gray-700 leading-relaxed">
-                                    {typeof value === 'object' && value !== null ? (
-                                        ('seconds' in value && 'nanoseconds' in value)
-                                            ? new Date((value as any).seconds * 1000).toLocaleString()
-                                            : JSON.stringify(sanitizeData(value))
-                                    ) : String(value)}
+                                    {typeof value === 'object' && value !== null ? (() => {
+                                        if ('seconds' in value && 'nanoseconds' in value) {
+                                            return new Date((value as any).seconds * 1000).toLocaleString();
+                                        }
+                                        try {
+                                            const cleanVal = sanitizeData(value);
+                                            return JSON.stringify(cleanVal) || '{}';
+                                        } catch (err) {
+                                            console.error("[AdminUserDetail] Onboarding answers custom stringify error:", err);
+                                            return '[Complex Value]';
+                                        }
+                                    })() : String(value)}
                                 </p>
                             </div>
                         ))
@@ -302,17 +323,19 @@ export default function AdminUserDetail() {
             icon: <Zap className="w-5 h-5 text-yellow-500" />,
             content: (
                 <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 py-1 custom-scrollbar">
-                    {user.claimedBadges && user.claimedBadges.length > 0 ? (
+                    {Array.isArray(user.claimedBadges) && user.claimedBadges.length > 0 ? (
                         user.claimedBadges.map((badge: any, idx: number) => (
                             <div key={idx} className="flex items-center justify-between p-3.5 bg-gray-50 rounded-2xl border border-gray-100">
                                 <div>
-                                    <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight">{badge.milestoneId.replace(/-/g, ' ')}</p>
+                                    <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight">
+                                        {badge && badge.milestoneId ? String(badge.milestoneId).replace(/-/g, ' ') : 'Milestone achieved'}
+                                    </p>
                                     <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">
-                                        {formatDateSafe(badge.claimedAt, 'MMM d, yyyy')}
+                                        {formatDateSafe(badge?.claimedAt, 'MMM d, yyyy')}
                                     </p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-xs font-black text-emerald-600">+{badge.claimedCredit} Credits</p>
+                                    <p className="text-xs font-black text-emerald-600">+{badge?.claimedCredit || 0} Credits</p>
                                 </div>
                             </div>
                         ))
@@ -503,7 +526,7 @@ export default function AdminUserDetail() {
                                 {sortedEnrollments.length > 0 ? (
                                     sortedEnrollments.map((enrollment, idx) => {
                                         const progressList = enrollment.progress || [];
-                                        const actualCompletionRate = progressList.length > 0 ? (progressList.filter(p => p.completed).length / progressList.length) * 100 : 0;
+                                        const actualCompletionRate = progressList.length > 0 ? (progressList.filter(p => p && p.completed).length / progressList.length) * 100 : 0;
                                         const isCurrent = enrollment.status === 'active';
                                         const completionRate = (isNoProgress && isCurrent) ? 0 : actualCompletionRate;
                                         
@@ -560,7 +583,7 @@ export default function AdminUserDetail() {
                                                             {progressList.map((p, i) => (
                                                                 <div 
                                                                     key={i}
-                                                                    className={`flex-1 h-2 rounded-sm ${(p.completed && !(isNoProgress && isCurrent)) ? 'bg-primary' : 'bg-gray-200'}`}
+                                                                    className={`flex-1 h-2 rounded-sm ${(p && p.completed && !(isNoProgress && isCurrent)) ? 'bg-primary' : 'bg-gray-200'}`}
                                                                     title={`Day ${p?.day || i + 1}`}
                                                                 />
                                                             ))}

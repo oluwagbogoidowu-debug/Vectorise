@@ -214,15 +214,40 @@ export const pushNotificationService = {
 
       if (!subscription) throw new Error('Failed to create push subscription');
 
-      // ✅ FIXED: Safe subscription extraction
-      const rawSub = subscription.toJSON();
+      // ✅ FIXED: Safe subscription extraction with multiple fallback strategies
+      let p256dhBase64 = '';
+      let authBase64 = '';
+
+      if (typeof subscription.getKey === 'function') {
+        try {
+          const p256dhKey = subscription.getKey('p256dh');
+          if (p256dhKey) {
+            p256dhBase64 = btoa(String.fromCharCode(...new Uint8Array(p256dhKey)));
+          }
+          const authKey = subscription.getKey('auth');
+          if (authKey) {
+            authBase64 = btoa(String.fromCharCode(...new Uint8Array(authKey)));
+          }
+        } catch (e) {
+          console.warn('[PushService] getKey method failed, falling back to toJSON:', e);
+        }
+      }
+
+      // Fallback to standard toJSON() if getKey was not supported or failed to extract keys
+      if (!p256dhBase64 || !authBase64) {
+        const rawSub = subscription.toJSON();
+        if (rawSub && rawSub.keys) {
+          p256dhBase64 = rawSub.keys.p256dh || p256dhBase64;
+          authBase64 = rawSub.keys.auth || authBase64;
+        }
+      }
 
       const subscriptionJSON: PushSubscriptionJSON = {
         endpoint: subscription.endpoint,
-        expirationTime: rawSub.expirationTime || null,
+        expirationTime: (subscription as any).expirationTime || null,
         keys: {
-          p256dh: rawSub.keys?.p256dh || '',
-          auth: rawSub.keys?.auth || ''
+          p256dh: p256dhBase64,
+          auth: authBase64
         }
       };
 

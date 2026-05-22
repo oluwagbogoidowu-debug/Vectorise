@@ -41,6 +41,18 @@ export const NotificationManager: React.FC = () => {
         if (existingSub) {
           return; // already subscribed → no prompt
         }
+
+        // If permission is already granted but no subscription exists, auto-subscribe them in background
+        if (Notification.permission === 'granted') {
+          console.log('[NotificationManager] Permission is granted but no subscription found. Auto-subscribing in background...');
+          try {
+            await pushNotificationService.subscribeUser(user.id);
+            console.log('[NotificationManager] Background auto-subscription succeeded');
+          } catch (autoSubErr) {
+            console.error('[NotificationManager] Background auto-subscription failed:', autoSubErr);
+          }
+          return;
+        }
       } catch (err) {
         console.error('Subscription check failed:', err);
       }
