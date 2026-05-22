@@ -236,13 +236,16 @@ export const pushNotificationManager = {
       
       const snapshot = await db.collection('notifications')
         .where('pushSent', '==', false)
-        .where('pushFailed', '==', true)
-        .where('retryCount', '<', 5)
         .get();
 
-      console.log(`[PushManager] Found ${snapshot.size} notifications marked for active retry queue.`);
+      const matchedDocs = snapshot.docs.filter(doc => {
+        const data = doc.data();
+        return data.pushFailed === true && (data.retryCount || 0) < 5;
+      });
 
-      for (const doc of snapshot.docs) {
+      console.log(`[PushManager] Found ${matchedDocs.length} notifications marked for active retry queue.`);
+
+      for (const doc of matchedDocs) {
         const notification = { id: doc.id, ...doc.data() } as any;
         
         if (notification.isRead) continue;
