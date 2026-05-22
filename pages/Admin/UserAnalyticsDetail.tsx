@@ -53,8 +53,11 @@ const UserAnalyticsDetail: React.FC = () => {
     if (!identity) return null;
 
     const isLive = (timestamp: string) => {
-        const diff = Date.now() - new Date(timestamp).getTime();
-        return diff < 1000 * 60 * 60; // Live if in the last hour
+        if (!timestamp) return false;
+        const parsed = new Date(timestamp).getTime();
+        if (isNaN(parsed)) return false;
+        const diff = Date.now() - parsed;
+        return diff >= 0 && diff < 1000 * 60 * 60; // Live if in the last hour
     };
 
     return (
@@ -95,12 +98,12 @@ const UserAnalyticsDetail: React.FC = () => {
                     <section className="mb-10">
                         <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-6 px-1">Program Status</h5>
                         <div className="space-y-3">
-                            {identity.enrollments.length > 0 ? identity.enrollments.map(enrol => (
+                            {identity.enrollments && identity.enrollments.length > 0 ? identity.enrollments.map(enrol => (
                                 <div key={enrol.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
                                     <p className="text-[8px] font-black text-primary uppercase mb-1">Live Cycle</p>
                                     <h6 className="text-xs font-bold text-gray-900 mb-2 truncate">Sprint Execution</h6>
                                     <div className="h-1 bg-gray-50 rounded-full overflow-hidden">
-                                        <div className="h-full bg-primary" style={{ width: `${(enrol.progress.filter(p => p.completed).length / enrol.progress.length) * 100}%` }}></div>
+                                        <div className="h-full bg-primary" style={{ width: `${((enrol.progress || []).filter(p => p.completed).length / Math.max((enrol.progress || []).length, 1)) * 100}%` }}></div>
                                     </div>
                                 </div>
                             )) : (
@@ -112,26 +115,28 @@ const UserAnalyticsDetail: React.FC = () => {
                     <section className="flex-1">
                         <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] mb-6 px-1">Session Ledger (Dates/Times)</h5>
                         <div className="space-y-3">
-                            {identity.sessions.map((sess, idx) => {
+                            {(identity.sessions || []).map((sess, idx) => {
                                 const isActive = activeSession?.session_id === sess.session_id;
+                                const sessionDateStr = sess.traffic?.created_at ? new Date(sess.traffic.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown Date';
+                                const sessionTimeStr = sess.traffic?.created_at ? new Date(sess.traffic.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Unknown Time';
                                 return (
                                     <button 
-                                        key={sess.session_id}
+                                        key={sess.session_id || idx}
                                         onClick={() => setActiveSession(sess)}
                                         className={`w-full text-left p-5 rounded-3xl transition-all border group relative ${isActive ? 'bg-primary text-white border-primary shadow-lg scale-[1.03] z-10' : 'bg-white border-gray-100 text-gray-600 hover:border-primary/20'}`}
                                     >
                                         <div className="flex justify-between items-center mb-1">
-                                            <p className={`text-[8px] font-black uppercase tracking-widest ${isActive ? 'text-white/60' : 'text-gray-300'}`}>Session {identity.sessions.length - idx}</p>
-                                            <p className={`text-[8px] font-black uppercase tracking-widest ${isActive ? 'text-white/60' : 'text-primary/60'}`}>{sess.events.length} Actions</p>
+                                            <p className={`text-[8px] font-black uppercase tracking-widest ${isActive ? 'text-white/60' : 'text-gray-300'}`}>Session {(identity.sessions || []).length - idx}</p>
+                                            <p className={`text-[8px] font-black uppercase tracking-widest ${isActive ? 'text-white/60' : 'text-primary/60'}`}>{(sess.events || []).length} Actions</p>
                                         </div>
                                         <p className="text-sm font-black truncate leading-none mb-1.5">
-                                            {new Date(sess.traffic.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            {sessionDateStr}
                                         </p>
                                         <div className="flex items-center justify-between">
                                             <p className={`text-[9px] font-bold uppercase tracking-tight ${isActive ? 'text-white/50' : 'text-gray-400'}`}>
-                                                {new Date(sess.traffic.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                {sessionTimeStr}
                                             </p>
-                                            <span className={`text-[8px] font-black uppercase ${isActive ? 'text-white/30' : 'text-gray-300'}`}>{sess.totalDwellTime}s</span>
+                                            <span className={`text-[8px] font-black uppercase ${isActive ? 'text-white/30' : 'text-gray-300'}`}>{sess.totalDwellTime || 0}s</span>
                                         </div>
                                         {sess.hasPaid && (
                                             <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center text-[10px] shadow-sm">👑</div>
@@ -151,17 +156,17 @@ const UserAnalyticsDetail: React.FC = () => {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="bg-gray-50 rounded-[2rem] p-6 border border-gray-100 shadow-sm">
                                     <p className="text-[8px] font-black text-gray-400 uppercase mb-2">Acquisition Vector</p>
-                                    <p className="text-lg font-black text-gray-900 tracking-tight capitalize">{activeSession.traffic.source}</p>
-                                    <p className="text-[9px] font-bold text-primary uppercase mt-1">{activeSession.traffic.medium} • {activeSession.traffic.device_type}</p>
+                                    <p className="text-lg font-black text-gray-900 tracking-tight capitalize">{activeSession.traffic?.source || 'direct'}</p>
+                                    <p className="text-[9px] font-bold text-primary uppercase mt-1">{activeSession.traffic?.medium || 'none'} • {activeSession.traffic?.device_type || 'desktop'}</p>
                                 </div>
                                 <div className="bg-gray-50 rounded-[2rem] p-6 border border-gray-100 shadow-sm">
                                     <p className="text-[8px] font-black text-gray-400 uppercase mb-2">Behavioral Intensity</p>
-                                    <p className="text-lg font-black text-gray-900 tracking-tight">{activeSession.totalDwellTime}s Active</p>
-                                    <p className="text-[9px] font-bold text-gray-400 uppercase mt-1">{activeSession.maxScrollDepth}% Peak Attention Depth</p>
+                                    <p className="text-lg font-black text-gray-900 tracking-tight">{activeSession.totalDwellTime || 0}s Active</p>
+                                    <p className="text-[9px] font-bold text-gray-400 uppercase mt-1">{activeSession.maxScrollDepth || 0}% Peak Attention Depth</p>
                                 </div>
                                 <div className="bg-gray-50 rounded-[2rem] p-6 border border-gray-100 shadow-sm">
                                     <p className="text-[8px] font-black text-gray-400 uppercase mb-2">Entry Context</p>
-                                    <p className="text-[10px] font-bold text-gray-700 leading-tight italic line-clamp-2">"{activeSession.traffic.landing_page}"</p>
+                                    <p className="text-[10px] font-bold text-gray-700 leading-tight italic line-clamp-2">"{activeSession.traffic?.landing_page || 'unknown'}"</p>
                                     <p className="text-[9px] font-bold text-gray-300 uppercase mt-1">First Landing Point</p>
                                 </div>
                             </div>
@@ -178,44 +183,49 @@ const UserAnalyticsDetail: React.FC = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="relative pl-10 border-l border-gray-50 space-y-12 pb-12">
-                                    {sortedGranularEvents.map((e, idx) => (
-                                        <div key={e.id} className="relative group/event">
-                                            {/* Pulsing indicator */}
-                                            <div className={`absolute -left-[49px] top-1 w-4 h-4 rounded-full bg-white border-4 shadow-sm z-10 transition-transform group-hover/event:scale-125 ${idx === 0 ? 'border-primary animate-pulse shadow-primary/30' : isLive(e.created_at) ? 'border-primary/40' : 'border-gray-200'}`}></div>
-                                            
-                                            <div className="flex justify-between items-start mb-3">
-                                                <div>
-                                                    <p className="text-[11px] font-black text-gray-900 uppercase tracking-tight">{e.event_name.replace(/_/g, ' ')}</p>
-                                                    <p className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">{e.page_url.split('#')[1] || 'Home Core'}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className="flex items-center gap-2 justify-end">
-                                                        {isLive(e.created_at) && <span className="bg-primary/10 text-primary text-[6px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-widest">Recent</span>}
-                                                        <p className="text-[9px] font-black text-gray-900 uppercase tabular-nums">
-                                                            {new Date(e.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                                                        </p>
-                                                    </div>
-                                                    <p className="text-[7px] font-black text-primary uppercase mt-0.5">T+{e.dwell_time}s into session</p>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="bg-gray-50/50 rounded-[1.5rem] p-5 border border-gray-100/50 hover:bg-white hover:border-primary/10 transition-all shadow-sm group-hover/event:shadow-md">
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                <div className="relative pl-10 border-l border-l-gray-100 space-y-12 pb-12">
+                                    {sortedGranularEvents.map((e, idx) => {
+                                        const eventName = (e.event_name || 'event').replace(/_/g, ' ');
+                                        const pageUrlPart = (e.page_url || '').split('#')[1] || 'Home Core';
+                                        const eventTimeStr = e.created_at ? new Date(e.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Unknown Time';
+                                        return (
+                                            <div key={e.id || idx} className="relative group/event">
+                                                {/* Pulsing indicator */}
+                                                <div className={`absolute -left-[49px] top-1 w-4 h-4 rounded-full bg-white border-4 shadow-sm z-10 transition-transform group-hover/event:scale-125 ${idx === 0 ? 'border-primary animate-pulse shadow-primary/30' : isLive(e.created_at || '') ? 'border-primary/40' : 'border-gray-200'}`}></div>
+                                                
+                                                <div className="flex justify-between items-start mb-3">
                                                     <div>
-                                                        <p className="text-[7px] font-black text-gray-300 uppercase mb-1">Scroll Depth</p>
-                                                        <p className="text-[10px] font-bold text-gray-700">{e.scroll_depth || 0}%</p>
+                                                        <p className="text-[11px] font-black text-gray-900 uppercase tracking-tight">{eventName}</p>
+                                                        <p className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">{pageUrlPart}</p>
                                                     </div>
-                                                    {Object.entries(e.event_properties || {}).map(([k, v]) => (
-                                                        <div key={k} className="min-w-0">
-                                                            <p className="text-[7px] font-black text-gray-300 uppercase mb-1 truncate">{k.replace(/_/g, ' ')}</p>
-                                                            <p className="text-[10px] font-bold text-primary truncate" title={String(v)}>{String(v)}</p>
+                                                    <div className="text-right">
+                                                        <div className="flex items-center gap-2 justify-end">
+                                                            {isLive(e.created_at || '') && <span className="bg-primary/10 text-primary text-[6px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-widest">Recent</span>}
+                                                            <p className="text-[9px] font-black text-gray-900 uppercase tabular-nums">
+                                                                {eventTimeStr}
+                                                            </p>
                                                         </div>
-                                                    ))}
+                                                        <p className="text-[7px] font-black text-primary uppercase mt-0.5">T+{e.dwell_time || 0}s into session</p>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="bg-gray-50/50 rounded-[1.5rem] p-5 border border-gray-100/50 hover:bg-white hover:border-primary/10 transition-all shadow-sm group-hover/event:shadow-md">
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                                        <div>
+                                                            <p className="text-[7px] font-black text-gray-300 uppercase mb-1">Scroll Depth</p>
+                                                            <p className="text-[10px] font-bold text-gray-700">{e.scroll_depth || 0}%</p>
+                                                        </div>
+                                                        {Object.entries(e.event_properties || {}).map(([k, v]) => (
+                                                            <div key={k} className="min-w-0">
+                                                                <p className="text-[7px] font-black text-gray-300 uppercase mb-1 truncate">{k.replace(/_/g, ' ')}</p>
+                                                                <p className="text-[10px] font-bold text-primary truncate" title={String(v)}>{String(v)}</p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </section>
                         </div>

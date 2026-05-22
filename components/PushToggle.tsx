@@ -29,7 +29,9 @@ export const PushToggle: React.FC<PushToggleProps> = ({
 
   const syncState = async () => {
     const status = await pushNotificationService.getPushStatus();
-    setIsSubscribed(status.subscribed);
+    // If notifications are explicitly disabled in the user profile on the server, we treat the toggle as OFF
+    const explicitlyDisabled = user?.notificationsDisabled === true;
+    setIsSubscribed(status.subscribed && !explicitlyDisabled);
     setPermission(status.permission as NotificationPermission);
     setLoading(false);
   };
@@ -46,7 +48,7 @@ export const PushToggle: React.FC<PushToggleProps> = ({
 
     window.addEventListener('visibilitychange', handleVisibility);
     return () => window.removeEventListener('visibilitychange', handleVisibility);
-  }, []);
+  }, [user?.notificationsDisabled]);
 
   const handleToggle = async () => {
     if (!user || toggling) return;

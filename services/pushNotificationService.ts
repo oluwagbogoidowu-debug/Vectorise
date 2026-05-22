@@ -184,7 +184,7 @@ export const pushNotificationService = {
 
       let subscription = await registration.pushManager.getSubscription();
 
-      const response = await fetch(`${window.location.origin}/api/vapid-key`);
+      const response = await fetch('/api/vapid-key');
       if (!response.ok) throw new Error('Failed to fetch VAPID key');
       const { publicKey } = await response.json();
       const applicationServerKey = urlBase64ToUint8Array(publicKey.trim());
@@ -199,7 +199,11 @@ export const pushNotificationService = {
           
           if (!isSameKey) {
             console.log('VAPID key changed, re-subscribing...');
-            await subscription.unsubscribe();
+            try {
+              await subscription.unsubscribe();
+            } catch (unsubErr) {
+              console.warn('[PushService] Non-fatal unsubscribe failure during key-mismatch update:', unsubErr);
+            }
             subscription = null;
           }
         }
@@ -257,8 +261,8 @@ export const pushNotificationService = {
         throw new Error('Invalid subscription keys generated');
       }
 
-      // ✅ FIXED: absolute URL
-      const responseSub = await fetch(`${window.location.origin}/api/subscribe`, {
+      // ✅ FIXED: robust relative URL
+      const responseSub = await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId, subscription: subscriptionJSON }))
@@ -272,22 +276,24 @@ export const pushNotificationService = {
       return subscriptionJSON;
     } catch (error: any) {
       console.error('Push subscription process failed:', error);
+      // Map TypeErrors ("failed to fetch") from push server/network to clean message
+      if (error && (error.message?.toLowerCase().includes('failed to fetch') || error.name === 'TypeError')) {
+        throw new Error('Could not connect to the push notification service. Please make sure notifications are allowed and try again in a few seconds.');
+      }
       throw error;
     }
   },
 
   unsubscribeUser: async (userId: string) => {
     try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-
-      if (subscription) {
-        await subscription.unsubscribe();
-      }
-
+      // Robust toggling strategy: We keep the subscription alive in the client’s browser 
+      // instead of performing a hard subscription.unsubscribe() call. 
+      // Destroying/unsubscribing at FCM/APNs and then re-registering on rapid toggles 
+      // is heavily rate-limited by browser vendors and causes "Failed to fetch" errors.
+      // Instead, we set notificationsDisabled to true in the Firestore database, which
+      // immediately blocks outbound notifications in the backend, while keeping re-subscription instant.
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, {
-        pushSubscription: null,
         notificationsDisabled: true
       });
     } catch (error) {
@@ -298,7 +304,7 @@ export const pushNotificationService = {
 
   updateActivity: async (userId: string, state: string = 'Active') => {
     try {
-      await fetch(`${window.location.origin}/api/notifications/update-state`, {
+      await fetch('/api/notifications/update-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId, state }))
@@ -310,7 +316,7 @@ export const pushNotificationService = {
 
   triggerCompletedTask: async (userId: string) => {
     try {
-      await fetch(`${window.location.origin}/api/notifications/trigger-completed`, {
+      await fetch('/api/notifications/trigger-completed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId }))
@@ -322,7 +328,7 @@ export const pushNotificationService = {
   
   triggerUpdate: async (userId: string) => {
     try {
-      await fetch(`${window.location.origin}/api/notifications/trigger-update`, {
+      await fetch('/api/notifications/trigger-update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId }))
@@ -334,7 +340,7 @@ export const pushNotificationService = {
 
   sendPush: async (userId: string, title: string, body: string, url?: string, tag?: string, bypassActiveCheck: boolean = false) => {
     try {
-      await fetch(`${window.location.origin}/api/notifications/send-push`, {
+      await fetch('/api/notifications/send-push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId, title, body, url, tag, bypassActiveCheck }))
