@@ -8,6 +8,37 @@ import { format, differenceInDays, parseISO } from 'date-fns';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { motion, AnimatePresence } from 'motion/react';
 
+const formatDateSafe = (dateVal: any, formatPattern: string, fallback = 'N/A') => {
+    if (!dateVal) return fallback;
+    try {
+        let dateObj: Date;
+        if (dateVal && typeof dateVal === 'object') {
+            if (typeof dateVal.toDate === 'function') {
+                dateObj = dateVal.toDate();
+            } else if (typeof dateVal.seconds === 'number') {
+                dateObj = new Date(dateVal.seconds * 1000);
+            } else {
+                dateObj = new Date(dateVal);
+            }
+        } else {
+            dateObj = new Date(dateVal);
+        }
+
+        if (isNaN(dateObj.getTime())) {
+            const parsed = parseISO(String(dateVal));
+            if (!isNaN(parsed.getTime())) {
+                return format(parsed, formatPattern);
+            }
+            return fallback;
+        }
+
+        return format(dateObj, formatPattern);
+    } catch (e) {
+        console.error("Error formatting date:", dateVal, e);
+        return fallback;
+    }
+};
+
 export default function AdminUserDetail() {
     const { userId } = useParams<{ userId: string }>();
     const navigate = useNavigate();
@@ -62,9 +93,11 @@ export default function AdminUserDetail() {
     }
 
     const activeEnrollment = enrollments.find(e => e.status === 'active');
-    const sortedEnrollments = [...enrollments].sort((a, b) => 
-        new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
-    );
+    const sortedEnrollments = [...enrollments].sort((a, b) => {
+        const timeA = a.started_at ? new Date(a.started_at).getTime() : 0;
+        const timeB = b.started_at ? new Date(b.started_at).getTime() : 0;
+        return timeB - timeA;
+    });
     
     const lastCompletedEnrollment = enrollments
         .filter(e => e.status === 'completed')
@@ -168,7 +201,7 @@ export default function AdminUserDetail() {
                         <div>
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Joined Vectorise</p>
                             <p className="text-sm font-bold text-gray-900">
-                                {user.createdAt ? format(parseISO(user.createdAt), 'MMMM d, yyyy') : 'N/A'}
+                                {formatDateSafe(user.createdAt, 'MMMM d, yyyy')}
                             </p>
                         </div>
                     </div>
@@ -179,9 +212,7 @@ export default function AdminUserDetail() {
                         <div>
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Last Login</p>
                             <p className="text-sm font-bold text-gray-900">
-                                {user.lastLoginAt 
-                                    ? format(parseISO(user.lastLoginAt), 'MMM d, h:mm a')
-                                    : 'N/A'}
+                                {formatDateSafe(user.lastLoginAt, 'MMM d, h:mm a')}
                             </p>
                         </div>
                     </div>
@@ -192,9 +223,7 @@ export default function AdminUserDetail() {
                         <div>
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Last Activity</p>
                             <p className="text-sm font-bold text-gray-900">
-                                {enrollments[0]?.last_activity_at 
-                                    ? format(parseISO(enrollments[0].last_activity_at), 'MMM d, h:mm a')
-                                    : 'No recent activity'}
+                                {formatDateSafe(enrollments[0]?.last_activity_at, 'MMM d, h:mm a', 'No recent activity')}
                             </p>
                         </div>
                     </div>
@@ -279,7 +308,7 @@ export default function AdminUserDetail() {
                                 <div>
                                     <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight">{badge.milestoneId.replace(/-/g, ' ')}</p>
                                     <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">
-                                        {format(parseISO(badge.claimedAt), 'MMM d, yyyy')}
+                                        {formatDateSafe(badge.claimedAt, 'MMM d, yyyy')}
                                     </p>
                                 </div>
                                 <div className="text-right">
@@ -319,7 +348,7 @@ export default function AdminUserDetail() {
                                 Last Permission Request Actioned At
                             </p>
                             <p className="text-xs font-bold text-gray-700 mt-1">
-                                {format(parseISO(user.pushPermissionLastRequestAt), 'MMM d, yyyy • h:mm a')}
+                                {formatDateSafe(user.pushPermissionLastRequestAt, 'MMM d, yyyy • h:mm a')}
                             </p>
                         </div>
                     )}
@@ -473,7 +502,8 @@ export default function AdminUserDetail() {
                             <div className="space-y-6">
                                 {sortedEnrollments.length > 0 ? (
                                     sortedEnrollments.map((enrollment, idx) => {
-                                        const actualCompletionRate = (enrollment.progress.filter(p => p.completed).length / enrollment.progress.length) * 100;
+                                        const progressList = enrollment.progress || [];
+                                        const actualCompletionRate = progressList.length > 0 ? (progressList.filter(p => p.completed).length / progressList.length) * 100 : 0;
                                         const isCurrent = enrollment.status === 'active';
                                         const completionRate = (isNoProgress && isCurrent) ? 0 : actualCompletionRate;
                                         
@@ -501,7 +531,7 @@ export default function AdminUserDetail() {
                                                                 )}
                                                             </div>
                                                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
-                                                                Started {format(parseISO(enrollment.started_at), 'MMM d, yyyy')}
+                                                                Started {formatDateSafe(enrollment.started_at, 'MMM d, yyyy')}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -510,7 +540,7 @@ export default function AdminUserDetail() {
                                                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Completion</p>
                                                     </div>
                                                 </div>
-
+ 
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                                     <div className="bg-white/50 p-3 rounded-2xl border border-gray-100/50">
                                                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</p>
@@ -519,9 +549,7 @@ export default function AdminUserDetail() {
                                                     <div className="bg-white/50 p-3 rounded-2xl border border-gray-100/50">
                                                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Last Activity</p>
                                                         <p className="text-xs font-black text-gray-700">
-                                                            {enrollment.last_activity_at 
-                                                                ? format(parseISO(enrollment.last_activity_at), 'MMM d')
-                                                                : 'N/A'}
+                                                            {formatDateSafe(enrollment.last_activity_at, 'MMM d')}
                                                         </p>
                                                     </div>
                                                     <div className="col-span-2">
@@ -529,11 +557,11 @@ export default function AdminUserDetail() {
                                                             {(isNoProgress && isCurrent) ? 'Daily Progress (Suspended: No Sprint)' : 'Daily Progress'}
                                                         </p>
                                                         <div className="flex gap-1">
-                                                            {enrollment.progress.map((p, i) => (
+                                                            {progressList.map((p, i) => (
                                                                 <div 
                                                                     key={i}
                                                                     className={`flex-1 h-2 rounded-sm ${(p.completed && !(isNoProgress && isCurrent)) ? 'bg-primary' : 'bg-gray-200'}`}
-                                                                    title={`Day ${p.day}`}
+                                                                    title={`Day ${p?.day || i + 1}`}
                                                                 />
                                                             ))}
                                                         </div>
