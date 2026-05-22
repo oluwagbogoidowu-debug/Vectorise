@@ -218,30 +218,6 @@ const PublicProfile: React.FC = () => {
                 )}
             </section>
 
-            {/* 5. Expandable Info */}
-            {(user.bio || user.interests) && (
-                <section className="p-8 bg-gray-50 rounded-3xl border border-gray-100">
-                    {user.bio && (
-                        <div className="mb-8">
-                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">About</h4>
-                            <p className="text-sm text-gray-600 leading-relaxed font-medium line-clamp-3">{user.bio}</p>
-                        </div>
-                    )}
-                    {user.interests && user.interests.length > 0 && (
-                        <div>
-                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Interests</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {user.interests.map((int, i) => (
-                                    <span key={i} className="text-[11px] font-bold text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-100 shadow-sm">
-                                        #{int}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </section>
-            )}
-
             <style>{`
                 @keyframes fadeIn {
                     from { opacity: 0; transform: translateY(8px); }
