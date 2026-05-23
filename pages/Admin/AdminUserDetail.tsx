@@ -58,8 +58,8 @@ export default function AdminUserDetail() {
                     sprintService.getAdminSprints()
                 ]);
                 setUser(userData as Participant);
-                setEnrollments((enrollmentsData || []).filter(e => !!e && !!e.id));
-                setSprints((sprintsData || []).filter(s => !!s && !!s.id));
+                setEnrollments(enrollmentsData || []);
+                setSprints(sprintsData || []);
             } catch (error) {
                 console.error("Error fetching user detail:", error);
             } finally {
@@ -92,38 +92,30 @@ export default function AdminUserDetail() {
         );
     }
 
-    const activeEnrollment = Array.isArray(enrollments) ? enrollments.find(e => e && e.status === 'active') : null;
-    const sortedEnrollments = Array.isArray(enrollments)
-        ? [...enrollments]
-            .filter((e): e is ParticipantSprint => !!e && !!e.id)
-            .sort((a, b) => {
-                const timeA = a.started_at ? new Date(a.started_at).getTime() : 0;
-                const timeB = b.started_at ? new Date(b.started_at).getTime() : 0;
-                return timeB - timeA;
-            })
-        : [];
+    const activeEnrollment = enrollments.find(e => e.status === 'active') || null;
+    const sortedEnrollments = [...enrollments].sort((a, b) => {
+        const timeA = a.started_at ? new Date(a.started_at).getTime() : 0;
+        const timeB = b.started_at ? new Date(b.started_at).getTime() : 0;
+        return timeB - timeA;
+    });
     
-    const lastCompletedEnrollment = Array.isArray(enrollments)
-        ? enrollments
-            .filter(e => e && e.status === 'completed')
-            .sort((a, b) => {
-                const dateA = a && a.completed_at ? new Date(a.completed_at).getTime() : 0;
-                const dateB = b && b.completed_at ? new Date(b.completed_at).getTime() : 0;
-                return dateB - dateA;
-            })[0]
-        : undefined;
+    const lastCompletedEnrollment = enrollments
+        .filter(e => e.status === 'completed')
+        .sort((a, b) => {
+            const dateA = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+            const dateB = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+            return dateB - dateA;
+        })[0] || null;
 
     // Inactivity logic
     let inactivityWarning = null;
     
     // Check if they are inactive based on: "In the whole system a user is inactive once it's a day after the last submission of the last task."
-    const completedTimestamps = Array.isArray(enrollments) 
-        ? enrollments.flatMap(e => 
-            (e && e.progress || [])
-                .filter(p => p && p.completed && p.completedAt)
-                .map(p => p.completedAt ? new Date(p.completedAt).getTime() : 0)
-        ).filter(t => t > 0 && !isNaN(t))
-        : [];
+    const completedTimestamps = enrollments.flatMap(e => 
+        (e.progress || [])
+            .filter(p => p.completed && p.completedAt)
+            .map(p => p.completedAt ? new Date(p.completedAt).getTime() : 0)
+    ).filter(t => t > 0 && !isNaN(t));
 
     let lastSubmissionTime: number | null = null;
     if (completedTimestamps.length > 0) {
@@ -141,9 +133,9 @@ export default function AdminUserDetail() {
         }
     } else {
         // No submissions at all. Let's check start or join time.
-        const startDates = Array.isArray(enrollments) 
-            ? enrollments.map(e => e && e.started_at ? new Date(e.started_at).getTime() : 0).filter(t => t > 0 && !isNaN(t))
-            : [];
+        const startDates = enrollments
+            .map(e => e.started_at ? new Date(e.started_at).getTime() : 0)
+            .filter(t => t > 0 && !isNaN(t));
         if (startDates.length > 0) {
             const earliestStart = Math.min(...startDates);
             if (Date.now() - earliestStart >= oneDay) {
@@ -160,21 +152,20 @@ export default function AdminUserDetail() {
     }
 
     // Checking "No progress when they didn't proceed with a new sprint the next day after they finished the first"
-    const completedSprints = Array.isArray(enrollments)
-        ? enrollments.filter(e => e && (e.status === 'completed' || e.progress?.every(p => p && p.completed)))
-        : [];
+    const completedSprints = enrollments.filter(e => e.status === 'completed' || (e.progress || []).every(p => p.completed));
     let isNoProgress = false;
     if (completedSprints.length > 0) {
         const sortedCompleted = [...completedSprints].sort((a, b) => {
-            const dateA = a && a.completed_at ? new Date(a.completed_at).getTime() : (a && a.started_at ? new Date(a.started_at).getTime() : 0);
-            const dateB = b && b.completed_at ? new Date(b.completed_at).getTime() : (b && b.started_at ? new Date(b.started_at).getTime() : 0);
+            const dateA = a.completed_at ? new Date(a.completed_at).getTime() : (a.started_at ? new Date(a.started_at).getTime() : 0);
+            const dateB = b.completed_at ? new Date(b.completed_at).getTime() : (b.started_at ? new Date(b.started_at).getTime() : 0);
             return dateA - dateB;
         });
+
         const firstFinished = sortedCompleted[0];
         const finishTime = firstFinished && firstFinished.completed_at ? new Date(firstFinished.completed_at).getTime() : null;
 
         if (finishTime !== null && !isNaN(finishTime)) {
-            const otherSprints = Array.isArray(enrollments) ? enrollments.filter(e => e && e.id !== firstFinished.id) : [];
+            const otherSprints = enrollments.filter(e => e.id !== firstFinished.id);
             const hasProceeded = otherSprints.length > 0;
             const timeSinceFinish = Date.now() - finishTime;
             if (!hasProceeded && timeSinceFinish >= oneDay) {
@@ -235,7 +226,7 @@ export default function AdminUserDetail() {
                         <div>
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Last Activity</p>
                             <p className="text-sm font-bold text-gray-900">
-                                {formatDateSafe(enrollments && enrollments.length > 0 ? enrollments[0].last_activity_at : undefined, 'MMM d, h:mm a', 'No recent activity')}
+                                {formatDateSafe(enrollments[0]?.last_activity_at, 'MMM d, h:mm a', 'No recent activity')}
                             </p>
                         </div>
                     </div>
@@ -520,7 +511,7 @@ export default function AdminUserDetail() {
                                     <h3 className="text-lg font-black text-gray-900 italic">Sprint History.</h3>
                                 </div>
                                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                    {(enrollments || []).length} Total Sprints
+                                    {enrollments.length} Total Sprints
                                 </span>
                             </div>
 
