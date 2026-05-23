@@ -106,22 +106,6 @@ export default function AdminUsers() {
                 : 0;
             const tasksCompleted = isNoProgress ? 0 : actualTasksCompleted;
 
-            // Calc last submission or start date
-            let lastActiveTime = 0;
-            if (lastSubmissionTime !== null) {
-                lastActiveTime = lastSubmissionTime;
-            } else {
-                const startDates = userEnrollments.map(e => new Date(e.started_at).getTime()).filter(t => !isNaN(t));
-                if (startDates.length > 0) {
-                    lastActiveTime = Math.max(...startDates);
-                } else if (user.createdAt) {
-                    const joinedAt = new Date(user.createdAt).getTime();
-                    if (!isNaN(joinedAt)) {
-                        lastActiveTime = joinedAt;
-                    }
-                }
-            }
-
             return {
                 ...user,
                 activeEnrollment,
@@ -130,8 +114,7 @@ export default function AdminUsers() {
                 tasksCompleted: tasksCompleted,
                 totalTasks: activeEnrollment ? activeEnrollment.progress.length : 0,
                 isActive,
-                isNoProgress,
-                lastActiveTime
+                isNoProgress
             };
         });
 
@@ -140,14 +123,11 @@ export default function AdminUsers() {
             u.email.toLowerCase().includes(searchTerm.toLowerCase())
         );
 
-        // Sort by recency of activity (most recently active first, i.e. fewer days of inactivity prioritized)
+        // Sort by active first, then inactive
         return filtered.sort((a, b) => {
-            const timeA = a.lastActiveTime || 0;
-            const timeB = b.lastActiveTime || 0;
-            if (timeB !== timeA) {
-                return timeB - timeA;
-            }
-            return a.name.localeCompare(b.name);
+            if (a.isActive && !b.isActive) return -1;
+            if (!a.isActive && b.isActive) return 1;
+            return 0; // maintain relative order
         });
     }, [participants, enrollments, sprints, searchTerm]);
 
@@ -263,24 +243,13 @@ export default function AdminUsers() {
                                     )}
                                 </td>
                                 <td className="px-8 py-6 text-right">
-                                    <div className="flex flex-col items-end gap-1">
-                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                            user.isActive 
-                                                 ? 'bg-green-50 text-green-600' 
-                                                 : 'bg-gray-50 text-gray-400'
-                                        }`}>
-                                            {user.isActive ? 'Active' : 'Inactive'}
-                                        </span>
-                                        {user.lastActiveTime > 0 ? (
-                                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none mt-0.5">
-                                                {Math.floor((Date.now() - user.lastActiveTime) / (24 * 60 * 60 * 1000)) <= 0 
-                                                    ? 'Active < 24h' 
-                                                    : `${Math.floor((Date.now() - user.lastActiveTime) / (24 * 60 * 60 * 1000))}d inactive`}
-                                            </p>
-                                        ) : (
-                                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none mt-0.5">Never active</p>
-                                        )}
-                                    </div>
+                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                        user.isActive 
+                                             ? 'bg-green-50 text-green-600' 
+                                             : 'bg-gray-50 text-gray-400'
+                                    }`}>
+                                        {user.isActive ? 'Active' : 'Inactive'}
+                                    </span>
                                 </td>
                             </tr>
                         ))}
@@ -310,24 +279,13 @@ export default function AdminUsers() {
                                 <p className="text-base font-black text-gray-900 truncate leading-none mb-1">{user.name}</p>
                                 <p className="text-[10px] font-bold text-gray-400 truncate">{user.email}</p>
                             </div>
-                            <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
-                                    user.isActive 
-                                        ? 'bg-green-50 text-green-600' 
-                                        : 'bg-gray-50 text-gray-400'
-                                }`}>
-                                    {user.isActive ? 'Active' : 'Inactive'}
-                                </span>
-                                {user.lastActiveTime > 0 ? (
-                                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest leading-none mt-0.5">
-                                        {Math.floor((Date.now() - user.lastActiveTime) / (24 * 60 * 60 * 1000)) <= 0 
-                                            ? 'Active < 24h' 
-                                            : `${Math.floor((Date.now() - user.lastActiveTime) / (24 * 60 * 60 * 1000))}d inactive`}
-                                    </p>
-                                ) : (
-                                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest leading-none mt-0.5">Never active</p>
-                                )}
-                            </div>
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                                user.isActive 
+                                    ? 'bg-green-50 text-green-600' 
+                                    : 'bg-gray-50 text-gray-400'
+                            }`}>
+                                {user.isActive ? 'Active' : 'Inactive'}
+                            </span>
                         </div>
 
                         {user.isNoProgress ? (

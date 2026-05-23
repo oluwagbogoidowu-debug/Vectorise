@@ -184,7 +184,7 @@ export const pushNotificationService = {
 
       let subscription = await registration.pushManager.getSubscription();
 
-      const response = await fetch('/api/vapid-key');
+      const response = await fetch(`${window.location.origin}/api/vapid-key`);
       if (!response.ok) throw new Error('Failed to fetch VAPID key');
       const { publicKey } = await response.json();
       const applicationServerKey = urlBase64ToUint8Array(publicKey.trim());
@@ -199,11 +199,7 @@ export const pushNotificationService = {
           
           if (!isSameKey) {
             console.log('VAPID key changed, re-subscribing...');
-            try {
-              await subscription.unsubscribe();
-            } catch (unsubErr) {
-              console.warn('[PushService] Non-fatal unsubscribe failure during key-mismatch update:', unsubErr);
-            }
+            await subscription.unsubscribe();
             subscription = null;
           }
         }
@@ -218,40 +214,15 @@ export const pushNotificationService = {
 
       if (!subscription) throw new Error('Failed to create push subscription');
 
-      // ✅ FIXED: Safe subscription extraction with multiple fallback strategies
-      let p256dhBase64 = '';
-      let authBase64 = '';
-
-      if (typeof subscription.getKey === 'function') {
-        try {
-          const p256dhKey = subscription.getKey('p256dh');
-          if (p256dhKey) {
-            p256dhBase64 = btoa(String.fromCharCode(...new Uint8Array(p256dhKey)));
-          }
-          const authKey = subscription.getKey('auth');
-          if (authKey) {
-            authBase64 = btoa(String.fromCharCode(...new Uint8Array(authKey)));
-          }
-        } catch (e) {
-          console.warn('[PushService] getKey method failed, falling back to toJSON:', e);
-        }
-      }
-
-      // Fallback to standard toJSON() if getKey was not supported or failed to extract keys
-      if (!p256dhBase64 || !authBase64) {
-        const rawSub = subscription.toJSON();
-        if (rawSub && rawSub.keys) {
-          p256dhBase64 = rawSub.keys.p256dh || p256dhBase64;
-          authBase64 = rawSub.keys.auth || authBase64;
-        }
-      }
+      // ✅ FIXED: Safe subscription extraction
+      const rawSub = subscription.toJSON();
 
       const subscriptionJSON: PushSubscriptionJSON = {
         endpoint: subscription.endpoint,
-        expirationTime: (subscription as any).expirationTime || null,
+        expirationTime: rawSub.expirationTime || null,
         keys: {
-          p256dh: p256dhBase64,
-          auth: authBase64
+          p256dh: rawSub.keys?.p256dh || '',
+          auth: rawSub.keys?.auth || ''
         }
       };
 
@@ -261,8 +232,8 @@ export const pushNotificationService = {
         throw new Error('Invalid subscription keys generated');
       }
 
-      // ✅ FIXED: robust relative URL
-      const responseSub = await fetch('/api/subscribe', {
+      // ✅ FIXED: absolute URL
+      const responseSub = await fetch(`${window.location.origin}/api/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId, subscription: subscriptionJSON }))
@@ -276,24 +247,22 @@ export const pushNotificationService = {
       return subscriptionJSON;
     } catch (error: any) {
       console.error('Push subscription process failed:', error);
-      // Map TypeErrors ("failed to fetch") from push server/network to clean message
-      if (error && (error.message?.toLowerCase().includes('failed to fetch') || error.name === 'TypeError')) {
-        throw new Error('Could not connect to the push notification service. Please make sure notifications are allowed and try again in a few seconds.');
-      }
       throw error;
     }
   },
 
   unsubscribeUser: async (userId: string) => {
     try {
-      // Robust toggling strategy: We keep the subscription alive in the client’s browser 
-      // instead of performing a hard subscription.unsubscribe() call. 
-      // Destroying/unsubscribing at FCM/APNs and then re-registering on rapid toggles 
-      // is heavily rate-limited by browser vendors and causes "Failed to fetch" errors.
-      // Instead, we set notificationsDisabled to true in the Firestore database, which
-      // immediately blocks outbound notifications in the backend, while keeping re-subscription instant.
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+
+      if (subscription) {
+        await subscription.unsubscribe();
+      }
+
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, {
+        pushSubscription: null,
         notificationsDisabled: true
       });
     } catch (error) {
@@ -304,7 +273,7 @@ export const pushNotificationService = {
 
   updateActivity: async (userId: string, state: string = 'Active') => {
     try {
-      await fetch('/api/notifications/update-state', {
+      await fetch(`${window.location.origin}/api/notifications/update-state`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId, state }))
@@ -316,7 +285,7 @@ export const pushNotificationService = {
 
   triggerCompletedTask: async (userId: string) => {
     try {
-      await fetch('/api/notifications/trigger-completed', {
+      await fetch(`${window.location.origin}/api/notifications/trigger-completed`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId }))
@@ -328,7 +297,7 @@ export const pushNotificationService = {
   
   triggerUpdate: async (userId: string) => {
     try {
-      await fetch('/api/notifications/trigger-update', {
+      await fetch(`${window.location.origin}/api/notifications/trigger-update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId }))
@@ -340,7 +309,7 @@ export const pushNotificationService = {
 
   sendPush: async (userId: string, title: string, body: string, url?: string, tag?: string, bypassActiveCheck: boolean = false) => {
     try {
-      await fetch('/api/notifications/send-push', {
+      await fetch(`${window.location.origin}/api/notifications/send-push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId, title, body, url, tag, bypassActiveCheck }))

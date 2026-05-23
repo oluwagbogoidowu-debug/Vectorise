@@ -107,27 +107,9 @@ if (!admin.apps.length) {
   }
 }
 
-let firestoreInstance: admin.firestore.Firestore | null = null;
+const firestore = admin.firestore();
+firestore.settings({ ignoreUndefinedProperties: true });
 
-export function getDb(): admin.firestore.Firestore {
-  if (!firestoreInstance) {
-    firestoreInstance = admin.firestore();
-    firestoreInstance.settings({ ignoreUndefinedProperties: true });
-  }
-  return firestoreInstance;
-}
-
-export const db = new Proxy({} as admin.firestore.Firestore, {
-  get(target, prop, receiver) {
-    try {
-      return Reflect.get(getDb(), prop, receiver);
-    } catch (err: any) {
-      console.warn("[FirebaseAdmin] Failed to access Firestore property lazily:", err.message);
-      // Fallback object to prevent immediate hard crashes of the process
-      return () => { throw new Error(`Firestore is unavailable. Original error: ${err.message}`); };
-    }
-  }
-});
-
+export const db = firestore;
 export default admin;
 
