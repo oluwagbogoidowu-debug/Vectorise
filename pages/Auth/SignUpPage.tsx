@@ -8,10 +8,12 @@ import { sprintService } from '../../services/sprintService';
 import { UserRole, Participant } from '../../types';
 import Button from '../../components/Button';
 import { toast } from 'sonner';
+import { useAuth } from '../../contexts/AuthContext';
 
 const SignUpPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { checkVerification } = useAuth();
   
   const onboardingState = location.state || {};
   
@@ -53,6 +55,49 @@ const SignUpPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [regError, setRegError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Verification Overlay / Modal States
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [pendingRedirect, setPendingRedirect] = useState<{ path: string; state?: any } | null>(null);
+  const [verificationChecking, setVerificationChecking] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
+
+  const handleIHaveVerified = async () => {
+    setVerificationChecking(true);
+    try {
+      const isVerified = await checkVerification();
+      if (isVerified) {
+        toast.success("Email verified successfully! Welcome to Vectorise.");
+        setShowVerifyModal(false);
+        if (pendingRedirect) {
+          navigate(pendingRedirect.path, { replace: true, state: pendingRedirect.state });
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
+      } else {
+        toast.error("Email is not verified yet. Please click the link in your inbox first!");
+      }
+    } catch (err) {
+      console.error("Verification error", err);
+      toast.error("An error occurred during verification check.");
+    } finally {
+      setVerificationChecking(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (auth.currentUser) {
+      setResendingEmail(true);
+      try {
+        await sendEmailVerification(auth.currentUser);
+        toast.success("Verification link sent to your inbox!");
+      } catch (err) {
+        toast.error("Failed to resend. Please check back in a moment.");
+      } finally {
+        setResendingEmail(false);
+      }
+    }
+  };
 
   useEffect(() => {
     if (prefilledEmail) setEmail(prefilledEmail);
@@ -169,11 +214,15 @@ const SignUpPage: React.FC = () => {
       if (pendingFirstAction && pendingFirstAction.sprintId === targetSprintId) {
           if (pendingFirstAction.pricingType === 'cash') {
               const sprint = await sprintService.getSprintById(targetSprintId);
-              navigate('/onboarding/sprint-payment', { state: { sprint: sprint, prefilledEmail: email } });
+              await sendEmailVerification(firebaseUser);
+              setPendingRedirect({ path: '/onboarding/sprint-payment', state: { sprint: sprint, prefilledEmail: email } });
+              setShowVerifyModal(true);
               return;
           } else {
               // Coin-based sprint target => redirect to dashboard where the coin award and unlock modal will trigger
-              navigate('/dashboard', { replace: true });
+              await sendEmailVerification(firebaseUser);
+              setPendingRedirect({ path: '/dashboard', state: { replace: true } });
+              setShowVerifyModal(true);
               return;
           }
       }
@@ -181,7 +230,9 @@ const SignUpPage: React.FC = () => {
       if (fromPayment || targetSprintId) {
           if (targetTrackId) {
               // For tracks, we redirect to dashboard
-              navigate('/participant/dashboard', { replace: true });
+              await sendEmailVerification(firebaseUser);
+              setPendingRedirect({ path: '/participant/dashboard', state: { replace: true } });
+              setShowVerifyModal(true);
               return;
           } else if (targetSprintId) {
               try {
@@ -213,7 +264,9 @@ const SignUpPage: React.FC = () => {
                               toast.success("Added to waitlist since you have another active sprint! Progress saved.");
                           }
                           localStorage.removeItem('pending_first_action');
-                          navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
+                          await sendEmailVerification(firebaseUser);
+                          setPendingRedirect({ path: `/participant/sprint/${enrollment.id}`, state: { replace: true } });
+                          setShowVerifyModal(true);
                           return;
                       }
                   }
@@ -289,15 +342,11 @@ const SignUpPage: React.FC = () => {
       }
 
       await sendEmailVerification(firebaseUser);
+      toast.success("Account created! Verification email sent.");
       
-      toast.success("Account created successfully!");
-      
-      // Strict role-based redirection
-      if (newUser.role === UserRole.PARTNER) {
-          navigate('/partner/dashboard', { replace: true });
-      } else {
-          navigate('/dashboard', { replace: true });
-      }
+      const targetPath = newUser.role === UserRole.PARTNER ? '/partner/dashboard' : '/dashboard';
+      setPendingRedirect({ path: targetPath, state: { replace: true } });
+      setShowVerifyModal(true);
 
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') setRegError("Email already in use. Try logging in instead.");
@@ -367,6 +416,58 @@ const SignUpPage: React.FC = () => {
             </p>
         </div>
       </div>
+
+      {showVerifyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 p-8 sm:p-10 text-center relative max-h-[90vh] overflow-y-auto">
+            <div className="w-16 h-16 bg-primary/5 text-primary rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-[#0E7850]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+
+            <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tight uppercase leading-none">Confirm Your Link</h2>
+            <p className="text-gray-500 text-xs mb-6 font-medium">
+              We've sent a verification link to <br/>
+              <span className="text-primary font-black italic">{email}</span>
+            </p>
+
+            <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6 text-[10px] text-gray-400 font-bold leading-relaxed uppercase tracking-widest">
+              Please open your inbox, click the verification link to secure your path, and then tap "I have verified" below.
+            </div>
+
+            <div className="space-y-3">
+              <Button 
+                disabled={verificationChecking}
+                onClick={handleIHaveVerified}
+                className="w-full py-3.5 text-[10px] font-black uppercase tracking-[0.2em] rounded-full shadow-lg"
+              >
+                {verificationChecking ? 'Verifying status...' : 'I have verified ✓'}
+              </Button>
+
+              <button 
+                type="button"
+                disabled={resendingEmail}
+                onClick={handleResendVerification}
+                className="w-full text-[9px] font-black text-primary uppercase tracking-[0.2em] py-2 hover:underline disabled:opacity-50"
+              >
+                {resendingEmail ? 'Resending Link...' : 'Resend Verification Email'}
+              </button>
+
+              <button 
+                type="button"
+                onClick={async () => {
+                  await auth.signOut();
+                  setShowVerifyModal(false);
+                }}
+                className="w-full text-[9px] font-black text-red-500 uppercase tracking-[0.2em] py-2 hover:underline"
+              >
+                Cancel & Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

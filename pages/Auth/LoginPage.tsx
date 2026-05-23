@@ -3,16 +3,53 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/Button';
 import { auth, db } from '../../services/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { sprintService } from '../../services/sprintService';
 import { UserRole } from '../../types';
 import { toast } from 'sonner';
 
 const LoginPage: React.FC = () => {
-  const { user, forgotPassword } = useAuth();
+  const { user, forgotPassword, checkVerification } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Verification Overlay / Modal States
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verificationChecking, setVerificationChecking] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
+
+  const handleIHaveVerified = async () => {
+    setVerificationChecking(true);
+    try {
+      const isVerified = await checkVerification();
+      if (isVerified) {
+        toast.success("Email verified successfully! Welcome.");
+        setShowVerifyModal(false);
+      } else {
+        toast.error("Email is not verified yet. Please click the link in your inbox first!");
+      }
+    } catch (err) {
+      console.error("Verification error", err);
+      toast.error("An error occurred during verification check.");
+    } finally {
+      setVerificationChecking(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (auth.currentUser) {
+      setResendingEmail(true);
+      try {
+        await sendEmailVerification(auth.currentUser);
+        toast.success("Verification link sent to your inbox!");
+      } catch (err) {
+        toast.error("Failed to resend. Please check back in a moment.");
+      } finally {
+        setResendingEmail(false);
+      }
+    }
+  };
   
   // Accept prefilled email from location state
   const initialEmail = location.state?.prefilledEmail || '';

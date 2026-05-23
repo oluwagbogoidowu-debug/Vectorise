@@ -20,6 +20,7 @@ type AuthContextType = {
   completeCoachOnboarding: (bio: string, niche: string) => void;
   updateProfile: (data: Partial<Participant | Coach>) => Promise<void>;
   deleteAccount: () => Promise<void>;
+  checkVerification: () => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,6 +29,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | Coach | Participant | Admin | null>(null);
   const [activeRole, setActiveRole] = useState<UserRole>(UserRole.PARTICIPANT);
   const [loading, setLoading] = useState(true);
+  const [forceTrigger, setForceTrigger] = useState(0);
 
   // Listen for Firebase Auth changes
   useEffect(() => {
@@ -40,6 +42,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       if (firebaseUser) {
+        if (!firebaseUser.emailVerified) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
         setLoading(true);
         const userRef = doc(db, 'users', firebaseUser.uid);
         
@@ -119,7 +127,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       unsubscribeAuth();
       if (unsubscribeSnapshot) unsubscribeSnapshot();
     };
-  }, []);
+  }, [forceTrigger]);
 
   useEffect(() => {
       if (user) {
@@ -240,8 +248,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
   };
 
+  const checkVerification = async (): Promise<boolean> => {
+    if (auth.currentUser) {
+      await auth.currentUser.reload();
+      if (auth.currentUser.emailVerified) {
+        setForceTrigger(prev => prev + 1);
+        return true;
+      }
+    }
+    return false;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, activeRole, loading, login, signup, logout, forgotPassword, hasPermission, switchRole, completeCoachOnboarding, updateProfile, deleteAccount }}>
+    <AuthContext.Provider value={{ user, activeRole, loading, login, signup, logout, forgotPassword, hasPermission, switchRole, completeCoachOnboarding, updateProfile, deleteAccount, checkVerification }}>
       {children}
     </AuthContext.Provider>
   );
