@@ -139,7 +139,6 @@ const Profile: React.FC = () => {
             .map(day => new Date(day.completedAt!).toDateString())
     );
     const totalTaskDays = new Set(allCompletedDates).size;
-    const peopleHelped = p.impactStats?.peopleHelped || 0;
     const reflectionsCount = reflections.length;
     const meaningfulReflections = reflections.filter(r => r.content.trim().length > 50).length;
     const startedSprints = enrollments.length;
@@ -153,61 +152,48 @@ const Profile: React.FC = () => {
             case 'cm2': return totalTaskDays;
             case 'r1': return meaningfulReflections;
             case 'r2': return meaningfulReflections;
-            case 'i1': return peopleHelped;
-            case 'i3': return peopleHelped;
-            case 'i5': return peopleHelped;
-            case 'i10': return peopleHelped;
             default: return 0;
         }
     };
 
-    const allMilestones = MILESTONES.map(m => {
+    const allMilestones = MILESTONES.filter(m => m.category !== 'influence').map(m => {
         const val = getStatValue(m.id);
         const progress = Math.min(100, (val / m.targetValue) * 100);
         const isClaimed = claimedIds.includes(m.id);
         return { ...m, currentValue: val, progress, isClaimed };
     });
 
-    // 3. Next unclaimed Influence milestone (Constant at #3)
-    const nextInfluence = allMilestones.find(m => m.category === 'influence' && !m.isClaimed) || 
-                          allMilestones.filter(m => m.category === 'influence').pop();
-
-    // 1. Most recently claimed badge
-    const lastClaimedId = claimedIds.length > 0 ? claimedIds[claimedIds.length - 1] : null;
+    // 1. Most recently claimed badge (non-influence)
+    const lastClaimedId = [...claimedIds].reverse().find(id => {
+       const mDef = MILESTONES.find(m => m.id === id);
+       return mDef && mDef.category !== 'influence';
+    });
     const lastClaimed = allMilestones.find(m => m.id === lastClaimedId);
 
-    // 2. Next closest to completion (unclaimed, excluding nextInfluence)
-    const unclaimed = allMilestones.filter(m => !m.isClaimed && m.id !== nextInfluence?.id);
-    const closestToCompletion = [...unclaimed].sort((a, b) => b.progress - a.progress)[0];
+    // 2. Next closest to completion (unclaimed)
+    const unclaimed = allMilestones.filter(m => !m.isClaimed);
+    const sortedUnclaimed = [...unclaimed].sort((a, b) => b.progress - a.progress);
 
     const result: any[] = [];
     
-    // Add last claimed if it's not the influence one we're showing at #3
-    if (lastClaimed && lastClaimed.id !== nextInfluence?.id) {
+    if (lastClaimed) {
         result.push(lastClaimed);
     }
     
-    // Add closest to completion
-    if (closestToCompletion) {
-        result.push(closestToCompletion);
-    }
-
-    // Fill up to 2 if needed (excluding nextInfluence)
-    if (result.length < 2) {
-        const others = allMilestones.filter(m => !result.find(r => r.id === m.id) && m.id !== nextInfluence?.id);
-        while (result.length < 2 && others.length > 0) {
-            result.push(others.shift()!);
+    for (const m of sortedUnclaimed) {
+        if (result.length < 3 && !result.find(r => r.id === m.id)) {
+            result.push(m);
         }
     }
 
-    // Always put nextInfluence at index 2
-    if (nextInfluence) {
-        result[2] = nextInfluence;
+    const others = allMilestones.filter(m => !result.find(r => r.id === m.id));
+    while (result.length < 3 && others.length > 0) {
+        result.push(others.shift()!);
     }
 
     return result.slice(0, 3).map(m => ({
         ...m,
-        displayValue: m.category === 'influence' ? `${m.currentValue}/${m.targetValue} invite` : `${m.progress.toFixed(0)}%`
+        displayValue: `${m.progress.toFixed(0)}%`
     }));
   }, [user, enrollments, reflections]);
 

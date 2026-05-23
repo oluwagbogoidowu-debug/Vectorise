@@ -81,48 +81,85 @@ const ImpactDashboard: React.FC = () => {
     const peopleHelped = p.impactStats?.peopleHelped || 0;
     const claimedIds = p.claimedMilestoneIds || [];
 
-    // The customized top 3 impact degree of influence cards
+    // The customized 6 impact referral milestone cards
     const impactCards = [
         {
             id: 'i1',
-            title: '1st Circle',
+            title: 'Starter',
             targetValue: 1,
             points: 5,
-            description: '1 life impacted',
             icon: '🌱',
             tag: 'Starter',
-            cardClassName: 'p-4 border-emerald-100 bg-emerald-50/10 hover:border-emerald-200/50',
+            cardClassName: 'border-emerald-100 bg-emerald-50/10 hover:border-emerald-200/50',
             tagClassName: 'bg-emerald-50 text-emerald-700 border border-emerald-100/40',
             iconContainerClassName: 'bg-emerald-100/60 text-[#159E6A]',
-            buttonClassName: 'bg-[#159E6A] text-white hover:bg-[#0E8555] shadow-md shadow-[#159E6A]/10'
+            buttonClassName: 'bg-[#159E6A] text-white hover:bg-[#0E8555] shadow-md'
         },
         {
             id: 'i3',
-            title: '3rd Circle',
+            title: 'Builder',
             targetValue: 3,
             points: 15,
-            description: '3 lives impacted',
-            icon: '⚡',
+            icon: '🔧',
             tag: 'Builder',
-            cardClassName: 'py-6 px-4 bg-white border-emerald-205 hover:border-emerald-300',
-            tagClassName: 'bg-emerald-50 text-emerald-800 border border-emerald-100/60',
-            iconContainerClassName: 'bg-[#0E7850]/10 text-[#0E7850]',
-            buttonClassName: 'bg-[#0E7850] text-white hover:bg-[#0A5D3E] shadow-md shadow-[#0E7850]/10'
+            cardClassName: 'border-blue-100 bg-blue-50/10 hover:border-blue-200/50',
+            tagClassName: 'bg-blue-50 text-blue-700 border border-blue-100/40',
+            iconContainerClassName: 'bg-blue-100/60 text-blue-600',
+            buttonClassName: 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'
         },
         {
             id: 'i5',
-            title: '5th Circle',
+            title: 'Catalyst',
             targetValue: 5,
-            points: 25,
-            description: '5 lives impacted',
-            icon: '🔥',
+            points: 30,
+            icon: '⚡',
             tag: 'Catalyst',
-            cardClassName: 'p-5 border-amber-200 bg-amber-50/10 hover:border-amber-300/80 ring-1 ring-amber-500/5',
+            cardClassName: 'border-amber-100 bg-amber-50/10 hover:border-amber-200/50',
             tagClassName: 'bg-amber-100 text-amber-800 border border-amber-200/30',
             iconContainerClassName: 'bg-amber-100 text-amber-600',
-            buttonClassName: 'bg-[#F97316] text-white hover:bg-[#EA580C] shadow-md shadow-[#F97316]/10'
+            buttonClassName: 'bg-[#F97316] text-white hover:bg-[#EA580C] shadow-md'
+        },
+        {
+            id: 'i10',
+            title: 'Accelerator',
+            targetValue: 10,
+            points: 70,
+            icon: '🚀',
+            tag: 'Accelerator',
+            cardClassName: 'border-indigo-100 bg-indigo-50/10 hover:border-indigo-200/50',
+            tagClassName: 'bg-indigo-50 text-indigo-700 border border-indigo-100/40',
+            iconContainerClassName: 'bg-indigo-100/60 text-indigo-600',
+            buttonClassName: 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md'
+        },
+        {
+            id: 'i20',
+            title: 'Architect',
+            targetValue: 20,
+            points: 150,
+            icon: '🧠',
+            tag: 'Architect',
+            cardClassName: 'border-purple-100 bg-purple-50/10 hover:border-purple-200/50',
+            tagClassName: 'bg-purple-50 text-purple-700 border border-purple-100/40',
+            iconContainerClassName: 'bg-purple-100/60 text-purple-600',
+            buttonClassName: 'bg-purple-600 text-white hover:bg-purple-700 shadow-md'
+        },
+        {
+            id: 'i30',
+            title: 'Inner Circle',
+            targetValue: 30,
+            points: 250,
+            icon: '👑',
+            tag: 'Inner Circle',
+            cardClassName: 'border-yellow-250 bg-yellow-50/10 hover:border-yellow-300/80 ring-1 ring-yellow-500/5',
+            tagClassName: 'bg-yellow-100 text-yellow-800 border border-yellow-200/30',
+            iconContainerClassName: 'bg-yellow-105 text-yellow-600',
+            buttonClassName: 'bg-[#0E7850] text-[#FFFFFF] hover:bg-[#0A5D3E] shadow-md shadow-[#0E7850]/10'
         }
     ];
+
+    const activeCards = useMemo(() => {
+        return impactCards.filter(card => !claimedIds.includes(card.id));
+    }, [claimedIds, peopleHelped]);
 
     const handleShareSprint = (sprintId: string) => {
         const shareUrl = `https://${window.location.host}/sprint/${sprintId}?ref=${p.referralCode}`;
@@ -174,104 +211,106 @@ const ImpactDashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 3 CIRCLE COIN REWARD CARDS */}
-                <div className="flex flex-col gap-4">
-                    {impactCards.map((card) => {
-                        const isUnlocked = peopleHelped >= card.targetValue;
-                        const isClaimed = claimedIds.includes(card.id);
-                        const progress = Math.min(100, (peopleHelped / card.targetValue) * 100);
-                        const remaining = card.targetValue - peopleHelped;
+                {/* SIDEWAYS SWIPING COIN REWARD CARDS */}
+                <div className="relative w-full overflow-hidden">
+                    <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory px-1 pb-4 scroll-smooth">
+                        {activeCards.length > 0 ? (
+                            activeCards.map((card) => {
+                                const isUnlocked = peopleHelped >= card.targetValue;
+                                const progress = Math.min(100, (peopleHelped / card.targetValue) * 100);
+                                const remaining = card.targetValue - peopleHelped;
 
-                        // Descriptive Text underneath
-                        let descriptionText = "";
-                        if (isClaimed) {
-                            descriptionText = "You have successfully claimed this reward!";
-                        } else if (isUnlocked) {
-                            descriptionText = `Ready to claim your ${card.points} coin reward!`;
-                        } else {
-                            if (card.id === 'i1') {
-                                descriptionText = `${remaining} person away from claiming ${card.points} reward. Invite more friend to get started.`;
-                            } else {
-                                descriptionText = `${remaining} ${remaining === 1 ? 'person' : 'people'} away from claiming ${card.points} coin reward.`;
-                            }
-                        }
+                                // Descriptive Text
+                                let descriptionText = "";
+                                if (isUnlocked) {
+                                    descriptionText = `Ready to claim your ${card.points} coin reward!`;
+                                } else {
+                                    if (card.id === 'i1') {
+                                        descriptionText = `${remaining} referral needed to claim +${card.points} Coins.`;
+                                    } else {
+                                        descriptionText = `${remaining} ${remaining === 1 ? 'referral' : 'referrals'} needed to claim +${card.points} Coins.`;
+                                    }
+                                }
 
-                        return (
-                            <div 
-                                key={card.id}
-                                className={`group relative bg-white border-2 rounded-3xl transition-all duration-300 animate-fade-in ${card.cardClassName}`}
-                            >
-                                <div className={`absolute -top-3 right-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md ${card.tagClassName}`}>
-                                    {card.tag}
-                                </div>
-
-                                <div className="flex flex-col">
-                                    {/* Upper Section */}
-                                    <div className="flex items-start gap-4">
-                                        <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 ${card.iconContainerClassName}`}>
-                                            <span className="text-xl">{card.icon}</span>
+                                return (
+                                    <div 
+                                        key={card.id}
+                                        className={`group relative bg-white border-2 rounded-3xl transition-all duration-300 animate-fade-in flex-shrink-0 w-[82vw] sm:w-[320px] snap-center flex flex-col justify-between p-5 min-h-[225px] ${card.cardClassName}`}
+                                    >
+                                        <div className={`absolute -top-3 right-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md ${card.tagClassName}`}>
+                                            {card.tag}
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="text-base sm:text-lg font-black tracking-tight leading-none mb-1 text-gray-900 uppercase">
-                                                {card.title}
-                                            </h3>
-                                            <p className="text-[9px] font-black uppercase tracking-widest text-[#0E7850]">
-                                                {card.points} Coins
-                                            </p>
+
+                                        <div className="flex flex-col">
+                                            {/* Upper Section */}
+                                            <div className="flex items-start gap-4">
+                                                <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 ${card.iconContainerClassName}`}>
+                                                    <span className="text-xl">{card.icon}</span>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="text-base sm:text-lg font-black tracking-tight leading-none mb-1 text-gray-900 uppercase">
+                                                        {card.title}
+                                                    </h3>
+                                                    <p className="text-[9px] font-black uppercase tracking-widest text-[#0E7850]">
+                                                        {card.points} Coins
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* Progress / Goal Slider */}
+                                            <div className="mt-4">
+                                                <div className="flex justify-between items-end mb-1.5">
+                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                                        {isUnlocked ? 'Goal Met' : `Progress: ${peopleHelped}/${card.targetValue}`}
+                                                    </span>
+                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                                        Reward: +{card.points}
+                                                    </span>
+                                                </div>
+                                                <div className="h-1.5 bg-gray-50 border border-gray-100/50 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className={`h-full rounded-full transition-all duration-1000 ${isUnlocked ? 'bg-[#0E7850]' : 'bg-amber-400'}`}
+                                                        style={{ width: `${progress}%` }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Lower Section Action & Note */}
+                                        <div className="mt-4 pt-3 border-t border-gray-50 flex items-center justify-between gap-4">
+                                            <span className="text-[10px] sm:text-xs text-gray-500 font-bold leading-normal flex-1">
+                                                {descriptionText}
+                                            </span>
+                                            
+                                            {isUnlocked ? (
+                                                <button 
+                                                    disabled={claimingId !== null}
+                                                    onClick={() => handleClaimMilestone(card.id, card.points)}
+                                                    className={`px-5 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shrink-0 ${card.buttonClassName}`}
+                                                >
+                                                    {claimingId === card.id ? (
+                                                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                    ) : 'Claim'}
+                                                </button>
+                                            ) : (
+                                                <span className="bg-gray-50 text-gray-300 text-[8px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest shrink-0 border border-gray-100">
+                                                    Locked
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
-
-                                    {/* Middle Segment with Status & Progress Bar */}
-                                    <div className="mt-4">
-                                        <div className="flex justify-between items-end mb-1.5">
-                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                                                {isUnlocked ? 'Goal Met' : `Progress: ${peopleHelped}/${card.targetValue}`}
-                                            </span>
-                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                                                {isClaimed ? 'Claimed' : `Reward: +${card.points}`}
-                                            </span>
-                                        </div>
-                                        <div className="h-1.5 bg-gray-50 border border-gray-100/50 rounded-full overflow-hidden">
-                                            <div 
-                                                className={`h-full rounded-full transition-all duration-1000 ${isUnlocked ? (isClaimed ? 'bg-gray-400' : 'bg-[#0E7850]') : 'bg-amber-400'}`}
-                                                style={{ width: `${progress}%` }}
-                                            ></div>
-                                        </div>
-                                    </div>
-
-                                    {/* Separation Line */}
-                                    <hr className="border-gray-50 my-4" />
-
-                                    {/* Lower Section with Status text and Action CTA */}
-                                    <div className="flex items-center justify-between gap-4">
-                                        <span className="text-[10px] sm:text-xs text-gray-500 font-bold leading-normal flex-1">
-                                            {descriptionText}
-                                        </span>
-                                        
-                                        {isUnlocked && !isClaimed ? (
-                                            <button 
-                                                disabled={claimingId !== null}
-                                                onClick={() => handleClaimMilestone(card.id, card.points)}
-                                                className={`px-5 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shrink-0 ${card.buttonClassName}`}
-                                            >
-                                                {claimingId === card.id ? (
-                                                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                                ) : 'Claim'}
-                                            </button>
-                                        ) : isClaimed ? (
-                                            <span className="bg-gray-100 text-gray-400 text-[8px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest shrink-0 border border-gray-200/40">
-                                                Collected
-                                            </span>
-                                        ) : (
-                                            <span className="bg-gray-50 text-gray-300 text-[8px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest shrink-0 border border-gray-100">
-                                                Locked
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
+                                );
+                            })
+                        ) : (
+                            <div className="w-full flex-shrink-0 bg-white border border-gray-100 rounded-3xl p-6 text-center shadow-sm py-10">
+                                <span className="text-4xl mb-2 block font-normal leading-none">🎖️</span>
+                                <p className="text-xs font-black text-gray-900 mb-1 leading-none uppercase">All Rewards Collected</p>
+                                <p className="text-[9.5px] text-gray-400 font-bold max-w-[280px] mx-auto leading-normal">
+                                    You have successfully achieved all milestone badges! Your community reach continues to unlock new heights.
+                                </p>
                             </div>
-                        );
-                    })}
+                        )}
+                    </div>
                 </div>
 
                 {/* INVITE SHARING */}
