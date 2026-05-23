@@ -50,7 +50,25 @@ const UserAnalyticsDetail: React.FC = () => {
         );
     }
 
-    if (!identity) return null;
+    if (!identity) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-6 text-center">
+                <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4 border border-red-100">
+                    <span className="text-red-500 font-bold text-xl">!</span>
+                </div>
+                <h2 className="text-xl font-black text-gray-900 italic">Analytics report not found.</h2>
+                <p className="text-xs text-gray-500 mt-2 max-w-sm">
+                    No analytics data matched the identifier "{identifier}". Try checking the dashboard or dashboard sessions ledger.
+                </p>
+                <button 
+                    onClick={() => navigate('/admin/dashboard')}
+                    className="mt-6 px-5 py-2.5 bg-gray-900 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md hover:bg-black transition-all cursor-pointer"
+                >
+                    Back to Dashboard
+                </button>
+            </div>
+        );
+    }
 
     const isLive = (timestamp: string) => {
         if (!timestamp) return false;

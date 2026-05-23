@@ -58,8 +58,8 @@ export default function AdminUserDetail() {
                     sprintService.getAdminSprints()
                 ]);
                 setUser(userData as Participant);
-                setEnrollments(enrollmentsData);
-                setSprints(sprintsData);
+                setEnrollments((enrollmentsData || []).filter(e => !!e && !!e.id));
+                setSprints((sprintsData || []).filter(s => !!s && !!s.id));
             } catch (error) {
                 console.error("Error fetching user detail:", error);
             } finally {
@@ -92,13 +92,15 @@ export default function AdminUserDetail() {
         );
     }
 
-    const activeEnrollment = enrollments ? enrollments.find(e => e && e.status === 'active') : null;
+    const activeEnrollment = Array.isArray(enrollments) ? enrollments.find(e => e && e.status === 'active') : null;
     const sortedEnrollments = Array.isArray(enrollments)
-        ? [...enrollments].sort((a, b) => {
-            const timeA = a && a.started_at ? new Date(a.started_at).getTime() : 0;
-            const timeB = b && b.started_at ? new Date(b.started_at).getTime() : 0;
-            return timeB - timeA;
-        })
+        ? [...enrollments]
+            .filter((e): e is ParticipantSprint => !!e && !!e.id)
+            .sort((a, b) => {
+                const timeA = a.started_at ? new Date(a.started_at).getTime() : 0;
+                const timeB = b.started_at ? new Date(b.started_at).getTime() : 0;
+                return timeB - timeA;
+            })
         : [];
     
     const lastCompletedEnrollment = Array.isArray(enrollments)
@@ -233,7 +235,7 @@ export default function AdminUserDetail() {
                         <div>
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Last Activity</p>
                             <p className="text-sm font-bold text-gray-900">
-                                {formatDateSafe(enrollments[0]?.last_activity_at, 'MMM d, h:mm a', 'No recent activity')}
+                                {formatDateSafe(enrollments && enrollments.length > 0 ? enrollments[0].last_activity_at : undefined, 'MMM d, h:mm a', 'No recent activity')}
                             </p>
                         </div>
                     </div>
@@ -518,7 +520,7 @@ export default function AdminUserDetail() {
                                     <h3 className="text-lg font-black text-gray-900 italic">Sprint History.</h3>
                                 </div>
                                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                    {enrollments.length} Total Sprints
+                                    {(enrollments || []).length} Total Sprints
                                 </span>
                             </div>
 
