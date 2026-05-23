@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { auth, db } from '../../services/firebase';
 import { createUserWithEmailAndPassword, updateProfile as updateFbProfile, sendEmailVerification } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, getDocs, getDoc, setDoc } from 'firebase/firestore';
 import { userService } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { UserRole, Participant } from '../../types';
@@ -76,7 +76,27 @@ const SignUpPage: React.FC = () => {
       const firebaseUser = userCredential.user;
       await updateFbProfile(firebaseUser, { displayName: `${firstName} ${lastName}` });
       
-      // 2. Create User Document with Permanent Attribution
+      // 2. Resolve Referrer UID and Name
+      let resolvedReferrerId: string | null = null;
+      if (referrerId) {
+        try {
+          const qCode = query(collection(db, 'users'), where('referralCode', '==', referrerId.trim().toUpperCase()));
+          const snapCode = await getDocs(qCode);
+          if (!snapCode.empty) {
+            resolvedReferrerId = snapCode.docs[0].id;
+          } else {
+            const docRef = doc(db, 'users', referrerId);
+            const snapDoc = await getDoc(docRef);
+            if (snapDoc.exists()) {
+              resolvedReferrerId = referrerId;
+            }
+          }
+        } catch (err) {
+          console.error("Failed to resolve referrer details:", err);
+        }
+      }
+
+      // 3. Create User Document with Permanent Attribution
       const newUser: Partial<Participant> = {
         id: firebaseUser.uid,
         name: `${firstName} ${lastName}`,
@@ -91,11 +111,31 @@ const SignUpPage: React.FC = () => {
         walletBalance: 50, // Explicit account creation coin gift
         
         // ATTACH REFERRAL DATA PERMANENTLY
-        referrerId: referrerId || null,
-        referralFirstTouch: referrerId ? new Date().toISOString() : null
+        referrerId: resolvedReferrerId || null,
+        referralFirstTouch: resolvedReferrerId ? new Date().toISOString() : null
       };
       
       await userService.createUserDocument(firebaseUser.uid, newUser);
+
+      // 4. Create real-time Referral record
+      if (resolvedReferrerId) {
+        try {
+          const referralId = `${resolvedReferrerId}_${firebaseUser.uid}`;
+          const refDocRef = doc(db, 'referrals', referralId);
+          await setDoc(refDocRef, {
+            id: referralId,
+            referrerId: resolvedReferrerId,
+            refereeId: firebaseUser.uid,
+            refereeName: `${firstName} ${lastName}`,
+            refereeAvatar: newUser.profileImageUrl,
+            status: 'joined',
+            timestamp: new Date().toISOString()
+          });
+          console.log(`[Referral Recorded] Saved referral document for referee ${firebaseUser.uid} under referrer ${resolvedReferrerId}`);
+        } catch (err) {
+          console.error("Failed to record referral document:", err);
+        }
+      }
 
       // 3. Claim Payment if applicable
       if (tx_ref) {

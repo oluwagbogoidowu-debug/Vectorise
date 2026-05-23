@@ -2,12 +2,14 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
-import { ParticipantSprint, Sprint, Notification, Participant } from '../../types';
+import { ParticipantSprint, Sprint, Notification, Participant, Referral } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { notificationService } from '../../services/notificationService';
 import { pushNotificationService } from '../../services/pushNotificationService';
 import { toast } from 'sonner';
+import { db } from '../../services/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { ARCHETYPES } from '../../constants';
@@ -76,6 +78,16 @@ const ParticipantDashboard: React.FC = () => {
   const [confirmCheckIn, setConfirmCheckIn] = useState<{ enrollmentId: string, day: number } | null>(null);
   const autoOpenedRef = useRef(false);
   const [activeSlide, setActiveSlide] = useState<'timer' | 'days'>('timer');
+  const [dashboardReferrals, setDashboardReferrals] = useState<Referral[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    const qRef = query(collection(db, 'referrals'), where('referrerId', '==', user.id));
+    const unsubRef = onSnapshot(qRef, (snap) => {
+      setDashboardReferrals(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Referral));
+    });
+    return () => unsubRef();
+  }, [user]);
 
   useEffect(() => {
     const slideTimer = setInterval(() => {
@@ -378,6 +390,61 @@ const ParticipantDashboard: React.FC = () => {
                     </div>
                 </Link>
             </div>
+
+            {/* Recent Catalyst Session */}
+            {dashboardReferrals && dashboardReferrals.length > 0 && (
+              <div className="mb-8 animate-fade-in bg-white border border-gray-100 p-5 rounded-[1.5rem] shadow-sm">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Recent Catalyst
+                  </h3>
+                  <span className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100/50">
+                    {dashboardReferrals.length} {dashboardReferrals.length === 1 ? 'Invite' : 'Invites'}
+                  </span>
+                </div>
+                
+                <div className="flex flex-col gap-3">
+                  {dashboardReferrals.map((ref) => {
+                    const isStarted = ref.status === 'started_sprint';
+                    return (
+                      <div 
+                        key={ref.id} 
+                        className="flex items-center justify-between p-3 bg-gray-50/50 hover:bg-gray-50 rounded-2xl border border-gray-100/50 transition-all duration-300"
+                      >
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={ref.refereeAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(ref.refereeName)}&background=0E7850&color=fff`} 
+                            alt={ref.refereeName} 
+                            className="w-10 h-10 rounded-xl"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div>
+                            <p className="text-xs font-black text-gray-900">
+                              {ref.refereeName}
+                            </p>
+                            <p className="text-[10px] text-gray-500 font-bold leading-normal">
+                              {isStarted ? `${ref.refereeName} started her first sprint` : `${ref.refereeName} Joined via your link`}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div>
+                          {isStarted ? (
+                            <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-emerald-50 text-[#0E7850] border border-emerald-100/30">
+                              Start First Sprint
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100/30">
+                              Joined
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-between items-end mb-6 px-1">
                 <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">

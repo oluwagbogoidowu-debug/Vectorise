@@ -4,7 +4,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { db } from '../../../services/firebase';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { Participant, Referral, UserRole, Sprint, ParticipantSprint } from '../../../types';
-import { sanitizeData } from '../../../services/userService';
+import { sanitizeData, userService } from '../../../services/userService';
 import { sprintService } from '../../../services/sprintService';
 import { Share2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -62,9 +62,67 @@ const ImpactDashboard: React.FC = () => {
     if (!user) return null;
     const p = user as Participant;
     
-    const impactCredits = useMemo(() => {
-        return (p.claimedMilestoneIds || []).reduce((acc, id) => acc + (IMPACT_DEGREE_POINTS[id] || 0), 0);
-    }, [p.claimedMilestoneIds]);
+    // Claiming status states
+    const [claimingId, setClaimingId] = useState<string | null>(null);
+
+    const handleClaimMilestone = async (milestoneId: string, points: number) => {
+        setClaimingId(milestoneId);
+        try {
+            await userService.claimMilestone(p.id, milestoneId, points);
+            toast.success(`Claimed! +${points} Coins added to your wallet.`);
+        } catch (err) {
+            console.error("Failed to claim milestone:", err);
+            toast.error("Failed to default claim credits.");
+        } finally {
+            setClaimingId(null);
+        }
+    };
+
+    const peopleHelped = p.impactStats?.peopleHelped || 0;
+    const claimedIds = p.claimedMilestoneIds || [];
+
+    // The customized top 3 impact degree of influence cards
+    const impactCards = [
+        {
+            id: 'i1',
+            title: '1st Circle',
+            targetValue: 1,
+            points: 5,
+            description: '1 life impacted',
+            icon: '🌱',
+            tag: 'Starter',
+            cardClassName: 'p-4 border-emerald-100 bg-emerald-50/10 hover:border-emerald-200/50',
+            tagClassName: 'bg-emerald-50 text-emerald-700 border border-emerald-100/40',
+            iconContainerClassName: 'bg-emerald-100/60 text-[#159E6A]',
+            buttonClassName: 'bg-[#159E6A] text-white hover:bg-[#0E8555] shadow-md shadow-[#159E6A]/10'
+        },
+        {
+            id: 'i3',
+            title: '3rd Circle',
+            targetValue: 3,
+            points: 15,
+            description: '3 lives impacted',
+            icon: '⚡',
+            tag: 'Builder',
+            cardClassName: 'py-6 px-4 bg-white border-emerald-205 hover:border-emerald-300',
+            tagClassName: 'bg-emerald-50 text-emerald-800 border border-emerald-100/60',
+            iconContainerClassName: 'bg-[#0E7850]/10 text-[#0E7850]',
+            buttonClassName: 'bg-[#0E7850] text-white hover:bg-[#0A5D3E] shadow-md shadow-[#0E7850]/10'
+        },
+        {
+            id: 'i5',
+            title: '5th Circle',
+            targetValue: 5,
+            points: 25,
+            description: '5 lives impacted',
+            icon: '🔥',
+            tag: 'Catalyst',
+            cardClassName: 'p-5 border-amber-200 bg-amber-50/10 hover:border-amber-300/80 ring-1 ring-amber-500/5',
+            tagClassName: 'bg-amber-100 text-amber-800 border border-amber-200/30',
+            iconContainerClassName: 'bg-amber-100 text-amber-600',
+            buttonClassName: 'bg-[#F97316] text-white hover:bg-[#EA580C] shadow-md shadow-[#F97316]/10'
+        }
+    ];
 
     const handleShareSprint = (sprintId: string) => {
         const shareUrl = `https://${window.location.host}/sprint/${sprintId}?ref=${p.referralCode}`;
@@ -95,27 +153,132 @@ const ImpactDashboard: React.FC = () => {
 
             <main className="flex-1 overflow-y-auto custom-scrollbar px-4 py-4 space-y-4">
                 
-                {/* HERO CARD - REDUCED SIZE */}
-                <div className="bg-[#0E7850] rounded-[2rem] p-5 text-white shadow-lg relative overflow-hidden flex items-center justify-between">
-                    <div className="relative z-10 space-y-1">
-                        <div className="flex items-end gap-1">
-                            <h2 className="text-4xl font-black italic tracking-tighter leading-none">{p.impactStats?.peopleHelped || 0}</h2>
-                        </div>
-                        <p className="text-[8px] font-black uppercase tracking-widest text-white/50">Lives Impacted</p>
-                    </div>
-                    
-                    <div className="relative z-10 flex gap-1.5">
-                        <Link to="/impact/badges">
-                            <button className="bg-white text-primary px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest shadow-md active:scale-95 transition-all">Claim</button>
-                        </Link>
-                    </div>
-                    <div className="absolute -top-6 -right-6 w-20 h-20 bg-white/5 rounded-full blur-2xl"></div>
+                {/* START YOUR IMPACT HEADER SECTION */}
+                <div className="mb-6 mt-2 animate-fade-in px-1">
+                    <h1 className="text-5xl font-black tracking-tighter leading-[0.9] mb-4 text-gray-900">
+                        Start your<br/>
+                        <span className="text-primary italic">Impact</span>
+                    </h1>
                 </div>
 
-                <section className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 space-y-4">
+                {/* CURRENT IMPACT SCORECARD */}
+                <div className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm mb-6 flex items-center justify-between">
+                    <div>
+                        <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">Current Reading</p>
+                        <h2 className="text-3xl font-black text-gray-950 tracking-tight leading-none">
+                            {peopleHelped} <span className="text-primary italic font-normal">lives impacted</span>
+                        </h2>
+                    </div>
+                    <div className="w-12 h-12 bg-emerald-50 text-[#0E7850] rounded-2xl flex items-center justify-center text-xl shadow-inner">
+                        🌍
+                    </div>
+                </div>
+
+                {/* 3 CIRCLE COIN REWARD CARDS */}
+                <div className="flex flex-col gap-4">
+                    {impactCards.map((card) => {
+                        const isUnlocked = peopleHelped >= card.targetValue;
+                        const isClaimed = claimedIds.includes(card.id);
+                        const progress = Math.min(100, (peopleHelped / card.targetValue) * 100);
+                        const remaining = card.targetValue - peopleHelped;
+
+                        // Descriptive Text underneath
+                        let descriptionText = "";
+                        if (isClaimed) {
+                            descriptionText = "You have successfully claimed this reward!";
+                        } else if (isUnlocked) {
+                            descriptionText = `Ready to claim your ${card.points} coin reward!`;
+                        } else {
+                            if (card.id === 'i1') {
+                                descriptionText = `${remaining} person away from claiming ${card.points} reward. Invite more friend to get started.`;
+                            } else {
+                                descriptionText = `${remaining} ${remaining === 1 ? 'person' : 'people'} away from claiming ${card.points} coin reward.`;
+                            }
+                        }
+
+                        return (
+                            <div 
+                                key={card.id}
+                                className={`group relative bg-white border-2 rounded-3xl transition-all duration-300 animate-fade-in ${card.cardClassName}`}
+                            >
+                                <div className={`absolute -top-3 right-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md ${card.tagClassName}`}>
+                                    {card.tag}
+                                </div>
+
+                                <div className="flex flex-col">
+                                    {/* Upper Section */}
+                                    <div className="flex items-start gap-4">
+                                        <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 ${card.iconContainerClassName}`}>
+                                            <span className="text-xl">{card.icon}</span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="text-base sm:text-lg font-black tracking-tight leading-none mb-1 text-gray-900 uppercase">
+                                                {card.title}
+                                            </h3>
+                                            <p className="text-[9px] font-black uppercase tracking-widest text-[#0E7850]">
+                                                {card.points} Coins
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Middle Segment with Status & Progress Bar */}
+                                    <div className="mt-4">
+                                        <div className="flex justify-between items-end mb-1.5">
+                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                                {isUnlocked ? 'Goal Met' : `Progress: ${peopleHelped}/${card.targetValue}`}
+                                            </span>
+                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                                {isClaimed ? 'Claimed' : `Reward: +${card.points}`}
+                                            </span>
+                                        </div>
+                                        <div className="h-1.5 bg-gray-50 border border-gray-100/50 rounded-full overflow-hidden">
+                                            <div 
+                                                className={`h-full rounded-full transition-all duration-1000 ${isUnlocked ? (isClaimed ? 'bg-gray-400' : 'bg-[#0E7850]') : 'bg-amber-400'}`}
+                                                style={{ width: `${progress}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+
+                                    {/* Separation Line */}
+                                    <hr className="border-gray-50 my-4" />
+
+                                    {/* Lower Section with Status text and Action CTA */}
+                                    <div className="flex items-center justify-between gap-4">
+                                        <span className="text-[10px] sm:text-xs text-gray-500 font-bold leading-normal flex-1">
+                                            {descriptionText}
+                                        </span>
+                                        
+                                        {isUnlocked && !isClaimed ? (
+                                            <button 
+                                                disabled={claimingId !== null}
+                                                onClick={() => handleClaimMilestone(card.id, card.points)}
+                                                className={`px-5 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 shrink-0 ${card.buttonClassName}`}
+                                            >
+                                                {claimingId === card.id ? (
+                                                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                ) : 'Claim'}
+                                            </button>
+                                        ) : isClaimed ? (
+                                            <span className="bg-gray-100 text-gray-400 text-[8px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest shrink-0 border border-gray-200/40">
+                                                Collected
+                                            </span>
+                                        ) : (
+                                            <span className="bg-gray-50 text-gray-300 text-[8px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest shrink-0 border border-gray-100">
+                                                Locked
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* INVITE SHARING */}
+                <section className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 space-y-4 mt-6">
                     <div>
                         <h3 className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em]">Invite System</h3>
-                        <p className="text-sm font-black text-gray-900 tracking-tight leading-none italic">Catalyst</p>
+                        <p className="text-sm font-black text-gray-900 tracking-tight leading-none italic">Catalyst Link</p>
                     </div>
 
                     <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
@@ -189,22 +352,35 @@ const ImpactDashboard: React.FC = () => {
                     </div>
                 </section>
 
-                {/* HORIZONTAL HISTORY */}
+                {/* HORIZONTAL HISTORY AND RECENT STATUS PER INVITE */}
                 <section>
                     <SectionLabel text="Recent Catalysts" />
                     <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
                         {referrals.length > 0 ? (
-                            referrals.map((ref) => (
-                                <div key={ref.id} className="flex-shrink-0 w-44 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden grayscale">
-                                        <img src={ref.refereeAvatar || `https://ui-avatars.com/api/?name=${ref.refereeName}&background=0E7850&color=fff`} className="w-full h-full object-cover" />
+                            referrals.map((ref) => {
+                                const isStarted = ref.status === 'started_sprint';
+                                return (
+                                    <div key={ref.id} className="flex-shrink-0 w-48 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-xl bg-gray-50 flex-shrink-0 overflow-hidden">
+                                            <img 
+                                                src={ref.refereeAvatar || `https://ui-avatars.com/api/?name=${ref.refereeName}&background=0E7850&color=fff`} 
+                                                className="w-full h-full object-cover" 
+                                                referrerPolicy="no-referrer"
+                                                alt="Avatar"
+                                            />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[10px] font-black text-gray-900 truncate">{ref.refereeName}</p>
+                                            <p className="text-[8px] font-black text-[#0E7850] uppercase tracking-widest truncate leading-tight mt-0.5">
+                                                {isStarted ? 'Start First Sprint' : 'Joined'}
+                                            </p>
+                                            <p className="text-[7.5px] text-gray-400 font-bold truncate leading-none mt-0.5">
+                                                {isStarted ? `${ref.refereeName} started first sprint` : `${ref.refereeName} Joined via your link`}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] font-black text-gray-900 truncate">{ref.refereeName}</p>
-                                        <p className="text-[7px] font-bold text-primary uppercase tracking-widest truncate">{ref.status}</p>
-                                    </div>
-                                </div>
-                            ))
+                                );
+                            })
                         ) : (
                             <div className="w-full py-4 text-center text-gray-300 italic text-[9px] bg-gray-50/50 rounded-2xl border border-dashed border-gray-100">No records yet.</div>
                         )}

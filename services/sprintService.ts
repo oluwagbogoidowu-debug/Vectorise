@@ -293,6 +293,10 @@ export const sprintService = {
 
         await setDoc(enrollmentRef, sanitizeData(newEnrollment));
         
+        if (newEnrollment.status === 'active') {
+            await sprintService.checkReferralStart(userId);
+        }
+        
         return newEnrollment;
     },
 
@@ -350,6 +354,15 @@ export const sprintService = {
     updateEnrollment: async (enrollmentId: string, data: Partial<ParticipantSprint>) => {
         const enrollmentRef = doc(db, ENROLLMENTS_COLLECTION, enrollmentId);
         await updateDoc(enrollmentRef, sanitizeData({ ...data, last_activity_at: new Date().toISOString() }));
+        if (data.status === 'active') {
+            const snap = await getDoc(enrollmentRef);
+            if (snap.exists()) {
+                const user_id = snap.data().user_id;
+                if (user_id) {
+                    await sprintService.checkReferralStart(user_id);
+                }
+            }
+        }
     },
 
     updateSprint: async (sprintId: string, data: Partial<Sprint>, isDirect: boolean = false) => {
@@ -482,10 +495,46 @@ export const sprintService = {
                 last_activity_at: now
             });
 
+            await sprintService.checkReferralStart(userId);
+
             return nextSprint.id;
         } catch (error) {
             console.error("[SprintService] Failed to start next queued sprint:", error);
             return null;
+        }
+    },
+
+    checkReferralStart: async (userId: string) => {
+        try {
+            const q = query(
+                collection(db, 'referrals'),
+                where('refereeId', '==', userId),
+                where('status', '==', 'joined')
+            );
+            const snap = await getDocs(q);
+            if (snap.empty) return;
+
+            const { runTransaction } = await import('firebase/firestore');
+            for (const referralDoc of snap.docs) {
+                const rData = referralDoc.data();
+                const referrerId = rData.referrerId;
+                
+                await runTransaction(db, async (transaction) => {
+                    const refDocRef = doc(db, 'referrals', referralDoc.id);
+                    const referrerRef = doc(db, 'users', referrerId);
+                    
+                    const referrerSnap = await transaction.get(referrerRef);
+                    if (!referrerSnap.exists()) return;
+
+                    transaction.update(refDocRef, { status: 'started_sprint' });
+                    transaction.update(referrerRef, {
+                        'impactStats.peopleHelped': increment(1)
+                    });
+                });
+                console.log(`[Referral System] Realtime trigger: Referee ${userId} started first sprint. Referrer ${referrerId} peopleHelped count incremented.`);
+            }
+        } catch (err) {
+            console.error("Error checking referral start:", err);
         }
     }
 };
