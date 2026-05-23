@@ -177,53 +177,57 @@ export const pushNotificationManager = {
    * Start a listener on the notifications collection to send pushes for new notifications.
    */
   startNotificationListener: () => {
-    console.log('[PushManager] Starting notification listener...');
-    
-    db.collection('notifications')
-      .where('pushSent', '==', false)
-      .onSnapshot(async (snapshot) => {
-        const changes = snapshot.docChanges();
-        
-        for (const change of changes) {
-          if (change.type === 'added') {
-            const notification = { id: change.doc.id, ...change.doc.data() } as Notification;
-            
-            // Only push if it's unread, hasn't been pushed yet, and hasn't failed yet
-            // This prevents local infinite trigger loops when failure properties are updated on the doc.
-            const hasNotTriedOrFailed = !notification.pushFailed && (!notification.retryCount || notification.retryCount === 0);
-            if (!notification.isRead && !notification.pushSent && hasNotTriedOrFailed) {
-              console.log(`[PushManager] New notification detected for user ${notification.userId}. Sending push...`);
+    try {
+      console.log('[PushManager] Starting notification listener...');
+      
+      db.collection('notifications')
+        .where('pushSent', '==', false)
+        .onSnapshot(async (snapshot) => {
+          const changes = snapshot.docChanges();
+          
+          for (const change of changes) {
+            if (change.type === 'added') {
+              const notification = { id: change.doc.id, ...change.doc.data() } as Notification;
               
-              const success = await pushNotificationManager.sendPush(notification.userId, notification.data || {
-                title: notification.title,
-                body: notification.body,
-                url: notification.actionUrl || '/',
-                tag: notification.type
-              }, notification.bypassActiveCheck || false);
+              // Only push if it's unread, hasn't been pushed yet, and hasn't failed yet
+              // This prevents local infinite trigger loops when failure properties are updated on the doc.
+              const hasNotTriedOrFailed = !notification.pushFailed && (!notification.retryCount || notification.retryCount === 0);
+              if (!notification.isRead && !notification.pushSent && hasNotTriedOrFailed) {
+                console.log(`[PushManager] New notification detected for user ${notification.userId}. Sending push...`);
+                
+                const success = await pushNotificationManager.sendPush(notification.userId, notification.data || {
+                  title: notification.title,
+                  body: notification.body,
+                  url: notification.actionUrl || '/',
+                  tag: notification.type
+                }, notification.bypassActiveCheck || false);
 
-              // Only mark pushSent on actual success
-              if (success) {
-                await db.collection('notifications').doc(notification.id).update({
-                  pushSent: true,
-                  pushSentAt: new Date().toISOString(),
-                  pushFailed: false
-                });
-              } else {
-                // Save first failure trace and set backoff timers
-                const delay = Math.pow(2, 0) * 60 * 1000; // 1 minute
-                await db.collection('notifications').doc(notification.id).update({
-                  pushFailed: true,
-                  lastPushError: 'First push attempt returned false status or was skipped',
-                  retryCount: 1,
-                  nextRetryAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + delay))
-                });
+                // Only mark pushSent on actual success
+                if (success) {
+                  await db.collection('notifications').doc(notification.id).update({
+                    pushSent: true,
+                    pushSentAt: new Date().toISOString(),
+                    pushFailed: false
+                  });
+                } else {
+                  // Save first failure trace and set backoff timers
+                  const delay = Math.pow(2, 0) * 60 * 1000; // 1 minute
+                  await db.collection('notifications').doc(notification.id).update({
+                    pushFailed: true,
+                    lastPushError: 'First push attempt returned false status or was skipped',
+                    retryCount: 1,
+                    nextRetryAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + delay))
+                  });
+                }
               }
             }
           }
-        }
-      }, (error) => {
-        console.error('[PushManager] Notification listener error:', error);
-      });
+        }, (error) => {
+          console.warn('[PushManager] Notification listener connection went inactive:', error?.message || error);
+        });
+    } catch (err: any) {
+      console.warn('[PushManager] Skipped real-time push subscription listener (Database connection not configured or empty):', err?.message || err);
+    }
   },
 
   /**
@@ -240,7 +244,7 @@ export const pushNotificationManager = {
 
       const matchedDocs = snapshot.docs.filter(doc => {
         const data = doc.data();
-        return data.pushFailed === true && (data.retryCount || 0) < 5;
+        return data && data.pushFailed === true && (data.retryCount || 0) < 5;
       });
 
       console.log(`[PushManager] Found ${matchedDocs.length} notifications marked for active retry queue.`);
@@ -250,8 +254,16 @@ export const pushNotificationManager = {
         
         if (notification.isRead) continue;
 
-        const nextRetryAt = notification.nextRetryAt ? notification.nextRetryAt.toDate() : null;
-        if (nextRetryAt && nextRetryAt <= now) {
+        let nextRetryAt: Date | null = null;
+        if (notification.nextRetryAt) {
+          if (typeof notification.nextRetryAt.toDate === 'function') {
+            nextRetryAt = notification.nextRetryAt.toDate();
+          } else {
+            nextRetryAt = new Date(notification.nextRetryAt);
+          }
+        }
+
+        if (nextRetryAt && !isNaN(nextRetryAt.getTime()) && nextRetryAt <= now) {
           console.log(`[PushManager] Retrying notification ${notification.id} for user ${notification.userId} (Attempt #${notification.retryCount + 1})...`);
           
           const success = await pushNotificationManager.sendPush(notification.userId, notification.data || {
@@ -269,7 +281,7 @@ export const pushNotificationManager = {
             });
           } else {
             const nextRetryCount = (notification.retryCount || 1) + 1;
-            const delay = Math.pow(2, nextRetryCount - 1) * 60 * 1000; // 1min (retry=1) -> 2min (retry=2) -> 4min -> 8min...
+            const delay = Math.pow(2, nextRetryCount - 1) * 60 * 1000; // 1min
             await db.collection('notifications').doc(notification.id).update({
               pushFailed: true,
               lastPushError: `Retry effort ${nextRetryCount} unsuccessful`,
@@ -279,8 +291,8 @@ export const pushNotificationManager = {
           }
         }
       }
-    } catch (err) {
-      console.error('[PushManager] Error in background queued notification worker:', err);
+    } catch (err: any) {
+      console.warn('[PushManager] Skipped background queued notification worker retry (Database connection not configured or empty):', err?.message || err);
     }
   },
 
@@ -341,104 +353,108 @@ export const pushNotificationManager = {
    * This should be called by a background job.
    */
   processTriggers: async () => {
-    console.log('[PushManager] Processing notification triggers...');
-    const now = new Date();
-    const currentHour = now.getHours();
-    
-    // 1. Get all users with push subscriptions
-    const usersSnap = await db.collection('users')
-      .where('pushSubscription', '!=', null)
-      .get();
-    
-    console.log(`[PushManager] Found ${usersSnap.size} users with push subscriptions.`);
-
-    for (const userDoc of usersSnap.docs) {
-      const user = { id: userDoc.id, ...userDoc.data() } as Participant;
+    try {
+      console.log('[PushManager] Processing notification triggers...');
+      const now = new Date();
+      const currentHour = now.getHours();
       
-      if (user.notificationsDisabled) continue;
-
-      // Check if already notified today for missed days (Rule: only 1 per day if missed 2+)
-      const lastSentAt = user.lastNotificationSentAt ? new Date(user.lastNotificationSentAt) : null;
-      const sentToday = lastSentAt && lastSentAt.toDateString() === now.toDateString();
-
-      // Get active enrollment to know the sprint category
-      const enrollmentsSnap = await db.collection('enrollments')
-        .where('user_id', '==', user.id)
-        .where('status', '==', 'active')
-        .limit(1)
+      // 1. Get all users with push subscriptions
+      const usersSnap = await db.collection('users')
+        .where('pushSubscription', '!=', null)
         .get();
+      
+      console.log(`[PushManager] Found ${usersSnap.size} users with push subscriptions.`);
 
-      if (enrollmentsSnap.empty) continue;
+      for (const userDoc of usersSnap.docs) {
+        const user = { id: userDoc.id, ...userDoc.data() } as Participant;
+        
+        if (user.notificationsDisabled) continue;
 
-      const enrollment = { id: enrollmentsSnap.docs[0].id, ...enrollmentsSnap.docs[0].data() } as ParticipantSprint;
-      const sprintSnap = await db.collection('sprints').doc(enrollment.sprint_id).get();
-      const sprint = sprintSnap.exists ? sprintSnap.data() as Sprint : null;
-      const category = sprint?.category || 'Growth';
+        // Check if already notified today for missed days (Rule: only 1 per day if missed 2+)
+        const lastSentAt = user.lastNotificationSentAt ? new Date(user.lastNotificationSentAt) : null;
+        const sentToday = lastSentAt && lastSentAt.toDateString() === now.toDateString();
 
-      const lastActivity = user.lastActivityAt ? new Date(user.lastActivityAt) : new Date(user.createdAt);
-      const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
-      const daysSinceActivity = Math.floor(hoursSinceActivity / 24);
+        // Get active enrollment to know the sprint category
+        const enrollmentsSnap = await db.collection('enrollments')
+          .where('user_id', '==', user.id)
+          .where('status', '==', 'active')
+          .limit(1)
+          .get();
 
-      // Check if today's task is completed
-      const currentDay = enrollment.progress.find(p => !p.completed)?.day || enrollment.progress.length;
-      const todayProgress = enrollment.progress.find(p => p.day === currentDay);
-      const isTaskCompleted = todayProgress?.completed || false;
+        if (enrollmentsSnap.empty) continue;
 
-      // Logic for Missed Days (2+ days)
-      if (daysSinceActivity >= 2) {
-        if (sentToday) continue; // Only 1 per day if missed 2+
+        const enrollment = { id: enrollmentsSnap.docs[0].id, ...enrollmentsSnap.docs[0].data() } as ParticipantSprint;
+        const sprintSnap = await db.collection('sprints').doc(enrollment.sprint_id).get();
+        const sprint = sprintSnap.exists ? sprintSnap.data() as Sprint : null;
+        const category = sprint?.category || 'Growth';
 
-        // Trigger in the morning (8am)
-        if (currentHour >= 8 && currentHour < 10) {
-          if (daysSinceActivity >= 3) {
+        const lastActivity = user.lastActivityAt ? new Date(user.lastActivityAt) : new Date(user.createdAt);
+        const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
+        const daysSinceActivity = Math.floor(hoursSinceActivity / 24);
+
+        // Check if today's task is completed
+        const currentDay = enrollment.progress.find(p => !p.completed)?.day || enrollment.progress.length;
+        const todayProgress = enrollment.progress.find(p => p.day === currentDay);
+        const isTaskCompleted = todayProgress?.completed || false;
+
+        // Logic for Missed Days (2+ days)
+        if (daysSinceActivity >= 2) {
+          if (sentToday) continue; // Only 1 per day if missed 2+
+
+          // Trigger in the morning (8am)
+          if (currentHour >= 8 && currentHour < 10) {
+            if (daysSinceActivity >= 3) {
+              await pushNotificationManager.sendPush(user.id, {
+                title: 'Keep the Momentum',
+                body: `Your ${category} Sprint is still in motion. Continue where you stopped.`,
+                url: '/participant/sprint',
+                tag: 'missed-long'
+              });
+            } else {
+              await pushNotificationManager.sendPush(user.id, {
+                title: 'Still in Motion',
+                body: `Your ${category} Sprint is still in motion. This is going somewhere. Let’s keep it moving.`,
+                url: '/participant/sprint',
+                tag: 'missed-short'
+              });
+            }
+          }
+          continue; // Don't send active reminders if they are in "missed" state
+        }
+
+        // Active Reminders (if task not completed)
+        if (!isTaskCompleted) {
+          // 8 AM - Task Unlocked
+          if (currentHour === 8) {
             await pushNotificationManager.sendPush(user.id, {
-              title: 'Keep the Momentum',
-              body: `Your ${category} Sprint is still in motion. Continue where you stopped.`,
+              title: 'Today’s task is unlocked',
+              body: 'Your next step is ready',
               url: '/participant/sprint',
-              tag: 'missed-long'
+              tag: 'daily-unlock'
             });
-          } else {
+          }
+          // 3 PM - Quick Check
+          else if (currentHour === 15) {
             await pushNotificationManager.sendPush(user.id, {
-              title: 'Still in Motion',
-              body: `Your ${category} Sprint is still in motion. This is going somewhere. Let’s keep it moving.`,
+              title: 'Quick check',
+              body: 'Quick check — have you completed today’s step?',
               url: '/participant/sprint',
-              tag: 'missed-short'
+              tag: 'midday-check'
+            });
+          }
+          // 8 PM - Evening Reminder
+          else if (currentHour === 20) {
+            await pushNotificationManager.sendPush(user.id, {
+              title: 'Don’t let today slip',
+              body: 'Don’t let today slip. Your task is waiting.',
+              url: '/participant/sprint',
+              tag: 'evening-reminder'
             });
           }
         }
-        continue; // Don't send active reminders if they are in "missed" state
       }
-
-      // Active Reminders (if task not completed)
-      if (!isTaskCompleted) {
-        // 8 AM - Task Unlocked
-        if (currentHour === 8) {
-          await pushNotificationManager.sendPush(user.id, {
-            title: 'Today’s task is unlocked',
-            body: 'Your next step is ready',
-            url: '/participant/sprint',
-            tag: 'daily-unlock'
-          });
-        }
-        // 3 PM - Quick Check
-        else if (currentHour === 15) {
-          await pushNotificationManager.sendPush(user.id, {
-            title: 'Quick check',
-            body: 'Quick check — have you completed today’s step?',
-            url: '/participant/sprint',
-            tag: 'midday-check'
-          });
-        }
-        // 8 PM - Evening Reminder
-        else if (currentHour === 20) {
-          await pushNotificationManager.sendPush(user.id, {
-            title: 'Don’t let today slip',
-            body: 'Don’t let today slip. Your task is waiting.',
-            url: '/participant/sprint',
-            tag: 'evening-reminder'
-          });
-        }
-      }
+    } catch (err: any) {
+      console.warn('[PushManager] Skipped active push triggers processing (Database connection not configured or empty):', err?.message || err);
     }
   }
 };

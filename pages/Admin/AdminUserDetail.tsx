@@ -92,14 +92,15 @@ export default function AdminUserDetail() {
         );
     }
 
-    const activeEnrollment = enrollments.find(e => e.status === 'active') || null;
-    const sortedEnrollments = [...enrollments].sort((a, b) => {
+    const validEnrollments = (enrollments || []).filter(e => !!e && !!e.id);
+    const activeEnrollment = validEnrollments.find(e => e.status === 'active') || null;
+    const sortedEnrollments = [...validEnrollments].sort((a, b) => {
         const timeA = a.started_at ? new Date(a.started_at).getTime() : 0;
         const timeB = b.started_at ? new Date(b.started_at).getTime() : 0;
         return timeB - timeA;
     });
     
-    const lastCompletedEnrollment = enrollments
+    const lastCompletedEnrollment = validEnrollments
         .filter(e => e.status === 'completed')
         .sort((a, b) => {
             const dateA = a.completed_at ? new Date(a.completed_at).getTime() : 0;
@@ -111,9 +112,9 @@ export default function AdminUserDetail() {
     let inactivityWarning = null;
     
     // Check if they are inactive based on: "In the whole system a user is inactive once it's a day after the last submission of the last task."
-    const completedTimestamps = enrollments.flatMap(e => 
+    const completedTimestamps = validEnrollments.flatMap(e => 
         (e.progress || [])
-            .filter(p => p.completed && p.completedAt)
+            .filter(p => p && p.completed && p.completedAt)
             .map(p => p.completedAt ? new Date(p.completedAt).getTime() : 0)
     ).filter(t => t > 0 && !isNaN(t));
 
@@ -133,7 +134,7 @@ export default function AdminUserDetail() {
         }
     } else {
         // No submissions at all. Let's check start or join time.
-        const startDates = enrollments
+        const startDates = validEnrollments
             .map(e => e.started_at ? new Date(e.started_at).getTime() : 0)
             .filter(t => t > 0 && !isNaN(t));
         if (startDates.length > 0) {
@@ -152,7 +153,7 @@ export default function AdminUserDetail() {
     }
 
     // Checking "No progress when they didn't proceed with a new sprint the next day after they finished the first"
-    const completedSprints = enrollments.filter(e => e.status === 'completed' || (e.progress || []).every(p => p.completed));
+    const completedSprints = validEnrollments.filter(e => e.status === 'completed' || (e.progress || []).every(p => p && p.completed));
     let isNoProgress = false;
     if (completedSprints.length > 0) {
         const sortedCompleted = [...completedSprints].sort((a, b) => {
@@ -165,7 +166,7 @@ export default function AdminUserDetail() {
         const finishTime = firstFinished && firstFinished.completed_at ? new Date(firstFinished.completed_at).getTime() : null;
 
         if (finishTime !== null && !isNaN(finishTime)) {
-            const otherSprints = enrollments.filter(e => e.id !== firstFinished.id);
+            const otherSprints = validEnrollments.filter(e => e.id !== firstFinished.id);
             const hasProceeded = otherSprints.length > 0;
             const timeSinceFinish = Date.now() - finishTime;
             if (!hasProceeded && timeSinceFinish >= oneDay) {
@@ -226,7 +227,7 @@ export default function AdminUserDetail() {
                         <div>
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Last Activity</p>
                             <p className="text-sm font-bold text-gray-900">
-                                {formatDateSafe(enrollments[0]?.last_activity_at, 'MMM d, h:mm a', 'No recent activity')}
+                                {formatDateSafe(validEnrollments[0]?.last_activity_at, 'MMM d, h:mm a', 'No recent activity')}
                             </p>
                         </div>
                     </div>
@@ -511,7 +512,7 @@ export default function AdminUserDetail() {
                                     <h3 className="text-lg font-black text-gray-900 italic">Sprint History.</h3>
                                 </div>
                                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                    {enrollments.length} Total Sprints
+                                    {validEnrollments.length} Total Sprints
                                 </span>
                             </div>
 
