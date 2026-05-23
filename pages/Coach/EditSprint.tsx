@@ -477,7 +477,11 @@ const EditSprint: React.FC = () => {
                 try { currentOptsArr = JSON.parse(currentOptsStr); } catch (e) {}
             }
             if (!Array.isArray(currentOptsArr)) currentOptsArr = [];
-            while (currentOptsArr.length < 4) {
+            
+            // If linked from previous (follow-up poll), default to 1 option, otherwise at least 4
+            const isFollowUpPoll = index > 0 && updatedDailyContent[existingContentIndex]?.taskLinkedToNext?.[index - 1];
+            const minLength = isFollowUpPoll ? 1 : 4;
+            while (currentOptsArr.length < minLength) {
                currentOptsArr.push('');
             }
             while (currentOptions.length <= index) currentOptions.push('[]');
@@ -581,10 +585,10 @@ const EditSprint: React.FC = () => {
             if (currentPrompts.length <= index + 1) {
                 currentPrompts.push('');
                 currentTypes.push('poll');
-                currentOptions.push(JSON.stringify([]));
+                currentOptions.push(JSON.stringify(['']));
             } else {
                 currentTypes[index + 1] = 'poll';
-                currentOptions[index + 1] = JSON.stringify([]);
+                currentOptions[index + 1] = JSON.stringify(['']);
             }
         }
         

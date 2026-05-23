@@ -335,12 +335,50 @@ const DiscoverSprints: React.FC = () => {
             }
         };
 
-        // 1. Explicit slot alignment first
+        const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
+                         Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
+
+        // 1. Prioritization list from the orchestrator in direction session (slot_dir_sprint) first
+        const directionMapping = orchestration['slot_dir_sprint'];
+        if (directionMapping) {
+            const focusMap = directionMapping.sprintFocusMap || {};
+            const prioritiesMap = directionMapping.focusOptionPriorityMap || {};
+            const assignedIds = directionMapping.sprintIds || (directionMapping.sprintId ? [directionMapping.sprintId] : []);
+
+            if (userFocus) {
+                // Sprints mapped to slot_dir_sprint that have the user's active focus tag
+                const matches = assignedIds.filter(id => focusMap[id]?.includes(userFocus));
+                const priorities = prioritiesMap[userFocus] || [];
+                if (matches.length > 0) {
+                    matches.sort((a, b) => {
+                        const idxA = priorities.indexOf(a);
+                        const idxB = priorities.indexOf(b);
+                        if (idxA > -1 && idxB > -1) return idxA - idxB;
+                        if (idxA > -1) return -1;
+                        if (idxB > -1) return 1;
+                        return 0;
+                    });
+                    
+                    matches.forEach(sId => {
+                        const s = sprints.find(sp => sp.id === sId);
+                        if (s) addSprint(s);
+                    });
+                }
+            }
+
+            // Fallback: If space permits, add any other assigned sprint ids from slot_dir_sprint
+            assignedIds.forEach(sId => {
+                const s = sprints.find(sp => sp.id === sId);
+                if (s) addSprint(s);
+            });
+        }
+
+        // 2. Explicit slot alignment from individual slot_dir_sprint resolver
         if (resolvedSlots['slot_dir_sprint']) {
             addSprint(resolvedSlots['slot_dir_sprint']);
         }
 
-        // 2. Selected Growth Areas
+        // 3. Selected Growth Areas
         const growthAreas = participant?.growthAreas || [];
         if (growthAreas.length > 0) {
             const matchedGroups = GROWTH_AREAS.filter(g => 
@@ -357,7 +395,7 @@ const DiscoverSprints: React.FC = () => {
             }
         }
 
-        // 3. Rise Pathway
+        // 4. Rise Pathway
         const pathwayId = participant?.risePathway;
         if (pathwayId) {
             const pathwaySprintMap: Record<string, string[]> = {
@@ -375,10 +413,7 @@ const DiscoverSprints: React.FC = () => {
             });
         }
 
-        // 4. Onboarding Focus
-        const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
-                         Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
-
+        // 5. Onboarding Focus from other Foundation slots
         if (userFocus) {
             const prioritySlots = ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
             for (const slotId of prioritySlots) {
@@ -396,7 +431,7 @@ const DiscoverSprints: React.FC = () => {
             }
         }
 
-        // 5. Target Stage Matches
+        // 6. Target Stage Matches
         const targetStage = participant?.currentStage || 'Direction';
         sprints.forEach(s => {
             if (CATEGORY_TO_STAGE_MAP[s.category] === targetStage) {
@@ -404,14 +439,14 @@ const DiscoverSprints: React.FC = () => {
             }
         });
 
-        // 6. General Cash Sprints
+        // 7. General Cash Sprints
         sprints.forEach(s => {
             if (s.pricingType === 'cash') {
                 addSprint(s);
             }
         });
 
-        // 7. General Fallback published sprints
+        // 8. General Fallback published sprints
         sprints.forEach(s => {
             addSprint(s);
         });

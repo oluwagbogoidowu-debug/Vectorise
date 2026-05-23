@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { X } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
 import { paymentService } from '../../services/paymentService';
@@ -330,45 +331,66 @@ const SprintPayment: React.FC = () => {
 
       {/* Insufficient Coins Modal */}
       {showInsufficientModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl animate-slide-up">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in animate-duration-200">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-2xl animate-scale-up relative">
+            <button 
+              onClick={() => setShowInsufficientModal(false)}
+              className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-all cursor-pointer"
+            >
+              <X size={18} />
+            </button>
             <div className="p-8 text-center">
-              <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
+              <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
                 🪙
               </div>
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Insufficient Coins</h2>
-              <p className="text-sm text-gray-500 font-medium mb-8">
-                You need <span className="text-gray-900 font-black">{sprintPrice} coins</span> to unlock this sprint. You currently have <span className="text-gray-900 font-black">{userBalance} coins</span>.
-              </p>
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">You’re one step away</h2>
+              
+              <div className="space-y-1 mb-8">
+                <p className="text-sm font-medium text-gray-600">
+                  This sprint costs <span className="text-gray-900 font-extrabold">{sprintPrice} coins</span>. You have <span className="text-gray-900 font-extrabold">{userBalance}</span>.
+                </p>
+                <p className="text-xs font-bold text-primary uppercase tracking-widest leading-none pt-1">
+                  Don’t lose your momentum now.
+                </p>
+              </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <Button 
                   onClick={() => navigate('/buy-coins', { state: { sprintId, trackId, sprint: selectedSprint, track: selectedTrack } })}
                   className="w-full py-4 bg-primary text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-primary/20"
                 >
-                  Buy Coins
+                  Buy {sprintPrice} coins to Continue Now
                 </Button>
+
+                <div className="flex items-center gap-2 justify-center py-1">
+                  <span className="text-[10px] font-bold text-gray-300 tracking-widest uppercase">----- or ------</span>
+                </div>
+
+                <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100 text-center">
+                  <span className="text-[9px] font-black tracking-widest text-gray-400 uppercase block mb-1">
+                    Earn coins instead
+                  </span>
+                  <button 
+                    onClick={() => navigate('/impact')}
+                    className="text-xs font-black text-primary hover:text-primary/80 transition-colors uppercase tracking-wider"
+                  >
+                    Refer a friend and get rewarded when they start a sprint.
+                  </button>
+                </div>
 
                 {isProfileIncomplete && (
                   <Button 
                     variant="secondary"
                     onClick={() => navigate('/profile')}
-                    className="w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest"
+                    className="w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-900"
                   >
                     Setup Your Profile
                   </Button>
                 )}
 
                 <button 
-                  onClick={() => navigate('/impact')}
-                  className="w-full py-4 text-gray-400 hover:text-primary rounded-2xl text-[11px] font-black uppercase tracking-widest transition-colors"
-                >
-                  Refer a friend to grow, Earn enough coin to start
-                </button>
-
-                <button 
                   onClick={() => setShowInsufficientModal(false)}
-                  className="mt-4 text-[10px] font-black text-gray-300 uppercase tracking-widest hover:text-gray-400 transition-colors"
+                  className="text-[9px] font-black text-gray-300 uppercase tracking-widest hover:text-gray-400 transition-colors pt-2 block mx-auto underline underline-offset-4 cursor-pointer"
                 >
                   Maybe Later
                 </button>
