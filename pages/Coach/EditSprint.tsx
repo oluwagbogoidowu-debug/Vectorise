@@ -665,15 +665,26 @@ const EditSprint: React.FC = () => {
         let currentLinked = existingContentIndex >= 0 
             ? [...(updatedDailyContent[existingContentIndex].taskLinkedToNext || [])]
             : [];
+
+        let currentHints = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskHints || [])]
+            : [];
             
         let deleteCount = 1;
         if (currentLinked[index]) {
             deleteCount = 2; // Also delete the branch poll to complement for default 3
         }
             
+        const maxNeeded = Math.max(currentPrompts.length, index + deleteCount);
+        while (currentTypes.length < maxNeeded) currentTypes.push('text');
+        while (currentOptions.length < maxNeeded) currentOptions.push('[]');
+        while (currentLinked.length < maxNeeded) currentLinked.push(false);
+        while (currentHints.length < maxNeeded) currentHints.push(undefined as any);
+
         currentPrompts.splice(index, deleteCount);
         currentTypes.splice(index, deleteCount);
         currentOptions.splice(index, deleteCount);
+        currentHints.splice(index, deleteCount);
         
         if (index > 0 && currentLinked.length >= index && currentLinked[index - 1]) {
             currentLinked[index - 1] = false;
@@ -685,6 +696,7 @@ const EditSprint: React.FC = () => {
             currentTypes.push('text');
             currentOptions.push('[]');
             currentLinked.push(false);
+            currentHints.push(undefined as any);
         }
         
         const filtered = currentPrompts.filter(p => p.trim());
@@ -697,7 +709,8 @@ const EditSprint: React.FC = () => {
               taskPrompt: legacyValue,
               taskInputTypes: currentTypes,
               taskPollOptions: currentOptions,
-              taskLinkedToNext: currentLinked
+              taskLinkedToNext: currentLinked,
+              taskHints: currentHints
           };
         } else {
           updatedDailyContent.push({
@@ -707,7 +720,8 @@ const EditSprint: React.FC = () => {
             taskPrompts: currentPrompts,
             taskInputTypes: currentTypes,
             taskPollOptions: currentOptions,
-            taskLinkedToNext: currentLinked
+            taskLinkedToNext: currentLinked,
+            taskHints: currentHints
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -1140,10 +1154,10 @@ const EditSprint: React.FC = () => {
                                                                 // but here it's always visible if it's not undefined
                                                             }
                                                         }}
-                                                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${currentContent.taskHints?.[index] !== undefined ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
                                                     >
                                                         <Plus size={14} />
-                                                        {currentContent.taskHints?.[index] !== undefined ? 'Hint Active' : 'Add Hint'}
+                                                        {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? 'Hint Active' : 'Add Hint'}
                                                     </button>
 
                                                     {(currentContent.taskPrompts?.length || 3) > 1 && (
@@ -1164,7 +1178,7 @@ const EditSprint: React.FC = () => {
                                                     )}
                                                 </div>
                                             </div>
-                                            {currentContent.taskHints?.[index] !== undefined && (
+                                            {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) && (
                                                 <div className="mt-2 animate-fade-in">
                                                     <div className="flex justify-between items-center mb-1">
                                                         <label className="text-[9px] font-black text-amber-500 uppercase tracking-widest px-1">Task Hint</label>
@@ -1172,7 +1186,7 @@ const EditSprint: React.FC = () => {
                                                             type="button" 
                                                             onClick={() => {
                                                                 const newHints = [...(currentContent.taskHints || [])];
-                                                                newHints.splice(index, 1);
+                                                                newHints[index] = null as any;
                                                                 handleContentChange('taskHints', newHints);
                                                             }}
                                                             className="text-gray-300 hover:text-red-500 transition-colors"
@@ -1181,7 +1195,7 @@ const EditSprint: React.FC = () => {
                                                         </button>
                                                     </div>
                                                     <textarea 
-                                                        value={currentContent.taskHints[index]} 
+                                                        value={currentContent.taskHints[index] || ''} 
                                                         onChange={e => handleTaskHintChange(index, e.target.value)} 
                                                         rows={2} 
                                                         className={editorInputClasses + " p-4 !py-3 w-full border-amber-100 bg-amber-50/20 text-gray-700"} 
