@@ -429,7 +429,9 @@ const EditSprint: React.FC = () => {
             ? [...(updatedDailyContent[existingContentIndex].taskHints || [])]
             : [];
         
-        while (currentHints.length <= index) currentHints.push('');
+        while (currentHints.length <= index) {
+            currentHints.push(null as any);
+        }
         currentHints[index] = value;
         
         if (existingContentIndex >= 0) {

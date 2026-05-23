@@ -324,16 +324,100 @@ const DiscoverSprints: React.FC = () => {
     }, [orchestration, user, sprints, tracks, enrolledSprintIds]);
 
     const nextSteps = useMemo(() => {
+        const participant = user as Participant;
         const list: Sprint[] = [];
-        if (resolvedSlots['slot_dir_sprint']) list.push(resolvedSlots['slot_dir_sprint']);
-        
-        const seen = new Set<string>();
-        return list.filter(item => {
-            if (seen.has(item.id)) return false;
-            seen.add(item.id);
-            return true;
+        const seenIds = new Set<string>();
+
+        const addSprint = (sprint: Sprint | undefined) => {
+            if (sprint && !enrolledSprintIds.has(sprint.id) && !seenIds.has(sprint.id)) {
+                list.push(sprint);
+                seenIds.add(sprint.id);
+            }
+        };
+
+        // 1. Explicit slot alignment first
+        if (resolvedSlots['slot_dir_sprint']) {
+            addSprint(resolvedSlots['slot_dir_sprint']);
+        }
+
+        // 2. Selected Growth Areas
+        const growthAreas = participant?.growthAreas || [];
+        if (growthAreas.length > 0) {
+            const matchedGroups = GROWTH_AREAS.filter(g => 
+                g.options.some(opt => growthAreas.includes(opt))
+            );
+            
+            if (matchedGroups.length > 0) {
+                const targetSprintTitles = matchedGroups.flatMap(g => g.sprints);
+                sprints.forEach(s => {
+                    if (targetSprintTitles.includes(s.title)) {
+                        addSprint(s);
+                    }
+                });
+            }
+        }
+
+        // 3. Rise Pathway
+        const pathwayId = participant?.risePathway;
+        if (pathwayId) {
+            const pathwaySprintMap: Record<string, string[]> = {
+                'student': ['Clarity Sprint', 'Direction Sprint'],
+                'early_career': ['Direction Sprint', 'Skill Sprint', 'Confidence Sprint'],
+                'growth_pro': ['Leadership Sprint', 'Visibility Sprint', 'Execution Sprint'],
+                'builder': ['Execution Sprint', 'Positioning Sprint', 'Focus Sprint'],
+                'transition': ['Clarity Sprint', 'Confidence Sprint', 'Consistency Sprint']
+            };
+            const targetTitles = pathwaySprintMap[pathwayId] || [];
+            sprints.forEach(s => {
+                if (targetTitles.includes(s.title)) {
+                    addSprint(s);
+                }
+            });
+        }
+
+        // 4. Onboarding Focus
+        const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
+                         Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
+
+        if (userFocus) {
+            const prioritySlots = ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
+            for (const slotId of prioritySlots) {
+                const mapping = orchestration[slotId];
+                if (mapping) {
+                    const focusMap = mapping.sprintFocusMap || {};
+                    const matchedSprintIds = Object.keys(focusMap).filter(sId => focusMap[sId]?.includes(userFocus));
+                    matchedSprintIds.forEach(sId => {
+                        const s = sprints.find(sp => sp.id === sId);
+                        if (s) {
+                            addSprint(s);
+                        }
+                    });
+                }
+            }
+        }
+
+        // 5. Target Stage Matches
+        const targetStage = participant?.currentStage || 'Direction';
+        sprints.forEach(s => {
+            if (CATEGORY_TO_STAGE_MAP[s.category] === targetStage) {
+                addSprint(s);
+            }
         });
-    }, [resolvedSlots]);
+
+        // 6. General Cash Sprints
+        sprints.forEach(s => {
+            if (s.pricingType === 'cash') {
+                addSprint(s);
+            }
+        });
+
+        // 7. General Fallback published sprints
+        sprints.forEach(s => {
+            addSprint(s);
+        });
+
+        return list.slice(0, 3);
+    }, [sprints, user, orchestration, enrolledSprintIds, resolvedSlots]);
 
     if (isLoading) {
         return null;
