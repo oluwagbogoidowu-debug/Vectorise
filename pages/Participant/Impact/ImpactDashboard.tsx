@@ -211,28 +211,6 @@ const ImpactDashboard: React.FC = () => {
                     </div>
                 </section>
 
-                {/* COMPACT LEADERBOARD */}
-                <section>
-                    <div className="flex justify-between items-center mb-2 px-1">
-                        <SectionLabel text="Impact Scale" />
-                    </div>
-                    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                        {leaders.map((leader, index) => {
-                            const isMe = user.id === leader.id;
-                            return (
-                                <div key={leader.id} className={`flex items-center gap-3 p-3 border-b border-gray-50 last:border-0 ${isMe ? 'bg-primary/[0.02]' : ''}`}>
-                                    <span className="text-[8px] font-black text-gray-300 w-3">{fullLeaderboard.findIndex(l => l.id === leader.id) + 1}</span>
-                                    <img src={leader.profileImageUrl} className="w-6 h-6 rounded-lg object-cover border border-gray-100" />
-                                    <p className={`text-[10px] font-bold truncate flex-1 ${isMe ? 'text-primary' : 'text-gray-900'}`}>{leader.name}</p>
-                                    <div className="text-right">
-                                        <p className="text-[11px] font-black text-gray-900 leading-none">{leader.impactStats?.peopleHelped || 0}</p>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </section>
-
                 <footer className="text-center pt-4">
                     <p className="text-[7px] font-black text-gray-200 uppercase tracking-[0.4em]">Vectorise • Catalyst v4.2</p>
                 </footer>

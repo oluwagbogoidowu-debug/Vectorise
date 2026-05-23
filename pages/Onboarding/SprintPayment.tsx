@@ -359,21 +359,16 @@ const SprintPayment: React.FC = () => {
                   Continue with {sprintPrice} coins
                 </Button>
 
-                <div className="flex items-center gap-2 justify-center py-1">
-                  <span className="text-[10px] font-black text-gray-300 tracking-widest uppercase">Or</span>
-                </div>
-
-                <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100 text-center">
-                  <p className="text-sm font-black text-gray-900 mb-1">
-                    Refer a friend.
-                  </p>
+                <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                  Or{' '}
                   <button 
                     onClick={() => navigate('/impact')}
-                    className="text-xs font-bold text-primary hover:text-primary/80 transition-colors"
+                    className="text-primary font-bold hover:underline cursor-pointer hover:text-primary/90 transition-colors"
                   >
-                    Earn coins when they start.
+                    refer a friend
                   </button>
-                </div>
+                  . Earn coins when they start.
+                </p>
 
                 {isProfileIncomplete && (
                   <Button 
@@ -384,13 +379,6 @@ const SprintPayment: React.FC = () => {
                     Setup Your Profile
                   </Button>
                 )}
-
-                <button 
-                  onClick={() => setShowInsufficientModal(false)}
-                  className="text-[9px] font-black text-gray-300 uppercase tracking-widest hover:text-gray-400 transition-colors pt-2 block mx-auto underline underline-offset-4 cursor-pointer"
-                >
-                  Maybe Later
-                </button>
               </div>
             </div>
           </div>
