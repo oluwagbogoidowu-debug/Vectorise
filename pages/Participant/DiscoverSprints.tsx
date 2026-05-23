@@ -366,93 +366,16 @@ const DiscoverSprints: React.FC = () => {
                 }
             }
 
-            // Fallback: If space permits, add any other assigned sprint ids from slot_dir_sprint
+            // Fallback: If space permits, add any other assigned sprint ids from slot_dir_sprint in original priority order
             assignedIds.forEach(sId => {
                 const s = sprints.find(sp => sp.id === sId);
                 if (s) addSprint(s);
             });
         }
 
-        // 2. Explicit slot alignment from individual slot_dir_sprint resolver
-        if (resolvedSlots['slot_dir_sprint']) {
-            addSprint(resolvedSlots['slot_dir_sprint']);
-        }
-
-        // 3. Selected Growth Areas
-        const growthAreas = participant?.growthAreas || [];
-        if (growthAreas.length > 0) {
-            const matchedGroups = GROWTH_AREAS.filter(g => 
-                g.options.some(opt => growthAreas.includes(opt))
-            );
-            
-            if (matchedGroups.length > 0) {
-                const targetSprintTitles = matchedGroups.flatMap(g => g.sprints);
-                sprints.forEach(s => {
-                    if (targetSprintTitles.includes(s.title)) {
-                        addSprint(s);
-                    }
-                });
-            }
-        }
-
-        // 4. Rise Pathway
-        const pathwayId = participant?.risePathway;
-        if (pathwayId) {
-            const pathwaySprintMap: Record<string, string[]> = {
-                'student': ['Clarity Sprint', 'Direction Sprint'],
-                'early_career': ['Direction Sprint', 'Skill Sprint', 'Confidence Sprint'],
-                'growth_pro': ['Leadership Sprint', 'Visibility Sprint', 'Execution Sprint'],
-                'builder': ['Execution Sprint', 'Positioning Sprint', 'Focus Sprint'],
-                'transition': ['Clarity Sprint', 'Confidence Sprint', 'Consistency Sprint']
-            };
-            const targetTitles = pathwaySprintMap[pathwayId] || [];
-            sprints.forEach(s => {
-                if (targetTitles.includes(s.title)) {
-                    addSprint(s);
-                }
-            });
-        }
-
-        // 5. Onboarding Focus from other Foundation slots
-        if (userFocus) {
-            const prioritySlots = ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
-            for (const slotId of prioritySlots) {
-                const mapping = orchestration[slotId];
-                if (mapping) {
-                    const focusMap = mapping.sprintFocusMap || {};
-                    const matchedSprintIds = Object.keys(focusMap).filter(sId => focusMap[sId]?.includes(userFocus));
-                    matchedSprintIds.forEach(sId => {
-                        const s = sprints.find(sp => sp.id === sId);
-                        if (s) {
-                            addSprint(s);
-                        }
-                    });
-                }
-            }
-        }
-
-        // 6. Target Stage Matches
-        const targetStage = participant?.currentStage || 'Direction';
-        sprints.forEach(s => {
-            if (CATEGORY_TO_STAGE_MAP[s.category] === targetStage) {
-                addSprint(s);
-            }
-        });
-
-        // 7. General Cash Sprints
-        sprints.forEach(s => {
-            if (s.pricingType === 'cash') {
-                addSprint(s);
-            }
-        });
-
-        // 8. General Fallback published sprints
-        sprints.forEach(s => {
-            addSprint(s);
-        });
-
+        // Return up to 3 priority sprints or fewer if less than 3 are available. No non-orchestrator fallbacks.
         return list.slice(0, 3);
-    }, [sprints, user, orchestration, enrolledSprintIds, resolvedSlots]);
+    }, [sprints, user, orchestration, enrolledSprintIds]);
 
     if (isLoading) {
         return null;

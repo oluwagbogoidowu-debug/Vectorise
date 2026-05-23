@@ -41,28 +41,31 @@ const BuyCoins: React.FC = () => {
 
   const coinPackages = [
     {
-      id: 'pkg_50',
-      coins: 50,
-      price: 750,
-      description: 'Get back in. Keep your streak alive.',
+      id: 'pkg_30',
+      coins: 30,
+      price: 500,
+      description: 'Continue your current sprint',
       icon: <Zap className="w-5 h-5" />,
-      tag: null
+      tag: 'Quick Continue',
+      buttonText: 'Continue Now'
     },
     {
       id: 'pkg_100',
       coins: 100,
-      price: 1400,
-      description: 'Stay consistent. Stack your next wins.',
+      price: 1300,
+      description: 'Stay in motion. Stack your next wins',
       icon: <Sparkles className="w-5 h-5" />,
-      tag: 'Best Value'
+      tag: 'Best Value',
+      buttonText: 'Stay Consistent'
     },
     {
       id: 'pkg_300',
       coins: 300,
-      price: 4000,
-      description: 'Lock in your growth. No stopping now.',
+      price: 3600,
+      description: 'Lock in your growth. No interruptions',
       icon: <ShieldCheck className="w-5 h-5" />,
-      tag: 'Pro Growth'
+      tag: 'Pro Growth',
+      buttonText: 'Go All In'
     }
   ];
 
@@ -90,12 +93,15 @@ const BuyCoins: React.FC = () => {
       <div className="max-w-2xl mx-auto px-6 py-12">
         {/* Header Section */}
         <div className="mb-12 animate-fade-in">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 mb-2">
+            The coin payment plan
+          </p>
           <h1 className="text-5xl font-black tracking-tighter leading-[0.9] mb-4">
-            Refuel<br/>
-            <span className="text-primary italic">Your Rise</span>
+            Keep up your<br/>
+            <span className="text-primary italic">Rise</span>
           </h1>
           <p className="text-lg text-gray-500 font-medium max-w-md leading-tight">
-            You’ve started showing up. Keep the momentum alive.
+            You need 30 coins to keep going.
           </p>
         </div>
 
@@ -157,7 +163,7 @@ const BuyCoins: React.FC = () => {
                         : 'bg-gray-900 text-white'
                     }`}
                   >
-                    Buy Now
+                    {pkg.buttonText || 'Buy Now'}
                   </Button>
                 </div>
               </div>
