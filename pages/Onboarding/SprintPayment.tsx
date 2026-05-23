@@ -343,14 +343,11 @@ const SprintPayment: React.FC = () => {
               <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
                 🪙
               </div>
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">You’re one step away</h2>
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">One step left</h2>
               
               <div className="space-y-1 mb-8">
-                <p className="text-sm font-medium text-gray-600">
-                  This sprint costs <span className="text-gray-900 font-extrabold">{sprintPrice} coins</span>. You have <span className="text-gray-900 font-extrabold">{userBalance}</span>.
-                </p>
-                <p className="text-xs font-bold text-primary uppercase tracking-widest leading-none pt-1">
-                  Don’t lose your momentum now.
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                  {sprintPrice} coins needed • You have {userBalance}
                 </p>
               </div>
 
@@ -359,22 +356,22 @@ const SprintPayment: React.FC = () => {
                   onClick={() => navigate('/buy-coins', { state: { sprintId, trackId, sprint: selectedSprint, track: selectedTrack } })}
                   className="w-full py-4 bg-primary text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-primary/20"
                 >
-                  Buy {sprintPrice} coins to Continue Now
+                  Continue with {sprintPrice} coins
                 </Button>
 
                 <div className="flex items-center gap-2 justify-center py-1">
-                  <span className="text-[10px] font-bold text-gray-300 tracking-widest uppercase">----- or ------</span>
+                  <span className="text-[10px] font-black text-gray-300 tracking-widest uppercase">Or</span>
                 </div>
 
                 <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100 text-center">
-                  <span className="text-[9px] font-black tracking-widest text-gray-400 uppercase block mb-1">
-                    Earn coins instead
-                  </span>
+                  <p className="text-sm font-black text-gray-900 mb-1">
+                    Refer a friend.
+                  </p>
                   <button 
                     onClick={() => navigate('/impact')}
-                    className="text-xs font-black text-primary hover:text-primary/80 transition-colors uppercase tracking-wider"
+                    className="text-xs font-bold text-primary hover:text-primary/80 transition-colors"
                   >
-                    Refer a friend and get rewarded when they start a sprint.
+                    Earn coins when they start.
                   </button>
                 </div>
 
