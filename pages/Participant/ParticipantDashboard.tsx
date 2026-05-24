@@ -585,10 +585,9 @@ const ParticipantDashboard: React.FC = () => {
                             </svg>
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs md:text-sm font-bold text-gray-900 leading-snug">You’ve started well.</p>
-                            <p className="text-[13px] md:text-sm font-black text-[#0E7850] mt-0.5">You can become a Catalyst.</p>
-                            <p className="text-[11px] md:text-xs text-gray-500 font-medium mt-1 leading-relaxed">
-                                And Catalysts don’t grow alone —<br />they bring others along.
+                            <p className="text-[13px] md:text-sm font-black text-[#0E7850]">You can become a Catalyst.</p>
+                            <p className="text-[11px] md:text-xs text-gray-500 font-medium mt-0.5 leading-relaxed">
+                                Don’t grow alone, bring others along.
                             </p>
                         </div>
                         <div className="absolute -right-8 -bottom-8 w-24 h-24 bg-[#0E7850]/5 rounded-full blur-2xl pointer-events-none"></div>

@@ -27,17 +27,17 @@ const ArchetypeAvatar: React.FC<ArchetypeAvatarProps> = ({
   };
 
   const badgeStyle = {
-    sm: 'w-3.5 h-3.5 -top-1 -right-1',
-    md: 'w-4 h-4 -top-1 -right-1',
-    lg: 'w-5 h-5 -top-1 -right-1',
-    xl: 'w-6 h-6 -top-1.5 -right-1.5'
+    sm: 'w-[9px] h-[9px] -top-0.5 -right-0.5',
+    md: 'w-[11px] h-[11px] -top-0.5 -right-0.5',
+    lg: 'w-[13px] h-[13px] -top-0.5 -right-0.5',
+    xl: 'w-[15px] h-[15px] -top-0.5 -right-0.5'
   };
 
   const checkSize = {
-    sm: 'w-2 h-2',
-    md: 'w-2.5 h-2.5',
-    lg: 'w-3 h-3',
-    xl: 'h-3.5 w-3.5'
+    sm: 'w-[5px] h-[5px]',
+    md: 'w-[6px] h-[6px]',
+    lg: 'w-[7px] h-[7px]',
+    xl: 'w-[8px] h-[8px]'
   };
 
   return (
@@ -50,7 +50,7 @@ const ArchetypeAvatar: React.FC<ArchetypeAvatarProps> = ({
         )}
       </div>
       {isVerified && (
-        <div className={`absolute ${badgeStyle[size]} bg-[#0E7850] text-white rounded-full flex items-center justify-center ring-2 ring-white shadow-sm z-10`}>
+        <div className={`absolute ${badgeStyle[size]} bg-[#0E7850] text-white rounded-full flex items-center justify-center ring-1 ring-white shadow-sm z-10`}>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" className={checkSize[size]}>
             <polyline points="20 6 9 17 4 12" />
           </svg>

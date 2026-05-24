@@ -77,6 +77,7 @@ const VerifyEmailPage: React.FC = () => {
 
         <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6 text-[10px] text-gray-400 font-bold leading-relaxed uppercase tracking-widest text-center">
           Click the link and you will be automatically verified
+          <span className="block mt-2 font-black text-amber-600">(You can also check your spam for the email if it hasn't arrived)</span>
         </div>
 
         <div className="space-y-3">

@@ -10,7 +10,7 @@ import { UserRole } from '../../types';
 import { toast } from 'sonner';
 
 const LoginPage: React.FC = () => {
-  const { user, forgotPassword, checkVerification } = useAuth();
+  const { user, forgotPassword, checkVerification, mustVerifyEmail } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -92,6 +92,11 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
       const handleUserRedirect = async () => {
           if (user) {
+              if (mustVerifyEmail) {
+                  navigate('/verify-email', { replace: true });
+                  return;
+              }
+
               // 1. Admin Redirection
               if (user.role === UserRole.ADMIN) {
                   navigate('/admin/dashboard', { replace: true });
@@ -219,7 +224,7 @@ const LoginPage: React.FC = () => {
           }
       };
       handleUserRedirect();
-  }, [user, navigate, targetSprintId, targetTrackId, tx_ref]);
+  }, [user, mustVerifyEmail, navigate, targetSprintId, targetTrackId, tx_ref]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

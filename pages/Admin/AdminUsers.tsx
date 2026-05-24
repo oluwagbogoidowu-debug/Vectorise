@@ -193,8 +193,8 @@ export default function AdminUsers() {
                                                 )}
                                             </div>
                                             {(user.emailVerifiedConfirmed || user.emailVerifiedOverride) && (
-                                                <div className="absolute w-3.5 h-3.5 -top-1 -right-1 bg-[#0E7850] text-white rounded-full flex items-center justify-center ring-1 ring-white shadow-sm z-10">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
+                                                <div className="absolute w-[11px] h-[11px] -top-0.5 -right-0.5 bg-[#0E7850] text-white rounded-full flex items-center justify-center ring-1 ring-white shadow-sm z-10">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" className="w-[6px] h-[6px]">
                                                         <polyline points="20 6 9 17 4 12" />
                                                     </svg>
                                                 </div>
@@ -286,8 +286,8 @@ export default function AdminUsers() {
                                     )}
                                 </div>
                                 {(user.emailVerifiedConfirmed || user.emailVerifiedOverride) && (
-                                    <div className="absolute w-4 h-4 -top-1 -right-1 bg-[#0E7850] text-white rounded-full flex items-center justify-center ring-2 ring-white shadow-sm z-10">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
+                                    <div className="absolute w-[12px] h-[12px] -top-0.5 -right-0.5 bg-[#0E7850] text-white rounded-full flex items-center justify-center ring-1 ring-white shadow-sm z-10">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" className="w-[7px] h-[7px]">
                                             <polyline points="20 6 9 17 4 12" />
                                         </svg>
                                     </div>

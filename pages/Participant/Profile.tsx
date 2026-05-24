@@ -263,6 +263,17 @@ const Profile: React.FC = () => {
   const handleQuizOptionSelect = async (option: string) => {
     if (setupStep === 1) {
       setTempPersona(option);
+      setIsSavingIdentity(true);
+      try {
+        await updateProfile(sanitizeData({
+          persona: option
+        }));
+        setSetupStep(2);
+      } catch (e) {
+        userService.queueNotification('error', "Failed to save persona.", { duration: 3000 });
+      } finally {
+        setIsSavingIdentity(false);
+      }
     } else if (setupStep >= 2 && setupStep <= 4) {
       const nextAnswers = { ...tempOnboardingAnswers, [setupStep - 1]: option };
       setTempOnboardingAnswers(nextAnswers);
@@ -468,7 +479,21 @@ const Profile: React.FC = () => {
                     {RISE_PATHWAYS.map(path => (
                       <button
                         key={path.id}
-                        onClick={() => setTempRisePathway(path.id)}
+                        onClick={async () => {
+                          setTempRisePathway(path.id);
+                          setIsSavingIdentity(true);
+                          try {
+                            await updateProfile(sanitizeData({
+                              risePathway: path.id
+                            }));
+                            setSetupStep(11);
+                          } catch (e) {
+                            userService.queueNotification('error', "Failed to save Pathway.", { duration: 3000 });
+                          } finally {
+                            setIsSavingIdentity(false);
+                          }
+                        }}
+                        disabled={isSavingIdentity}
                         className={`w-full text-left p-3 rounded-2xl border transition-all ${tempRisePathway === path.id ? 'bg-[#0E7850]/5 border-[#0E7850]/20 scale-[1.02] shadow-sm' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}
                       >
                         <h4 className="text-[10px] font-black text-gray-900">{path.name}</h4>
@@ -476,26 +501,6 @@ const Profile: React.FC = () => {
                       </button>
                     ))}
                   </div>
-                  
-                  <button 
-                    onClick={async () => {
-                      setIsSavingIdentity(true);
-                      try {
-                        await updateProfile(sanitizeData({
-                          risePathway: tempRisePathway
-                        }));
-                        setSetupStep(11);
-                      } catch (e) {
-                        userService.queueNotification('error', "Failed to save Pathway.", { duration: 3000 });
-                      } finally {
-                        setIsSavingIdentity(false);
-                      }
-                    }}
-                    disabled={!tempRisePathway || isSavingIdentity}
-                    className="w-full py-3 bg-[#0E7850] text-white rounded-xl font-black uppercase tracking-[0.15em] text-[10px] shadow-md disabled:opacity-50 disabled:grayscale transition-all active:scale-95"
-                  >
-                    {isSavingIdentity ? 'Saving...' : 'Continue'}
-                  </button>
                 </div>
               )}
 
@@ -533,7 +538,7 @@ const Profile: React.FC = () => {
                       disabled={!tempArchetype || isSavingIdentity}
                       className="flex-1 py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-[0.15em] text-[11px] shadow-lg shadow-emerald-900/10 active:scale-95 transition-all disabled:opacity-50"
                     >
-                      {isSavingIdentity ? 'Saving...' : 'Complete Setup'}
+                      {isSavingIdentity ? 'Saving...' : 'Save'}
                     </button>
                   </div>
                 </div>
@@ -543,46 +548,27 @@ const Profile: React.FC = () => {
               {setupStep >= 1 && setupStep < 11 && (
                 <div className="mt-4 flex gap-2">
                   {setupStep === 1 ? (
-                    <button 
-                      onClick={async () => {
-                        setIsSavingIdentity(true);
-                        try {
-                          await updateProfile(sanitizeData({
-                            persona: tempPersona
-                          }));
-                          setSetupStep(2);
-                        } catch (e) {
-                          userService.queueNotification('error', "Failed to save persona.", { duration: 3000 });
-                        } finally {
-                          setIsSavingIdentity(false);
-                        }
-                      }}
-                      disabled={!tempPersona || isSavingIdentity}
-                      className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-[0.15em] text-[11px] shadow-lg shadow-emerald-900/10 active:scale-95 transition-all disabled:opacity-50"
-                    >
-                      {isSavingIdentity ? 'Saving...' : 'Continue'}
-                    </button>
+                    null
                   ) : setupStep === 10 ? (
-                    null // Handled inside step 10 UI
+                    <button 
+                      onClick={() => {
+                        setSetupStep(9);
+                        setCurrentTaskGroupIdx(4);
+                      }}
+                      className="w-full py-3 bg-gray-50 text-gray-400 rounded-xl font-black uppercase tracking-widest text-[9px] border border-gray-100"
+                    >
+                      Back
+                    </button>
                   ) : (
-                    <>
-                      <button 
-                        onClick={() => {
-                          setSetupStep(prev => prev - 1);
-                          if (setupStep > 5) setCurrentTaskGroupIdx(prev => prev - 1);
-                        }}
-                        className="flex-1 py-3 bg-gray-50 text-gray-400 rounded-xl font-black uppercase tracking-widest text-[9px] border border-gray-100"
-                      >
-                        Back
-                      </button>
-                      <button 
-                        onClick={handleSaveIdentity}
-                        disabled={isSavingIdentity}
-                        className="flex-1 py-3 bg-white text-[#0E7850] border border-[#0E7850]/20 rounded-xl font-black uppercase tracking-widest text-[9px] shadow-sm active:scale-95 transition-all"
-                      >
-                        {isSavingIdentity ? 'Saving...' : 'Save Progress'}
-                      </button>
-                    </>
+                    <button 
+                      onClick={() => {
+                        setSetupStep(prev => prev - 1);
+                        if (setupStep > 5) setCurrentTaskGroupIdx(prev => prev - 1);
+                      }}
+                      className="w-full py-3 bg-gray-50 text-gray-400 rounded-xl font-black uppercase tracking-widest text-[9px] border border-gray-100"
+                    >
+                      Back
+                    </button>
                   )}
                 </div>
               )}

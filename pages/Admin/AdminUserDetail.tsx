@@ -188,8 +188,8 @@ export default function AdminUserDetail() {
                                         )}
                                     </div>
                                     {(user.emailVerifiedConfirmed || user.emailVerifiedOverride) && (
-                                        <div className="absolute w-8 h-8 -top-2 -right-2 bg-[#0E7850] text-white rounded-full flex items-center justify-center ring-4 ring-white shadow-md z-10">
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" className="w-[1.125rem] h-[1.125rem]">
+                                        <div className="absolute w-[18px] h-[18px] -top-1 -right-1 bg-[#0E7850] text-white rounded-full flex items-center justify-center ring-2 ring-white shadow-sm z-10">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" className="w-[10px] h-[10px]">
                                                 <polyline points="20 6 9 17 4 12" />
                                             </svg>
                                         </div>
