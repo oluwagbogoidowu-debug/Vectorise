@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Button from './Button';
 import LocalLogo from './LocalLogo';
+import confetti from 'canvas-confetti';
 
 interface SprintCompletionModalProps {
     isOpen: boolean;
@@ -10,6 +11,43 @@ interface SprintCompletionModalProps {
 
 const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({ isOpen, onStartNext, onClose }) => {
     const [rating, setRating] = useState<number>(0);
+
+    useEffect(() => {
+        if (isOpen) {
+            // High intensity, beautiful premium celebration effect with waves of confetti
+            const duration = 4 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 35, spread: 360, ticks: 70, zIndex: 1000, scalar: 1.2 };
+
+            const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+            const interval: any = setInterval(() => {
+                const timeLeft = animationEnd - Date.now();
+
+                if (timeLeft <= 0) {
+                    return clearInterval(interval);
+                }
+
+                const particleCount = 60 * (timeLeft / duration);
+                
+                // Explode colored circles from both left and right sides of the screen
+                confetti({
+                    ...defaults,
+                    particleCount,
+                    origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+                    colors: ['#0E7850', '#159E6A', '#34D399', '#FCD34D', '#10B981']
+                });
+                confetti({
+                    ...defaults,
+                    particleCount,
+                    origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+                    colors: ['#0E7850', '#159E6A', '#34D399', '#3B82F6', '#6366F1']
+                });
+            }, 250);
+
+            return () => clearInterval(interval);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
