@@ -319,6 +319,7 @@ export interface Participant extends User {
   notificationsSentToday?: number;
   lastNotificationSentAt?: string;
   notificationsDisabled?: boolean;
+  notifiedStreakMilestones?: number[];
   pushSubscription?: PushSubscriptionJSON;
   claimedBadges?: {
     milestoneId: string;
