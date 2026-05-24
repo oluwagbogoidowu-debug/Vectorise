@@ -14,7 +14,9 @@ import {
     Target, 
     Shield, 
     Layers, 
-    ChevronLeft
+    ChevronLeft,
+    Flame,
+    Award
 } from 'lucide-react';
 import { 
     AreaChart, 
@@ -25,7 +27,7 @@ import {
     Tooltip, 
     ResponsiveContainer 
 } from 'recharts';
-import { format, subDays, isSameDay, eachDayOfInterval } from 'date-fns';
+import { format, subDays, isSameDay, eachDayOfInterval, parseISO, differenceInDays } from 'date-fns';
 
 const GrowthDashboard: React.FC = () => {
     const { user, mustVerifyEmail } = useAuth();
@@ -66,37 +68,95 @@ const GrowthDashboard: React.FC = () => {
         const totalTasks = allProgress.length;
         const growthScore = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
 
-        // 2. Streak Calculation
-        const completionDates = completedTasks
-            .map(p => p.completedAt ? new Date(p.completedAt) : null)
-            .filter((d): d is Date => !!d)
-            .sort((a, b) => b.getTime() - a.getTime());
+        // 2. Heatmap & Robust Streak Calculation from Ledger
+        const completedDatesSet = new Set<string>();
 
+        enrollments.forEach((e) => {
+            if (e.progress) {
+                e.progress.forEach((p) => {
+                    if (p.completed) {
+                        let dateStr = '';
+                        if (p.completedAt) {
+                            try {
+                                dateStr = format(parseISO(p.completedAt), 'yyyy-MM-dd');
+                            } catch (err) {}
+                        }
+                        if (!dateStr && e.started_at) {
+                            try {
+                                const startedDate = parseISO(e.started_at);
+                                const targetDate = new Date(startedDate.getTime() + (p.day - 1) * 24 * 60 * 60 * 1000);
+                                dateStr = format(targetDate, 'yyyy-MM-dd');
+                            } catch (err) {}
+                        }
+                        if (dateStr) {
+                            completedDatesSet.add(dateStr);
+                        }
+                    }
+                });
+            }
+
+            if (e.checkInHistory) {
+                e.checkInHistory.forEach((ch) => {
+                    if (ch.timestamp) {
+                        try {
+                            const dateStr = format(parseISO(ch.timestamp), 'yyyy-MM-dd');
+                            completedDatesSet.add(dateStr);
+                        } catch (err) {}
+                    }
+                });
+            }
+        });
+
+        const sortedDates = Array.from(completedDatesSet).sort();
         let currentStreak = 0;
-        if (completionDates.length > 0) {
-            let checkDate = new Date();
-            checkDate.setHours(0, 0, 0, 0);
-            
-            // Check if last completion was today or yesterday
-            const lastComp = new Date(completionDates[0]);
-            lastComp.setHours(0, 0, 0, 0);
-            
-            const diffDays = Math.floor((checkDate.getTime() - lastComp.getTime()) / (1000 * 60 * 60 * 24));
-            
-            if (diffDays <= 1) {
-                currentStreak = 1;
-                let lastDate = lastComp;
-                for (let i = 1; i < completionDates.length; i++) {
-                    const d = new Date(completionDates[i]);
-                    d.setHours(0, 0, 0, 0);
-                    const diff = Math.floor((lastDate.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+        let maxStreak = 0;
+
+        if (sortedDates.length > 0) {
+            let tempStreak = 1;
+            maxStreak = 1;
+
+            for (let i = 1; i < sortedDates.length; i++) {
+                try {
+                    const prev = parseISO(sortedDates[i - 1]);
+                    const curr = parseISO(sortedDates[i]);
+                    const diff = differenceInDays(curr, prev);
+
                     if (diff === 1) {
-                        currentStreak++;
-                        lastDate = d;
+                        tempStreak++;
+                        if (tempStreak > maxStreak) {
+                            maxStreak = tempStreak;
+                        }
                     } else if (diff > 1) {
+                        tempStreak = 1;
+                    }
+                } catch (err) {}
+            }
+
+            const today = new Date();
+            const todayStr = format(today, 'yyyy-MM-dd');
+            const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const yesterdayStr = format(yesterday, 'yyyy-MM-dd');
+
+            const hasToday = completedDatesSet.has(todayStr);
+            const hasYesterday = completedDatesSet.has(yesterdayStr);
+
+            if (hasToday || hasYesterday) {
+                let streakCount = 1;
+                let checkDate = hasToday ? today : yesterday;
+
+                while (true) {
+                    const prevDay = new Date(checkDate.getTime() - 24 * 60 * 60 * 1000);
+                    const prevDayStr = format(prevDay, 'yyyy-MM-dd');
+                    if (completedDatesSet.has(prevDayStr)) {
+                        streakCount++;
+                        checkDate = prevDay;
+                    } else {
                         break;
                     }
                 }
+                currentStreak = streakCount;
+            } else {
+                currentStreak = 0;
             }
         }
 
@@ -108,11 +168,18 @@ const GrowthDashboard: React.FC = () => {
         else if (growthScore > 20) level = "Seeker";
 
         // 4. Core Metrics
-        const last30Days = Array.from({ length: 30 }, (_, i) => subDays(new Date(), i));
-        const activeDaysLast30 = last30Days.filter(day => 
-            completionDates.some(cd => isSameDay(cd, day))
-        ).length;
-        const consistency = Math.round((activeDaysLast30 / 30) * 100);
+        const today = new Date();
+        let activeInLast30 = 0;
+        for (let i = 0; i < 30; i++) {
+            const d = new Date();
+            d.setDate(today.getDate() - i);
+            const dateStr = format(d, 'yyyy-MM-dd');
+            if (completedDatesSet.has(dateStr)) {
+                activeInLast30++;
+            }
+        }
+
+        const consistency = Math.round((activeInLast30 / 30) * 100);
 
         const startedSprints = enrollments.length;
         const fullyCompletedSprints = enrollments.filter(e => e.progress.every(p => p.completed)).length;
@@ -124,10 +191,13 @@ const GrowthDashboard: React.FC = () => {
             end: new Date()
         });
 
-        const chartData = weekDays.map(day => ({
-            name: format(day, 'EEE'),
-            count: completionDates.filter(cd => isSameDay(cd, day)).length
-        }));
+        const chartData = weekDays.map(day => {
+            const dateStr = format(day, 'yyyy-MM-dd');
+            return {
+                name: format(day, 'EEE'),
+                count: completedDatesSet.has(dateStr) ? 1 : 0
+            };
+        });
 
         // 6. Category Breakdown
         const categories = {
@@ -158,10 +228,13 @@ const GrowthDashboard: React.FC = () => {
             level,
             growthScore,
             currentStreak,
+            maxStreak,
             consistency,
+            activeInLast30,
             completionRate,
             chartData,
-            categories: normalizedCategories
+            categories: normalizedCategories,
+            completedDatesSet
         };
     }, [enrollments, sprints]);
 
@@ -169,19 +242,17 @@ const GrowthDashboard: React.FC = () => {
     const p = user as Participant;
 
     const MetricCard = ({ title, value, trend, insight, icon: Icon }: any) => (
-        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all">
+        <div className="flex-shrink-0 w-[210px] bg-white border border-gray-100 rounded-[2.25rem] p-5 shadow-sm snap-start hover:border-[#0E7850]/15 hover:shadow-md transition-all duration-300">
             <div className="flex justify-between items-start mb-4">
-                <div className="p-2 bg-gray-50 rounded-xl text-gray-400">
+                <div className="p-2.5 bg-[#0E7850]/5 rounded-xl text-[#0E7850]">
                     <Icon className="w-4 h-4" />
                 </div>
-                <div className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${
-                    trend === 'up' ? 'text-green-500' : trend === 'down' ? 'text-red-500' : 'text-gray-400'
-                }`}>
-                    {value}% {trend === 'up' ? <TrendingUp className="w-3 h-3" /> : trend === 'down' ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
+                <div className="text-[11px] font-black text-gray-900 bg-gray-50 border border-gray-100 px-2.5 py-0.5 rounded-lg">
+                    {value}%
                 </div>
             </div>
-            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{title}</h4>
-            <p className="text-xs font-medium text-gray-500 leading-tight">{insight}</p>
+            <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-wider mb-1">{title}</h4>
+            <p className="text-[11px] font-medium text-gray-500 leading-tight">{insight}</p>
         </div>
     );
 
@@ -254,37 +325,192 @@ const GrowthDashboard: React.FC = () => {
                             </div>
                         </section>
 
-                        {/* LAYER 2: DIRECTION */}
-                        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <MetricCard 
-                                title="Consistency" 
-                                value={analytics.consistency} 
-                                trend={analytics.consistency > 50 ? 'up' : 'down'}
-                                insight={analytics.consistency > 70 ? "Your daily rhythm is solidifying." : "Focus on showing up every day."}
-                                icon={Target}
-                            />
-                            <MetricCard 
-                                title="Completion" 
-                                value={analytics.completionRate} 
-                                trend={analytics.completionRate > 60 ? 'up' : 'down'}
-                                insight={analytics.completionRate > 80 ? "You finish what you start." : "Aim to close more open loops."}
-                                icon={Shield}
-                            />
-                            <MetricCard 
-                                title="Discipline" 
-                                value={Math.min(100, analytics.consistency + 10)} 
-                                trend="up"
-                                insight="Strong morning execution pattern."
-                                icon={Zap}
-                            />
-                            <MetricCard 
-                                title="Depth" 
-                                value={45} 
-                                trend="neutral"
-                                insight="Medium engagement with reflections."
-                                icon={Layers}
-                            />
-                        </section>
+                        {/* LAYER 2: DIRECTION (Sideways Swipeable Deck) */}
+                        <div>
+                            <div className="flex items-center justify-between mb-3 px-1">
+                                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cognitive & Execution Deck</h3>
+                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1 animate-pulse">
+                                    Swipe Sideways ➔
+                                </span>
+                            </div>
+
+                            <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory scrollbar-hidden">
+                                <MetricCard 
+                                    title="Consistency" 
+                                    value={analytics.consistency} 
+                                    trend={analytics.consistency > 50 ? 'up' : 'down'}
+                                    insight="Focus on showing up every day."
+                                    icon={Target}
+                                />
+                                <MetricCard 
+                                    title="Completion" 
+                                    value={analytics.completionRate} 
+                                    trend={analytics.completionRate > 60 ? 'up' : 'down'}
+                                    insight="Aim to close more open loops."
+                                    icon={Shield}
+                                />
+                                <MetricCard 
+                                    title="Discipline" 
+                                    value={Math.min(100, analytics.consistency + 17)} 
+                                    trend="up"
+                                    insight="Strong morning execution pattern."
+                                    icon={Zap}
+                                />
+                                <MetricCard 
+                                    title="Depth" 
+                                    value={45} 
+                                    trend="neutral"
+                                    insight="Medium engagement with reflections."
+                                    icon={Layers}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Streak & Consistency Ledger Section */}
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between px-1">
+                                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Streak & Consistency Ledger</h3>
+                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1 animate-pulse sm:hidden">
+                                    Swipe Sideways ➔
+                                </span>
+                            </div>
+
+                            <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory scrollbar-hidden">
+                                
+                                {/* Card 1: Current Active Streak */}
+                                <div className="flex-shrink-0 w-[270px] bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm snap-start relative overflow-hidden group hover:border-[#0E7850]/15 hover:shadow-md transition-all duration-300">
+                                    <div className="absolute right-4 top-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                        <Flame className="w-12 h-12 text-orange-600 fill-current" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                                            Current Active Streak
+                                        </p>
+                                        <p className="text-3xl font-black text-gray-950 tracking-tight">
+                                            {analytics.currentStreak} <span className="text-sm font-black text-gray-400 uppercase tracking-widest">Days</span>
+                                        </p>
+                                        <div className="mt-4 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-gradient-to-r from-orange-400 to-amber-500 rounded-full transition-all duration-1000"
+                                                style={{ width: `${Math.min(100, (analytics.currentStreak / 30) * 100)}%` }}
+                                            />
+                                        </div>
+                                        <p className="text-[8px] text-[#0E7850] font-black uppercase tracking-wide mt-3.5 pt-0.5">
+                                            {analytics.currentStreak >= 30 ? 'Elite habits established!' : `${30 - analytics.currentStreak} days to 30-day milestone`}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Card 2: All-Time Longest Streak */}
+                                <div className="flex-shrink-0 w-[270px] bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm snap-start relative overflow-hidden group hover:border-[#0E7850]/15 hover:shadow-md transition-all duration-300">
+                                    <div className="absolute right-4 top-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                        <Award className="w-12 h-12 text-yellow-600 fill-current" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                                            All-Time Longest Streak
+                                        </p>
+                                        <p className="text-3xl font-black text-gray-950 tracking-tight">
+                                            {analytics.maxStreak} <span className="text-sm font-black text-gray-400 uppercase tracking-widest">Days</span>
+                                        </p>
+                                        <div className="mt-4 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full transition-all duration-1000"
+                                                style={{ width: `${Math.min(100, (analytics.maxStreak / 30) * 100)}%` }}
+                                            />
+                                        </div>
+                                        <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wide mt-3.5 pt-0.5">
+                                            Maximum unbroken chain of execution
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Card 3: Past 30 Days Consistency */}
+                                <div className="flex-shrink-0 w-[270px] bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm snap-start relative overflow-hidden group hover:border-[#0E7850]/15 hover:shadow-md transition-all duration-300">
+                                    <div className="absolute right-4 top-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                        <TrendingUp className="w-12 h-12 text-[#0E7850]" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                                            Past 30 Days Consistency
+                                        </p>
+                                        <p className="text-3xl font-black text-gray-950 tracking-tight">
+                                            {analytics.consistency}%
+                                        </p>
+                                        <div className="mt-4 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-gradient-to-r from-emerald-400 to-[#0E7850] rounded-full transition-all duration-1000"
+                                                style={{ width: `${analytics.consistency}%` }}
+                                            />
+                                        </div>
+                                        <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wide mt-3.5 pt-0.5">
+                                            Completed tasks on {analytics.activeInLast30} of last 30 days
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 35-Day Heatmap Consistency Grid */}
+                            <div className="bg-white rounded-[2.5rem] border border-gray-100 p-6 md:p-8 shadow-sm">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 pb-4 border-b border-gray-50">
+                                    <div>
+                                        <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">35-Day Consistency Heatmap</h4>
+                                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider mt-0.5">Consecutive Task Completion Matrix</p>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-[9px] font-black text-gray-400 uppercase mt-2 sm:mt-0">
+                                        <span className="flex items-center gap-1">
+                                            <span className="w-2.5 h-2.5 rounded bg-gray-50 border border-gray-200" /> Inactive
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                            <span className="w-2.5 h-2.5 rounded bg-[#0E7850]" /> Task Completed
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-7 gap-3 text-center max-w-sm mx-auto">
+                                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((wd, i) => (
+                                        <span key={i} className="text-[9px] font-black text-gray-400 uppercase tracking-wider">
+                                            {wd}
+                                        </span>
+                                    ))}
+
+                                    {Array.from({ length: 35 }).map((_, idx) => {
+                                        const dateObj = new Date();
+                                        dateObj.setDate(new Date().getDate() - (34 - idx));
+                                        const dateStr = format(dateObj, 'yyyy-MM-dd');
+                                        const isCompleted = analytics.completedDatesSet.has(dateStr);
+                                        const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
+
+                                        return (
+                                            <div key={idx} className="flex flex-col items-center justify-center relative aspect-square group">
+                                                <div 
+                                                    className={`w-full max-w-[36px] aspect-square rounded-xl flex items-center justify-center font-black text-[10px] tracking-tight transition-all relative ${
+                                                        isCompleted 
+                                                            ? 'bg-[#0E7850] text-white shadow-sm shadow-[#0E7850]/20 scale-100 hover:scale-110 active:scale-95' 
+                                                            : isToday
+                                                                ? 'bg-white border-2 border-[#0E7850]/50 text-gray-700 font-black'
+                                                                : 'bg-gray-50 border border-gray-100 hover:border-gray-300 text-gray-400 font-medium'
+                                                    }`}
+                                                >
+                                                    {isCompleted ? (
+                                                        <span className="text-[8px] font-black">✓</span>
+                                                    ) : (
+                                                        <span>{format(dateObj, 'd')}</span>
+                                                    )}
+
+                                                    {isToday && (
+                                                        <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-orange-500 rounded-full border border-white animate-pulse" />
+                                                    )}
+                                                </div>
+                                                <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[8px] font-bold tracking-wider uppercase px-2 py-1 rounded shadow opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none whitespace-nowrap z-20">
+                                                    {format(dateObj, 'MMM d')} • {isCompleted ? 'Done' : 'Pending'}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
 
                         {/* LAYER 3: VISUAL MOMENTUM */}
                         <section className="bg-white rounded-[3rem] p-8 md:p-12 border border-gray-100 shadow-sm">
@@ -428,6 +654,13 @@ const GrowthDashboard: React.FC = () => {
                     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
                     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                     .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.05); border-radius: 10px; }
+                    .scrollbar-hidden::-webkit-scrollbar {
+                        display: none;
+                    }
+                    .scrollbar-hidden {
+                        -ms-overflow-style: none;
+                        scrollbar-width: none;
+                    }
                 `}</style>
             </div>
         </div>

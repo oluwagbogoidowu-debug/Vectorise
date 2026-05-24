@@ -1936,6 +1936,8 @@ const SprintView: React.FC = () => {
         isOpen={isCompletionModalOpen}
         onClose={() => navigate("/dashboard", { replace: true })}
         onStartNext={handleCompletionModalAction}
+        sprintTitle={sprint?.title}
+        streakCount={(user as any)?.impactStats?.streak || 0}
       />
       <PushPermissionModal
         isOpen={isPushPermissionModalOpen}

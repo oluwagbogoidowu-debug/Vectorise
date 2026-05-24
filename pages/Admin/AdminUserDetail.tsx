@@ -253,6 +253,16 @@ export default function AdminUserDetail() {
         }
     }
 
+    const completionRate = useMemo(() => {
+        const startedSprints = enrollments.length;
+        const fullyCompletedSprints = enrollments.filter(e => e.progress && e.progress.every(p => p.completed)).length;
+        return startedSprints > 0 ? Math.round((fullyCompletedSprints / startedSprints) * 100) : 0;
+    }, [enrollments]);
+
+    const disciplineValue = useMemo(() => {
+        return Math.min(100, streakStats.last30DaysConsistency + 17);
+    }, [streakStats.last30DaysConsistency]);
+
     const getSprintTitle = (sprintId: string) => {
         return sprints.find(s => s.id === sprintId)?.title || 'Unknown Sprint';
     };
@@ -455,6 +465,74 @@ export default function AdminUserDetail() {
                             </div>
                         </div>
 
+                    </div>
+                </div>
+
+                {/* Visual Cognitive & Execution Metrics */}
+                <div>
+                    <div className="flex items-center justify-between mb-3 px-1">
+                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cognitive & Execution Deck</h3>
+                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1 animate-pulse">
+                            Swipe Sideways ➔
+                        </span>
+                    </div>
+
+                    <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory scrollbar-hidden">
+                        {/* Card 1: Consistency */}
+                        <div className="flex-shrink-0 w-[210px] bg-white border border-gray-100 rounded-[2.25rem] p-5 shadow-sm snap-start hover:border-[#0E7850]/15 hover:shadow-md transition-all duration-300">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="p-2.5 bg-[#0E7850]/5 rounded-xl text-[#0E7850]">
+                                    <Target className="w-4 h-4" />
+                                </div>
+                                <div className="text-[11px] font-black text-gray-900 bg-gray-50 border border-gray-100 px-2.5 py-0.5 rounded-lg">
+                                    {streakStats.last30DaysConsistency}%
+                                </div>
+                            </div>
+                            <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-wider mb-1">Consistency</h4>
+                            <p className="text-[11px] font-medium text-gray-500 leading-tight">Focus on showing up every day.</p>
+                        </div>
+
+                        {/* Card 2: Completion */}
+                        <div className="flex-shrink-0 w-[210px] bg-white border border-gray-100 rounded-[2.25rem] p-5 shadow-sm snap-start hover:border-[#0E7850]/15 hover:shadow-md transition-all duration-300">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="p-2.5 bg-[#0E7850]/5 rounded-xl text-[#0E7850]">
+                                    <Award className="w-4 h-4" />
+                                </div>
+                                <div className="text-[11px] font-black text-gray-900 bg-gray-50 border border-gray-100 px-2.5 py-0.5 rounded-lg">
+                                    {completionRate}%
+                                </div>
+                            </div>
+                            <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-wider mb-1">Completion</h4>
+                            <p className="text-[11px] font-medium text-gray-500 leading-tight">Aim to close more open loops.</p>
+                        </div>
+
+                        {/* Card 3: Discipline */}
+                        <div className="flex-shrink-0 w-[210px] bg-white border border-gray-100 rounded-[2.25rem] p-5 shadow-sm snap-start hover:border-[#0E7850]/15 hover:shadow-md transition-all duration-300">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="p-2.5 bg-[#0E7850]/5 rounded-xl text-[#0E7850]">
+                                    <Zap className="w-4 h-4" />
+                                </div>
+                                <div className="text-[11px] font-black text-gray-900 bg-gray-50 border border-gray-100 px-2.5 py-0.5 rounded-lg">
+                                    {disciplineValue}%
+                                </div>
+                            </div>
+                            <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-wider mb-1">Discipline</h4>
+                            <p className="text-[11px] font-medium text-gray-500 leading-tight">Strong morning execution pattern.</p>
+                        </div>
+
+                        {/* Card 4: Depth */}
+                        <div className="flex-shrink-0 w-[210px] bg-white border border-gray-100 rounded-[2.25rem] p-5 shadow-sm snap-start hover:border-[#0E7850]/15 hover:shadow-md transition-all duration-300">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="p-2.5 bg-[#0E7850]/5 rounded-xl text-[#0E7850]">
+                                    <Clock className="w-4 h-4" />
+                                </div>
+                                <div className="text-[11px] font-black text-gray-900 bg-gray-50 border border-gray-100 px-2.5 py-0.5 rounded-lg">
+                                    45%
+                                </div>
+                            </div>
+                            <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-wider mb-1">Depth</h4>
+                            <p className="text-[11px] font-medium text-gray-500 leading-tight">Medium engagement with reflections.</p>
+                        </div>
                     </div>
                 </div>
 
