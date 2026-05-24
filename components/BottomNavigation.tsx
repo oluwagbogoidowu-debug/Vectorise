@@ -62,7 +62,7 @@ const BottomNavigation: React.FC = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 z-50 w-full bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] safe-area-pb">
+    <nav className="fixed bottom-0 left-0 z-50 w-full bg-white dark:bg-[#18181b] border-t border-gray-100 dark:border-zinc-800 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] safe-area-pb transition-colors duration-300">
       <div className="flex justify-around items-center h-20 max-w-lg mx-auto px-4">
         {navItems.map((item) => (
           <NavLink
@@ -70,7 +70,7 @@ const BottomNavigation: React.FC = () => {
             to={item.path}
             className={({ isActive }) =>
               `flex flex-col items-center justify-center w-full transition-all duration-300 ${
-                isActive ? 'text-[#0E7850]' : 'text-gray-400'
+                isActive ? 'text-[#0E7850]' : 'text-gray-400 dark:text-gray-500'
               }`
             }
           >

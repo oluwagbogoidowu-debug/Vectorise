@@ -81,6 +81,105 @@
         document.documentElement.classList.remove('dark');
       }
     </script>
+    <style>
+      /* Smooth transitions for theme toggling */
+      body, div, header, nav, section, p, h1, h2, h3, h4, h5, h6, span, button, a, input, textarea {
+        transition-property: background-color, border-color, text-color;
+        transition-duration: 200ms;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      /* Global dark mode overrides to force perfect dark mode on all layouts */
+      html.dark, html.dark body {
+        background-color: #121212 !important;
+        background: #121212 !important;
+        color: #f3f4f6 !important;
+      }
+
+      /* Base backgrounds for views */
+      html.dark #root,
+      html.dark .min-h-screen,
+      html.dark [class*="bg-[#FDFDFD]"],
+      html.dark [class*="bg-[#FAFAFA]"],
+      html.dark [class*="bg-light"] {
+        background-color: #121212 !important;
+        background: #121212 !important;
+      }
+
+      /* Universal card and item backgrounds */
+      html.dark .bg-white,
+      html.dark [class*="bg-white/"],
+      html.dark .bg-zinc-50 {
+        background-color: #1a1919 !important; /* Elegant slate-dark cards */
+      }
+
+      /* Sub backgrounds / inner gray boxes */
+      html.dark .bg-gray-50,
+      html.dark .bg-gray-50\/50,
+      html.dark .bg-emerald-50\/30,
+      html.dark .bg-primary\/5,
+      html.dark .bg-gray-100 {
+        background-color: #242427 !important; /* zinc-800 tint */
+      }
+
+      html.dark .bg-[#0E7850]\/5,
+      html.dark .bg-[#0E7850]\/10 {
+        background-color: rgba(14, 120, 80, 0.15) !important;
+      }
+
+      /* Borders */
+      html.dark .border-gray-50,
+      html.dark .border-gray-100,
+      html.dark .border-gray-200,
+      html.dark .border-gray-300,
+      html.dark .border-zinc-100,
+      html.dark .border-[#0E7850]\/10,
+      html.dark .border-primary\/10,
+      html.dark .border-emerald-100\/75,
+      html.dark .border-emerald-100 {
+        border-color: #27272a !important; /* zinc-800 style */
+      }
+
+      /* White / bold text color overrides */
+      html.dark .text-gray-950,
+      html.dark .text-gray-900,
+      html.dark .text-gray-800,
+      html.dark .text-gray-700,
+      html.dark .text-dark,
+      html.dark [class*="text-gray-900"],
+      html.dark [class*="text-gray-950"] {
+        color: #f3f4f6 !important; /* light off-white shade */
+      }
+
+      /* Medium / sub text colors */
+      html.dark .text-gray-600,
+      html.dark .text-gray-500 {
+        color: #a1a1aa !important; /* zinc-400 */
+      }
+
+      html.dark .text-gray-400 {
+        color: #71717a !important; /* zinc-500 */
+      }
+
+      /* Header and top & bottom Navigation */
+      html.dark header,
+      html.dark nav,
+      html.dark footer,
+      html.dark .bg-white\/80 {
+        background-color: #121212 !important;
+        border-color: #27272a !important;
+      }
+
+      /* SVGs and Icons inside text-gray */
+      html.dark .text-gray-400 svg,
+      html.dark .text-gray-300 svg {
+        color: #71717a !important;
+      }
+      
+      html.dark .text-gray-500 svg {
+        color: #a1a1aa !important;
+      }
+    </style>
 </head>
   <body class="bg-[#FDFDFD] dark:bg-[#121212] text-base text-gray-900 dark:text-gray-100 antialiased overflow-x-hidden transition-colors duration-300">
     <div id="root"></div>
