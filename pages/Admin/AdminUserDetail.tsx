@@ -5,6 +5,7 @@ import { sprintService } from '../../services/sprintService';
 import { Participant, ParticipantSprint, Sprint } from '../../types';
 import { ArrowLeft, Calendar, Mail, User as UserIcon, Zap, Target, Clock, AlertCircle } from 'lucide-react';
 import { format, differenceInDays, parseISO } from 'date-fns';
+import { UserStreakVisualizer } from '../../components/UserStreakVisualizer';
 
 export default function AdminUserDetail() {
     const { userId } = useParams<{ userId: string }>();
@@ -370,8 +371,11 @@ export default function AdminUserDetail() {
                         )}
                     </div>
 
-                    {/* Right Column: Sprint History */}
+                    {/* Right Column: Sprint History & Streaks */}
                     <div className="lg:col-span-2 space-y-8">
+                        {/* User Streak Visualization */}
+                        <UserStreakVisualizer enrollments={enrollments} />
+
                         <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm">
                             <div className="flex items-center justify-between mb-8">
                                 <div className="flex items-center gap-3">
