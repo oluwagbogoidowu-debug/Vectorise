@@ -28,7 +28,7 @@ import {
 import { format, subDays, isSameDay, eachDayOfInterval } from 'date-fns';
 
 const GrowthDashboard: React.FC = () => {
-    const { user } = useAuth();
+    const { user, mustVerifyEmail } = useAuth();
     const navigate = useNavigate();
     const [enrollments, setEnrollments] = useState<ParticipantSprint[]>([]);
     const [sprints, setSprints] = useState<Record<string, Sprint>>({});
@@ -198,7 +198,12 @@ const GrowthDashboard: React.FC = () => {
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Growth Profile</p>
                             <p className="text-sm font-black text-dark">{p.name}</p>
                         </div>
-                        <ArchetypeAvatar archetypeId={p.archetype} profileImageUrl={p.profileImageUrl} size="md" />
+                        <ArchetypeAvatar 
+                            archetypeId={p.archetype} 
+                            profileImageUrl={p.profileImageUrl} 
+                            size="md" 
+                            isVerified={!mustVerifyEmail || p.emailVerifiedConfirmed || p.emailVerifiedOverride} 
+                        />
                     </div>
                 </header>
 

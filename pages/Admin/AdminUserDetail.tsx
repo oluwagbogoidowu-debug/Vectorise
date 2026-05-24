@@ -177,12 +177,21 @@ export default function AdminUserDetail() {
                     <div className="lg:col-span-1 space-y-8">
                         <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm">
                             <div className="flex flex-col items-center text-center">
-                                <div className="h-32 w-32 rounded-[2rem] bg-gray-100 overflow-hidden border-4 border-white shadow-xl mb-6">
-                                    {user.profileImageUrl ? (
-                                        <img src={user.profileImageUrl} alt="" className="h-full w-full object-cover" />
-                                    ) : (
-                                        <div className="h-full w-full flex items-center justify-center text-gray-300 font-black text-4xl">
-                                            {user.name.charAt(0)}
+                                <div className="relative mb-6">
+                                    <div className="h-32 w-32 rounded-[2rem] bg-gray-100 overflow-hidden border-4 border-white shadow-xl">
+                                        {user.profileImageUrl ? (
+                                            <img src={user.profileImageUrl} alt="" className="h-full w-full object-cover" />
+                                        ) : (
+                                            <div className="h-full w-full flex items-center justify-center text-gray-300 font-black text-4xl">
+                                                {user.name.charAt(0)}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {(user.emailVerifiedConfirmed || user.emailVerifiedOverride) && (
+                                        <div className="absolute w-8 h-8 -top-2 -right-2 bg-[#0E7850] text-white rounded-full flex items-center justify-center ring-4 ring-white shadow-md z-10">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" className="w-[1.125rem] h-[1.125rem]">
+                                                <polyline points="20 6 9 17 4 12" />
+                                            </svg>
                                         </div>
                                     )}
                                 </div>

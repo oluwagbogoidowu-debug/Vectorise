@@ -13,7 +13,7 @@ import { ShinePost } from '../../types';
 import { MILESTONES } from '../../services/milestoneConstants';
 
 const Profile: React.FC = () => {
-  const { user, logout, updateProfile } = useAuth();
+  const { user, logout, updateProfile, mustVerifyEmail } = useAuth();
   const navigate = useNavigate();
   
   const [enrollments, setEnrollments] = useState<{ enrollment: ParticipantSprint; sprint: Sprint; coach: Coach | null }[]>([]);
@@ -336,6 +336,7 @@ const Profile: React.FC = () => {
                 archetypeId={p.archetype} 
                 profileImageUrl={p.profileImageUrl} 
                 size="xl" 
+                isVerified={!mustVerifyEmail || p.emailVerifiedConfirmed || p.emailVerifiedOverride}
               />
             </div>
             <div>

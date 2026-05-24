@@ -282,6 +282,9 @@ export interface User {
   role: UserRole;
   profileImageUrl: string;
   roleDefinitionId?: string;
+  emailVerifiedConfirmed?: boolean;
+  emailVerifiedOverride?: boolean;
+  emailVerified?: boolean;
 }
 
 export type UserNotificationState = 'New' | 'Active' | 'Pending' | 'Completed' | 'Inactive' | 'Dormant';

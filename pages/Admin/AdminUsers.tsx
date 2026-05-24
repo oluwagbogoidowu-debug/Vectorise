@@ -182,12 +182,21 @@ export default function AdminUsers() {
                             >
                                 <td className="px-8 py-6">
                                     <div className="flex items-center gap-4">
-                                        <div className="h-10 w-10 rounded-xl bg-gray-100 flex-shrink-0 overflow-hidden border border-gray-100">
-                                            {user.profileImageUrl ? (
-                                                <img src={user.profileImageUrl} alt="" className="h-full w-full object-cover" />
-                                            ) : (
-                                                <div className="h-full w-full flex items-center justify-center text-gray-400 font-black text-sm">
-                                                    {user.name.charAt(0)}
+                                        <div className="relative h-10 w-10 flex-shrink-0">
+                                            <div className="h-full w-full rounded-xl bg-gray-100 overflow-hidden border border-gray-100">
+                                                {user.profileImageUrl ? (
+                                                    <img src={user.profileImageUrl} alt="" className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <div className="h-full w-full flex items-center justify-center text-gray-400 font-black text-sm">
+                                                        {user.name.charAt(0)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {(user.emailVerifiedConfirmed || user.emailVerifiedOverride) && (
+                                                <div className="absolute w-3.5 h-3.5 -top-1 -right-1 bg-[#0E7850] text-white rounded-full flex items-center justify-center ring-1 ring-white shadow-sm z-10">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
+                                                        <polyline points="20 6 9 17 4 12" />
+                                                    </svg>
                                                 </div>
                                             )}
                                         </div>
@@ -266,12 +275,21 @@ export default function AdminUsers() {
                         className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-4 cursor-pointer active:scale-[0.98] transition-transform"
                     >
                         <div className="flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-2xl bg-gray-100 flex-shrink-0 overflow-hidden border border-gray-100">
-                                {user.profileImageUrl ? (
-                                    <img src={user.profileImageUrl} alt="" className="h-full w-full object-cover" />
-                                ) : (
-                                    <div className="h-full w-full flex items-center justify-center text-gray-400 font-black text-lg">
-                                        {user.name.charAt(0)}
+                            <div className="relative h-12 w-12 flex-shrink-0">
+                                <div className="h-full w-full rounded-2xl bg-gray-100 overflow-hidden border border-gray-100">
+                                    {user.profileImageUrl ? (
+                                        <img src={user.profileImageUrl} alt="" className="h-full w-full object-cover" />
+                                    ) : (
+                                        <div className="h-full w-full flex items-center justify-center text-gray-400 font-black text-lg">
+                                            {user.name.charAt(0)}
+                                        </div>
+                                    )}
+                                </div>
+                                {(user.emailVerifiedConfirmed || user.emailVerifiedOverride) && (
+                                    <div className="absolute w-4 h-4 -top-1 -right-1 bg-[#0E7850] text-white rounded-full flex items-center justify-center ring-2 ring-white shadow-sm z-10">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
+                                            <polyline points="20 6 9 17 4 12" />
+                                        </svg>
                                     </div>
                                 )}
                             </div>
