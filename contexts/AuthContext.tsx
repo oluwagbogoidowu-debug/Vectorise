@@ -11,6 +11,7 @@ type AuthContextType = {
   user: User | Coach | Participant | Admin | null;
   activeRole: UserRole; // The currently active view mode (Member vs Coach)
   loading: boolean; // Added loading state
+  mustVerifyEmail: boolean; // Track if the user needs email verification
   login: (userIdOrEmail: string) => boolean; // Kept for legacy/mock compatibility
   signup: (newUser: Participant | Coach) => void;
   logout: () => Promise<void>;
@@ -29,6 +30,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | Coach | Participant | Admin | null>(null);
   const [activeRole, setActiveRole] = useState<UserRole>(UserRole.PARTICIPANT);
   const [loading, setLoading] = useState(true);
+  const [mustVerifyEmail, setMustVerifyEmail] = useState(false);
   const [forceTrigger, setForceTrigger] = useState(0);
 
   // Listen for Firebase Auth changes
@@ -42,11 +44,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       if (firebaseUser) {
-        if (!firebaseUser.emailVerified) {
-          setUser(null);
-          setLoading(false);
-          return;
-        }
+        // Expose emailVerified status
+        setMustVerifyEmail(!firebaseUser.emailVerified);
 
         setLoading(true);
         const userRef = doc(db, 'users', firebaseUser.uid);
@@ -55,6 +54,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           try {
             if (docSnap.exists()) {
               let dbUser = sanitizeData(docSnap.data()) as User | Participant | Coach;
+
+              // Override verification status if verified via 6-digit code in Firestore
+              if (docSnap.data()?.emailVerifiedOverride) {
+                setMustVerifyEmail(false);
+              }
 
               // Automatic Role Healing/Recovery for the owner/admin
               if (dbUser.email && dbUser.email.toLowerCase().trim() === 'vectorise.io@gmail.com' && dbUser.role !== UserRole.ADMIN) {
@@ -252,6 +256,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (auth.currentUser) {
       await auth.currentUser.reload();
       if (auth.currentUser.emailVerified) {
+        setMustVerifyEmail(false);
         setForceTrigger(prev => prev + 1);
         return true;
       }
@@ -260,7 +265,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ user, activeRole, loading, login, signup, logout, forgotPassword, hasPermission, switchRole, completeCoachOnboarding, updateProfile, deleteAccount, checkVerification }}>
+    <AuthContext.Provider value={{ user, activeRole, loading, mustVerifyEmail, login, signup, logout, forgotPassword, hasPermission, switchRole, completeCoachOnboarding, updateProfile, deleteAccount, checkVerification }}>
       {children}
     </AuthContext.Provider>
   );
