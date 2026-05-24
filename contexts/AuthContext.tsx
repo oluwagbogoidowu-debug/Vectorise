@@ -3,7 +3,7 @@ import { User, Coach, Participant, Admin, Permission, UserRole } from '../types'
 import { MOCK_USERS, MOCK_ROLES } from '../services/mockData';
 import { auth } from '../services/firebase';
 import { onAuthStateChanged, signOut, deleteUser as firebaseDeleteUser, sendPasswordResetEmail } from 'firebase/auth';
-import { onSnapshot, doc } from 'firebase/firestore';
+import { onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { userService, sanitizeData } from '../services/userService';
 
@@ -44,8 +44,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       if (firebaseUser) {
-        // Expose emailVerified status
-        setMustVerifyEmail(!firebaseUser.emailVerified);
+        // Expose emailVerified status helper
+        const isGoogleUser = firebaseUser.providerData.some(p => p.providerId === 'google.com');
+        setMustVerifyEmail(!isGoogleUser && !firebaseUser.emailVerified);
 
         setLoading(true);
         const userRef = doc(db, 'users', firebaseUser.uid);
@@ -55,9 +56,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (docSnap.exists()) {
               let dbUser = sanitizeData(docSnap.data()) as User | Participant | Coach;
 
-              // Override verification status if verified via 6-digit code in Firestore
-              if (docSnap.data()?.emailVerifiedOverride) {
+              const isGoogle = firebaseUser.providerData.some(p => p.providerId === 'google.com');
+              const isDbVerified = docSnap.data()?.emailVerifiedConfirmed || docSnap.data()?.emailVerifiedOverride;
+
+              if (isGoogle || isDbVerified) {
                 setMustVerifyEmail(false);
+              } else {
+                setMustVerifyEmail(true);
               }
 
               // Automatic Role Healing/Recovery for the owner/admin
@@ -256,6 +261,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (auth.currentUser) {
       await auth.currentUser.reload();
       if (auth.currentUser.emailVerified) {
+        try {
+          const userRef = doc(db, 'users', auth.currentUser.uid);
+          await updateDoc(userRef, {
+            emailVerifiedConfirmed: true
+          });
+        } catch (e) {
+          console.error("Failed to write verification confirmation field to firestore", e);
+        }
         setMustVerifyEmail(false);
         setForceTrigger(prev => prev + 1);
         return true;

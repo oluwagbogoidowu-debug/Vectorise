@@ -1,48 +1,114 @@
-
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import Button from '../../components/Button';
+import React, { useState } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { sendEmailVerification } from 'firebase/auth';
+import { auth } from '../../services/firebase';
+import { toast as alertToast } from 'sonner';
 
 const VerifyEmailPage: React.FC = () => {
-  const location = useLocation();
-  const email = location.state?.email || 'your email address';
-  const targetEnrollmentId = location.state?.targetEnrollmentId;
-  const isCoach = location.state?.isCoach;
+  const { user, mustVerifyEmail, loading, checkVerification, logout } = useAuth();
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [isResendingLink, setIsResendingLink] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#FAFAFA]">
+        <div className="w-10 h-10 border-4 border-[#0E7850] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  // If no user is logged in, redirect them to login page
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // If email is already verified and confirmed, redirect them to the dashboard
+  if (!mustVerifyEmail) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  const handleResendOverlayMail = async () => {
+    if (auth.currentUser) {
+      setIsResendingLink(true);
+      try {
+        await sendEmailVerification(auth.currentUser);
+        alertToast.success("Verification link resent to your email.");
+      } catch (err) {
+        alertToast.error("Failed to resend. Please try again in a moment.");
+      } finally {
+        setIsResendingLink(false);
+      }
+    }
+  };
+
+  const handleIHaveClickedLink = async () => {
+    setVerifyingCode(true);
+    try {
+      const isVerified = await checkVerification();
+      if (isVerified) {
+        alertToast.success("Email verified successfully! Welcome.");
+      } else {
+        alertToast.error("We checked, but the link hasn't been verified in your inbox yet!");
+      }
+    } catch (err) {
+      console.error(err);
+      alertToast.error("Failed to check status.");
+    } finally {
+      setVerifyingCode(false);
+    }
+  };
 
   return (
     <div className="h-[100dvh] w-screen bg-[#FAFAFA] flex items-center justify-center px-6 overflow-hidden">
-      <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] border border-gray-50 p-8 text-center animate-fade-in">
-        <div className="w-16 h-16 bg-primary/5 text-primary rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-        </div>
+      <div className="w-full max-w-sm bg-white rounded-[2.5rem] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] border border-gray-100 p-8 sm:p-10 text-center animate-fade-in relative max-h-[90vh] overflow-y-auto">
         
-        <h2 className="text-xl font-black text-gray-900 mb-2 tracking-tight leading-none">Registry Verification</h2>
-        
-        <p className="text-gray-500 text-sm mb-6 leading-relaxed font-medium">
-          Sent to <br/>
-          <span className="text-primary font-bold italic">{email}</span>
-        </p>
-        
-        <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 mb-8 text-[11px] text-gray-400 font-medium leading-relaxed italic">
-            {isCoach ? (
-                "Verification is required for registry review. We will contact you regarding status via this email."
-            ) : (
-                "Please verify your link to secure your path. You'll be ready to start immediately after login."
-            )}
+        <div className="w-16 h-16 bg-primary/5 text-primary rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-[#0E7850]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
         </div>
 
-        <Link to="/login" state={{ targetEnrollmentId }} className="w-full block">
-            <Button className="w-full py-3.5 text-[10px] font-black uppercase tracking-widest rounded-full shadow-lg shadow-primary/10 transition-transform active:scale-95">
-                Ready to Log In
-            </Button>
-        </Link>
-        
-        <div className="mt-6 pt-6 border-t border-gray-50">
-            <p className="text-[9px] text-gray-300 font-black uppercase tracking-[0.2em]">
-                Nothing arrived? <Link to={isCoach ? "/onboarding/coach/welcome" : "/onboarding/welcome"} className="text-primary hover:underline ml-1">Restart</Link>
-            </p>
+        <h2 className="text-2xl font-black text-gray-900 mb-2 tracking-tight uppercase leading-none">Verify Your Email</h2>
+        <p className="text-gray-500 text-xs mb-6 font-medium">
+          We've sent a portal link to:<br/>
+          <span className="text-primary font-black italic break-all">{user.email}</span>
+        </p>
+
+        <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6 text-[10px] text-gray-400 font-bold leading-relaxed uppercase tracking-widest text-center">
+          Click the link and you will be automatically verified
+        </div>
+
+        <div className="space-y-3">
+          <button 
+            type="button"
+            disabled={verifyingCode}
+            onClick={handleIHaveClickedLink}
+            className="w-full py-3.5 bg-primary text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg transition-transform active:scale-95 disabled:opacity-50"
+          >
+            {verifyingCode ? 'Checking verification...' : "I've clicked the link"}
+          </button>
+
+          <div className="flex justify-between gap-4 pt-4 mt-2 border-t border-gray-100">
+            <button 
+              type="button"
+              disabled={isResendingLink}
+              onClick={handleResendOverlayMail}
+              className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline disabled:opacity-50"
+            >
+              {isResendingLink ? 'Sending Link...' : 'Resend Email'}
+            </button>
+
+            <button 
+              type="button"
+              onClick={async () => {
+                await logout();
+              }}
+              className="text-[9px] font-black text-red-500 uppercase tracking-widest hover:underline"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
       
