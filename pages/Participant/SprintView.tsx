@@ -1793,7 +1793,7 @@ const SprintView: React.FC = () => {
                   )}
                 </div>
 
-                {enrollment.checkInReminderEnabled &&
+                {sprint.checkInReminder && enrollment.checkInReminderEnabled &&
                   viewingDay === sprint.duration && (
                     <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm animate-fade-in mt-6">
                       <div className="flex justify-between items-start mb-6">

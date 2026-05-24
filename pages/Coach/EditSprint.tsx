@@ -845,6 +845,8 @@ const EditSprint: React.FC = () => {
       pricingType: editSettings.pricingType,
       duration: editSettings.duration,
       outcomeTag: editSettings.outcomeTag,
+      checkInReminder: editSettings.checkInReminder || false,
+      checkInReminderDays: editSettings.checkInReminderDays || 7,
     };
 
     // Handle duration change by adjusting dailyContent array
@@ -1665,7 +1667,7 @@ const EditSprint: React.FC = () => {
                             if (section.id === 'completion') {
                                 return (
                                     <section key={section.id} className="space-y-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
-                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Completion Assets</h4>
+                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Completion Assets & End reminders</h4>
                                         <div className="space-y-6">
                                             <div>
                                                 <label className={labelClasses}>Archive Outcome Tag</label>
@@ -1679,6 +1681,40 @@ const EditSprint: React.FC = () => {
                                                     ))}
                                                 </select>
                                                 <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">This appears as the badge on completed sprint cards.</p>
+                                            </div>
+
+                                            <div className="pt-6 border-t border-gray-100 space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest block mb-1">Daily Check-in Reminder</label>
+                                                        <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mb-1">Enable to stay consistent after the sprint on the last day</p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEditSettings({...editSettings, checkInReminder: !editSettings.checkInReminder})}
+                                                        className={`w-12 h-6 rounded-full transition-all duration-300 relative ${editSettings.checkInReminder ? "bg-primary shadow-lg shadow-primary/20 animate-pulse" : "bg-gray-200"}`}
+                                                    >
+                                                        <div
+                                                            className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${editSettings.checkInReminder ? "right-1" : "left-1"}`}
+                                                        />
+                                                    </button>
+                                                </div>
+
+                                                {editSettings.checkInReminder && (
+                                                    <div className="animate-fade-in space-y-2 pt-2">
+                                                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block">Active Duration (Days)</label>
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            max={30}
+                                                            value={editSettings.checkInReminderDays || 7}
+                                                            onChange={e => setEditSettings({...editSettings, checkInReminderDays: Math.max(1, Number(e.target.value))})}
+                                                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary"
+                                                            placeholder="7"
+                                                        />
+                                                        <p className="text-[8px] text-gray-400 font-medium uppercase tracking-widest leading-relaxed">Number of days the check-in stays active after the sprint completes.</p>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </section>
