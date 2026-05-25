@@ -1115,9 +1115,8 @@ const EditSprint: React.FC = () => {
                                                         <div className="flex p-0.5 bg-gray-100 rounded-lg">
                                                             <button 
                                                                 type="button"
-                                                                onClick={() => !isLinkedFromPrevious && handleTaskPromptTypeChange(index, 'text')}
-                                                                disabled={isLinkedFromPrevious}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                                                                onClick={() => handleTaskPromptTypeChange(index, 'text')}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                                                             >
                                                                 Text
                                                             </button>
@@ -1131,9 +1130,8 @@ const EditSprint: React.FC = () => {
                                                             </button>
                                                             <button 
                                                                 type="button"
-                                                                onClick={() => !isLinkedFromPrevious && handleTaskPromptTypeChange(index, 'poll')}
-                                                                disabled={isLinkedFromPrevious}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                                                                onClick={() => handleTaskPromptTypeChange(index, 'poll')}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                                                             >
                                                                 Poll
                                                             </button>

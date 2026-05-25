@@ -624,6 +624,68 @@ const SprintView: React.FC = () => {
     ? sprint?.dailyContent.find((dc) => dc.day === viewingDay)
     : undefined;
 
+  const getLinkedTagsForStep = (stepIndex: number): string[] => {
+    if (!dayContent) return [];
+    let linkedSourceIndex = -1;
+    for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
+      const isLinked = 
+        dayContent.taskLinkedToNext?.[prevIndex] === true ||
+        (dayContent.taskLinkedToNext?.[prevIndex] as any) === "true";
+      if (isLinked) {
+        const inputType = String(
+          dayContent.taskInputTypes?.[prevIndex] || ""
+        ).trim().toLowerCase();
+        if (inputType === "tags") {
+          linkedSourceIndex = prevIndex;
+          break;
+        }
+      }
+    }
+    // Robust fallback
+    if (linkedSourceIndex === -1) {
+      for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
+        const inputType = String(
+          dayContent.taskInputTypes?.[prevIndex] || ""
+        ).trim().toLowerCase();
+        if (inputType === "tags") {
+          linkedSourceIndex = prevIndex;
+          break;
+        }
+      }
+    }
+
+    if (linkedSourceIndex !== -1 && taskInputs[linkedSourceIndex]) {
+      try {
+        const val = taskInputs[linkedSourceIndex];
+        if (val.startsWith("[")) {
+          return JSON.parse(val);
+        } else {
+          return val.split(",").filter(Boolean);
+        }
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const isLinkedTextStep = (stepIndex: number): boolean => {
+    if (!dayContent) return false;
+    if (dayContent.taskInputTypes?.[stepIndex] !== "text") return false;
+    
+    // It's linked if the step before it says taskLinkedToNext === true
+    if (stepIndex > 0) {
+      const prevLinked = dayContent.taskLinkedToNext?.[stepIndex - 1];
+      if (prevLinked === true || (prevLinked as any) === "true") {
+        const prevInputType = dayContent.taskInputTypes?.[stepIndex - 1];
+        if (prevInputType === "tags") {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
   const dayProgress = enrollment?.progress?.find((p) => p.day === viewingDay);
 
   useEffect(() => {
@@ -1097,7 +1159,24 @@ const SprintView: React.FC = () => {
       dayContent.taskPrompts?.filter((p) => p && p.trim()) || [];
     if (activePrompts.length === 0) return true;
 
-    return activePrompts.every((_, i) => taskInputs[i]?.trim().length > 0);
+    return activePrompts.every((_, i) => {
+      const val = taskInputs[i];
+      if (!val) return false;
+      
+      if (isLinkedTextStep(i)) {
+        const tags = getLinkedTagsForStep(i);
+        if (tags.length > 0) {
+          try {
+            if (!val.startsWith("{")) return false;
+            const parsed = JSON.parse(val);
+            return tags.every(t => parsed[t] && parsed[t].trim().length > 0);
+          } catch (e) {
+            return false;
+          }
+        }
+      }
+      return val.trim().length > 0;
+    });
   }, [dayContent, taskInputs]);
 
   const handleQuickComplete = () => {
@@ -1492,18 +1571,56 @@ const SprintView: React.FC = () => {
                                         );
                                     })()}
                                   </div>
-                                ) : (
-                                  <AutoGrowingTextarea
-                                    value={taskInputs[i] || ""}
-                                    onChange={(val) => {
-                                      const newInputs = [...taskInputs];
-                                      newInputs[i] = val;
-                                      setTaskInputs(newInputs);
-                                    }}
-                                    placeholder="What's on your mind..."
-                                    className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none animate-fade-in"
-                                  />
-                                ))}
+                                  ) : isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
+                                    <div className="space-y-4 animate-fade-in text-left">
+                                      {getLinkedTagsForStep(i).map((tag, tagIndex) => {
+                                        let currentAnswers: Record<string, string> = {};
+                                        if (taskInputs[i]) {
+                                          try {
+                                            if (taskInputs[i].startsWith("{")) {
+                                              currentAnswers = JSON.parse(taskInputs[i]);
+                                            } else {
+                                              currentAnswers = { [getLinkedTagsForStep(i)[0] || "default"]: taskInputs[i] };
+                                            }
+                                          } catch (e) {
+                                            currentAnswers = {};
+                                          }
+                                        }
+                                        const tagVal = currentAnswers[tag] || "";
+                                        return (
+                                          <div key={tagIndex} className="space-y-1.5 pl-3 border-l-2 border-primary/20">
+                                            <div className="flex items-center">
+                                              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
+                                                🏷️ {tag}
+                                              </span>
+                                            </div>
+                                            <AutoGrowingTextarea
+                                              value={tagVal}
+                                              onChange={(val) => {
+                                                const newAnswers = { ...currentAnswers, [tag]: val };
+                                                const newInputs = [...taskInputs];
+                                                newInputs[i] = JSON.stringify(newAnswers);
+                                                setTaskInputs(newInputs);
+                                              }}
+                                              placeholder={`Your answer for ${tag}...`}
+                                              className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                                            />
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <AutoGrowingTextarea
+                                      value={taskInputs[i] || ""}
+                                      onChange={(val) => {
+                                        const newInputs = [...taskInputs];
+                                        newInputs[i] = val;
+                                        setTaskInputs(newInputs);
+                                      }}
+                                      placeholder="What's on your mind..."
+                                      className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none animate-fade-in"
+                                    />
+                                  ))}
                               {dayProgress?.completed && (
                                 <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex gap-2 overflow-hidden flex-wrap w-full items-center">
                                   <svg
@@ -1534,7 +1651,29 @@ const SprintView: React.FC = () => {
                                           {tag}
                                         </span>
                                       ))
-                                    : taskInputs[i] || "Completed"}
+                                    : isLinkedTextStep(i) && taskInputs[i]?.startsWith("{") ? (
+                                      <div className="space-y-2 w-full text-left font-medium">
+                                        {(() => {
+                                          try {
+                                            const parsed = JSON.parse(taskInputs[i]);
+                                            return Object.entries(parsed).map(([tag, ans], idx) => (
+                                              <div key={idx} className="flex flex-col gap-1 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary self-start uppercase tracking-wider">
+                                                  🏷️ {tag}
+                                                </span>
+                                                <p className="text-gray-700 font-medium text-xs pl-1">
+                                                  {ans as string}
+                                                </p>
+                                              </div>
+                                            ));
+                                          } catch (e) {
+                                            return taskInputs[i];
+                                          }
+                                        })()}
+                                      </div>
+                                    ) : (
+                                      taskInputs[i] || "Completed"
+                                    )}
                                 </div>
                               )}
                               {!dayProgress?.completed && (
@@ -1561,12 +1700,34 @@ const SprintView: React.FC = () => {
                                       const isTags =
                                         dayContent.taskInputTypes?.[i] ===
                                         "tags";
+                                      
+                                      let stepCompleted = false;
+                                      if (!!val) {
+                                        if (isTags) {
+                                          stepCompleted = val !== "[]" && val !== "";
+                                        } else if (isLinkedTextStep(i)) {
+                                          const tags = getLinkedTagsForStep(i);
+                                          if (tags.length > 0) {
+                                            try {
+                                              if (val.startsWith("{")) {
+                                                const parsed = JSON.parse(val);
+                                                stepCompleted = tags.every(t => parsed[t] && parsed[t].trim().length > 0);
+                                              } else {
+                                                stepCompleted = false;
+                                              }
+                                            } catch (e) {
+                                              stepCompleted = false;
+                                            }
+                                          } else {
+                                            stepCompleted = val.trim().length > 0;
+                                          }
+                                        } else {
+                                          stepCompleted = val.trim().length > 0;
+                                        }
+                                      }
+
                                       const isValid =
-                                        !!dayProgress?.completed ||
-                                        (!!val &&
-                                          (isTags
-                                            ? val !== "[]" && val !== ""
-                                            : val.trim().length > 0));
+                                        !!dayProgress?.completed || stepCompleted;
                                       return (
                                         <button
                                           type="button"

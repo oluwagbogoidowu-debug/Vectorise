@@ -228,6 +228,68 @@ const SprintPreview: React.FC = () => {
 
     const day1Content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
 
+    const getLinkedTagsForStep = (stepIndex: number): string[] => {
+        if (!day1Content) return [];
+        let linkedSourceIndex = -1;
+        for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
+            const isLinked = 
+                day1Content.taskLinkedToNext?.[prevIndex] === true ||
+                (day1Content.taskLinkedToNext?.[prevIndex] as any) === "true";
+            if (isLinked) {
+                const inputType = String(
+                    day1Content.taskInputTypes?.[prevIndex] || ""
+                ).trim().toLowerCase();
+                if (inputType === "tags") {
+                    linkedSourceIndex = prevIndex;
+                    break;
+                }
+            }
+        }
+        // Robust fallback
+        if (linkedSourceIndex === -1) {
+            for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
+                const inputType = String(
+                    day1Content.taskInputTypes?.[prevIndex] || ""
+                ).trim().toLowerCase();
+                if (inputType === "tags") {
+                    linkedSourceIndex = prevIndex;
+                    break;
+                }
+            }
+        }
+
+        if (linkedSourceIndex !== -1 && taskInputs[linkedSourceIndex]) {
+            try {
+                const val = taskInputs[linkedSourceIndex];
+                if (val.startsWith("[")) {
+                    return JSON.parse(val);
+                } else {
+                    return val.split(",").filter(Boolean);
+                }
+            } catch (e) {
+                return [];
+            }
+        }
+        return [];
+    };
+
+    const isLinkedTextStep = (stepIndex: number): boolean => {
+        if (!day1Content) return false;
+        if (day1Content.taskInputTypes?.[stepIndex] !== "text") return false;
+        
+        // It's linked if the step before it says taskLinkedToNext === true
+        if (stepIndex > 0) {
+            const prevLinked = day1Content.taskLinkedToNext?.[stepIndex - 1];
+            if (prevLinked === true || (prevLinked as any) === "true") {
+                const prevInputType = day1Content.taskInputTypes?.[stepIndex - 1];
+                if (prevInputType === "tags") {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
     return (
         <div className="w-full bg-[#FAFAFA] min-h-screen flex flex-col font-sans text-dark animate-fade-in pb-24">
             <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
@@ -442,7 +504,46 @@ const SprintPreview: React.FC = () => {
                                                 })()}
                                             </div>
                                         ) : (
-                                            <AutoGrowingTextarea 
+                                            isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
+                                                 <div className="space-y-4 animate-fade-in text-left mb-4">
+                                                     {getLinkedTagsForStep(i).map((tag, tagIndex) => {
+                                                         let currentAnswers: Record<string, string> = {};
+                                                         if (taskInputs[i]) {
+                                                             try {
+                                                                 if (taskInputs[i].startsWith("{")) {
+                                                                     currentAnswers = JSON.parse(taskInputs[i]);
+                                                                 } else {
+                                                                     currentAnswers = { [getLinkedTagsForStep(i)[0] || "default"]: taskInputs[i] };
+                                                                 }
+                                                             } catch (e) {
+                                                                 currentAnswers = {};
+                                                             }
+                                                         }
+                                                         const tagVal = currentAnswers[tag] || "";
+                                                         return (
+                                                             <div key={tagIndex} className="space-y-1.5 pl-3 border-l-2 border-primary/20">
+                                                                 <div className="flex items-center">
+                                                                     <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
+                                                                         🏷️ {tag}
+                                                                     </span>
+                                                                 </div>
+                                                                 <AutoGrowingTextarea
+                                                                     value={tagVal}
+                                                                     onChange={(val) => {
+                                                                         const newAnswers = { ...currentAnswers, [tag]: val };
+                                                                         const newInputs = [...taskInputs];
+                                                                         newInputs[i] = JSON.stringify(newAnswers);
+                                                                         setTaskInputs(newInputs);
+                                                                     }}
+                                                                     placeholder={`Your answer for ${tag}...`}
+                                                                     className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                                                                 />
+                                                             </div>
+                                                         );
+                                                     })}
+                                                 </div>
+                                             ) : (
+                                                 <AutoGrowingTextarea 
                                                 value={taskInputs[i] || ''}
                                                 onChange={(val) => {
                                                     const newInputs = [...taskInputs];
@@ -450,10 +551,9 @@ const SprintPreview: React.FC = () => {
                                                     setTaskInputs(newInputs);
                                                 }}
                                                 placeholder="What's on your mind..."
-                                                className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all mb-4 resize-none"
-                                            />
-                                        )}
-                                        
+                                                 className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all mb-4 resize-none"
+                                             />
+                                         ))}
                                         <div className="flex justify-between items-center gap-4 pt-4">
                                             {i > 0 ? (
                                                 <button
@@ -470,7 +570,28 @@ const SprintPreview: React.FC = () => {
                                                 onClick={() => {
                                                     const isTags = day1Content?.taskInputTypes?.[i] === "tags";
                                                     const val = taskInputs[i];
-                                                    const isValid = val && (isTags ? (val !== "[]" && val !== "") : val.trim().length > 0);
+                                                    let isValid = false;
+                                                    if (val) {
+                                                        if (isTags) {
+                                                            isValid = val !== "[]" && val !== "";
+                                                        } else if (isLinkedTextStep(i)) {
+                                                            const tags = getLinkedTagsForStep(i);
+                                                            if (tags.length > 0) {
+                                                                try {
+                                                                    if (val.startsWith("{")) {
+                                                                        const parsed = JSON.parse(val);
+                                                                        isValid = tags.every(t => parsed[t] && parsed[t].trim().length > 0);
+                                                                    }
+                                                                } catch (e) {
+                                                                    isValid = false;
+                                                                }
+                                                            } else {
+                                                                isValid = val.trim().length > 0;
+                                                            }
+                                                        } else {
+                                                            isValid = val.trim().length > 0;
+                                                        }
+                                                    }
                                                     if (!isValid) {
                                                         toast.error("Please provide an answer to continue.");
                                                         return;
