@@ -105,116 +105,38 @@ const AchievementShareModal: React.FC<AchievementShareModalProps> = ({
         
         // Handle image loading
         bgImg.onload = () => {
-            // 1. Draw downloaded background image
+            // Draw background image exactly as it is
             ctx.drawImage(bgImg, 0, 0, 1080, 1080);
 
-            // Add subtle premium overlay mask to ensure typography pop
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-            ctx.fillRect(0, 0, 1080, 1080);
+            // Add standard/subtle premium drop shadows for readability to prevent dark overlays
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+            ctx.shadowBlur = 12;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
 
-            // 2. Vectorise Watermark Logo Design at top/center
-            // Draw double interlocking circle watermark path
-            ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(540, 130, 32, 0, Math.PI * 2);
-            ctx.stroke();
-
-            ctx.strokeStyle = 'rgba(252, 211, 77, 0.3)';
-            ctx.beginPath();
-            ctx.arc(540, 142, 32, 0, Math.PI * 2);
-            ctx.stroke();
-
-            // Watermark Logo Text
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = 'black 900 24px system-ui, -apple-system, sans-serif';
+            // Top Center: "VECTORISE" (small, clean, green accent)
+            ctx.fillStyle = '#10B981'; // Green accent
+            ctx.font = '700 24px system-ui, -apple-system, sans-serif';
             ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
             ctx.letterSpacing = '12px';
-            ctx.fillText('VECTORISE', 546, 210);
+            ctx.fillText('VECTORISE', 540, 120);
 
-            // Subtle sub-watermark line
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-            ctx.font = 'bold 11px ui-monospace, SFMono-Regular, monospace';
-            ctx.letterSpacing = '6px';
-            ctx.fillText('HABIT ARCHITECTURE PLATFORM', 543, 235);
-
-            // 3. User Portrait Circle/Initials Accent
-            ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.arc(540, 420, 68, 0, Math.PI * 2);
-            ctx.stroke();
-
-            ctx.fillStyle = 'rgba(16, 185, 129, 0.15)';
-            ctx.beginPath();
-            ctx.arc(540, 420, 64, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Inner Crown / Star indicator representing achievement
-            ctx.fillStyle = '#FCD34D';
-            ctx.font = 'bold 45px system-ui, -apple-system, sans-serif';
-            ctx.fillText('★', 540, 435);
-
-            // 4. Participant Name
-            ctx.fillStyle = '#FCD34D'; // Elegant Golden Amber tone
-            ctx.font = 'italic bold 32px system-ui, -apple-system, sans-serif';
-            ctx.letterSpacing = '1px';
-            ctx.fillText(userName, 540, 550);
-
-            // Subtle "unlocked the milestone" text
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            ctx.font = 'bold 14px ui-monospace, SFMono-Regular, monospace';
-            ctx.letterSpacing = '4px';
-            ctx.fillText('OFFICIAL ACHIEVEMENT RECORD', 540, 595);
-
-            // 5. Creative and Bold Achievement Text
-            // Main glowing glassmorphic background box in the lower half
-            const boxX = 120;
-            const boxY = 640;
-            const boxW = 840;
-            const boxH = 290;
-            
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.strokeStyle = 'rgba(16, 185, 129, 0.35)';
-            ctx.lineWidth = 2;
-            
-            // Draw a rounded rectangle for the text showcase box
-            ctx.beginPath();
-            if (ctx.roundRect) {
-                ctx.roundRect(boxX, boxY, boxW, boxH, 24);
-            } else {
-                ctx.rect(boxX, boxY, boxW, boxH);
-            }
-            ctx.fill();
-            ctx.stroke();
-
-            // Accent Corner Tabs for Box
-            ctx.strokeStyle = '#FCD34D';
-            ctx.lineWidth = 4;
-            const tabLen = 20;
-            // Top Left corner of text box
-            ctx.beginPath(); ctx.moveTo(boxX, boxY + tabLen); ctx.lineTo(boxX, boxY); ctx.lineTo(boxX + tabLen, boxY); ctx.stroke();
-            // Bottom Right corner of text box
-            ctx.beginPath(); ctx.moveTo(boxX + boxW, boxY + boxH - tabLen); ctx.lineTo(boxX + boxW, boxY + boxH); ctx.lineTo(boxX + boxW - tabLen, boxY + boxH); ctx.stroke();
-
-            // Drawing Creative Achievement message in Bold & Stylish Display Font
-            ctx.shadowColor = '#10B981';
-            ctx.shadowBlur = 15;
+            // Main message: right-aligned, slightly below center
             ctx.fillStyle = '#FFFFFF';
-            // Creative, very bold and stylish display fonts pairing
-            ctx.font = 'black uppercase 900 42px system-ui, -apple-system, sans-serif';
-            ctx.letterSpacing = '1px';
-            ctx.textBaseline = 'middle';
-            wrapText(ctx, achievementText, 540, 785, 740, 55);
+            ctx.font = '900 52px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'top';
+            ctx.letterSpacing = 'normal';
+            
+            // X position 980 (right-aligned), Y position 600 (slightly below center)
+            wrapText(ctx, achievementText, 980, 600, 750, 75);
 
-            // Stop glow for lower footer elements
+            // Reset shadows
+            ctx.shadowColor = 'transparent';
             ctx.shadowBlur = 0;
-
-            // 6. Verification Details / Footer
-            ctx.fillStyle = 'rgba(16, 185, 129, 0.9)';
-            ctx.font = 'black 900 16px ui-monospace, SFMono-Regular, monospace';
-            ctx.letterSpacing = '3px';
-            ctx.fillText('VERIFIED VIA VECTORISE LEDGER', 540, 1010);
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
 
             const imgData = canvas.toDataURL('image/png');
             setShareImage(imgData);
@@ -223,18 +145,25 @@ const AchievementShareModal: React.FC<AchievementShareModalProps> = ({
 
         bgImg.onerror = () => {
             console.error('Error loading background image, generating backup card format...');
-            // Fallback layout using standard gradients in case the image fails
-            ctx.fillStyle = '#0F172A';
+            // Fallback layout using standard zinc-900 slate background in case the image fails
+            ctx.fillStyle = '#18181B';
             ctx.fillRect(0, 0, 1080, 1080);
             
-            // Draw simple watermark and logo
+            // Top Center: "VECTORISE"
             ctx.fillStyle = '#10B981';
-            ctx.font = 'bold 28px sans-serif';
-            ctx.fillText('VECTORISE', 540, 200);
+            ctx.font = '700 24px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.letterSpacing = '12px';
+            ctx.fillText('VECTORISE', 540, 120);
 
+            // Main message: right-aligned, slightly below center
             ctx.fillStyle = '#FFFFFF';
-            ctx.font = 'black 900 45px sans-serif';
-            wrapText(ctx, achievementText, 540, 540, 800, 60);
+            ctx.font = '900 52px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'top';
+            ctx.letterSpacing = 'normal';
+            wrapText(ctx, achievementText, 980, 600, 750, 75);
 
             const imgData = canvas.toDataURL('image/png');
             setShareImage(imgData);
