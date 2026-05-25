@@ -37,7 +37,7 @@ const MilestoneShareModal: React.FC<{
 
             const bgImg = new Image();
             bgImg.crossOrigin = 'anonymous';
-            bgImg.src = 'https://lh3.googleusercontent.com/d/1vYOe4SzIrE7kb6DSFkOp9UYz3tHWPnHw';
+            bgImg.src = '/achievement-bg.png';
             
             const drawContent = () => {
                 if (!active) return;
