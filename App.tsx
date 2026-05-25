@@ -108,14 +108,14 @@ const AppContent: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#FAFAFA]">
-        <div className="w-10 h-10 border-4 border-[#0E7850] border-t-transparent rounded-full animate-spin"></div>
+      <div className="flex items-center justify-center min-h-screen bg-[#FAFAFA] dark:bg-[#121212] transition-colors duration-300">
+        <div className="w-10 h-10 border-4 border-[#0E7850] dark:border-[#10b981] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen font-sans ${isOnboardingRoute ? 'bg-primary text-white' : 'bg-light text-dark'}`}>
+    <div className={`min-h-screen font-sans ${isOnboardingRoute ? 'bg-primary text-white' : 'bg-[#FAFAFA] dark:bg-[#121212] text-dark dark:text-gray-100 transition-colors duration-300'}`}>
       {showTopBanner && <TopBanner deferredPrompt={deferredPrompt} />}
       <Toaster position="top-center" richColors visibleToasts={1} />
       {showGlobalHeader && <Header />}

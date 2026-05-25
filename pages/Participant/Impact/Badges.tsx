@@ -6,6 +6,8 @@ import { Participant, ParticipantSprint, ShinePost, Sprint } from '../../../type
 import { sprintService } from '../../../services/sprintService';
 import { shineService } from '../../../services/shineService';
 import { userService, sanitizeData } from '../../../services/userService';
+import { Share2 } from 'lucide-react';
+import AchievementShareModal from '../../../components/AchievementShareModal';
 
 import { MILESTONES, MilestoneDefinition } from '../../../services/milestoneConstants';
 
@@ -15,7 +17,11 @@ interface Milestone extends MilestoneDefinition {
     isClaimed: boolean;
 }
 
-const MilestoneCard: React.FC<{ milestone: Milestone; onClaim: (m: Milestone) => void }> = ({ milestone, onClaim }) => {
+const MilestoneCard: React.FC<{ 
+    milestone: Milestone; 
+    onClaim: (m: Milestone) => void;
+    onShare: (m: Milestone) => void;
+}> = ({ milestone, onClaim, onShare }) => {
     const progress = Math.min(100, (milestone.currentValue / milestone.targetValue) * 100);
     const [isClaiming, setIsClaiming] = useState(false);
 
@@ -91,6 +97,15 @@ const MilestoneCard: React.FC<{ milestone: Milestone; onClaim: (m: Milestone) =>
                         ) : 'Claim Credits'}
                     </button>
                 )}
+
+                {milestone.isClaimed && (
+                    <button 
+                        onClick={() => onShare(milestone)}
+                        className={`w-full py-2 bg-gray-50 hover:bg-gray-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-500 hover:text-gray-700 dark:text-gray-300 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-1.5 border border-gray-100 dark:border-zinc-700`}
+                    >
+                        <Share2 className="w-3.5 h-3.5" /> Share Achievement
+                    </button>
+                )}
             </div>
 
             {milestone.isUnlocked && !milestone.isClaimed && (
@@ -107,6 +122,14 @@ const Badges: React.FC = () => {
     const [allSprintData, setAllSprintData] = useState<Sprint[]>([]);
     const [reflections, setReflections] = useState<ShinePost[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Achievement Share Modal Integration
+    const [shareModalOpen, setShareModalOpen] = useState(false);
+    const [selectedShareMilestone, setSelectedShareMilestone] = useState<{
+        id: string;
+        title: string;
+        points: number;
+    } | null>(null);
 
     // Expansion states for each badge category
     const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
@@ -238,9 +261,25 @@ const Badges: React.FC = () => {
                 description: `Milestone: ${m.title}`,
                 duration: 3000
             });
+            // Automatically launch achievement share popup
+            setSelectedShareMilestone({
+                id: m.id,
+                title: m.title,
+                points: m.points
+            });
+            setShareModalOpen(true);
         } catch (err) {
             userService.queueNotification('error', "Failed to claim credits.", { duration: 3000 });
         }
+    };
+
+    const handleShare = (m: Milestone) => {
+        setSelectedShareMilestone({
+            id: m.id,
+            title: m.title,
+            points: m.points
+        });
+        setShareModalOpen(true);
     };
 
     const toggleCategory = (cat: string) => {
@@ -261,7 +300,14 @@ const Badges: React.FC = () => {
                     <h2 className="text-xl font-black text-gray-900 uppercase tracking-widest">{title}</h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {visibleMilestones.map(m => <MilestoneCard key={m.id} milestone={m} onClaim={handleClaim} />)}
+                    {visibleMilestones.map(m => (
+                        <MilestoneCard 
+                            key={m.id} 
+                            milestone={m} 
+                            onClaim={handleClaim} 
+                            onShare={handleShare} 
+                        />
+                    ))}
                 </div>
                 {milestones.length > 3 && (
                     <button 
@@ -300,6 +346,21 @@ const Badges: React.FC = () => {
                     <CategorySection title="Influence" type="influence" milestones={milestonesByType.influence} color="teal" />
                 </div>
             )}
+
+            {/* Achievement Share Popup Integration */}
+            {selectedShareMilestone && (
+                <AchievementShareModal
+                    isOpen={shareModalOpen}
+                    onClose={() => {
+                        setShareModalOpen(false);
+                        setSelectedShareMilestone(null);
+                    }}
+                    milestoneId={selectedShareMilestone.id}
+                    milestoneTitle={selectedShareMilestone.title}
+                    points={selectedShareMilestone.points}
+                />
+            )}
+
             <style>{`
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
                 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }

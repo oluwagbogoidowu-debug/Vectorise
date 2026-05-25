@@ -75,12 +75,149 @@
 }
 </script>
     <script>
-      if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      if (localStorage.getItem('theme') === 'dark') {
         document.documentElement.classList.add('dark');
       } else {
         document.documentElement.classList.remove('dark');
       }
     </script>
+    <style>
+      /* Global Dark Mode Overrides */
+      html.dark, html.dark body {
+        background-color: #121212 !important;
+        color: #f4f4f5 !important;
+      }
+
+      /* Global background transitions for a smooth dark/light shift */
+      body, div, header, nav, section, main, button, input, select, textarea {
+        transition-property: background-color, border-color, text-decoration-color, fill, stroke;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 300ms;
+      }
+
+      /* Override outer page backgrounds to dark gray-950 tone */
+      html.dark .bg-light,
+      html.dark .bg-\[\#FDFDFD\],
+      html.dark .bg-\[\#FAFAFA\],
+      html.dark .bg-\[\#fdfdfd\],
+      html.dark .bg-\[\#fafafa\],
+      html.dark .page-content,
+      html.dark main {
+        background-color: #121212 !important;
+      }
+
+      /* Override panels, cards, list-items, and headers to elevated dark grey tone (zinc-900 / zinc-950) */
+      html.dark .bg-white,
+      html.dark header,
+      html.dark nav,
+      html.dark .bg-white:not(body),
+      html.dark [class*="rounded-3xl"].bg-white,
+      html.dark [class*="rounded-2xl"].bg-white,
+      html.dark [class*="rounded-[2.5rem]"].bg-white,
+      html.dark [class*="rounded-[2rem]"].bg-white,
+      html.dark [class*="rounded-[3rem]"].bg-white {
+        background-color: #1c1c1e !important;
+      }
+
+      /* Nested elements inside card or inner containers with neutral / light gray grey fill background */
+      html.dark .bg-gray-50,
+      html.dark .bg-zinc-50,
+      html.dark .bg-gray-100 {
+        background-color: #242427 !important;
+      }
+
+      /* Override borders to subtle dark border representation */
+      html.dark .border-gray-50,
+      html.dark .border-gray-100,
+      html.dark .border-gray-200,
+      html.dark .border-gray-300,
+      html.dark .border-emerald-100/75,
+      html.dark .border-emerald-100,
+      html.dark [class*="border-gray-"] {
+        border-color: #27272a !important;
+      }
+
+      /* Text Colors overrides for supreme readable contrast */
+      /* Strong/Primary Texts */
+      html.dark .text-gray-950,
+      html.dark .text-gray-900,
+      html.dark .text-dark,
+      html.dark .text-black,
+      html.dark h1,
+      html.dark h2,
+      html.dark h3,
+      html.dark h4,
+      html.dark h5,
+      html.dark h6 {
+        color: #ffffff !important;
+      }
+
+      /* Secondary / Muted Texts */
+      html.dark .text-gray-800,
+      html.dark .text-gray-700 {
+        color: #e4e4e7 !important;
+      }
+
+      html.dark .text-gray-600 {
+        color: #d4d4d8 !important;
+      }
+
+      html.dark .text-gray-500,
+      html.dark .text-gray-400 {
+        color: #a1a1aa !important;
+      }
+
+      /* Special cards (like green or blue/amber badge containers) */
+      html.dark .bg-emerald-50,
+      html.dark .bg-emerald-50\/30,
+      html.dark .bg-primary\/5,
+      html.dark .bg-primary\/10 {
+        background-color: rgba(14, 120, 80, 0.15) !important;
+      }
+      html.dark .text-[#0E7850],
+      html.dark .text-primary {
+        color: #10b981 !important;
+      }
+      
+      html.dark .bg-amber-50,
+      html.dark .bg-orange-50 {
+        background-color: rgba(217, 119, 6, 0.15) !important;
+      }
+      html.dark .text-amber-800,
+      html.dark .text-orange-600,
+      html.dark .text-amber-700 {
+        color: #fbbf24 !important;
+      }
+
+      /* Inputs and interactive forms */
+      html.dark input,
+      html.dark textarea,
+      html.dark select {
+        background-color: #242427 !important;
+        color: #ffffff !important;
+        border-color: #3f3f46 !important;
+      }
+      html.dark input::placeholder,
+      html.dark textarea::placeholder {
+        color: #71717a !important;
+      }
+
+      /* Dialogs and Modals background override */
+      html.dark .bg-white\/80 {
+        background-color: rgba(18, 18, 18, 0.8) !important;
+      }
+      
+      /* Recharts / Graphs elements */
+      html.dark .recharts-cartesian-axis-tick text {
+        fill: #a1a1aa !important;
+      }
+      html.dark .recharts-text {
+        fill: #fafafa !important;
+      }
+      html.dark .recharts-legend-item-text {
+        color: #fafafa !important;
+      }
+    </style>
 </head>
   <body class="bg-[#FDFDFD] dark:bg-[#121212] text-base text-gray-900 dark:text-gray-100 antialiased overflow-x-hidden transition-colors duration-300">
     <div id="root"></div>

@@ -3,7 +3,7 @@ import { User, Coach, Participant, Admin, Permission, UserRole } from '../types'
 import { MOCK_USERS, MOCK_ROLES } from '../services/mockData';
 import { auth } from '../services/firebase';
 import { onAuthStateChanged, signOut, deleteUser as firebaseDeleteUser, sendPasswordResetEmail } from 'firebase/auth';
-import { onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { onSnapshot, doc, updateDoc, getDocFromServer } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { userService, sanitizeData } from '../services/userService';
 
@@ -36,6 +36,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Listen for Firebase Auth changes
   useEffect(() => {
     let unsubscribeSnapshot: (() => void) | null = null;
+    let hasFetchedFromServer = false;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (unsubscribeSnapshot) {
@@ -50,10 +51,92 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         setLoading(true);
         const userRef = doc(db, 'users', firebaseUser.uid);
-        
-        unsubscribeSnapshot = onSnapshot(userRef, async (docSnap) => {
+
+        // Core Requirement: Every time the app loads, fetch user data from Firestore server directly as primary source of truth
+        try {
+          console.log("[AuthContext] Primary Action: Fetching fresh user document directly from Firestore server...");
+          const serverSnap = await getDocFromServer(userRef);
+          if (serverSnap.exists()) {
+            let dbUser = sanitizeData(serverSnap.data()) as User | Participant | Coach;
+
+            const isGoogle = firebaseUser.providerData.some(p => p.providerId === 'google.com');
+            const isDbVerified = serverSnap.data()?.emailVerifiedConfirmed || serverSnap.data()?.emailVerifiedOverride;
+
+            if (isGoogle || isDbVerified) {
+              setMustVerifyEmail(false);
+            } else {
+              setMustVerifyEmail(true);
+            }
+
+            // Automatic Role Healing/Recovery for the owner/admin
+            if (dbUser.email && dbUser.email.toLowerCase().trim() === 'vectorise.io@gmail.com' && dbUser.role !== UserRole.ADMIN) {
+                console.log("Root Cause Corrected: Healing Admin account role in the database.");
+                dbUser.role = UserRole.ADMIN;
+                await userService.updateUserDocument(dbUser.id, { role: UserRole.ADMIN });
+            }
+
+            console.log("[AuthContext] Firestore server fetch succeeded. Storing in state.");
+            setUser(dbUser);
+            hasFetchedFromServer = true;
+            
+            // Determine active role
+            const storedRole = localStorage.getItem('vectorise_active_role') as UserRole;
+            const dbRole = dbUser.role as UserRole;
+            
+            let roleToSet = dbRole;
+            if (storedRole) {
+                const isCoach = (dbUser as Coach).hasCoachProfile || dbRole === UserRole.COACH;
+                const isAdmin = dbRole === UserRole.ADMIN;
+                
+                if (storedRole === dbRole) {
+                    roleToSet = storedRole;
+                } else if (storedRole === UserRole.COACH && isCoach) {
+                    roleToSet = UserRole.COACH;
+                } else if (isAdmin) {
+                    roleToSet = storedRole;
+                }
+            }
+            
+            setActiveRole(roleToSet);
+            localStorage.setItem('vectorise_active_role', roleToSet);
+          } else {
+            // Document doesn't exist yet, create it on the server
+            console.log("[AuthContext] User document does not exist. Creating default profile...");
+            const newUserProfile: Partial<Participant> = {
+                id: firebaseUser.uid,
+                name: firebaseUser.displayName || 'User',
+                email: firebaseUser.email || '',
+                role: UserRole.PARTICIPANT,
+                profileImageUrl: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${firebaseUser.displayName || 'User'}&background=0E7850&color=fff`,
+                bio: "Ready to grow.",
+                followers: 0,
+                following: 0,
+                savedSprintIds: [],
+                enrolledSprintIds: [],
+                wishlistSprintIds: [],
+                shinePostIds: [],
+                shineCommentIds: [],
+                referralCode: (firebaseUser.uid || '').substring(0, 8).toUpperCase(),
+                impactStats: { peopleHelped: 0, streak: 0 },
+            };
+            
+            await userService.createUserDocument(firebaseUser.uid, newUserProfile);
+            hasFetchedFromServer = true;
+          }
+        } catch (serverErr) {
+          console.warn("[AuthContext] Primary server fetch failed or user is offline. Relying on cache/real-time sync as secondary.", serverErr);
+        }
+
+        // Subscribe to real-time changes, with includeMetadataChanges to track cache vs server transitions
+        unsubscribeSnapshot = onSnapshot(userRef, { includeMetadataChanges: true }, async (docSnap) => {
           try {
             if (docSnap.exists()) {
+              // Rule: If we already have a successful server-verified fetch, ignore any cached snapshots to prevent state rollback/regression
+              if (docSnap.metadata.fromCache && hasFetchedFromServer) {
+                console.log("[AuthContext] Ignored cached real-time snapshot because fresh server data was already loaded.");
+                return;
+              }
+
               let dbUser = sanitizeData(docSnap.data()) as User | Participant | Coach;
 
               const isGoogle = firebaseUser.providerData.some(p => p.providerId === 'google.com');
@@ -72,7 +155,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   await userService.updateUserDocument(dbUser.id, { role: UserRole.ADMIN });
               }
 
+              console.log(`[AuthContext] User document updated from snapshot. fromCache: ${docSnap.metadata.fromCache}`);
               setUser(dbUser);
+              
+              if (!docSnap.metadata.fromCache) {
+                hasFetchedFromServer = true;
+              }
               
               // Determine active role
               const storedRole = localStorage.getItem('vectorise_active_role') as UserRole;
@@ -95,30 +183,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               setActiveRole(roleToSet);
               localStorage.setItem('vectorise_active_role', roleToSet);
             } else {
-              // Document doesn't exist yet, create it
-              const newUserProfile: Partial<Participant> = {
-                  id: firebaseUser.uid,
-                  name: firebaseUser.displayName || 'User',
-                  email: firebaseUser.email || '',
-                  role: UserRole.PARTICIPANT,
-                  profileImageUrl: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${firebaseUser.displayName || 'User'}&background=0E7850&color=fff`,
-                  bio: "Ready to grow.",
-                  followers: 0,
-                  following: 0,
-                  savedSprintIds: [],
-                  enrolledSprintIds: [],
-                  wishlistSprintIds: [],
-                  shinePostIds: [],
-                  shineCommentIds: [],
-                  referralCode: (firebaseUser.uid || '').substring(0, 8).toUpperCase(),
-                  impactStats: { peopleHelped: 0, streak: 0 },
-              };
-              
-              await userService.createUserDocument(firebaseUser.uid, newUserProfile);
-              // Snapshot will trigger again
+              // Creating user doc if snapshot tells us it completely doesn't exist anywhere
+              if (!hasFetchedFromServer) {
+                const newUserProfile: Partial<Participant> = {
+                    id: firebaseUser.uid,
+                    name: firebaseUser.displayName || 'User',
+                    email: firebaseUser.email || '',
+                    role: UserRole.PARTICIPANT,
+                    profileImageUrl: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${firebaseUser.displayName || 'User'}&background=0E7850&color=fff`,
+                    bio: "Ready to grow.",
+                    followers: 0,
+                    following: 0,
+                    savedSprintIds: [],
+                    enrolledSprintIds: [],
+                    wishlistSprintIds: [],
+                    shinePostIds: [],
+                    shineCommentIds: [],
+                    referralCode: (firebaseUser.uid || '').substring(0, 8).toUpperCase(),
+                    impactStats: { peopleHelped: 0, streak: 0 },
+                };
+                
+                await userService.createUserDocument(firebaseUser.uid, newUserProfile);
+                hasFetchedFromServer = true;
+              }
             }
           } catch (err) {
-            console.error("Auth State Sync Error", err);
+            console.error("[AuthContext] Real-time state processor error:", err);
           } finally {
             setLoading(false);
           }
@@ -127,6 +217,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setLoading(false);
         });
       } else {
+        hasFetchedFromServer = false;
         setUser(null);
         setLoading(false);
       }
