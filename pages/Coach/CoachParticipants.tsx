@@ -36,6 +36,50 @@ const CoachParticipants: React.FC = () => {
     const [dayComments, setDayComments] = useState<CoachingComment[]>([]);
     const chatScrollRef = useRef<HTMLDivElement>(null);
 
+    // Touch swipe references for side navigation inside the popup
+    const touchStartX = useRef<number | null>(null);
+    const touchStartY = useRef<number | null>(null);
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        touchStartX.current = e.touches[0].clientX;
+        touchStartY.current = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        if (touchStartX.current === null || touchStartY.current === null || !viewingSubmission) return;
+        
+        const endX = e.changedTouches[0].clientX;
+        const endY = e.changedTouches[0].clientY;
+        
+        const diffX = touchStartX.current - endX;
+        const diffY = touchStartY.current - endY;
+        
+        const swipeThreshold = 55;
+        // Check if swipe is horizontal and exceeds the threshold
+        if (Math.abs(diffX) > swipeThreshold && Math.abs(diffX) > Math.abs(diffY)) {
+            const duration = viewingSubmission.enrollment.sprint.duration || 7;
+            if (diffX > 0) {
+                // Swipe Left => Next Day
+                if (viewingSubmission.day < duration) {
+                    setViewingSubmission({
+                        ...viewingSubmission,
+                        day: viewingSubmission.day + 1
+                    });
+                }
+            } else {
+                // Swipe Right => Prev Day
+                if (viewingSubmission.day > 1) {
+                    setViewingSubmission({
+                        ...viewingSubmission,
+                        day: viewingSubmission.day - 1
+                    });
+                }
+            }
+        }
+        touchStartX.current = null;
+        touchStartY.current = null;
+    };
+
     useEffect(() => {
         const fetchData = async () => {
             if (!user) return;
@@ -363,7 +407,11 @@ const CoachParticipants: React.FC = () => {
             {/* Submission Preview Modal */}
             {viewingSubmission && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-slide-up border border-gray-100 flex flex-col max-h-[90vh]">
+                    <div 
+                        onTouchStart={handleTouchStart}
+                        onTouchEnd={handleTouchEnd}
+                        className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-slide-up border border-gray-100 flex flex-col max-h-[90vh]"
+                    >
                         <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 flex-shrink-0">
                             <div>
                                 <h3 className="text-2xl font-black text-gray-900 tracking-tight">Day {viewingSubmission.day} Review</h3>
@@ -381,6 +429,42 @@ const CoachParticipants: React.FC = () => {
                                     <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
                             </div>
+                        </div>
+
+                        {/* Swipe and Navigation Bar */}
+                        <div className="bg-[#6B9E7D]/10 px-6 py-2.5 flex justify-between items-center text-[10px] font-black tracking-wider uppercase border-b border-[#6B9E7D]/10 select-none text-primary">
+                            <button
+                                onClick={() => {
+                                    if (viewingSubmission.day > 1) {
+                                        setViewingSubmission({
+                                            ...viewingSubmission,
+                                            day: viewingSubmission.day - 1
+                                        });
+                                    }
+                                }}
+                                disabled={viewingSubmission.day <= 1}
+                                className="flex items-center gap-1 hover:text-[#0E7850] disabled:opacity-30 disabled:pointer-events-none transition-all font-black"
+                            >
+                                &larr; Prev Day
+                            </button>
+                            <span className="text-primary/60 font-black animate-pulse flex items-center gap-1 text-[9px]">
+                                Swipe to Navigate Days
+                            </span>
+                            <button
+                                onClick={() => {
+                                    const duration = viewingSubmission.enrollment.sprint.duration || 7;
+                                    if (viewingSubmission.day < duration) {
+                                        setViewingSubmission({
+                                            ...viewingSubmission,
+                                            day: viewingSubmission.day + 1
+                                        });
+                                    }
+                                }}
+                                disabled={viewingSubmission.day >= (viewingSubmission.enrollment.sprint.duration || 7)}
+                                className="flex items-center gap-1 hover:text-[#0E7850] disabled:opacity-30 disabled:pointer-events-none transition-all font-black"
+                            >
+                                Next Day &rarr;
+                            </button>
                         </div>
                         
                         <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
@@ -433,42 +517,105 @@ const CoachParticipants: React.FC = () => {
                                         </div>
                                         
                                         {(() => {
-                                            const sub = viewingSubmission.enrollment.progress.find(p => p.day === viewingSubmission.day)?.submission;
+                                            const progressObj = viewingSubmission.enrollment.progress.find(p => p.day === viewingSubmission.day);
+                                            const sub = progressObj?.submission;
+                                            
                                             if (!sub) {
                                                 return (
-                                                    <div className="p-10 bg-gray-50 rounded-[2rem] border border-dashed border-gray-200 text-center">
+                                                    <div className="p-10 bg-gray-50 rounded-[2rem] border border-dashed border-gray-200 text-center animate-fade-in">
                                                         <p className="text-gray-400 italic text-sm font-bold uppercase tracking-widest">No text content provided</p>
                                                     </div>
                                                 );
                                             }
-                                            const parts = sub.split(' | ');
-                                            const isMultiple = parts.length > 1;
+
+                                            // Retrieve the daily content to extract corresponding task prompts and task input types.
+                                            const contentData = Array.isArray(viewingSubmission.enrollment.sprint.dailyContent) 
+                                                ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c.day === viewingSubmission.day) 
+                                                : null;
+                                            const prompts = contentData?.taskPrompts || (contentData?.taskPrompt ? [contentData.taskPrompt] : []);
+                                            const inputTypes = contentData?.taskInputTypes || [];
+
+                                            // Extract actual student answers
+                                            const answers = progressObj?.answers || sub.split(' | ');
+
+                                            const itemsToDisplay = prompts.length > 0
+                                                ? prompts.map((promptText, i) => ({
+                                                      prompt: promptText,
+                                                      answer: answers[i] || '',
+                                                      type: inputTypes[i] || 'text',
+                                                      index: i
+                                                  }))
+                                                : answers.map((ans, i) => ({
+                                                      prompt: `Task Question ${i + 1}`,
+                                                      answer: ans,
+                                                      type: 'text',
+                                                      index: i
+                                                  }));
+
                                             return (
-                                                <div className="relative p-6 bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm min-h-[120px]">
-                                                    {isMultiple && (
-                                                        <div className="flex justify-between items-center mb-4">
-                                                            <button 
-                                                                onClick={() => setActivePreviewTaskIndex(prev => Math.max(0, prev - 1))}
-                                                                disabled={activePreviewTaskIndex === 0}
-                                                                className={`p-1 rounded-full ${activePreviewTaskIndex === 0 ? 'text-gray-300' : 'text-primary hover:bg-primary/10'}`}
-                                                            >
-                                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                                                            </button>
-                                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                                                                Response {activePreviewTaskIndex + 1} of {parts.length}
-                                                            </span>
-                                                            <button 
-                                                                onClick={() => setActivePreviewTaskIndex(prev => Math.min(parts.length - 1, prev + 1))}
-                                                                disabled={activePreviewTaskIndex === parts.length - 1}
-                                                                className={`p-1 rounded-full ${activePreviewTaskIndex === parts.length - 1 ? 'text-gray-300' : 'text-primary hover:bg-primary/10'}`}
-                                                            >
-                                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                    <div className="text-gray-900 font-bold text-lg whitespace-pre-wrap leading-tight">
-                                                        {parts[isMultiple ? activePreviewTaskIndex : 0]}
-                                                    </div>
+                                                <div className="space-y-6 animate-fade-in">
+                                                    {itemsToDisplay.map((item, idx) => {
+                                                        const isTagType = item.type === 'tags';
+                                                        
+                                                        // Parse response tags cleanly
+                                                        let tags: string[] = [];
+                                                        if (isTagType && item.answer) {
+                                                            try {
+                                                                if (item.answer.trim().startsWith('[')) {
+                                                                    tags = JSON.parse(item.answer);
+                                                                } else {
+                                                                    tags = item.answer.split(',').map((t: string) => t.trim()).filter(Boolean);
+                                                                }
+                                                            } catch {
+                                                                tags = item.answer.split(',').map((t: string) => t.trim()).filter(Boolean);
+                                                            }
+                                                        }
+
+                                                        return (
+                                                            <div key={idx} className="p-6 bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm space-y-4">
+                                                                {/* Question Context */}
+                                                                <div>
+                                                                    <div className="text-[10px] font-black text-primary uppercase tracking-[0.15em] mb-1">
+                                                                        Question {item.index + 1}
+                                                                    </div>
+                                                                    <p className="text-sm font-black text-gray-800 leading-tight">
+                                                                        "{item.prompt}"
+                                                                    </p>
+                                                                </div>
+
+                                                                {/* Divider */}
+                                                                <div className="border-t border-gray-50"></div>
+
+                                                                {/* Answer Content */}
+                                                                <div>
+                                                                    <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2.5">
+                                                                        Submitted Response
+                                                                    </div>
+                                                                    
+                                                                    {isTagType ? (
+                                                                        <div className="flex flex-wrap gap-2 py-1">
+                                                                            {tags.length > 0 ? (
+                                                                                tags.map((tag, tIdx) => (
+                                                                                    <span 
+                                                                                        key={tIdx} 
+                                                                                        className="inline-flex items-center px-3.5 py-1.5 rounded-xl text-xs font-bold bg-primary/10 text-primary border border-primary/20 shadow-sm animate-fade-in uppercase tracking-wider"
+                                                                                    >
+                                                                                        {tag}
+                                                                                    </span>
+                                                                                ))
+                                                                            ) : (
+                                                                                <span className="text-xs text-gray-400 font-medium italic">Empty tags submitted</span>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="text-gray-900 font-semibold text-base whitespace-pre-wrap leading-relaxed py-1">
+                                                                            {item.answer || <span className="text-gray-350 italic font-medium text-xs">No response provided</span>}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             );
                                         })()}
@@ -581,25 +728,13 @@ const CoachParticipants: React.FC = () => {
                                     
                                     {!hasAlreadySentFeedback ? (
                                         <form onSubmit={handleSendFeedback} className="space-y-4">
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Feedback / Thoughts</label>
+                                            <div>
                                                 <textarea 
                                                     value={feedbackText}
                                                     onChange={(e) => setFeedbackText(e.target.value)}
                                                     placeholder="Share your thoughts or guidance with the student..."
-                                                    className="w-full p-4 bg-white border border-gray-200 rounded-2xl text-sm focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all outline-none min-h-[100px] resize-none font-medium shadow-sm"
+                                                    className="w-full p-4 bg-white border border-gray-200 rounded-2xl text-sm focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all outline-none min-h-[140px] resize-none font-medium shadow-sm"
                                                     required
-                                                />
-                                            </div>
-                                            
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-primary uppercase tracking-widest ml-1">Next Step Prompt (Optional)</label>
-                                                <input 
-                                                    type="text"
-                                                    value={promptText}
-                                                    onChange={(e) => setPromptText(e.target.value)}
-                                                    placeholder="e.g. What's the one thing you'll do tomorrow?"
-                                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all outline-none font-bold shadow-sm"
                                                 />
                                             </div>
 
