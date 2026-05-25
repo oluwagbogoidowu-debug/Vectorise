@@ -102,186 +102,144 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        setViewMode('share');
-        setShareImage(null);
+        // 1. Gorgeous Dark Background Gradient
+        const grad = ctx.createLinearGradient(0, 0, 1080, 1080);
+        grad.addColorStop(0, '#040d0a');
+        grad.addColorStop(0.5, '#081711');
+        grad.addColorStop(1, '#0e261d');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1080, 1080);
 
-        const bgImg = new Image();
-        bgImg.crossOrigin = 'anonymous';
-        bgImg.src = '/achievement-bg.png';
-
-        const drawContent = () => {
-            // 1. Gorgeous Dark Background Gradient Fallback
-            const grad = ctx.createLinearGradient(0, 0, 1080, 1080);
-            grad.addColorStop(0, '#040d0a');
-            grad.addColorStop(0.5, '#081711');
-            grad.addColorStop(1, '#0e261d');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, 1080, 1080);
-
-            // Draw background image if successfully loaded
-            try {
-                if (bgImg.complete && bgImg.naturalWidth > 0) {
-                    ctx.drawImage(bgImg, 0, 0, 1080, 1080);
-                }
-            } catch(e) {
-                console.warn("CORS/Image loading error, falling back to gradient", e);
-            }
-
-            // Glassmorphic dark layout overlay for premium contrast
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-            ctx.fillRect(0, 0, 1080, 1080);
-
-            // 2. Linear texture / Grid lines (Vibe of systematic daily tracking)
-            ctx.strokeStyle = 'rgba(16, 185, 129, 0.04)';
-            ctx.lineWidth = 1;
-            for (let i = 80; i < 1080; i += 80) {
-                ctx.beginPath();
-                ctx.moveTo(i, 0); ctx.lineTo(i, 1080);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(0, i); ctx.lineTo(1080, i);
-                ctx.stroke();
-            }
-
-            // Translucent background circles
-            ctx.strokeStyle = 'rgba(16, 185, 129, 0.08)';
-            ctx.lineWidth = 1.5;
-            const circleRadii = [160, 300, 440, 580, 740];
-            circleRadii.forEach(r => {
-                ctx.beginPath();
-                ctx.arc(540, 540, r, 0, Math.PI * 2);
-                ctx.stroke();
-            });
-
-            // 3. Perfect borders with custom alignment corners
-            ctx.strokeStyle = 'rgba(16, 185, 129, 0.25)';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(40, 40, 1000, 1000);
-
-            // Corner accents
-            ctx.strokeStyle = '#FCD34D'; // Amber gold corner tabs
-            ctx.lineWidth = 4;
-            const markerLength = 30;
-            // Top Left
-            ctx.beginPath(); ctx.moveTo(40, 40 + markerLength); ctx.lineTo(40, 40); ctx.lineTo(40 + markerLength, 40); ctx.stroke();
-            // Top Right
-            ctx.beginPath(); ctx.moveTo(1040, 40 + markerLength); ctx.lineTo(1040, 40); ctx.lineTo(1040 - markerLength, 40); ctx.stroke();
-            // Bottom Left
-            ctx.beginPath(); ctx.moveTo(40, 1040 - markerLength); ctx.lineTo(40, 1040); ctx.lineTo(40 + markerLength, 1040); ctx.stroke();
-            // Bottom Right
-            ctx.beginPath(); ctx.moveTo(1040, 1040 - markerLength); ctx.lineTo(1040, 1040); ctx.lineTo(1040 - markerLength, 1040); ctx.stroke();
-
-            // 4. Header branding
-            ctx.fillStyle = '#10B981';
-            ctx.font = 'bold 22px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'alphabetic';
-            ctx.fillText('⚡ V E C T O R I S E   A C H I E V E M E N T ⚡', 540, 115);
-
-            // 5. Glowing Streak Ring
-            const centerX = 540;
-            const centerY = 370;
-            const radius = 120;
-
-            const ringGrad = ctx.createLinearGradient(centerX - radius, centerY, centerX + radius, centerY);
-            ringGrad.addColorStop(0, '#FCD34D');
-            ringGrad.addColorStop(0.5, '#34D399');
-            ringGrad.addColorStop(1, '#60A5FA');
-
-            ctx.shadowColor = '#10B981';
-            ctx.shadowBlur = 40;
-            ctx.strokeStyle = ringGrad;
-            ctx.lineWidth = 8;
+        // 2. Linear texture / Grid lines (Vibe of systematic daily tracking)
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.04)';
+        ctx.lineWidth = 1;
+        for (let i = 80; i < 1080; i += 80) {
             ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.moveTo(i, 0); ctx.lineTo(i, 1080);
             ctx.stroke();
-
-            ctx.shadowColor = 'transparent';
-            ctx.shadowBlur = 0;
-
-            ctx.strokeStyle = 'rgba(252, 211, 77, 0.2)';
-            ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.arc(centerX, centerY, radius - 15, 0, Math.PI * 2);
+            ctx.moveTo(0, i); ctx.lineTo(1080, i);
             ctx.stroke();
-
-            // Streak count number
-            const formattedStreak = streakCount < 10 && streakCount > 0 ? `0${streakCount}` : `${streakCount}`;
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = '900 85px system-ui, -apple-system, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(formattedStreak, centerX, centerY - 10);
-
-            // Label
-            ctx.fillStyle = '#34D399';
-            ctx.font = 'bold 18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-            ctx.fillText('D A Y   S T R E A K', centerX, centerY + 45);
-
-            // 6. Sprint Info Card Container
-            const boxX = 140;
-            const boxY = 570;
-            const boxW = 800;
-            const boxH = 340;
-            const rBox = 30;
-
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            if (ctx.roundRect) {
-                ctx.roundRect(boxX, boxY, boxW, boxH, rBox);
-            } else {
-                ctx.rect(boxX, boxY, boxW, boxH);
-            }
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.fillStyle = '#FCD34D';
-            ctx.font = '900 16px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-            ctx.fillText('S P R I N T   C O M P L E T E D', 540, 635);
-
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-            ctx.fillRect(490, 655, 100, 2);
-
-            // Sprint Title wrapping with very bold and creative styling
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = '900 italic 38px Jost, sans-serif';
-            wrapText(ctx, sprintTitle, 540, 715, 700, 52);
-
-            // 7. Footer details
-            ctx.fillStyle = 'rgba(16, 185, 129, 0.7)';
-            ctx.font = 'bold 18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-            ctx.fillText('vectorise.app', 540, 990);
-
-            ctx.fillStyle = '#9CA3AF';
-            ctx.font = 'italic 14px system-ui, -apple-system, sans-serif';
-            ctx.fillText('Dynamic cognitive transformation via daily structured execution sprints.', 540, 1022);
-
-            try {
-                const imgData = canvas.toDataURL('image/png');
-                setShareImage(imgData);
-            } catch (e) {
-                console.error("Canvas export failed", e);
-            }
-        };
-
-        bgImg.onload = () => {
-            drawContent();
-        };
-        bgImg.onerror = () => {
-            drawContent();
-        };
-
-        if (bgImg.complete) {
-            drawContent();
-        } else {
-            setTimeout(() => {
-                if (!shareImage) {
-                    drawContent();
-                }
-            }, 1500);
         }
+
+        // Translucent background circles
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.08)';
+        ctx.lineWidth = 1.5;
+        const circleRadii = [160, 300, 440, 580, 740];
+        circleRadii.forEach(r => {
+            ctx.beginPath();
+            ctx.arc(540, 540, r, 0, Math.PI * 2);
+            ctx.stroke();
+        });
+
+        // 3. Perfect borders with custom alignment corners
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.25)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(40, 40, 1000, 1000);
+
+        // Corner accents
+        ctx.strokeStyle = '#FCD34D'; // Amber gold corner tabs
+        ctx.lineWidth = 4;
+        const markerLength = 30;
+        // Top Left
+        ctx.beginPath(); ctx.moveTo(40, 40 + markerLength); ctx.lineTo(40, 40); ctx.lineTo(40 + markerLength, 40); ctx.stroke();
+        // Top Right
+        ctx.beginPath(); ctx.moveTo(1040, 40 + markerLength); ctx.lineTo(1040, 40); ctx.lineTo(1040 - markerLength, 40); ctx.stroke();
+        // Bottom Left
+        ctx.beginPath(); ctx.moveTo(40, 1040 - markerLength); ctx.lineTo(40, 1040); ctx.lineTo(40 + markerLength, 1040); ctx.stroke();
+        // Bottom Right
+        ctx.beginPath(); ctx.moveTo(1040, 1040 - markerLength); ctx.lineTo(1040, 1040); ctx.lineTo(1040 - markerLength, 1040); ctx.stroke();
+
+        // 4. Header branding
+        ctx.fillStyle = '#10B981';
+        ctx.font = 'bold 22px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText('⚡ V E C T O R I S E   A C H I E V E M E N T ⚡', 540, 115);
+
+        // 5. Glowing Streak Ring
+        const centerX = 540;
+        const centerY = 370;
+        const radius = 120;
+
+        const ringGrad = ctx.createLinearGradient(centerX - radius, centerY, centerX + radius, centerY);
+        ringGrad.addColorStop(0, '#FCD34D');
+        ringGrad.addColorStop(0.5, '#34D399');
+        ringGrad.addColorStop(1, '#60A5FA');
+
+        ctx.shadowColor = '#10B981';
+        ctx.shadowBlur = 40;
+        ctx.strokeStyle = ringGrad;
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle = 'rgba(252, 211, 77, 0.2)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius - 15, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Streak count number
+        const formattedStreak = streakCount < 10 && streakCount > 0 ? `0${streakCount}` : `${streakCount}`;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '900 85px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(formattedStreak, centerX, centerY - 10);
+
+        // Label
+        ctx.fillStyle = '#34D399';
+        ctx.font = 'bold 18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+        ctx.fillText('D A Y   S T R E A K', centerX, centerY + 45);
+
+        // 6. Sprint Info Card Container
+        const boxX = 140;
+        const boxY = 570;
+        const boxW = 800;
+        const boxH = 340;
+        const rBox = 30;
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(boxX, boxY, boxW, boxH, rBox);
+        } else {
+            ctx.rect(boxX, boxY, boxW, boxH);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#FCD34D';
+        ctx.font = '900 16px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+        ctx.fillText('S P R I N T   C O M P L E T E D', 540, 635);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.fillRect(490, 655, 100, 2);
+
+        // Sprint Title wrapping
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 36px system-ui, -apple-system, sans-serif';
+        wrapText(ctx, sprintTitle, 540, 715, 700, 52);
+
+        // 7. Footer details
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.7)';
+        ctx.font = 'bold 18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+        ctx.fillText('vectorise.app', 540, 990);
+
+        ctx.fillStyle = '#9CA3AF';
+        ctx.font = 'italic 14px system-ui, -apple-system, sans-serif';
+        ctx.fillText('Dynamic cognitive transformation via daily structured execution sprints.', 540, 1022);
+
+        const imgData = canvas.toDataURL('image/png');
+        setShareImage(imgData);
+        setViewMode('share');
     };
 
     const handleCopyCaption = () => {

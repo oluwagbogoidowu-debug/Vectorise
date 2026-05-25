@@ -115,7 +115,7 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen font-sans ${isOnboardingRoute ? 'bg-primary text-white' : 'bg-light text-dark dark:bg-[#121212] dark:text-gray-100'}`}>
+    <div className={`min-h-screen font-sans ${isOnboardingRoute ? 'bg-primary text-white' : 'bg-light text-dark'}`}>
       {showTopBanner && <TopBanner deferredPrompt={deferredPrompt} />}
       <Toaster position="top-center" richColors visibleToasts={1} />
       {showGlobalHeader && <Header />}
