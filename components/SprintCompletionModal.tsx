@@ -307,12 +307,15 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                                 </div>
                             </div>
 
-                            <button
-                                onClick={handleGenerateShareCard}
-                                className="w-full py-3 bg-emerald-50 text-[#0E7850] rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 flex items-center justify-center gap-2 hover:bg-emerald-100/50 transition-all active:scale-95 shadow-sm"
-                            >
-                                <Share2 className="w-3.5 h-3.5" /> Share Achievement
-                            </button>
+                            {/* Disabled share achievement button but keep code intact */}
+                            {false && (
+                                <button
+                                    onClick={handleGenerateShareCard}
+                                    className="w-full py-3 bg-emerald-50 text-[#0E7850] rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 flex items-center justify-center gap-2 hover:bg-emerald-100/50 transition-all active:scale-95 shadow-sm"
+                                >
+                                    <Share2 className="w-3.5 h-3.5" /> Share Achievement
+                                </button>
+                            )}
                         </div>
 
                         <div className="space-y-4">

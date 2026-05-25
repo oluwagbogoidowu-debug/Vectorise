@@ -690,7 +690,7 @@ const CoachParticipants: React.FC = () => {
                             )}
                         </div>
 
-                        <div className="p-8 border-t border-gray-50 bg-gray-50/30 flex-shrink-0">
+                        <div className="p-5 md:p-6 border-t border-gray-50 bg-gray-50/30 flex-shrink-0">
                             {isChatOpen ? (
                                 <div className="space-y-4">
                                     <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-2">Message Participant</h4>
@@ -715,46 +715,46 @@ const CoachParticipants: React.FC = () => {
                                     <button 
                                         type="button"
                                         onClick={() => setViewingSubmission(null)}
-                                        className="w-full py-4 bg-white text-gray-400 font-black text-xs uppercase tracking-[0.15em] rounded-2xl hover:bg-gray-100 transition-all border border-gray-100 mt-2"
+                                        className="w-full py-3 bg-white text-gray-400 font-black text-xs uppercase tracking-[0.15em] rounded-2xl hover:bg-gray-100 transition-all border border-gray-100 mt-2"
                                     >
                                         Close Review
                                     </button>
                                 </div>
                             ) : (
                                 <>
-                                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-4">
-                                        {hasAlreadySentFeedback ? "Today's Guidance Sent" : 'Send Direct Feedback'}
-                                    </h4>
+                                    {hasAlreadySentFeedback && (
+                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-3">
+                                            Today's Guidance Sent
+                                        </h4>
+                                    )}
                                     
                                     {!hasAlreadySentFeedback ? (
-                                        <form onSubmit={handleSendFeedback} className="space-y-4">
-                                            <div>
-                                                <textarea 
-                                                    value={feedbackText}
-                                                    onChange={(e) => setFeedbackText(e.target.value)}
-                                                    placeholder="Share your thoughts or guidance with the student..."
-                                                    className="w-full p-4 bg-white border border-gray-200 rounded-2xl text-sm focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all outline-none min-h-[140px] resize-none font-medium shadow-sm"
-                                                    required
-                                                />
-                                            </div>
-
-                                            <div className="flex gap-4">
-                                                <Button 
-                                                    type="submit"
-                                                    isLoading={isSendingFeedback}
-                                                    disabled={!feedbackText.trim() || isSendingFeedback}
-                                                    className="flex-1 py-4 text-xs font-black uppercase tracking-[0.15em] rounded-2xl shadow-xl transition-all active:scale-95"
-                                                >
-                                                    {feedbackSent ? 'Feedback Sent!' : 'Post Guidance'}
-                                                </Button>
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => setViewingSubmission(null)}
-                                                    className="px-8 py-4 bg-white text-gray-400 font-black text-xs uppercase tracking-[0.15em] rounded-2xl hover:bg-gray-100 transition-all border border-gray-100"
-                                                >
-                                                    Done
-                                                </button>
-                                            </div>
+                                        <form onSubmit={handleSendFeedback} className="relative flex items-center bg-white border border-gray-200 rounded-2xl shadow-sm focus-within:ring-4 focus-within:ring-primary/5 focus-within:border-primary transition-all">
+                                            <input 
+                                                type="text"
+                                                value={feedbackText}
+                                                onChange={(e) => setFeedbackText(e.target.value)}
+                                                placeholder="Share your thoughts or guidance with the student..."
+                                                className="w-full pl-5 pr-14 py-3.5 bg-transparent text-sm font-semibold text-gray-800 outline-none placeholder:text-gray-400"
+                                                required
+                                            />
+                                            <button 
+                                                type="submit"
+                                                disabled={!feedbackText.trim() || isSendingFeedback}
+                                                className="absolute right-2 w-9 h-9 flex items-center justify-center bg-primary text-white rounded-xl shadow-sm hover:shadow hover:bg-primary/95 transition-all disabled:opacity-40 disabled:pointer-events-none active:scale-95"
+                                                title="Send Guidance"
+                                            >
+                                                {isSendingFeedback ? (
+                                                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                    </svg>
+                                                ) : (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 transform rotate-45 -translate-x-[1px] translate-y-[1px]" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                                                    </svg>
+                                                )}
+                                            </button>
                                         </form>
                                     ) : (
                                         <div className="space-y-4">
@@ -787,7 +787,7 @@ const CoachParticipants: React.FC = () => {
                             )}
 
                             {feedbackSent && (
-                                <p className="text-center text-[10px] font-black text-green-600 uppercase tracking-widest mt-4 animate-fade-in">Guidance delivered to private chat.</p>
+                                <p className="text-center text-[10px] font-black text-green-600 uppercase tracking-widest mt-3 animate-fade-in">Guidance delivered to private chat.</p>
                             )}
                         </div>
                     </div>

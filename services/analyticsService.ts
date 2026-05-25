@@ -1,217 +1,306 @@
-
 import { db } from './firebase';
-import { doc, getDoc, setDoc, collection, query, where, getDocs, QuerySnapshot, DocumentData, onSnapshot, DocumentSnapshot } from 'firebase/firestore';
-import { UserAnalytics, UserEvent, RiskLevel, PlatformPulse, CoachAnalytics, ParticipantSprint } from '../types';
-import { sanitizeData } from './userService';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  getDocs, 
+  query, 
+  where, 
+  addDoc, 
+  onSnapshot 
+} from 'firebase/firestore';
+import { PlatformPulse, CoachAnalytics, UserAnalytics } from '../types';
 
-const ANALYTICS_COLLECTION = 'user_analytics';
-const COACH_ANALYTICS_COLLECTION = 'coach_analytics';
-const CONFIG_COLLECTION = 'system_config';
-const FIRESTORE_IN_LIMIT = 30;
+export interface UserSprintAnalytics {
+  user_id: string; // Identifier / User ID
+  active_sprint_id: string;
+  sprint_start_date: string; // ISO
+  last_activity_date: string; // ISO
+  current_streak: number;
+  longest_streak: number;
+  total_active_days: number;
+  status: 'active' | 'inactive' | 'completed';
+  last_check_in: string; // ISO
+}
 
-let isAnalyticsDisabled = false;
-
-// Listen for global analytics kill switch
-onSnapshot(doc(db, CONFIG_COLLECTION, 'analytics'), (snap: DocumentSnapshot) => {
-    if (snap.exists()) {
-        isAnalyticsDisabled = snap.data().disabled === true;
-    }
-});
-
-// Simple In-Memory Cache for analytics service
-const serviceCache: Record<string, { data: any; timestamp: number }> = {};
-const CACHE_TTL = 30 * 1000; // 30 seconds
-
-const getCached = (key: string) => {
-    const entry = serviceCache[key];
-    if (entry && (Date.now() - entry.timestamp < CACHE_TTL)) {
-        return entry.data;
-    }
-    return null;
-};
-
-const setCache = (key: string, data: any) => {
-    serviceCache[key] = { data, timestamp: Date.now() };
-};
+export interface UserActivityLog {
+  id?: string;
+  user_id: string;
+  sprint_id: string;
+  date: string; // YYYY-MM-DD
+  action_completed: boolean;
+  action_type: string; // e.g., 'task_submission', 'check_in'
+  created_at: string; // ISO
+}
 
 export const analyticsService = {
   /**
-   * Derives a coach's performance based on outcome and responsiveness rules.
-   * Optimized with parallel fetching.
+   * Tracks a user's action and updates streak/active status inside user_sprint_analytics (Core Table).
    */
-  refreshCoachState: async (coachId: string): Promise<CoachAnalytics> => {
-      if (isAnalyticsDisabled) throw new Error("Analytics is globally disabled");
+  logUserActivity: async (userId: string, sprintId: string, actionType: string = 'task_submission') => {
+    try {
       const now = new Date();
-      
-      // 1. Get all sprint IDs for this coach
-      const sprintQ = query(collection(db, 'sprints'), where('coachId', '==', coachId));
-      const sprintSnap = await getDocs(sprintQ);
-      const sprintIds = sprintSnap.docs.map(d => d.id);
-      
-      let allEnrollments: ParticipantSprint[] = [];
-      let allEvents: UserEvent[] = [];
+      // Format current date in local time YYYY-MM-DD
+      const dateStr = now.toLocaleDateString('sv');
 
-      if (sprintIds.length > 0) {
-          // 2. Fetch enrollments in parallel chunks
-          const enrollmentPromises = [];
-          for (let i = 0; i < sprintIds.length; i += FIRESTORE_IN_LIMIT) {
-              const chunk = sprintIds.slice(i, i + FIRESTORE_IN_LIMIT);
-              const enrollmentQ = query(collection(db, 'enrollments'), where('sprintId', 'in', chunk));
-              enrollmentPromises.push(getDocs(enrollmentQ));
-          }
-          const enrollmentSnaps = await Promise.all(enrollmentPromises);
-          enrollmentSnaps.forEach(snap => {
-              allEnrollments = [...allEnrollments, ...snap.docs.map(d => d.data() as ParticipantSprint)];
-          });
+      const logsRef = collection(db, 'user_activity_logs');
+      
+      // Prevent duplicates in a single day
+      const existingQuery = query(
+        logsRef,
+        where('user_id', '==', userId),
+        where('sprint_id', '==', sprintId),
+        where('date', '==', dateStr)
+      );
+      const existingSnap = await getDocs(existingQuery);
 
-          // 3. Fetch events in parallel chunks
-          const eventPromises = [];
-          for (let i = 0; i < sprintIds.length; i += FIRESTORE_IN_LIMIT) {
-              const chunk = sprintIds.slice(i, i + FIRESTORE_IN_LIMIT);
-              const eventQ = query(collection(db, 'user_events'), where('sprintId', 'in', chunk));
-              eventPromises.push(getDocs(eventQ));
-          }
-          const eventSnaps = await Promise.all(eventPromises);
-          eventSnaps.forEach(snap => {
-              allEvents = [...allEvents, ...snap.docs.map(d => d.data() as UserEvent)];
-          });
+      if (existingSnap.empty) {
+        const newLog: UserActivityLog = {
+          user_id: userId,
+          sprint_id: sprintId,
+          date: dateStr,
+          action_completed: true,
+          action_type: actionType,
+          created_at: now.toISOString()
+        };
+        await addDoc(logsRef, newLog);
+      } else {
+        console.log(`[Streak Engine] Activity log already exists for date ${dateStr} (user: ${userId}, sprint: ${sprintId})`);
       }
 
-      // 4. RESPONSIVENESS CALCULATION
-      const triggers = allEvents.filter(e => e.metadata?.isResponseTrigger);
-      const responses = allEvents.filter(e => e.eventType === 'feedback_sent');
+      // Automatically compute and update Core User Sprint record
+      await analyticsService.updateUserSprintRecord(userId, sprintId);
 
-      let slaMetCount = 0;
-      let totalTimeDiffMs = 0;
-      let responsesEvaluated = 0;
+    } catch (e) {
+      console.error("[Streak Engine] Error logging activity:", e);
+    }
+  },
 
-      triggers.forEach(trigger => {
-          // Find coach response to this specific trigger
-          const response = responses.find(r => r.metadata?.triggerId === trigger.id);
-          
-          if (response) {
-              const diffMs = new Date(response.timestamp).getTime() - new Date(trigger.timestamp).getTime();
-              const diffHrs = diffMs / (1000 * 3600);
-              const slaAllowed = trigger.metadata?.slaHrs || 24;
+  /**
+   * Recalculates user's streak, longest streak, activity days, and updates Core User Sprint Table record.
+   */
+  updateUserSprintRecord: async (userId: string, sprintId: string) => {
+    try {
+      const now = new Date();
+      const todayStr = now.toLocaleDateString('sv');
 
-              if (diffHrs <= slaAllowed) slaMetCount++;
-              totalTimeDiffMs += diffMs;
-              responsesEvaluated++;
+      // Fetch all logs to calculate streak
+      const logsQ = query(
+        collection(db, 'user_activity_logs'),
+        where('user_id', '==', userId),
+        where('sprint_id', '==', sprintId),
+        where('action_completed', '==', true)
+      );
+      const logsSnap = await getDocs(logsQ);
+      const logs = logsSnap.docs.map(d => d.data() as UserActivityLog);
+
+      // Unique sorted activity dates
+      const uniqueDates = Array.from(new Set(logs.map(l => l.date))).sort();
+      const sortedDatesDesc = [...uniqueDates].reverse();
+
+      let currentStreak = 0;
+      let calculatedStatus: 'active' | 'inactive' | 'completed' = 'active';
+
+      if (sortedDatesDesc.length > 0) {
+        const latestDateStr = sortedDatesDesc[0];
+        const latestDate = new Date(latestDateStr);
+        const todayDate = new Date(todayStr);
+
+        // Difference in days between today and latest activity
+        const diffDays = Math.floor((todayDate.getTime() - latestDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (diffDays <= 1) {
+          // Last completed action is either yesterday or today, streak lives
+          currentStreak = 1;
+          let currentDateObj = latestDate;
+
+          for (let i = 1; i < sortedDatesDesc.length; i++) {
+            const prevDateObj = new Date(sortedDatesDesc[i]);
+            const diff = Math.floor((currentDateObj.getTime() - prevDateObj.getTime()) / (1000 * 60 * 60 * 24));
+
+            if (diff === 1) {
+              currentStreak++;
+              currentDateObj = prevDateObj;
+            } else if (diff > 1) {
+              break; // Gaps break the streak
+            }
           }
-      });
+        } else {
+          // Gaps of > 1 days (i.e. missed yesterday and today) resets the streak
+          currentStreak = 0;
+        }
 
-      // 5. Calculate Mastery Yield
-      const totalEnrollmentsCount = allEnrollments.length;
-      const completed = allEnrollments.filter(e => e.progress.every(p => p.completed)).length;
-      const yieldRate = totalEnrollmentsCount > 0 ? completed / totalEnrollmentsCount : 1.0;
+        // Mark inactive after 3 days of no activity
+        if (diffDays >= 3) {
+          calculatedStatus = 'inactive';
+        }
+      }
 
-      // 6. Risk Signals
-      const riskSignals = [];
-      const slaRate = responsesEvaluated > 0 ? slaMetCount / responsesEvaluated : 1.0;
-      if (slaRate < 0.8) riskSignals.push("SLA Breach Alert");
-      if (yieldRate < 0.3 && totalEnrollmentsCount > 5) riskSignals.push("High Drop-off Rate");
-      
-      const derived: CoachAnalytics = {
-          coachId,
-          masteryYield: yieldRate,
-          supportVelocityHrs: responsesEvaluated > 0 ? (totalTimeDiffMs / responsesEvaluated) / (1000 * 3600) : 0,
-          slaComplianceRate: slaRate,
-          totalStudentsManaged: totalEnrollmentsCount,
-          activeRiskSignals: riskSignals,
-          studentRetentionRate: 0.2, // Simulated base
-          recoveryYield: 0.65, // Simulated: % of at-risk users who recovered after a response
-          updatedAt: now.toISOString()
+      // Check enrollment to see if sprint is actually completed
+      const enrollQ = query(
+        collection(db, 'enrollments'),
+        where('user_id', '==', userId),
+        where('sprint_id', '==', sprintId)
+      );
+      const enrollSnap = await getDocs(enrollQ);
+      if (!enrollSnap.empty) {
+        const enrollment = enrollSnap.docs[0].data();
+        if (enrollment.status === 'completed') {
+          calculatedStatus = 'completed';
+        }
+      }
+
+      // Find or create in Core table
+      const coreDocRef = doc(db, 'user_sprint_analytics', `${userId}_${sprintId}`);
+      const coreSnap = await getDoc(coreDocRef);
+
+      let sprint_start_date = now.toISOString();
+      let longest_streak = currentStreak;
+
+      if (coreSnap.exists()) {
+        const existing = coreSnap.data() as UserSprintAnalytics;
+        sprint_start_date = existing.sprint_start_date || now.toISOString();
+        longest_streak = Math.max(existing.longest_streak || 0, currentStreak);
+      }
+
+      const updatedCore: UserSprintAnalytics = {
+        user_id: userId,
+        active_sprint_id: sprintId,
+        sprint_start_date,
+        last_activity_date: now.toISOString(),
+        current_streak: currentStreak,
+        longest_streak,
+        total_active_days: uniqueDates.length,
+        status: calculatedStatus,
+        last_check_in: now.toISOString()
       };
 
-      await setDoc(doc(db, COACH_ANALYTICS_COLLECTION, coachId), sanitizeData(derived));
-      return derived;
+      await setDoc(coreDocRef, updatedCore);
+
+    } catch (e) {
+      console.error("[Streak Engine] Failed to update user sprint record:", e);
+    }
+  },
+
+  /**
+   * Get single core sprint analytics record
+   */
+  getUserSprintAnalytics: async (userId: string, sprintId: string): Promise<UserSprintAnalytics | null> => {
+    try {
+      const docRef = doc(db, 'user_sprint_analytics', `${userId}_${sprintId}`);
+      const snap = await getDoc(docRef);
+      return snap.exists() ? (snap.data() as UserSprintAnalytics) : null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  /**
+   * Get all core sprint statistics records
+   */
+  getAllSprintAnalytics: async (): Promise<UserSprintAnalytics[]> => {
+    try {
+      const snap = await getDocs(collection(db, 'user_sprint_analytics'));
+      return snap.docs.map(doc => doc.data() as UserSprintAnalytics);
+    } catch (e) {
+      console.error("[Streak Engine] Error fetching all sprints stats:", e);
+      return [];
+    }
+  },
+
+  /**
+   * Get user activity logs
+   */
+  getUserActivityLogs: async (userId: string, sprintId?: string): Promise<UserActivityLog[]> => {
+    try {
+      let q = query(collection(db, 'user_activity_logs'), where('user_id', '==', userId));
+      if (sprintId) {
+        q = query(collection(db, 'user_activity_logs'), where('user_id', '==', userId), where('sprint_id', '==', sprintId));
+      }
+      const snap = await getDocs(q);
+      return snap.docs.map(doc => doc.data() as UserActivityLog);
+    } catch (e) {
+      return [];
+    }
+  },
+
+  /**
+   * Get all activity logs for admin stream view
+   */
+  getAllActivityLogs: async (): Promise<UserActivityLog[]> => {
+    try {
+      const snap = await getDocs(collection(db, 'user_activity_logs'));
+      return snap.docs.map(doc => doc.data() as UserActivityLog);
+    } catch (e) {
+      return [];
+    }
+  },
+
+  /**
+   * Get platform pulse summary
+   */
+  getPlatformPulse: async (): Promise<PlatformPulse> => {
+    try {
+      const allAnalytics = await analyticsService.getAllSprintAnalytics();
+      const activeCount = allAnalytics.filter(a => a.status === 'active').length;
+      const inactiveCount = allAnalytics.filter(a => a.status === 'inactive').length;
+      return {
+        activeUsers24h: activeCount,
+        totalEnrollments24h: allAnalytics.length,
+        atRiskCount: inactiveCount,
+        revenue24h: 0
+      };
+    } catch (e) {
+      return {
+        activeUsers24h: 0,
+        totalEnrollments24h: 0,
+        atRiskCount: 0,
+        revenue24h: 0
+      };
+    }
+  },
+
+  // Facade legacy methods for backward compatibility
+  refreshCoachState: async (coachId: string): Promise<CoachAnalytics> => {
+    return {
+      coachId,
+      masteryYield: 1.0,
+      supportVelocityHrs: 0,
+      slaComplianceRate: 1.0,
+      totalStudentsManaged: 0,
+      activeRiskSignals: [],
+      studentRetentionRate: 1.0,
+      recoveryYield: 1.0,
+      updatedAt: new Date().toISOString()
+    };
   },
 
   getCoachAnalytics: async (coachId: string): Promise<CoachAnalytics | null> => {
-    if (isAnalyticsDisabled) return null;
-    const snap = await getDoc(doc(db, COACH_ANALYTICS_COLLECTION, coachId));
-    return snap.exists() ? sanitizeData(snap.data()) as CoachAnalytics : null;
+    return null;
   },
 
-  refreshUserState: async (userId: string, events: UserEvent[]): Promise<UserAnalytics> => {
-    if (isAnalyticsDisabled) throw new Error("Analytics is globally disabled");
-    const now = new Date();
-    const lastEvent = events[0]; 
-    
-    const lastSubmission = events.find(e => e.eventType === 'task_submitted');
-    let risk: RiskLevel = 'low';
-    
-    if (lastSubmission) {
-      const daysSince = (now.getTime() - new Date(lastSubmission.timestamp).getTime()) / (1000 * 3600 * 24);
-      if (daysSince > 7) risk = 'churned';
-      else if (daysSince > 4) risk = 'high';
-      else if (daysSince > 2) risk = 'medium';
-    }
-
-    const derivedState: UserAnalytics = {
+  refreshUserState: async (userId: string, events: any[]): Promise<UserAnalytics> => {
+    return {
       userId,
-      lastActive: lastEvent?.timestamp || now.toISOString(),
-      riskLevel: risk,
-      engagementScore: calculateEngagement(events),
-      dropOffProbability: risk === 'low' ? 0.1 : risk === 'medium' ? 0.4 : 0.8,
-      currentCycleLabels: deriveLabels(events),
-      updatedAt: now.toISOString()
+      lastActive: new Date().toISOString(),
+      riskLevel: 'low',
+      engagementScore: 100,
+      dropOffProbability: 0,
+      currentCycleLabels: [],
+      updatedAt: new Date().toISOString()
     };
-
-    await setDoc(doc(db, ANALYTICS_COLLECTION, userId), sanitizeData(derivedState));
-    return derivedState;
   },
 
   getAnalytics: async (userId: string): Promise<UserAnalytics | null> => {
-    if (isAnalyticsDisabled) return null;
-    const snap = await getDoc(doc(db, ANALYTICS_COLLECTION, userId));
-    return snap.exists() ? sanitizeData(snap.data()) as UserAnalytics : null;
-  },
-
-  getPlatformPulse: async (): Promise<PlatformPulse> => {
-      if (isAnalyticsDisabled) return { activeUsers24h: 0, totalEnrollments24h: 0, atRiskCount: 0, revenue24h: 0 };
-      const cached = getCached('platform_pulse');
-      if (cached) return cached;
-
-      try {
-          const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-          const eventQ = query(collection(db, 'user_events'), where('timestamp', '>=', dayAgo));
-          const eventSnap = await getDocs(eventQ);
-          const events = eventSnap.docs.map(d => d.data() as UserEvent);
-          
-          const analyticsQ = query(collection(db, ANALYTICS_COLLECTION), where('riskLevel', 'in', ['high', 'churned']));
-          const analyticsSnap = await getDocs(analyticsQ);
-
-          const result = {
-              activeUsers24h: new Set(events.map(e => e.userId)).size,
-              totalEnrollments24h: events.filter(e => e.eventType === 'sprint_enrolled').length,
-              atRiskCount: analyticsSnap.size,
-              revenue24h: 0 
-          };
-          setCache('platform_pulse', result);
-          return result;
-      } catch (error) {
-          console.error("Platform Pulse Error:", error);
-          return { activeUsers24h: 0, totalEnrollments24h: 0, atRiskCount: 0, revenue24h: 0 };
-      }
+    return {
+      userId,
+      lastActive: new Date().toISOString(),
+      riskLevel: 'low',
+      engagementScore: 100,
+      dropOffProbability: 0,
+      currentCycleLabels: [],
+      updatedAt: new Date().toISOString()
+    };
   }
-};
-
-const calculateEngagement = (events: UserEvent[]) => {
-  const weekAgo = new Date();
-  weekAgo.setDate(weekAgo.getDate() - 7);
-  const count = events.filter(e => new Date(e.timestamp) > weekAgo).length;
-  return Math.min(100, count * 5);
-};
-
-const deriveLabels = (events: UserEvent[]) => {
-  const labels = [];
-  const submissions = events.filter(e => e.eventType === 'task_submitted');
-  if (submissions.length > 5) labels.push("Power User");
-  const nightEvents = events.filter(e => {
-    const hour = new Date(e.timestamp).getHours();
-    return hour > 22 || hour < 5;
-  });
-  if (nightEvents.length > events.length / 2 && events.length > 3) labels.push("Night Owl");
-  return labels;
 };

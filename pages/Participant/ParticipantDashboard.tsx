@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ParticipantSprint, Sprint, Notification, Participant, Referral } from '../../types';
 import { sprintService } from '../../services/sprintService';
+import { analyticsService } from '../../services/analyticsService';
 import { userService } from '../../services/userService';
 import { notificationService } from '../../services/notificationService';
 import { pushNotificationService } from '../../services/pushNotificationService';
@@ -344,6 +345,7 @@ const ParticipantDashboard: React.FC = () => {
         await sprintService.updateEnrollment(enrollmentId, { checkInHistory: newHistory });
         toast.success(`Day ${day} Check-in confirmed!`);
         if (user?.id) {
+            analyticsService.logUserActivity(user.id, enrollmentItem.enrollment.sprint_id, 'check_in').catch(e => console.error("Streak tracking failed:", e));
             pushNotificationService.triggerUpdate(user.id).catch(e => console.error("Push trigger failed:", e));
         }
     } catch (err) {

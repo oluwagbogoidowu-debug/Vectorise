@@ -11,6 +11,7 @@ import {
 } from "../../types";
 import { useAuth } from "../../contexts/AuthContext";
 import { sprintService } from "../../services/sprintService";
+import { analyticsService } from "../../services/analyticsService";
 import { chatService } from "../../services/chatService";
 import { pushNotificationService } from "../../services/pushNotificationService";
 import { doc, updateDoc } from "firebase/firestore";
@@ -961,6 +962,13 @@ const SprintView: React.FC = () => {
 
       await updateDoc(enrollmentRef, updatePayload);
       setIsReflectionModalOpen(false);
+
+      // Track user participation in core & activity tables
+      if (user?.id) {
+        analyticsService
+          .logUserActivity(user.id, enrollment.sprint_id, 'task_submission')
+          .catch((e) => console.error("Streak tracking failed:", e));
+      }
 
       // Trigger push notification for task completion
       if (user?.id) {
