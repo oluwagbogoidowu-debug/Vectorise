@@ -101,7 +101,7 @@ const AchievementShareModal: React.FC<AchievementShareModalProps> = ({
         if (!ctx) return;
 
         const bgImg = new Image();
-        bgImg.src = '/achievement-bg.png';
+        bgImg.src = '/achievement_bg.png';
         
         // Handle image loading
         bgImg.onload = () => {
