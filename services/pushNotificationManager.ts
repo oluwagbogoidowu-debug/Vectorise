@@ -212,7 +212,6 @@ export const pushNotificationManager = {
    */
   processPendingNotifications: async () => {
     try {
-      console.log('[PushManager] Processing pending/failed notification retries...');
       const now = new Date();
       
       const snapshot = await db.collection('notifications')
@@ -224,7 +223,9 @@ export const pushNotificationManager = {
         return data.pushFailed === true && (data.retryCount || 0) < 5;
       });
 
-      console.log(`[PushManager] Found ${candidateDocs.length} notifications marked for active FCM retry queue.`);
+      if (candidateDocs.length > 0) {
+        console.log(`[PushManager] Processing retry queue: ${candidateDocs.length} pending items found.`);
+      }
 
       for (const doc of candidateDocs) {
         const notification = { id: doc.id, ...doc.data() } as any;
@@ -233,7 +234,7 @@ export const pushNotificationManager = {
 
         const nextRetryAt = notification.nextRetryAt ? notification.nextRetryAt.toDate() : null;
         if (nextRetryAt && nextRetryAt <= now) {
-          console.log(`[PushManager] Retrying FCM notification ${notification.id} for user ${notification.userId} (Attempt #${notification.retryCount + 1})...`);
+          console.log(`[PushManager] Re-transmitting FCM notification ${notification.id} for user ${notification.userId} (Attempt #${notification.retryCount + 1})...`);
           
           const success = await pushNotificationManager.sendPush(notification.userId, notification.data || {
             title: notification.title,
