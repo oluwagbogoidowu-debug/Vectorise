@@ -1,3 +1,3 @@
 export const VAPID_PUBLIC_KEY =
   process.env.VAPID_PUBLIC_KEY ||
-  'BAMiaYye1Wyvjf1lHvofAcyj8Ve31cc9qNq_n2r5aaeZ4rDE_du3DxQvYE0TQlcPEhEp9WLymZa7f-BiSJnrX88';
+  'BCheFIyHh2tnALI2U1tU1dkqhfGzhcuEZFlbEzBGyx-vIGkVf17WfaMaSiy3amAo_WPrno0qS6bL6K3q0jXBO9w';
