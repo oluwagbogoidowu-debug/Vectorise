@@ -1,38 +1,29 @@
-
-import webpush from '../utils/webpush.js';
 import admin, { db } from '../api/lib/firebaseAdmin.js';
-import { Participant, UserNotificationState, PushSubscriptionJSON, ParticipantSprint, Sprint, Notification } from '../types.js';
-import { notificationEngine } from './notificationEngine.js';
-
-// GCM_API_KEY is legacy and can cause 401/403 if invalid. Modern push uses VAPID.
-// const GCM_API_KEY = process.env.GCM_API_KEY;
-// if (GCM_API_KEY) {
-//   webpush.setGCMAPIKey(GCM_API_KEY);
-// }
+import { Participant, UserNotificationState, ParticipantSprint, Sprint, Notification } from '../types.js';
 
 export const pushNotificationManager = {
   /**
-   * Save a push subscription for a user.
+   * Save an FCM registration token for a user.
    */
-  saveSubscription: async (userId: string, subscription: PushSubscriptionJSON) => {
+  saveSubscription: async (userId: string, fcmToken: string) => {
     try {
       const userRef = db.collection('users').doc(userId);
       await userRef.update({
-        pushSubscription: subscription,
+        fcmToken: fcmToken,
         notificationsDisabled: false,
         lastActivityAt: new Date().toISOString(),
         pushSubscriptionInvalidCount: 0 // Reset any previous failures
       });
-      console.log(`[PushManager] Saved subscription for user ${userId}`);
+      console.log(`[PushManager] Saved FCM Token for user ${userId}`);
       return true;
     } catch (error) {
-      console.error(`[PushManager] Failed to save subscription for user ${userId}:`, error);
+      console.error(`[PushManager] Failed to save FCM Token for user ${userId}:`, error);
       return false;
     }
   },
 
   /**
-   * Send a push notification to a specific user.
+   * Send a push notification to a specific user via FCM.
    */
   sendPush: async (userId: string, payload: { title: string; body: string; url?: string; tag?: string }, bypassActiveCheck: boolean = false) => {
     try {
@@ -51,18 +42,16 @@ export const pushNotificationManager = {
       
       const userData = userSnap.data() as Participant;
       
-      if (!userData.pushSubscription || userData.notificationsDisabled) {
-        console.log(`[PushManager] User ${userId} has no push subscription or notifications disabled.`);
+      if (!userData.fcmToken || userData.notificationsDisabled) {
+        console.log(`[PushManager] User ${userId} has no fcmToken or notifications disabled.`);
         console.log({
           userId,
           attempted: false,
           success: false,
-          reason: !userData.pushSubscription ? 'no push subscription' : 'notifications disabled'
+          reason: !userData.fcmToken ? 'no fcmToken' : 'notifications disabled'
         });
         return false;
       }
-
-      // Always attempt delivery - active user blocker removed as requested
 
       // Check daily cap (Relaxed daily cap to 100)
       const today = new Date().toISOString().split('T')[0];
@@ -85,31 +74,45 @@ export const pushNotificationManager = {
         return false;
       }
 
-      const subscription = userData.pushSubscription as unknown as webpush.PushSubscription;
+      const fcmToken = userData.fcmToken;
       
       try {
-        await webpush.sendNotification(
-          subscription,
-          JSON.stringify({
+        const title = payload.title;
+        const body = payload.body;
+        const msgUrl = payload.url || '/';
+        const msgTag = payload.tag || 'default';
+
+        const message = {
+          token: fcmToken,
+          notification: {
+            title: title,
+            body: body
+          },
+          data: {
+            url: msgUrl,
+            tag: msgTag,
+            title: title,
+            body: body
+          },
+          webpush: {
             notification: {
-              title: payload.title,
-              body: payload.body
-            },
-            data: {
-              url: payload.url || '/',
-              tag: payload.tag || 'default'
+              icon: 'https://img.icons8.com/fluency-systems-filled/96/0E7850/clock.png',
+              badge: 'https://lh3.googleusercontent.com/d/1iPPiCUwdOmGZ-KScVrvOpOw0LiauXE7X',
+              clickAction: msgUrl
             }
-          })
-        );
+          }
+        };
+
+        const resultId = await admin.messaging().send(message);
+        console.log(`[PushManager] Successfully sent FCM push: response ID = ${resultId}`);
 
         // Update user notification stats
         await userRef.update({
           notificationsSentToday: sentToday + 1,
           lastNotificationSentAt: new Date().toISOString(),
-          pushSubscriptionInvalidCount: 0 // Reset invalid subscription count on successful delivery
+          pushSubscriptionInvalidCount: 0 // Reset invalid state
         });
 
-        console.log(`[PushManager] Successfully sent push to user ${userId}: ${payload.title}`);
         console.log({
           userId,
           attempted: true,
@@ -120,55 +123,35 @@ export const pushNotificationManager = {
         return true;
       } catch (error: any) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        const statusCode = error.statusCode || (error.response && error.response.status);
-        const errorBody = error.body || '';
+        const errorMsgLower = errorMessage.toLowerCase();
 
-        console.error(`[PushManager] Failed to send push to user ${userId}:`, {
-          message: errorMessage,
-          statusCode,
-          body: errorBody,
-          headers: error.headers,
-          endpoint: subscription.endpoint,
-          details: error.body || error.message
-        });
+        console.error(`[PushManager] Failed to send fcm push to user ${userId}:`, errorMessage);
         
         console.log({
           userId,
           attempted: true,
           success: false,
-          reason: `web-push error status=${statusCode}: ${errorMessage}`
+          reason: `fcm error: ${errorMessage}`
         });
         
-        // Relax subscription deletion: require 3 failed attempts
-        if (statusCode === 410 || statusCode === 404 || statusCode === 401 || statusCode === 403 || statusCode === 400) {
-          const currentInvalid = (userData as any).pushSubscriptionInvalidCount || 0;
-          const nextInvalid = currentInvalid + 1;
-          
-          console.log(`[PushManager] Subscription status ${statusCode} for user ${userId}. Failure count: ${nextInvalid}/3`);
-          
-          if (nextInvalid >= 3) {
-            console.log(`[PushManager] Removing invalid/unauthorized subscription for user ${userId} after 3 sequence failures.`);
-            await userRef.update({
-              pushSubscription: null,
-              pushSubscriptionInvalidCount: 0
-            }).catch(err => console.error(`Failed to remove subscription for ${userId}:`, err));
-          } else {
-            await userRef.update({
-              pushSubscriptionInvalidCount: nextInvalid
-            }).catch(err => console.error(`Failed to update subscription error counter for ${userId}:`, err));
-          }
+        // If the token is no longer unregistered, expired, or rejected, clear it
+        if (
+          errorMsgLower.includes('not-registered') ||
+          errorMsgLower.includes('invalid-registration-token') ||
+          errorMsgLower.includes('invalid-argument') ||
+          error.code === 'messaging/registration-token-not-registered' ||
+          error.code === 'messaging/invalid-argument'
+        ) {
+          console.log(`[PushManager] Clearing invalid fcmToken for user ${userId}`);
+          await userRef.update({
+            fcmToken: null
+          }).catch(err => console.error(`Failed to clear invalid fcmToken for user ${userId}:`, err));
         }
         
         return false;
       }
     } catch (outerError: any) {
       console.error(`[PushManager] Critical error in sendPush for user ${userId}:`, outerError);
-      console.log({
-        userId,
-        attempted: false,
-        success: false,
-        reason: outerError instanceof Error ? outerError.message : String(outerError)
-      });
       return false;
     }
   },
@@ -177,7 +160,7 @@ export const pushNotificationManager = {
    * Start a listener on the notifications collection to send pushes for new notifications.
    */
   startNotificationListener: () => {
-    console.log('[PushManager] Starting notification listener...');
+    console.log('[PushManager] Starting FCM notification listener...');
     
     db.collection('notifications')
       .where('pushSent', '==', false)
@@ -188,11 +171,9 @@ export const pushNotificationManager = {
           if (change.type === 'added') {
             const notification = { id: change.doc.id, ...change.doc.data() } as Notification;
             
-            // Only push if it's unread, hasn't been pushed yet, and hasn't failed yet
-            // This prevents local infinite trigger loops when failure properties are updated on the doc.
             const hasNotTriedOrFailed = !notification.pushFailed && (!notification.retryCount || notification.retryCount === 0);
             if (!notification.isRead && !notification.pushSent && hasNotTriedOrFailed) {
-              console.log(`[PushManager] New notification detected for user ${notification.userId}. Sending push...`);
+              console.log(`[PushManager] New notification detected for user ${notification.userId}. Sending FCM push...`);
               
               const success = await pushNotificationManager.sendPush(notification.userId, notification.data || {
                 title: notification.title,
@@ -213,7 +194,7 @@ export const pushNotificationManager = {
                 const delay = Math.pow(2, 0) * 60 * 1000; // 1 minute
                 await db.collection('notifications').doc(notification.id).update({
                   pushFailed: true,
-                  lastPushError: 'First push attempt returned false status or was skipped',
+                  lastPushError: 'First FCM push attempt returned false status or was skipped',
                   retryCount: 1,
                   nextRetryAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + delay))
                 });
@@ -243,7 +224,7 @@ export const pushNotificationManager = {
         return data.pushFailed === true && (data.retryCount || 0) < 5;
       });
 
-      console.log(`[PushManager] Found ${candidateDocs.length} notifications marked for active retry queue.`);
+      console.log(`[PushManager] Found ${candidateDocs.length} notifications marked for active FCM retry queue.`);
 
       for (const doc of candidateDocs) {
         const notification = { id: doc.id, ...doc.data() } as any;
@@ -252,7 +233,7 @@ export const pushNotificationManager = {
 
         const nextRetryAt = notification.nextRetryAt ? notification.nextRetryAt.toDate() : null;
         if (nextRetryAt && nextRetryAt <= now) {
-          console.log(`[PushManager] Retrying notification ${notification.id} for user ${notification.userId} (Attempt #${notification.retryCount + 1})...`);
+          console.log(`[PushManager] Retrying FCM notification ${notification.id} for user ${notification.userId} (Attempt #${notification.retryCount + 1})...`);
           
           const success = await pushNotificationManager.sendPush(notification.userId, notification.data || {
             title: notification.title,
@@ -269,10 +250,10 @@ export const pushNotificationManager = {
             });
           } else {
             const nextRetryCount = (notification.retryCount || 1) + 1;
-            const delay = Math.pow(2, nextRetryCount - 1) * 60 * 1000; // 1min (retry=1) -> 2min (retry=2) -> 4min -> 8min...
+            const delay = Math.pow(2, nextRetryCount - 1) * 60 * 1000; // backoff
             await db.collection('notifications').doc(notification.id).update({
               pushFailed: true,
-              lastPushError: `Retry effort ${nextRetryCount} unsuccessful`,
+              lastPushError: `Retry effort ${nextRetryCount} unsuccessful under FCM`,
               retryCount: admin.firestore.FieldValue.increment(1),
               nextRetryAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + delay))
             });
@@ -290,7 +271,6 @@ export const pushNotificationManager = {
   triggerCompleted: async (userId: string) => {
     console.log(`[PushManager] Triggering completed notification for user ${userId}`);
     
-    // Send immediate "You showed up" message
     await pushNotificationManager.sendPush(userId, {
       title: 'You showed up today',
       body: 'That’s how clarity is built.',
@@ -338,26 +318,24 @@ export const pushNotificationManager = {
 
   /**
    * Process all users and check for notification triggers.
-   * This should be called by a background job.
    */
   processTriggers: async () => {
     console.log('[PushManager] Processing notification triggers...');
     const now = new Date();
     const currentHour = now.getHours();
     
-    // 1. Get all users with push subscriptions
+    // 1. Get all users with FCM tokens
     const usersSnap = await db.collection('users')
-      .where('pushSubscription', '!=', null)
+      .where('fcmToken', '!=', null)
       .get();
     
-    console.log(`[PushManager] Found ${usersSnap.size} users with push subscriptions.`);
+    console.log(`[PushManager] Found ${usersSnap.size} users with active FCM tokens.`);
 
     for (const userDoc of usersSnap.docs) {
       const user = { id: userDoc.id, ...userDoc.data() } as Participant;
       
       if (user.notificationsDisabled) continue;
 
-      // Check if already notified today for missed days (Rule: only 1 per day if missed 2+)
       const lastSentAt = user.lastNotificationSentAt ? new Date(user.lastNotificationSentAt) : null;
       const sentToday = lastSentAt && lastSentAt.toDateString() === now.toDateString();
 
@@ -406,7 +384,7 @@ export const pushNotificationManager = {
             });
           }
         }
-        continue; // Don't send active reminders if they are in "missed" state
+        continue;
       }
 
       // Active Reminders (if task not completed)

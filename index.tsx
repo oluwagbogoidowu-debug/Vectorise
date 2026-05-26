@@ -18,7 +18,7 @@ if ('serviceWorker' in navigator) {
         console.log('[ServiceWorker] No registration found, starting fresh.');
       }
 
-      const registration = await navigator.serviceWorker.register('/sw.js', {
+      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
         scope: '/'
       });
 

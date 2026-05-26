@@ -321,6 +321,7 @@ export interface Participant extends User {
   notificationsDisabled?: boolean;
   notifiedStreakMilestones?: number[];
   pushSubscription?: PushSubscriptionJSON;
+  fcmToken?: string;
   claimedBadges?: {
     milestoneId: string;
     claimedAt: string;

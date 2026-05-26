@@ -7,61 +7,46 @@ export default async function handler(req: Request, res: Response) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // 🔍 Log incoming request (VERY important for debugging)
   console.log('[API Subscribe] Incoming body:', req.body);
 
-  const { userId, subscription } = req.body || {};
+  const { userId, fcmToken } = req.body || {};
 
-  // ✅ Stronger validation with clearer feedback
-  if (!subscription) {
-    return res.status(400).json({ error: 'Missing subscription object' });
-  }
-
-  const { endpoint, keys } = subscription;
-
-  if (!endpoint) {
-    return res.status(400).json({ error: 'Missing endpoint' });
-  }
-
-  if (!keys || !keys.p256dh || !keys.auth) {
-    return res.status(400).json({ error: 'Missing subscription keys' });
+  if (!fcmToken) {
+    return res.status(400).json({ error: 'Missing fcmToken reference' });
   }
 
   try {
-    // 1. Update user document (optional but useful)
+    // 1. Update user document in Firestore
     if (userId && userId !== 'anonymous') {
       try {
         await db.collection('users').doc(userId).update({
-          pushSubscription: subscription,
+          fcmToken: fcmToken,
           notificationsDisabled: false,
           lastActivityAt: new Date().toISOString()
         });
 
-        console.log(`[API Subscribe] Updated user ${userId}`);
+        console.log(`[API Subscribe] Updated user ${userId} with FCM token`);
       } catch (userErr: any) {
         console.warn(
           `[API Subscribe] Could not update user ${userId}:`,
           userErr.message
         );
-        // continue anyway
       }
     }
 
-    // 2. Save to subscriptions collection
+    // 2. Save to subscriptions collection (preventing duplicates using an MD5 hash of fcmToken)
     const docId = crypto
       .createHash('md5')
-      .update(endpoint)
+      .update(fcmToken)
       .digest('hex');
 
     await db.collection('subscriptions').doc(docId).set({
       userId: userId || 'anonymous',
-      endpoint,
-      p256dh: keys.p256dh,
-      auth: keys.auth,
+      fcmToken: fcmToken,
       createdAt: new Date(),
     });
 
-    console.log(`[API Subscribe] Saved subscription: ${docId}`);
+    console.log(`[API Subscribe] Saved subscription ID: ${docId}`);
 
     return res.status(200).json({ success: true });
 

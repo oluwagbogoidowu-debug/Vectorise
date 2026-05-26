@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 import { getFirestore, enableIndexedDbPersistence, terminate } from "firebase/firestore";
+import { getMessaging, isSupported } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDEijT9QTC6wTyv_u2BN_UTC3NeOmADkI8",
@@ -22,6 +23,13 @@ export const db = getFirestore(app);
 
 export const auth = getAuth(app);
 const analytics = getAnalytics(app);
+
+export const getFirebaseMessaging = async () => {
+  if (typeof window === 'undefined') return null;
+  const supported = await isSupported();
+  if (!supported) return null;
+  return getMessaging(app);
+};
 
 export enum OperationType {
   CREATE = 'create',

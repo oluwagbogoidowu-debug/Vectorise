@@ -18,10 +18,14 @@ export const NotificationManager: React.FC = () => {
     let timer: any;
 
     const init = async () => {
+      const participant = user as any;
+      if (participant?.fcmToken) {
+        return; // already subscribed -> no prompt
+      }
+
       // Full capability check
       if (
         !('serviceWorker' in navigator) ||
-        !('PushManager' in window) ||
         !('Notification' in window)
       ) {
         return;
@@ -33,23 +37,16 @@ export const NotificationManager: React.FC = () => {
         return;
       }
 
-      // Check if already subscribed
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        const existingSub = await registration.pushManager.getSubscription();
-
-        if (existingSub) {
-          return; // already subscribed → no prompt
-        }
-      } catch (err) {
-        console.error('Subscription check failed:', err);
-      }
-
       // Only show if permission not yet granted
       if (Notification.permission === 'default') {
         timer = setTimeout(() => {
           setShowPrompt(true);
         }, 5000);
+      } else if (Notification.permission === 'granted' && !participant?.fcmToken) {
+        // Silently register the device token
+        pushNotificationService.subscribeUser(user.id).catch(err => {
+          console.warn('Silent FCM registration failed:', err);
+        });
       }
     };
 

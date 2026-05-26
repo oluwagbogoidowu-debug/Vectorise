@@ -1,5 +1,4 @@
-import webpush from '../utils/webpush.js';
-import { db } from './lib/firebaseAdmin.js';
+import admin, { db } from './lib/firebaseAdmin.js';
 import type { Request, Response } from 'express';
 import crypto from 'crypto';
 
@@ -13,40 +12,57 @@ export default async function handler(req: Request, res: Response) {
 
     const subs = snapshot.docs.map(doc => doc.data());
 
-    const payload = JSON.stringify({
-      title: '🔥 It works!',
-      body: 'Push from Firebase-backed system',
-      url: '/',
-      tag: 'daily-unlock' // Testing the unlock icon
-    });
-
     const results = await Promise.allSettled(
-      subs.map(sub => {
-        console.log(`[API Send] Attempting push to: ${sub.endpoint.substring(0, 50)}...`);
-        return webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.p256dh,
-              auth: sub.auth,
+      subs.map(async (sub) => {
+        const fcmToken = sub.fcmToken;
+        if (!fcmToken) {
+          console.warn(`[API Send] Skipping subscription doc without fcmToken`);
+          return;
+        }
+
+        console.log(`[API Send] Attempting FCM push to token: ${fcmToken.substring(0, 25)}...`);
+
+        try {
+          const message = {
+            token: fcmToken,
+            notification: {
+              title: '🔥 It works!',
+              body: 'Push from FCM-backed system'
             },
-          },
-          payload
-        ).then(res => {
-          console.log(`[API Send] Success for: ${sub.endpoint.substring(0, 50)}... Status: ${res.statusCode}`);
-          return res;
-        }).catch(async (err) => {
-          console.error(`[API Send] Failure for: ${sub.endpoint.substring(0, 50)}... Error:`, err.message);
-          if (err.body) console.error(`[API Send] Error body:`, err.body);
+            data: {
+              url: '/',
+              tag: 'daily-unlock'
+            },
+            webpush: {
+              notification: {
+                icon: 'https://img.icons8.com/fluency-systems-filled/96/0E7850/clock.png',
+                badge: 'https://lh3.googleusercontent.com/d/1iPPiCUwdOmGZ-KScVrvOpOw0LiauXE7X',
+                clickAction: '/'
+              }
+            }
+          };
+
+          const resultId = await admin.messaging().send(message);
+          console.log(`[API Send] Success for token: ${fcmToken.substring(0, 25)}... Response: ${resultId}`);
+          return resultId;
+        } catch (err: any) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          console.error(`[API Send] Failure for token: ${fcmToken.substring(0, 25)}... Error:`, errMsg);
           
-          // If the subscription is no longer valid, remove it from Firestore
-          if (err.statusCode === 410 || err.statusCode === 404) {
-            console.log(`Removing invalid subscription: ${sub.endpoint}`);
-            const docId = crypto.createHash('md5').update(sub.endpoint).digest('hex');
-            await db.collection('subscriptions').doc(docId).delete();
+          const errMsgLower = errMsg.toLowerCase();
+          if (
+            errMsgLower.includes('not-registered') ||
+            errMsgLower.includes('invalid-registration-token') ||
+            errMsgLower.includes('invalid-argument') ||
+            err.code === 'messaging/registration-token-not-registered' ||
+            err.code === 'messaging/invalid-argument'
+          ) {
+            console.log(`Removing invalid subscription token: ${fcmToken.substring(0, 25)}...`);
+            const docId = crypto.createHash('md5').update(fcmToken).digest('hex');
+            await db.collection('subscriptions').doc(docId).delete().catch(() => {});
           }
           throw err;
-        });
+        }
       })
     );
 

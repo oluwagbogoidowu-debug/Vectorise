@@ -46,10 +46,11 @@ async function startServer() {
   app.post('/api/send', sendHandler);
 
   app.post('/api/notifications/subscribe', async (req, res) => {
-    const { userId, subscription } = req.body;
-    if (!userId || !subscription) return res.status(400).json({ error: 'userId and subscription are required' });
+    const { userId, subscription, fcmToken } = req.body;
+    const token = fcmToken || subscription;
+    if (!userId || !token) return res.status(400).json({ error: 'userId and fcmToken/subscription are required' });
     try {
-      const success = await pushNotificationManager.saveSubscription(userId, subscription);
+      const success = await pushNotificationManager.saveSubscription(userId, token);
       res.json({ success });
     } catch (error) {
       res.status(500).json({ error: 'Failed to save subscription' });
