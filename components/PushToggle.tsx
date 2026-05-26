@@ -29,7 +29,8 @@ export const PushToggle: React.FC<PushToggleProps> = ({
 
   const syncState = async () => {
     const status = await pushNotificationService.getPushStatus();
-    setIsSubscribed(status.subscribed);
+    const hasFcmToken = !!(user as any)?.fcmToken;
+    setIsSubscribed(status.subscribed && hasFcmToken);
     setPermission(status.permission as NotificationPermission);
     setLoading(false);
   };
@@ -46,7 +47,7 @@ export const PushToggle: React.FC<PushToggleProps> = ({
 
     window.addEventListener('visibilitychange', handleVisibility);
     return () => window.removeEventListener('visibilitychange', handleVisibility);
-  }, []);
+  }, [(user as any)?.fcmToken]);
 
   const handleToggle = async () => {
     if (!user || toggling) return;
