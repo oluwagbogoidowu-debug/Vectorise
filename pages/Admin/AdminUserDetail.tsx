@@ -7,6 +7,8 @@ import { ArrowLeft, Calendar, Mail, User as UserIcon, Zap, Target, Clock, AlertC
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { UserStreakVisualizer } from '../../components/UserStreakVisualizer';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
+import { MILESTONES } from '../../services/milestoneConstants';
+import { PERSONA_QUIZZES } from '../../constants';
 
 export default function AdminUserDetail() {
     const { userId } = useParams<{ userId: string }>();
@@ -253,6 +255,54 @@ export default function AdminUserDetail() {
         }
     }
 
+    const displayedBadges = useMemo(() => {
+        if (!user) return [];
+        const badges: { id: string; title: string; description: string; icon: string; points: number; claimedAt?: string }[] = [];
+        
+        // 1. Process from user.claimedMilestoneIds
+        if (user.claimedMilestoneIds && user.claimedMilestoneIds.length > 0) {
+            user.claimedMilestoneIds.forEach(id => {
+                const mDef = MILESTONES.find(m => m.id === id);
+                if (mDef) {
+                    badges.push({
+                        id: mDef.id,
+                        title: mDef.title,
+                        description: mDef.description,
+                        icon: mDef.icon,
+                        points: mDef.points
+                    });
+                } else {
+                    badges.push({
+                        id,
+                        title: id.replace(/-/g, ' ').toUpperCase(),
+                        description: 'Milestone earned',
+                        icon: '🎖️',
+                        points: 10
+                    });
+                }
+            });
+        }
+
+        // 2. Process from user.claimedBadges (to support backwards / legacy compatibility)
+        if (user.claimedBadges && user.claimedBadges.length > 0) {
+            user.claimedBadges.forEach(badge => {
+                if (!badges.some(b => b.id === badge.milestoneId)) {
+                    const mDef = MILESTONES.find(m => m.id === badge.milestoneId);
+                    badges.push({
+                        id: badge.milestoneId,
+                        title: mDef ? mDef.title : badge.milestoneId.replace(/-/g, ' ').toUpperCase(),
+                        description: mDef ? mDef.description : 'Milestone badge claimed',
+                        icon: mDef ? mDef.icon : '🎖️',
+                        points: badge.claimedCredit || (mDef ? mDef.points : 10),
+                        claimedAt: badge.claimedAt
+                    });
+                }
+            });
+        }
+
+        return badges;
+    }, [user?.claimedMilestoneIds, user?.claimedBadges]);
+
     const getSprintTitle = (sprintId: string) => {
         return sprints.find(s => s.id === sprintId)?.title || 'Unknown Sprint';
     };
@@ -380,18 +430,39 @@ export default function AdminUserDetail() {
                             </div>
                             <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 scrollbar-hidden">
                                 {user.onboardingAnswers && Object.keys(user.onboardingAnswers).length > 0 ? (
-                                    Object.entries(user.onboardingAnswers).map(([key, value], idx) => (
-                                        <div key={idx} className="border-b border-gray-50 last:border-0 pb-2 last:pb-0">
-                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">{key.replace(/_/g, ' ')}</p>
-                                            <p className="text-[11px] font-bold text-gray-700 leading-relaxed">
-                                                {typeof value === 'object' && value !== null ? (
-                                                    ('seconds' in value && 'nanoseconds' in value)
-                                                        ? new Date((value as any).seconds * 1000).toLocaleString()
-                                                        : JSON.stringify(sanitizeData(value))
-                                                ) : String(value)}
-                                            </p>
-                                        </div>
-                                    ))
+                                    Object.entries(user.onboardingAnswers).map(([key, value], idx) => {
+                                        const index = parseInt(key) - 1;
+                                        const personaName = user.persona || user.occupation;
+                                        const personaQuiz = personaName && PERSONA_QUIZZES[personaName];
+                                        const questionDef = (!isNaN(index) && personaQuiz) ? personaQuiz[index] : null;
+                                        
+                                        const defaultQuestions = [
+                                            "What's your current role?",
+                                            "What is your biggest career/personal challenge right now?",
+                                            "Why are you joining this sprint / What's your goal?"
+                                        ];
+                                        const displayQuestion = questionDef 
+                                            ? questionDef.title 
+                                            : (!isNaN(index) && index >= 0 && index < defaultQuestions.length 
+                                                ? defaultQuestions[index] 
+                                                : key.replace(/_/g, ' '));
+
+                                        return (
+                                            <div key={idx} className="border-b border-gray-50 last:border-0 pb-2.5 last:pb-0">
+                                                <div className="flex items-start gap-1.5 mb-1">
+                                                    <span className="text-[9px] font-black text-[#0E7850] bg-emerald-50 px-1.5 py-0.5 rounded-full leading-none flex-shrink-0 mt-0.5">{key}</span>
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider leading-tight">{displayQuestion}</p>
+                                                </div>
+                                                <p className="text-[11px] font-bold text-gray-700 leading-relaxed pl-5">
+                                                    {typeof value === 'object' && value !== null ? (
+                                                        ('seconds' in value && 'nanoseconds' in value)
+                                                            ? new Date((value as any).seconds * 1000).toLocaleString()
+                                                            : JSON.stringify(sanitizeData(value))
+                                                    ) : String(value)}
+                                                </p>
+                                            </div>
+                                        );
+                                    })
                                 ) : (
                                     <p className="text-[10px] font-bold text-gray-400 italic py-4">No answers submitted.</p>
                                 )}
@@ -405,17 +476,20 @@ export default function AdminUserDetail() {
                                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Claims & Badges</h4>
                             </div>
                             <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 scrollbar-hidden">
-                                {user.claimedBadges && user.claimedBadges.length > 0 ? (
-                                    user.claimedBadges.map((badge: any, idx: number) => (
-                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100/50 text-xs">
-                                            <div>
-                                                <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight truncate max-w-[150px]">{badge.milestoneId.replace(/-/g, ' ')}</p>
-                                                <p className="text-[8px] font-bold text-gray-400 uppercase mt-0.5">
-                                                    {badge.claimedAt ? format(parseISO(badge.claimedAt), 'MMM d, yyyy') : 'N/A'}
-                                                </p>
+                                {displayedBadges.length > 0 ? (
+                                    displayedBadges.map((badge, idx) => (
+                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100/50 text-xs gap-3">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className="text-xl flex-shrink-0" role="img" aria-label="badge icon">{badge.icon}</span>
+                                                <div className="min-w-0">
+                                                    <p className="text-[10px] font-black text-gray-950 uppercase tracking-tight truncate max-w-[150px]">{badge.title}</p>
+                                                    <p className="text-[8px] font-bold text-gray-400 mt-0.5 truncate max-w-[180px]">
+                                                        {badge.description}
+                                                    </p>
+                                                </div>
                                             </div>
                                             <div className="text-right flex-shrink-0">
-                                                <p className="text-[10px] font-black text-[#0E7850] bg-emerald-50 px-2 py-1 rounded-lg">+{badge.claimedCredit} Cr</p>
+                                                <p className="text-[10px] font-black text-[#0E7850] bg-emerald-50 px-2 py-1 rounded-lg">+{badge.points} Cr</p>
                                             </div>
                                         </div>
                                     ))
