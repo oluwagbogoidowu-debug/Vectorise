@@ -172,7 +172,7 @@ export const pushNotificationManager = {
             const notification = { id: change.doc.id, ...change.doc.data() } as Notification;
             
             const hasNotTriedOrFailed = !notification.pushFailed && (!notification.retryCount || notification.retryCount === 0);
-            if (!notification.isRead && !notification.pushSent && hasNotTriedOrFailed) {
+            if (!notification.pushSent && hasNotTriedOrFailed) {
               console.log(`[PushManager] New notification detected for user ${notification.userId}. Sending FCM push...`);
               
               const success = await pushNotificationManager.sendPush(notification.userId, notification.data || {
