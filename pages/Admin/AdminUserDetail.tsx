@@ -25,7 +25,7 @@ export default function AdminUserDetail() {
             return key.replace(/_/g, ' ');
         }
         
-        if (key === '0') {
+        if (key === '0' || key === 'persona') {
             return "Which best describes you today?";
         }
         if (key === 'selected_focus') {
@@ -37,7 +37,7 @@ export default function AdminUserDetail() {
         
         const isNum = /^\d+$/.test(key);
         if (isNum) {
-            const persona = user.onboardingAnswers['0'];
+            const persona = user.onboardingAnswers['0'] || user.onboardingAnswers['persona'] || user.persona;
             if (persona && PERSONA_QUIZZES[persona]) {
                 const questionIdx = parseInt(key, 10) - 1;
                 if (questionIdx >= 0 && questionIdx < PERSONA_QUIZZES[persona].length) {
