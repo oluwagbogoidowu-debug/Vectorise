@@ -389,92 +389,22 @@ export default function AdminUserDetail() {
                     </div>
                 </div>
 
-                {/* Coins Ledger & Impact Connections Tracker */}
-                <div className="bg-white rounded-[2.5rem] border border-gray-100 p-6 md:p-8 shadow-sm">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-50">
-                        <div>
-                            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                                <Users className="w-4 h-4 text-[#0E7850]" /> Impact Connections & Coach Coins
-                            </h3>
-                            <p className="text-[9px] text-gray-400 font-black uppercase tracking-wider mt-0.5">
-                                Realtime ledger of total wallet balance, people helped, and referral history directory
-                            </p>
-                        </div>
+                {/* Minimal Metrics Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Wallet Balance Card */}
+                    <div className="bg-white rounded-[2rem] border border-gray-100 p-6 shadow-sm hover:border-[#0E7850]/10 hover:shadow-sm transition-all duration-300">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">Wallet Balance</p>
+                        <p className="text-3xl font-black text-gray-900 tracking-tight leading-none mt-1">
+                            {user.walletBalance || 0} Coins
+                        </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Coin Tracker Card */}
-                        <div className="bg-gradient-to-br from-amber-50 to-orange-50/30 p-5 rounded-3xl border border-amber-100/50 flex flex-col justify-between min-h-[140px] relative overflow-hidden group">
-                            <div className="absolute right-3 top-3 opacity-10">
-                                <Coins className="w-16 h-16 text-amber-500" />
-                            </div>
-                            <div>
-                                <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-1.5">Coach Wallet Balance</p>
-                                <h4 className="text-3xl font-black text-amber-950 tracking-tight">
-                                    {user.walletBalance || 0} <span className="text-sm font-black text-amber-600 uppercase">Coins</span>
-                                </h4>
-                            </div>
-                            <p className="text-[9px] text-amber-700 font-bold mt-4">
-                                Earned from completing growth sprints and claiming impact/referrals milestones.
-                            </p>
-                        </div>
-
-                        {/* People Helped Stats Card */}
-                        <div className="bg-gradient-to-br from-emerald-50 to-teal-50/30 p-5 rounded-3xl border border-emerald-100/50 flex flex-col justify-between min-h-[140px] relative overflow-hidden group">
-                            <div className="absolute right-3 top-3 opacity-10">
-                                <Users className="w-16 h-16 text-[#0E7850]" />
-                            </div>
-                            <div>
-                                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1.5">Total People Helped</p>
-                                <h4 className="text-3xl font-black text-emerald-950 tracking-tight">
-                                    {user.impactStats?.peopleHelped || 0} <span className="text-sm font-black text-emerald-600 uppercase">Guided</span>
-                                </h4>
-                            </div>
-                            <p className="text-[9px] text-emerald-700 font-bold mt-4">
-                                Number of individuals referred to setup and activate their growth blueprints inside the system.
-                            </p>
-                        </div>
-
-                        {/* Connections Directory / People Helped List */}
-                        <div className="bg-gray-50/50 border border-gray-100 rounded-3xl p-5 flex flex-col justify-between min-h-[140px]">
-                            <div>
-                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                                    <Clock className="w-3.5 h-3.5 text-gray-400" /> Connections Directory ({referrals.length})
-                                </p>
-                                <div className="max-h-[180px] overflow-y-auto space-y-2.5 scrollbar-hidden pr-1">
-                                    {referrals.length > 0 ? (
-                                        referrals.map((ref, idx) => (
-                                            <div key={ref.id || idx} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-gray-100 shadow-sm text-xs">
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <div className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center text-[10px] font-bold text-[#0E7850] shrink-0">
-                                                        {ref.refereeName?.substring(0, 2).toUpperCase() || 'P'}
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <p className="font-bold text-gray-800 truncate leading-none mb-1">{ref.refereeName}</p>
-                                                        <p className="text-[7px] font-black text-gray-400 uppercase tracking-wide">
-                                                            {ref.timestamp ? format(parseISO(ref.timestamp), 'MMM d, yyyy') : 'JOINED'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right shrink-0">
-                                                    <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
-                                                        ref.status === 'completed' || ref.status === 'active'
-                                                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/30'
-                                                            : 'bg-amber-50 text-amber-600 border border-amber-100/30'
-                                                    }`}>
-                                                        {ref.status || 'joined'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="text-center py-6">
-                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-wide italic">No connection setups registered yet.</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
+                    {/* Total People Helped Card */}
+                    <div className="bg-white rounded-[2rem] border border-gray-100 p-6 shadow-sm hover:border-[#0E7850]/10 hover:shadow-sm transition-all duration-300">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">Total People Helped</p>
+                        <p className="text-3xl font-black text-gray-900 tracking-tight leading-none mt-1">
+                            {user.impactStats?.peopleHelped || 0} Guided
+                        </p>
                     </div>
                 </div>
 
@@ -489,8 +419,53 @@ export default function AdminUserDetail() {
 
                     <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory scrollbar-hidden">
                         
+                        {/* Connections Directory Card */}
+                        <div className="flex-shrink-0 w-[290px] sm:w-[320px] h-[280px] bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm snap-start flex flex-col hover:border-[#0E7850]/10 transition-all duration-300">
+                            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-50 flex-shrink-0">
+                                <span className="text-sm">🤝</span>
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest justify-between w-full flex items-center">
+                                    <span>Connections Directory</span>
+                                    <span className="text-[9px] font-bold text-[#0E7850] bg-emerald-50 px-2 py-0.5 rounded">
+                                        {referrals.length} listed
+                                    </span>
+                                </h4>
+                            </div>
+                            <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 scrollbar-hidden">
+                                {referrals.length > 0 ? (
+                                    referrals.map((ref, idx) => (
+                                        <div key={ref.id || idx} className="flex items-center justify-between p-2.5 bg-gray-50/50 rounded-xl border border-gray-100/50 text-xs">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <div className="w-6 h-6 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-[10px] font-bold text-[#0E7850] shrink-0">
+                                                    {ref.refereeName?.substring(0, 2).toUpperCase() || 'P'}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-gray-800 truncate leading-none mb-1">{ref.refereeName}</p>
+                                                    <p className="text-[7px] font-black text-gray-400 uppercase tracking-wide">
+                                                        {ref.timestamp ? format(parseISO(ref.timestamp), 'MMM d, yyyy') : 'JOINED'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right shrink-0">
+                                                <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                                                    ref.status === 'completed' || ref.status === 'active'
+                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/30'
+                                                        : 'bg-amber-50 text-amber-600 border border-amber-100/30'
+                                                }`}>
+                                                    {ref.status || 'joined'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-8">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide italic">No connection setups registered yet.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         {/* Timeline Metrics Card (The 2nd Card) */}
-                        <div className="flex-shrink-0 w-[290px] sm:w-[320px] bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm snap-start hover:border-[#0E7850]/10 transition-all duration-300">
+                        <div className="flex-shrink-0 w-[290px] sm:w-[320px] h-[280px] bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm snap-start flex flex-col justify-between hover:border-[#0E7850]/10 transition-all duration-300">
                             <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-50 flex-shrink-0">
                                 <span className="text-sm">⏱️</span>
                                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Current Status</h4>
@@ -796,91 +771,6 @@ export default function AdminUserDetail() {
                             );
                         })}
                     </div>
-                </div>
-
-                {/* Claimed Badges Section */}
-                <div className="bg-white rounded-[2.5rem] border border-gray-100 p-6 md:p-8 shadow-sm">
-                    {unclaimedButActiveMilestones.length > 0 && (
-                        <div className="mb-10 animate-fade-in">
-                            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-50">
-                                <div>
-                                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                                        <Award className="w-4 h-4 text-amber-500 animate-pulse" /> Unclaimed But Active Milestones
-                                    </h3>
-                                    <p className="text-[9px] text-gray-400 font-black uppercase tracking-wider mt-0.5">Unlocked milestones ready to claim by the user</p>
-                                </div>
-                                <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-100 animate-pulse">
-                                    {unclaimedButActiveMilestones.length} Available
-                                </span>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                {unclaimedButActiveMilestones.map((milestone) => (
-                                    <div key={milestone.id} className="flex items-center gap-3.5 p-4 bg-gradient-to-br from-amber-50/20 to-orange-50/10 rounded-2xl border border-amber-205 hover:border-amber-300 transition-all duration-300 shadow-sm relative overflow-hidden">
-                                        <div className="absolute right-2 -bottom-2 text-4xl opacity-5 select-none">{milestone.icon}</div>
-                                        <div className="h-11 w-11 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-600 shadow-inner flex-shrink-0 text-xl font-bold">
-                                            {milestone.icon}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <h5 className="text-xs font-black text-amber-900 uppercase tracking-tight truncate">
-                                                {milestone.title}
-                                            </h5>
-                                            <p className="text-[9px] font-bold text-amber-600 mt-1 uppercase">
-                                                Ready to claim • {milestone.current}/{milestone.targetValue} {milestone.type}
-                                            </p>
-                                        </div>
-                                        <div className="text-right flex-shrink-0 z-10">
-                                            <span className="text-[10px] font-black text-amber-700 bg-amber-100 border border-amber-200 px-2 py-1 rounded-lg shadow-sm">
-                                                +{milestone.points} Coins
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-50">
-                        <div>
-                            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                                <Award className="w-4 h-4 text-amber-500" /> Claimed Badges
-                            </h3>
-                            <p className="text-[9px] text-gray-400 font-black uppercase tracking-wider mt-0.5">Recognition milestones achieved, credits earned, and timestamps of claims</p>
-                        </div>
-                        <span className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
-                            {user.claimedBadges?.length || 0} Badges
-                        </span>
-                    </div>
-
-                    {user.claimedBadges && user.claimedBadges.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                            {user.claimedBadges.map((badge: any, idx: number) => (
-                                <div key={idx} className="flex items-center gap-3.5 p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-[#0E7850]/20 hover:bg-white transition-all duration-300 shadow-sm">
-                                    <div className="h-11 w-11 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 shadow-inner flex-shrink-0">
-                                        <Award className="w-5 h-5 animate-pulse" />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <h5 className="text-xs font-black text-gray-900 uppercase tracking-tight truncate">
-                                            {badge.milestoneId.replace(/-/g, ' ')}
-                                        </h5>
-                                        <p className="text-[9px] font-semibold text-gray-400 mt-1 uppercase flex items-center gap-1.5">
-                                            <Clock className="w-3 h-3 text-gray-400" />
-                                            {badge.claimedAt ? format(parseISO(badge.claimedAt), 'MMM d, yyyy') : 'N/A'}
-                                        </p>
-                                    </div>
-                                    <div className="text-right flex-shrink-0">
-                                        <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">
-                                            +{badge.claimedCredit} Cr
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="py-12 text-center bg-gray-50 rounded-[2rem] border border-dashed border-gray-200">
-                            <p className="text-sm font-black text-gray-400 uppercase tracking-widest italic">No badges claimed yet.</p>
-                        </div>
-                    )}
                 </div>
 
                 {/* Sprint History Detail Section */}
