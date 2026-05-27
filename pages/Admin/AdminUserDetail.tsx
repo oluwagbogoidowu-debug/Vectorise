@@ -197,7 +197,7 @@ export default function AdminUserDetail() {
         const completedCount = enrollments.filter(e => e.status === 'completed' || e.progress?.every(p => p.completed)).length;
         const daysActive = Math.max(1, Math.ceil((Date.now() - new Date(user.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));
         const reflectionsCount = user.shinePostIds?.length || 0;
-        const peopleHelped = user.impactStats?.peopleHelped || 0;
+        const peopleHelped = referrals.length;
 
         const allMilestoneDefs = [
             { id: 's2', title: 'The Closer', icon: '🏁', targetValue: 1, points: 15, current: completedCount, type: 'Sprints Completed', description: 'Finished what you started.' },
@@ -220,7 +220,7 @@ export default function AdminUserDetail() {
         ];
         
         return allMilestoneDefs.filter(m => m.current >= m.targetValue && !claimedIds.includes(m.id));
-    }, [user, enrollments]);
+    }, [user, enrollments, referrals]);
 
     if (isLoading) {
         return (
@@ -390,20 +390,20 @@ export default function AdminUserDetail() {
                 </div>
 
                 {/* Minimal Metrics Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     {/* Wallet Balance Card */}
-                    <div className="bg-white rounded-[2rem] border border-gray-100 p-6 shadow-sm hover:border-[#0E7850]/10 hover:shadow-sm transition-all duration-300">
+                    <div className="bg-white rounded-[1.5rem] border border-gray-100 p-4 sm:p-5 shadow-sm hover:border-[#0E7850]/10 hover:shadow-sm transition-all duration-300">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">Wallet Balance</p>
-                        <p className="text-3xl font-black text-gray-900 tracking-tight leading-none mt-1">
+                        <p className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight leading-none">
                             {user.walletBalance || 0} Coins
                         </p>
                     </div>
 
                     {/* Total People Helped Card */}
-                    <div className="bg-white rounded-[2rem] border border-gray-100 p-6 shadow-sm hover:border-[#0E7850]/10 hover:shadow-sm transition-all duration-300">
+                    <div className="bg-white rounded-[1.5rem] border border-gray-100 p-4 sm:p-5 shadow-sm hover:border-[#0E7850]/10 hover:shadow-sm transition-all duration-300">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">Total People Helped</p>
-                        <p className="text-3xl font-black text-gray-900 tracking-tight leading-none mt-1">
-                            {user.impactStats?.peopleHelped || 0} Guided
+                        <p className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight leading-none">
+                            {referrals.length} Guided
                         </p>
                     </div>
                 </div>
@@ -419,51 +419,6 @@ export default function AdminUserDetail() {
 
                     <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory scrollbar-hidden">
                         
-                        {/* Connections Directory Card */}
-                        <div className="flex-shrink-0 w-[290px] sm:w-[320px] h-[280px] bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm snap-start flex flex-col hover:border-[#0E7850]/10 transition-all duration-300">
-                            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-50 flex-shrink-0">
-                                <span className="text-sm">🤝</span>
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest justify-between w-full flex items-center">
-                                    <span>Connections Directory</span>
-                                    <span className="text-[9px] font-bold text-[#0E7850] bg-emerald-50 px-2 py-0.5 rounded">
-                                        {referrals.length} listed
-                                    </span>
-                                </h4>
-                            </div>
-                            <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 scrollbar-hidden">
-                                {referrals.length > 0 ? (
-                                    referrals.map((ref, idx) => (
-                                        <div key={ref.id || idx} className="flex items-center justify-between p-2.5 bg-gray-50/50 rounded-xl border border-gray-100/50 text-xs">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <div className="w-6 h-6 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-[10px] font-bold text-[#0E7850] shrink-0">
-                                                    {ref.refereeName?.substring(0, 2).toUpperCase() || 'P'}
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="font-bold text-gray-800 truncate leading-none mb-1">{ref.refereeName}</p>
-                                                    <p className="text-[7px] font-black text-gray-400 uppercase tracking-wide">
-                                                        {ref.timestamp ? format(parseISO(ref.timestamp), 'MMM d, yyyy') : 'JOINED'}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="text-right shrink-0">
-                                                <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
-                                                    ref.status === 'completed' || ref.status === 'active'
-                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/30'
-                                                        : 'bg-amber-50 text-amber-600 border border-amber-100/30'
-                                                }`}>
-                                                    {ref.status || 'joined'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="text-center py-8">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide italic">No connection setups registered yet.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
                         {/* Timeline Metrics Card (The 2nd Card) */}
                         <div className="flex-shrink-0 w-[290px] sm:w-[320px] h-[280px] bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm snap-start flex flex-col justify-between hover:border-[#0E7850]/10 transition-all duration-300">
                             <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-50 flex-shrink-0">
@@ -589,6 +544,51 @@ export default function AdminUserDetail() {
                                     ))
                                 ) : (
                                     <p className="text-[10px] font-bold text-gray-400 italic text-center py-4">No badges claimed yet.</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Connections Directory Card */}
+                        <div className="flex-shrink-0 w-[290px] sm:w-[320px] h-[280px] bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm snap-start flex flex-col hover:border-[#0E7850]/10 transition-all duration-300">
+                            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-50 flex-shrink-0">
+                                <span className="text-sm">🤝</span>
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest justify-between w-full flex items-center">
+                                    <span>Connections Directory</span>
+                                    <span className="text-[9px] font-bold text-[#0E7850] bg-emerald-50 px-2 py-0.5 rounded">
+                                        {referrals.length} listed
+                                    </span>
+                                </h4>
+                            </div>
+                            <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 scrollbar-hidden">
+                                {referrals.length > 0 ? (
+                                    referrals.map((ref, idx) => (
+                                        <div key={ref.id || idx} className="flex items-center justify-between p-2.5 bg-gray-50/50 rounded-xl border border-gray-100/50 text-xs">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <div className="w-6 h-6 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-[10px] font-bold text-[#0E7850] shrink-0">
+                                                    {ref.refereeName?.substring(0, 2).toUpperCase() || 'P'}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-gray-800 truncate leading-none mb-1">{ref.refereeName}</p>
+                                                    <p className="text-[7px] font-black text-gray-400 uppercase tracking-wide">
+                                                        {ref.timestamp ? format(parseISO(ref.timestamp), 'MMM d, yyyy') : 'JOINED'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right shrink-0">
+                                                <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                                                    ref.status === 'completed' || ref.status === 'active'
+                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/30'
+                                                        : 'bg-amber-50 text-amber-600 border border-amber-100/30'
+                                                }`}>
+                                                    {ref.status || 'joined'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-8">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-wide italic">No connection setups registered yet.</p>
+                                    </div>
                                 )}
                             </div>
                         </div>
