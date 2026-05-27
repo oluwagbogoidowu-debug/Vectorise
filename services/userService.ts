@@ -335,10 +335,16 @@ export const userService = {
               });
               transaction.set(transactionDocRef, transactionData);
 
-              // 4. Update user balance and claimed IDs
+              // 4. Update user balance, claimed IDs, and claimed badges array for sync
               transaction.update(userRef, {
                   walletBalance: increment(points),
-                  claimedMilestoneIds: arrayUnion(milestoneId)
+                  claimedMilestoneIds: arrayUnion(milestoneId),
+                  claimedBadges: arrayUnion({
+                      milestoneId: milestoneId,
+                      claimedAt: new Date().toISOString(),
+                      claimedCredit: points,
+                      processed: true
+                  })
               });
 
               // 5. Record permanent claim (Non-riggable record)

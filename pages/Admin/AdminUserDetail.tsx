@@ -222,6 +222,50 @@ export default function AdminUserDetail() {
         return allMilestoneDefs.filter(m => m.current >= m.targetValue && !claimedIds.includes(m.id));
     }, [user, enrollments, referrals]);
 
+    const unifiedClaimedBadges = useMemo(() => {
+        if (!user) return [];
+        
+        const badges = [...(user.claimedBadges || [])];
+        const existingClaimedIds = new Set(badges.map((b: any) => b.milestoneId));
+        
+        const completedCount = enrollments.filter(e => e.status === 'completed' || e.progress?.every(p => p.completed)).length;
+        const daysActive = Math.max(1, Math.ceil((Date.now() - new Date(user.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));
+        const reflectionsCount = user.shinePostIds?.length || 0;
+        const peopleHelped = referrals.length;
+
+        const allMilestoneDefs = [
+            { id: 's2', title: 'The Closer', icon: '🏁', targetValue: 1, points: 15, current: completedCount, type: 'Sprints Completed', description: 'Finished what you started.' },
+            { id: 's4', title: 'Growth Habit', icon: '🏗️', targetValue: 14, points: 50, current: completedCount, type: 'Sprints Completed', description: 'Consistency is becoming your default.' },
+            { id: 'cm1', title: 'Rooted', icon: '🌱', targetValue: 60, points: 20, current: daysActive, type: 'Days Active', description: '60 days of intentional growth.' },
+            { id: 'cm2', title: 'Quarter Builder', icon: '🏢', targetValue: 90, points: 50, current: daysActive, type: 'Days Active', description: '90 days of structured rise.' },
+            { id: 'r1', title: 'Deep Diver', icon: '🌊', targetValue: 1, points: 10, current: reflectionsCount, type: 'Reflections', description: 'Went beyond surface-level growth.' },
+            { id: 'r2', title: 'Self-Aware', icon: '💎', targetValue: 5, points: 30, current: reflectionsCount, type: 'Reflections', description: 'Turned reflection into clarity.' },
+            { id: 'i1', title: 'Impact 1 Degree', icon: '🌱', targetValue: 1, points: 5, current: peopleHelped, type: 'People Helped', description: 'Helped someone start their rise.' },
+            { id: 'i3', title: 'Impact 3 Degree', icon: '🔧', targetValue: 3, points: 15, current: peopleHelped, type: 'People Helped', description: 'Helped 3 people start their rise.' },
+            { id: 'i5', title: 'Catalyst', icon: '⚡', targetValue: 5, points: 25, current: peopleHelped, type: 'People Helped', description: 'Helped 5 people start their rise.' },
+            { id: 'i10', title: 'Multiplier', icon: '🌳', targetValue: 10, points: 50, current: peopleHelped, type: 'People Helped', description: 'Ignited growth in 10 people.' },
+            { id: 'i20', title: 'Architect', icon: '🧠', targetValue: 20, points: 150, current: peopleHelped, type: 'People Helped', description: 'Became an architect of opportunity.' },
+            { id: 'i30', title: 'Inner Circle', icon: '👑', targetValue: 30, points: 250, current: peopleHelped, type: 'People Helped', description: 'Joined the inner circle of legacy.' }
+        ];
+
+        const milDefMap = new Map(allMilestoneDefs.map(m => [m.id, m]));
+
+        (user.claimedMilestoneIds || []).forEach((mId: string) => {
+            if (!existingClaimedIds.has(mId)) {
+                const def = milDefMap.get(mId);
+                badges.push({
+                    milestoneId: mId,
+                    claimedAt: new Date().toISOString(),
+                    claimedCredit: def ? def.points : 0,
+                    processed: true
+                });
+                existingClaimedIds.add(mId);
+            }
+        });
+        
+        return badges;
+    }, [user, enrollments, referrals]);
+
     if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-light">
@@ -528,8 +572,8 @@ export default function AdminUserDetail() {
                                 )}
 
                                 <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest px-1">🏅 Claimed Badges</p>
-                                {user.claimedBadges && user.claimedBadges.length > 0 ? (
-                                    user.claimedBadges.map((badge: any, idx: number) => (
+                                {unifiedClaimedBadges && unifiedClaimedBadges.length > 0 ? (
+                                    unifiedClaimedBadges.map((badge: any, idx: number) => (
                                         <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100/50 text-xs">
                                             <div>
                                                 <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight truncate max-w-[150px]">{badge.milestoneId.replace(/-/g, ' ')}</p>
@@ -538,7 +582,7 @@ export default function AdminUserDetail() {
                                                 </p>
                                             </div>
                                             <div className="text-right flex-shrink-0">
-                                                <p className="text-[10px] font-black text-[#0E7850] bg-emerald-50 px-2 py-1 rounded-lg">+{badge.claimedCredit} Cr</p>
+                                                <p className="text-[10px] font-black text-[#0E7850] bg-emerald-50 px-2 py-1 rounded-lg">+{badge.claimedCredit} Coins</p>
                                             </div>
                                         </div>
                                     ))
