@@ -245,11 +245,30 @@ export const analyticsService = {
       const allAnalytics = await analyticsService.getAllSprintAnalytics();
       const activeCount = allAnalytics.filter(a => a.status === 'active').length;
       const inactiveCount = allAnalytics.filter(a => a.status === 'inactive').length;
+      
+      let revenue24h = 0;
+      const now = Date.now();
+      const last24h = now - 24 * 60 * 60 * 1000;
+      
+      try {
+        const paymentsSnap = await getDocs(collection(db, 'payments'));
+        paymentsSnap.forEach(doc => {
+          const data = doc.data();
+          const pDateStr = data.completedAt || data.initiatedAt || '';
+          const pAmount = Number(data.amount) || 0;
+          if (pDateStr && new Date(pDateStr).getTime() >= last24h) {
+            revenue24h += pAmount;
+          }
+        });
+      } catch (payErr) {
+        console.error("[Platform Pulse] Error calculating 24h revenue:", payErr);
+      }
+
       return {
         activeUsers24h: activeCount,
         totalEnrollments24h: allAnalytics.length,
         atRiskCount: inactiveCount,
-        revenue24h: 0
+        revenue24h
       };
     } catch (e) {
       return {
