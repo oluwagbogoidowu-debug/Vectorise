@@ -2,12 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { userService, sanitizeData } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
-import { Participant, ParticipantSprint, Sprint } from '../../types';
-import { ArrowLeft, Calendar, Mail, User as UserIcon, Zap, Target, Clock, AlertCircle, ChevronRight, Award, Flame, TrendingUp } from 'lucide-react';
+import { Participant, ParticipantSprint, Sprint, Referral } from '../../types';
+import { ArrowLeft, Calendar, Mail, User as UserIcon, Zap, Target, Clock, AlertCircle, ChevronRight, Award, Flame, TrendingUp, Users, Coins } from 'lucide-react';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { UserStreakVisualizer } from '../../components/UserStreakVisualizer';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { PERSONA_QUIZZES } from '../../services/mockData';
+import { db } from '../../services/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 export default function AdminUserDetail() {
     const { userId } = useParams<{ userId: string }>();
@@ -15,6 +17,7 @@ export default function AdminUserDetail() {
     const [user, setUser] = useState<Participant | null>(null);
     const [enrollments, setEnrollments] = useState<ParticipantSprint[]>([]);
     const [sprints, setSprints] = useState<Sprint[]>([]);
+    const [referrals, setReferrals] = useState<Referral[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const getOnboardingQuestion = (key: string) => {
@@ -59,6 +62,12 @@ export default function AdminUserDetail() {
                 setUser(userData as Participant);
                 setEnrollments(enrollmentsData);
                 setSprints(sprintsData);
+
+                // Fetch referrals
+                const referralsQuery = query(collection(db, 'referrals'), where('referrerId', '==', userId));
+                const referralsSnap = await getDocs(referralsQuery);
+                const referralsList = referralsSnap.docs.map(doc => sanitizeData({ id: doc.id, ...doc.data() }) as Referral);
+                setReferrals(referralsList);
             } catch (error) {
                 console.error("Error fetching user detail:", error);
             } finally {
@@ -181,6 +190,37 @@ export default function AdminUserDetail() {
             activeInLast30,
         };
     }, [enrollments]);
+
+    const unclaimedButActiveMilestones = useMemo(() => {
+        if (!user) return [];
+        
+        const completedCount = enrollments.filter(e => e.status === 'completed' || e.progress?.every(p => p.completed)).length;
+        const daysActive = Math.max(1, Math.ceil((Date.now() - new Date(user.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));
+        const reflectionsCount = user.shinePostIds?.length || 0;
+        const peopleHelped = user.impactStats?.peopleHelped || 0;
+
+        const allMilestoneDefs = [
+            { id: 's2', title: 'The Closer', icon: '🏁', targetValue: 1, points: 15, current: completedCount, type: 'Sprints Completed', description: 'Finished what you started.' },
+            { id: 's4', title: 'Growth Habit', icon: '🏗️', targetValue: 14, points: 50, current: completedCount, type: 'Sprints Completed', description: 'Consistency is becoming your default.' },
+            { id: 'cm1', title: 'Rooted', icon: '🌱', targetValue: 60, points: 20, current: daysActive, type: 'Days Active', description: '60 days of intentional growth.' },
+            { id: 'cm2', title: 'Quarter Builder', icon: '🏢', targetValue: 90, points: 50, current: daysActive, type: 'Days Active', description: '90 days of structured rise.' },
+            { id: 'r1', title: 'Deep Diver', icon: '🌊', targetValue: 1, points: 10, current: reflectionsCount, type: 'Reflections', description: 'Went beyond surface-level growth.' },
+            { id: 'r2', title: 'Self-Aware', icon: '💎', targetValue: 5, points: 30, current: reflectionsCount, type: 'Reflections', description: 'Turned reflection into clarity.' },
+            { id: 'i1', title: 'Impact 1 Degree', icon: '🌱', targetValue: 1, points: 5, current: peopleHelped, type: 'People Helped', description: 'Helped someone start their rise.' },
+            { id: 'i3', title: 'Impact 3 Degree', icon: '🔧', targetValue: 3, points: 15, current: peopleHelped, type: 'People Helped', description: 'Helped 3 people start their rise.' },
+            { id: 'i5', title: 'Catalyst', icon: '⚡', targetValue: 5, points: 25, current: peopleHelped, type: 'People Helped', description: 'Helped 5 people start their rise.' },
+            { id: 'i10', title: 'Multiplier', icon: '🌳', targetValue: 10, points: 50, current: peopleHelped, type: 'People Helped', description: 'Ignited growth in 10 people.' },
+            { id: 'i20', title: 'Architect', icon: '🧠', targetValue: 20, points: 150, current: peopleHelped, type: 'People Helped', description: 'Became an architect of opportunity.' },
+            { id: 'i30', title: 'Inner Circle', icon: '👑', targetValue: 30, points: 250, current: peopleHelped, type: 'People Helped', description: 'Joined the inner circle of legacy.' }
+        ];
+
+        const claimedIds = [
+            ...(user.claimedMilestoneIds || []),
+            ...(user.claimedBadges || []).map((b: any) => b.milestoneId)
+        ];
+        
+        return allMilestoneDefs.filter(m => m.current >= m.targetValue && !claimedIds.includes(m.id));
+    }, [user, enrollments]);
 
     if (isLoading) {
         return (
@@ -349,6 +389,95 @@ export default function AdminUserDetail() {
                     </div>
                 </div>
 
+                {/* Coins Ledger & Impact Connections Tracker */}
+                <div className="bg-white rounded-[2.5rem] border border-gray-100 p-6 md:p-8 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-50">
+                        <div>
+                            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                                <Users className="w-4 h-4 text-[#0E7850]" /> Impact Connections & Coach Coins
+                            </h3>
+                            <p className="text-[9px] text-gray-400 font-black uppercase tracking-wider mt-0.5">
+                                Realtime ledger of total wallet balance, people helped, and referral history directory
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Coin Tracker Card */}
+                        <div className="bg-gradient-to-br from-amber-50 to-orange-50/30 p-5 rounded-3xl border border-amber-100/50 flex flex-col justify-between min-h-[140px] relative overflow-hidden group">
+                            <div className="absolute right-3 top-3 opacity-10">
+                                <Coins className="w-16 h-16 text-amber-500" />
+                            </div>
+                            <div>
+                                <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-1.5">Coach Wallet Balance</p>
+                                <h4 className="text-3xl font-black text-amber-950 tracking-tight">
+                                    {user.walletBalance || 0} <span className="text-sm font-black text-amber-600 uppercase">Coins</span>
+                                </h4>
+                            </div>
+                            <p className="text-[9px] text-amber-700 font-bold mt-4">
+                                Earned from completing growth sprints and claiming impact/referrals milestones.
+                            </p>
+                        </div>
+
+                        {/* People Helped Stats Card */}
+                        <div className="bg-gradient-to-br from-emerald-50 to-teal-50/30 p-5 rounded-3xl border border-emerald-100/50 flex flex-col justify-between min-h-[140px] relative overflow-hidden group">
+                            <div className="absolute right-3 top-3 opacity-10">
+                                <Users className="w-16 h-16 text-[#0E7850]" />
+                            </div>
+                            <div>
+                                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1.5">Total People Helped</p>
+                                <h4 className="text-3xl font-black text-emerald-950 tracking-tight">
+                                    {user.impactStats?.peopleHelped || 0} <span className="text-sm font-black text-emerald-600 uppercase">Guided</span>
+                                </h4>
+                            </div>
+                            <p className="text-[9px] text-emerald-700 font-bold mt-4">
+                                Number of individuals referred to setup and activate their growth blueprints inside the system.
+                            </p>
+                        </div>
+
+                        {/* Connections Directory / People Helped List */}
+                        <div className="bg-gray-50/50 border border-gray-100 rounded-3xl p-5 flex flex-col justify-between min-h-[140px]">
+                            <div>
+                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                    <Clock className="w-3.5 h-3.5 text-gray-400" /> Connections Directory ({referrals.length})
+                                </p>
+                                <div className="max-h-[180px] overflow-y-auto space-y-2.5 scrollbar-hidden pr-1">
+                                    {referrals.length > 0 ? (
+                                        referrals.map((ref, idx) => (
+                                            <div key={ref.id || idx} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-gray-100 shadow-sm text-xs">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <div className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center text-[10px] font-bold text-[#0E7850] shrink-0">
+                                                        {ref.refereeName?.substring(0, 2).toUpperCase() || 'P'}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="font-bold text-gray-800 truncate leading-none mb-1">{ref.refereeName}</p>
+                                                        <p className="text-[7px] font-black text-gray-400 uppercase tracking-wide">
+                                                            {ref.timestamp ? format(parseISO(ref.timestamp), 'MMM d, yyyy') : 'JOINED'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right shrink-0">
+                                                    <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                                                        ref.status === 'completed' || ref.status === 'active'
+                                                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100/30'
+                                                            : 'bg-amber-50 text-amber-600 border border-amber-100/30'
+                                                    }`}>
+                                                        {ref.status || 'joined'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-6">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-wide italic">No connection setups registered yet.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Info & Metrics Swipeable Deck */}
                 <div>
                     <div className="flex items-center justify-between mb-3 px-1">
@@ -449,6 +578,26 @@ export default function AdminUserDetail() {
                                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Claims & Badges</h4>
                             </div>
                             <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 scrollbar-hidden">
+                                {unclaimedButActiveMilestones.length > 0 && (
+                                    <div className="space-y-2 mb-4">
+                                        <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest px-1">🏆 Unclaimed (Active)</p>
+                                        {unclaimedButActiveMilestones.map((milestone) => (
+                                            <div key={milestone.id} className="flex items-center justify-between p-3 bg-amber-50/50 rounded-2xl border border-amber-100/50 text-xs">
+                                                <div className="min-w-0 flex-1 pr-2">
+                                                    <p className="text-[10px] font-black text-amber-900 uppercase tracking-tight truncate flex items-center gap-1">
+                                                        <span>{milestone.icon}</span> {milestone.title}
+                                                    </p>
+                                                    <p className="text-[8px] font-bold text-amber-600 uppercase mt-0.5">READY TO CLAIM</p>
+                                                </div>
+                                                <div className="text-right flex-shrink-0">
+                                                    <p className="text-[10px] font-black text-amber-700 bg-amber-100 px-2 py-1 rounded-lg">+{milestone.points} Coins</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest px-1">🏅 Claimed Badges</p>
                                 {user.claimedBadges && user.claimedBadges.length > 0 ? (
                                     user.claimedBadges.map((badge: any, idx: number) => (
                                         <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100/50 text-xs">
@@ -464,7 +613,7 @@ export default function AdminUserDetail() {
                                         </div>
                                     ))
                                 ) : (
-                                    <p className="text-[10px] font-bold text-gray-400 italic text-center py-8">No badges claimed yet.</p>
+                                    <p className="text-[10px] font-bold text-gray-400 italic text-center py-4">No badges claimed yet.</p>
                                 )}
                             </div>
                         </div>
@@ -651,6 +800,46 @@ export default function AdminUserDetail() {
 
                 {/* Claimed Badges Section */}
                 <div className="bg-white rounded-[2.5rem] border border-gray-100 p-6 md:p-8 shadow-sm">
+                    {unclaimedButActiveMilestones.length > 0 && (
+                        <div className="mb-10 animate-fade-in">
+                            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-50">
+                                <div>
+                                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                                        <Award className="w-4 h-4 text-amber-500 animate-pulse" /> Unclaimed But Active Milestones
+                                    </h3>
+                                    <p className="text-[9px] text-gray-400 font-black uppercase tracking-wider mt-0.5">Unlocked milestones ready to claim by the user</p>
+                                </div>
+                                <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-100 animate-pulse">
+                                    {unclaimedButActiveMilestones.length} Available
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                {unclaimedButActiveMilestones.map((milestone) => (
+                                    <div key={milestone.id} className="flex items-center gap-3.5 p-4 bg-gradient-to-br from-amber-50/20 to-orange-50/10 rounded-2xl border border-amber-205 hover:border-amber-300 transition-all duration-300 shadow-sm relative overflow-hidden">
+                                        <div className="absolute right-2 -bottom-2 text-4xl opacity-5 select-none">{milestone.icon}</div>
+                                        <div className="h-11 w-11 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-600 shadow-inner flex-shrink-0 text-xl font-bold">
+                                            {milestone.icon}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <h5 className="text-xs font-black text-amber-900 uppercase tracking-tight truncate">
+                                                {milestone.title}
+                                            </h5>
+                                            <p className="text-[9px] font-bold text-amber-600 mt-1 uppercase">
+                                                Ready to claim • {milestone.current}/{milestone.targetValue} {milestone.type}
+                                            </p>
+                                        </div>
+                                        <div className="text-right flex-shrink-0 z-10">
+                                            <span className="text-[10px] font-black text-amber-700 bg-amber-100 border border-amber-200 px-2 py-1 rounded-lg shadow-sm">
+                                                +{milestone.points} Coins
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-50">
                         <div>
                             <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
