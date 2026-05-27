@@ -12,6 +12,7 @@ import {
 import { useAuth } from "../../contexts/AuthContext";
 import { sprintService } from "../../services/sprintService";
 import { analyticsService } from "../../services/analyticsService";
+import { analyticsTracker } from "../../services/analyticsTracker";
 import { chatService } from "../../services/chatService";
 import { pushNotificationService } from "../../services/pushNotificationService";
 import { doc, updateDoc } from "firebase/firestore";
@@ -1030,6 +1031,11 @@ const SprintView: React.FC = () => {
         analyticsService
           .logUserActivity(user.id, enrollment.sprint_id, 'task_submission')
           .catch((e) => console.error("Streak tracking failed:", e));
+
+        analyticsTracker.trackEvent('sprint_submission', {
+          sprint_id: enrollment.sprint_id,
+          day: viewingDay
+        }, user.id, user.email);
       }
 
       // Trigger push notification for task completion

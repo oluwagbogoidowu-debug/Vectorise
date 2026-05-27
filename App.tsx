@@ -43,14 +43,17 @@ const AppContent: React.FC = () => {
           pushNotificationService.updateActivity(user.id, 'Active');
         }
       }, 2 * 60 * 1000); // Every 2 minutes
+
+      if (!sessionStorage.getItem('analytics_login_tracked')) {
+        analyticsTracker.trackEvent('login', {}, user.id, user.email);
+        sessionStorage.setItem('analytics_login_tracked', 'true');
+      }
     }
     
-    analyticsTracker.trackEvent('page_view', { path: location.pathname + location.hash }, user?.id, user?.email);
-
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [location.pathname, location.hash, user?.id]);
+  }, [user?.id]);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
