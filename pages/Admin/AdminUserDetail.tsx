@@ -3,14 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { userService, sanitizeData } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { Participant, ParticipantSprint, Sprint } from '../../types';
-import { ArrowLeft, Calendar, Mail, User as UserIcon, Zap, Target, Clock, AlertCircle, ChevronRight, Award, Flame, TrendingUp, Coins, Users } from 'lucide-react';
+import { ArrowLeft, Calendar, Mail, User as UserIcon, Zap, Target, Clock, AlertCircle, ChevronRight, Award, Flame, TrendingUp } from 'lucide-react';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { UserStreakVisualizer } from '../../components/UserStreakVisualizer';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
-import { MILESTONES } from '../../services/milestoneConstants';
-import { PERSONA_QUIZZES } from '../../constants';
-import { db } from '../../services/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
 
 export default function AdminUserDetail() {
     const { userId } = useParams<{ userId: string }>();
@@ -18,7 +14,6 @@ export default function AdminUserDetail() {
     const [user, setUser] = useState<Participant | null>(null);
     const [enrollments, setEnrollments] = useState<ParticipantSprint[]>([]);
     const [sprints, setSprints] = useState<Sprint[]>([]);
-    const [referrals, setReferrals] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -31,29 +26,9 @@ export default function AdminUserDetail() {
                     sprintService.getUserEnrollments(userId),
                     sprintService.getAdminSprints()
                 ]);
-                const loadedUser = userData as Participant;
-                setUser(loadedUser);
+                setUser(userData as Participant);
                 setEnrollments(enrollmentsData);
                 setSprints(sprintsData);
-
-                // Fetch referrals by referrerId equal to userId or user's referralCode
-                const refs: any[] = [];
-                const qRefById = query(collection(db, 'referrals'), where('referrerId', '==', userId));
-                const snapById = await getDocs(qRefById);
-                snapById.docs.forEach(d => {
-                    refs.push(sanitizeData({ id: d.id, ...d.data() }));
-                });
-
-                if (loadedUser?.referralCode) {
-                    const qRefByCode = query(collection(db, 'referrals'), where('referrerId', '==', loadedUser.referralCode));
-                    const snapByCode = await getDocs(qRefByCode);
-                    snapByCode.docs.forEach(d => {
-                        if (!refs.some(item => item.id === d.id)) {
-                            refs.push(sanitizeData({ id: d.id, ...d.data() }));
-                        }
-                    });
-                }
-                setReferrals(refs);
             } catch (error) {
                 console.error("Error fetching user detail:", error);
             } finally {
@@ -278,105 +253,8 @@ export default function AdminUserDetail() {
         }
     }
 
-    const displayedBadges = useMemo(() => {
-        if (!user) return [];
-        const badges: { id: string; title: string; description: string; icon: string; points: number; claimedAt?: string }[] = [];
-        
-        // 1. Process from user.claimedMilestoneIds
-        if (user.claimedMilestoneIds && user.claimedMilestoneIds.length > 0) {
-            user.claimedMilestoneIds.forEach(id => {
-                const mDef = MILESTONES.find(m => m.id === id);
-                if (mDef) {
-                    badges.push({
-                        id: mDef.id,
-                        title: mDef.title,
-                        description: mDef.description,
-                        icon: mDef.icon,
-                        points: mDef.points
-                    });
-                } else {
-                    badges.push({
-                        id,
-                        title: id.replace(/-/g, ' ').toUpperCase(),
-                        description: 'Milestone earned',
-                        icon: '🎖️',
-                        points: 10
-                    });
-                }
-            });
-        }
-
-        // 2. Process from user.claimedBadges (to support backwards / legacy compatibility)
-        if (user.claimedBadges && user.claimedBadges.length > 0) {
-            user.claimedBadges.forEach(badge => {
-                if (!badges.some(b => b.id === badge.milestoneId)) {
-                    const mDef = MILESTONES.find(m => m.id === badge.milestoneId);
-                    badges.push({
-                        id: badge.milestoneId,
-                        title: mDef ? mDef.title : badge.milestoneId.replace(/-/g, ' ').toUpperCase(),
-                        description: mDef ? mDef.description : 'Milestone badge claimed',
-                        icon: mDef ? mDef.icon : '🎖️',
-                        points: badge.claimedCredit || (mDef ? mDef.points : 10),
-                        claimedAt: badge.claimedAt
-                    });
-                }
-            });
-        }
-
-        return badges;
-    }, [user?.claimedMilestoneIds, user?.claimedBadges]);
-
-    const unclaimedActiveMilestones = useMemo(() => {
-        if (!user) return [];
-        const getStatValue = (id: string) => {
-            switch(id) {
-                case 's2':
-                    return enrollments.filter(e => e.status === 'completed' || e.progress?.every(p => p.completed)).length;
-                case 's4':
-                case 'cm1':
-                case 'cm2':
-                    return streakStats.completedDatesSet.size;
-                case 'r1':
-                case 'r2':
-                    return user.shinePostIds?.length || 0;
-                case 'i1':
-                case 'i3':
-                case 'i5':
-                case 'i10':
-                    return user.impactStats?.peopleHelped || 0;
-                default:
-                    return 0;
-            }
-        };
-
-        const claimedIds = user.claimedMilestoneIds || [];
-        return MILESTONES.filter(m => {
-            const val = getStatValue(m.id);
-            const isUnlocked = val >= m.targetValue;
-            const isClaimed = claimedIds.includes(m.id);
-            return isUnlocked && !isClaimed;
-        }).map(m => ({
-            id: m.id,
-            title: m.title,
-            description: m.description,
-            icon: m.icon,
-            points: m.points,
-            isUnlocked: true,
-            isClaimed: false
-        }));
-    }, [user, enrollments, streakStats]);
-
     const getSprintTitle = (sprintId: string) => {
         return sprints.find(s => s.id === sprintId)?.title || 'Unknown Sprint';
-    };
-
-    const formatReferralDate = (timestampStr: string) => {
-        if (!timestampStr) return 'N/A';
-        try {
-            return format(parseISO(timestampStr), 'MMM d, yyyy');
-        } catch(e) {
-            return 'N/A';
-        }
     };
 
     return (
@@ -452,66 +330,6 @@ export default function AdminUserDetail() {
 
                     <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory scrollbar-hidden">
                         
-                        {/* Coins & Impact Helplist Card */}
-                        <div className="flex-shrink-0 w-[290px] sm:w-[320px] h-[280px] bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm snap-start flex flex-col hover:border-[#0E7850]/10 transition-all duration-300">
-                            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-50 flex-shrink-0">
-                                <span className="text-sm">🪙</span>
-                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest justify-between w-full flex items-center">
-                                    <span>Coins & Impact Ledger</span>
-                                </h4>
-                            </div>
-
-                            {/* Metrics Top Section */}
-                            <div className="grid grid-cols-2 gap-4 pb-3 border-b border-gray-50 flex-shrink-0">
-                                <div className="bg-gray-50/50 p-2.5 rounded-2xl border border-gray-100/50">
-                                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Coin Balance</p>
-                                    <p className="text-lg font-black text-gray-900 flex items-center gap-1 leading-none">
-                                        🪙 {user.walletBalance ?? 0}
-                                    </p>
-                                </div>
-                                <div className="bg-gray-50/50 p-2.5 rounded-2xl border border-gray-100/50">
-                                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Helped Count</p>
-                                    <p className="text-lg font-black text-[#0E7850] flex items-center gap-1 leading-none">
-                                        👥 {user.impactStats?.peopleHelped ?? 0}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Helplist scroll section */}
-                            <div className="flex-1 overflow-y-auto mt-3 pr-1 space-y-2 scrollbar-hidden">
-                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-wider mb-1">List of People Helped</p>
-                                {referrals.length > 0 ? (
-                                    referrals.map((ref, idx) => {
-                                        let statusColor = 'bg-gray-100 text-gray-500';
-                                        if (ref.status === 'completed') statusColor = 'bg-emerald-50 text-emerald-700 border border-emerald-100';
-                                        else if (ref.status === 'active' || ref.status === 'started') statusColor = 'bg-blue-50 text-blue-700 border border-blue-100';
-
-                                        const nameInitial = ref.refereeName ? ref.refereeName.charAt(0).toUpperCase() : '?';
-                                        const refDate = ref.timestamp ? formatReferralDate(ref.timestamp) : 'N/A';
-
-                                        return (
-                                            <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-gray-50/30 border border-gray-100/30 text-xs">
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <span className="w-6 h-6 rounded-full bg-[#0E7850]/10 text-[#0E7850] border border-[#0E7850]/20 flex items-center justify-center font-black text-[9px] flex-shrink-0">
-                                                        {nameInitial}
-                                                    </span>
-                                                    <div className="min-w-0">
-                                                        <p className="text-[10px] font-bold text-gray-800 truncate">{ref.refereeName || 'Anonymous Referee'}</p>
-                                                        <p className="text-[8px] text-gray-400">{refDate}</p>
-                                                    </div>
-                                                </div>
-                                                <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-wider ${statusColor}`}>
-                                                    {ref.status || 'joined'}
-                                                </span>
-                                            </div>
-                                        );
-                                    })
-                                ) : (
-                                    <p className="text-[10px] text-gray-400 italic py-4 text-center">No people helped yet.</p>
-                                )}
-                            </div>
-                        </div>
-
                         {/* Timeline Metrics Card (The 2nd Card) */}
                         <div className="flex-shrink-0 w-[290px] sm:w-[320px] bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm snap-start hover:border-[#0E7850]/10 transition-all duration-300">
                             <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-50 flex-shrink-0">
@@ -562,39 +380,18 @@ export default function AdminUserDetail() {
                             </div>
                             <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 scrollbar-hidden">
                                 {user.onboardingAnswers && Object.keys(user.onboardingAnswers).length > 0 ? (
-                                    Object.entries(user.onboardingAnswers).map(([key, value], idx) => {
-                                        const index = parseInt(key) - 1;
-                                        const personaName = user.persona || user.occupation;
-                                        const personaQuiz = personaName && PERSONA_QUIZZES[personaName];
-                                        const questionDef = (!isNaN(index) && personaQuiz) ? personaQuiz[index] : null;
-                                        
-                                        const defaultQuestions = [
-                                            "What's your current role?",
-                                            "What is your biggest career/personal challenge right now?",
-                                            "Why are you joining this sprint / What's your goal?"
-                                        ];
-                                        const displayQuestion = questionDef 
-                                            ? questionDef.title 
-                                            : (!isNaN(index) && index >= 0 && index < defaultQuestions.length 
-                                                ? defaultQuestions[index] 
-                                                : key.replace(/_/g, ' '));
-
-                                        return (
-                                            <div key={idx} className="border-b border-gray-50 last:border-0 pb-2.5 last:pb-0">
-                                                <div className="flex items-start gap-1.5 mb-1">
-                                                    <span className="text-[9px] font-black text-[#0E7850] bg-emerald-50 px-1.5 py-0.5 rounded-full leading-none flex-shrink-0 mt-0.5">{key}</span>
-                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider leading-tight">{displayQuestion}</p>
-                                                </div>
-                                                <p className="text-[11px] font-bold text-gray-700 leading-relaxed pl-5">
-                                                    {typeof value === 'object' && value !== null ? (
-                                                        ('seconds' in value && 'nanoseconds' in value)
-                                                            ? new Date((value as any).seconds * 1000).toLocaleString()
-                                                            : JSON.stringify(sanitizeData(value))
-                                                    ) : String(value)}
-                                                </p>
-                                            </div>
-                                        );
-                                    })
+                                    Object.entries(user.onboardingAnswers).map(([key, value], idx) => (
+                                        <div key={idx} className="border-b border-gray-50 last:border-0 pb-2 last:pb-0">
+                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">{key.replace(/_/g, ' ')}</p>
+                                            <p className="text-[11px] font-bold text-gray-700 leading-relaxed">
+                                                {typeof value === 'object' && value !== null ? (
+                                                    ('seconds' in value && 'nanoseconds' in value)
+                                                        ? new Date((value as any).seconds * 1000).toLocaleString()
+                                                        : JSON.stringify(sanitizeData(value))
+                                                ) : String(value)}
+                                            </p>
+                                        </div>
+                                    ))
                                 ) : (
                                     <p className="text-[10px] font-bold text-gray-400 italic py-4">No answers submitted.</p>
                                 )}
@@ -607,59 +404,24 @@ export default function AdminUserDetail() {
                                 <span className="text-sm">🎖️</span>
                                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Claims & Badges</h4>
                             </div>
-                            <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 scrollbar-hidden">
-                                {/* Unclaimed but Active Milestones */}
-                                {unclaimedActiveMilestones.length > 0 && (
-                                    <div className="space-y-2 mb-4">
-                                        <p className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md uppercase tracking-wide inline-block">Active & Unclaimed ({unclaimedActiveMilestones.length})</p>
-                                        {unclaimedActiveMilestones.map((badge, idx) => (
-                                            <div key={`unclaimed-${idx}`} className="flex items-center justify-between p-3 bg-amber-50/20 rounded-2xl border border-amber-100/50 text-xs gap-3">
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <span className="text-lg flex-shrink-0" role="img" aria-label="badge icon">{badge.icon}</span>
-                                                    <div className="min-w-0">
-                                                        <p className="text-[10px] font-black text-gray-950 uppercase tracking-tight truncate max-w-[140px]">{badge.title}</p>
-                                                        <p className="text-[8px] font-bold text-amber-600/80 mt-0.5 truncate max-w-[150px]">
-                                                            {badge.description}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right flex-shrink-0">
-                                                    <span className="text-[7px] font-black text-amber-700 bg-amber-100 px-1 py-0.5 rounded uppercase tracking-wider block mb-0.5">READY</span>
-                                                    <p className="text-[10px] font-black text-amber-700">+{badge.points} Cr</p>
-                                                </div>
+                            <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 scrollbar-hidden">
+                                {user.claimedBadges && user.claimedBadges.length > 0 ? (
+                                    user.claimedBadges.map((badge: any, idx: number) => (
+                                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100/50 text-xs">
+                                            <div>
+                                                <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight truncate max-w-[150px]">{badge.milestoneId.replace(/-/g, ' ')}</p>
+                                                <p className="text-[8px] font-bold text-gray-400 uppercase mt-0.5">
+                                                    {badge.claimedAt ? format(parseISO(badge.claimedAt), 'MMM d, yyyy') : 'N/A'}
+                                                </p>
                                             </div>
-                                        ))}
-                                    </div>
+                                            <div className="text-right flex-shrink-0">
+                                                <p className="text-[10px] font-black text-[#0E7850] bg-emerald-50 px-2 py-1 rounded-lg">+{badge.claimedCredit} Cr</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-[10px] font-bold text-gray-400 italic text-center py-8">No badges claimed yet.</p>
                                 )}
-
-                                {/* Claimed Badges */}
-                                <div className="space-y-2">
-                                    {unclaimedActiveMilestones.length > 0 && (
-                                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-wider">Claimed Badges ({displayedBadges.length})</p>
-                                    )}
-                                    {displayedBadges.length > 0 ? (
-                                        displayedBadges.map((badge, idx) => (
-                                            <div key={`claimed-${idx}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100/50 text-xs gap-3">
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <span className="text-xl flex-shrink-0" role="img" aria-label="badge icon">{badge.icon}</span>
-                                                    <div className="min-w-0">
-                                                        <p className="text-[10px] font-black text-gray-950 uppercase tracking-tight truncate max-w-[150px]">{badge.title}</p>
-                                                        <p className="text-[8px] font-bold text-gray-400 mt-0.5 truncate max-w-[180px]">
-                                                            {badge.description}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right flex-shrink-0">
-                                                    <p className="text-[10px] font-black text-[#0E7850] bg-emerald-50 px-2 py-1 rounded-lg">+{badge.points} Cr</p>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        unclaimedActiveMilestones.length === 0 && (
-                                            <p className="text-[10px] font-bold text-gray-400 italic text-center py-8">No badges claimed yet.</p>
-                                        )
-                                    )}
-                                </div>
                             </div>
                         </div>
 
