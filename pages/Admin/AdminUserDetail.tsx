@@ -7,6 +7,7 @@ import { ArrowLeft, Calendar, Mail, User as UserIcon, Zap, Target, Clock, AlertC
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { UserStreakVisualizer } from '../../components/UserStreakVisualizer';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
+import { PERSONA_QUIZZES } from '../../services/mockData';
 
 export default function AdminUserDetail() {
     const { userId } = useParams<{ userId: string }>();
@@ -15,6 +16,35 @@ export default function AdminUserDetail() {
     const [enrollments, setEnrollments] = useState<ParticipantSprint[]>([]);
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    const getOnboardingQuestion = (key: string) => {
+        if (!user || !user.onboardingAnswers) {
+            return key.replace(/_/g, ' ');
+        }
+        
+        if (key === '0') {
+            return "Which best describes you today?";
+        }
+        if (key === 'selected_focus') {
+            return "Selected Focus";
+        }
+        if (key === 'focus_path') {
+            return "Focus Path";
+        }
+        
+        const isNum = /^\d+$/.test(key);
+        if (isNum) {
+            const persona = user.onboardingAnswers['0'];
+            if (persona && PERSONA_QUIZZES[persona]) {
+                const questionIdx = parseInt(key, 10) - 1;
+                if (questionIdx >= 0 && questionIdx < PERSONA_QUIZZES[persona].length) {
+                    return PERSONA_QUIZZES[persona][questionIdx].title.replace(/<br\s*\/?>/gi, ' ');
+                }
+            }
+        }
+        
+        return key.replace(/_/g, ' ');
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -380,18 +410,32 @@ export default function AdminUserDetail() {
                             </div>
                             <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 scrollbar-hidden">
                                 {user.onboardingAnswers && Object.keys(user.onboardingAnswers).length > 0 ? (
-                                    Object.entries(user.onboardingAnswers).map(([key, value], idx) => (
-                                        <div key={idx} className="border-b border-gray-50 last:border-0 pb-2 last:pb-0">
-                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">{key.replace(/_/g, ' ')}</p>
-                                            <p className="text-[11px] font-bold text-gray-700 leading-relaxed">
-                                                {typeof value === 'object' && value !== null ? (
-                                                    ('seconds' in value && 'nanoseconds' in value)
-                                                        ? new Date((value as any).seconds * 1000).toLocaleString()
-                                                        : JSON.stringify(sanitizeData(value))
-                                                ) : String(value)}
-                                            </p>
-                                        </div>
-                                    ))
+                                    Object.keys(user.onboardingAnswers)
+                                        .sort((a, b) => {
+                                            const aNum = /^\d+$/.test(a);
+                                            const bNum = /^\d+$/.test(b);
+                                            if (aNum && bNum) return parseInt(a, 10) - parseInt(b, 10);
+                                            if (aNum) return -1;
+                                            if (bNum) return 1;
+                                            return a.localeCompare(b);
+                                        })
+                                        .map((key, idx) => {
+                                            const value = user.onboardingAnswers![key];
+                                            return (
+                                                <div key={idx} className="border-b border-gray-50 last:border-0 pb-2 last:pb-0">
+                                                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
+                                                        {getOnboardingQuestion(key)}
+                                                    </p>
+                                                    <p className="text-[11px] font-bold text-gray-700 leading-relaxed">
+                                                        {typeof value === 'object' && value !== null ? (
+                                                            ('seconds' in value && 'nanoseconds' in value)
+                                                                ? new Date((value as any).seconds * 1000).toLocaleString()
+                                                                : JSON.stringify(sanitizeData(value))
+                                                        ) : String(value)}
+                                                    </p>
+                                                </div>
+                                            );
+                                        })
                                 ) : (
                                     <p className="text-[10px] font-bold text-gray-400 italic py-4">No answers submitted.</p>
                                 )}
@@ -603,6 +647,51 @@ export default function AdminUserDetail() {
                             );
                         })}
                     </div>
+                </div>
+
+                {/* Claimed Badges Section */}
+                <div className="bg-white rounded-[2.5rem] border border-gray-100 p-6 md:p-8 shadow-sm">
+                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-50">
+                        <div>
+                            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                                <Award className="w-4 h-4 text-amber-500" /> Claimed Badges
+                            </h3>
+                            <p className="text-[9px] text-gray-400 font-black uppercase tracking-wider mt-0.5">Recognition milestones achieved, credits earned, and timestamps of claims</p>
+                        </div>
+                        <span className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
+                            {user.claimedBadges?.length || 0} Badges
+                        </span>
+                    </div>
+
+                    {user.claimedBadges && user.claimedBadges.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            {user.claimedBadges.map((badge: any, idx: number) => (
+                                <div key={idx} className="flex items-center gap-3.5 p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-[#0E7850]/20 hover:bg-white transition-all duration-300 shadow-sm">
+                                    <div className="h-11 w-11 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 shadow-inner flex-shrink-0">
+                                        <Award className="w-5 h-5 animate-pulse" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <h5 className="text-xs font-black text-gray-900 uppercase tracking-tight truncate">
+                                            {badge.milestoneId.replace(/-/g, ' ')}
+                                        </h5>
+                                        <p className="text-[9px] font-semibold text-gray-400 mt-1 uppercase flex items-center gap-1.5">
+                                            <Clock className="w-3 h-3 text-gray-400" />
+                                            {badge.claimedAt ? format(parseISO(badge.claimedAt), 'MMM d, yyyy') : 'N/A'}
+                                        </p>
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                        <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">
+                                            +{badge.claimedCredit} Cr
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="py-12 text-center bg-gray-50 rounded-[2rem] border border-dashed border-gray-200">
+                            <p className="text-sm font-black text-gray-400 uppercase tracking-widest italic">No badges claimed yet.</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Sprint History Detail Section */}
