@@ -254,6 +254,72 @@ const Badges: React.FC = () => {
         return result;
     }, [stats, user]);
 
+    const categoryProgressData = useMemo(() => {
+        if (!stats || !user) return [];
+
+        const categories = [
+            { key: 'coreProgress', label: 'Core Progress', color: 'primary', icon: '⚡' },
+            { key: 'longGame', label: 'Long Game', color: 'blue', icon: '⏳' },
+            { key: 'innerWork', label: 'Inner Work', color: 'yellow', icon: '💎' },
+            { key: 'influence', label: 'Influence', color: 'teal', icon: '🌱' }
+        ];
+
+        return categories.map(cat => {
+            const list = milestonesByType[cat.key] || [];
+            // Sort list by targetValue ascending
+            const sorted = [...list].sort((a, b) => a.targetValue - b.targetValue);
+            const next = sorted.find(m => !m.isUnlocked);
+            
+            if (next) {
+                const percent = Math.min(100, (next.currentValue / next.targetValue) * 100);
+                const remaining = Math.max(0, next.targetValue - next.currentValue);
+                // Plural vs singular labels
+                let unitName = 'items';
+                if (cat.key === 'coreProgress') {
+                    unitName = next.id === 's2' ? 'sprint' : 'tasks';
+                } else if (cat.key === 'longGame') {
+                    unitName = 'tasks';
+                } else if (cat.key === 'innerWork') {
+                    unitName = 'reflections';
+                } else if (cat.key === 'influence') {
+                    unitName = 'referrals';
+                }
+
+                return {
+                    category: cat.label,
+                    key: cat.key,
+                    color: cat.color,
+                    hasMilestone: true,
+                    title: next.title,
+                    icon: next.icon,
+                    current: next.currentValue,
+                    target: next.targetValue,
+                    percent,
+                    remaining,
+                    unitName,
+                    isAllCompleted: false
+                };
+            } else {
+                // All unlocked in this category!
+                const highest = sorted[sorted.length - 1];
+                return {
+                    category: cat.label,
+                    key: cat.key,
+                    color: cat.color,
+                    hasMilestone: highest ? true : false,
+                    title: 'All Unlocked',
+                    icon: '👑',
+                    current: highest ? highest.currentValue : 0,
+                    target: highest ? highest.targetValue : 0,
+                    percent: 100,
+                    remaining: 0,
+                    unitName: 'items',
+                    isAllCompleted: true
+                };
+            }
+        });
+    }, [milestonesByType, stats, user]);
+
     const handleClaim = async (m: Milestone) => {
         if (!user) return;
         try {
@@ -341,6 +407,71 @@ const Badges: React.FC = () => {
                 </div>
             ) : (
                 <div className="space-y-16">
+                    {/* Category Milestones Summary Dashboard */}
+                    <div className="bg-white rounded-[2.5rem] border border-gray-100/80 shadow-sm p-6 sm:p-8 animate-fade-in">
+                        <div className="mb-6">
+                            <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
+                                🎯 ROADMAP TO NEXT MILESTONES
+                            </h3>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase mt-1 tracking-wider leading-relaxed">
+                                Track completion progress towards the next tier within each category
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {categoryProgressData.map((data, idx) => {
+                                const barColorClass = data.color === 'primary' ? 'bg-primary' : 
+                                                    data.color === 'blue' ? 'bg-blue-600' : 
+                                                    data.color === 'yellow' ? 'bg-yellow-500' : 
+                                                    data.color === 'teal' ? 'bg-teal-500' : 'bg-primary';
+
+                                const textAccentClass = data.color === 'primary' ? 'text-primary' : 
+                                                      data.color === 'blue' ? 'text-blue-600' : 
+                                                      data.color === 'yellow' ? 'text-yellow-600' : 
+                                                      data.color === 'teal' ? 'text-teal-600' : 'text-primary';
+
+                                return (
+                                    <div key={idx} className="p-5 rounded-2xl bg-[#FAFAFA]/70 border border-gray-100 hover:border-gray-200/80 transition-all flex flex-col justify-between group">
+                                        <div>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className="text-[9px] font-black tracking-widest uppercase text-gray-400">
+                                                    {data.category}
+                                                </span>
+                                                <span className="text-xl group-hover:scale-110 transition-transform duration-300">
+                                                    {data.icon}
+                                                </span>
+                                            </div>
+                                            
+                                            <div className="mb-4">
+                                                <h4 className="font-black text-gray-900 text-xs truncate uppercase tracking-tight">
+                                                    {data.title}
+                                                </h4>
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">
+                                                    {data.isAllCompleted 
+                                                        ? 'All Milestones Met!' 
+                                                        : `${data.remaining.toFixed(0)} more ${data.unitName}`
+                                                    }
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-2">
+                                            <div className="flex justify-between items-center mb-1.5 text-[9px] font-black text-gray-700 font-mono">
+                                                <span>{data.current.toFixed(0)} / {data.target}</span>
+                                                <span className={textAccentClass}>{data.percent.toFixed(0)}%</span>
+                                            </div>
+                                            <div className="h-1.5 bg-gray-200/60 rounded-full overflow-hidden">
+                                                <div 
+                                                    className={`h-full rounded-full transition-all duration-1000 ease-out ${barColorClass}`}
+                                                    style={{ width: `${data.percent}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
                     <CategorySection title="Core Progress" type="coreProgress" milestones={milestonesByType.coreProgress} color="primary" />
                     <CategorySection title="Long Game" type="longGame" milestones={milestonesByType.longGame} color="blue" />
                     <CategorySection title="Inner Work" type="innerWork" milestones={milestonesByType.innerWork} color="yellow" />

@@ -24,12 +24,42 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend
 } from 'recharts';
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-xl">
+        <p className="text-xs font-black text-gray-900 mb-2 truncate max-w-[200px]" title={data.fullName}>
+          {data.fullName}
+        </p>
+        <div className="space-y-1 bg-gray-50/50 p-2.5 rounded-xl border border-gray-100/50">
+          <div className="flex items-center gap-4 justify-between">
+            <span className="text-[9px] text-gray-400 font-black uppercase tracking-wider">Current Run:</span>
+            <span className="text-xs font-mono font-black text-orange-500">
+              🔥 {data.current_streak} days
+            </span>
+          </div>
+          <div className="flex items-center gap-4 justify-between">
+            <span className="text-[9px] text-gray-400 font-black uppercase tracking-wider">Longest Streak:</span>
+            <span className="text-xs font-mono font-black text-[#0E7850]">
+              🏆 {data.longest_streak} days
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
 
 const AdminAnalytics: React.FC = () => {
   const [coreAnalytics, setCoreAnalytics] = useState<UserSprintAnalytics[]>([]);
@@ -205,6 +235,37 @@ const AdminAnalytics: React.FC = () => {
     return chartPoints;
   }, [coreAnalytics]);
 
+  const streakComparisonData = useMemo(() => {
+    if (coreAnalytics.length === 0) {
+      return [
+        { name: 'Alex', fullName: 'alex@vectorise.io', current_streak: 5, longest_streak: 12 },
+        { name: 'Taylor', fullName: 'taylor@vectorise.io', current_streak: 8, longest_streak: 10 },
+        { name: 'Jordan', fullName: 'jordan@vectorise.io', current_streak: 3, longest_streak: 7 },
+        { name: 'Casey', fullName: 'casey@vectorise.io', current_streak: 0, longest_streak: 6 },
+        { name: 'Morgan', fullName: 'morgan@vectorise.io', current_streak: 4, longest_streak: 4 }
+      ];
+    }
+
+    return coreAnalytics.map(item => {
+      let displayName = 'Unknown';
+      if (item.user_id) {
+        if (item.user_id.includes('@')) {
+          displayName = item.user_id.split('@')[0];
+        } else {
+          displayName = item.user_id.substring(0, 8);
+        }
+      }
+      displayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+      
+      return {
+        name: displayName,
+        fullName: item.user_id || 'Unknown',
+        current_streak: item.current_streak || 0,
+        longest_streak: item.longest_streak || 0
+      };
+    }).sort((a, b) => b.longest_streak - a.longest_streak);
+  }, [coreAnalytics]);
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-96 space-y-4">
@@ -361,6 +422,73 @@ const AdminAnalytics: React.FC = () => {
               />
             </AreaChart>
           </ResponsiveContainer>
+        </div>
+      </section>
+
+      {/* PARTICIPANT STREAKS COMPARISON BAR CHART */}
+      <section className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 lg:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider flex items-center gap-2">
+              <Award className="w-4 h-4 text-[#0E7850]" /> STREAKS COMPARISON ANALYSIS
+            </h3>
+            <p className="text-[10px] font-bold text-gray-400 uppercase mt-0.5 tracking-wide">
+              Comparative overview of current active running streaks vs lifetime longest streaks for each user
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded bg-orange-500 block"></span>
+              <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Current Run</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded bg-[#0E7850] block"></span>
+              <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Longest Streak</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="w-full h-[320px] overflow-x-auto overflow-y-hidden scrollbar-hidden">
+          <div className="h-full min-w-[600px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={streakComparisonData}
+                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                barSize={20}
+                barGap={6}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  stroke="#9ca3af" 
+                  fontSize={10} 
+                  tickLine={false} 
+                  axisLine={false}
+                  dy={10} 
+                />
+                <YAxis 
+                  stroke="#9ca3af" 
+                  fontSize={10} 
+                  tickLine={false} 
+                  axisLine={false}
+                  dx={-5}
+                />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(229, 231, 235, 0.2)' }} />
+                <Bar 
+                  name="Current Streak" 
+                  dataKey="current_streak" 
+                  fill="#f97316" 
+                  radius={[4, 4, 0, 0]} 
+                />
+                <Bar 
+                  name="Longest Streak" 
+                  dataKey="longest_streak" 
+                  fill="#0E7850" 
+                  radius={[4, 4, 0, 0]} 
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </section>
 
