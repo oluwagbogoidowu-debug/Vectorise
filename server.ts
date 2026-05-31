@@ -4,6 +4,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import puppeteer from 'puppeteer';
 import { pushNotificationManager } from './services/pushNotificationManager.js';
 import { db } from './api/lib/firebaseAdmin.js';
 
@@ -44,6 +45,57 @@ async function startServer() {
   app.get('/api/vapid-key', vapidKeyHandler);
   app.post('/api/subscribe', subscribeHandler);
   app.post('/api/send', sendHandler);
+
+  // Puppeteer image card generation endpoint
+  app.post(['/generate', '/api/generate'], async (req: any, res: any) => {
+    const data = req.body;
+
+    if (!data || !data.name || !data.sprint_name || !data.outcome) {
+      return res.status(400).json({ error: 'Missing name, sprint_name, or outcome in request body.' });
+    }
+
+    try {
+      const browser = await puppeteer.launch({
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+
+      const page = await browser.newPage();
+
+      let html = fs.readFileSync('template.html', 'utf8');
+
+      html = html
+        .replace('{{name}}', data.name)
+        .replace('{{sprint_name}}', data.sprint_name)
+        .replace('{{outcome}}', data.outcome);
+
+      await page.setContent(html);
+      await page.setViewport({ width: 600, height: 800 });
+
+      const fileName = `output-${Date.now()}.png`;
+
+      await page.screenshot({ path: fileName });
+
+      await browser.close();
+
+      res.json({
+        message: "Image generated",
+        file: fileName
+      });
+    } catch (error: any) {
+      console.error('Error generating image card with Puppeteer:', error);
+      res.status(500).json({ error: error?.message || 'Failed to generate image' });
+    }
+  });
+
+  // Get generated file helper route
+  app.get('/api/output/:filename', (req, res) => {
+    const filePath = path.join(process.cwd(), req.params.filename);
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).send('File not found');
+    }
+  });
 
   app.post('/api/notifications/subscribe', async (req, res) => {
     const { userId, subscription, fcmToken } = req.body;

@@ -5,12 +5,15 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { sprintService } from '../../../services/sprintService';
 import { userService } from '../../../services/userService';
 import { ParticipantSprint, Sprint, Coach } from '../../../types';
+import { Share2 } from 'lucide-react';
+import SprintShareModal from '../../../components/SprintShareModal';
 
 const RiseArchive: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [enrollments, setEnrollments] = useState<{ enrollment: ParticipantSprint; sprint: Sprint; coach: Coach | null }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedShareSprint, setSelectedShareSprint] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -95,12 +98,20 @@ const RiseArchive: React.FC = () => {
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
             {completedEntries.length > 0 ? (
               completedEntries.map(({ enrollment, sprint }) => (
-                <div key={enrollment.id} className="flex-shrink-0 w-36 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm">
-                  <div className="w-full h-20 rounded-xl overflow-hidden mb-2 grayscale opacity-60">
-                    <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                <div key={enrollment.id} className="flex-shrink-0 w-36 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="w-full h-20 rounded-xl overflow-hidden mb-2 grayscale opacity-60">
+                      <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                    </div>
+                    <h4 className="font-black text-gray-900 text-[9px] tracking-tight leading-tight line-clamp-2 mb-1">{sprint.title}</h4>
+                    <span className="text-[7px] font-black bg-primary/5 text-primary px-1.5 py-0.5 rounded uppercase">{sprint.outcomeTag || 'Clarity gained'}</span>
                   </div>
-                  <h4 className="font-black text-gray-900 text-[9px] tracking-tight leading-tight line-clamp-2 mb-1">{sprint.title}</h4>
-                  <span className="text-[7px] font-black bg-primary/5 text-primary px-1.5 py-0.5 rounded uppercase">{sprint.outcomeTag || 'Clarity gained'}</span>
+                  <button
+                    onClick={() => setSelectedShareSprint(sprint.title)}
+                    className="mt-2 w-full py-1.5 bg-gray-50 hover:bg-primary/5 text-gray-500 hover:text-primary rounded-lg text-[8px] font-black uppercase tracking-widest border border-gray-100 hover:border-primary/10 transition-all flex items-center justify-center gap-1"
+                  >
+                    <Share2 className="w-2.5 h-2.5" /> Share
+                  </button>
                 </div>
               ))
             ) : (
@@ -142,6 +153,12 @@ const RiseArchive: React.FC = () => {
           </div>
         </section>
       </main>
+
+      <SprintShareModal
+        isOpen={!!selectedShareSprint}
+        onClose={() => setSelectedShareSprint(null)}
+        sprintTitle={selectedShareSprint || ""}
+      />
     </div>
   );
 };

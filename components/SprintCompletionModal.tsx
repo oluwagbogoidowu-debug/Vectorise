@@ -26,6 +26,8 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
     const [shareImage, setShareImage] = useState<string | null>(null);
     const [copied, setCopied] = useState<boolean>(false);
     const [outcome, setOutcome] = useState<string>('');
+    const [generatingVisual, setGeneratingVisual] = useState<boolean>(false);
+    const [visualImageFile, setVisualImageFile] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen) {
@@ -107,6 +109,35 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
 
     const handleGenerateShareCard = () => {
         setViewMode('share');
+        handleGenerateVisual();
+    };
+
+    const handleGenerateVisual = async () => {
+        setGeneratingVisual(true);
+        setVisualImageFile(null);
+        try {
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: user?.name?.split(' ')[0] || "Emmanuel",
+                    sprint_name: sprintTitle,
+                    outcome: outcome || "I realized I’ve been forcing a path that doesn’t align with how I naturally think and work."
+                })
+            });
+            if (response.ok) {
+                const res = await response.json();
+                if (res.file) {
+                    setVisualImageFile(res.file);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to trigger Puppeteer rendering:', e);
+        } finally {
+            setGeneratingVisual(false);
+        }
     };
 
     const handleCopyCaption = () => {
@@ -233,16 +264,49 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                         </div>
 
                         <h3 className="text-xl font-black text-gray-900 tracking-tight italic mb-1 flex items-center justify-center gap-1.5">
-                            <Sparkles className="w-5 h-5 text-[#0E7850]" /> Share Card Configuration
+                            <Sparkles className="w-5 h-5 text-[#0E7850]" /> Share Card Generated!
                         </h3>
                         <p className="text-[10px] text-gray-400 font-medium mb-4">
-                            Ready for use in our Puppeteer automated rendering engine.
+                            Rendered live via headless Puppeteer and dynamic HTML templates.
                         </p>
+
+                        {/* Live Puppeteer Image Preview */}
+                        <div className="relative rounded-[1.5rem] overflow-hidden border border-gray-100 bg-gray-50/50 p-2 shadow-inner mb-4 flex flex-col items-center justify-center bg-zinc-50 min-h-[140px]">
+                            {generatingVisual ? (
+                                <div className="h-32 w-full flex flex-col items-center justify-center text-[10px] font-black text-gray-400 uppercase tracking-widest gap-2">
+                                    <div className="w-5 h-5 border-2 border-[#0E7850] border-t-transparent rounded-full animate-spin"></div>
+                                    <span className="animate-pulse">Rendering visual on server...</span>
+                                </div>
+                            ) : visualImageFile ? (
+                                <div className="w-full flex flex-col items-center p-1">
+                                    <img 
+                                        src={`/api/output/${visualImageFile}`} 
+                                        referrerPolicy="no-referrer"
+                                        alt="Puppeteer Share Card" 
+                                        className="w-full max-h-44 object-contain rounded-xl shadow-md border border-gray-100"
+                                    />
+                                    <a
+                                        href={`/api/output/${visualImageFile}`}
+                                        download={`vectorise_sprint_card_${visualImageFile}`}
+                                        className="mt-2 text-[9px] font-black text-[#0E7850] hover:text-[#0b5c3e] transition-colors uppercase tracking-widest flex items-center gap-1.5"
+                                    >
+                                        <Download className="w-3.5 h-3.5" /> Save Shareable PNG
+                                    </a>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={handleGenerateVisual}
+                                    className="h-28 w-full flex flex-col items-center justify-center text-[10px] font-black text-[#0E7850] uppercase tracking-widest hover:bg-emerald-50/40 rounded-2xl transition-all"
+                                >
+                                    <Sparkles className="w-4 h-4 mb-1 text-amber-500 animate-pulse" /> Regenerate Visual Card Base
+                                </button>
+                            )}
+                        </div>
 
                         {/* JSON Data Preview */}
                         <div className="relative rounded-[1.5rem] overflow-hidden border border-gray-100 bg-gray-50/50 p-4 shadow-inner mb-4 flex flex-col items-stretch text-left">
-                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">json output</span>
-                            <pre className="text-[10px] font-mono text-gray-700 bg-white/80 p-3 rounded-xl border border-gray-100 overflow-x-auto max-h-48 whitespace-pre custom-scrollbar">
+                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">json data payload</span>
+                            <pre className="text-[9px] font-mono text-gray-600 bg-white/80 p-2.5 rounded-xl border border-gray-100 overflow-x-auto max-h-24 whitespace-pre custom-scrollbar">
                                 {cardJson}
                             </pre>
                         </div>
