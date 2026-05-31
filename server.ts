@@ -63,10 +63,19 @@ async function startServer() {
 
       let html = fs.readFileSync('template.html', 'utf8');
 
+      const bgGradient = data.bg_gradient || "linear-gradient(135deg, #040d0a 0%, #081711 50%, #0e261d 100%)";
+      const customFont = data.custom_font || "'Inter', sans-serif";
+      const textFont = data.text_font || "'Playfair Display', serif";
+      const fontLink = data.font_link || "";
+
       html = html
         .replace('{{name}}', data.name)
         .replace('{{sprint_name}}', data.sprint_name)
-        .replace('{{outcome}}', data.outcome);
+        .replace('{{outcome}}', data.outcome)
+        .replace('{{{font_link}}}', fontLink)
+        .replace('{{{bg_gradient}}}', bgGradient)
+        .replace('{{{custom_font}}}', customFont)
+        .replace('{{{text_font}}}', textFont);
 
       await page.setContent(html);
       await page.setViewport({ width: 600, height: 800 });

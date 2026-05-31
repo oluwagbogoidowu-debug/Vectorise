@@ -8,6 +8,54 @@ interface SprintShareModalProps {
     sprintTitle: string;
 }
 
+const THEMES = [
+    {
+        id: 'vectorise',
+        name: 'Vectorise Forest',
+        gradient: 'linear-gradient(135deg, #040d0a 0%, #081711 50%, #0e261d 100%)',
+        customFont: "'Inter', sans-serif",
+        textFont: "'Playfair Display', serif",
+        fontLink: '',
+        colors: ['#040d0a', '#10b981']
+    },
+    {
+        id: 'lavender',
+        name: 'Midnight Lavender',
+        gradient: 'linear-gradient(135deg, #0f0c20 0%, #15102a 50%, #22123b 100%)',
+        customFont: "'Outfit', sans-serif",
+        textFont: "'Lora', serif",
+        fontLink: '<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Lora:ital,wght@1,500&display=swap" rel="stylesheet">',
+        colors: ['#0f0c20', '#a855f7']
+    },
+    {
+        id: 'cyberpunk',
+        name: 'Cyberpunk Neon',
+        gradient: 'linear-gradient(135deg, #070b19 0%, #0f172a 60%, #1e1b4b 100%)',
+        customFont: "'Fira Code', monospace",
+        textFont: "'JetBrains Mono', monospace",
+        fontLink: '<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&family=JetBrains+Mono:ital,wght@1,500&display=swap" rel="stylesheet">',
+        colors: ['#070b19', '#3b82f6']
+    },
+    {
+        id: 'sunset',
+        name: 'Sunset Gold',
+        gradient: 'linear-gradient(135deg, #1c0f0a 0%, #26160e 50%, #3d1c0b 100%)',
+        customFont: "'Plus Jakarta Sans', sans-serif",
+        textFont: "'Cinzel', serif",
+        fontLink: '<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700&family=Cinzel:wght@600&display=swap" rel="stylesheet">',
+        colors: ['#1c0f0a', '#fbbf24']
+    },
+    {
+        id: 'crimson',
+        name: 'Royal Crimson',
+        gradient: 'linear-gradient(135deg, #1c0505 0%, #2a0808 50%, #441010 100%)',
+        customFont: "'Space Grotesk', sans-serif",
+        textFont: "'Playfair Display', serif",
+        fontLink: '<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">',
+        colors: ['#1c0505', '#ef4444']
+    }
+];
+
 const SprintShareModal: React.FC<SprintShareModalProps> = ({
     isOpen,
     onClose,
@@ -19,6 +67,7 @@ const SprintShareModal: React.FC<SprintShareModalProps> = ({
     const [outcome, setOutcome] = useState<string>('');
     const [generatingVisual, setGeneratingVisual] = useState<boolean>(false);
     const [visualImageFile, setVisualImageFile] = useState<string | null>(null);
+    const [selectedTheme, setSelectedTheme] = useState(THEMES[0]);
 
     // Reset view when modal is closed or opened
     useEffect(() => {
@@ -27,6 +76,7 @@ const SprintShareModal: React.FC<SprintShareModalProps> = ({
             setCopied(false);
             setOutcome('');
             setVisualImageFile(null);
+            setSelectedTheme(THEMES[0]);
         }
     }, [isOpen]);
 
@@ -36,6 +86,10 @@ const SprintShareModal: React.FC<SprintShareModalProps> = ({
         name: user?.name?.split(' ')[0] || "Emmanuel",
         sprint_name: sprintTitle,
         outcome: outcome || "I realized I’ve been forcing a path that doesn’t align with how I naturally think and work.",
+        bg_gradient: selectedTheme.gradient,
+        custom_font: selectedTheme.customFont,
+        text_font: selectedTheme.textFont,
+        font_link: selectedTheme.fontLink,
         image: "https://via.placeholder.com/600x300"
     }, null, 2);
 
@@ -56,7 +110,11 @@ const SprintShareModal: React.FC<SprintShareModalProps> = ({
                 body: JSON.stringify({
                     name: user?.name?.split(' ')[0] || "Emmanuel",
                     sprint_name: sprintTitle,
-                    outcome: outcome || "I realized I’ve been forcing a path that doesn’t align with how I naturally think and work."
+                    outcome: outcome || "I realized I’ve been forcing a path that doesn’t align with how I naturally think and work.",
+                    bg_gradient: selectedTheme.gradient,
+                    custom_font: selectedTheme.customFont,
+                    text_font: selectedTheme.textFont,
+                    font_link: selectedTheme.fontLink
                 })
             });
             if (response.ok) {
@@ -126,14 +184,41 @@ const SprintShareModal: React.FC<SprintShareModalProps> = ({
                                     value={outcome}
                                     onChange={(e) => setOutcome(e.target.value)}
                                     placeholder="I realized I’ve been forcing a path that doesn’t align with how I naturally think and work..."
-                                    className="w-full px-4 py-3 bg-white border border-gray-200/80 rounded-2xl text-xs font-semibold focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none h-24"
+                                    className="w-full px-4 py-3 bg-white border border-gray-200/80 rounded-2xl text-xs font-semibold focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none h-24 mb-4"
                                 />
+                            </div>
+
+                            <div className="text-left border-t border-gray-100 pt-3">
+                                <label className="text-[9px] font-black text-gray-900 uppercase tracking-widest mb-2 block">
+                                    Card Aesthetic Theme
+                                </label>
+                                <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-1 mb-1">
+                                    {THEMES.map((theme) => (
+                                        <button
+                                            key={theme.id}
+                                            type="button"
+                                            onClick={() => setSelectedTheme(theme)}
+                                            className={`flex-shrink-0 p-0.5 rounded-full border-2 transition-all ${
+                                                selectedTheme.id === theme.id ? 'border-primary' : 'border-transparent'
+                                            }`}
+                                            title={theme.name}
+                                        >
+                                            <div 
+                                                className="w-6 h-6 rounded-full border border-gray-100 shadow-inner" 
+                                                style={{ background: theme.gradient }}
+                                            />
+                                        </button>
+                                    ))}
+                                </div>
+                                <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">
+                                    Style: <span className="text-gray-900 font-black">{selectedTheme.name}</span>
+                                </span>
                             </div>
 
                             <button
                                 onClick={handleGenerateShareCard}
                                 disabled={!outcome.trim()}
-                                className="w-full py-3.5 mt-4 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-primary/95 transition-all active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="w-full py-3.5 mt-5 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-primary/95 transition-all active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 <Share2 className="w-3.5 h-3.5" /> Generate Share Card (JSON)
                             </button>

@@ -99,11 +99,14 @@ const RiseArchive: React.FC = () => {
             {completedEntries.length > 0 ? (
               completedEntries.map(({ enrollment, sprint }) => (
                 <div key={enrollment.id} className="flex-shrink-0 w-36 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <div className="w-full h-20 rounded-xl overflow-hidden mb-2 grayscale opacity-60">
+                  <div 
+                    onClick={() => navigate(`/participant/sprint/${enrollment.id}`)}
+                    className="cursor-pointer group"
+                  >
+                    <div className="w-full h-20 rounded-xl overflow-hidden mb-2 grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300">
                       <img src={sprint.coverImageUrl} className="w-full h-full object-cover" alt="" />
                     </div>
-                    <h4 className="font-black text-gray-900 text-[9px] tracking-tight leading-tight line-clamp-2 mb-1">{sprint.title}</h4>
+                    <h4 className="font-black text-gray-900 text-[9px] tracking-tight leading-tight line-clamp-2 mb-1 group-hover:text-primary transition-colors">{sprint.title}</h4>
                     <span className="text-[7px] font-black bg-primary/5 text-primary px-1.5 py-0.5 rounded uppercase">{sprint.outcomeTag || 'Clarity gained'}</span>
                   </div>
                   <button
