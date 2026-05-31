@@ -3,6 +3,7 @@ import Button from './Button';
 import LocalLogo from './LocalLogo';
 import confetti from 'canvas-confetti';
 import { Share2, Download, Copy, Check, ChevronLeft, Sparkles } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SprintCompletionModalProps {
     isOpen: boolean;
@@ -19,10 +20,12 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
     sprintTitle = "Growth Sprint",
     streakCount = 0
 }) => {
+    const { user } = useAuth();
     const [rating, setRating] = useState<number>(0);
     const [viewMode, setViewMode] = useState<'main' | 'share'>('main');
     const [shareImage, setShareImage] = useState<string | null>(null);
     const [copied, setCopied] = useState<boolean>(false);
+    const [outcome, setOutcome] = useState<string>('');
 
     useEffect(() => {
         if (isOpen) {
@@ -95,157 +98,19 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
         }
     };
 
+    const cardJson = JSON.stringify({
+        name: user?.name?.split(' ')[0] || "Emmanuel",
+        sprint_name: sprintTitle,
+        outcome: outcome || "I realized I’ve been forcing a path that doesn’t align with how I naturally think and work.",
+        image: "https://via.placeholder.com/600x300"
+    }, null, 2);
+
     const handleGenerateShareCard = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 1080;
-        canvas.height = 1080;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        // 1. Gorgeous Dark Background Gradient
-        const grad = ctx.createLinearGradient(0, 0, 1080, 1080);
-        grad.addColorStop(0, '#040d0a');
-        grad.addColorStop(0.5, '#081711');
-        grad.addColorStop(1, '#0e261d');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 1080, 1080);
-
-        // 2. Linear texture / Grid lines (Vibe of systematic daily tracking)
-        ctx.strokeStyle = 'rgba(16, 185, 129, 0.04)';
-        ctx.lineWidth = 1;
-        for (let i = 80; i < 1080; i += 80) {
-            ctx.beginPath();
-            ctx.moveTo(i, 0); ctx.lineTo(i, 1080);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(0, i); ctx.lineTo(1080, i);
-            ctx.stroke();
-        }
-
-        // Translucent background circles
-        ctx.strokeStyle = 'rgba(16, 185, 129, 0.08)';
-        ctx.lineWidth = 1.5;
-        const circleRadii = [160, 300, 440, 580, 740];
-        circleRadii.forEach(r => {
-            ctx.beginPath();
-            ctx.arc(540, 540, r, 0, Math.PI * 2);
-            ctx.stroke();
-        });
-
-        // 3. Perfect borders with custom alignment corners
-        ctx.strokeStyle = 'rgba(16, 185, 129, 0.25)';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(40, 40, 1000, 1000);
-
-        // Corner accents
-        ctx.strokeStyle = '#FCD34D'; // Amber gold corner tabs
-        ctx.lineWidth = 4;
-        const markerLength = 30;
-        // Top Left
-        ctx.beginPath(); ctx.moveTo(40, 40 + markerLength); ctx.lineTo(40, 40); ctx.lineTo(40 + markerLength, 40); ctx.stroke();
-        // Top Right
-        ctx.beginPath(); ctx.moveTo(1040, 40 + markerLength); ctx.lineTo(1040, 40); ctx.lineTo(1040 - markerLength, 40); ctx.stroke();
-        // Bottom Left
-        ctx.beginPath(); ctx.moveTo(40, 1040 - markerLength); ctx.lineTo(40, 1040); ctx.lineTo(40 + markerLength, 1040); ctx.stroke();
-        // Bottom Right
-        ctx.beginPath(); ctx.moveTo(1040, 1040 - markerLength); ctx.lineTo(1040, 1040); ctx.lineTo(1040 - markerLength, 1040); ctx.stroke();
-
-        // 4. Header branding
-        ctx.fillStyle = '#10B981';
-        ctx.font = 'bold 22px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillText('⚡ V E C T O R I S E   A C H I E V E M E N T ⚡', 540, 115);
-
-        // 5. Glowing Streak Ring
-        const centerX = 540;
-        const centerY = 370;
-        const radius = 120;
-
-        const ringGrad = ctx.createLinearGradient(centerX - radius, centerY, centerX + radius, centerY);
-        ringGrad.addColorStop(0, '#FCD34D');
-        ringGrad.addColorStop(0.5, '#34D399');
-        ringGrad.addColorStop(1, '#60A5FA');
-
-        ctx.shadowColor = '#10B981';
-        ctx.shadowBlur = 40;
-        ctx.strokeStyle = ringGrad;
-        ctx.lineWidth = 8;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.shadowColor = 'transparent';
-        ctx.shadowBlur = 0;
-
-        ctx.strokeStyle = 'rgba(252, 211, 77, 0.2)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius - 15, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Streak count number
-        const formattedStreak = streakCount < 10 && streakCount > 0 ? `0${streakCount}` : `${streakCount}`;
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = '900 85px system-ui, -apple-system, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(formattedStreak, centerX, centerY - 10);
-
-        // Label
-        ctx.fillStyle = '#34D399';
-        ctx.font = 'bold 18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-        ctx.fillText('D A Y   S T R E A K', centerX, centerY + 45);
-
-        // 6. Sprint Info Card Container
-        const boxX = 140;
-        const boxY = 570;
-        const boxW = 800;
-        const boxH = 340;
-        const rBox = 30;
-
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.035)';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(boxX, boxY, boxW, boxH, rBox);
-        } else {
-            ctx.rect(boxX, boxY, boxW, boxH);
-        }
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = '#FCD34D';
-        ctx.font = '900 16px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-        ctx.fillText('S P R I N T   C O M P L E T E D', 540, 635);
-
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-        ctx.fillRect(490, 655, 100, 2);
-
-        // Sprint Title wrapping
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = 'bold 36px system-ui, -apple-system, sans-serif';
-        wrapText(ctx, sprintTitle, 540, 715, 700, 52);
-
-        // 7. Footer details
-        ctx.fillStyle = 'rgba(16, 185, 129, 0.7)';
-        ctx.font = 'bold 18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
-        ctx.fillText('vectorise.app', 540, 990);
-
-        ctx.fillStyle = '#9CA3AF';
-        ctx.font = 'italic 14px system-ui, -apple-system, sans-serif';
-        ctx.fillText('Dynamic cognitive transformation via daily structured execution sprints.', 540, 1022);
-
-        const imgData = canvas.toDataURL('image/png');
-        setShareImage(imgData);
         setViewMode('share');
     };
 
     const handleCopyCaption = () => {
-        const caption = `⚡ Just completed the sprint: "${sprintTitle}" on Vectorise! Running on a ${streakCount}-day streak of focused daily iteration. \n\nHabits build systems. Systems build results. 💫\n\n#Vectorise #DailySprints #HabitDesign`;
-        
-        navigator.clipboard.writeText(caption)
+        navigator.clipboard.writeText(cardJson)
             .then(() => {
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
@@ -256,16 +121,18 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
     };
 
     const handleDownload = () => {
-        if (!shareImage) return;
+        const blob = new Blob([cardJson], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.download = `vectorise_achievement_${sprintTitle.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.png`;
-        link.href = shareImage;
+        link.download = `vectorise_share_card_${sprintTitle.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.json`;
+        link.href = url;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
-    const captionText = `⚡ Just completed the sprint: "${sprintTitle}" on Vectorise! Running on a ${streakCount}-day streak of focused daily iteration. \n\nHabits build systems. Systems build results. 💫\n\n#Vectorise #DailySprints #HabitDesign`;
+    const captionText = cardJson;
 
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -307,15 +174,25 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                                 </div>
                             </div>
 
-                            {/* Disabled share achievement button but keep code intact */}
-                            {false && (
-                                <button
-                                    onClick={handleGenerateShareCard}
-                                    className="w-full py-3 bg-emerald-50 text-[#0E7850] rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100 flex items-center justify-center gap-2 hover:bg-emerald-100/50 transition-all active:scale-95 shadow-sm"
-                                >
-                                    <Share2 className="w-3.5 h-3.5" /> Share Achievement
-                                </button>
-                            )}
+                            <div className="text-left border-t border-gray-100 pt-4">
+                                <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-1.5 block">
+                                    What can you say about this sprint?
+                                </label>
+                                <textarea
+                                    value={outcome}
+                                    onChange={(e) => setOutcome(e.target.value)}
+                                    placeholder="I realized I’ve been forcing a path that doesn’t align with how I naturally think and work..."
+                                    className="w-full px-4 py-3 bg-white border border-gray-200/80 rounded-2xl text-xs font-semibold focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none h-24"
+                                />
+                            </div>
+
+                            <button
+                                onClick={handleGenerateShareCard}
+                                disabled={!outcome.trim()}
+                                className="w-full py-3.5 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-primary/95 transition-all active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <Share2 className="w-3.5 h-3.5" /> Generate Share Card (JSON)
+                            </button>
                         </div>
 
                         <div className="space-y-4">
@@ -356,36 +233,18 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                         </div>
 
                         <h3 className="text-xl font-black text-gray-900 tracking-tight italic mb-1 flex items-center justify-center gap-1.5">
-                            <Sparkles className="w-5 h-5 text-[#0E7850]" /> Share Achievement!
+                            <Sparkles className="w-5 h-5 text-[#0E7850]" /> Share Card Configuration
                         </h3>
                         <p className="text-[10px] text-gray-400 font-medium mb-4">
-                            Your personalized image card has been generated.
+                            Ready for use in our Puppeteer automated rendering engine.
                         </p>
 
-                        {/* Image Preview */}
-                        <div className="relative rounded-[1.5rem] overflow-hidden border border-gray-100 bg-gray-50/50 p-2 shadow-inner mb-4 flex items-center justify-center">
-                            {shareImage ? (
-                                <img 
-                                    src={shareImage} 
-                                    referrerPolicy="no-referrer"
-                                    alt="Achievement Preview" 
-                                    className="w-full aspect-square rounded-[1.2rem] object-contain shadow-md"
-                                />
-                            ) : (
-                                <div className="h-44 w-full flex items-center justify-center text-xs font-bold text-gray-300 animate-pulse uppercase tracking-widest">
-                                    Compiling canvas...
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Caption Box with manual select selection box fallback */}
-                        <div className="mb-5 text-left">
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 px-1">
-                                Caption text copy helper
-                            </p>
-                            <div className="relative bg-gray-50 rounded-xl p-3 border border-gray-100 text-[11px] font-medium text-gray-500 leading-normal h-24 overflow-y-auto select-all">
-                                {captionText}
-                            </div>
+                        {/* JSON Data Preview */}
+                        <div className="relative rounded-[1.5rem] overflow-hidden border border-gray-100 bg-gray-50/50 p-4 shadow-inner mb-4 flex flex-col items-stretch text-left">
+                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">json output</span>
+                            <pre className="text-[10px] font-mono text-gray-700 bg-white/80 p-3 rounded-xl border border-gray-100 overflow-x-auto max-h-48 whitespace-pre custom-scrollbar">
+                                {cardJson}
+                            </pre>
                         </div>
 
                         <div className="space-y-2.5">
@@ -393,7 +252,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                                 onClick={handleDownload}
                                 className="w-full py-3.5 bg-[#0E7850] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#0b5c3e] transition-all active:scale-95 shadow-md"
                             >
-                                <Download className="w-4 h-4" /> Download Card Image
+                                <Download className="w-4 h-4" /> Download JSON Card
                             </button>
                             <button
                                 onClick={handleCopyCaption}
@@ -405,11 +264,11 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                             >
                                 {copied ? (
                                     <>
-                                        <Check className="w-4 h-4" /> Caption Copied!
+                                        <Check className="w-4 h-4" /> JSON Copied!
                                     </>
                                 ) : (
                                     <>
-                                        <Copy className="w-4 h-4" /> Copy Caption Message
+                                        <Copy className="w-4 h-4" /> Copy JSON String
                                     </>
                                 )}
                             </button>
