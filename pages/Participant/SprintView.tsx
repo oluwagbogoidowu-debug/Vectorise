@@ -1435,6 +1435,41 @@ const SprintView: React.FC = () => {
                           >
                             <div className="relative z-10">
                               <SectionHeading>{`Action Step ${i + 1}`}</SectionHeading>
+
+                              {dayContent?.taskNotes?.[i] && (
+                                <div className="mb-5 p-5 bg-white border border-primary/10 rounded-2xl shadow-sm text-left animate-fade-in">
+                                  <div className="text-gray-400 text-[8px] font-black uppercase tracking-[0.2em] mb-2 flex items-center gap-1.5">
+                                    <span>📝 Coach Note</span>
+                                  </div>
+                                  <div className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed mb-4">
+                                    <FormattedText text={dayContent.taskNotes[i]} />
+                                  </div>
+                                  
+                                  {getLinkedTagsForStep(i).length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                      {getLinkedTagsForStep(i).map((tag, tagIndex) => {
+                                        const colors = [
+                                          "bg-emerald-50 text-emerald-800 border-emerald-100",
+                                          "bg-indigo-50 text-indigo-800 border-indigo-100",
+                                          "bg-orange-50 text-orange-800 border-orange-100",
+                                          "bg-rose-50 text-rose-800 border-rose-100",
+                                          "bg-amber-50 text-amber-800 border-amber-100"
+                                        ];
+                                        const colorClass = colors[tagIndex % colors.length];
+                                        return (
+                                          <span
+                                            key={tagIndex}
+                                            className={`${colorClass} px-3 py-1.5 rounded-full border font-black italic text-[9px] uppercase tracking-wider shadow-sm`}
+                                          >
+                                            {tag}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
                               <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
                                 <FormattedText text={prompt} />
                               </div>
@@ -1780,6 +1815,38 @@ const SprintView: React.FC = () => {
                     ) : (
                       <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
                         <SectionHeading>Today's Action Steps</SectionHeading>
+                        {dayContent?.taskNotes?.[0] && (
+                          <div className="mb-5 p-5 bg-white border border-primary/10 rounded-2xl shadow-sm text-left animate-fade-in">
+                            <div className="text-gray-400 text-[8px] font-black uppercase tracking-[0.2em] mb-2 flex items-center gap-1.5">
+                              <span>📝 Coach Note</span>
+                            </div>
+                            <div className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed mb-4">
+                              <FormattedText text={dayContent.taskNotes[0]} />
+                            </div>
+                            {getLinkedTagsForStep(0).length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {getLinkedTagsForStep(0).map((tag, tagIndex) => {
+                                  const colors = [
+                                    "bg-emerald-50 text-emerald-800 border-emerald-100",
+                                    "bg-indigo-50 text-indigo-800 border-indigo-100",
+                                    "bg-orange-50 text-orange-800 border-orange-100",
+                                    "bg-rose-50 text-rose-800 border-rose-100",
+                                    "bg-amber-50 text-amber-800 border-amber-100"
+                                  ];
+                                  const colorClass = colors[tagIndex % colors.length];
+                                  return (
+                                    <span
+                                      key={tagIndex}
+                                      className={`${colorClass} px-3 py-1.5 rounded-full border font-black italic text-[9px] uppercase tracking-wider shadow-sm`}
+                                    >
+                                      {tag}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
                         <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
                           <FormattedText text={dayContent?.taskPrompt || ""} />
                         </div>

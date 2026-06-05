@@ -355,10 +355,15 @@ const EditSprint: React.FC = () => {
       ? (content as any).taskHints
       : [];
 
+    const safeNotes = Array.isArray((content as any).taskNotes)
+      ? (content as any).taskNotes
+      : [];
+
     return {
         ...content,
         taskPrompts: paddedPrompts,
-        taskHints: safeHints
+        taskHints: safeHints,
+        taskNotes: safeNotes
     };
   }, [sprint, selectedDay]);
 
@@ -447,6 +452,40 @@ const EditSprint: React.FC = () => {
             taskPrompt: '',
             taskPrompts: ['', '', ''],
             taskHints: currentHints,
+          });
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTaskNoteChange = (index: number, value: string) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        
+        const currentNotes = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskNotes || [])]
+            : [];
+        
+        while (currentNotes.length <= index) {
+            currentNotes.push('');
+        }
+        currentNotes[index] = value;
+        
+        if (existingContentIndex >= 0) {
+          updatedDailyContent[existingContentIndex] = { 
+              ...updatedDailyContent[existingContentIndex], 
+              taskNotes: currentNotes,
+          };
+        } else {
+          updatedDailyContent.push({
+            day: selectedDay,
+            lessonText: '',
+            taskPrompt: '',
+            taskPrompts: ['', '', ''],
+            taskNotes: currentNotes,
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -1254,6 +1293,20 @@ const EditSprint: React.FC = () => {
                                                         {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? 'Hint Active' : 'Add Hint'}
                                                     </button>
 
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const currentNote = currentContent.taskNotes?.[index];
+                                                            if (currentNote === undefined || currentNote === null) {
+                                                                handleTaskNoteChange(index, '');
+                                                            }
+                                                        }}
+                                                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null) ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                    >
+                                                        <Plus size={14} />
+                                                        {(currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null) ? 'Note Active' : 'Add Note'}
+                                                    </button>
+
                                                     {(currentContent.taskPrompts?.length || 3) > 1 && (
                                                         <button 
                                                             type="button"
@@ -1323,6 +1376,31 @@ const EditSprint: React.FC = () => {
                                                 }
                                                 return null;
                                             })()}
+                                            {(currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null) && (
+                                                <div className="mt-2 animate-fade-in">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <label className="text-[9px] font-black text-emerald-600 uppercase tracking-widest px-1">Coach Note</label>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => {
+                                                                const newNotes = [...(currentContent.taskNotes || [])];
+                                                                newNotes[index] = null as any;
+                                                                handleContentChange('taskNotes', newNotes);
+                                                            }}
+                                                            className="text-gray-300 hover:text-red-500 transition-colors"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    </div>
+                                                    <textarea 
+                                                        value={currentContent.taskNotes[index] || ''} 
+                                                        onChange={e => handleTaskNoteChange(index, e.target.value)} 
+                                                        rows={2} 
+                                                        className={editorInputClasses + " p-4 !py-3 w-full border-emerald-100 bg-emerald-50/20 text-gray-700"} 
+                                                        placeholder="Add a context note. Linked tags will automatically show below this note in the participant view." 
+                                                    />
+                                                </div>
+                                            )}
                                             {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) && (
                                                 <div className="mt-2 animate-fade-in">
                                                     <div className="flex justify-between items-center mb-1">

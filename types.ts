@@ -271,6 +271,7 @@ export interface DailyContent {
   taskPollOptions?: string[];
   taskLinkedToNext?: boolean[];
   taskLinkedSources?: number[][];
+  taskNotes?: string[];
   submissionType?: 'text' | 'file' | 'both' | 'none';
   submissionPrompt?: string;
   proofType?: 'picker' | 'note' | 'confirmation';
