@@ -70,6 +70,121 @@ const DayCompletionModal: React.FC<{
   );
 };
 
+interface MirrorReportModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  day: number;
+  dayContent: any;
+  answers: string[];
+}
+
+const MirrorReportModal: React.FC<MirrorReportModalProps> = ({ isOpen, onClose, day, dayContent, answers }) => {
+  if (!isOpen) return null;
+
+  const introText = dayContent?.mirrorIntro || "Here is a mirror of your reflections and alignments from today's sprint action steps:";
+  const prompts = dayContent?.taskPrompts || [dayContent?.taskPrompt];
+
+  const renderSubmittedAnswer = (answer: string) => {
+    if (!answer) return <span className="text-gray-400 italic">No response submitted</span>;
+    
+    if (answer.startsWith("[") && answer.endsWith("]")) {
+      try {
+        const tags = JSON.parse(answer);
+        if (Array.isArray(tags)) {
+          return (
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((tag, i) => (
+                <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          );
+        }
+      } catch(e) {}
+    }
+    
+    return <p className="text-gray-800 text-sm font-black leading-relaxed">{answer}</p>;
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md animate-fade-in">
+      <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 max-w-2xl w-full max-h-[85vh] overflow-y-auto border border-gray-100 flex flex-col animate-slide-up">
+        {/* Header */}
+        <div className="flex items-start gap-4 mb-6 pb-4 border-b border-gray-100">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/10">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-2xl font-black text-gray-900 tracking-tight">Your Mirror Report</h3>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-0.5">Day {day} Reflection & Alignment</p>
+          </div>
+        </div>
+
+        {/* Coach Intro Text */}
+        <div className="mb-6 bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/10">
+          <p className="text-xs font-black text-emerald-800 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            Coach Note
+          </p>
+          <p className="text-gray-750 text-sm font-semibold leading-relaxed">
+            {introText}
+          </p>
+        </div>
+
+        {/* Steps and responses */}
+        <div className="space-y-6 flex-1 pr-1 overflow-y-auto">
+          {prompts.map((prompt: string, index: number) => {
+            if (!prompt || !prompt.trim()) return null;
+            const framing = dayContent?.mirrorFraming?.[index];
+            const paraphrase = dayContent?.mirrorParaphrases?.[index];
+            const answer = answers[index] || "";
+
+            return (
+              <div key={index} className="space-y-2 border-l-2 border-gray-100 pl-4 py-1">
+                {/* Framing just above the question statement */}
+                {framing && (
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{framing}</p>
+                )}
+                
+                {/* Question statement */}
+                <div className="text-xs font-black text-gray-500 uppercase tracking-wider">
+                  Question {index + 1}: {prompt}
+                </div>
+
+                {/* Participant's Response */}
+                <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-100 mt-1">
+                  {renderSubmittedAnswer(answer)}
+                </div>
+
+                {/* Coach paraphrase comment if set */}
+                {paraphrase && (
+                  <div className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-xl mt-2">
+                    <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-0.5">Paraphrase Alignment</p>
+                    <p className="text-gray-600 text-xs font-medium leading-relaxed italic">"{paraphrase}"</p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="mt-8 pt-4 border-t border-gray-100 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-6 py-3 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-800 transition-colors shadow-lg active:scale-95"
+          >
+            Got it, Let's Continue
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const SprintSettingsModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -596,6 +711,8 @@ const SprintView: React.FC = () => {
   const [isReflectionModalOpen, setIsReflectionModalOpen] = useState(false);
   const [isDayCompletionModalOpen, setIsDayCompletionModalOpen] =
     useState(false);
+  const [isMirrorReportModalOpen, setIsMirrorReportModalOpen] = useState(false);
+  const mirrorTimerRef = useRef<any>(null);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
@@ -1085,6 +1202,15 @@ const SprintView: React.FC = () => {
         setIsCompletionModalOpen(true);
       } else {
         setIsDayCompletionModalOpen(true);
+      }
+
+      // Start 7-second automatic mirror report transition
+      if (dayContent?.mirrorActive) {
+        if (mirrorTimerRef.current) clearTimeout(mirrorTimerRef.current);
+        mirrorTimerRef.current = setTimeout(() => {
+          setIsDayCompletionModalOpen(false);
+          setIsMirrorReportModalOpen(true);
+        }, 7000);
       }
 
       // Trigger push permission request if it's the first submission or based on logic
@@ -2191,6 +2317,19 @@ const SprintView: React.FC = () => {
                         Mission Complete
                       </div>
 
+                      {dayContent?.mirrorActive && (
+                        <button
+                          type="button"
+                          onClick={() => setIsMirrorReportModalOpen(true)}
+                          className="w-full py-4.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] text-center border border-emerald-100 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                        >
+                          <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                          </svg>
+                          Open Mirror Report
+                        </button>
+                      )}
+
                       {dayProgress.proofSelection && (
                         <div className="animate-fade-in pt-4 border-t border-gray-50">
                           <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">
@@ -2365,8 +2504,23 @@ const SprintView: React.FC = () => {
       />
       <DayCompletionModal
         isOpen={isDayCompletionModalOpen}
-        onClose={() => setIsDayCompletionModalOpen(false)}
+        onClose={() => {
+          setIsDayCompletionModalOpen(false);
+          if (dayContent?.mirrorActive) {
+            if (mirrorTimerRef.current) clearTimeout(mirrorTimerRef.current);
+            mirrorTimerRef.current = setTimeout(() => {
+              setIsMirrorReportModalOpen(true);
+            }, 3000);
+          }
+        }}
         day={viewingDay}
+      />
+      <MirrorReportModal
+        isOpen={isMirrorReportModalOpen}
+        onClose={() => setIsMirrorReportModalOpen(false)}
+        day={viewingDay}
+        dayContent={dayContent}
+        answers={taskInputs}
       />
       <SprintCompletionModal
         isOpen={isCompletionModalOpen}

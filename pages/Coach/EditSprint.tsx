@@ -9,7 +9,7 @@ import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtil
 import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft } from 'lucide-react';
+import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft } from 'lucide-react';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import FormattedText from '../../components/FormattedText';
@@ -193,7 +193,8 @@ const EditSprint: React.FC = () => {
   
   const [originalSprint, setOriginalSprint] = useState<Sprint | null>(null);
   const [sprint, setSprint] = useState<Sprint | null>(null);
-  const [selectedDay, setSelectedDay] = useState(1);
+   const [selectedDay, setSelectedDay] = useState(1);
+  const [setupView, setSetupView] = useState<'action' | 'mirror'>('action');
   const [previewTaskIndex, setPreviewTaskIndex] = useState(0);
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
   const [activeLinkSelectorIndex, setActiveLinkSelectorIndex] = useState<number | null>(null);
@@ -201,6 +202,7 @@ const EditSprint: React.FC = () => {
   useEffect(() => {
     setPreviewTaskIndex(0);
     setConfirmDeleteIndex(null);
+    setSetupView('action');
   }, [selectedDay]);
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -1238,12 +1240,160 @@ const EditSprint: React.FC = () => {
 
                 {/* Today's Action Steps Section */}
                 <div className="space-y-4">
-                    <div className="flex justify-between items-end">
-                        <label className={labelClasses}>Today's Action Steps</label>
-                        <p className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">3 Steps Recommended</p>
-                    </div>
-                    
-                    {isAdmin && !isFoundational && originalSprint && (
+                    {setupView === 'mirror' ? (
+                        <div className="space-y-6 bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm animate-fade-in">
+                            {/* Mirror Report Header with Left Arrow and On/Off Toggle */}
+                            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 pb-4 border-b border-gray-100">
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSetupView('action')}
+                                        className="p-2 bg-gray-50 text-gray-500 hover:bg-primary/10 hover:text-primary rounded-xl border border-gray-100 transition-all flex items-center justify-center shrink-0 cursor-pointer"
+                                        title="Back to Today's Action"
+                                    >
+                                        <ArrowLeft size={16} />
+                                    </button>
+                                    <div>
+                                        <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                                            <BookOpen className="text-primary" size={16} />
+                                            Mirror Report Setup
+                                        </h3>
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Configure Reflection Cards</p>
+                                    </div>
+                                </div>
+                                
+                                {/* On/Off Switch */}
+                                <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-100">
+                                    <span className={`text-[10px] font-black uppercase tracking-widest ${currentContent.mirrorActive ? 'text-emerald-500' : 'text-gray-400'}`}>
+                                        {currentContent.mirrorActive ? 'ACTIVE' : 'INACTIVE'}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleContentChange('mirrorActive', !currentContent.mirrorActive)}
+                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                            currentContent.mirrorActive ? 'bg-emerald-500' : 'bg-gray-200'
+                                        }`}
+                                    >
+                                        <span
+                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                                currentContent.mirrorActive ? 'translate-x-5' : 'translate-x-0'
+                                            }`}
+                                        />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Blur container block when Not Active */}
+                            <div className={`space-y-6 transition-all duration-300 ${!currentContent.mirrorActive ? 'blur-[1.5px] opacity-50 pointer-events-none select-none' : ''}`}>
+                                {/* Intro note config */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">
+                                        Introduction Note
+                                    </label>
+                                    <textarea
+                                        value={currentContent.mirrorIntro || ''}
+                                        onChange={e => handleContentChange('mirrorIntro', e.target.value)}
+                                        rows={3}
+                                        className={editorInputClasses + " w-full font-semibold text-sm rounded-2xl"}
+                                        placeholder="Enter intro text... e.g., 'Here is a mirror reflection of your insights today:'"
+                                    />
+                                </div>
+
+                                {/* List questions for Framing and Paraphrase inputs */}
+                                <div className="space-y-4">
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 block mb-1">
+                                        Frame Actions & Paraphrases
+                                    </span>
+                                    
+                                    {(currentContent.taskPrompts || ['', '', '']).map((prompt, index) => {
+                                        if (!prompt || !prompt.trim()) return null;
+                                        return (
+                                            <div key={index} className="bg-gray-50/50 rounded-[2rem] p-5 border border-gray-100 space-y-4">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[10px] font-black text-emerald-800 uppercase tracking-widest bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-500/10">
+                                                        Step {index + 1} Question
+                                                    </span>
+                                                </div>
+
+                                                <div className="text-gray-700 bg-white border border-gray-100 p-4 rounded-2xl text-xs font-semibold leading-relaxed shadow-sm">
+                                                    {prompt}
+                                                </div>
+
+                                                {/* Framing Input */}
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 pl-1">
+                                                        <span>Framing Statement</span>
+                                                        <span className="text-gray-300 font-medium normal-case">(coins how the report is framed)</span>
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={currentContent.mirrorFraming?.[index] || ''}
+                                                        onChange={e => {
+                                                            const updatedFraming = [...(currentContent.mirrorFraming || [])];
+                                                            while (updatedFraming.length <= index) updatedFraming.push('');
+                                                            updatedFraming[index] = e.target.value;
+                                                            handleContentChange('mirrorFraming', updatedFraming);
+                                                        }}
+                                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                                                        placeholder="e.g., You noted that..."
+                                                    />
+                                                </div>
+
+                                                {/* Paraphrase Input */}
+                                                <div className="space-y-1.5">
+                                                    <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider pl-1">
+                                                        Paraphrase / Calibration Guide
+                                                    </label>
+                                                    <textarea
+                                                        value={currentContent.mirrorParaphrases?.[index] || ''}
+                                                        onChange={e => {
+                                                            const updatedParaphrases = [...(currentContent.mirrorParaphrases || [])];
+                                                            while (updatedParaphrases.length <= index) updatedParaphrases.push('');
+                                                            updatedParaphrases[index] = e.target.value;
+                                                            handleContentChange('mirrorParaphrases', updatedParaphrases);
+                                                        }}
+                                                        rows={2}
+                                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                                                        placeholder="Coach paraphrase statement..."
+                                                    />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Arrow back to action */}
+                            <div className="pt-4 border-t border-gray-100 flex items-center">
+                                <button
+                                    type="button"
+                                    onClick={() => setSetupView('action')}
+                                    className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-primary transition-colors duration-200 cursor-pointer pl-1"
+                                >
+                                    <ArrowLeft size={14} />
+                                    <span>Back to Today's Action Steps</span>
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex justify-between items-center sm:items-end">
+                                <label className={labelClasses}>Today's Action Steps</label>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">Min. 3 Steps</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSetupView('mirror')}
+                                        className="px-2.5 py-1.5 rounded-xl bg-gray-50 text-gray-500 hover:bg-primary/10 hover:text-primary border border-gray-100 transition-all flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer text-[10px] font-black uppercase tracking-wider"
+                                        title="Configure Mirror Report"
+                                    >
+                                        <BookOpen size={13} className="text-primary/70" />
+                                        <span>Mirror Report</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {isAdmin && !isFoundational && originalSprint && (
                         <DiffHighlight 
                             label="Today's Action Steps" 
                             original={Array.isArray(originalSprint.dailyContent) ? (originalSprint.dailyContent.find(c => c.day === selectedDay)?.taskPrompts || [originalSprint.dailyContent.find(c => c.day === selectedDay)?.taskPrompt]) : undefined} 
@@ -1755,6 +1905,8 @@ const EditSprint: React.FC = () => {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
                         Add Another Step
                     </button>
+                        </>
+                    )}
                 </div>
 
               {/* COMPLETION PROTOCOL CURATION */}

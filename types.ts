@@ -277,6 +277,10 @@ export interface DailyContent {
   submissionType?: 'text' | 'file' | 'both' | 'none';
   submissionPrompt?: string;
   proofType?: 'picker' | 'note' | 'confirmation';
+  mirrorActive?: boolean;
+  mirrorIntro?: string;
+  mirrorFraming?: string[];
+  mirrorParaphrases?: string[];
 }
 
 export interface User {
