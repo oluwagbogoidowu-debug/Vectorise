@@ -1419,11 +1419,155 @@ const EditSprint: React.FC = () => {
                                                     Action Step {index + 1}
                                                 </span>
                                                 {isLinkedFromPrevious && (
-                                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-md uppercase tracking-wider">
-                                                        Linked Follow-Up
+                                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-md uppercase tracking-wider flex items-center gap-1.5">
+                                                        <svg className="w-3.5 h-3.5 text-primary shrink-0 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                                        </svg>
+                                                        <span>Linked Follow-Up</span>
                                                     </span>
                                                 )}
                                             </div>
+
+                                            {/* Note inputs BEFORE the follow up question */}
+                                            {isLinkedFromPrevious && (
+                                                <div className="space-y-4 mb-3">
+                                                    {(currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null) && (
+                                                        <div className="animate-fade-in border border-emerald-100/70 rounded-2xl p-4 bg-emerald-50/5">
+                                                            <div className="flex justify-between items-center mb-1.5">
+                                                                <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest px-1">Coach Note</label>
+                                                                <button 
+                                                                    type="button" 
+                                                                    onClick={() => {
+                                                                        const newNotes = [...(currentContent.taskNotes || [])];
+                                                                        newNotes[index] = null as any;
+                                                                        handleContentChange('taskNotes', newNotes);
+                                                                    }}
+                                                                    className="text-gray-300 hover:text-red-500 transition-colors"
+                                                                >
+                                                                    <X size={12} />
+                                                                </button>
+                                                            </div>
+                                                            <textarea 
+                                                                value={currentContent.taskNotes[index] || ''} 
+                                                                onChange={e => handleTaskNoteChange(index, e.target.value)} 
+                                                                rows={2} 
+                                                                className={editorInputClasses + " p-4 !py-3 w-full border-emerald-100 bg-emerald-50/20 text-gray-700"} 
+                                                                placeholder="Add a context note. Linked tags will automatically show below this note in the participant view." 
+                                                            />
+                                                        </div>
+                                                    )}
+
+                                                    <div className="pl-3 border-l-2 border-emerald-500/20 space-y-3 text-left">
+                                                        <div className="bg-emerald-500/5 rounded-xl p-3 border border-emerald-500/10">
+                                                            <p className="text-xs font-semibold text-emerald-800 italic flex items-center gap-1.5">
+                                                                <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                                                </svg>
+                                                                <span>Tag-specific notes will be displayed dynamically before this question based on the participant's active tags from preceding steps.</span>
+                                                            </p>
+                                                        </div>
+                                                        
+                                                        <div className="space-y-2">
+                                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 flex items-center gap-1.5">
+                                                                <span>Tag-Specific Notes Mapping:</span>
+                                                            </label>
+
+                                                            {(() => {
+                                                                let notesMap: Record<string, string> = {};
+                                                                if (currentContent.taskTagNotes?.[index]) {
+                                                                    try {
+                                                                        notesMap = JSON.parse(currentContent.taskTagNotes[index]);
+                                                                    } catch(e) {}
+                                                                }
+                                                                const notesList = Object.entries(notesMap);
+
+                                                                return (
+                                                                    <div className="space-y-3">
+                                                                        {notesList.map(([tag, noteText], tagIndex) => (
+                                                                            <div key={tagIndex} className="p-3 bg-white rounded-xl border border-gray-100 shadow-sm space-y-2 relative group/tag-note">
+                                                                                <div className="flex items-center justify-between">
+                                                                                    <div className="flex items-center gap-1.5">
+                                                                                        <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-100 px-2.5 py-1 rounded-full font-black uppercase tracking-wider">
+                                                                                            🏷️ {tag}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            const newMap = { ...notesMap };
+                                                                                            delete newMap[tag];
+                                                                                            const updated = [...(currentContent.taskTagNotes || [])];
+                                                                                            while (updated.length <= index) updated.push('{}');
+                                                                                            updated[index] = JSON.stringify(newMap);
+                                                                                            handleContentChange('taskTagNotes', updated);
+                                                                                        }}
+                                                                                        className="text-gray-300 hover:text-red-500 text-[10px] font-bold transition-colors"
+                                                                                        title="Delete assignment"
+                                                                                    >
+                                                                                        ✕ Delete
+                                                                                    </button>
+                                                                                </div>
+                                                                                
+                                                                                <div className="flex gap-2">
+                                                                                    <input 
+                                                                                        type="text"
+                                                                                        value={tag}
+                                                                                        onChange={(e) => {
+                                                                                            const newTag = e.target.value;
+                                                                                            if (newTag !== tag) {
+                                                                                                const newMap = { ...notesMap };
+                                                                                                const val = newMap[tag];
+                                                                                                delete newMap[tag];
+                                                                                                newMap[newTag] = val;
+                                                                                                const updated = [...(currentContent.taskTagNotes || [])];
+                                                                                                while(updated.length <= index) updated.push('{}');
+                                                                                                updated[index] = JSON.stringify(newMap);
+                                                                                                handleContentChange('taskTagNotes', updated);
+                                                                                            }
+                                                                                        }}
+                                                                                        className="px-2 py-1 bg-white border border-gray-200 rounded text-xs font-bold text-gray-700 w-1/3 outline-none focus:border-primary/50"
+                                                                                        placeholder="Tag Name"
+                                                                                    />
+                                                                                    <textarea
+                                                                                        value={noteText}
+                                                                                        onChange={(e) => handleTaskTagNotesChange(index, tag, e.target.value)}
+                                                                                        rows={2}
+                                                                                        className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all resize-none"
+                                                                                        placeholder={`Write a note to show for tag "${tag}"...`}
+                                                                                    />
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+
+                                                                        <div className="pt-1">
+                                                                            <button 
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const newMap = { ...notesMap };
+                                                                                    let draftName = "New Tag";
+                                                                                    let count = 1;
+                                                                                    while (draftName in newMap) {
+                                                                                        draftName = `New Tag ${count++}`;
+                                                                                    }
+                                                                                    newMap[draftName] = "";
+                                                                                    const updated = [...(currentContent.taskTagNotes || [])];
+                                                                                    while(updated.length <= index) updated.push('{}');
+                                                                                    updated[index] = JSON.stringify(newMap);
+                                                                                    handleContentChange('taskTagNotes', updated);
+                                                                                }}
+                                                                                className="text-xs font-bold text-primary hover:text-primary/70 transition-colors flex items-center gap-1"
+                                                                            >
+                                                                                <Plus size={12} /> Add Tag-Specific Note
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             <textarea 
                                                 value={prompt} 
                                                 onChange={e => handleTaskPromptChange(index, e.target.value)} 
@@ -1527,19 +1671,21 @@ const EditSprint: React.FC = () => {
                                                         )}
                                                     </button>
 
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const currentNote = currentContent.taskNotes?.[index];
-                                                            if (currentNote === undefined || currentNote === null) {
-                                                                handleTaskNoteChange(index, '');
-                                                            }
-                                                        }}
-                                                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null) ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
-                                                    >
-                                                        <Plus size={14} />
-                                                        {(currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null) ? 'Note Active' : 'Add Note'}
-                                                    </button>
+                                                    {isLinkedFromPrevious && (
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const currentNote = currentContent.taskNotes?.[index];
+                                                                if (currentNote === undefined || currentNote === null) {
+                                                                    handleTaskNoteChange(index, '');
+                                                                }
+                                                            }}
+                                                            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null) ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                        >
+                                                            <Plus size={14} />
+                                                            {(currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null) ? 'Note Active' : 'Add Note'}
+                                                        </button>
+                                                    )}
 
                                                     {(currentContent.taskPrompts?.length || 3) > 1 && (
                                                         <button 
@@ -1610,31 +1756,6 @@ const EditSprint: React.FC = () => {
                                                 }
                                                 return null;
                                             })()}
-                                            {(currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null) && (
-                                                <div className="mt-2 animate-fade-in">
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <label className="text-[9px] font-black text-emerald-600 uppercase tracking-widest px-1">Coach Note</label>
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => {
-                                                                const newNotes = [...(currentContent.taskNotes || [])];
-                                                                newNotes[index] = null as any;
-                                                                handleContentChange('taskNotes', newNotes);
-                                                            }}
-                                                            className="text-gray-300 hover:text-red-500 transition-colors"
-                                                        >
-                                                            <X size={12} />
-                                                        </button>
-                                                    </div>
-                                                    <textarea 
-                                                        value={currentContent.taskNotes[index] || ''} 
-                                                        onChange={e => handleTaskNoteChange(index, e.target.value)} 
-                                                        rows={2} 
-                                                        className={editorInputClasses + " p-4 !py-3 w-full border-emerald-100 bg-emerald-50/20 text-gray-700"} 
-                                                        placeholder="Add a context note. Linked tags will automatically show below this note in the participant view." 
-                                                    />
-                                                </div>
-                                            )}
                                             {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) && (
                                                 <div className="mt-2 animate-fade-in">
                                                     <div className="flex justify-between items-center mb-1">
@@ -1660,114 +1781,6 @@ const EditSprint: React.FC = () => {
                                                     />
                                                 </div>
                                             )}
-                                            {isLinkedFromPrevious && (
-                                                <div className="mt-3 pl-2 border-l-2 border-emerald-500/20 space-y-4 text-left">
-                                                    <div className="bg-emerald-500/5 rounded-xl p-3 border border-emerald-500/10">
-                                                        <p className="text-xs font-semibold text-emerald-800 italic flex items-center gap-1.5">
-                                                            <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                                                            <span>Tag-specific notes will be displayed dynamically before this question based on the participant's active tags from preceding steps.</span>
-                                                        </p>
-                                                    </div>
-                                                    
-                                                    <div className="space-y-3">
-                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 flex items-center gap-1.5">
-                                                            <span>Tag-Specific Notes Mapping:</span>
-                                                        </label>
-
-                                                        {(() => {
-                                                            let notesMap: Record<string, string> = {};
-                                                            if (currentContent.taskTagNotes?.[index]) {
-                                                                try {
-                                                                    notesMap = JSON.parse(currentContent.taskTagNotes[index]);
-                                                                } catch(e) {}
-                                                            }
-                                                            const notesList = Object.entries(notesMap);
-
-                                                            return (
-                                                                <div className="space-y-3">
-                                                                    {notesList.map(([tag, noteText], tagIndex) => (
-                                                                        <div key={tagIndex} className="p-3 bg-white rounded-xl border border-gray-100 shadow-sm space-y-2 relative group/tag-note">
-                                                                            <div className="flex items-center justify-between">
-                                                                                <div className="flex items-center gap-1.5">
-                                                                                    <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-100 px-2.5 py-1 rounded-full font-black uppercase tracking-wider">
-                                                                                        🏷️ {tag}
-                                                                                    </span>
-                                                                                </div>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => {
-                                                                                        const newMap = { ...notesMap };
-                                                                                        delete newMap[tag];
-                                                                                        const updated = [...(currentContent.taskTagNotes || [])];
-                                                                                        while (updated.length <= index) updated.push('{}');
-                                                                                        updated[index] = JSON.stringify(newMap);
-                                                                                        handleContentChange('taskTagNotes', updated);
-                                                                                    }}
-                                                                                    className="text-gray-300 hover:text-red-500 text-[10px] font-bold transition-colors"
-                                                                                    title="Delete assignment"
-                                                                                >
-                                                                                    ✕ Delete
-                                                                                </button>
-                                                                            </div>
-                                                                            
-                                                                            <div className="flex gap-2">
-                                                                                <input 
-                                                                                    type="text"
-                                                                                    value={tag}
-                                                                                    onChange={(e) => {
-                                                                                        const newTag = e.target.value;
-                                                                                        if (newTag !== tag) {
-                                                                                            const newMap = { ...notesMap };
-                                                                                            const val = newMap[tag];
-                                                                                            delete newMap[tag];
-                                                                                            newMap[newTag] = val;
-                                                                                            const updated = [...(currentContent.taskTagNotes || [])];
-                                                                                            while(updated.length <= index) updated.push('{}');
-                                                                                            updated[index] = JSON.stringify(newMap);
-                                                                                            handleContentChange('taskTagNotes', updated);
-                                                                                        }
-                                                                                    }}
-                                                                                    className="px-2 py-1 bg-white border border-gray-200 rounded text-xs font-bold text-gray-700 w-1/3 outline-none focus:border-primary/50"
-                                                                                    placeholder="Tag Name"
-                                                                                />
-                                                                                <textarea
-                                                                                    value={noteText}
-                                                                                    onChange={(e) => handleTaskTagNotesChange(index, tag, e.target.value)}
-                                                                                    rows={2}
-                                                                                    className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all resize-none"
-                                                                                    placeholder={`Write a note to show for tag "${tag}"...`}
-                                                                                />
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
-
-                                                                    <div className="pt-1">
-                                                                        <button 
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                const newMap = { ...notesMap };
-                                                                                let draftName = "New Tag";
-                                                                                let count = 1;
-                                                                                while (draftName in newMap) {
-                                                                                    draftName = `New Tag ${count++}`;
-                                                                                }
-                                                                                newMap[draftName] = "";
-                                                                                const updated = [...(currentContent.taskTagNotes || [])];
-                                                                                while(updated.length <= index) updated.push('{}');
-                                                                                updated[index] = JSON.stringify(newMap);
-                                                                                handleContentChange('taskTagNotes', updated);
-                                                                            }}
-                                                                            className="text-xs font-bold text-primary hover:text-primary/70 transition-colors flex items-center gap-1"
-                                                                        >
-                                                                            <Plus size={12} /> Add Tag-Specific Note
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })()}
-                                                    </div>
-                                                </div>
-                                            )}
                                             {currentContent.taskInputTypes?.[index] === 'poll' && (
                                                 <div className="mt-3 pl-2 border-l-2 border-primary/20 space-y-2">
                                                     <div className="flex items-center gap-2 mb-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
@@ -1780,114 +1793,58 @@ const EditSprint: React.FC = () => {
                                                         </button>
                                                         <span className="text-xs font-black text-gray-700">Allow multiple options selection (Multi-Select)</span>
                                                     </div>
-                                                    {isLinkedFromPrevious ? (
-                                                        <div className="space-y-3">
-                                                            <div className="bg-emerald-500/5 rounded-xl p-3 border border-emerald-500/10">
-                                                                <p className="text-xs font-medium text-primary italic flex items-center gap-1.5">
-                                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                                                                    <span>Poll options will be generated automatically from the participant's tags in the root step.</span>
-                                                                </p>
-                                                            </div>
-                                                            <div className="mt-3 pt-3 border-t border-dashed border-gray-100 space-y-2">
-                                                                {(() => {
-                                                                    let opts: string[] = [];
-                                                                    if (currentContent.taskPollOptions?.[index]) {
-                                                                        try { opts = JSON.parse(currentContent.taskPollOptions[index]); } catch(e) {}
-                                                                    }
-                                                                    return opts.map((opt, optIndex) => (
-                                                                        <div key={optIndex} className="flex gap-2 items-center group/opt">
-                                                                            <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-50 text-gray-400 text-xs font-bold shrink-0">
-                                                                                +
-                                                                            </div>
-                                                                            <input 
-                                                                                type="text"
-                                                                                value={opt}
-                                                                                onChange={(e) => handleTaskPollOptionChange(index, optIndex, e.target.value)}
-                                                                                className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
-                                                                                placeholder="Custom option..."
-                                                                            />
-                                                                            <button 
-                                                                                type="button"
-                                                                                onClick={() => removeTaskPollOption(index, optIndex)}
-                                                                                className="p-2 text-red-400 hover:text-red-500 rounded-lg transition-all"
-                                                                            >
-                                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                                            </button>
-                                                                        </div>
-                                                                    ));
-                                                                })()}
-                                                                <button 
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        let currentLength = 0;
-                                                                        try { 
-                                                                            const parsed = JSON.parse(currentContent.taskPollOptions?.[index] || '[]');
-                                                                            currentLength = parsed.length;
-                                                                        } catch(e) {}
-                                                                        handleTaskPollOptionChange(index, currentLength, '');
-                                                                    }}
-                                                                    className="text-xs font-bold text-primary hover:text-primary/70 transition-colors flex items-center gap-1 mt-1 pl-2"
-                                                                >
-                                                                    <Plus size={12} /> Custom Option
-                                                                </button>
-                                                            </div>
-                                                            {!currentContent.taskLinkedToNext?.[index] && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleToggleLinkToNext(index)}
-                                                                    className="px-3 py-1.5 ml-2 mt-4 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors flex items-center gap-1"
-                                                                >
-                                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                                                                    Add another Follow-up Poll
-                                                                </button>
-                                                            )}
+                                                    <div className="space-y-4">
+                                                        <div className="bg-emerald-500/5 rounded-xl p-3 border border-emerald-500/10">
+                                                            <p className="text-xs font-medium text-primary italic flex items-center gap-1.5">
+                                                                <svg className="w-3.5 h-3.5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                                                <span>All standard poll options can be added here. When active, participants will see these options.</span>
+                                                            </p>
                                                         </div>
-                                                    ) : (
-                                                        <>
-                                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2">Poll Options (at least 4)</label>
+                                                        <div className="space-y-2">
                                                             {(() => {
-                                                                let opts = ['', '', '', ''];
+                                                                let opts: string[] = [''];
                                                                 if (currentContent.taskPollOptions?.[index]) {
                                                                     try { opts = JSON.parse(currentContent.taskPollOptions[index]); } catch(e) {}
                                                                 }
-                                                                if (opts.length < 4) opts = [...opts, ...Array(4 - opts.length).fill('')];
+                                                                if (opts.length === 0) opts = [''];
                                                                 return opts.map((opt, optIndex) => (
-                                                                <div key={optIndex} className="flex gap-2 items-center group/opt">
-                                                                    <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-100 text-gray-400 text-xs font-bold shrink-0">
-                                                                        {String.fromCharCode(65 + optIndex)}
-                                                                    </div>
-                                                                    <input 
-                                                                        type="text"
-                                                                        value={opt}
-                                                                        onChange={(e) => handleTaskPollOptionChange(index, optIndex, e.target.value)}
-                                                                        className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
-                                                                        placeholder={`Option ${optIndex + 1}`}
-                                                                    />
-                                                                    {(opts.length > 4) && (
+                                                                    <div key={optIndex} className="flex gap-2 items-center group/opt">
+                                                                        <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-50 text-gray-400 text-xs font-bold shrink-0">
+                                                                            ●
+                                                                        </div>
+                                                                        <input 
+                                                                            type="text"
+                                                                            value={opt}
+                                                                            onChange={(e) => handleTaskPollOptionChange(index, optIndex, e.target.value)}
+                                                                            className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                                                                            placeholder="Custom option..."
+                                                                        />
                                                                         <button 
                                                                             type="button"
                                                                             onClick={() => removeTaskPollOption(index, optIndex)}
-                                                                            className="p-2 text-red-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-all opacity-0 group-hover/opt:opacity-100"
+                                                                            className="p-2 text-red-400 hover:text-red-500 rounded-lg transition-all"
                                                                         >
                                                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                                                         </button>
-                                                                    )}
-                                                                </div>
+                                                                    </div>
                                                                 ));
                                                             })()}
                                                             <button 
+                                                                type="button"
                                                                 onClick={() => {
-                                                                    let currentLength = 4;
-                                                                    try { currentLength = JSON.parse(currentContent.taskPollOptions?.[index] || '[]').length || 4; } catch(e) {}
+                                                                    let currentLength = 0;
+                                                                    try { 
+                                                                        const parsed = JSON.parse(currentContent.taskPollOptions?.[index] || '[]');
+                                                                        currentLength = parsed.length;
+                                                                    } catch(e) {}
                                                                     handleTaskPollOptionChange(index, currentLength, '');
                                                                 }}
-                                                                className="pl-7 text-xs font-bold text-primary hover:text-primary/70 transition-colors"
+                                                                className="text-xs font-bold text-primary hover:text-primary/70 transition-colors flex items-center gap-1.5 mt-1"
                                                             >
-                                                                + Add Option
+                                                                <Plus size={12} strokeWidth={2.5} /> Custom Option
                                                             </button>
-                                                        </>
-                                                    )}
-                                                </div>
+                                                        </div>
+                                                    </div>
                                             )}
                                         </div>
 
