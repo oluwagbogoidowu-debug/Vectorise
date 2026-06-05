@@ -1,5 +1,34 @@
 import admin from "firebase-admin";
 
+function parseRelaxedJSON(str: string): any {
+  try {
+    return JSON.parse(str);
+  } catch (initialError: any) {
+    // Attempt parsing with Function constructor to support single quotes, trailing commas, unquoted keys etc.
+    try {
+      const fn = new Function(`return (${str});`);
+      const parsed = fn();
+      if (parsed && typeof parsed === "object") {
+        return parsed;
+      }
+      throw new Error("Parsed result is not an object");
+    } catch (e: any) {
+      // Try string regex-based cleanup as a fallback
+      try {
+        let cleaned = str.trim();
+        cleaned = cleaned.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'\s*:/g, '"$1":');
+        cleaned = cleaned.replace(/:\s*'([^'\\]*(?:\\.[^'\\]*)*)'/g, ':"$1"');
+        cleaned = cleaned.replace(/,\s*'([^'\\]*(?:\\.[^'\\]*)*)'/g, ',"$1"');
+        cleaned = cleaned.replace(/\[\s*'([^'\\]*(?:\\.[^'\\]*)*)'/g, '["$1"');
+        cleaned = cleaned.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
+        return JSON.parse(cleaned);
+      } catch {
+        throw new Error(`Relaxed parsing failed. Original JSON error: ${initialError.message}`);
+      }
+    }
+  }
+}
+
 if (!admin.apps.length) {
   let config: admin.ServiceAccount | undefined;
 
@@ -25,14 +54,14 @@ if (!admin.apps.length) {
       if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
         const jsonCandidate = keyVal.substring(firstBrace, lastBrace + 1);
         try {
-          config = JSON.parse(jsonCandidate);
+          config = parseRelaxedJSON(jsonCandidate);
         } catch (e: any) {
           console.error("Failed to parse extracted JSON from FIREBASE_SERVICE_ACCOUNT_KEY:", e.message);
           // Fallback to trying the whole string if extraction failed for some reason
-          config = JSON.parse(keyVal);
+          config = parseRelaxedJSON(keyVal);
         }
       } else {
-        config = JSON.parse(keyVal);
+        config = parseRelaxedJSON(keyVal);
       }
     } catch (e: any) {
       console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:", e.message);

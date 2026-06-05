@@ -627,6 +627,25 @@ const SprintView: React.FC = () => {
 
   const getLinkedTagsForStep = (stepIndex: number): string[] => {
     if (!dayContent) return [];
+
+    // 1. Check if the new taskLinkedSources tells us which steps are linked
+    if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex]) && dayContent.taskLinkedSources[stepIndex].length > 0) {
+      const allTags: string[] = [];
+      dayContent.taskLinkedSources[stepIndex].forEach(srcIndex => {
+        if (srcIndex >= 0 && srcIndex < taskInputs.length && taskInputs[srcIndex]) {
+          try {
+            const val = taskInputs[srcIndex];
+            const tags = val.startsWith("[") ? JSON.parse(val) : val.split(",").filter(Boolean);
+            allTags.push(...tags);
+          } catch (e) {
+            console.error("Error parsing tags for source", srcIndex, e);
+          }
+        }
+      });
+      return Array.from(new Set(allTags)).filter(Boolean);
+    }
+
+    // 2. Fallback to legacy structure
     let linkedSourceIndex = -1;
     for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
       const isLinked = 
@@ -674,7 +693,12 @@ const SprintView: React.FC = () => {
     if (!dayContent) return false;
     if (dayContent.taskInputTypes?.[stepIndex] !== "text") return false;
     
-    // It's linked if the step before it says taskLinkedToNext === true
+    // Check if new list has entries
+    if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex]) && dayContent.taskLinkedSources[stepIndex].length > 0) {
+      return true;
+    }
+
+    // Fallback to legacy
     if (stepIndex > 0) {
       const prevLinked = dayContent.taskLinkedToNext?.[stepIndex - 1];
       if (prevLinked === true || (prevLinked as any) === "true") {
@@ -1526,7 +1550,7 @@ const SprintView: React.FC = () => {
                                         }
                                       }
 
-                                      let dynamicOptions: string[] = [];
+                                      let dynamicOptions: string[] = getLinkedTagsForStep(i);
                                       if (
                                         linkedSourceIndex !== -1 &&
                                         taskInputs[linkedSourceIndex]
@@ -1548,9 +1572,9 @@ const SprintView: React.FC = () => {
                                       }
                                       dynamicOptions = dynamicOptions.filter(Boolean);
 
-                                      pollOptions = linkedSourceIndex !== -1
+                                      pollOptions = [...dynamicOptions, ...customOptions]; /*
                                         ? [...dynamicOptions, ...customOptions]
-                                        : customOptions;
+                                        : customOptions; */
 
                                       return pollOptions
                                         .filter(Boolean)

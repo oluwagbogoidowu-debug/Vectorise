@@ -196,6 +196,7 @@ const EditSprint: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState(1);
   const [previewTaskIndex, setPreviewTaskIndex] = useState(0);
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
+  const [activeLinkSelectorIndex, setActiveLinkSelectorIndex] = useState<number | null>(null);
 
   useEffect(() => {
     setPreviewTaskIndex(0);
@@ -597,6 +598,50 @@ const EditSprint: React.FC = () => {
             taskLinkedToNext: currentLinked,
             taskPrompts: currentPrompts,
             taskInputTypes: currentTypes,
+            taskPollOptions: currentOptions
+        };
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleToggleSourceLink = (stepIndex: number, sourceIndex: number) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        if (existingContentIndex < 0) return prev;
+        
+        let updatedDailyContent = [...prev.dailyContent];
+        let currentSources = Array.isArray(updatedDailyContent[existingContentIndex].taskLinkedSources)
+            ? [...(updatedDailyContent[existingContentIndex].taskLinkedSources || [])]
+            : [];
+        
+        while (currentSources.length <= stepIndex) {
+            currentSources.push([]);
+        }
+        
+        let sourcesForStep = Array.isArray(currentSources[stepIndex]) ? [...currentSources[stepIndex]] : [];
+        if (sourcesForStep.includes(sourceIndex)) {
+            sourcesForStep = sourcesForStep.filter(s => s !== sourceIndex);
+        } else {
+            sourcesForStep.push(sourceIndex);
+        }
+        currentSources[stepIndex] = sourcesForStep;
+        
+        let currentOptions = [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])];
+        if (updatedDailyContent[existingContentIndex].taskInputTypes?.[stepIndex] === 'poll') {
+            while (currentOptions.length <= stepIndex) currentOptions.push('[]');
+            let optsArr: string[] = [];
+            try { optsArr = JSON.parse(currentOptions[stepIndex] || '[]'); } catch (e) {}
+            if (!Array.isArray(optsArr) || optsArr.length === 0) {
+                optsArr = [''];
+            }
+            currentOptions[stepIndex] = JSON.stringify(optsArr);
+        }
+
+        updatedDailyContent[existingContentIndex] = {
+            ...updatedDailyContent[existingContentIndex],
+            taskLinkedSources: currentSources,
             taskPollOptions: currentOptions
         };
         return { ...prev, dailyContent: updatedDailyContent };
@@ -1093,7 +1138,9 @@ const EditSprint: React.FC = () => {
                     
                     <div className="space-y-4 relative">
                         {(currentContent.taskPrompts || ['', '', '']).map((prompt, index) => {
-                            const isLinkedFromPrevious = index > 0 && currentContent.taskLinkedToNext?.[index - 1];
+                            const isLinkedFromPrevious = 
+                                (index > 0 && currentContent.taskLinkedToNext?.[index - 1]) ||
+                                (Array.isArray(currentContent.taskLinkedSources?.[index]) && currentContent.taskLinkedSources[index].length > 0);
                             return (
                                 <div key={index} className="group relative">
                                     <div className="absolute -left-10 top-6 w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-[10px] font-black text-gray-300 group-focus-within:bg-primary/10 group-focus-within:text-primary transition-all z-10">
@@ -1101,6 +1148,17 @@ const EditSprint: React.FC = () => {
                                     </div>
                                     <div className="flex gap-2 items-start relative z-20">
                                         <div className="flex-1 space-y-2">
+                                            {/* Prominent numbering inline badge */}
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="text-xs font-black bg-primary/10 text-primary px-3 py-1.5 rounded-lg flex items-center gap-1">
+                                                    Action Step {index + 1}
+                                                </span>
+                                                {isLinkedFromPrevious && (
+                                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-md uppercase tracking-wider">
+                                                        Linked Follow-Up
+                                                    </span>
+                                                )}
+                                            </div>
                                             <textarea 
                                                 value={prompt} 
                                                 onChange={e => handleTaskPromptChange(index, e.target.value)} 
@@ -1136,16 +1194,46 @@ const EditSprint: React.FC = () => {
                                                                 Poll
                                                             </button>
                                                         </div>
-                                                        {currentContent.taskInputTypes?.[index] === 'tags' && (
-                                                            <button 
-                                                                type="button"
-                                                                onClick={() => handleToggleLinkToNext(index)}
-                                                                title="Auto-Poll: Ask a follow-up poll using the user's tags"
-                                                                className={`ml-2 p-1.5 rounded-md transition-all flex items-center justify-center ${currentContent.taskLinkedToNext?.[index] ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
-                                                            >
-                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                                                            </button>
-                                                        )}
+                                                        {(() => {
+                                                            const precedingTagSteps = (currentContent.taskInputTypes || [])
+                                                                .map((type, idx) => ({ type, idx }))
+                                                                .filter(item => item.idx < index && item.type === 'tags');
+                                                            
+                                                            const isFollowUp = currentContent.taskInputTypes?.[index] === 'poll' || currentContent.taskInputTypes?.[index] === 'text';
+                                                            
+                                                            if (isFollowUp && precedingTagSteps.length > 0) {
+                                                                const hasSelectedSources = (currentContent.taskLinkedSources?.[index]?.length || 0) > 0;
+                                                                return (
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => setActiveLinkSelectorIndex(activeLinkSelectorIndex === index ? null : index)}
+                                                                        title="Link to previous tag-based steps"
+                                                                        className={`ml-2 p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20' : hasSelectedSources ? 'bg-primary/20 text-primary border border-primary/30 font-bold' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                                                        {hasSelectedSources && (
+                                                                            <span className="ml-1 text-[10px] font-black bg-primary text-white rounded-full px-1 min-w-[14px]">
+                                                                                {currentContent.taskLinkedSources?.[index]?.length}
+                                                                            </span>
+                                                                        )}
+                                                                    </button>
+                                                                );
+                                                            }
+                                                            
+                                                            if (currentContent.taskInputTypes?.[index] === 'tags') {
+                                                                return (
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => handleToggleLinkToNext(index)}
+                                                                        title="Auto-Poll: Ask a follow-up poll using the user's tags"
+                                                                        className={`ml-2 p-1.5 rounded-md transition-all flex items-center justify-center ${currentContent.taskLinkedToNext?.[index] ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                                                    </button>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        })()}
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
@@ -1184,6 +1272,57 @@ const EditSprint: React.FC = () => {
                                                     )}
                                                 </div>
                                             </div>
+                                            {/* Multi-Link selector interface */}
+                                            {(() => {
+                                                const precedingTagSteps = (currentContent.taskInputTypes || [])
+                                                    .map((type, idx) => ({ type, idx }))
+                                                    .filter(item => item.idx < index && item.type === 'tags');
+                                                
+                                                if (activeLinkSelectorIndex === index && precedingTagSteps.length > 0) {
+                                                    return (
+                                                        <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-xl animate-fade-in relative z-30">
+                                                            <p className="text-[10px] font-black text-gray-500 mb-2 uppercase tracking-wider flex items-center justify-between">
+                                                                <span>Link this question to receive tags from preceding steps:</span>
+                                                                <button 
+                                                                    type="button" 
+                                                                    onClick={() => setActiveLinkSelectorIndex(null)}
+                                                                    className="text-gray-400 hover:text-gray-600 text-xs font-bold"
+                                                                >
+                                                                    ✕ Close
+                                                                </button>
+                                                            </p>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {precedingTagSteps.map(step => {
+                                                                    const isLinked = currentContent.taskLinkedSources?.[index]?.includes(step.idx);
+                                                                    return (
+                                                                        <button
+                                                                            key={step.idx}
+                                                                            type="button"
+                                                                            onClick={() => handleToggleSourceLink(index, step.idx)}
+                                                                            className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all border flex items-center gap-1.5 ${
+                                                                                isLinked 
+                                                                                    ? 'bg-primary text-white border-primary shadow-sm' 
+                                                                                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+                                                                            }`}
+                                                                        >
+                                                                            <span>Step {step.idx + 1}</span>
+                                                                            {isLinked ? (
+                                                                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                                                                            ) : (
+                                                                                <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                                                            )}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                            <p className="text-[9px] font-bold text-gray-400 mt-2 italic">
+                                                                Click preceding step numbers to toggle. Any tags defined in those steps will feed into this step.
+                                                            </p>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
                                             {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) && (
                                                 <div className="mt-2 animate-fade-in">
                                                     <div className="flex justify-between items-center mb-1">
