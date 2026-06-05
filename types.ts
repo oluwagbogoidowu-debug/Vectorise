@@ -267,11 +267,13 @@ export interface DailyContent {
   taskPrompt: string;
   taskPrompts?: string[];
   taskHints?: string[];
-  taskInputTypes?: ('text' | 'tags' | 'poll')[];
+  taskInputTypes?: ('text' | 'tags' | 'poll' | 'note')[];
   taskPollOptions?: string[];
   taskLinkedToNext?: boolean[];
   taskLinkedSources?: number[][];
   taskNotes?: string[];
+  taskTagNotes?: string[];
+  taskPollMultiSelect?: boolean[];
   submissionType?: 'text' | 'file' | 'both' | 'none';
   submissionPrompt?: string;
   proofType?: 'picker' | 'note' | 'confirmation';

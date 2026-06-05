@@ -334,7 +334,7 @@ const EditSprint: React.FC = () => {
     };
   }, [sprintId, navigate, user]);
 
-  const currentContent = useMemo(() => {
+  const currentContent = useMemo((): DailyContent => {
     if (!sprint) return {
       day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], taskHints: []
     };
@@ -359,11 +359,21 @@ const EditSprint: React.FC = () => {
       ? (content as any).taskNotes
       : [];
 
+    const safeTagNotes = Array.isArray((content as any).taskTagNotes)
+      ? (content as any).taskTagNotes
+      : [];
+
+    const safePollMultiSelect = Array.isArray((content as any).taskPollMultiSelect)
+      ? (content as any).taskPollMultiSelect
+      : [];
+
     return {
         ...content,
         taskPrompts: paddedPrompts,
         taskHints: safeHints,
-        taskNotes: safeNotes
+        taskNotes: safeNotes,
+        taskTagNotes: safeTagNotes,
+        taskPollMultiSelect: safePollMultiSelect
     };
   }, [sprint, selectedDay]);
 
@@ -493,7 +503,48 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
-  const handleTaskPromptTypeChange = (index: number, type: 'text' | 'tags' | 'poll') => {
+  const handleTaskTagNotesChange = (index: number, tag: string, value: string) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        
+        const currentTagNotes = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskTagNotes || [])]
+            : [];
+        
+        while (currentTagNotes.length <= index) {
+            currentTagNotes.push('{}');
+        }
+        
+        let parsedNotes: Record<string, string> = {};
+        try {
+            parsedNotes = JSON.parse(currentTagNotes[index] || '{}');
+        } catch (e) {}
+        
+        parsedNotes[tag] = value;
+        currentTagNotes[index] = JSON.stringify(parsedNotes);
+        
+        if (existingContentIndex >= 0) {
+          updatedDailyContent[existingContentIndex] = { 
+              ...updatedDailyContent[existingContentIndex], 
+              taskTagNotes: currentTagNotes,
+          };
+        } else {
+          updatedDailyContent.push({
+            day: selectedDay,
+            lessonText: '',
+            taskPrompt: '',
+            taskPrompts: ['', '', ''],
+            taskTagNotes: currentTagNotes,
+          });
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTaskPromptTypeChange = (index: number, type: 'text' | 'tags' | 'poll' | 'note') => {
     setSprint(prev => {
         if (!prev) return null;
         const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
@@ -682,6 +733,31 @@ const EditSprint: React.FC = () => {
             ...updatedDailyContent[existingContentIndex],
             taskLinkedSources: currentSources,
             taskPollOptions: currentOptions
+        };
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTogglePollMultiSelect = (index: number) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        if (existingContentIndex < 0) return prev;
+        
+        let updatedDailyContent = [...prev.dailyContent];
+        let currentMultiSelect = Array.isArray(updatedDailyContent[existingContentIndex].taskPollMultiSelect)
+            ? [...(updatedDailyContent[existingContentIndex].taskPollMultiSelect || [])]
+            : [];
+        
+        while (currentMultiSelect.length <= index) {
+            currentMultiSelect.push(false);
+        }
+        currentMultiSelect[index] = !currentMultiSelect[index];
+        
+        updatedDailyContent[existingContentIndex] = {
+            ...updatedDailyContent[existingContentIndex],
+            taskPollMultiSelect: currentMultiSelect
         };
         return { ...prev, dailyContent: updatedDailyContent };
     });
@@ -1219,9 +1295,8 @@ const EditSprint: React.FC = () => {
                                                             </button>
                                                             <button 
                                                                 type="button"
-                                                                onClick={() => !isLinkedFromPrevious && handleTaskPromptTypeChange(index, 'tags')}
-                                                                disabled={isLinkedFromPrevious}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                                                                onClick={() => handleTaskPromptTypeChange(index, 'tags')}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                                                             >
                                                                 Tags
                                                             </button>
@@ -1238,7 +1313,7 @@ const EditSprint: React.FC = () => {
                                                                 .map((type, idx) => ({ type, idx }))
                                                                 .filter(item => item.idx < index && item.type === 'tags');
                                                             
-                                                            const isFollowUp = currentContent.taskInputTypes?.[index] === 'poll' || currentContent.taskInputTypes?.[index] === 'text';
+                                                            const isFollowUp = true;
                                                             
                                                             if (isFollowUp && precedingTagSteps.length > 0) {
                                                                 const hasSelectedSources = (currentContent.taskLinkedSources?.[index]?.length || 0) > 0;
@@ -1289,8 +1364,17 @@ const EditSprint: React.FC = () => {
                                                         }}
                                                         className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
                                                     >
-                                                        <Plus size={14} />
-                                                        {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? 'Hint Active' : 'Add Hint'}
+                                                        {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? (
+                                                            <>
+                                                                <span className="text-[10px] text-amber-500 mr-0.5">●</span>
+                                                                <span>Hint</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Plus size={14} />
+                                                                <span>Hint</span>
+                                                            </>
+                                                        )}
                                                     </button>
 
                                                     <button 
@@ -1426,28 +1510,139 @@ const EditSprint: React.FC = () => {
                                                     />
                                                 </div>
                                             )}
+                                            {isLinkedFromPrevious && (
+                                                <div className="mt-3 pl-2 border-l-2 border-emerald-500/20 space-y-4 text-left">
+                                                    <div className="bg-emerald-500/5 rounded-xl p-3 border border-emerald-500/10">
+                                                        <p className="text-xs font-semibold text-emerald-800 italic flex items-center gap-1.5">
+                                                            <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                                            <span>Tag-specific notes will be displayed dynamically before this question based on the participant's active tags from preceding steps.</span>
+                                                        </p>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-3">
+                                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 flex items-center gap-1.5">
+                                                            <span>Tag-Specific Notes Mapping:</span>
+                                                        </label>
+
+                                                        {(() => {
+                                                            let notesMap: Record<string, string> = {};
+                                                            if (currentContent.taskTagNotes?.[index]) {
+                                                                try {
+                                                                    notesMap = JSON.parse(currentContent.taskTagNotes[index]);
+                                                                } catch(e) {}
+                                                            }
+                                                            const notesList = Object.entries(notesMap);
+
+                                                            return (
+                                                                <div className="space-y-3">
+                                                                    {notesList.map(([tag, noteText], tagIndex) => (
+                                                                        <div key={tagIndex} className="p-3 bg-white rounded-xl border border-gray-100 shadow-sm space-y-2 relative group/tag-note">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <div className="flex items-center gap-1.5">
+                                                                                    <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-100 px-2.5 py-1 rounded-full font-black uppercase tracking-wider">
+                                                                                        🏷️ {tag}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        const newMap = { ...notesMap };
+                                                                                        delete newMap[tag];
+                                                                                        const updated = [...(currentContent.taskTagNotes || [])];
+                                                                                        while (updated.length <= index) updated.push('{}');
+                                                                                        updated[index] = JSON.stringify(newMap);
+                                                                                        handleContentChange('taskTagNotes', updated);
+                                                                                    }}
+                                                                                    className="text-gray-300 hover:text-red-500 text-[10px] font-bold transition-colors"
+                                                                                    title="Delete assignment"
+                                                                                >
+                                                                                    ✕ Delete
+                                                                                </button>
+                                                                            </div>
+                                                                            
+                                                                            <div className="flex gap-2">
+                                                                                <input 
+                                                                                    type="text"
+                                                                                    value={tag}
+                                                                                    onChange={(e) => {
+                                                                                        const newTag = e.target.value;
+                                                                                        if (newTag !== tag) {
+                                                                                            const newMap = { ...notesMap };
+                                                                                            const val = newMap[tag];
+                                                                                            delete newMap[tag];
+                                                                                            newMap[newTag] = val;
+                                                                                            const updated = [...(currentContent.taskTagNotes || [])];
+                                                                                            while(updated.length <= index) updated.push('{}');
+                                                                                            updated[index] = JSON.stringify(newMap);
+                                                                                            handleContentChange('taskTagNotes', updated);
+                                                                                        }
+                                                                                    }}
+                                                                                    className="px-2 py-1 bg-white border border-gray-200 rounded text-xs font-bold text-gray-700 w-1/3 outline-none focus:border-primary/50"
+                                                                                    placeholder="Tag Name"
+                                                                                />
+                                                                                <textarea
+                                                                                    value={noteText}
+                                                                                    onChange={(e) => handleTaskTagNotesChange(index, tag, e.target.value)}
+                                                                                    rows={2}
+                                                                                    className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all resize-none"
+                                                                                    placeholder={`Write a note to show for tag "${tag}"...`}
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+
+                                                                    <div className="pt-1">
+                                                                        <button 
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const newMap = { ...notesMap };
+                                                                                let draftName = "New Tag";
+                                                                                let count = 1;
+                                                                                while (draftName in newMap) {
+                                                                                    draftName = `New Tag ${count++}`;
+                                                                                }
+                                                                                newMap[draftName] = "";
+                                                                                const updated = [...(currentContent.taskTagNotes || [])];
+                                                                                while(updated.length <= index) updated.push('{}');
+                                                                                updated[index] = JSON.stringify(newMap);
+                                                                                handleContentChange('taskTagNotes', updated);
+                                                                            }}
+                                                                            className="text-xs font-bold text-primary hover:text-primary/70 transition-colors flex items-center gap-1"
+                                                                        >
+                                                                            <Plus size={12} /> Add Tag-Specific Note
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                    </div>
+                                                </div>
+                                            )}
                                             {currentContent.taskInputTypes?.[index] === 'poll' && (
                                                 <div className="mt-3 pl-2 border-l-2 border-primary/20 space-y-2">
+                                                    <div className="flex items-center gap-2 mb-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleTogglePollMultiSelect(index)}
+                                                            className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${currentContent.taskPollMultiSelect?.[index] ? 'bg-primary justify-end' : 'bg-gray-200 justify-start'}`}
+                                                        >
+                                                            <span className={`w-4 h-4 rounded-full bg-white shadow-sm transform duration-200 ease-in-out ${currentContent.taskPollMultiSelect?.[index] ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                        </button>
+                                                        <span className="text-xs font-black text-gray-700">Allow multiple options selection (Multi-Select)</span>
+                                                    </div>
                                                     {isLinkedFromPrevious ? (
                                                         <div className="space-y-3">
-                                                            <div className="bg-primary/5 rounded-xl p-3 border border-primary/10">
+                                                            <div className="bg-emerald-500/5 rounded-xl p-3 border border-emerald-500/10">
                                                                 <p className="text-xs font-medium text-primary italic flex items-center gap-1.5">
                                                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
                                                                     <span>Poll options will be generated automatically from the participant's tags in the root step.</span>
                                                                 </p>
                                                             </div>
                                                             <div className="mt-3 pt-3 border-t border-dashed border-gray-100 space-y-2">
-                                                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-2 flex items-center gap-1">
-                                                                    <span>Additional Custom Options</span>
-                                                                    <span className="text-gray-300 font-normal lowercase">(optional)</span>
-                                                                </label>
                                                                 {(() => {
                                                                     let opts: string[] = [];
                                                                     if (currentContent.taskPollOptions?.[index]) {
                                                                         try { opts = JSON.parse(currentContent.taskPollOptions[index]); } catch(e) {}
-                                                                    }
-                                                                    if (opts.length === 0) {
-                                                                        opts = [''];
                                                                     }
                                                                     return opts.map((opt, optIndex) => (
                                                                         <div key={optIndex} className="flex gap-2 items-center group/opt">
@@ -1459,17 +1654,15 @@ const EditSprint: React.FC = () => {
                                                                                 value={opt}
                                                                                 onChange={(e) => handleTaskPollOptionChange(index, optIndex, e.target.value)}
                                                                                 className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
-                                                                                placeholder="Add custom option..."
+                                                                                placeholder="Custom option..."
                                                                             />
-                                                                            {opts.length > 1 && (
-                                                                                <button 
-                                                                                    type="button"
-                                                                                    onClick={() => removeTaskPollOption(index, optIndex)}
-                                                                                    className="p-2 text-red-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-all opacity-0 group-hover/opt:opacity-100"
-                                                                                >
-                                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                                                </button>
-                                                                            )}
+                                                                            <button 
+                                                                                type="button"
+                                                                                onClick={() => removeTaskPollOption(index, optIndex)}
+                                                                                className="p-2 text-red-400 hover:text-red-500 rounded-lg transition-all"
+                                                                            >
+                                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                            </button>
                                                                         </div>
                                                                     ));
                                                                 })()}
@@ -1479,13 +1672,13 @@ const EditSprint: React.FC = () => {
                                                                         let currentLength = 0;
                                                                         try { 
                                                                             const parsed = JSON.parse(currentContent.taskPollOptions?.[index] || '[]');
-                                                                            currentLength = parsed.length === 0 ? 1 : parsed.length;
+                                                                            currentLength = parsed.length;
                                                                         } catch(e) {}
                                                                         handleTaskPollOptionChange(index, currentLength, '');
                                                                     }}
-                                                                    className="pl-7 text-xs font-bold text-primary hover:text-primary/70 transition-colors flex items-center gap-1 mt-1"
+                                                                    className="text-xs font-bold text-primary hover:text-primary/70 transition-colors flex items-center gap-1 mt-1 pl-2"
                                                                 >
-                                                                    <Plus size={12} /> Add Custom Option
+                                                                    <Plus size={12} /> Custom Option
                                                                 </button>
                                                             </div>
                                                             {!currentContent.taskLinkedToNext?.[index] && (

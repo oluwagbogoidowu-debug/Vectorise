@@ -408,6 +408,50 @@ const SprintPreview: React.FC = () => {
                                             </div>
                                         )}
 
+                                        {(() => {
+                                            let notesMap: Record<string, string> = {};
+                                            if (day1Content?.taskTagNotes?.[i]) {
+                                                try {
+                                                    notesMap = JSON.parse(day1Content.taskTagNotes[i]);
+                                                } catch (e) {}
+                                            }
+                                            
+                                            const linkedTags = getLinkedTagsForStep(i);
+                                            const tagsWithNotes = linkedTags.filter(tag => notesMap[tag] && notesMap[tag].trim() !== "");
+                                            
+                                            if (tagsWithNotes.length === 0) return null;
+                                            
+                                            return (
+                                                <div className="mb-5 space-y-3 px-3 border-l-2 border-emerald-500/20 text-left animate-fade-in">
+                                                    {tagsWithNotes.map((tag, tagIndex) => {
+                                                        const colors = [
+                                                            "bg-emerald-50 text-emerald-800 border-emerald-100",
+                                                            "bg-indigo-50 text-indigo-800 border-indigo-100",
+                                                            "bg-orange-50 text-orange-800 border-orange-100",
+                                                            "bg-rose-50 text-rose-800 border-rose-100",
+                                                            "bg-amber-50 text-amber-800 border-amber-100"
+                                                        ];
+                                                        const colorClass = colors[tagIndex % colors.length];
+                                                        return (
+                                                            <div key={tagIndex} className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm space-y-1.5">
+                                                                <div className="flex items-center gap-1.5 mb-1">
+                                                                    <span className={`${colorClass} px-3 py-1 rounded-full border font-black italic text-[9px] uppercase tracking-wider`}>
+                                                                        {tag}
+                                                                    </span>
+                                                                    <span className="text-gray-400 text-[8px] font-black uppercase tracking-wider">
+                                                                        Context Note
+                                                                    </span>
+                                                                </div>
+                                                                <div className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed">
+                                                                    <FormattedText text={notesMap[tag]} />
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
+
                                         <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug relative mb-4">
                                             <FormattedText text={prompt} />
                                         </div>
@@ -460,6 +504,18 @@ const SprintPreview: React.FC = () => {
                                                 }}
                                                 placeholder="Type and press Enter to add tags..."
                                             />
+                                        ) : day1Content?.taskInputTypes?.[i] === "note" ? (
+                                            <div className="space-y-4 animate-fade-in text-left mb-4">
+                                                <div className="p-4 bg-emerald-500/10 border border-emerald-500/15 rounded-2xl flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-black text-emerald-800 uppercase tracking-widest">Informational Step Completed</p>
+                                                        <p className="text-xs text-emerald-700 font-medium font-semibold">Review the notes above and click Next to continue.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         ) : day1Content?.taskInputTypes?.[i] === "poll" ? (
                                             <div className="space-y-2 mb-4">
                                                 {(() => {
@@ -536,6 +592,61 @@ const SprintPreview: React.FC = () => {
                                                     pollOptions = [...dynamicOptions, ...customOptions]; /*
                                                         ? [...dynamicOptions, ...customOptions]
                                                         : customOptions; */
+
+                                                    const isMultiSelect = !!day1Content.taskPollMultiSelect?.[i];
+                                                    let selectedOpts: string[] = [];
+                                                    try {
+                                                        if (taskInputs[i] && taskInputs[i].startsWith("[")) {
+                                                            selectedOpts = JSON.parse(taskInputs[i]);
+                                                        } else if (taskInputs[i]) {
+                                                            selectedOpts = [taskInputs[i]];
+                                                        }
+                                                    } catch (e) {}
+
+                                                    if (isMultiSelect) {
+                                                        return (
+                                                            <>
+                                                                <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-2 animate-pulse flex items-center gap-1.5 overflow-hidden">
+                                                                    <span>☑️ Select one or more:</span>
+                                                                </p>
+                                                                <div className="space-y-2 w-full">
+                                                                    {pollOptions
+                                                                        .filter(Boolean)
+                                                                        .map((opt: string, optIndex: number) => {
+                                                                            const isSel = selectedOpts.includes(opt);
+                                                                            return (
+                                                                                <button
+                                                                                    key={optIndex}
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        const newInputs = [...taskInputs];
+                                                                                        const indexInSel = selectedOpts.indexOf(opt);
+                                                                                        let newSelected: string[];
+                                                                                        if (indexInSel !== -1) {
+                                                                                            newSelected = selectedOpts.filter(o => o !== opt);
+                                                                                        } else {
+                                                                                            newSelected = [...selectedOpts, opt];
+                                                                                        }
+                                                                                        newInputs[i] = JSON.stringify(newSelected);
+                                                                                        setTaskInputs(newInputs);
+                                                                                    }}
+                                                                                    className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between ${isSel ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
+                                                                                >
+                                                                                    <span>
+                                                                                        {String.fromCharCode(65 + optIndex)}. {opt}
+                                                                                    </span>
+                                                                                    <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isSel ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"}`}>
+                                                                                        {isSel && (
+                                                                                            <svg className="w-2.5 h-2.5 text-white animate-fade-in" fill="none" stroke="currentColor" strokeWidth={4} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                </div>
+                                                            </>
+                                                        );
+                                                    }
 
                                                     return pollOptions
                                                         .filter(Boolean)
@@ -628,9 +739,10 @@ const SprintPreview: React.FC = () => {
                                                 type="button"
                                                 onClick={() => {
                                                     const isTags = day1Content?.taskInputTypes?.[i] === "tags";
+                                                    const isNote = day1Content?.taskInputTypes?.[i] === "note";
                                                     const val = taskInputs[i];
-                                                    let isValid = false;
-                                                    if (val) {
+                                                    let isValid = isNote;
+                                                    if (!isNote && val) {
                                                         if (isTags) {
                                                             isValid = val !== "[]" && val !== "";
                                                         } else if (isLinkedTextStep(i)) {
