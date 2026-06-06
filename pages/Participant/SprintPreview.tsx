@@ -381,8 +381,13 @@ const SprintPreview: React.FC = () => {
                                             return (
                                                 <div className="mb-4 space-y-3 pl-4 border-l-4 border-emerald-500/30 py-1 text-left animate-fade-in bg-amber-500/0">
                                                     {tagsWithNotes.map((tag, tagIndex) => (
-                                                        <div key={tagIndex} className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed">
-                                                            <FormattedText text={notesMap[tag]} />
+                                                        <div key={tagIndex} className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed space-y-1 mt-1">
+                                                            <div className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-100 px-3 py-1 rounded-full font-black italic text-[10px] shadow-sm uppercase">
+                                                                {tag}
+                                                            </div>
+                                                            <div>
+                                                                <FormattedText text={notesMap[tag]} />
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>

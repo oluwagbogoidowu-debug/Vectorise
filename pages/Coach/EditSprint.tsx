@@ -483,7 +483,7 @@ const EditSprint: React.FC = () => {
             : [];
         
         while (currentNotes.length <= index) {
-            currentNotes.push('');
+            currentNotes.push(null as any);
         }
         currentNotes[index] = value;
         
@@ -1450,7 +1450,7 @@ const EditSprint: React.FC = () => {
                                                     type="button"
                                                     onClick={() => {
                                                         const currentNote = currentContent.taskNotes?.[index];
-                                                        if (currentNote === undefined || currentNote === null) {
+                                                        if (typeof currentNote !== 'string') {
                                                             handleTaskNoteChange(index, '');
                                                         } else {
                                                             const newNotes = [...(currentContent.taskNotes || [])];
@@ -1459,7 +1459,7 @@ const EditSprint: React.FC = () => {
                                                         }
                                                     }}
                                                     className={`flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
-                                                        (currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null)
+                                                        typeof currentContent.taskNotes?.[index] === 'string'
                                                             ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100/50'
                                                             : 'bg-white text-gray-500 hover:text-primary hover:bg-primary/5 hover:border-primary/20 border-gray-200'
                                                     }`}
@@ -1480,7 +1480,7 @@ const EditSprint: React.FC = () => {
 
                                             {/* Note inputs BEFORE the question prompt */}
                                             <div className="space-y-4 mb-3">
-                                                {(currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null) && (
+                                                {(typeof currentContent.taskNotes?.[index] === 'string') && (
                                                     <div className="animate-fade-in border border-emerald-100/70 rounded-2xl p-4 bg-emerald-50/5">
                                                         <div className="flex justify-between items-center mb-1.5">
                                                             <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest px-1">Coach Note</label>
@@ -1996,8 +1996,13 @@ const EditSprint: React.FC = () => {
                                         return (
                                             <div className="mb-4 space-y-3 pl-4 border-l-4 border-emerald-500/30 py-1 text-left animate-fade-in">
                                                 {tagsWithNotes.map((tag, tagIndex) => (
-                                                    <div key={tagIndex} className="text-gray-700 font-medium text-xs leading-relaxed">
-                                                        <FormattedText text={notesMap[tag]} />
+                                                    <div key={tagIndex} className="text-gray-700 font-medium text-xs leading-relaxed space-y-1 mt-1">
+                                                        <div className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-100 px-3 py-1 rounded-full font-black italic text-[10px] shadow-sm uppercase">
+                                                            {tag}
+                                                        </div>
+                                                        <div>
+                                                            <FormattedText text={notesMap[tag]} />
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
