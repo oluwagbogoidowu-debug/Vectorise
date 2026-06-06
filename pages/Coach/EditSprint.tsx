@@ -1418,6 +1418,30 @@ const EditSprint: React.FC = () => {
                                                 <span className="text-xs font-black bg-primary/10 text-primary px-3 py-1.5 rounded-lg flex items-center gap-1">
                                                     Action Step {index + 1}
                                                 </span>
+
+                                                {/* + coach note button right in front of the tag */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const currentNote = currentContent.taskNotes?.[index];
+                                                        if (currentNote === undefined || currentNote === null) {
+                                                            handleTaskNoteChange(index, '');
+                                                        } else {
+                                                            const newNotes = [...(currentContent.taskNotes || [])];
+                                                            newNotes[index] = null as any;
+                                                            handleContentChange('taskNotes', newNotes);
+                                                        }
+                                                    }}
+                                                    className={`flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
+                                                        (currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null)
+                                                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100/50'
+                                                            : 'bg-white text-gray-500 hover:text-primary hover:bg-primary/5 hover:border-primary/20 border-gray-200'
+                                                    }`}
+                                                >
+                                                    <Plus size={11} strokeWidth={2.5} className="shrink-0" />
+                                                    <span>Coach Note</span>
+                                                </button>
+
                                                 {isLinkedFromPrevious && (
                                                     <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-md uppercase tracking-wider flex items-center gap-1.5">
                                                         <svg className="w-3.5 h-3.5 text-primary shrink-0 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1428,35 +1452,35 @@ const EditSprint: React.FC = () => {
                                                 )}
                                             </div>
 
-                                            {/* Note inputs BEFORE the follow up question */}
-                                            {isLinkedFromPrevious && (
-                                                <div className="space-y-4 mb-3">
-                                                    {(currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null) && (
-                                                        <div className="animate-fade-in border border-emerald-100/70 rounded-2xl p-4 bg-emerald-50/5">
-                                                            <div className="flex justify-between items-center mb-1.5">
-                                                                <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest px-1">Coach Note</label>
-                                                                <button 
-                                                                    type="button" 
-                                                                    onClick={() => {
-                                                                        const newNotes = [...(currentContent.taskNotes || [])];
-                                                                        newNotes[index] = null as any;
-                                                                        handleContentChange('taskNotes', newNotes);
-                                                                    }}
-                                                                    className="text-gray-300 hover:text-red-500 transition-colors"
-                                                                >
-                                                                    <X size={12} />
-                                                                </button>
-                                                            </div>
-                                                            <textarea 
-                                                                value={currentContent.taskNotes[index] || ''} 
-                                                                onChange={e => handleTaskNoteChange(index, e.target.value)} 
-                                                                rows={2} 
-                                                                className={editorInputClasses + " p-4 !py-3 w-full border-emerald-100 bg-emerald-50/20 text-gray-700"} 
-                                                                placeholder="Add a context note. Linked tags will automatically show below this note in the participant view." 
-                                                            />
+                                            {/* Note inputs BEFORE the question prompt */}
+                                            <div className="space-y-4 mb-3">
+                                                {(currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null) && (
+                                                    <div className="animate-fade-in border border-emerald-100/70 rounded-2xl p-4 bg-emerald-50/5">
+                                                        <div className="flex justify-between items-center mb-1.5">
+                                                            <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest px-1">Coach Note</label>
+                                                            <button 
+                                                                type="button" 
+                                                                onClick={() => {
+                                                                    const newNotes = [...(currentContent.taskNotes || [])];
+                                                                    newNotes[index] = null as any;
+                                                                    handleContentChange('taskNotes', newNotes);
+                                                                }}
+                                                                className="text-gray-300 hover:text-red-500 transition-colors"
+                                                            >
+                                                                <X size={12} />
+                                                            </button>
                                                         </div>
-                                                    )}
+                                                        <textarea 
+                                                            value={currentContent.taskNotes[index] || ''} 
+                                                            onChange={e => handleTaskNoteChange(index, e.target.value)} 
+                                                            rows={2} 
+                                                            className={editorInputClasses + " p-4 !py-3 w-full border-emerald-100 bg-emerald-50/20 text-gray-700"} 
+                                                            placeholder="Add a context note. This note will appear just before the question in the participant view." 
+                                                        />
+                                                    </div>
+                                                )}
 
+                                                {isLinkedFromPrevious && (
                                                     <div className="pl-3 border-l-2 border-emerald-500/20 space-y-3 text-left">
                                                         <div className="bg-emerald-500/5 rounded-xl p-3 border border-emerald-500/10">
                                                             <p className="text-xs font-semibold text-emerald-800 italic flex items-center gap-1.5">
@@ -1565,8 +1589,8 @@ const EditSprint: React.FC = () => {
                                                             })()}
                                                         </div>
                                                     </div>
-                                                </div>
-                                            )}
+                                                )}
+                                            </div>
 
                                             <textarea 
                                                 value={prompt} 
@@ -1670,22 +1694,6 @@ const EditSprint: React.FC = () => {
                                                             </>
                                                         )}
                                                     </button>
-
-                                                    {isLinkedFromPrevious && (
-                                                        <button 
-                                                            type="button"
-                                                            onClick={() => {
-                                                                const currentNote = currentContent.taskNotes?.[index];
-                                                                if (currentNote === undefined || currentNote === null) {
-                                                                    handleTaskNoteChange(index, '');
-                                                                }
-                                                            }}
-                                                            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null) ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
-                                                        >
-                                                            <Plus size={14} />
-                                                            {(currentContent.taskNotes?.[index] !== undefined && currentContent.taskNotes?.[index] !== null) ? 'Note Active' : 'Add Note'}
-                                                        </button>
-                                                    )}
 
                                                     {(currentContent.taskPrompts?.length || 3) > 1 && (
                                                         <button 
@@ -1904,11 +1912,86 @@ const EditSprint: React.FC = () => {
                         const validIndex = Math.min(previewTaskIndex, activePrompts.length - 1);
                         const prompt = activePrompts[validIndex] || "";
                         const i = validIndex;
+
+                        const isStepLinked = (stepIndex: number): boolean => {
+                            if (Array.isArray(currentContent.taskLinkedSources?.[stepIndex]) && currentContent.taskLinkedSources[stepIndex].length > 0) {
+                                return true;
+                            }
+                            for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
+                                if (currentContent.taskLinkedToNext?.[prevIndex]) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        };
+
+                        const getPreviewTagsForStep = (stepIndex: number): string[] => {
+                            let notesMap: Record<string, string> = {};
+                            if (currentContent.taskTagNotes?.[stepIndex]) {
+                                try {
+                                    notesMap = JSON.parse(currentContent.taskTagNotes[stepIndex]);
+                                } catch (e) {}
+                            }
+                            const configuredTags = Object.keys(notesMap).filter(tag => notesMap[tag] && notesMap[tag].trim());
+                            if (configuredTags.length > 0) {
+                                return configuredTags;
+                            }
+                            if (isStepLinked(stepIndex)) {
+                                return ["Example-Tag-1", "Example-Tag-2"];
+                            }
+                            return [];
+                        };
                         
                         return (
                             <>
                                 <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group mb-4 animate-fade-in">
                                     <SectionHeading>Action Step {i + 1} of {activePrompts.length}</SectionHeading>
+                                    
+                                    {currentContent.taskNotes?.[i] && (
+                                        <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-medium text-xs leading-relaxed">
+                                            <div className="text-emerald-600 font-black text-[10px] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                                                <span>📝 Coach Note</span>
+                                            </div>
+                                            <FormattedText text={currentContent.taskNotes[i]} />
+                                        </div>
+                                    )}
+
+                                    {getPreviewTagsForStep(i).length > 0 && (
+                                        <div className="mb-4 text-left border-l-4 border-amber-500/30 pl-4 py-1 animate-fade-in text-gray-600 font-medium text-xs leading-relaxed">
+                                            <div className="text-amber-600 font-black text-[10px] uppercase tracking-wider mb-1">
+                                                Context Tags
+                                            </div>
+                                            <span className="font-mono text-amber-700 italic font-bold">#{getPreviewTagsForStep(i).join(" #")}</span>
+                                        </div>
+                                    )}
+
+                                    {(() => {
+                                        let notesMap: Record<string, string> = {};
+                                        if (currentContent.taskTagNotes?.[i]) {
+                                            try {
+                                                notesMap = JSON.parse(currentContent.taskTagNotes[i]);
+                                            } catch (e) {}
+                                        }
+                                        
+                                        const tags = getPreviewTagsForStep(i);
+                                        const tagsWithNotes = tags.filter(tag => notesMap[tag] && notesMap[tag].trim() !== "");
+                                        
+                                        if (tagsWithNotes.length === 0) return null;
+                                        
+                                        return (
+                                            <div className="mb-4 space-y-3 pl-4 border-l-4 border-indigo-500/30 py-1 text-left animate-fade-in">
+                                                {tagsWithNotes.map((tag, tagIndex) => (
+                                                    <div key={tagIndex} className="text-gray-700 font-medium text-xs leading-relaxed">
+                                                        <div className="text-indigo-600 font-black text-[10px] uppercase tracking-wider mb-1">
+                                                            [{tag}] Context Note
+                                                        </div>
+                                                        <FormattedText text={notesMap[tag]} />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        );
+                                    })()}
+
                                     <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
                                         <FormattedText text={prompt || "Submit your progress for this step."} />
                                     </div>

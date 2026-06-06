@@ -357,36 +357,20 @@ const SprintPreview: React.FC = () => {
                                         <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Action Step {i + 1} of {activePrompts.length}</h2>
                                         
                                         {day1Content?.taskNotes?.[i] && (
-                                            <div className="mb-5 p-5 bg-white border border-primary/10 rounded-2xl shadow-sm text-left animate-fade-in">
-                                                <div className="text-gray-400 text-[8px] font-black uppercase tracking-[0.2em] mb-2 flex items-center gap-1.5">
+                                            <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-medium text-xs sm:text-sm leading-relaxed">
+                                                <div className="text-emerald-600 font-black text-[10px] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                                                     <span>📝 Coach Note</span>
                                                 </div>
-                                                <div className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed mb-4">
-                                                    <FormattedText text={day1Content.taskNotes[i]} />
+                                                <FormattedText text={day1Content.taskNotes[i]} />
+                                            </div>
+                                        )}
+
+                                        {getLinkedTagsForStep(i).length > 0 && (
+                                            <div className="mb-4 text-left border-l-4 border-amber-500/30 pl-4 py-1 animate-fade-in text-gray-600 font-medium text-xs sm:text-sm leading-relaxed">
+                                                <div className="text-amber-600 font-black text-[10px] uppercase tracking-wider mb-1">
+                                                    Context Tags
                                                 </div>
-                                                
-                                                {getLinkedTagsForStep(i).length > 0 && (
-                                                    <div className="flex flex-wrap gap-2 mt-2">
-                                                        {getLinkedTagsForStep(i).map((tag, tagIndex) => {
-                                                            const colors = [
-                                                                "bg-emerald-50 text-emerald-800 border-emerald-100",
-                                                                "bg-indigo-50 text-indigo-800 border-indigo-100",
-                                                                "bg-orange-50 text-orange-800 border-orange-100",
-                                                                "bg-rose-50 text-rose-800 border-rose-100",
-                                                                "bg-amber-50 text-amber-800 border-amber-100"
-                                                            ];
-                                                            const colorClass = colors[tagIndex % colors.length];
-                                                            return (
-                                                                <span
-                                                                    key={tagIndex}
-                                                                    className={`${colorClass} px-3 py-1.5 rounded-full border font-black italic text-[9px] uppercase tracking-wider shadow-sm`}
-                                                                >
-                                                                    {tag}
-                                                                </span>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
+                                                <span className="font-mono text-amber-700 italic font-bold">#{getLinkedTagsForStep(i).join(" #")}</span>
                                             </div>
                                         )}
 
@@ -404,32 +388,15 @@ const SprintPreview: React.FC = () => {
                                             if (tagsWithNotes.length === 0) return null;
                                             
                                             return (
-                                                <div className="mb-5 space-y-3 px-3 border-l-2 border-emerald-500/20 text-left animate-fade-in">
-                                                    {tagsWithNotes.map((tag, tagIndex) => {
-                                                        const colors = [
-                                                            "bg-emerald-50 text-emerald-800 border-emerald-100",
-                                                            "bg-indigo-50 text-indigo-800 border-indigo-100",
-                                                            "bg-orange-50 text-orange-800 border-orange-100",
-                                                            "bg-rose-50 text-rose-800 border-rose-100",
-                                                            "bg-amber-50 text-amber-800 border-amber-100"
-                                                        ];
-                                                        const colorClass = colors[tagIndex % colors.length];
-                                                        return (
-                                                            <div key={tagIndex} className="p-4 bg-white border border-gray-100 rounded-2xl shadow-sm space-y-1.5">
-                                                                <div className="flex items-center gap-1.5 mb-1">
-                                                                    <span className={`${colorClass} px-3 py-1 rounded-full border font-black italic text-[9px] uppercase tracking-wider`}>
-                                                                        {tag}
-                                                                    </span>
-                                                                    <span className="text-gray-400 text-[8px] font-black uppercase tracking-wider">
-                                                                        Context Note
-                                                                    </span>
-                                                                </div>
-                                                                <div className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed">
-                                                                    <FormattedText text={notesMap[tag]} />
-                                                                </div>
+                                                <div className="mb-4 space-y-3 pl-4 border-l-4 border-indigo-500/30 py-1 text-left animate-fade-in">
+                                                    {tagsWithNotes.map((tag, tagIndex) => (
+                                                        <div key={tagIndex} className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed">
+                                                            <div className="text-indigo-600 font-black text-[10px] uppercase tracking-wider mb-1">
+                                                                [{tag}] Context Note
                                                             </div>
-                                                        );
-                                                    })}
+                                                            <FormattedText text={notesMap[tag]} />
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             );
                                         })()}
