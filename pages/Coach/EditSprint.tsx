@@ -793,17 +793,29 @@ const EditSprint: React.FC = () => {
         let currentOptions = existingContentIndex >= 0 
             ? [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])]
             : [];
+
+        let currentNotes = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskNotes || [])]
+            : [];
+
+        let currentTagNotes = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskTagNotes || [])]
+            : [];
             
         currentPrompts.push('');
         currentTypes.push('text');
         currentOptions.push('[]');
+        currentNotes.push(null as any);
+        currentTagNotes.push('{}');
         
         if (existingContentIndex >= 0) {
           updatedDailyContent[existingContentIndex] = { 
               ...updatedDailyContent[existingContentIndex], 
               taskPrompts: currentPrompts,
               taskInputTypes: currentTypes,
-              taskPollOptions: currentOptions
+              taskPollOptions: currentOptions,
+              taskNotes: currentNotes,
+              taskTagNotes: currentTagNotes
           };
         } else {
           updatedDailyContent.push({
@@ -812,7 +824,9 @@ const EditSprint: React.FC = () => {
             taskPrompt: '',
             taskPrompts: currentPrompts,
             taskInputTypes: currentTypes,
-            taskPollOptions: currentOptions
+            taskPollOptions: currentOptions,
+            taskNotes: currentNotes,
+            taskTagNotes: currentTagNotes
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -847,6 +861,14 @@ const EditSprint: React.FC = () => {
         let currentHints = existingContentIndex >= 0 
             ? [...(updatedDailyContent[existingContentIndex].taskHints || [])]
             : [];
+
+        let currentNotes = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskNotes || [])]
+            : [];
+
+        let currentTagNotes = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskTagNotes || [])]
+            : [];
             
         let deleteCount = 1;
         if (currentLinked[index]) {
@@ -858,11 +880,15 @@ const EditSprint: React.FC = () => {
         while (currentOptions.length < maxNeeded) currentOptions.push('[]');
         while (currentLinked.length < maxNeeded) currentLinked.push(false);
         while (currentHints.length < maxNeeded) currentHints.push(undefined as any);
+        while (currentNotes.length < maxNeeded) currentNotes.push(null as any);
+        while (currentTagNotes.length < maxNeeded) currentTagNotes.push('{}');
 
         currentPrompts.splice(index, deleteCount);
         currentTypes.splice(index, deleteCount);
         currentOptions.splice(index, deleteCount);
         currentHints.splice(index, deleteCount);
+        currentNotes.splice(index, deleteCount);
+        currentTagNotes.splice(index, deleteCount);
         
         if (index > 0 && currentLinked.length >= index && currentLinked[index - 1]) {
             currentLinked[index - 1] = false;
@@ -875,6 +901,8 @@ const EditSprint: React.FC = () => {
             currentOptions.push('[]');
             currentLinked.push(false);
             currentHints.push(undefined as any);
+            currentNotes.push(null as any);
+            currentTagNotes.push('{}');
         }
         
         const filtered = currentPrompts.filter(p => p.trim());
@@ -888,7 +916,9 @@ const EditSprint: React.FC = () => {
               taskInputTypes: currentTypes,
               taskPollOptions: currentOptions,
               taskLinkedToNext: currentLinked,
-              taskHints: currentHints
+              taskHints: currentHints,
+              taskNotes: currentNotes,
+              taskTagNotes: currentTagNotes
           };
         } else {
           updatedDailyContent.push({
@@ -899,7 +929,9 @@ const EditSprint: React.FC = () => {
             taskInputTypes: currentTypes,
             taskPollOptions: currentOptions,
             taskLinkedToNext: currentLinked,
-            taskHints: currentHints
+            taskHints: currentHints,
+            taskNotes: currentNotes,
+            taskTagNotes: currentTagNotes
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -1659,9 +1691,22 @@ const EditSprint: React.FC = () => {
                                                                 .map((type, idx) => ({ type, idx }))
                                                                 .filter(item => item.idx < index && item.type === 'tags');
                                                             
-                                                            const isFollowUp = true;
+                                                            // If the current step's input type is set to 'tags', it must link to the exact next step below it
+                                                            if (currentContent.taskInputTypes?.[index] === 'tags') {
+                                                                return (
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => handleToggleLinkToNext(index)}
+                                                                        title="Link to the exact next question below it"
+                                                                        className={`ml-2 p-1.5 rounded-md transition-all flex items-center justify-center ${currentContent.taskLinkedToNext?.[index] ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                                                    </button>
+                                                                );
+                                                            }
                                                             
-                                                            if (isFollowUp && precedingTagSteps.length > 0) {
+                                                            // If the current step's input type is 'text' or 'poll' (or undefined/empty), it links to preceding tag steps
+                                                            if (precedingTagSteps.length > 0) {
                                                                 const hasSelectedSources = (currentContent.taskLinkedSources?.[index]?.length || 0) > 0;
                                                                 return (
                                                                     <button 
@@ -1680,18 +1725,6 @@ const EditSprint: React.FC = () => {
                                                                 );
                                                             }
                                                             
-                                                            if (currentContent.taskInputTypes?.[index] === 'tags') {
-                                                                return (
-                                                                    <button 
-                                                                        type="button"
-                                                                        onClick={() => handleToggleLinkToNext(index)}
-                                                                        title="Auto-Poll: Ask a follow-up poll using the user's tags"
-                                                                        className={`ml-2 p-1.5 rounded-md transition-all flex items-center justify-center ${currentContent.taskLinkedToNext?.[index] ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
-                                                                    >
-                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                                                                    </button>
-                                                                );
-                                                            }
                                                             return null;
                                                         })()}
                                                     </div>
