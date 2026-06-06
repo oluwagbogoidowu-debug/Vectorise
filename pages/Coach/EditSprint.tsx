@@ -721,8 +721,16 @@ const EditSprint: React.FC = () => {
         }
         currentSources[stepIndex] = sourcesForStep;
         
+        let currentTypes = [...(updatedDailyContent[existingContentIndex].taskInputTypes || [])];
+        while (currentTypes.length <= stepIndex) {
+            currentTypes.push('text');
+        }
+        if (sourcesForStep.length > 0 && currentTypes[stepIndex] === 'tags') {
+            currentTypes[stepIndex] = 'poll';
+        }
+        
         let currentOptions = [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])];
-        if (updatedDailyContent[existingContentIndex].taskInputTypes?.[stepIndex] === 'poll') {
+        if (currentTypes[stepIndex] === 'poll') {
             while (currentOptions.length <= stepIndex) currentOptions.push('[]');
             let optsArr: string[] = [];
             try { optsArr = JSON.parse(currentOptions[stepIndex] || '[]'); } catch (e) {}
@@ -735,6 +743,7 @@ const EditSprint: React.FC = () => {
         updatedDailyContent[existingContentIndex] = {
             ...updatedDailyContent[existingContentIndex],
             taskLinkedSources: currentSources,
+            taskInputTypes: currentTypes,
             taskPollOptions: currentOptions
         };
         return { ...prev, dailyContent: updatedDailyContent };
@@ -1630,8 +1639,10 @@ const EditSprint: React.FC = () => {
                                                             </button>
                                                             <button 
                                                                 type="button"
-                                                                onClick={() => handleTaskPromptTypeChange(index, 'tags')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                disabled={isLinkedFromPrevious}
+                                                                 onClick={() => handleTaskPromptTypeChange(index, 'tags')}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${isLinkedFromPrevious ? 'opacity-40 cursor-not-allowed text-gray-350' : currentContent.taskInputTypes?.[index] === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                title={isLinkedFromPrevious ? "Tags input is locked for linked follow-up questions." : "Tags"}
                                                             >
                                                                 Tags
                                                             </button>

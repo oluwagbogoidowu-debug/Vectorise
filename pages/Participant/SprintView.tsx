@@ -807,7 +807,10 @@ const SprintView: React.FC = () => {
   };
 
   const isLinkedTextStep = (stepIndex: number): boolean => {
-    return false;
+    if (!dayContent) return false;
+    const type = String(dayContent.taskInputTypes?.[stepIndex] || "").trim().toLowerCase();
+    const isText = type === "text" || type === "" || type === "undefined";
+    return isText && getLinkedTagsForStep(stepIndex).length > 0;
   };
 
   const dayProgress = enrollment?.progress?.find((p) => p.day === viewingDay);
