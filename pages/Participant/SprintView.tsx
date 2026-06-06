@@ -807,24 +807,6 @@ const SprintView: React.FC = () => {
   };
 
   const isLinkedTextStep = (stepIndex: number): boolean => {
-    if (!dayContent) return false;
-    if (dayContent.taskInputTypes?.[stepIndex] !== "text") return false;
-    
-    // Check if new list has entries
-    if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex]) && dayContent.taskLinkedSources[stepIndex].length > 0) {
-      return true;
-    }
-
-    // Fallback to legacy
-    if (stepIndex > 0) {
-      const prevLinked = dayContent.taskLinkedToNext?.[stepIndex - 1];
-      if (prevLinked === true || (prevLinked as any) === "true") {
-        const prevInputType = dayContent.taskInputTypes?.[stepIndex - 1];
-        if (prevInputType === "tags") {
-          return true;
-        }
-      }
-    }
     return false;
   };
 
@@ -1730,68 +1712,7 @@ const SprintView: React.FC = () => {
                                       }
                                       customOptions = customOptions.filter(Boolean);
 
-                                      let linkedSourceIndex = -1;
-                                      for (
-                                        let prevIndex = i - 1;
-                                        prevIndex >= 0;
-                                        prevIndex--
-                                      ) {
-                                        const isLinked = 
-                                          dayContent.taskLinkedToNext?.[prevIndex] === true ||
-                                          (dayContent.taskLinkedToNext?.[prevIndex] as any) === "true";
-                                        if (isLinked) {
-                                          const inputType = String(
-                                            dayContent.taskInputTypes?.[prevIndex] || ""
-                                          ).trim().toLowerCase();
-                                          if (inputType === "tags") {
-                                            linkedSourceIndex = prevIndex;
-                                            break;
-                                          }
-                                        }
-                                      }
-
-                                      // Robust fallback: if not explicitly linked, use closest previous tags step
-                                      if (linkedSourceIndex === -1) {
-                                        for (
-                                          let prevIndex = i - 1;
-                                          prevIndex >= 0;
-                                          prevIndex--
-                                        ) {
-                                          const inputType = String(
-                                            dayContent.taskInputTypes?.[prevIndex] || ""
-                                          ).trim().toLowerCase();
-                                          if (inputType === "tags") {
-                                            linkedSourceIndex = prevIndex;
-                                            break;
-                                          }
-                                        }
-                                      }
-
-                                      let dynamicOptions: string[] = getLinkedTagsForStep(i);
-                                      if (
-                                        linkedSourceIndex !== -1 &&
-                                        taskInputs[linkedSourceIndex]
-                                      ) {
-                                        try {
-                                          dynamicOptions = taskInputs[
-                                            linkedSourceIndex
-                                          ].startsWith("[")
-                                            ? JSON.parse(
-                                                taskInputs[linkedSourceIndex] ||
-                                                  "[]",
-                                              )
-                                            : taskInputs[linkedSourceIndex]
-                                                .split(",")
-                                                .filter(Boolean);
-                                        } catch (e) {
-                                          dynamicOptions = [];
-                                        }
-                                      }
-                                      dynamicOptions = dynamicOptions.filter(Boolean);
-
-                                      pollOptions = [...dynamicOptions, ...customOptions]; /*
-                                        ? [...dynamicOptions, ...customOptions]
-                                        : customOptions; */
+                                      pollOptions = customOptions;
 
                                       // MULTI-SELECT SUPPORTED
                                       const isMultiSelect = !!dayContent.taskPollMultiSelect?.[i];

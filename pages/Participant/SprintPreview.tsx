@@ -293,24 +293,6 @@ const SprintPreview: React.FC = () => {
     };
 
     const isLinkedTextStep = (stepIndex: number): boolean => {
-        if (!day1Content) return false;
-        if (day1Content.taskInputTypes?.[stepIndex] !== "text") return false;
-        
-        // Check if new list has entries
-        if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex]) && day1Content.taskLinkedSources[stepIndex].length > 0) {
-            return true;
-        }
-
-        // Fallback to legacy
-        if (stepIndex > 0) {
-            const prevLinked = day1Content.taskLinkedToNext?.[stepIndex - 1];
-            if (prevLinked === true || (prevLinked as any) === "true") {
-                const prevInputType = day1Content.taskInputTypes?.[stepIndex - 1];
-                if (prevInputType === "tags") {
-                    return true;
-                }
-            }
-        }
         return false;
     };
 
@@ -530,68 +512,7 @@ const SprintPreview: React.FC = () => {
                                                     }
                                                     customOptions = customOptions.filter(Boolean);
 
-                                                    let linkedSourceIndex = -1;
-                                                    for (
-                                                        let prevIndex = i - 1;
-                                                        prevIndex >= 0;
-                                                        prevIndex--
-                                                    ) {
-                                                        const isLinked = 
-                                                            day1Content.taskLinkedToNext?.[prevIndex] === true ||
-                                                            (day1Content.taskLinkedToNext?.[prevIndex] as any) === "true";
-                                                        if (isLinked) {
-                                                            const inputType = String(
-                                                                day1Content.taskInputTypes?.[prevIndex] || ""
-                                                            ).trim().toLowerCase();
-                                                            if (inputType === "tags") {
-                                                                linkedSourceIndex = prevIndex;
-                                                                break;
-                                                            }
-                                                        }
-                                                    }
-
-                                                    // Robust fallback: if not explicitly linked, use closest previous tags step
-                                                    if (linkedSourceIndex === -1) {
-                                                        for (
-                                                            let prevIndex = i - 1;
-                                                            prevIndex >= 0;
-                                                            prevIndex--
-                                                        ) {
-                                                            const inputType = String(
-                                                                day1Content.taskInputTypes?.[prevIndex] || ""
-                                                            ).trim().toLowerCase();
-                                                            if (inputType === "tags") {
-                                                                linkedSourceIndex = prevIndex;
-                                                                break;
-                                                            }
-                                                        }
-                                                    }
-
-                                                    let dynamicOptions: string[] = getLinkedTagsForStep(i);
-                                                    if (
-                                                        linkedSourceIndex !== -1 &&
-                                                        taskInputs[linkedSourceIndex]
-                                                    ) {
-                                                        try {
-                                                            dynamicOptions = taskInputs[
-                                                                linkedSourceIndex
-                                                            ].startsWith("[")
-                                                                ? JSON.parse(
-                                                                        taskInputs[linkedSourceIndex] ||
-                                                                            "[]",
-                                                                    )
-                                                                : taskInputs[linkedSourceIndex]
-                                                                        .split(",")
-                                                                        .filter(Boolean);
-                                                        } catch (e) {
-                                                            dynamicOptions = [];
-                                                        }
-                                                    }
-                                                    dynamicOptions = dynamicOptions.filter(Boolean);
-
-                                                    pollOptions = [...dynamicOptions, ...customOptions]; /*
-                                                        ? [...dynamicOptions, ...customOptions]
-                                                        : customOptions; */
+                                                    pollOptions = customOptions;
 
                                                     const isMultiSelect = !!day1Content.taskPollMultiSelect?.[i];
                                                     let selectedOpts: string[] = [];
