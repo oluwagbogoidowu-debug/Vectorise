@@ -210,6 +210,7 @@ const EditSprint: React.FC = () => {
   const [approvalStatus, setApprovalStatus] = useState<'idle' | 'processing'>('idle');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showMirrorPreview, setShowMirrorPreview] = useState(false);
   const [previewType, setPreviewType] = useState<'card' | 'landing' | 'daily'>('daily');
   const [editSettings, setEditSettings] = useState<Partial<Sprint>>({});
   const [reviewFeedback, setReviewFeedback] = useState<Record<string, string>>({});
@@ -1253,6 +1254,14 @@ const EditSprint: React.FC = () => {
                                     >
                                         <ArrowLeft size={16} />
                                     </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowMirrorPreview(true)}
+                                        className="p-2 bg-amber-50 text-amber-600 hover:bg-amber-100/85 hover:text-amber-700 rounded-xl border border-amber-200 transition-all flex items-center justify-center shrink-0 cursor-pointer"
+                                        title="Preview Participant Mirror Report Pop-up"
+                                    >
+                                        <Eye size={16} />
+                                    </button>
                                     <div>
                                         <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
                                             <BookOpen className="text-primary" size={16} />
@@ -1381,6 +1390,14 @@ const EditSprint: React.FC = () => {
                                 <label className={labelClasses}>Today's Action Steps</label>
                                 <div className="flex items-center gap-2">
                                     <span className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">Min. 3 Steps</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowMirrorPreview(true)}
+                                        className="p-1.5 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-100/80 hover:text-amber-700 border border-amber-150 transition-all flex items-center justify-center shadow-sm shrink-0 cursor-pointer"
+                                        title="Preview Participant Mirror Report Pop-up"
+                                    >
+                                        <Eye size={13} />
+                                    </button>
                                     <button
                                         type="button"
                                         onClick={() => setSetupView('mirror')}
@@ -2396,7 +2413,167 @@ const EditSprint: React.FC = () => {
 
 
       </div>
+      
+      <CoachMirrorPreviewModal 
+        isOpen={showMirrorPreview} 
+        onClose={() => setShowMirrorPreview(false)} 
+        day={selectedDay} 
+        dayContent={currentContent} 
+      />
     </ErrorBoundary>
+  );
+};
+
+// Interactive mirror report preview modal showing realistic answers formatted the way a participant sees them
+interface CoachMirrorPreviewModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  day: number;
+  dayContent: any;
+}
+
+const CoachMirrorPreviewModal: React.FC<CoachMirrorPreviewModalProps> = ({ isOpen, onClose, day, dayContent }) => {
+  if (!isOpen) return null;
+
+  const introText = dayContent?.mirrorIntro || "Here is a mirror of your reflections and alignments from today's sprint action steps:";
+  const prompts = dayContent?.taskPrompts || [dayContent?.taskPrompt || ''];
+
+  const getDummyAnswerForStep = (i: number) => {
+    const type = String(dayContent?.taskInputTypes?.[i] || '').trim().toLowerCase();
+    if (type === 'tags') {
+      let notesMap: Record<string, string> = {};
+      if (dayContent?.taskTagNotes?.[i]) {
+        try {
+          notesMap = JSON.parse(dayContent.taskTagNotes[i]);
+        } catch (e) {}
+      }
+      const activeTags = Object.keys(notesMap).filter(t => notesMap[t] && notesMap[t].trim() !== '');
+      if (activeTags.length > 0) {
+        return JSON.stringify(activeTags);
+      }
+      return JSON.stringify(["Mindset Shift", "Process Scale", "Goal Alignment"]);
+    } else if (type === 'multiple') {
+      const opts = dayContent?.taskSelectionOptions?.[i] || [];
+      if (opts.length > 0 && opts[0]) return opts[0];
+      return "Increase delegation and establish weekly review sprints";
+    } else {
+      return "Mainly focusing on automating manual database tasks to optimize our daily engineering workflow and decrease manual intervention.";
+    }
+  };
+
+  const renderSubmittedAnswer = (answer: string) => {
+    if (!answer) return <span className="text-gray-400 italic">No response submitted</span>;
+    
+    if (answer.startsWith("[") && answer.endsWith("]")) {
+      try {
+        const tags = JSON.parse(answer);
+        if (Array.isArray(tags)) {
+          return (
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {tags.map((tag, i) => (
+                <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          );
+        }
+      } catch(e) {}
+    }
+    
+    return <p className="text-gray-800 text-sm font-semibold leading-relaxed">{answer}</p>;
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md animate-fade-in">
+      <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 max-w-2xl w-full max-h-[85vh] overflow-y-auto border border-gray-150 flex flex-col animate-slide-up text-left">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-6 pb-4 border-b border-gray-100">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/10">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight">Your Mirror Report</h3>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-0.5">Day {day} Reflection & Alignment</p>
+            </div>
+          </div>
+          <button 
+            type="button"
+            onClick={onClose}
+            className="p-1 px-2.5 text-gray-400 hover:text-gray-600 transition-colors uppercase font-bold text-[10px] tracking-wider rounded-lg hover:bg-gray-50 flex items-center gap-1 shrink-0 cursor-pointer" 
+            title="Close Preview"
+          >
+            <X size={15} />
+            <span>Close</span>
+          </button>
+        </div>
+
+        {/* Coach Intro Text */}
+        <div className="mb-6 bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/10">
+          <p className="text-xs font-black text-emerald-800 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            Coach Note
+          </p>
+          <div className="text-gray-700 text-sm font-semibold leading-relaxed">
+            <FormattedText text={introText} />
+          </div>
+        </div>
+
+        {/* Steps and responses */}
+        <div className="space-y-6 flex-1 pr-1 overflow-y-auto">
+          {prompts.map((prompt: string, index: number) => {
+            if (!prompt || !prompt.trim()) return null;
+            const framing = dayContent?.mirrorFraming?.[index];
+            const paraphrase = dayContent?.mirrorParaphrases?.[index];
+            const answer = getDummyAnswerForStep(index);
+
+            return (
+              <div key={index} className="space-y-2 border-l-2 border-gray-150 pl-4 py-1">
+                {/* Framing just above the question statement */}
+                {framing && (
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">{framing}</p>
+                )}
+                
+                {/* Question statement */}
+                <div className="text-xs font-black text-gray-500 uppercase tracking-wider">
+                  Question {index + 1}: {prompt}
+                </div>
+
+                {/* Participant's Response */}
+                <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-100 mt-1">
+                  {renderSubmittedAnswer(answer)}
+                </div>
+
+                {/* Coach paraphrase comment if set */}
+                {paraphrase && (
+                  <div className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-xl mt-2">
+                    <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-0.5">Paraphrase Alignment</p>
+                    <div className="text-gray-650 text-xs font-medium leading-relaxed italic">
+                      <FormattedText text={`"${paraphrase}"`} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="mt-8 pt-4 border-t border-gray-100 flex flex-col sm:flex-row gap-3 justify-between items-center bg-white shrink-0">
+          <span className="text-[10px] text-amber-600 font-bold uppercase tracking-wider italic">✨ Active Coach Design Preview (Interactive)</span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-3 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-800 transition-colors shadow-lg active:scale-95 cursor-pointer w-full sm:w-auto"
+          >
+            Got it, Let's Continue
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
