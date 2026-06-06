@@ -1554,30 +1554,38 @@ const SprintView: React.FC = () => {
                               )}
 
                               {(() => {
-                                let notesMap: Record<string, string> = {};
-                                if (dayContent?.taskTagNotes?.[i]) {
-                                  try {
-                                    notesMap = JSON.parse(dayContent.taskTagNotes[i]);
-                                  } catch (e) {}
+                                const dynamicNoteRaw = dayContent?.taskTagNotes?.[i] || '';
+                                if (!dynamicNoteRaw.trim()) return null;
+
+                                let displayNoteText = '';
+                                try {
+                                  if (dynamicNoteRaw.startsWith('{')) {
+                                    const parsed = JSON.parse(dynamicNoteRaw);
+                                    displayNoteText = Object.values(parsed).filter(Boolean)[0] as string || '';
+                                  } else {
+                                    displayNoteText = dynamicNoteRaw;
+                                  }
+                                } catch (e) {
+                                  displayNoteText = dynamicNoteRaw;
                                 }
-                                
+
+                                if (!displayNoteText.trim()) return null;
+
                                 const linkedTags = getLinkedTagsForStep(i);
-                                const tagsWithNotes = linkedTags.filter(tag => notesMap[tag] && notesMap[tag].trim() !== "");
-                                
-                                if (tagsWithNotes.length === 0) return null;
-                                
+                                if (linkedTags.length === 0) return null;
+
                                 return (
-                                  <div className="mb-4 space-y-3 pl-4 border-l-4 border-emerald-500/30 py-1 text-left animate-fade-in">
-                                    {tagsWithNotes.map((tag, tagIndex) => (
-                                      <div key={tagIndex} className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed space-y-1 mt-1">
-                                        <div className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-100 px-3 py-1 rounded-full font-black italic text-[10px] shadow-sm uppercase">
-                                          {tag}
-                                        </div>
-                                        <div>
-                                          <FormattedText text={notesMap[tag]} />
-                                        </div>
-                                      </div>
-                                    ))}
+                                  <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-1.5">
+                                    <div className="text-gray-700 font-semibold text-xs sm:text-sm leading-relaxed">
+                                      <FormattedText text={displayNoteText} />
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                      {linkedTags.map((tag, tagIndex) => (
+                                        <span key={tagIndex} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-800 border border-indigo-100 px-2.5 py-0.5 rounded-full font-black italic text-[9px] uppercase shadow-sm">
+                                          🏷️ {tag}
+                                        </span>
+                                      ))}
+                                    </div>
                                   </div>
                                 );
                               })()}
@@ -1944,30 +1952,38 @@ const SprintView: React.FC = () => {
                         )}
 
                         {(() => {
-                          let notesMap: Record<string, string> = {};
-                          if (dayContent?.taskTagNotes?.[0]) {
-                            try {
-                              notesMap = JSON.parse(dayContent.taskTagNotes[0]);
-                            } catch (e) {}
+                          const dynamicNoteRaw = dayContent?.taskTagNotes?.[0] || '';
+                          if (!dynamicNoteRaw.trim()) return null;
+
+                          let displayNoteText = '';
+                          try {
+                            if (dynamicNoteRaw.startsWith('{')) {
+                              const parsed = JSON.parse(dynamicNoteRaw);
+                              displayNoteText = Object.values(parsed).filter(Boolean)[0] as string || '';
+                            } else {
+                              displayNoteText = dynamicNoteRaw;
+                            }
+                          } catch (e) {
+                            displayNoteText = dynamicNoteRaw;
                           }
-                          
+
+                          if (!displayNoteText.trim()) return null;
+
                           const linkedTags = getLinkedTagsForStep(0);
-                          const tagsWithNotes = linkedTags.filter(tag => notesMap[tag] && notesMap[tag].trim() !== "");
-                          
-                          if (tagsWithNotes.length === 0) return null;
-                          
+                          if (linkedTags.length === 0) return null;
+
                           return (
-                            <div className="mb-4 space-y-3 pl-4 border-l-4 border-emerald-500/30 py-1 text-left animate-fade-in">
-                              {tagsWithNotes.map((tag, tagIndex) => (
-                                <div key={tagIndex} className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed space-y-1 mt-1">
-                                  <div className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-100 px-3 py-1 rounded-full font-black italic text-[10px] shadow-sm uppercase">
-                                    {tag}
-                                  </div>
-                                  <div>
-                                    <FormattedText text={notesMap[tag]} />
-                                  </div>
-                                </div>
-                              ))}
+                            <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-1.5">
+                              <div className="text-gray-700 font-semibold text-xs sm:text-sm leading-relaxed">
+                                <FormattedText text={displayNoteText} />
+                              </div>
+                              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                {linkedTags.map((tag, tagIndex) => (
+                                  <span key={tagIndex} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-800 border border-indigo-100 px-2.5 py-0.5 rounded-full font-black italic text-[9px] uppercase shadow-sm">
+                                    🏷️ {tag}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
                           );
                         })()}

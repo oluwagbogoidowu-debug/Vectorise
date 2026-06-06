@@ -228,6 +228,17 @@ const EditSprint: React.FC = () => {
 
   const canEditDirectly = !isAdmin || isAdmin; // Admins should always be able to edit directly if they choose
 
+  const getSingleTagNoteValue = (tagNotesStr: string | undefined): string => {
+    if (!tagNotesStr) return '';
+    try {
+        if (tagNotesStr.trim().startsWith('{')) {
+            const parsed = JSON.parse(tagNotesStr);
+            return Object.values(parsed).filter(Boolean)[0] as string || '';
+        }
+    } catch (e) {}
+    return tagNotesStr;
+  };
+
   const getAvailableConnectedTags = (stepIndex: number): string[] => {
     if (!currentContent) return [];
     
@@ -541,7 +552,7 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
-  const handleTaskTagNotesChange = (index: number, tag: string, value: string) => {
+  const handleTaskSingleTagNoteChange = (index: number, noteText: string) => {
     setSprint(prev => {
         if (!prev) return null;
         const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
@@ -552,16 +563,10 @@ const EditSprint: React.FC = () => {
             : [];
         
         while (currentTagNotes.length <= index) {
-            currentTagNotes.push('{}');
+            currentTagNotes.push('');
         }
         
-        let parsedNotes: Record<string, string> = {};
-        try {
-            parsedNotes = JSON.parse(currentTagNotes[index] || '{}');
-        } catch (e) {}
-        
-        parsedNotes[tag] = value;
-        currentTagNotes[index] = JSON.stringify(parsedNotes);
+        currentTagNotes[index] = noteText;
         
         if (existingContentIndex >= 0) {
           updatedDailyContent[existingContentIndex] = { 
@@ -575,7 +580,7 @@ const EditSprint: React.FC = () => {
             taskPrompt: '',
             taskPrompts: ['', '', ''],
             taskTagNotes: currentTagNotes,
-          });
+          } as any);
         }
         return { ...prev, dailyContent: updatedDailyContent };
     });
@@ -1571,76 +1576,68 @@ const EditSprint: React.FC = () => {
                                                             placeholder="Add a context note. This note will appear just before the question in the participant view." 
                                                         />
                                                     </div>
-                                                )}                                                {isLinkedFromPrevious && (
+                                                 )}
+                                                                                                {isLinkedFromPrevious && (
                                                     <div className="pl-3 border-l-2 border-emerald-500/20 space-y-3 text-left animate-fade-in">
                                                         <div className="bg-emerald-500/5 rounded-xl p-3 border border-emerald-500/10">
                                                             <p className="text-xs font-semibold text-emerald-800 italic flex items-center gap-1.5">
                                                                 <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                                                 </svg>
-                                                                <span>Tag-specific notes will be displayed dynamically before this question based on the participant's active tags from preceding steps.</span>
+                                                                <span>This note will be shown to participants dynamically before the action step when any of their active tags from preceding steps match.</span>
                                                             </p>
                                                         </div>
                                                         
                                                         <div className="space-y-2">
-                                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1 flex items-center gap-1.5">
-                                                                <span>Tag-Specific Notes Mapping:</span>
-                                                            </label>
+                                                            <div className="flex items-center justify-between">
+                                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">
+                                                                    Tag-Specific Notes Mapping (Single Note)
+                                                                </label>
+                                                                {getSingleTagNoteValue(currentContent.taskTagNotes?.[index]).trim() && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleTaskSingleTagNoteChange(index, '')}
+                                                                        className="text-[9px] font-bold text-gray-400 hover:text-red-500 uppercase tracking-wider transition-colors"
+                                                                    >
+                                                                        Clear Note
+                                                                    </button>
+                                                                )}
+                                                            </div>
 
-                                                            {(() => {
-                                                                const availableTags = getAvailableConnectedTags(index);
-                                                                
-                                                                let notesMap: Record<string, string> = {};
-                                                                if (currentContent.taskTagNotes?.[index]) {
-                                                                    try {
-                                                                        notesMap = JSON.parse(currentContent.taskTagNotes[index]);
-                                                                    } catch(e) {}
-                                                                }
+                                                            <div className="p-3 bg-white rounded-xl border border-gray-150 shadow-sm space-y-3">
+                                                                <textarea
+                                                                    value={getSingleTagNoteValue(currentContent.taskTagNotes?.[index])}
+                                                                    onChange={(e) => handleTaskSingleTagNoteChange(index, e.target.value)}
+                                                                    rows={3}
+                                                                    className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all resize-none animate-fade-in"
+                                                                    placeholder="Write a note to show when these active tags are selected..."
+                                                                />
 
-                                                                if (availableTags.length === 0) {
+                                                                {(() => {
+                                                                    const availableTags = getAvailableConnectedTags(index);
+                                                                    if (availableTags.length === 0) {
+                                                                        return (
+                                                                            <div className="text-[10px] text-gray-400 font-bold italic uppercase tracking-wider pt-1 animate-fade-in">
+                                                                                ⚠️ No connected tags received from preceding steps yet.
+                                                                            </div>
+                                                                        );
+                                                                    }
                                                                     return (
-                                                                        <div className="p-3.5 bg-gray-50 border border-gray-150 rounded-xl text-[10px] uppercase tracking-wider font-extrabold text-gray-400 italic">
-                                                                            No tags/options received yet. Link this step to a preceding Poll or Tags question to configure notes.
+                                                                        <div className="pt-2 border-t border-gray-100 animate-fade-in">
+                                                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                                                                                CONNECTED DYNAMIC TAGS (TAGS SHOWN UNDERNEATH):
+                                                                            </p>
+                                                                            <div className="flex flex-wrap gap-1.5">
+                                                                                {availableTags.map((tag, tagIndex) => (
+                                                                                    <span key={tagIndex} className="inline-flex items-center gap-1 text-[9px] bg-indigo-50 text-indigo-800 border border-indigo-100 px-2.5 py-1 rounded-full font-black uppercase tracking-wider shadow-sm">
+                                                                                        🏷️ {tag}
+                                                                                    </span>
+                                                                                ))}
+                                                                            </div>
                                                                         </div>
                                                                     );
-                                                                }
-
-                                                                return (
-                                                                    <div className="space-y-3">
-                                                                        {availableTags.map((tag, tagIndex) => {
-                                                                            const noteText = notesMap[tag] || '';
-                                                                            return (
-                                                                                <div key={tagIndex} className="p-3 bg-white rounded-xl border border-gray-150 shadow-sm space-y-2 relative">
-                                                                                    <div className="flex items-center justify-between">
-                                                                                        <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-100 px-2.5 py-1 rounded-full font-black uppercase tracking-wider">
-                                                                                            🏷️ {tag}
-                                                                                        </span>
-                                                                                        {noteText.trim() && (
-                                                                                            <button
-                                                                                                type="button"
-                                                                                                onClick={() => handleTaskTagNotesChange(index, tag, '')}
-                                                                                                className="text-[9px] font-bold text-gray-405 hover:text-red-500 uppercase tracking-wider transition-colors"
-                                                                                            >
-                                                                                                Clear Note
-                                                                                            </button>
-                                                                                        )}
-                                                                                    </div>
-                                                                                    
-                                                                                    <div className="flex flex-col gap-1.5">
-                                                                                        <textarea
-                                                                                            value={noteText}
-                                                                                            onChange={(e) => handleTaskTagNotesChange(index, tag, e.target.value)}
-                                                                                            rows={2}
-                                                                                            className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all resize-none"
-                                                                                            placeholder={`Write a note to show for tag "${tag}"...`}
-                                                                                        />
-                                                                                    </div>
-                                                                                </div>
-                                                                            );
-                                                                        })}
-                                                                    </div>
-                                                                );
-                                                            })()}
+                                                                })()}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 )}
@@ -1997,18 +1994,10 @@ const EditSprint: React.FC = () => {
                         };
 
                         const getPreviewTagsForStep = (stepIndex: number): string[] => {
-                            let notesMap: Record<string, string> = {};
-                            if (currentContent.taskTagNotes?.[stepIndex]) {
-                                try {
-                                    notesMap = JSON.parse(currentContent.taskTagNotes[stepIndex]);
-                                } catch (e) {}
-                            }
-                            const configuredTags = Object.keys(notesMap).filter(tag => notesMap[tag] && notesMap[tag].trim());
-                            if (configuredTags.length > 0) {
-                                return configuredTags;
-                            }
+                            const tags = getAvailableConnectedTags(stepIndex);
+                            if (tags.length > 0) return tags;
                             if (isStepLinked(stepIndex)) {
-                                return ["Example-Tag-1", "Example-Tag-2"];
+                                return ["Mindset Shift", "Goal Alignment"];
                             }
                             return [];
                         };
@@ -2022,32 +2011,26 @@ const EditSprint: React.FC = () => {
                                             <FormattedText text={currentContent.taskNotes[i]} />
                                         </div>
                                     )}
-
+ 
                                     {(() => {
-                                        let notesMap: Record<string, string> = {};
-                                        if (currentContent.taskTagNotes?.[i]) {
-                                            try {
-                                                notesMap = JSON.parse(currentContent.taskTagNotes[i]);
-                                            } catch (e) {}
-                                        }
+                                        const noteText = getSingleTagNoteValue(currentContent.taskTagNotes?.[i]);
+                                        if (!noteText.trim()) return null;
                                         
                                         const tags = getPreviewTagsForStep(i);
-                                        const tagsWithNotes = tags.filter(tag => notesMap[tag] && notesMap[tag].trim() !== "");
-                                        
-                                        if (tagsWithNotes.length === 0) return null;
+                                        if (tags.length === 0) return null;
                                         
                                         return (
-                                            <div className="mb-4 space-y-3 pl-4 border-l-4 border-emerald-500/30 py-1 text-left animate-fade-in">
-                                                {tagsWithNotes.map((tag, tagIndex) => (
-                                                    <div key={tagIndex} className="text-gray-700 font-medium text-xs leading-relaxed space-y-1 mt-1">
-                                                        <div className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-100 px-3 py-1 rounded-full font-black italic text-[10px] shadow-sm uppercase">
-                                                            {tag}
-                                                        </div>
-                                                        <div>
-                                                            <FormattedText text={notesMap[tag]} />
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                            <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-2 bg-amber-500/0">
+                                                <div className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed">
+                                                    <FormattedText text={noteText} />
+                                                </div>
+                                                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                                    {tags.map((tag, tagIndex) => (
+                                                        <span key={tagIndex} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-800 border border-indigo-100 px-2 py-0.5 rounded-full font-black italic text-[9px] uppercase shadow-sm">
+                                                            🏷️ {tag}
+                                                        </span>
+                                                    ))}
+                                                </div>
                                             </div>
                                         );
                                     })()}
