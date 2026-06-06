@@ -1963,22 +1963,9 @@ const EditSprint: React.FC = () => {
                             <>
                                 <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group mb-4 animate-fade-in">
                                     <SectionHeading>Action Step {i + 1} of {activePrompts.length}</SectionHeading>
-                                    
-                                    {currentContent.taskNotes?.[i] && (
+                                                          {currentContent.taskNotes?.[i] && (
                                         <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-medium text-xs leading-relaxed">
-                                            <div className="text-emerald-600 font-black text-[10px] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                                                <span>📝 Coach Note</span>
-                                            </div>
                                             <FormattedText text={currentContent.taskNotes[i]} />
-                                        </div>
-                                    )}
-
-                                    {getPreviewTagsForStep(i).length > 0 && (
-                                        <div className="mb-4 text-left border-l-4 border-amber-500/30 pl-4 py-1 animate-fade-in text-gray-600 font-medium text-xs leading-relaxed">
-                                            <div className="text-amber-600 font-black text-[10px] uppercase tracking-wider mb-1">
-                                                Context Tags
-                                            </div>
-                                            <span className="font-mono text-amber-700 italic font-bold">#{getPreviewTagsForStep(i).join(" #")}</span>
                                         </div>
                                     )}
 
@@ -1996,12 +1983,9 @@ const EditSprint: React.FC = () => {
                                         if (tagsWithNotes.length === 0) return null;
                                         
                                         return (
-                                            <div className="mb-4 space-y-3 pl-4 border-l-4 border-indigo-500/30 py-1 text-left animate-fade-in">
+                                            <div className="mb-4 space-y-3 pl-4 border-l-4 border-emerald-500/30 py-1 text-left animate-fade-in">
                                                 {tagsWithNotes.map((tag, tagIndex) => (
                                                     <div key={tagIndex} className="text-gray-700 font-medium text-xs leading-relaxed">
-                                                        <div className="text-indigo-600 font-black text-[10px] uppercase tracking-wider mb-1">
-                                                            [{tag}] Context Note
-                                                        </div>
                                                         <FormattedText text={notesMap[tag]} />
                                                     </div>
                                                 ))}
@@ -2469,9 +2453,9 @@ const CoachMirrorPreviewModal: React.FC<CoachMirrorPreviewModalProps> = ({ isOpe
         const tags = JSON.parse(answer);
         if (Array.isArray(tags)) {
           return (
-            <div className="flex flex-wrap gap-1.5 mt-1">
+            <div className="flex flex-wrap gap-2 mt-2">
               {tags.map((tag, i) => (
-                <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+                <span key={i} className="bg-indigo-50 text-indigo-800 border border-indigo-100 px-4 py-2 rounded-full font-black italic text-[10px] shadow-sm inline-block">
                   {tag}
                 </span>
               ))}

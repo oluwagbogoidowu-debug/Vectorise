@@ -1546,19 +1546,7 @@ const SprintView: React.FC = () => {
 
                               {dayContent?.taskNotes?.[i] && (
                                 <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-medium text-xs sm:text-sm leading-relaxed">
-                                  <div className="text-emerald-600 font-black text-[10px] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                                    <span>📝 Coach Note</span>
-                                  </div>
                                   <FormattedText text={dayContent.taskNotes[i]} />
-                                </div>
-                              )}
-
-                              {getLinkedTagsForStep(i).length > 0 && (
-                                <div className="mb-4 text-left border-l-4 border-amber-500/30 pl-4 py-1 animate-fade-in text-gray-600 font-medium text-xs sm:text-sm leading-relaxed">
-                                  <div className="text-amber-600 font-black text-[10px] uppercase tracking-wider mb-1">
-                                    Context Tags
-                                  </div>
-                                  <span className="font-mono text-amber-700 italic font-bold">#{getLinkedTagsForStep(i).join(" #")}</span>
                                 </div>
                               )}
 
@@ -1576,12 +1564,9 @@ const SprintView: React.FC = () => {
                                 if (tagsWithNotes.length === 0) return null;
                                 
                                 return (
-                                  <div className="mb-4 space-y-3 pl-4 border-l-4 border-indigo-500/30 py-1 text-left animate-fade-in">
+                                  <div className="mb-4 space-y-3 pl-4 border-l-4 border-emerald-500/30 py-1 text-left animate-fade-in">
                                     {tagsWithNotes.map((tag, tagIndex) => (
                                       <div key={tagIndex} className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed">
-                                        <div className="text-indigo-600 font-black text-[10px] uppercase tracking-wider mb-1">
-                                          [{tag}] Context Note
-                                        </div>
                                         <FormattedText text={notesMap[tag]} />
                                       </div>
                                     ))}
@@ -1946,19 +1931,7 @@ const SprintView: React.FC = () => {
                         <SectionHeading>Today's Action Steps</SectionHeading>
                         {dayContent?.taskNotes?.[0] && (
                           <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-medium text-xs sm:text-sm leading-relaxed">
-                            <div className="text-emerald-600 font-black text-[10px] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                              <span>📝 Coach Note</span>
-                            </div>
                             <FormattedText text={dayContent.taskNotes[0]} />
-                          </div>
-                        )}
-
-                        {getLinkedTagsForStep(0).length > 0 && (
-                          <div className="mb-4 text-left border-l-4 border-amber-500/30 pl-4 py-1 animate-fade-in text-gray-600 font-medium text-xs sm:text-sm leading-relaxed">
-                            <div className="text-amber-600 font-black text-[10px] uppercase tracking-wider mb-1">
-                              Context Tags
-                            </div>
-                            <span className="font-mono text-amber-700 italic font-bold">#{getLinkedTagsForStep(0).join(" #")}</span>
                           </div>
                         )}
 
@@ -1976,12 +1949,9 @@ const SprintView: React.FC = () => {
                           if (tagsWithNotes.length === 0) return null;
                           
                           return (
-                            <div className="mb-4 space-y-3 pl-4 border-l-4 border-indigo-500/30 py-1 text-left animate-fade-in">
+                            <div className="mb-4 space-y-3 pl-4 border-l-4 border-emerald-500/30 py-1 text-left animate-fade-in">
                               {tagsWithNotes.map((tag, tagIndex) => (
                                 <div key={tagIndex} className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed">
-                                  <div className="text-indigo-600 font-black text-[10px] uppercase tracking-wider mb-1">
-                                    [{tag}] Context Note
-                                  </div>
                                   <FormattedText text={notesMap[tag]} />
                                 </div>
                               ))}
