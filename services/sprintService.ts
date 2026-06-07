@@ -11,6 +11,71 @@ const ORCHESTRATION_COLLECTION = 'orchestration';
 const ORCHESTRATION_SLOTS_COLLECTION = 'orchestration_slots';
 const LINK_STATS_COLLECTION = 'link_stats';
 
+/**
+ * Converts nested arrays (like taskLinkedSources: number[][]) in DailyContent to a flat format (e.g., string[]) for Firestore compatibility.
+ */
+export const serializeSprint = (sprint: any): any => {
+    if (!sprint) return sprint;
+    const cloned = { ...sprint };
+    if (Array.isArray(cloned.dailyContent)) {
+        cloned.dailyContent = cloned.dailyContent.map((day: any) => {
+            if (!day) return day;
+            const dayClone = { ...day };
+            if (Array.isArray(dayClone.taskLinkedSources)) {
+                dayClone.taskLinkedSources = dayClone.taskLinkedSources.map((item: any) => {
+                    if (Array.isArray(item)) {
+                        return JSON.stringify(item);
+                    }
+                    if (typeof item === 'string') {
+                        return item;
+                    }
+                    return '[]';
+                });
+            }
+            return dayClone;
+        });
+    }
+    if (cloned.pendingChanges) {
+        cloned.pendingChanges = serializeSprint(cloned.pendingChanges);
+    }
+    return cloned;
+};
+
+/**
+ * Converts flat serialized values back into nested arrays (like taskLinkedSources: number[][]) for application usage.
+ */
+export const deserializeSprint = (sprint: any): any => {
+    if (!sprint) return sprint;
+    const cloned = { ...sprint };
+    if (Array.isArray(cloned.dailyContent)) {
+        cloned.dailyContent = cloned.dailyContent.map((day: any) => {
+            if (!day) return day;
+            const dayClone = { ...day };
+            if (Array.isArray(dayClone.taskLinkedSources)) {
+                dayClone.taskLinkedSources = dayClone.taskLinkedSources.map((item: any) => {
+                    if (typeof item === 'string') {
+                        try {
+                            const parsed = JSON.parse(item);
+                            return Array.isArray(parsed) ? parsed : [];
+                        } catch (e) {
+                            return [];
+                        }
+                    }
+                    if (Array.isArray(item)) {
+                        return item;
+                    }
+                    return [];
+                });
+            }
+            return dayClone;
+        });
+    }
+    if (cloned.pendingChanges) {
+        cloned.pendingChanges = deserializeSprint(cloned.pendingChanges);
+    }
+    return cloned;
+};
+
 export const sprintService = {
     incrementLinkClick: async (referralCode: string, sprintId?: string | null) => {
         try {
@@ -54,13 +119,13 @@ export const sprintService = {
     createSprint: async (sprint: Sprint) => {
         const now = new Date().toISOString();
         const newSprint = sanitizeData({ ...sprint, createdAt: now, updatedAt: now, deleted: false });
-        await setDoc(doc(db, SPRINTS_COLLECTION, sprint.id), newSprint);
+        await setDoc(doc(db, SPRINTS_COLLECTION, sprint.id), serializeSprint(newSprint));
         return newSprint;
     },
 
     getSprintById: async (sprintId: string) => {
         const snap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId));
-        return snap.exists() ? sanitizeData(snap.data()) as Sprint : null;
+        return snap.exists() ? deserializeSprint(sanitizeData(snap.data())) as Sprint : null;
     },
 
     getSprintsByIds: async (sprintIds: string[]) => {
@@ -73,7 +138,7 @@ export const sprintService = {
                 const chunk = validIds.slice(i, i + CHUNK_SIZE);
                 const q = query(collection(db, SPRINTS_COLLECTION), where("id", "in", chunk));
                 const querySnapshot = await getDocs(q);
-                querySnapshot.forEach((doc) => results.push(sanitizeData(doc.data()) as Sprint));
+                querySnapshot.forEach((doc) => results.push(deserializeSprint(sanitizeData(doc.data())) as Sprint));
             }
             return results;
         } catch (error) {
@@ -84,14 +149,14 @@ export const sprintService = {
 
     subscribeToSprint: (sprintId: string, callback: (sprint: Sprint | null) => void) => {
         return onSnapshot(doc(db, SPRINTS_COLLECTION, sprintId), (doc) => {
-            callback(doc.exists() ? sanitizeData(doc.data()) as Sprint : null);
+            callback(doc.exists() ? deserializeSprint(sanitizeData(doc.data())) as Sprint : null);
         });
     },
 
     getCoachSprints: async (coachId: string) => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("coachId", "==", coachId), where("deleted", "==", false));
         const snap = await getDocs(q);
-        return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+        return snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint);
     },
 
     getAdminCoachSprints: async () => {
@@ -100,7 +165,7 @@ export const sprintService = {
             where("deleted", "==", false)
         );
         const snap = await getDocs(q);
-        const allSprints = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+        const allSprints = snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint);
         return allSprints.filter(s => 
             s.sprintType === 'Foundational' || 
             s.sprintType === 'Fundamentals' || 
@@ -114,20 +179,20 @@ export const sprintService = {
     subscribeToCoachSprints: (coachId: string, callback: (sprints: Sprint[]) => void) => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("coachId", "==", coachId), where("deleted", "==", false));
         return onSnapshot(q, (snap) => {
-            callback(snap.docs.map(doc => sanitizeData(doc.data()) as Sprint));
+            callback(snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint));
         });
     },
 
     getAdminSprints: async () => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("deleted", "==", false));
         const snap = await getDocs(q);
-        return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+        return snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint);
     },
 
     subscribeToAdminSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("deleted", "==", false));
         return onSnapshot(q, (snap) => {
-            callback(snap.docs.map(doc => sanitizeData(doc.data()) as Sprint));
+            callback(snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint));
         }, (error) => {
             if (onError) onError(error);
         });
@@ -136,7 +201,7 @@ export const sprintService = {
     subscribeToAllSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
         const q = query(collection(db, SPRINTS_COLLECTION));
         return onSnapshot(q, (snap) => {
-            callback(snap.docs.map(doc => sanitizeData(doc.data()) as Sprint));
+            callback(snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint));
         }, (error) => {
             if (onError) onError(error);
         });
@@ -145,13 +210,13 @@ export const sprintService = {
     getPublishedSprints: async () => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("published", "==", true), where("deleted", "==", false));
         const snap = await getDocs(q);
-        return snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+        return snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint);
     },
 
     subscribeToPublishedSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("published", "==", true), where("deleted", "==", false));
         return onSnapshot(q, (snap) => {
-            callback(snap.docs.map(doc => sanitizeData(doc.data()) as Sprint));
+            callback(snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint));
         }, (error) => {
             if (onError) onError(error);
         });
@@ -367,7 +432,7 @@ export const sprintService = {
 
     updateSprint: async (sprintId: string, data: Partial<Sprint>, isDirect: boolean = false) => {
         const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
-        await updateDoc(sprintRef, sanitizeData({ ...data, updatedAt: new Date().toISOString() }));
+        await updateDoc(sprintRef, serializeSprint(sanitizeData({ ...data, updatedAt: new Date().toISOString() })));
     },
 
     deleteSprint: async (sprintId: string) => {
@@ -432,7 +497,7 @@ export const sprintService = {
     approveSprint: async (sprintId: string, data?: Partial<Sprint>) => {
         const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
         const finalData = { ...(data || {}), approvalStatus: 'approved', published: true, updatedAt: new Date().toISOString(), pendingChanges: deleteField() };
-        await updateDoc(sprintRef, sanitizeData(finalData));
+        await updateDoc(sprintRef, serializeSprint(sanitizeData(finalData)));
     },
 
     startNextQueuedSprint: async (userId: string) => {
