@@ -1359,6 +1359,7 @@ const EditSprint: React.FC = () => {
                             isLoading={isSubmittingReview}
                             disabled={isSubmittingReview} 
                             className="font-black uppercase tracking-widest text-[10px] rounded-xl px-6 animate-fade-in"
+                            title="Submit Review: Submit the fully completed curriculum to the Admin workspace for review and approval."
                         >
                         {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
                         </Button>
@@ -1373,7 +1374,12 @@ const EditSprint: React.FC = () => {
             <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6 px-1">Curriculum Timeline</h2>
             <div className="flex overflow-x-auto gap-3 hide-scrollbar">
               {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => (
-                <button key={day} onClick={() => setSelectedDay(day)} className={`flex-shrink-0 flex flex-col items-center justify-center w-20 h-20 rounded-2xl border transition-all duration-300 relative ${selectedDay === day ? 'bg-primary border-primary text-white shadow-xl shadow-primary/20 scale-105' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-primary/30 hover:text-primary hover:bg-white'}`}>
+                <button
+                  key={day}
+                  onClick={() => setSelectedDay(day)}
+                  title={`Day ${day}: Switch active editor workspace to curate lessons and action steps for Day ${day}.`}
+                  className={`flex-shrink-0 flex flex-col items-center justify-center w-20 h-20 rounded-2xl border transition-all duration-300 relative ${selectedDay === day ? 'bg-primary border-primary text-white shadow-xl shadow-primary/20 scale-105' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-primary/30 hover:text-primary hover:bg-white'}`}
+                >
                   {isDayComplete(day) && <div className={`absolute top-2 right-2 w-2 h-2 rounded-full ${selectedDay === day ? 'bg-white' : 'bg-primary'}`}></div>}
                   <span className="text-[10px] font-black uppercase tracking-tight">Day</span>
                   <span className="font-black text-2xl leading-none">{day}</span>
@@ -1563,7 +1569,7 @@ const EditSprint: React.FC = () => {
                                         type="button"
                                         onClick={() => setShowMirrorPreview(true)}
                                         className="p-1.5 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-100/80 hover:text-amber-700 border border-amber-150 transition-all flex items-center justify-center shadow-sm shrink-0 cursor-pointer"
-                                        title="Preview Participant Mirror Report Pop-up"
+                                        title="Preview Participant Mirror Report Pop-up: Test and verify how the end-of-day summary presents responses to participants."
                                     >
                                         <Eye size={13} />
                                     </button>
@@ -1571,7 +1577,7 @@ const EditSprint: React.FC = () => {
                                         type="button"
                                         onClick={() => setSetupView('mirror')}
                                         className="px-2.5 py-1.5 rounded-xl bg-gray-50 text-gray-500 hover:bg-primary/10 hover:text-primary border border-gray-100 transition-all flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer text-[10px] font-black uppercase tracking-wider"
-                                        title="Configure Mirror Report"
+                                        title="Configure Mirror Report: Set up statements and phrasing that frame daily outputs inside the participant's Mirror Report."
                                     >
                                         <BookOpen size={13} className="text-primary/70" />
                                         <span>Mirror Report</span>
@@ -1623,6 +1629,7 @@ const EditSprint: React.FC = () => {
                                                             ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100/50'
                                                             : 'bg-white text-gray-500 hover:text-primary hover:bg-primary/5 hover:border-primary/20 border-gray-200'
                                                     }`}
+                                                    title="Coach Note: Add guidance, background information, or resources that will appear immediately above this prompt for the participant."
                                                 >
                                                     <Plus size={11} strokeWidth={2.5} className="shrink-0" />
                                                     <span>Coach Note</span>
@@ -1684,6 +1691,7 @@ const EditSprint: React.FC = () => {
                                                                         ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
                                                                         : 'bg-white text-gray-400 hover:text-gray-600 border-gray-200'
                                                                 }`}
+                                                                title="Tag Note: Toggle custom feedback or insights that show up for the participant specifically when these active choices/tags are selected."
                                                             >
                                                                 {currentContent.taskTagNoteActive?.[index] ? 'ON' : 'OFF'}
                                                             </button>
@@ -1762,6 +1770,7 @@ const EditSprint: React.FC = () => {
                                                                 type="button"
                                                                 onClick={() => handleTaskPromptTypeChange(index, 'text')}
                                                                 className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                title="Text Input: Instructs the participant to enter a freeform text response or reflection."
                                                             >
                                                                 Text
                                                             </button>
@@ -1770,7 +1779,7 @@ const EditSprint: React.FC = () => {
                                                                 disabled={isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index]}
                                                                 onClick={() => handleTaskPromptTypeChange(index, 'tags')}
                                                                 className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? 'opacity-40 cursor-not-allowed text-gray-350' : currentContent.taskInputTypes?.[index] === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                                                title={isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? "Tags input is locked for linked follow-up questions unless Tag Note is ON." : "Tags"}
+                                                                title={isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? "Locked: This step is a linked follow-up and cannot be Tag-labeled unless Tag Note mode is turned ON." : "Tags Input: Participants select multi-choice labels/tags to categorize their state or choices."}
                                                             >
                                                                 Tags
                                                             </button>
@@ -1778,6 +1787,7 @@ const EditSprint: React.FC = () => {
                                                                 type="button"
                                                                 onClick={() => handleTaskPromptTypeChange(index, 'poll')}
                                                                 className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                title="Poll Input: A multiple-choice poll. Standard polls use static choices; linked follow-ups use dynamic tags chosen earlier."
                                                             >
                                                                 Poll
                                                             </button>
@@ -1785,6 +1795,7 @@ const EditSprint: React.FC = () => {
                                                                 type="button"
                                                                 onClick={() => handleTaskPromptTypeChange(index, 'mark')}
                                                                 className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'mark' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                title="Mark Complete Input: A simple checklist item that participants can mark as finished once they execute the action step."
                                                             >
                                                                 Mark
                                                             </button>
@@ -1800,7 +1811,7 @@ const EditSprint: React.FC = () => {
                                                                     <button 
                                                                         type="button"
                                                                         onClick={() => handleToggleLinkToNext(index)}
-                                                                        title="Link to the exact next question below it"
+                                                                        title={currentContent.taskLinkedToNext?.[index] ? "Link Active: This step is linked to dynamically populate choices or follow-ups for the exact next step. Click to disconnect." : "Link Step: Link this tags step to feed its selected tags as active choices or follow-ups for the exact next question."}
                                                                         className={`ml-2 p-1.5 rounded-md transition-all flex items-center justify-center ${currentContent.taskLinkedToNext?.[index] ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
                                                                     >
                                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
@@ -1815,7 +1826,7 @@ const EditSprint: React.FC = () => {
                                                                     <button 
                                                                         type="button"
                                                                         onClick={() => setActiveLinkSelectorIndex(activeLinkSelectorIndex === index ? null : index)}
-                                                                        title="Link to previous tag-based steps"
+                                                                        title={hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding tags-step(s). Click to configure or link more dynamic source questions.` : "Link Sources: Pull selected labels/tags from previous steps to populate this question's choices dynamically."}
                                                                         className={`ml-2 p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20' : hasSelectedSources ? 'bg-primary/20 text-primary border border-primary/30 font-bold' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
                                                                     >
                                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
@@ -1845,6 +1856,7 @@ const EditSprint: React.FC = () => {
                                                             }
                                                         }}
                                                         className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                        title="Hint Option: Toggle an optional expandable hint or helper prompt to guide the participant if they get stuck."
                                                     >
                                                         {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? (
                                                             <>
@@ -1870,7 +1882,7 @@ const EditSprint: React.FC = () => {
                                                                  }
                                                              }}
                                                             className="p-1 px-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50/50 rounded-lg transition-colors flex items-center justify-center ml-1"
-                                                            title="Remove Step"
+                                                            title="Remove Step: Permanently delete this action step from today's active curriculum list."
                                                         >
                                                             <Trash2 size={13} strokeWidth={2} />
                                                         </button>
@@ -1960,10 +1972,11 @@ const EditSprint: React.FC = () => {
                                                             type="button"
                                                             onClick={() => handleTogglePollMultiSelect(index)}
                                                             className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${currentContent.taskPollMultiSelect?.[index] ? 'bg-primary justify-end' : 'bg-gray-200 justify-start'}`}
+                                                            title="Multi-Select: Toggle whether the participant can choose multiple options instead of a single choice."
                                                         >
                                                             <span className={`w-4 h-4 rounded-full bg-white shadow-sm transform duration-200 ease-in-out ${currentContent.taskPollMultiSelect?.[index] ? 'translate-x-4' : 'translate-x-0'}`} />
                                                         </button>
-                                                        <span className="text-xs font-black text-gray-700">Allow multiple options selection (Multi-Select)</span>
+                                                        <span className="text-xs font-black text-gray-700 select-none cursor-help" title="Multi-Select: Toggle whether participants can choose multiple options or are constrained to a single response.">Allow multiple options selection (Multi-Select)</span>
                                                     </div>
                                                     <div className="space-y-4">
                                                         {isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? (
@@ -2056,6 +2069,7 @@ const EditSprint: React.FC = () => {
                         type="button"
                         onClick={addTaskPrompt}
                         className="w-full py-3 bg-white border border-gray-200 border-dashed rounded-xl text-sm font-bold text-gray-400 hover:text-primary hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center justify-center gap-2"
+                        title="Add Step: Append an additional task, prompt, or feedback point to today's action-step structure."
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
                         Add Another Step

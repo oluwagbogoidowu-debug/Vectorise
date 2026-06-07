@@ -27,6 +27,7 @@ import { Participant } from "../../types";
 
 import { PushToggle } from "../../components/PushToggle";
 import { BookOpen } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 
 const DayCompletionModal: React.FC<{
   isOpen: boolean;
@@ -1534,13 +1535,18 @@ const SprintView: React.FC = () => {
                   <div className="space-y-6">
                     {dayContent?.taskPrompts &&
                     dayContent.taskPrompts.length > 1 ? (
-                      dayContent.taskPrompts.map((prompt, i) => {
-                        if (i !== activeTaskIndex) return null;
-                        return (
-                          <div
-                            key={i}
-                            className={`p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group`}
-                          >
+                      <AnimatePresence mode="wait">
+                        {dayContent.taskPrompts.map((prompt, i) => {
+                          if (i !== activeTaskIndex) return null;
+                          return (
+                            <motion.div
+                              key={i}
+                              initial={{ opacity: 0, x: 12 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: -12 }}
+                              transition={{ duration: 0.2, ease: "easeInOut" }}
+                              className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left"
+                            >
                             <div className="relative z-10">
                               <SectionHeading>{`Action Step ${i + 1}`}</SectionHeading>
 
@@ -1982,9 +1988,10 @@ const SprintView: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                          </div>
+                          </motion.div>
                         );
-                      })
+                      })}
+                      </AnimatePresence>
                     ) : (
                       <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
                         <SectionHeading>Today's Action Steps</SectionHeading>
