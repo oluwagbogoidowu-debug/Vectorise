@@ -655,12 +655,36 @@ const EditSprint: React.FC = () => {
             while (currentOptions.length <= index) currentOptions.push('[]');
             currentOptions[index] = JSON.stringify(currentOptsArr);
         }
+
+        // Clean up connections if any step was removed from 'tags'
+        let currentLinked = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskLinkedToNext || [])]
+            : [];
+        let currentSources = existingContentIndex >= 0 && Array.isArray(updatedDailyContent[existingContentIndex].taskLinkedSources)
+            ? updatedDailyContent[existingContentIndex].taskLinkedSources.map(sources => Array.isArray(sources) ? [...sources] : [])
+            : [];
+
+        for (let i = 0; i < currentTypes.length; i++) {
+            if (currentTypes[i] !== 'tags') {
+                if (currentLinked.length > i) {
+                    currentLinked[i] = false;
+                }
+                currentSources = currentSources.map(sources => {
+                    if (Array.isArray(sources)) {
+                        return sources.filter(srcIdx => srcIdx !== i);
+                    }
+                    return [];
+                });
+            }
+        }
         
         if (existingContentIndex >= 0) {
           updatedDailyContent[existingContentIndex] = { 
               ...updatedDailyContent[existingContentIndex], 
               taskInputTypes: currentTypes,
-              taskPollOptions: currentOptions
+              taskPollOptions: currentOptions,
+              taskLinkedToNext: currentLinked,
+              taskLinkedSources: currentSources
           };
         } else {
           updatedDailyContent.push({
@@ -670,7 +694,8 @@ const EditSprint: React.FC = () => {
             taskPrompts: ['', '', ''],
             taskInputTypes: currentTypes,
             taskPollOptions: currentOptions,
-            taskLinkedToNext: []
+            taskLinkedToNext: currentLinked,
+            taskLinkedSources: currentSources
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -957,6 +982,19 @@ const EditSprint: React.FC = () => {
         while (currentNotes.length < maxNeeded) currentNotes.push(null as any);
         while (currentTagNotes.length < maxNeeded) currentTagNotes.push('{}');
 
+        let currentLinkedSources = existingContentIndex >= 0 && Array.isArray(updatedDailyContent[existingContentIndex].taskLinkedSources)
+            ? updatedDailyContent[existingContentIndex].taskLinkedSources.map(sources => Array.isArray(sources) ? [...sources] : [])
+            : [];
+        while (currentLinkedSources.length < maxNeeded) currentLinkedSources.push([]);
+
+        // Adjust source index links (filter out deleted indices, shift down higher ones)
+        currentLinkedSources = currentLinkedSources.map(sources => {
+            if (!Array.isArray(sources)) return [];
+            return sources
+                .filter(srcIdx => srcIdx < index || srcIdx >= index + deleteCount)
+                .map(srcIdx => srcIdx >= index + deleteCount ? srcIdx - deleteCount : srcIdx);
+        });
+
         currentPrompts.splice(index, deleteCount);
         currentTypes.splice(index, deleteCount);
         currentOptions.splice(index, deleteCount);
@@ -968,6 +1006,7 @@ const EditSprint: React.FC = () => {
             currentLinked[index - 1] = false;
         }
         currentLinked.splice(index, deleteCount);
+        currentLinkedSources.splice(index, deleteCount);
         
         while (currentPrompts.length < 3) {
             currentPrompts.push('');
@@ -977,6 +1016,7 @@ const EditSprint: React.FC = () => {
             currentHints.push(undefined as any);
             currentNotes.push(null as any);
             currentTagNotes.push('{}');
+            currentLinkedSources.push([]);
         }
         
         const filtered = currentPrompts.filter(p => p.trim());
@@ -992,7 +1032,8 @@ const EditSprint: React.FC = () => {
               taskLinkedToNext: currentLinked,
               taskHints: currentHints,
               taskNotes: currentNotes,
-              taskTagNotes: currentTagNotes
+              taskTagNotes: currentTagNotes,
+              taskLinkedSources: currentLinkedSources
           };
         } else {
           updatedDailyContent.push({
@@ -1005,7 +1046,8 @@ const EditSprint: React.FC = () => {
             taskLinkedToNext: currentLinked,
             taskHints: currentHints,
             taskNotes: currentNotes,
-            taskTagNotes: currentTagNotes
+            taskTagNotes: currentTagNotes,
+            taskLinkedSources: currentLinkedSources
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
