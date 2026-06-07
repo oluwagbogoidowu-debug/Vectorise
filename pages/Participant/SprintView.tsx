@@ -1579,7 +1579,7 @@ const SprintView: React.FC = () => {
 
                                 return (
                                   <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-1.5">
-                                    <div className="text-gray-800 font-bold text-base sm:text-lg leading-relaxed">
+                                    <div className="text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed">
                                       <FormattedText text={displayNoteText} />
                                     </div>
                                     <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -1606,10 +1606,10 @@ const SprintView: React.FC = () => {
                                         [i]: !prev[i],
                                       }))
                                     }
-                                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest transition-all ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
+                                    className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-widest transition-all ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
                                   >
                                     <svg
-                                      className={`w-3 h-3 transition-transform duration-300 ${revealedHints[i] ? "rotate-180" : ""}`}
+                                      className={`w-2.5 h-2.5 transition-transform duration-300 ${revealedHints[i] ? "rotate-180" : ""}`}
                                       fill="none"
                                       viewBox="0 0 24 24"
                                       stroke="currentColor"
@@ -1621,9 +1621,7 @@ const SprintView: React.FC = () => {
                                         d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                                       />
                                     </svg>
-                                    {revealedHints[i]
-                                      ? "Hide Hint"
-                                      : "View Hint"}
+                                    <span>Hint</span>
                                   </button>
                                   {revealedHints[i] && (
                                     <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
@@ -2024,7 +2022,7 @@ const SprintView: React.FC = () => {
 
                           return (
                             <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-1.5">
-                              <div className="text-gray-800 font-bold text-base sm:text-lg leading-relaxed">
+                              <div className="text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed">
                                 <FormattedText text={displayNoteText} />
                               </div>
                               <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -2050,10 +2048,10 @@ const SprintView: React.FC = () => {
                                   0: !prev[0],
                                 }))
                               }
-                              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest transition-all ${revealedHints[0] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
+                              className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-widest transition-all ${revealedHints[0] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
                             >
                               <svg
-                                className={`w-3 h-3 transition-transform duration-300 ${revealedHints[0] ? "rotate-180" : ""}`}
+                                className={`w-2.5 h-2.5 transition-transform duration-300 ${revealedHints[0] ? "rotate-180" : ""}`}
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -2065,7 +2063,7 @@ const SprintView: React.FC = () => {
                                   d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                                 />
                               </svg>
-                              {revealedHints[0] ? "Hide Hint" : "View Hint"}
+                              <span>Hint</span>
                             </button>
                             {revealedHints[0] && (
                               <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">

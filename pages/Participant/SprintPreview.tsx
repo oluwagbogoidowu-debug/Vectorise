@@ -386,7 +386,7 @@ const SprintPreview: React.FC = () => {
                                                             <div className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-100 px-3 py-1 rounded-full font-black italic text-[10px] shadow-sm uppercase">
                                                                 {tag}
                                                             </div>
-                                                            <div className="text-gray-800 font-bold text-base sm:text-lg leading-relaxed">
+                                                            <div className="text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed">
                                                                 <FormattedText text={notesMap[tag]} />
                                                             </div>
                                                         </div>
@@ -403,12 +403,12 @@ const SprintPreview: React.FC = () => {
                                                 <button 
                                                     type="button"
                                                     onClick={() => setRevealedHints(prev => ({ ...prev, [i]: !prev[i] }))}
-                                                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest transition-all ${revealedHints[i] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                    className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-widest transition-all ${revealedHints[i] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
                                                 >
-                                                    <svg className={`w-3 h-3 transition-transform duration-300 ${revealedHints[i] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <svg className={`w-2.5 h-2.5 transition-transform duration-300 ${revealedHints[i] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                     </svg>
-                                                    {revealedHints[i] ? 'Hide Hint' : 'View Hint'}
+                                                    <span>Hint</span>
                                                 </button>
                                                 {revealedHints[i] && (
                                                     <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
