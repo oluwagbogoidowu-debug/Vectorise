@@ -552,6 +552,40 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
+  const handleToggleTaskTagNoteActive = (index: number, active: boolean) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        
+        const currentActive = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskTagNoteActive || [])]
+            : [];
+        
+        while (currentActive.length <= index) {
+            currentActive.push(false);
+        }
+        currentActive[index] = active;
+        
+        if (existingContentIndex >= 0) {
+          updatedDailyContent[existingContentIndex] = { 
+              ...updatedDailyContent[existingContentIndex], 
+              taskTagNoteActive: currentActive,
+          };
+        } else {
+          updatedDailyContent.push({
+            day: selectedDay,
+            lessonText: '',
+            taskPrompt: '',
+            taskPrompts: ['', '', ''],
+            taskTagNoteActive: currentActive,
+          } as any);
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
   const handleTaskSingleTagNoteChange = (index: number, noteText: string) => {
     setSprint(prev => {
         if (!prev) return null;
@@ -587,7 +621,7 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
-  const handleTaskPromptTypeChange = (index: number, type: 'text' | 'tags' | 'poll' | 'note') => {
+  const handleTaskPromptTypeChange = (index: number, type: 'text' | 'tags' | 'poll' | 'note' | 'mark') => {
     setSprint(prev => {
         if (!prev) return null;
         const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
@@ -1428,25 +1462,6 @@ const EditSprint: React.FC = () => {
                                                         placeholder="e.g., You noted that..."
                                                     />
                                                 </div>
-
-                                                {/* Paraphrase Input */}
-                                                <div className="space-y-1.5">
-                                                    <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider pl-1">
-                                                        Paraphrase / Calibration Guide
-                                                    </label>
-                                                    <textarea
-                                                        value={currentContent.mirrorParaphrases?.[index] || ''}
-                                                        onChange={e => {
-                                                            const updatedParaphrases = [...(currentContent.mirrorParaphrases || [])];
-                                                            while (updatedParaphrases.length <= index) updatedParaphrases.push('');
-                                                            updatedParaphrases[index] = e.target.value;
-                                                            handleContentChange('mirrorParaphrases', updatedParaphrases);
-                                                        }}
-                                                        rows={2}
-                                                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
-                                                        placeholder="Coach paraphrase statement..."
-                                                    />
-                                                </div>
                                             </div>
                                         );
                                     })}
@@ -1577,68 +1592,86 @@ const EditSprint: React.FC = () => {
                                                         />
                                                     </div>
                                                  )}
-                                                                                                {isLinkedFromPrevious && (
-                                                    <div className="pl-3 border-l-2 border-emerald-500/20 space-y-3 text-left animate-fade-in">
-                                                        <div className="bg-emerald-500/5 rounded-xl p-3 border border-emerald-500/10">
-                                                            <p className="text-xs font-semibold text-emerald-800 italic flex items-center gap-1.5">
-                                                                <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                                                </svg>
-                                                                <span>This note will be shown to participants dynamically before the action step when any of their active tags from preceding steps match.</span>
-                                                            </p>
-                                                        </div>
-                                                        
-                                                        <div className="space-y-2">
-                                                            <div className="flex items-center justify-between">
-                                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">
-                                                                    Tag-Specific Notes Mapping (Single Note)
-                                                                </label>
-                                                                {getSingleTagNoteValue(currentContent.taskTagNotes?.[index]).trim() && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleTaskSingleTagNoteChange(index, '')}
-                                                                        className="text-[9px] font-bold text-gray-400 hover:text-red-500 uppercase tracking-wider transition-colors"
-                                                                    >
-                                                                        Clear Note
-                                                                    </button>
-                                                                )}
+                                                                                              {isLinkedFromPrevious && (
+                                                    <div className="pl-3 border-l-2 border-emerald-500/20 space-y-3 text-left animate-fade-in w-full">
+                                                        <div className="flex items-center justify-between bg-gray-50 p-2.5 rounded-xl border border-gray-150">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-xs font-black text-gray-700 uppercase tracking-wide">
+                                                                    Tag Note
+                                                                </span>
+                                                                <span className="text-[10px] font-medium text-gray-400">
+                                                                    Activate tag note instead of standard input
+                                                                </span>
                                                             </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const currentActive = !!currentContent.taskTagNoteActive?.[index];
+                                                                    handleToggleTaskTagNoteActive(index, !currentActive);
+                                                                }}
+                                                                className={`px-3 py-1 text-xs font-black uppercase rounded-lg border transition-all cursor-pointer ${
+                                                                    currentContent.taskTagNoteActive?.[index]
+                                                                        ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
+                                                                        : 'bg-white text-gray-400 hover:text-gray-600 border-gray-200'
+                                                                }`}
+                                                            >
+                                                                {currentContent.taskTagNoteActive?.[index] ? 'ON' : 'OFF'}
+                                                            </button>
+                                                        </div>
 
-                                                            <div className="p-3 bg-white rounded-xl border border-gray-150 shadow-sm space-y-3">
-                                                                <textarea
-                                                                    value={getSingleTagNoteValue(currentContent.taskTagNotes?.[index])}
-                                                                    onChange={(e) => handleTaskSingleTagNoteChange(index, e.target.value)}
-                                                                    rows={3}
-                                                                    className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all resize-none animate-fade-in"
-                                                                    placeholder="Write a note to show when these active tags are selected..."
-                                                                />
+                                                        {currentContent.taskTagNoteActive?.[index] && (
+                                                            <div className="space-y-2 animate-fade-in">
+                                                                <div className="flex items-center justify-between">
+                                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">
+                                                                        Tag Note Content
+                                                                    </label>
+                                                                    {getSingleTagNoteValue(currentContent.taskTagNotes?.[index]).trim() && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleTaskSingleTagNoteChange(index, '')}
+                                                                            className="text-[9px] font-bold text-gray-400 hover:text-red-500 uppercase tracking-wider transition-colors"
+                                                                        >
+                                                                            Clear Note
+                                                                        </button>
+                                                                    )}
+                                                                </div>
 
-                                                                {(() => {
-                                                                    const availableTags = getAvailableConnectedTags(index);
-                                                                    if (availableTags.length === 0) {
+                                                                <div className="p-3 bg-white rounded-xl border border-gray-150 shadow-sm space-y-3">
+                                                                    <textarea
+                                                                        value={getSingleTagNoteValue(currentContent.taskTagNotes?.[index])}
+                                                                        onChange={(e) => handleTaskSingleTagNoteChange(index, e.target.value)}
+                                                                        rows={3}
+                                                                        className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all resize-none animate-fade-in text-gray-750"
+                                                                        placeholder="Write a note to show when these active tags are selected..."
+                                                                    />
+
+                                                                    {(() => {
+                                                                        const availableTags = getAvailableConnectedTags(index);
+                                                                        if (availableTags.length === 0) {
+                                                                            return (
+                                                                                <div className="text-[10px] text-gray-400 font-bold italic uppercase tracking-wider pt-1 animate-fade-in">
+                                                                                    ⚠️ No connected tags received from preceding steps yet.
+                                                                                </div>
+                                                                            );
+                                                                        }
                                                                         return (
-                                                                            <div className="text-[10px] text-gray-400 font-bold italic uppercase tracking-wider pt-1 animate-fade-in">
-                                                                                ⚠️ No connected tags received from preceding steps yet.
+                                                                            <div className="pt-2 border-t border-gray-100 animate-fade-in">
+                                                                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                                                                                    CONNECTED DYNAMIC TAGS:
+                                                                                </p>
+                                                                                <div className="flex flex-wrap gap-1.5">
+                                                                                    {availableTags.map((tag, tagIndex) => (
+                                                                                        <span key={tagIndex} className="inline-flex items-center gap-1 text-[9px] bg-indigo-50 text-indigo-800 border border-indigo-100 px-2.5 py-1 rounded-full font-black uppercase tracking-wider shadow-sm">
+                                                                                            🏷️ {tag}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                </div>
                                                                             </div>
                                                                         );
-                                                                    }
-                                                                    return (
-                                                                        <div className="pt-2 border-t border-gray-100 animate-fade-in">
-                                                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
-                                                                                CONNECTED DYNAMIC TAGS (TAGS SHOWN UNDERNEATH):
-                                                                            </p>
-                                                                            <div className="flex flex-wrap gap-1.5">
-                                                                                {availableTags.map((tag, tagIndex) => (
-                                                                                    <span key={tagIndex} className="inline-flex items-center gap-1 text-[9px] bg-indigo-50 text-indigo-800 border border-indigo-100 px-2.5 py-1 rounded-full font-black uppercase tracking-wider shadow-sm">
-                                                                                        🏷️ {tag}
-                                                                                    </span>
-                                                                                ))}
-                                                                            </div>
-                                                                        </div>
-                                                                    );
-                                                                })()}
+                                                                    })()}
+                                                                </div>
                                                             </div>
-                                                        </div>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -1664,10 +1697,10 @@ const EditSprint: React.FC = () => {
                                                             </button>
                                                             <button 
                                                                 type="button"
-                                                                disabled={isLinkedFromPrevious}
-                                                                 onClick={() => handleTaskPromptTypeChange(index, 'tags')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${isLinkedFromPrevious ? 'opacity-40 cursor-not-allowed text-gray-350' : currentContent.taskInputTypes?.[index] === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                                                title={isLinkedFromPrevious ? "Tags input is locked for linked follow-up questions." : "Tags"}
+                                                                disabled={isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index]}
+                                                                onClick={() => handleTaskPromptTypeChange(index, 'tags')}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? 'opacity-40 cursor-not-allowed text-gray-350' : currentContent.taskInputTypes?.[index] === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                title={isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? "Tags input is locked for linked follow-up questions unless Tag Note is ON." : "Tags"}
                                                             >
                                                                 Tags
                                                             </button>
@@ -1677,6 +1710,13 @@ const EditSprint: React.FC = () => {
                                                                 className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                                                             >
                                                                 Poll
+                                                            </button>
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => handleTaskPromptTypeChange(index, 'mark')}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'mark' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                            >
+                                                                Mark
                                                             </button>
                                                         </div>
                                                         {(() => {
@@ -2131,6 +2171,24 @@ const EditSprint: React.FC = () => {
                                                             </div>
                                                         ))}
                                                     </div>
+                                                </div>
+                                            );
+                                        } else if (type === 'mark') {
+                                            return (
+                                                <div className="space-y-3 bg-indigo-50/20 border border-indigo-100 rounded-2xl p-4 text-left animate-fade-in flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-5 h-5 rounded border-2 border-indigo-500 bg-indigo-50 flex items-center justify-center shrink-0 shadow-sm">
+                                                            <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3.5}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                        </div>
+                                                        <span className="text-xs font-black text-indigo-900 uppercase tracking-wider">
+                                                            Mark complete (No input required)
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-[9px] font-black text-indigo-500 bg-indigo-100/50 px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">
+                                                        PROOFLY MARK
+                                                    </span>
                                                 </div>
                                             );
                                         } else {
@@ -2653,35 +2711,25 @@ const CoachMirrorPreviewModal: React.FC<CoachMirrorPreviewModalProps> = ({ isOpe
           {prompts.map((prompt: string, index: number) => {
             if (!prompt || !prompt.trim()) return null;
             const framing = dayContent?.mirrorFraming?.[index];
-            const paraphrase = dayContent?.mirrorParaphrases?.[index];
             const answer = getDummyAnswerForStep(index);
 
             return (
-              <div key={index} className="space-y-2 border-l-2 border-gray-150 pl-4 py-1">
-                {/* Framing just above the question statement */}
-                {framing && (
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">{framing}</p>
+              <div key={index} className="space-y-2 border-l-2 border-gray-150 pl-4 py-2 animate-fade-in">
+                {/* Framing is what shows in the preview, representing/linking the question */}
+                {framing ? (
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest leading-relaxed">
+                    {framing}
+                  </p>
+                ) : (
+                  <p className="text-xs font-bold text-gray-300 uppercase tracking-widest leading-relaxed italic">
+                    [Framing Statement]
+                  </p>
                 )}
-                
-                {/* Question statement */}
-                <div className="text-xs font-black text-gray-500 uppercase tracking-wider">
-                  Question {index + 1}: {prompt}
-                </div>
 
                 {/* Participant's Response */}
                 <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-100 mt-1">
                   {renderSubmittedAnswer(answer)}
                 </div>
-
-                {/* Coach paraphrase comment if set */}
-                {paraphrase && (
-                  <div className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-xl mt-2">
-                    <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-0.5">Paraphrase Alignment</p>
-                    <div className="text-gray-650 text-xs font-medium leading-relaxed italic">
-                      <FormattedText text={`"${paraphrase}"`} />
-                    </div>
-                  </div>
-                )}
               </div>
             );
           })}

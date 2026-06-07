@@ -139,33 +139,21 @@ const MirrorReportModal: React.FC<MirrorReportModalProps> = ({ isOpen, onClose, 
           {prompts.map((prompt: string, index: number) => {
             if (!prompt || !prompt.trim()) return null;
             const framing = dayContent?.mirrorFraming?.[index];
-            const paraphrase = dayContent?.mirrorParaphrases?.[index];
             const answer = answers[index] || "";
 
             return (
-              <div key={index} className="space-y-2 border-l-2 border-gray-100 pl-4 py-1">
-                {/* Framing just above the question statement */}
-                {framing && (
+              <div key={index} className="space-y-2 border-l-2 border-gray-100 pl-4 py-1.5 animate-fade-in">
+                {/* Framing just above the participant's response */}
+                {framing ? (
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{framing}</p>
+                ) : (
+                  <p className="text-xs font-bold text-gray-300 uppercase tracking-widest italic">[Framing Statement]</p>
                 )}
-                
-                {/* Question statement */}
-                <div className="text-xs font-black text-gray-500 uppercase tracking-wider">
-                  Question {index + 1}: {prompt}
-                </div>
 
                 {/* Participant's Response */}
                 <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-100 mt-1">
                   {renderSubmittedAnswer(answer)}
                 </div>
-
-                {/* Coach paraphrase comment if set */}
-                {paraphrase && (
-                  <div className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-xl mt-2">
-                    <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-0.5">Paraphrase Alignment</p>
-                    <p className="text-gray-600 text-xs font-medium leading-relaxed italic">"{paraphrase}"</p>
-                  </div>
-                )}
               </div>
             );
           })}
@@ -1301,8 +1289,15 @@ const SprintView: React.FC = () => {
     if (activePrompts.length === 0) return true;
 
     return activePrompts.every((_, i) => {
+      const type = dayContent.taskInputTypes?.[i] || "text";
+      if (type === "note") return true;
+
       const val = taskInputs[i];
       if (!val) return false;
+
+      if (type === "mark") {
+        return val === "Completed";
+      }
       
       if (isLinkedTextStep(i)) {
         const tags = getLinkedTagsForStep(i);
@@ -1763,6 +1758,40 @@ const SprintView: React.FC = () => {
                                         );
                                     })()}
                                   </div>
+                                  ) : dayContent.taskInputTypes?.[i] === "mark" ? (
+                                    <div className="space-y-4 animate-fade-in text-left">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newInputs = [...taskInputs];
+                                          if (newInputs[i] === "Completed") {
+                                            newInputs[i] = "";
+                                          } else {
+                                            newInputs[i] = "Completed";
+                                          }
+                                          setTaskInputs(newInputs);
+                                        }}
+                                        className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all duration-200 shadow-sm cursor-pointer ${taskInputs[i] === "Completed" ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-950" : "bg-white border-primary/10 hover:border-primary/20 text-gray-700 hover:bg-gray-50/50"}`}
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${taskInputs[i] === "Completed" ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300 bg-white"}`}>
+                                            {taskInputs[i] === "Completed" && (
+                                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                              </svg>
+                                            )}
+                                          </div>
+                                          <span className="text-sm font-bold tracking-wide">
+                                            {taskInputs[i] === "Completed" ? "Completed & Verified!" : "Mark as Completed"}
+                                          </span>
+                                        </div>
+                                        {taskInputs[i] === "Completed" && (
+                                          <span className="text-[9px] font-black text-emerald-600 bg-emerald-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest shrink-0">
+                                            DONE
+                                          </span>
+                                        )}
+                                      </button>
+                                    </div>
                                   ) : isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
                                     <div className="space-y-4 animate-fade-in text-left">
                                       {getLinkedTagsForStep(i).map((tag, tagIndex) => {
@@ -1895,9 +1924,14 @@ const SprintView: React.FC = () => {
                                       const isNote =
                                         dayContent.taskInputTypes?.[i] ===
                                         "note";
+                                      const isMark =
+                                        dayContent.taskInputTypes?.[i] ===
+                                        "mark";
                                       
                                       let stepCompleted = isNote;
-                                      if (!isNote && !!val) {
+                                      if (isMark) {
+                                        stepCompleted = val === "Completed";
+                                      } else if (!isNote && !!val) {
                                         if (isTags) {
                                           stepCompleted = val !== "[]" && val !== "";
                                         } else if (isLinkedTextStep(i)) {
@@ -2124,6 +2158,40 @@ const SprintView: React.FC = () => {
                                     </button>
                                   ));
                               })()}
+                            </div>
+                          ) : dayContent?.taskInputTypes?.[0] === "mark" ? (
+                            <div className="space-y-4 animate-fade-in text-left">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newInputs = [...taskInputs];
+                                  if (newInputs[0] === "Completed") {
+                                    newInputs[0] = "";
+                                  } else {
+                                    newInputs[0] = "Completed";
+                                  }
+                                  setTaskInputs(newInputs);
+                                }}
+                                className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all duration-200 shadow-sm cursor-pointer ${taskInputs[0] === "Completed" ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-950" : "bg-white border-primary/10 hover:border-primary/20 text-gray-700 hover:bg-gray-50/50"}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${taskInputs[0] === "Completed" ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300 bg-white"}`}>
+                                    {taskInputs[0] === "Completed" && (
+                                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                  <span className="text-sm font-bold tracking-wide">
+                                    {taskInputs[0] === "Completed" ? "Completed & Verified!" : "Mark as Completed"}
+                                  </span>
+                                </div>
+                                {taskInputs[0] === "Completed" && (
+                                  <span className="text-[9px] font-black text-emerald-600 bg-emerald-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest shrink-0">
+                                    DONE
+                                  </span>
+                                )}
+                              </button>
                             </div>
                           ) : (
                             <AutoGrowingTextarea
