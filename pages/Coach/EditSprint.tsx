@@ -1599,9 +1599,6 @@ const EditSprint: React.FC = () => {
                                                                 <span className="text-xs font-black text-gray-700 uppercase tracking-wide">
                                                                     Tag Note
                                                                 </span>
-                                                                <span className="text-[10px] font-medium text-gray-400">
-                                                                    Activate tag note instead of standard input
-                                                                </span>
                                                             </div>
                                                             <button
                                                                 type="button"

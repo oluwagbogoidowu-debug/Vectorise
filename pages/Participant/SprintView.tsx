@@ -796,6 +796,7 @@ const SprintView: React.FC = () => {
 
   const isLinkedTextStep = (stepIndex: number): boolean => {
     if (!dayContent) return false;
+    if (dayContent.taskTagNoteActive?.[stepIndex]) return false;
     const type = String(dayContent.taskInputTypes?.[stepIndex] || "").trim().toLowerCase();
     const isText = type === "text" || type === "" || type === "undefined";
     return isText && getLinkedTagsForStep(stepIndex).length > 0;
@@ -1571,7 +1572,7 @@ const SprintView: React.FC = () => {
 
                                 return (
                                   <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-1.5">
-                                    <div className="text-gray-700 font-semibold text-xs sm:text-sm leading-relaxed">
+                                    <div className="text-gray-800 font-bold text-base sm:text-lg leading-relaxed">
                                       <FormattedText text={displayNoteText} />
                                     </div>
                                     <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -1675,7 +1676,14 @@ const SprintView: React.FC = () => {
                                       }
                                       customOptions = customOptions.filter(Boolean);
 
-                                      pollOptions = customOptions;
+                                      // If Tag Note is ON, it does NOT receive tags. The poll acts like standard default.
+                                       if (dayContent.taskTagNoteActive?.[i]) {
+                                         pollOptions = customOptions;
+                                       } else {
+                                         // If Tag Note is OFF, merge the dynamic tags from previous steps as choices
+                                         const linkedTags = getLinkedTagsForStep(i);
+                                         pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
+                                       }
 
                                       // MULTI-SELECT SUPPORTED
                                       const isMultiSelect = !!dayContent.taskPollMultiSelect?.[i];
@@ -2008,7 +2016,7 @@ const SprintView: React.FC = () => {
 
                           return (
                             <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-1.5">
-                              <div className="text-gray-700 font-semibold text-xs sm:text-sm leading-relaxed">
+                              <div className="text-gray-800 font-bold text-base sm:text-lg leading-relaxed">
                                 <FormattedText text={displayNoteText} />
                               </div>
                               <div className="flex flex-wrap gap-1.5 pt-0.5">

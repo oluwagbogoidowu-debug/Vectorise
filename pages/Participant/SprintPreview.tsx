@@ -294,6 +294,7 @@ const SprintPreview: React.FC = () => {
 
     const isLinkedTextStep = (stepIndex: number): boolean => {
         if (!day1Content) return false;
+        if (day1Content.taskTagNoteActive?.[stepIndex]) return false;
         const type = String(day1Content.taskInputTypes?.[stepIndex] || "").trim().toLowerCase();
         const isText = type === "text" || type === "" || type === "undefined";
         return isText && getLinkedTagsForStep(stepIndex).length > 0;
@@ -385,7 +386,7 @@ const SprintPreview: React.FC = () => {
                                                             <div className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-100 px-3 py-1 rounded-full font-black italic text-[10px] shadow-sm uppercase">
                                                                 {tag}
                                                             </div>
-                                                            <div>
+                                                            <div className="text-gray-800 font-bold text-base sm:text-lg leading-relaxed">
                                                                 <FormattedText text={notesMap[tag]} />
                                                             </div>
                                                         </div>
@@ -472,7 +473,14 @@ const SprintPreview: React.FC = () => {
                                                     }
                                                     customOptions = customOptions.filter(Boolean);
 
-                                                    pollOptions = customOptions;
+                                                    // If Tag Note is ON, it does NOT receive tags. The poll acts like standard default.
+                                                     if (day1Content.taskTagNoteActive?.[i]) {
+                                                         pollOptions = customOptions;
+                                                     } else {
+                                                         // If Tag Note is OFF, merge the dynamic tags from previous steps as choices
+                                                         const linkedTags = getLinkedTagsForStep(i);
+                                                         pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
+                                                     }
 
                                                     const isMultiSelect = !!day1Content.taskPollMultiSelect?.[i];
                                                     let selectedOpts: string[] = [];
