@@ -574,14 +574,18 @@ const EditSprint: React.FC = () => {
             ? [...(updatedDailyContent[existingContentIndex].taskInputTypes || [])]
             : [];
 
-        if (currentTypes[index] === 'poll' && active) {
+        if (currentTypes[index] === 'poll') {
             let optsArr: string[] = [];
             if (currentOptions[index]) {
                 try { optsArr = JSON.parse(currentOptions[index]); } catch (e) {}
             }
             if (!Array.isArray(optsArr)) optsArr = [];
-            while (optsArr.length < 4) {
-                optsArr.push('');
+            if (active) {
+                while (optsArr.length < 4) {
+                    optsArr.push('');
+                }
+            } else {
+                optsArr = optsArr.filter(opt => opt && opt.trim() !== '');
             }
             while (currentOptions.length <= index) currentOptions.push('[]');
             currentOptions[index] = JSON.stringify(optsArr);
@@ -668,12 +672,16 @@ const EditSprint: React.FC = () => {
             }
             if (!Array.isArray(currentOptsArr)) currentOptsArr = [];
             
-            // If linked from previous (follow-up poll) and Tag Note is OFF, default to 1 option, otherwise at least 4
+            // If linked from previous (follow-up poll) and Tag Note is OFF, default to 0 options, otherwise at least 4
             const isFollowUpPoll = index > 0 && updatedDailyContent[existingContentIndex]?.taskLinkedToNext?.[index - 1];
             const isTagNoteActive = !!updatedDailyContent[existingContentIndex]?.taskTagNoteActive?.[index];
-            const minLength = (isFollowUpPoll && !isTagNoteActive) ? 1 : 4;
-            while (currentOptsArr.length < minLength) {
-               currentOptsArr.push('');
+            
+            if (isFollowUpPoll && !isTagNoteActive) {
+                currentOptsArr = currentOptsArr.filter(opt => opt && opt.trim() !== '');
+            } else {
+                while (currentOptsArr.length < 4) {
+                    currentOptsArr.push('');
+                }
             }
             while (currentOptions.length <= index) currentOptions.push('[]');
             currentOptions[index] = JSON.stringify(currentOptsArr);
@@ -1745,9 +1753,9 @@ const EditSprint: React.FC = () => {
                                                 className={editorInputClasses + " p-4 !py-4 w-full"} 
                                                 placeholder={`Action Step ${index + 1}...`} 
                                             />
-                                            <div className="flex items-center justify-between mt-2">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2.5 pt-2 border-t border-gray-100">
                                                 <div className="flex items-center gap-2">
-                                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Input Type:</label>
+                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">Input Type:</label>
                                                     <div className="flex items-center gap-1">
                                                         <div className="flex p-0.5 bg-gray-100 rounded-lg">
                                                             <button 
@@ -1980,11 +1988,22 @@ const EditSprint: React.FC = () => {
                                                         )}
                                                         <div className="space-y-2">
                                                             {(() => {
-                                                                let opts: string[] = [''];
+                                                                let opts: string[] = [];
                                                                 if (currentContent.taskPollOptions?.[index]) {
                                                                     try { opts = JSON.parse(currentContent.taskPollOptions[index]); } catch(e) {}
                                                                 }
-                                                                if (opts.length === 0) opts = [''];
+                                                                const isDynamicPoll = isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index];
+                                                                if (isDynamicPoll) {
+                                                                    // For Dynamic Poll Connected to Tags, show only custom options if they exist
+                                                                    if (opts.length === 0) {
+                                                                        opts = [];
+                                                                    }
+                                                                } else {
+                                                                    // Normal poll: fill up to 4 inputs for editing ease
+                                                                    while (opts.length < 4) {
+                                                                        opts.push('');
+                                                                    }
+                                                                }
                                                                 return opts.map((opt, optIndex) => (
                                                                     <div key={optIndex} className="flex gap-2 items-center group/opt">
                                                                         <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-50 text-gray-400 text-xs font-bold shrink-0">
