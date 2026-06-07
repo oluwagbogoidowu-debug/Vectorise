@@ -567,10 +567,31 @@ const EditSprint: React.FC = () => {
         }
         currentActive[index] = active;
         
+        let currentOptions = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])]
+            : [];
+        const currentTypes = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskInputTypes || [])]
+            : [];
+
+        if (currentTypes[index] === 'poll' && active) {
+            let optsArr: string[] = [];
+            if (currentOptions[index]) {
+                try { optsArr = JSON.parse(currentOptions[index]); } catch (e) {}
+            }
+            if (!Array.isArray(optsArr)) optsArr = [];
+            while (optsArr.length < 4) {
+                optsArr.push('');
+            }
+            while (currentOptions.length <= index) currentOptions.push('[]');
+            currentOptions[index] = JSON.stringify(optsArr);
+        }
+        
         if (existingContentIndex >= 0) {
           updatedDailyContent[existingContentIndex] = { 
               ...updatedDailyContent[existingContentIndex], 
               taskTagNoteActive: currentActive,
+              taskPollOptions: currentOptions,
           };
         } else {
           updatedDailyContent.push({
@@ -579,6 +600,7 @@ const EditSprint: React.FC = () => {
             taskPrompt: '',
             taskPrompts: ['', '', ''],
             taskTagNoteActive: currentActive,
+            taskPollOptions: currentOptions,
           } as any);
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -646,9 +668,10 @@ const EditSprint: React.FC = () => {
             }
             if (!Array.isArray(currentOptsArr)) currentOptsArr = [];
             
-            // If linked from previous (follow-up poll), default to 1 option, otherwise at least 4
+            // If linked from previous (follow-up poll) and Tag Note is OFF, default to 1 option, otherwise at least 4
             const isFollowUpPoll = index > 0 && updatedDailyContent[existingContentIndex]?.taskLinkedToNext?.[index - 1];
-            const minLength = isFollowUpPoll ? 1 : 4;
+            const isTagNoteActive = !!updatedDailyContent[existingContentIndex]?.taskTagNoteActive?.[index];
+            const minLength = (isFollowUpPoll && !isTagNoteActive) ? 1 : 4;
             while (currentOptsArr.length < minLength) {
                currentOptsArr.push('');
             }
@@ -1935,7 +1958,7 @@ const EditSprint: React.FC = () => {
                                                         <span className="text-xs font-black text-gray-700">Allow multiple options selection (Multi-Select)</span>
                                                     </div>
                                                     <div className="space-y-4">
-                                                        {isLinkedFromPrevious ? (
+                                                        {isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? (
                                                             <div className="bg-indigo-50/75 text-indigo-900 border border-indigo-150 rounded-xl p-3 text-xs font-semibold animate-fade-in flex flex-col gap-1 text-left">
                                                                 <div className="flex items-center gap-1.5 text-indigo-800">
                                                                     <svg className="w-4 h-4 text-indigo-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1972,7 +1995,7 @@ const EditSprint: React.FC = () => {
                                                                             value={opt}
                                                                             onChange={(e) => handleTaskPollOptionChange(index, optIndex, e.target.value)}
                                                                             className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
-                                                                            placeholder={isLinkedFromPrevious ? "Additional custom option..." : "Custom option..."}
+                                                                            placeholder={(isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index]) ? "Additional custom option..." : "Custom option..."}
                                                                         />
                                                                         <button 
                                                                             type="button"
