@@ -2169,7 +2169,7 @@ const EditSprint: React.FC = () => {
                                 <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group mb-4 animate-fade-in">
                                     <SectionHeading>Action Step {i + 1} of {activePrompts.length}</SectionHeading>
                                                           {currentContent.taskNotes?.[i] && (
-                                        <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-medium text-xs leading-relaxed">
+                                        <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
                                             <FormattedText text={currentContent.taskNotes[i]} />
                                         </div>
                                     )}
@@ -2183,7 +2183,7 @@ const EditSprint: React.FC = () => {
                                         
                                         return (
                                             <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-2 bg-amber-500/0">
-                                                <div className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed">
+                                                <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
                                                     <FormattedText text={noteText} />
                                                 </div>
                                                 <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -2197,7 +2197,7 @@ const EditSprint: React.FC = () => {
                                         );
                                     })()}
 
-                                    <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug mb-4">
+                                    <div className="text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed mb-4">
                                         <FormattedText text={prompt || "Submit your progress for this step."} />
                                     </div>
                                     {currentContent.taskHints?.[i] && (

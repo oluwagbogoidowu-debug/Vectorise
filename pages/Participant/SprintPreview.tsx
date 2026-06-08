@@ -363,7 +363,7 @@ const SprintPreview: React.FC = () => {
                                         <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Action Step {i + 1} of {activePrompts.length}</h2>
                                         
                                         {day1Content?.taskNotes?.[i] && (
-                                            <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-medium text-xs sm:text-sm leading-relaxed">
+                                            <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
                                                 <FormattedText text={day1Content.taskNotes[i]} />
                                             </div>
                                         )}
@@ -388,7 +388,7 @@ const SprintPreview: React.FC = () => {
                                                             <div className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-100 px-3 py-1 rounded-full font-black italic text-[10px] shadow-sm uppercase">
                                                                 {tag}
                                                             </div>
-                                                            <div className="text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed">
+                                                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
                                                                 <FormattedText text={notesMap[tag]} />
                                                             </div>
                                                         </div>
@@ -397,7 +397,7 @@ const SprintPreview: React.FC = () => {
                                             );
                                         })()}
 
-                                        <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug relative mb-4">
+                                        <div className="text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed relative mb-4">
                                             <FormattedText text={prompt} />
                                         </div>
                                         {day1Content?.taskHints?.[i] && (
