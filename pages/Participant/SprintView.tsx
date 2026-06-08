@@ -28,6 +28,7 @@ import { Participant } from "../../types";
 import { PushToggle } from "../../components/PushToggle";
 import { BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { createPortal } from "react-dom";
 
 const DayCompletionModal: React.FC<{
   isOpen: boolean;
@@ -849,6 +850,18 @@ const SprintView: React.FC = () => {
     return () => unsubscribe();
   }, [enrollmentId, sprint, location.search]);
 
+  // Clean viewport body scroll locking for full-bleed focus mode
+  useEffect(() => {
+    if (isFullBleed) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isFullBleed]);
+
   // Check for unread messages
   useEffect(() => {
     if (!enrollment || !user || isChatModalOpen) return;
@@ -1543,7 +1556,7 @@ const SprintView: React.FC = () => {
                       <AnimatePresence mode="wait">
                         {dayContent.taskPrompts.map((prompt, i) => {
                           if (i !== activeTaskIndex) return null;
-                          return (
+                          const taskElement = (
                             <motion.div
                               key={i}
                               initial={{ opacity: 0, x: 12 }}
@@ -1551,7 +1564,7 @@ const SprintView: React.FC = () => {
                               exit={{ opacity: 0, x: -12 }}
                               transition={{ duration: 0.2, ease: "easeInOut" }}
                               className={isFullBleed 
-                                ? "fixed inset-0 z-50 bg-[#FBFBFC] overflow-y-auto w-screen h-screen px-4 py-8 sm:p-12 md:p-16 flex flex-col items-center animate-fade-in text-left" 
+                                ? "fixed inset-0 z-50 bg-[#FBFBFC] overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in" 
                                 : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left"
                               }
                             >
@@ -2039,15 +2052,17 @@ const SprintView: React.FC = () => {
                             </div>
                           </motion.div>
                         );
+                        return isFullBleed ? createPortal(taskElement, document.body) : taskElement;
                       })}
                       </AnimatePresence>
-                    ) : (
-                      <div 
-                        className={isFullBleed 
-                          ? "fixed inset-0 z-50 bg-[#FBFBFC] overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in" 
-                          : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left"
-                        }
-                      >
+                    ) : (() => {
+                      const fallbackContent = (
+                        <div 
+                          className={isFullBleed 
+                            ? "fixed inset-0 z-50 bg-[#FBFBFC] overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in" 
+                            : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left"
+                          }
+                        >
                         {/* Full-bleed Focus Toggle Button in Top Right */}
                         <div className="absolute top-4 right-4 z-55 flex items-center gap-2">
                           <button
@@ -2354,7 +2369,10 @@ const SprintView: React.FC = () => {
                         )}
                         </div>
                       </div>
-                    )}
+                    );
+                    return isFullBleed ? createPortal(fallbackContent, document.body) : fallbackContent;
+                  })()
+                }
                     {dayContent?.taskPrompts &&
                       dayContent.taskPrompts.length > 1 && (
                         <div className="flex justify-center items-center gap-2 mt-8">
