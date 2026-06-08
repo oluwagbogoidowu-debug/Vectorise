@@ -1551,13 +1551,16 @@ const SprintView: React.FC = () => {
 
                   <div className="space-y-6 w-full animate-slide-up relative overflow-hidden">
                     <div className="space-y-6">
-                    {dayContent?.taskPrompts &&
-                    dayContent.taskPrompts.length > 1 ? (
-                      <AnimatePresence mode="wait">
-                        {dayContent.taskPrompts.map((prompt, i) => {
-                          if (i !== activeTaskIndex) return null;
-                          const taskElement = (
-                            <motion.div
+                    {(() => {
+                      const taskUI = (
+                        <>
+                          {dayContent?.taskPrompts &&
+                          dayContent.taskPrompts.length > 1 ? (
+                            <AnimatePresence mode="wait">
+                              {dayContent.taskPrompts.map((prompt, i) => {
+                                if (i !== activeTaskIndex) return null;
+                                return (
+                                  <motion.div
                               key={i}
                               initial={{ opacity: 0, x: 12 }}
                               animate={{ opacity: 1, x: 0 }}
@@ -2052,12 +2055,10 @@ const SprintView: React.FC = () => {
                             </div>
                           </motion.div>
                         );
-                        return isFullBleed ? createPortal(taskElement, document.body) : taskElement;
                       })}
                       </AnimatePresence>
-                    ) : (() => {
-                      const fallbackContent = (
-                        <div 
+                    ) : (
+                      <div 
                           className={isFullBleed 
                             ? "fixed inset-0 z-50 bg-[#FBFBFC] overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in" 
                             : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left"
@@ -2369,10 +2370,7 @@ const SprintView: React.FC = () => {
                         )}
                         </div>
                       </div>
-                    );
-                    return isFullBleed ? createPortal(fallbackContent, document.body) : fallbackContent;
-                  })()
-                }
+                    )}
                     {dayContent?.taskPrompts &&
                       dayContent.taskPrompts.length > 1 && (
                         <div className="flex justify-center items-center gap-2 mt-8">
@@ -2393,6 +2391,10 @@ const SprintView: React.FC = () => {
                           ))}
                         </div>
                       )}
+                        </>
+                      );
+                      return isFullBleed ? createPortal(taskUI, document.body) : taskUI;
+                    })()}
                   </div>
 
                   {!dayProgress?.completed &&
