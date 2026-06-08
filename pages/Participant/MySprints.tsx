@@ -110,6 +110,21 @@ const MySprints: React.FC = () => {
         }
     };
 
+    const handleRemoveFromQueue = async (sprintId: string, enrollmentId?: string) => {
+        if (!user) return;
+        try {
+            const p = user as Participant;
+            const newSaved = (p.savedSprintIds || []).filter(id => id !== sprintId);
+            await userService.updateUserDocument(user.id, { savedSprintIds: newSaved });
+            await updateProfile(sanitizeData({ savedSprintIds: newSaved }));
+            
+            const targetEnrollmentId = enrollmentId || `enrollment_${user.id}_${sprintId}`;
+            await sprintService.deleteEnrollment(targetEnrollmentId);
+        } catch (err) {
+            console.error("Failed to remove sprint from queue:", err);
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center h-screen bg-light">
@@ -119,8 +134,23 @@ const MySprints: React.FC = () => {
         );
     }
 
-    const { inProgress, archived, queued, waitlist } = categorized;
+    const { inProgress, archived, queued, waitlist, saved } = categorized;
     const fallbackUrl = assetService.URLS.DEFAULT_SPRINT_COVER;
+
+    const allQueuedSprints = [
+        ...queued.map(item => ({
+            enrollment: item.enrollment as any,
+            sprint: item.sprint,
+            key: `enrollment_${item.enrollment.id}`
+        })),
+        ...saved
+            .filter(s => !queued.some(q => q.sprint.id === s.id))
+            .map(s => ({
+                enrollment: undefined as any,
+                sprint: s,
+                key: `saved_${s.id}`
+            }))
+    ];
 
     return (
         <div className="h-screen w-full bg-light flex flex-col overflow-hidden animate-fade-in">
@@ -176,45 +206,59 @@ const MySprints: React.FC = () => {
                     </section>
 
                     {/* 2. UPCOMING QUEUE */}
-                    {queued.length > 0 && (
+                    {allQueuedSprints.length > 0 && (
                         <section className="mb-10">
                             <div className="flex items-center gap-2 mb-4">
                                 <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Upcoming Queue</h2>
                                 <div className="h-px bg-gray-100 flex-1"></div>
                             </div>
                             <div className="grid grid-cols-1 gap-2.5">
-                                {(isQueuedExpanded ? queued : queued.slice(0, 2)).map(({ enrollment, sprint }, idx) => (
-                                    <div key={enrollment.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3 hover:shadow-sm transition-all group animate-fade-in">
-                                        <Link to={`/participant/sprint/${enrollment.id}`} className="flex-shrink-0">
-                                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50">
-                                                <img 
-                                                    src={sprint.coverImageUrl || fallbackUrl} 
-                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform" 
-                                                    alt="" 
-                                                    onError={(e) => { e.currentTarget.src = fallbackUrl }}
-                                                />
-                                            </div>
-                                        </Link>
-                                        <Link to={`/participant/sprint/${enrollment.id}`} className="min-w-0 flex-1">
-                                            <h3 className="font-bold text-gray-900 text-[12px] truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
-                                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">{sprint.duration} Days • {sprint.category}</p>
-                                        </Link>
-                                        <div className="flex items-center gap-1">
-                                            <Link to={`/participant/sprint/${enrollment.id}`} className="p-2 text-gray-300 hover:text-primary transition-colors">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                                                </svg>
+                                {(isQueuedExpanded ? allQueuedSprints : allQueuedSprints.slice(0, 2)).map(({ enrollment, sprint, key }, idx) => {
+                                    const path = enrollment 
+                                        ? `/participant/sprint/${enrollment.id}` 
+                                        : `/sprint/${sprint.id}`;
+                                    return (
+                                        <div key={key} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3 hover:shadow-sm transition-all group animate-fade-in">
+                                            <Link to={path} className="flex-shrink-0">
+                                                <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50">
+                                                    <img 
+                                                        src={sprint.coverImageUrl || fallbackUrl} 
+                                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform" 
+                                                        alt="" 
+                                                        onError={(e) => { e.currentTarget.src = fallbackUrl }}
+                                                    />
+                                                </div>
                                             </Link>
+                                            <Link to={path} className="min-w-0 flex-1">
+                                                <h3 className="font-bold text-gray-900 text-[12px] truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
+                                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">{sprint.duration} Days • {sprint.category}</p>
+                                            </Link>
+                                            <div className="flex items-center gap-1">
+                                                <button 
+                                                    onClick={() => handleRemoveFromQueue(sprint.id, enrollment?.id)}
+                                                    className="p-2 text-gray-300 hover:text-red-400 transition-colors"
+                                                    title="Remove from queue"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                </button>
+                                                {enrollment && (
+                                                    <Link to={path} className="p-2 text-gray-300 hover:text-primary transition-colors">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                                                        </svg>
+                                                    </Link>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
-                            {queued.length > 2 && (
+                            {allQueuedSprints.length > 2 && (
                                 <button 
                                     onClick={() => setIsQueuedExpanded(!isQueuedExpanded)}
                                     className="mt-3 w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-400 font-black uppercase tracking-widest text-[8px] rounded-lg border border-gray-100 transition-all"
                                 >
-                                    {isQueuedExpanded ? 'Collapse' : `See More (${queued.length - 2})`}
+                                    {isQueuedExpanded ? 'Collapse' : `See More (${allQueuedSprints.length - 2})`}
                                 </button>
                             )}
                         </section>

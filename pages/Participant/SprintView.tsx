@@ -1480,7 +1480,7 @@ const SprintView: React.FC = () => {
           </div>
 
           <div
-            className={`rounded-3xl animate-slide-up relative overflow-hidden transition-all duration-500 ${dayLockDetails.isLocked || enrollment.status === "queued" ? "bg-transparent border-none shadow-none min-h-[70vh]" : "bg-white p-6 md:p-10 border border-gray-100 shadow-sm min-h-[400px]"}`}
+            className={`rounded-3xl transition-all duration-500 ${dayLockDetails.isLocked || enrollment.status === "queued" ? "bg-transparent border-none shadow-none min-h-[70vh] animate-slide-up relative overflow-hidden" : "space-y-6 w-full"}`}
           >
             {enrollment.status === "queued" ? (
               <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in min-h-[60vh] w-full">
@@ -1524,15 +1524,18 @@ const SprintView: React.FC = () => {
               </div>
             ) : (
               <>
-                <div className="animate-fade-in">
-                  <div className="space-y-2 mb-10">
-                    <SectionHeading>Today's Insight</SectionHeading>
-                    <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
-                      <FormattedText text={dayContent?.lessonText || ""} />
+                <div className="animate-fade-in space-y-6 w-full">
+                  <div className="bg-white p-6 md:p-10 border border-gray-100 shadow-sm rounded-3xl animate-slide-up relative overflow-hidden min-h-[200px]">
+                    <div className="space-y-2">
+                      <SectionHeading>Today's Insight</SectionHeading>
+                      <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
+                        <FormattedText text={dayContent?.lessonText || ""} />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-6">
+                  <div className="bg-white p-6 md:p-10 border border-gray-100 shadow-sm rounded-3xl animate-slide-up relative overflow-hidden">
+                    <div className="space-y-6">
                     {dayContent?.taskPrompts &&
                     dayContent.taskPrompts.length > 1 ? (
                       <AnimatePresence mode="wait">
@@ -2346,6 +2349,7 @@ const SprintView: React.FC = () => {
                     </div>
                   )}
                 </div>
+              </div>
 
                 {sprint.checkInReminder && enrollment.checkInReminderEnabled &&
                   viewingDay === sprint.duration && (

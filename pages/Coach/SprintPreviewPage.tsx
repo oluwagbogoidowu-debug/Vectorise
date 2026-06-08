@@ -17,9 +17,11 @@ const SprintPreviewPage: React.FC = () => {
     const [previewType, setPreviewType] = useState<'card' | 'landing' | 'daily'>('landing');
     const [selectedDay, setSelectedDay] = useState(1);
     const [previewTaskIndex, setPreviewTaskIndex] = useState(0);
+    const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
 
     useEffect(() => {
         setPreviewTaskIndex(0);
+        setRevealedHints({});
     }, [selectedDay]);
 
     useEffect(() => {
@@ -283,15 +285,18 @@ const SprintPreviewPage: React.FC = () => {
                                 ))}
                             </div>
                             {currentDailyContent ? (
-                                <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
-                                    <h5 className="text-xl font-black text-gray-900">Day {selectedDay}: {sprint.title}</h5>
-                                    <div className="space-y-4">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Today's Insight</p>
-                                        <div className="text-sm text-gray-700 font-medium leading-relaxed">
-                                            <FormattedText text={currentDailyContent.lessonText || 'No lesson text for this day.'} />
+                                <div className="space-y-6 w-full">
+                                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-4">
+                                        <h5 className="text-xl font-black text-gray-900">Day {selectedDay}: {sprint.title}</h5>
+                                        <div className="space-y-4">
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Today's Insight</p>
+                                            <div className="text-sm text-gray-700 font-medium leading-relaxed">
+                                                <FormattedText text={currentDailyContent.lessonText || 'No lesson text for this day.'} />
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="space-y-6 pt-4 border-t border-gray-50 font-sans">
+
+                                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6 font-sans">
                                         {(() => {
                                             const activePrompts = currentDailyContent.taskPrompts?.filter(p => p && p.trim()) || (currentDailyContent.taskPrompt ? [currentDailyContent.taskPrompt] : []);
                                             if (activePrompts.length === 0) {
@@ -316,10 +321,21 @@ const SprintPreviewPage: React.FC = () => {
 
                                                         {currentDailyContent.taskHints?.[i] && (
                                                             <div className="mb-4">
-                                                                <div className="text-xs font-black text-amber-700 uppercase tracking-wider mb-2">Hint Preview:</div>
-                                                                <div className="p-4 bg-amber-50/50 rounded-xl text-xs font-medium text-amber-900 border border-amber-100 italic">
-                                                                    <FormattedText text={currentDailyContent.taskHints[i]} />
-                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setRevealedHints(prev => ({ ...prev, [i]: !prev[i] }))}
+                                                                    className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-widest transition-all ${revealedHints[i] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                                >
+                                                                    <svg className={`w-2.5 h-2.5 transition-transform duration-300 ${revealedHints[i] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                    </svg>
+                                                                    <span>Hint</span>
+                                                                </button>
+                                                                {revealedHints[i] && (
+                                                                    <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
+                                                                        <FormattedText text={currentDailyContent.taskHints[i]} />
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         )}
 

@@ -198,11 +198,13 @@ const EditSprint: React.FC = () => {
   const [previewTaskIndex, setPreviewTaskIndex] = useState(0);
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
   const [activeLinkSelectorIndex, setActiveLinkSelectorIndex] = useState<number | null>(null);
+  const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     setPreviewTaskIndex(0);
     setConfirmDeleteIndex(null);
     setSetupView('action');
+    setRevealedHints({});
   }, [selectedDay]);
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -2091,16 +2093,18 @@ const EditSprint: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-gray-100 shadow-xl relative overflow-hidden min-h-[500px] animate-fade-in">
+              <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-gray-100 shadow-xl relative overflow-hidden animate-fade-in">
                 <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day {selectedDay}</h2>
                 
-                <div className="space-y-2 mb-10">
+                <div className="space-y-2">
                     <SectionHeading>Today's Insight</SectionHeading>
                     <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
                         <FormattedText text={currentContent.lessonText || "Lesson text will appear here..."} />
                     </div>
                 </div>
+              </div>
 
+              <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-gray-100 shadow-xl relative overflow-hidden animate-fade-in mt-6">
                 <div className="space-y-6">
                     {(() => {
                         const activePrompts = currentContent.taskPrompts?.filter(p => p && p.trim()) || (currentContent.taskPrompt ? [currentContent.taskPrompt] : []);
@@ -2175,15 +2179,21 @@ const EditSprint: React.FC = () => {
                                     </div>
                                     {currentContent.taskHints?.[i] && (
                                         <div className="mb-4">
-                                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest bg-amber-100 text-amber-700 w-fit">
-                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <button
+                                                type="button"
+                                                onClick={() => setRevealedHints(prev => ({ ...prev, [i]: !prev[i] }))}
+                                                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-widest transition-all ${revealedHints[i] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                            >
+                                                <svg className={`w-2.5 h-2.5 transition-transform duration-300 ${revealedHints[i] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
-                                                Hint Preview
-                                            </div>
-                                            <div className="mt-2 p-3 bg-amber-50/50 border border-amber-100 rounded-xl text-xs font-medium text-amber-900 italic">
-                                                <FormattedText text={currentContent.taskHints[i]} />
-                                            </div>
+                                                <span>Hint</span>
+                                            </button>
+                                            {revealedHints[i] && (
+                                                <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
+                                                    <FormattedText text={currentContent.taskHints[i]} />
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                     {(() => {

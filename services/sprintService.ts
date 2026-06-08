@@ -371,6 +371,15 @@ export const sprintService = {
         return snap.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint));
     },
 
+    deleteEnrollment: async (enrollmentId: string) => {
+        try {
+            const { deleteDoc } = await import('firebase/firestore');
+            await deleteDoc(doc(db, ENROLLMENTS_COLLECTION, enrollmentId));
+        } catch (e) {
+            console.error("Delete enrollment failed:", e);
+        }
+    },
+
     subscribeToUserEnrollments: (userId: string, callback: (enrollments: ParticipantSprint[]) => void, onError?: (error: any) => void) => {
         const q = query(collection(db, ENROLLMENTS_COLLECTION), where("user_id", "==", userId));
         return onSnapshot(q, (snapshot) => {

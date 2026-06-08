@@ -43,7 +43,8 @@ const queueNotification = (type: 'success' | 'info' | 'error', message: string, 
  */
 export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any => {
     // 0. Null, undefined and depth check
-    if (val === null || typeof val === 'undefined') return undefined;
+    if (val === null) return null;
+    if (typeof val === 'undefined') return undefined;
     if (maxDepth < 0) return undefined;
     
     // 1. Primitive types are safe
@@ -95,9 +96,10 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
 
     // 5. Handle Arrays
     if (Array.isArray(val)) {
-        const result = val
-            .map(item => sanitizeData(item, seen, maxDepth - 1))
-            .filter(i => i !== undefined);
+        const result = val.map(item => {
+            const res = sanitizeData(item, seen, maxDepth - 1);
+            return res === undefined ? null : res;
+        });
         return result;
     }
 
