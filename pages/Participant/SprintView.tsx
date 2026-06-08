@@ -719,6 +719,7 @@ const SprintView: React.FC = () => {
   // Day Completion State (Task Inputs)
   const [taskInputs, setTaskInputs] = useState<string[]>(["", "", ""]);
   const [activeTaskIndex, setActiveTaskIndex] = useState(0);
+  const [isFullBleed, setIsFullBleed] = useState(false);
   const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>(
     {},
   );
@@ -904,6 +905,7 @@ const SprintView: React.FC = () => {
       }
     }
     setActiveTaskIndex(0);
+    setIsFullBleed(false);
     setRevealedHints({});
   }, [viewingDay, sprint, dayProgress, dayContent]);
 
@@ -1548,10 +1550,33 @@ const SprintView: React.FC = () => {
                               animate={{ opacity: 1, x: 0 }}
                               exit={{ opacity: 0, x: -12 }}
                               transition={{ duration: 0.2, ease: "easeInOut" }}
-                              className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left"
+                              className={isFullBleed 
+                                ? "fixed inset-0 z-50 bg-[#FBFBFC] overflow-y-auto w-screen h-screen px-4 py-8 sm:p-12 md:p-16 flex flex-col items-center animate-fade-in text-left" 
+                                : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left"
+                              }
                             >
-                            <div className="relative z-10">
-                              <SectionHeading>{`Action Step ${i + 1}`}</SectionHeading>
+                              {/* Full-bleed Focus Toggle Button in Top Right */}
+                              <div className="absolute top-4 right-4 z-55 flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setIsFullBleed(!isFullBleed)}
+                                  className="p-2 rounded-xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-sm transition-all cursor-pointer flex items-center justify-center active:scale-95"
+                                  title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
+                                >
+                                  <svg 
+                                    xmlns="http://www.w3.org/2000/svg" 
+                                    className={`h-4.5 w-4.5 transition-transform duration-300 ${isFullBleed ? 'rotate-180' : ''}`} 
+                                    fill="none" 
+                                    viewBox="0 0 24 24" 
+                                    stroke="currentColor"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 19V5m0 0l-7 7m7-7l7 7" />
+                                  </svg>
+                                </button>
+                              </div>
+
+                              <div className={isFullBleed ? "w-full max-w-4xl mx-auto space-y-6 flex flex-col relative" : "relative z-10"}>
+                                <SectionHeading>{`Action Step ${i + 1}`}</SectionHeading>
 
                               {dayContent?.taskNotes?.[i] && (
                                 <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
@@ -1919,7 +1944,7 @@ const SprintView: React.FC = () => {
                                 </div>
                               )}
                               {!dayProgress?.completed && (
-                                <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                                <div className="absolute top-6 right-16 w-1.5 h-1.5 rounded-full bg-primary animate-pulse z-40"></div>
                               )}
                               {i === activeTaskIndex && (
                                 <div className="mt-4 flex justify-between items-center gap-4">
@@ -1993,14 +2018,58 @@ const SprintView: React.FC = () => {
                                     })()}
                                 </div>
                               )}
+                              {isFullBleed && i === (dayContent.taskPrompts?.length || 1) - 1 && (
+                                <div className="mt-8 pt-6 border-t border-gray-100/50 flex flex-col gap-4">
+                                  {!dayProgress?.completed ? (
+                                    <button
+                                      type="button"
+                                      onClick={handleFinishDay}
+                                      disabled={isSubmitting || !isProofMet}
+                                      className={`w-full py-4.5 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-md transition-all ${isProofMet ? "bg-[#159E5B] text-white active:scale-95 cursor-pointer hover:shadow-lg" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                    >
+                                      Today's task completed
+                                    </button>
+                                  ) : (
+                                    <div className="w-full py-4 bg-gray-50 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-center border border-gray-100">
+                                      Mission Complete
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </motion.div>
                         );
                       })}
                       </AnimatePresence>
                     ) : (
-                      <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group">
-                        <SectionHeading>Today's Action Steps</SectionHeading>
+                      <div 
+                        className={isFullBleed 
+                          ? "fixed inset-0 z-50 bg-[#FBFBFC] overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in" 
+                          : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left"
+                        }
+                      >
+                        {/* Full-bleed Focus Toggle Button in Top Right */}
+                        <div className="absolute top-4 right-4 z-55 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsFullBleed(!isFullBleed)}
+                            className="p-2 rounded-xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-sm transition-all cursor-pointer flex items-center justify-center active:scale-95"
+                            title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
+                          >
+                            <svg 
+                              xmlns="http://www.w3.org/2000/svg" 
+                              className={`h-4.5 w-4.5 transition-transform duration-300 ${isFullBleed ? 'rotate-180' : ''}`} 
+                              fill="none" 
+                              viewBox="0 0 24 24" 
+                              stroke="currentColor"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 19V5m0 0l-7 7m7-7l7 7" />
+                            </svg>
+                          </button>
+                        </div>
+
+                        <div className={isFullBleed ? "w-full max-w-4xl mx-auto space-y-6 flex flex-col relative" : "relative z-10"}>
+                          <SectionHeading>Today's Action Steps</SectionHeading>
                         {dayContent?.taskNotes?.[0] && (
                           <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
                             <FormattedText text={dayContent.taskNotes[0]} />
@@ -2263,8 +2332,27 @@ const SprintView: React.FC = () => {
                           </div>
                         )}
                         {!dayProgress?.completed && (
-                          <div className="absolute top-4 right-4 w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                          <div className="absolute top-6 right-16 w-1.5 h-1.5 rounded-full bg-primary animate-pulse z-40"></div>
                         )}
+                        {isFullBleed && (
+                          <div className="mt-8 pt-6 border-t border-gray-100/50 flex flex-col gap-4">
+                            {!dayProgress?.completed ? (
+                              <button
+                                type="button"
+                                onClick={handleFinishDay}
+                                disabled={isSubmitting || !isProofMet}
+                                className={`w-full py-4.5 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-md transition-all ${isProofMet ? "bg-[#159E5B] text-white active:scale-95 cursor-pointer hover:shadow-lg" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                              >
+                                Today's task completed
+                              </button>
+                            ) : (
+                              <div className="w-full py-4 bg-gray-50 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-center border border-gray-100">
+                                Mission Complete
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        </div>
                       </div>
                     )}
                     {dayContent?.taskPrompts &&
