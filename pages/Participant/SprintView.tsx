@@ -1534,7 +1534,7 @@ const SprintView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="bg-white p-6 md:p-10 border border-gray-100 shadow-sm rounded-3xl animate-slide-up relative overflow-hidden">
+                  <div className="space-y-6 w-full animate-slide-up relative overflow-hidden">
                     <div className="space-y-6">
                     {dayContent?.taskPrompts &&
                     dayContent.taskPrompts.length > 1 ? (

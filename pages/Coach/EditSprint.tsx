@@ -199,12 +199,14 @@ const EditSprint: React.FC = () => {
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
   const [activeLinkSelectorIndex, setActiveLinkSelectorIndex] = useState<number | null>(null);
   const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
+  const [addingCustomOption, setAddingCustomOption] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     setPreviewTaskIndex(0);
     setConfirmDeleteIndex(null);
     setSetupView('action');
     setRevealedHints({});
+    setAddingCustomOption({});
   }, [selectedDay]);
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -2010,8 +2012,9 @@ const EditSprint: React.FC = () => {
                                                                 const isDynamicPoll = isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index];
                                                                 if (isDynamicPoll) {
                                                                     // For Dynamic Poll Connected to Tags, show only custom options if they exist
-                                                                    if (opts.length === 0) {
-                                                                        opts = [];
+                                                                    opts = opts.filter(o => o !== null && o !== undefined && o.trim() !== '');
+                                                                    if (addingCustomOption[index]) {
+                                                                        opts.push('');
                                                                     }
                                                                 } else {
                                                                     // Normal poll: fill up to 4 inputs for editing ease
@@ -2027,13 +2030,23 @@ const EditSprint: React.FC = () => {
                                                                         <input 
                                                                             type="text"
                                                                             value={opt}
-                                                                            onChange={(e) => handleTaskPollOptionChange(index, optIndex, e.target.value)}
+                                                                            onChange={(e) => {
+                                                                                if (isDynamicPoll) {
+                                                                                    setAddingCustomOption(prev => ({ ...prev, [index]: e.target.value.trim() === '' }));
+                                                                                }
+                                                                                handleTaskPollOptionChange(index, optIndex, e.target.value);
+                                                                            }}
                                                                             className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
-                                                                            placeholder={(isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index]) ? "Additional custom option..." : "Custom option..."}
+                                                                            placeholder="Additional custom option..."
                                                                         />
                                                                         <button 
                                                                             type="button"
-                                                                            onClick={() => removeTaskPollOption(index, optIndex)}
+                                                                            onClick={() => {
+                                                                                if (isDynamicPoll) {
+                                                                                    setAddingCustomOption(prev => ({ ...prev, [index]: false }));
+                                                                                }
+                                                                                removeTaskPollOption(index, optIndex);
+                                                                            }}
                                                                             className="p-2 text-red-400 hover:text-red-500 rounded-lg transition-all"
                                                                         >
                                                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -2044,12 +2057,22 @@ const EditSprint: React.FC = () => {
                                                             <button 
                                                                 type="button"
                                                                 onClick={() => {
-                                                                    let currentLength = 0;
-                                                                    try { 
-                                                                        const parsed = JSON.parse(currentContent.taskPollOptions?.[index] || '[]');
-                                                                        currentLength = parsed.length;
-                                                                    } catch(e) {}
-                                                                    handleTaskPollOptionChange(index, currentLength, '');
+                                                                    const isDynamicPoll = isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index];
+                                                                    if (isDynamicPoll) {
+                                                                        setAddingCustomOption(prev => ({ ...prev, [index]: true }));
+                                                                        let curOpts: string[] = [];
+                                                                        try { curOpts = JSON.parse(currentContent.taskPollOptions?.[index] || '[]'); } catch(e) {}
+                                                                        curOpts = curOpts.filter(o => o && o.trim() !== '');
+                                                                        const newLen = curOpts.length;
+                                                                        handleTaskPollOptionChange(index, newLen, '');
+                                                                    } else {
+                                                                        let currentLength = 0;
+                                                                        try { 
+                                                                            const parsed = JSON.parse(currentContent.taskPollOptions?.[index] || '[]');
+                                                                            currentLength = parsed.length;
+                                                                        } catch(e) {}
+                                                                        handleTaskPollOptionChange(index, currentLength, '');
+                                                                    }
                                                                 }}
                                                                 className="text-xs font-bold text-primary hover:text-primary/70 transition-colors flex items-center gap-1.5 mt-1"
                                                             >
@@ -2104,7 +2127,7 @@ const EditSprint: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-gray-100 shadow-xl relative overflow-hidden animate-fade-in mt-6">
+              <div className="space-y-6 animate-fade-in w-full mt-6">
                 <div className="space-y-6">
                     {(() => {
                         const activePrompts = currentContent.taskPrompts?.filter(p => p && p.trim()) || (currentContent.taskPrompt ? [currentContent.taskPrompt] : []);

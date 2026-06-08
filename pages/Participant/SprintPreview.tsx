@@ -342,7 +342,7 @@ const SprintPreview: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden">
+                <div className="space-y-6 w-full animate-slide-up relative overflow-hidden">
                     {/* Action Step */}
                     <div className="space-y-6 relative">
                         {(() => {

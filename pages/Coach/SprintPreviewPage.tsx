@@ -296,7 +296,7 @@ const SprintPreviewPage: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6 font-sans">
+                                    <div className="space-y-6 font-sans w-full">
                                         {(() => {
                                             const activePrompts = currentDailyContent.taskPrompts?.filter(p => p && p.trim()) || (currentDailyContent.taskPrompt ? [currentDailyContent.taskPrompt] : []);
                                             if (activePrompts.length === 0) {
