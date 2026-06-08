@@ -388,7 +388,7 @@ const SprintPreview: React.FC = () => {
                                                             <div className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-100 px-3 py-1 rounded-full font-black italic text-[10px] shadow-sm uppercase">
                                                                 {tag}
                                                             </div>
-                                                            <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
+                                                            <div className="text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
                                                                 <FormattedText text={notesMap[tag]} />
                                                             </div>
                                                         </div>
@@ -397,9 +397,14 @@ const SprintPreview: React.FC = () => {
                                             );
                                         })()}
 
-                                        <div className="text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed relative mb-4">
+                                        <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed relative ${day1Content?.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
                                             <FormattedText text={prompt} />
                                         </div>
+                                        {day1Content?.taskFootnotes?.[i] && (
+                                            <div className="mb-4 text-left text-emerald-600 font-medium text-sm sm:text-base leading-relaxed animate-fade-in">
+                                                <FormattedText text={day1Content.taskFootnotes[i]} />
+                                            </div>
+                                        )}
                                         {day1Content?.taskHints?.[i] && (
                                             <div className="mb-4">
                                                 <button 

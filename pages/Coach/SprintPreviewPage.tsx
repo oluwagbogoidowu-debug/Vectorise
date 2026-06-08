@@ -243,7 +243,7 @@ const SprintPreviewPage: React.FC = () => {
                                             <div className="text-center mb-10 relative z-10">
                                                 <h2 className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-4">Sprint Status</h2>
                                                 <div className="flex flex-col items-center">
-                                                    <h3 className="text-4.5xl font-black text-gray-900 tracking-tighter leading-none mb-1">
+                                                    <h3 className="text-4.5xl font-black text-gray-905 tracking-tighter leading-none mb-1">
                                                         {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost || 0}` : `₦${(sprint.price || 0).toLocaleString()}`}
                                                     </h3>
                                                     <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Authorized Access</p>
@@ -315,9 +315,14 @@ const SprintPreviewPage: React.FC = () => {
                                                 <div className="space-y-6">
                                                     <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden animate-fade-in">
                                                         <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-4">Action Step {i + 1} of {activePrompts.length}</p>
-                                                        <div className="text-gray-900 font-bold leading-relaxed mb-4 text-sm sm:text-base">
+                                                        <div className={`text-gray-900 font-bold leading-relaxed text-sm sm:text-base ${currentDailyContent.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
                                                             <FormattedText text={prompt || "Progress for this step will be submitted here."} />
                                                         </div>
+                                                        {currentDailyContent.taskFootnotes?.[i] && (
+                                                            <div className="mb-4 text-left text-emerald-600 font-medium text-sm sm:text-base leading-relaxed animate-fade-in">
+                                                                <FormattedText text={currentDailyContent.taskFootnotes[i]} />
+                                                            </div>
+                                                        )}
 
                                                         {currentDailyContent.taskHints?.[i] && (
                                                             <div className="mb-4">

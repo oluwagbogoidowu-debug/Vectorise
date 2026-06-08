@@ -502,6 +502,13 @@ const CoachParticipants: React.FC = () => {
                                                                 <p className="text-sm text-gray-900 font-bold leading-tight bg-primary/5 p-4 rounded-2xl border border-primary/10 inline-block w-full">
                                                                     "{prompt}"
                                                                 </p>
+                                                                {contentData?.taskFootnotes?.[idx] && (
+                                                                    <div className="text-xs text-emerald-600 font-medium leading-relaxed mt-1.5 italic pl-1">
+                                                                        {contentData.taskFootnotes[idx]}
+                                                                    </div>
+                                                                )}
+                                                                <p className="hidden">
+                                                                </p>
                                                             </div>
                                                         ))
                                                     })()}
@@ -580,6 +587,13 @@ const CoachParticipants: React.FC = () => {
                                                                     </div>
                                                                     <p className="text-sm font-black text-gray-800 leading-tight">
                                                                         "{item.prompt}"
+                                                                    </p>
+                                                                    {contentData?.taskFootnotes?.[item.index] && (
+                                                                        <div className="text-xs text-emerald-600 font-medium leading-relaxed mt-1 italic pl-1">
+                                                                            {contentData.taskFootnotes[item.index]}
+                                                                        </div>
+                                                                    )}
+                                                                    <p className="hidden">
                                                                     </p>
                                                                 </div>
 

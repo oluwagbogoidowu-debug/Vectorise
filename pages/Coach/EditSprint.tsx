@@ -416,6 +416,10 @@ const EditSprint: React.FC = () => {
       ? (content as any).taskTagNotes
       : [];
 
+    const safeFootnotes = Array.isArray((content as any).taskFootnotes)
+      ? (content as any).taskFootnotes
+      : [];
+
     const safePollMultiSelect = Array.isArray((content as any).taskPollMultiSelect)
       ? (content as any).taskPollMultiSelect
       : [];
@@ -426,6 +430,7 @@ const EditSprint: React.FC = () => {
         taskHints: safeHints,
         taskNotes: safeNotes,
         taskTagNotes: safeTagNotes,
+        taskFootnotes: safeFootnotes,
         taskPollMultiSelect: safePollMultiSelect
     };
   }, [sprint, selectedDay]);
@@ -549,6 +554,40 @@ const EditSprint: React.FC = () => {
             taskPrompt: '',
             taskPrompts: ['', '', ''],
             taskNotes: currentNotes,
+          });
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTaskFootnoteChange = (index: number, value: string) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        
+        const currentFootnotes = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskFootnotes || [])]
+            : [];
+        
+        while (currentFootnotes.length <= index) {
+            currentFootnotes.push(null as any);
+        }
+        currentFootnotes[index] = value;
+        
+        if (existingContentIndex >= 0) {
+          updatedDailyContent[existingContentIndex] = { 
+              ...updatedDailyContent[existingContentIndex], 
+              taskFootnotes: currentFootnotes,
+          };
+        } else {
+          updatedDailyContent.push({
+            day: selectedDay,
+            lessonText: '',
+            taskPrompt: '',
+            taskPrompts: ['', '', ''],
+            taskFootnotes: currentFootnotes,
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -935,12 +974,17 @@ const EditSprint: React.FC = () => {
         let currentTagNotes = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskTagNotes || [])]
             : [];
+
+        let currentFootnotes = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskFootnotes || [])]
+            : [];
             
         currentPrompts.push('');
         currentTypes.push('text');
         currentOptions.push('[]');
         currentNotes.push(null as any);
         currentTagNotes.push('{}');
+        currentFootnotes.push(null as any);
         
         if (existingContentIndex >= 0) {
           updatedDailyContent[existingContentIndex] = { 
@@ -949,7 +993,8 @@ const EditSprint: React.FC = () => {
               taskInputTypes: currentTypes,
               taskPollOptions: currentOptions,
               taskNotes: currentNotes,
-              taskTagNotes: currentTagNotes
+              taskTagNotes: currentTagNotes,
+              taskFootnotes: currentFootnotes
           };
         } else {
           updatedDailyContent.push({
@@ -960,7 +1005,8 @@ const EditSprint: React.FC = () => {
             taskInputTypes: currentTypes,
             taskPollOptions: currentOptions,
             taskNotes: currentNotes,
-            taskTagNotes: currentTagNotes
+            taskTagNotes: currentTagNotes,
+            taskFootnotes: currentFootnotes
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -1003,6 +1049,10 @@ const EditSprint: React.FC = () => {
         let currentTagNotes = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskTagNotes || [])]
             : [];
+
+        let currentFootnotes = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskFootnotes || [])]
+            : [];
             
         let deleteCount = 1;
         if (currentLinked[index]) {
@@ -1016,6 +1066,7 @@ const EditSprint: React.FC = () => {
         while (currentHints.length < maxNeeded) currentHints.push(undefined as any);
         while (currentNotes.length < maxNeeded) currentNotes.push(null as any);
         while (currentTagNotes.length < maxNeeded) currentTagNotes.push('{}');
+        while (currentFootnotes.length < maxNeeded) currentFootnotes.push(null as any);
 
         let currentLinkedSources = existingContentIndex >= 0 && Array.isArray(updatedDailyContent[existingContentIndex].taskLinkedSources)
             ? updatedDailyContent[existingContentIndex].taskLinkedSources.map(sources => Array.isArray(sources) ? [...sources] : [])
@@ -1036,6 +1087,7 @@ const EditSprint: React.FC = () => {
         currentHints.splice(index, deleteCount);
         currentNotes.splice(index, deleteCount);
         currentTagNotes.splice(index, deleteCount);
+        currentFootnotes.splice(index, deleteCount);
         
         if (index > 0 && currentLinked.length >= index && currentLinked[index - 1]) {
             currentLinked[index - 1] = false;
@@ -1051,6 +1103,7 @@ const EditSprint: React.FC = () => {
             currentHints.push(undefined as any);
             currentNotes.push(null as any);
             currentTagNotes.push('{}');
+            currentFootnotes.push(null as any);
             currentLinkedSources.push([]);
         }
         
@@ -1068,6 +1121,7 @@ const EditSprint: React.FC = () => {
               taskHints: currentHints,
               taskNotes: currentNotes,
               taskTagNotes: currentTagNotes,
+              taskFootnotes: currentFootnotes,
               taskLinkedSources: currentLinkedSources
           };
         } else {
@@ -1082,6 +1136,7 @@ const EditSprint: React.FC = () => {
             taskHints: currentHints,
             taskNotes: currentNotes,
             taskTagNotes: currentTagNotes,
+            taskFootnotes: currentFootnotes,
             taskLinkedSources: currentLinkedSources
           });
         }
@@ -1875,6 +1930,32 @@ const EditSprint: React.FC = () => {
                                                         )}
                                                     </button>
 
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const currentFootnote = currentContent.taskFootnotes?.[index];
+                                                            if (currentFootnote === undefined || currentFootnote === null) {
+                                                                handleTaskFootnoteChange(index, '');
+                                                            } else {
+                                                                // Toggle
+                                                            }
+                                                        }}
+                                                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskFootnotes?.[index] !== undefined && currentContent.taskFootnotes?.[index] !== null) ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                        title="Footnote Option: Add normal text that appears just below the question step."
+                                                    >
+                                                        {(currentContent.taskFootnotes?.[index] !== undefined && currentContent.taskFootnotes?.[index] !== null) ? (
+                                                            <>
+                                                                <span className="text-[10px] text-indigo-500 mr-0.5">●</span>
+                                                                <span>Footnote</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Plus size={14} />
+                                                                <span>Footnote</span>
+                                                            </>
+                                                        )}
+                                                    </button>
+
                                                     {(currentContent.taskPrompts?.length || 3) > 1 && (
                                                         <button 
                                                             type="button"
@@ -1966,6 +2047,31 @@ const EditSprint: React.FC = () => {
                                                         rows={2} 
                                                         className={editorInputClasses + " p-4 !py-3 w-full border-amber-100 bg-amber-50/20 text-gray-700"} 
                                                         placeholder="Add a hint to help the participant..." 
+                                                    />
+                                                </div>
+                                            )}
+                                            {(currentContent.taskFootnotes?.[index] !== undefined && currentContent.taskFootnotes?.[index] !== null) && (
+                                                <div className="mt-2 animate-fade-in">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <label className="text-[9px] font-black text-indigo-500 uppercase tracking-widest px-1">Task Footnote</label>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => {
+                                                                const newFootnotes = [...(currentContent.taskFootnotes || [])];
+                                                                newFootnotes[index] = null as any;
+                                                                handleContentChange('taskFootnotes', newFootnotes);
+                                                            }}
+                                                            className="text-gray-300 hover:text-red-500 transition-colors"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    </div>
+                                                    <textarea 
+                                                        value={currentContent.taskFootnotes[index] || ''} 
+                                                        onChange={e => handleTaskFootnoteChange(index, e.target.value)} 
+                                                        rows={2} 
+                                                        className={editorInputClasses + " p-4 !py-3 w-full border-indigo-100 bg-indigo-50/20 text-gray-700"} 
+                                                        placeholder="Add a footnote to show just below the question..." 
                                                     />
                                                 </div>
                                             )}
@@ -2183,7 +2289,7 @@ const EditSprint: React.FC = () => {
                                         
                                         return (
                                             <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-2 bg-amber-500/0">
-                                                <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
+                                                <div className="text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
                                                     <FormattedText text={noteText} />
                                                 </div>
                                                 <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -2197,9 +2303,14 @@ const EditSprint: React.FC = () => {
                                         );
                                     })()}
 
-                                    <div className="text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed mb-4">
+                                    <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed ${currentContent.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
                                         <FormattedText text={prompt || "Submit your progress for this step."} />
                                     </div>
+                                    {currentContent.taskFootnotes?.[i] && (
+                                        <div className="mb-4 text-left text-emerald-600 font-medium text-sm sm:text-base leading-relaxed animate-fade-in">
+                                            <FormattedText text={currentContent.taskFootnotes[i]} />
+                                        </div>
+                                    )}
                                     {currentContent.taskHints?.[i] && (
                                         <div className="mb-4">
                                             <button

@@ -1582,7 +1582,7 @@ const SprintView: React.FC = () => {
 
                                 return (
                                   <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-1.5">
-                                    <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
+                                    <div className="text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
                                       <FormattedText text={displayNoteText} />
                                     </div>
                                     <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -1596,9 +1596,14 @@ const SprintView: React.FC = () => {
                                 );
                               })()}
 
-                              <div className="text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed mb-4">
+                              <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed ${dayContent?.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
                                 <FormattedText text={prompt} />
                               </div>
+                              {dayContent?.taskFootnotes?.[i] && (
+                                <div className="mb-4 text-left text-emerald-600 font-medium text-sm sm:text-base leading-relaxed animate-fade-in">
+                                  <FormattedText text={dayContent.taskFootnotes[i]} />
+                                </div>
+                              )}
                               {dayContent.taskHints?.[i] && (
                                 <div className="mb-4">
                                   <button
@@ -2025,7 +2030,7 @@ const SprintView: React.FC = () => {
 
                           return (
                             <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-1.5">
-                              <div className="text-gray-900 font-bold text-sm sm:text-base leading-snug">
+                              <div className="text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
                                 <FormattedText text={displayNoteText} />
                               </div>
                               <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -2038,9 +2043,14 @@ const SprintView: React.FC = () => {
                             </div>
                           );
                         })()}
-                        <div className="text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed mb-4">
+                        <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed ${dayContent?.taskFootnotes?.[0] ? 'mb-2' : 'mb-4'}`}>
                           <FormattedText text={dayContent?.taskPrompt || ""} />
                         </div>
+                        {dayContent?.taskFootnotes?.[0] && (
+                          <div className="mb-4 text-left text-emerald-600 font-medium text-sm sm:text-base leading-relaxed animate-fade-in">
+                            <FormattedText text={dayContent.taskFootnotes[0]} />
+                          </div>
+                        )}
                         {dayContent?.taskHints?.[0] && (
                           <div className="mb-4">
                             <button

@@ -274,6 +274,7 @@ export interface DailyContent {
   taskNotes?: string[];
   taskTagNotes?: string[];
   taskTagNoteActive?: boolean[];
+  taskFootnotes?: string[];
   taskPollMultiSelect?: boolean[];
   submissionType?: 'text' | 'file' | 'both' | 'none';
   submissionPrompt?: string;
