@@ -2275,7 +2275,7 @@ const EditSprint: React.FC = () => {
                                 <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group mb-4 animate-fade-in">
                                     <SectionHeading>Action Step {i + 1} of {activePrompts.length}</SectionHeading>
                                                           {currentContent.taskNotes?.[i] && (
-                                        <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
+                                        <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
                                             <FormattedText text={currentContent.taskNotes[i]} />
                                         </div>
                                     )}
@@ -2289,7 +2289,7 @@ const EditSprint: React.FC = () => {
                                         
                                         return (
                                             <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-2 bg-amber-500/0">
-                                                <div className="text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
+                                                <div className="text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
                                                     <FormattedText text={noteText} />
                                                 </div>
                                                 <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -2307,7 +2307,7 @@ const EditSprint: React.FC = () => {
                                         <FormattedText text={prompt || "Submit your progress for this step."} />
                                     </div>
                                     {currentContent.taskFootnotes?.[i] && (
-                                        <div className="mb-4 text-left text-emerald-600 font-medium text-sm sm:text-base leading-relaxed animate-fade-in">
+                                        <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
                                             <FormattedText text={currentContent.taskFootnotes[i]} />
                                         </div>
                                     )}

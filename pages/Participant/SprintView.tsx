@@ -1592,7 +1592,7 @@ const SprintView: React.FC = () => {
                                 <SectionHeading>{`Action Step ${i + 1}`}</SectionHeading>
 
                               {dayContent?.taskNotes?.[i] && (
-                                <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
+                                <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
                                   <FormattedText text={dayContent.taskNotes[i]} />
                                 </div>
                               )}
@@ -1620,7 +1620,7 @@ const SprintView: React.FC = () => {
 
                                 return (
                                   <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-1.5">
-                                    <div className="text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
+                                    <div className="text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
                                       <FormattedText text={displayNoteText} />
                                     </div>
                                     <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -1638,7 +1638,7 @@ const SprintView: React.FC = () => {
                                 <FormattedText text={prompt} />
                               </div>
                               {dayContent?.taskFootnotes?.[i] && (
-                                <div className="mb-4 text-left text-emerald-600 font-medium text-sm sm:text-base leading-relaxed animate-fade-in">
+                                <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
                                   <FormattedText text={dayContent.taskFootnotes[i]} />
                                 </div>
                               )}
@@ -2086,7 +2086,7 @@ const SprintView: React.FC = () => {
                         <div className={isFullBleed ? "w-full max-w-4xl mx-auto space-y-6 flex flex-col relative" : "relative z-10"}>
                           <SectionHeading>Today's Action Steps</SectionHeading>
                         {dayContent?.taskNotes?.[0] && (
-                          <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
+                          <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
                             <FormattedText text={dayContent.taskNotes[0]} />
                           </div>
                         )}
@@ -2114,7 +2114,7 @@ const SprintView: React.FC = () => {
 
                           return (
                             <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-1.5">
-                              <div className="text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
+                              <div className="text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
                                 <FormattedText text={displayNoteText} />
                               </div>
                               <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -2131,7 +2131,7 @@ const SprintView: React.FC = () => {
                           <FormattedText text={dayContent?.taskPrompt || ""} />
                         </div>
                         {dayContent?.taskFootnotes?.[0] && (
-                          <div className="mb-4 text-left text-emerald-600 font-medium text-sm sm:text-base leading-relaxed animate-fade-in">
+                          <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
                             <FormattedText text={dayContent.taskFootnotes[0]} />
                           </div>
                         )}

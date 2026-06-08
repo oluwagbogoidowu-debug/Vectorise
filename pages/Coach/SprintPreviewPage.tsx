@@ -319,7 +319,7 @@ const SprintPreviewPage: React.FC = () => {
                                                             <FormattedText text={prompt || "Progress for this step will be submitted here."} />
                                                         </div>
                                                         {currentDailyContent.taskFootnotes?.[i] && (
-                                                            <div className="mb-4 text-left text-emerald-600 font-medium text-sm sm:text-base leading-relaxed animate-fade-in">
+                                                            <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
                                                                 <FormattedText text={currentDailyContent.taskFootnotes[i]} />
                                                             </div>
                                                         )}

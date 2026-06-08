@@ -363,7 +363,7 @@ const SprintPreview: React.FC = () => {
                                         <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Action Step {i + 1} of {activePrompts.length}</h2>
                                         
                                         {day1Content?.taskNotes?.[i] && (
-                                            <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
+                                            <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
                                                 <FormattedText text={day1Content.taskNotes[i]} />
                                             </div>
                                         )}
@@ -384,11 +384,11 @@ const SprintPreview: React.FC = () => {
                                             return (
                                                 <div className="mb-4 space-y-3 pl-4 border-l-4 border-emerald-500/30 py-1 text-left animate-fade-in bg-amber-500/0">
                                                     {tagsWithNotes.map((tag, tagIndex) => (
-                                                        <div key={tagIndex} className="text-gray-700 font-medium text-xs sm:text-sm leading-relaxed space-y-1 mt-1">
+                                                        <div key={tagIndex} className="text-gray-700 font-bold text-xs sm:text-sm leading-relaxed space-y-1 mt-1">
                                                             <div className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-100 px-3 py-1 rounded-full font-black italic text-[10px] shadow-sm uppercase">
                                                                 {tag}
                                                             </div>
-                                                            <div className="text-gray-700 font-medium text-sm sm:text-base leading-relaxed">
+                                                            <div className="text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
                                                                 <FormattedText text={notesMap[tag]} />
                                                             </div>
                                                         </div>
@@ -401,7 +401,7 @@ const SprintPreview: React.FC = () => {
                                             <FormattedText text={prompt} />
                                         </div>
                                         {day1Content?.taskFootnotes?.[i] && (
-                                            <div className="mb-4 text-left text-emerald-600 font-medium text-sm sm:text-base leading-relaxed animate-fade-in">
+                                            <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
                                                 <FormattedText text={day1Content.taskFootnotes[i]} />
                                             </div>
                                         )}

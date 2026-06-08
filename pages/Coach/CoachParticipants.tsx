@@ -503,7 +503,7 @@ const CoachParticipants: React.FC = () => {
                                                                     "{prompt}"
                                                                 </p>
                                                                 {contentData?.taskFootnotes?.[idx] && (
-                                                                    <div className="text-xs text-emerald-600 font-medium leading-relaxed mt-1.5 italic pl-1">
+                                                                    <div className="text-xs text-emerald-600 font-bold leading-relaxed mt-1.5 italic pl-1">
                                                                         {contentData.taskFootnotes[idx]}
                                                                     </div>
                                                                 )}
@@ -589,7 +589,7 @@ const CoachParticipants: React.FC = () => {
                                                                         "{item.prompt}"
                                                                     </p>
                                                                     {contentData?.taskFootnotes?.[item.index] && (
-                                                                        <div className="text-xs text-emerald-600 font-medium leading-relaxed mt-1 italic pl-1">
+                                                                        <div className="text-xs text-emerald-600 font-bold leading-relaxed mt-1 italic pl-1">
                                                                             {contentData.taskFootnotes[item.index]}
                                                                         </div>
                                                                     )}
