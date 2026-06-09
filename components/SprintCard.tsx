@@ -154,8 +154,13 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                 </div>
                 
                 <div className="p-4 flex flex-col flex-grow">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span className="px-2 py-0.5 rounded-md bg-gray-50 border border-gray-100 text-gray-400 text-[8px] font-black uppercase tracking-[0.25em]">{sprint.category}</span>
+                        {sprint.audience && sprint.audience.length > 0 && (
+                            <span className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-primary text-[8px] font-black uppercase tracking-[0.25em] truncate max-w-[150px]" title={sprint.audience.join(", ")}>
+                                {sprint.audience[0]} {sprint.audience.length > 1 ? `+${sprint.audience.length - 1}` : ''}
+                            </span>
+                        )}
                     </div>
 
                     <h3 className={`text-lg font-black text-gray-900 mb-2 transition-colors leading-tight tracking-tight ${!isStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>

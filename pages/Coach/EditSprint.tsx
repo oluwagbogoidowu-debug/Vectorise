@@ -157,7 +157,7 @@ const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> =
     // Top level fields
     const fields: (keyof Sprint)[] = [
         'title', 'subtitle', 'coverImageUrl', 'transformation', 'description', 
-        'category', 'difficulty', 'price', 'currency', 'pointCost', 
+        'category', 'difficulty', 'audience', 'overrideOrchestrator', 'price', 'currency', 'pointCost', 
         'pricingType', 'duration', 'protocol', 'outcomeTag', 'checkInReminder', 'checkInReminderDays'
     ];
 
@@ -219,6 +219,7 @@ const EditSprint: React.FC = () => {
   const [showMirrorPreview, setShowMirrorPreview] = useState(false);
   const [previewType, setPreviewType] = useState<'card' | 'landing' | 'daily'>('daily');
   const [editSettings, setEditSettings] = useState<Partial<Sprint>>({});
+  const [isAudienceDropdownOpen, setIsAudienceDropdownOpen] = useState(false);
   const [reviewFeedback, setReviewFeedback] = useState<Record<string, string>>({});
 
   // Input Refs for toolbars
@@ -233,6 +234,70 @@ const EditSprint: React.FC = () => {
   }, [editSettings.category, sprint?.category]);
 
   const canEditDirectly = !isAdmin || isAdmin; // Admins should always be able to edit directly if they choose
+
+  const backgroundSaveDraft = async (currentSprint: Sprint, currentOriginal: Sprint) => {
+    if (!currentSprint || !currentOriginal) return;
+    setSaveStatus('saving');
+    try {
+      const isDraft = currentSprint.approvalStatus === 'draft';
+      const isDirectPush = isDraft || isAdmin;
+      const changes = getPendingChanges(currentOriginal, currentSprint);
+      if (Object.keys(changes).length === 0) {
+        setSaveStatus('idle');
+        return;
+      }
+      
+      let updatedSprintData: any = {};
+
+      if (isDirectPush) {
+          // Apply all changes directly to the main document
+          updatedSprintData = { ...changes };
+
+          if (isAdmin && isFoundational) {
+              updatedSprintData.published = true;
+              updatedSprintData.approvalStatus = 'approved';
+          }
+      } else {
+          // Review flow
+          updatedSprintData = {
+              pendingChanges: changes,
+          };
+      }
+
+      if (!isAdmin && currentSprint.approvalStatus === 'rejected') {
+          updatedSprintData.approvalStatus = 'draft';
+      }
+
+      await sprintService.updateSprint(currentSprint.id, updatedSprintData, isAdmin);
+      
+      if (isDirectPush) {
+          setOriginalSprint({ ...currentSprint });
+      }
+
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (err: any) { 
+        console.error("Background auto-save failed:", err);
+        setSaveStatus('idle'); 
+    }
+  };
+
+  useEffect(() => {
+    if (!sprint || !originalSprint) return;
+    
+    // Check if there are any differences
+    const changes = getPendingChanges(originalSprint, sprint);
+    if (Object.keys(changes).length === 0) {
+      return;
+    }
+
+    // Set up a timer to run the background write 15 seconds after changes stop
+    const timer = setTimeout(() => {
+      backgroundSaveDraft(sprint, originalSprint);
+    }, 15000);
+
+    return () => clearTimeout(timer);
+  }, [sprint, originalSprint]);
 
   const getPreviousDayConfiguredTags = () => {
     if (selectedDay <= 1 || !sprint) return [];
@@ -452,6 +517,8 @@ const EditSprint: React.FC = () => {
 
         setEditSettings({
           ...merged,
+          audience: merged.audience || [],
+          overrideOrchestrator: merged.overrideOrchestrator || false,
           dynamicSections: filteredSections
         });
         setIsLoading(false);
@@ -1387,6 +1454,8 @@ const EditSprint: React.FC = () => {
       dynamicSections: editSettings.dynamicSections,
       category: editSettings.category,
       difficulty: editSettings.difficulty,
+      audience: editSettings.audience || [],
+      overrideOrchestrator: editSettings.overrideOrchestrator || false,
       price: editSettings.price,
       currency: editSettings.currency,
       pointCost: editSettings.pointCost,
@@ -2829,8 +2898,9 @@ const EditSprint: React.FC = () => {
                             
                             <div className="grid grid-cols-2 gap-4">
                                 <DiffHighlight label="Category" original={originalSprint?.category} updated={editSettings.category} />
-                                <DiffHighlight label="Difficulty" original={originalSprint?.difficulty} updated={editSettings.difficulty} />
+                                <DiffHighlight label="Audience" original={originalSprint?.audience} updated={editSettings.audience} />
                             </div>
+                            <DiffHighlight label="Override Orchestrator" original={originalSprint?.overrideOrchestrator ? "Yes" : "No"} updated={editSettings.overrideOrchestrator ? "Yes" : "No"} />
                             <div className="grid grid-cols-2 gap-4">
                                 <DiffHighlight label="Duration" original={originalSprint?.duration} updated={editSettings.duration} />
                             </div>
@@ -2894,13 +2964,55 @@ const EditSprint: React.FC = () => {
                                                     {ALL_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                                                 </select>
                                             </div>
-                                            <div>
-                                                <label className={labelClasses}>Difficulty</label>
-                                                <select value={editSettings.difficulty || 'Beginner'} onChange={e => setEditSettings({...editSettings, difficulty: e.target.value as SprintDifficulty})} className={registryInputClasses + " mt-2"}>
-                                                    <option value="Beginner">Beginner</option>
-                                                    <option value="Intermediate">Intermediate</option>
-                                                    <option value="Advanced">Advanced</option>
-                                                </select>
+                                            <div className="relative">
+                                                <label className={labelClasses}>Audience</label>
+                                                <div 
+                                                    onClick={() => setIsAudienceDropdownOpen(!isAudienceDropdownOpen)}
+                                                    className={`${registryInputClasses} mt-2 cursor-pointer flex justify-between items-center bg-white border border-gray-100 px-4 py-2.5 rounded-xl`}
+                                                >
+                                                    <span className="text-gray-700 font-bold text-xs select-none">
+                                                        {editSettings.audience && editSettings.audience.length > 0 
+                                                            ? editSettings.audience.join(", ") 
+                                                            : "Select target audience..."}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-400">▼</span>
+                                                </div>
+                                                {isAudienceDropdownOpen && (
+                                                    <>
+                                                        <div className="fixed inset-0 z-30" onClick={() => setIsAudienceDropdownOpen(false)}></div>
+                                                        <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-xl z-40 p-1 flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
+                                                            {["Entrepreneur", "Business Owner", "Freelancer/Consultant", "9-5 Professional", "Student/Graduate", "Creative/Hustler"].map(opt => {
+                                                                const isSelected = editSettings.audience?.includes(opt);
+                                                                return (
+                                                                    <div 
+                                                                        key={opt}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            const currentAudience = editSettings.audience || [];
+                                                                            const updated = isSelected 
+                                                                                ? currentAudience.filter(x => x !== opt)
+                                                                                : [...currentAudience, opt];
+                                                                            setEditSettings(prev => ({ ...prev, audience: updated }));
+                                                                        }}
+                                                                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer text-xs font-bold transition-all ${
+                                                                            isSelected 
+                                                                                ? 'bg-primary/5 text-primary' 
+                                                                                : 'text-gray-600 hover:bg-gray-50'
+                                                                        }`}
+                                                                    >
+                                                                        <input 
+                                                                            type="checkbox" 
+                                                                            checked={isSelected}
+                                                                            onChange={() => {}}
+                                                                            className="rounded border-gray-300 text-primary focus:ring-primary h-3.5 w-3.5"
+                                                                        />
+                                                                        <span>{opt}</span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                             <div>
                                                 <label className={labelClasses}>Sprint Type</label>
@@ -2909,6 +3021,27 @@ const EditSprint: React.FC = () => {
                                                     <option value="Core">Core</option>
                                                     <option value="Expert">Expert</option>
                                                 </select>
+                                            </div>
+                                            <div className="md:col-span-2 flex items-center gap-3 bg-[#F4F9F6] border border-emerald-500/10 rounded-2xl p-4 mt-2">
+                                                <input
+                                                    type="checkbox"
+                                                    id="overrideOrchestratorEdit"
+                                                    name="overrideOrchestrator"
+                                                    checked={editSettings.overrideOrchestrator || false}
+                                                    onChange={(e) => {
+                                                        const checked = e.target.checked;
+                                                        setEditSettings(prev => ({ ...prev, overrideOrchestrator: checked }));
+                                                    }}
+                                                    className="rounded border-emerald-500/30 text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+                                                />
+                                                <div>
+                                                    <label htmlFor="overrideOrchestratorEdit" className="block text-xs font-black text-gray-900 uppercase tracking-wider cursor-pointer">
+                                                        Override Orchestrator to appear in the Explore page
+                                                    </label>
+                                                    <p className="text-[10px] text-emerald-700/70 font-medium">
+                                                        Force this sprint to bypass orchestrator assignment and appear in the Explore page.
+                                                    </p>
+                                                </div>
                                             </div>
                                         </div>
                                     </section>

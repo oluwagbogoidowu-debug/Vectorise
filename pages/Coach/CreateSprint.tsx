@@ -35,6 +35,8 @@ const CreateSprint: React.FC = () => {
 
     const [previewType, setPreviewType] = useState<'card' | 'landing'>('card');
 
+    const [isAudienceDropdownOpen, setIsAudienceDropdownOpen] = useState(false);
+
     const [formData, setFormData] = useState<{
         title: string;
         subtitle: string;
@@ -42,6 +44,8 @@ const CreateSprint: React.FC = () => {
         dynamicSections: DynamicSection[];
         category: string;
         difficulty: SprintDifficulty;
+        audience: string[];
+        overrideOrchestrator: boolean;
         duration: number;
         price: string;
         outcomeTag: string;
@@ -57,6 +61,8 @@ const CreateSprint: React.FC = () => {
         ],
         category: ALL_CATEGORIES[0],
         difficulty: 'Beginner' as SprintDifficulty,
+        audience: [],
+        overrideOrchestrator: false,
         duration: 7,
         price: '0',
         outcomeTag: OUTCOME_TAGS[0],
@@ -107,6 +113,8 @@ const CreateSprint: React.FC = () => {
             dailyContent: dailyContent,
             category: formData.category,
             difficulty: formData.difficulty,
+            audience: formData.audience,
+            overrideOrchestrator: formData.overrideOrchestrator,
             duration: duration,
             price: Number(formData.price) || 0,
             description: formData.subtitle || formData.title,
@@ -146,6 +154,8 @@ const CreateSprint: React.FC = () => {
             dynamicSections: formData.dynamicSections,
             category: formData.category,
             difficulty: formData.difficulty,
+            audience: formData.audience,
+            overrideOrchestrator: formData.overrideOrchestrator,
             duration: Number(formData.duration),
             price: 0,
             published: false,
@@ -269,13 +279,55 @@ const CreateSprint: React.FC = () => {
                                             {ALL_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                                         </select>
                                     </div>
-                                    <div>
-                                        <label className={labelClasses}>Difficulty</label>
-                                        <select name="difficulty" value={formData.difficulty} onChange={handleChange} className={inputClasses + " mt-2"}>
-                                            <option value="Beginner">Beginner</option>
-                                            <option value="Intermediate">Intermediate</option>
-                                            <option value="Advanced">Advanced</option>
-                                        </select>
+                                    <div className="relative">
+                                        <label className={labelClasses}>Audience</label>
+                                        <div 
+                                            onClick={() => setIsAudienceDropdownOpen(!isAudienceDropdownOpen)}
+                                            className={`${inputClasses} mt-2 cursor-pointer flex justify-between items-center bg-white border border-gray-100 px-4 py-2.5 rounded-xl`}
+                                        >
+                                            <span className="text-gray-700 font-bold text-xs select-none">
+                                                {formData.audience && formData.audience.length > 0 
+                                                    ? formData.audience.join(", ") 
+                                                    : "Select target audience..."}
+                                            </span>
+                                            <span className="text-[10px] text-gray-400">▼</span>
+                                        </div>
+                                        {isAudienceDropdownOpen && (
+                                            <>
+                                                <div className="fixed inset-0 z-30" onClick={() => setIsAudienceDropdownOpen(false)}></div>
+                                                <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-xl z-40 p-1 flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
+                                                    {["Entrepreneur", "Business Owner", "Freelancer/Consultant", "9-5 Professional", "Student/Graduate", "Creative/Hustler"].map(opt => {
+                                                        const isSelected = formData.audience?.includes(opt);
+                                                        return (
+                                                            <div 
+                                                                key={opt}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const currentAudience = formData.audience || [];
+                                                                    const updated = isSelected 
+                                                                        ? currentAudience.filter(x => x !== opt)
+                                                                        : [...currentAudience, opt];
+                                                                    setFormData(prev => ({ ...prev, audience: updated }));
+                                                                }}
+                                                                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer text-xs font-bold transition-all ${
+                                                                    isSelected 
+                                                                        ? 'bg-primary/5 text-primary' 
+                                                                        : 'text-gray-600 hover:bg-gray-50'
+                                                                }`}
+                                                            >
+                                                                <input 
+                                                                    type="checkbox" 
+                                                                    checked={isSelected}
+                                                                    onChange={() => {}}
+                                                                    className="rounded border-gray-300 text-primary focus:ring-primary h-3.5 w-3.5"
+                                                                />
+                                                                <span>{opt}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                     <div>
                                         <label className={labelClasses}>Sprint Type</label>
@@ -284,6 +336,27 @@ const CreateSprint: React.FC = () => {
                                             <option value="Core">Core</option>
                                             <option value="Expert">Expert</option>
                                         </select>
+                                    </div>
+                                    <div className="md:col-span-2 flex items-center gap-3 bg-[#F4F9F6] border border-emerald-500/10 rounded-2xl p-4 mt-2">
+                                        <input
+                                            type="checkbox"
+                                            id="overrideOrchestrator"
+                                            name="overrideOrchestrator"
+                                            checked={formData.overrideOrchestrator}
+                                            onChange={(e) => {
+                                                const checked = e.target.checked;
+                                                setFormData(prev => ({ ...prev, overrideOrchestrator: checked }));
+                                            }}
+                                            className="rounded border-emerald-500/30 text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+                                        />
+                                        <div>
+                                            <label htmlFor="overrideOrchestrator" className="block text-xs font-black text-gray-900 uppercase tracking-wider cursor-pointer">
+                                                Override Orchestrator to appear in the Explore page
+                                            </label>
+                                            <p className="text-[10px] text-emerald-700/70 font-medium">
+                                                Force this sprint to bypass orchestrator assignment and appear in the Explore page.
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </section>

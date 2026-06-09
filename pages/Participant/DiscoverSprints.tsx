@@ -335,6 +335,12 @@ const DiscoverSprints: React.FC = () => {
             }
         };
 
+        // 0. Include sprints that override orchestrator
+        const overrideSprintsActive = sprints.filter(s => s.overrideOrchestrator && !enrolledSprintIds.has(s.id));
+        overrideSprintsActive.forEach(s => {
+            addSprint(s);
+        });
+
         const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
                          Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
 
@@ -373,8 +379,8 @@ const DiscoverSprints: React.FC = () => {
             });
         }
 
-        // Return up to 3 priority sprints or fewer if less than 3 are available. No non-orchestrator fallbacks.
-        return list.slice(0, 3);
+        // Return up to 3 priority sprints or more if override sprints are active
+        return list.slice(0, Math.max(3, overrideSprintsActive.length));
     }, [sprints, user, orchestration, enrolledSprintIds]);
 
     if (isLoading) {

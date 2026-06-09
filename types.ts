@@ -231,7 +231,9 @@ export interface Sprint {
   subtitle?: string;
   description: string; 
   category: string;
-  difficulty: SprintDifficulty;
+  difficulty?: SprintDifficulty;
+  audience?: string[];
+  overrideOrchestrator?: boolean;
   duration: number;
   price: number;
   currency: string;
