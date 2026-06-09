@@ -1758,7 +1758,7 @@ const SprintView: React.FC = () => {
                               exit={{ opacity: 0, x: -12 }}
                               transition={{ duration: 0.2, ease: "easeInOut" }}
                               className={isFullBleed 
-                                ? "fixed inset-0 z-50 bg-[#FBFBFC] overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in" 
+                                ? "fixed inset-0 z-50 bg-transparent overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in" 
                                 : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left"
                               }
                             >
@@ -1783,7 +1783,27 @@ const SprintView: React.FC = () => {
                               </div>
 
                               <div className={isFullBleed ? "w-full max-w-4xl mx-auto space-y-6 flex flex-col relative" : "relative z-10"}>
-                                <SectionHeading>{`Action Step ${i + 1}`}</SectionHeading>
+                                <SectionHeading>
+                                  Action Step <strong className="font-bold">↗</strong> {i + 1}
+                                </SectionHeading>
+
+                                {isFullBleed && (
+                                  <div className="w-full mb-8">
+                                    <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-emerald-600 mb-2.5">
+                                      <span className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        Momentum Monitor: Step {i + 1} of {dayContent?.taskPrompts?.length || 1}
+                                      </span>
+                                      <span className="font-bold">{Math.round(((i) / (dayContent?.taskPrompts?.length || 1)) * 100)}% Complete</span>
+                                    </div>
+                                    <div className="w-full bg-emerald-500/10 rounded-full h-2 overflow-hidden shadow-inner font-sans">
+                                      <div 
+                                        className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out animate-pulse" 
+                                        style={{ width: `${((i + 1) / (dayContent?.taskPrompts?.length || 1)) * 100}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
 
                               {dayContent?.taskNotes?.[i] && (
                                 <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
@@ -2216,7 +2236,7 @@ const SprintView: React.FC = () => {
                                 </div>
                               )}
                               {!dayProgress?.completed && (
-                                <div className="absolute top-6 right-16 w-1.5 h-1.5 rounded-full bg-primary animate-pulse z-40"></div>
+                                <div className="absolute top-6 right-16 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse z-40"></div>
                               )}
                               {i === activeTaskIndex && (
                                 <div className="mt-4 flex justify-between items-center gap-4">
@@ -2319,7 +2339,7 @@ const SprintView: React.FC = () => {
                     ) : (
                       <div 
                           className={isFullBleed 
-                            ? "fixed inset-0 z-50 bg-[#FBFBFC] overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in" 
+                            ? "fixed inset-0 z-50 bg-transparent overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in" 
                             : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left"
                           }
                         >
@@ -2344,7 +2364,31 @@ const SprintView: React.FC = () => {
                         </div>
 
                         <div className={isFullBleed ? "w-full max-w-4xl mx-auto space-y-6 flex flex-col relative" : "relative z-10"}>
-                          <SectionHeading>Today's Action Steps</SectionHeading>
+                          <SectionHeading>
+                            {isFullBleed ? (
+                              <>Action Step <strong className="font-bold">↗</strong> 1</>
+                            ) : (
+                              "Today's Action Steps"
+                            )}
+                          </SectionHeading>
+
+                          {isFullBleed && (
+                            <div className="w-full mb-8">
+                              <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-[#0E7850] mb-2.5">
+                                <span className="flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                  Momentum Monitor: Step 1 of 1
+                                </span>
+                                <span className="font-bold">{dayProgress?.completed ? "100" : "0"}% Complete</span>
+                              </div>
+                              <div className="w-full bg-emerald-500/10 rounded-full h-2 overflow-hidden shadow-inner font-sans">
+                                <div 
+                                  className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out animate-pulse" 
+                                  style={{ width: dayProgress?.completed ? "100%" : "50%" }}
+                                />
+                              </div>
+                            </div>
+                          )}
                         {dayContent?.taskNotes?.[0] && (
                           <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
                             <FormattedText text={dayContent.taskNotes[0]} />
@@ -2671,7 +2715,7 @@ const SprintView: React.FC = () => {
                           </div>
                         )}
                         {!dayProgress?.completed && (
-                          <div className="absolute top-6 right-16 w-1.5 h-1.5 rounded-full bg-primary animate-pulse z-40"></div>
+                          <div className="absolute top-6 right-16 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse z-40"></div>
                         )}
                         {isFullBleed && (
                           <div className="mt-8 pt-6 border-t border-gray-100/50 flex flex-col gap-4">
@@ -2717,7 +2761,12 @@ const SprintView: React.FC = () => {
                       )}
                         </>
                       );
-                      return isFullBleed ? createPortal(taskUI, document.body) : taskUI;
+                      return isFullBleed ? createPortal(
+                        <div className="fixed inset-0 z-50 bg-white w-screen h-screen overflow-hidden">
+                          {taskUI}
+                        </div>,
+                        document.body
+                      ) : taskUI;
                     })()}
                   </div>
 
