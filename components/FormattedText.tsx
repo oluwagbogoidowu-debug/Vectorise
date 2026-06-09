@@ -8,12 +8,78 @@ interface FormattedTextProps {
   inline?: boolean;
 }
 
+const processListText = (inputText: string): string => {
+  if (!inputText) return "";
+
+  const lines = inputText.split("\n");
+  const processedLines: string[] = [];
+  
+  const bulletRegex = /^([↠•→\-\*\+]|->|=>)\s*(.*)$/;
+  const numRegex = /^(\d+[\.\)])\s*(.*)$/;
+
+  let insideList = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) {
+      processedLines.push("");
+      insideList = false;
+      continue;
+    }
+
+    const bulletMatch = line.match(bulletRegex);
+    const numMatch = line.match(numRegex);
+
+    if (bulletMatch) {
+      const marker = bulletMatch[1];
+      const remaining = bulletMatch[2];
+      let displayMarker = marker;
+      if (marker === "->") displayMarker = "→";
+      if (marker === "=>") displayMarker = "↠";
+      
+      processedLines.push(`- [bullet:${displayMarker}] ${remaining}`);
+      insideList = true;
+    } else if (numMatch) {
+      const marker = numMatch[1];
+      const remaining = numMatch[2];
+      processedLines.push(`- [bullet:${marker}] ${remaining}`);
+      insideList = true;
+    } else {
+      insideList = false;
+      processedLines.push(line);
+    }
+  }
+
+  let output = "";
+  for (let i = 0; i < processedLines.length; i++) {
+    const current = processedLines[i];
+    if (current === "") {
+      output += "\n";
+      continue;
+    }
+
+    if (i > 0) {
+      const prev = processedLines[i - 1];
+      const isCurrentListItem = current.startsWith("- [bullet:");
+      const isPrevListItem = prev && prev.startsWith("- [bullet:");
+
+      if (isCurrentListItem && isPrevListItem) {
+        output += "\n" + current;
+      } else {
+        output += "\n\n" + current;
+      }
+    } else {
+      output += current;
+    }
+  }
+
+  return output.replace(/\n\n\n+/g, '\n\n');
+};
+
 const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inline = false }) => {
   if (!text) return null;
 
-  // Pre-process text to ensure single newlines are treated as paragraph breaks
-  // by converting them to double newlines, while avoiding excessive spacing.
-  const processedText = inline ? text : text.split('\n').map(line => line.trim()).join('\n\n').replace(/\n\n\n+/g, '\n\n');
+  const processedText = inline ? text : processListText(text);
 
   if (inline) {
     return (
@@ -37,14 +103,66 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
         components={{
           em: ({ node, ...props }) => <em className="not-italic text-primary font-bold" {...props} />,
           strong: ({ node, ...props }) => <strong className="font-black text-gray-900" {...props} />,
-          ul: ({ node, ...props }) => <ul className="list-none p-0 space-y-3 my-4" {...props} />,
-          ol: ({ node, ...props }) => <ol className="list-decimal pl-6 space-y-3 my-4" {...props} />,
-          li: ({ node, ...props }) => (
-            <li className="flex items-start gap-3" {...props}>
-              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary/30 flex-shrink-0" />
-              <span className="flex-1">{props.children}</span>
-            </li>
-          ),
+          ul: ({ node, ...props }) => <ul className="list-none p-0 space-y-2 my-4" {...props} />,
+          ol: ({ node, ...props }) => <ol className="list-none p-0 space-y-2 my-4" {...props} />,
+          li: ({ node, ...props }) => {
+            let bulletChar: React.ReactNode = null;
+            let modifiedChildren = props.children;
+
+            if (Array.isArray(props.children) && props.children.length > 0) {
+              const firstChild = props.children[0];
+              if (typeof firstChild === 'string') {
+                const match = firstChild.match(/^\[bullet:([^\]]+)\]\s*/);
+                if (match) {
+                  const extractedChar = match[1];
+                  bulletChar = extractedChar;
+                  const newFirstChild = firstChild.substring(match[0].length);
+                  modifiedChildren = [newFirstChild, ...props.children.slice(1)];
+                }
+              }
+            } else if (typeof props.children === 'string') {
+              const match = props.children.match(/^\[bullet:([^\]]+)\]\s*/);
+              if (match) {
+                const extractedChar = match[1];
+                bulletChar = extractedChar;
+                modifiedChildren = props.children.substring(match[0].length);
+              }
+            }
+
+            let bulletElement: React.ReactNode = null;
+            if (bulletChar) {
+              if (bulletChar === '↠' || bulletChar === '→' || bulletChar === '=>' || bulletChar === '->') {
+                bulletElement = (
+                  <span className="text-[#0E7850] font-black text-sm select-none flex-shrink-0 mt-0.5 animate-pulse">
+                    {bulletChar}
+                  </span>
+                );
+              } else if (bulletChar === '•' || bulletChar === '*' || bulletChar === '-') {
+                bulletElement = (
+                  <span className="text-[#0E7850] font-black text-xs select-none flex-shrink-0 mt-1">
+                    •
+                  </span>
+                );
+              } else {
+                bulletElement = (
+                  <span className="text-[#0E7850] font-black text-xs select-none flex-shrink-0 mt-0.5">
+                    {bulletChar}
+                  </span>
+                );
+              }
+            } else {
+              bulletElement = (
+                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500/30 flex-shrink-0" />
+              );
+            }
+
+            return (
+              <li className="flex items-start gap-2.5 my-2.5 font-bold text-gray-700 leading-relaxed" {...props}>
+                {bulletElement}
+                <span className="flex-1">{modifiedChildren}</span>
+              </li>
+            );
+          },
           p: ({ node, ...props }) => <p className="mb-4 last:mb-0 leading-[1.6]" {...props} />,
           h1: ({ node, ...props }) => <h1 className="text-3xl font-black text-gray-900 mb-6 mt-8 tracking-tight" {...props} />,
           h2: ({ node, ...props }) => <h2 className="text-2xl font-black text-gray-900 mb-4 mt-6 tracking-tight" {...props} />,
