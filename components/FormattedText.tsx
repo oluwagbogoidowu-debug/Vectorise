@@ -76,6 +76,44 @@ const processListText = (inputText: string): string => {
   return output.replace(/\n\n\n+/g, '\n\n');
 };
 
+const extractBulletPrefix = (children: any): { bulletChar: string | null; cleaned: any } => {
+  if (!children) return { bulletChar: null, cleaned: children };
+  
+  if (typeof children === 'string') {
+    const match = children.match(/^\[bullet:([^\]]+)\]\s*/);
+    if (match) {
+      return { bulletChar: match[1], cleaned: children.substring(match[0].length) };
+    }
+    return { bulletChar: null, cleaned: children };
+  }
+
+  if (Array.isArray(children)) {
+    if (children.length > 0) {
+      const first = children[0];
+      const res = extractBulletPrefix(first);
+      if (res.bulletChar) {
+        return { bulletChar: res.bulletChar, cleaned: [res.cleaned, ...children.slice(1)] };
+      }
+    }
+    return { bulletChar: null, cleaned: children };
+  }
+
+  if (typeof children === 'object' && children !== null) {
+    if (children.props && children.props.children) {
+      const res = extractBulletPrefix(children.props.children);
+      if (res.bulletChar) {
+        const cloned = React.cloneElement(children, {
+          ...children.props,
+          children: res.cleaned
+        });
+        return { bulletChar: res.bulletChar, cleaned: cloned };
+      }
+    }
+  }
+
+  return { bulletChar: null, cleaned: children };
+};
+
 const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inline = false }) => {
   if (!text) return null;
 
@@ -106,28 +144,7 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
           ul: ({ node, ...props }) => <ul className="list-none p-0 space-y-2 my-4" {...props} />,
           ol: ({ node, ...props }) => <ol className="list-none p-0 space-y-2 my-4" {...props} />,
           li: ({ node, ...props }) => {
-            let bulletChar: React.ReactNode = null;
-            let modifiedChildren = props.children;
-
-            if (Array.isArray(props.children) && props.children.length > 0) {
-              const firstChild = props.children[0];
-              if (typeof firstChild === 'string') {
-                const match = firstChild.match(/^\[bullet:([^\]]+)\]\s*/);
-                if (match) {
-                  const extractedChar = match[1];
-                  bulletChar = extractedChar;
-                  const newFirstChild = firstChild.substring(match[0].length);
-                  modifiedChildren = [newFirstChild, ...props.children.slice(1)];
-                }
-              }
-            } else if (typeof props.children === 'string') {
-              const match = props.children.match(/^\[bullet:([^\]]+)\]\s*/);
-              if (match) {
-                const extractedChar = match[1];
-                bulletChar = extractedChar;
-                modifiedChildren = props.children.substring(match[0].length);
-              }
-            }
+            const { bulletChar, cleaned: modifiedChildren } = extractBulletPrefix(props.children);
 
             let bulletElement: React.ReactNode = null;
             if (bulletChar) {
@@ -157,7 +174,7 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
             }
 
             return (
-              <li className="flex items-start gap-2.5 my-2.5 font-bold text-gray-700 leading-relaxed" {...props}>
+              <li className="flex items-start gap-2.5 my-2.5 text-gray-700 leading-relaxed font-normal" {...props}>
                 {bulletElement}
                 <span className="flex-1">{modifiedChildren}</span>
               </li>
@@ -173,7 +190,7 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
           ),
         }}
       >
-        {text}
+        {processedText}
       </ReactMarkdown>
     </div>
   );

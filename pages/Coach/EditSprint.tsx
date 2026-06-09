@@ -258,9 +258,15 @@ const EditSprint: React.FC = () => {
               updatedSprintData.approvalStatus = 'approved';
           }
       } else {
-          // Review flow
+          // Review flow: load the latest document version to preserve other fields
+          const latestSprint = await sprintService.getSprintById(currentSprint.id);
+          const existingPendingChanges = latestSprint?.pendingChanges || {};
+          
           updatedSprintData = {
-              pendingChanges: changes,
+              pendingChanges: {
+                  ...existingPendingChanges,
+                  ...changes
+              }
           };
       }
 
@@ -270,9 +276,8 @@ const EditSprint: React.FC = () => {
 
       await sprintService.updateSprint(currentSprint.id, updatedSprintData, isAdmin);
       
-      if (isDirectPush) {
-          setOriginalSprint({ ...currentSprint });
-      }
+      // Update our baseline state to match currentSprint so further diffs are clean
+      setOriginalSprint({ ...currentSprint });
 
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
@@ -291,7 +296,7 @@ const EditSprint: React.FC = () => {
       return;
     }
 
-    // Set up a timer to run the background write 15 seconds after changes stop
+    // Set up a timer to run the background write strictly 15 seconds after the user stops typing
     const timer = setTimeout(() => {
       backgroundSaveDraft(sprint, originalSprint);
     }, 15000);
