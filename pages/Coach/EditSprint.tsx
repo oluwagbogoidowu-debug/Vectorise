@@ -445,152 +445,113 @@ const EditSprint: React.FC = () => {
     setIsLoading(true);
     let timeoutId: any;
 
-    const unsub = sprintService.subscribeToSprint(sprintId, (found) => {
-      if (found) {
-        if (timeoutId) clearTimeout(timeoutId);
-        
-        // originalSprint should represent the base sprint without pending changes
-        // so that hasChanges correctly detects if there are any pending changes to submit.
-        const baseSprint = { 
-            ...found,
-            dailyContent: Array.isArray(found.dailyContent) ? found.dailyContent : [],
-            outcomes: Array.isArray(found.outcomes) ? found.outcomes : [],
-            forWho: Array.isArray(found.forWho) ? found.forWho : [],
-            notForWho: Array.isArray(found.notForWho) ? found.notForWho : [],
-            methodSnapshot: Array.isArray(found.methodSnapshot) ? found.methodSnapshot : [],
-            dynamicSections: Array.isArray(found.dynamicSections) ? found.dynamicSections : []
-        };
-        delete baseSprint.pendingChanges;
-        setOriginalSprint(baseSprint);
+    const loadSprint = async () => {
+      try {
+        const found = await sprintService.getSprintById(sprintId);
+        if (found) {
+          if (timeoutId) clearTimeout(timeoutId);
+          
+          // originalSprint should represent the base sprint without pending changes
+          // so that hasChanges correctly detects if there are any pending changes to submit.
+          const baseSprint = { 
+              ...found,
+              dailyContent: Array.isArray(found.dailyContent) ? found.dailyContent : [],
+              outcomes: Array.isArray(found.outcomes) ? found.outcomes : [],
+              forWho: Array.isArray(found.forWho) ? found.forWho : [],
+              notForWho: Array.isArray(found.notForWho) ? found.notForWho : [],
+              methodSnapshot: Array.isArray(found.methodSnapshot) ? found.methodSnapshot : [],
+              dynamicSections: Array.isArray(found.dynamicSections) ? found.dynamicSections : []
+          };
+          delete baseSprint.pendingChanges;
+          setOriginalSprint(baseSprint);
 
-        const merged: Sprint = {
-            ...found,
-            ...(found.pendingChanges || {}),
-            dailyContent: (Array.isArray(found.pendingChanges?.dailyContent) 
-                ? found.pendingChanges.dailyContent 
-                : (Array.isArray(found.dailyContent) ? found.dailyContent : [])).map(c => ({
-                    ...c,
-                    taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
-                })),
-            duration: found.pendingChanges?.duration || found.duration || 0,
-            outcomes: Array.isArray(found.pendingChanges?.outcomes)
-                ? found.pendingChanges.outcomes
-                : (Array.isArray(found.outcomes) ? found.outcomes : []),
-            forWho: Array.isArray(found.pendingChanges?.forWho)
-                ? found.pendingChanges.forWho
-                : (Array.isArray(found.forWho) ? found.forWho : []),
-            notForWho: Array.isArray(found.pendingChanges?.notForWho)
-                ? found.pendingChanges.notForWho
-                : (Array.isArray(found.notForWho) ? found.notForWho : []),
-            methodSnapshot: Array.isArray(found.pendingChanges?.methodSnapshot)
-                ? found.pendingChanges.methodSnapshot
-                : (Array.isArray(found.methodSnapshot) ? found.methodSnapshot : []),
-            dynamicSections: Array.isArray(found.pendingChanges?.dynamicSections)
-                ? found.pendingChanges.dynamicSections
-                : (Array.isArray(found.dynamicSections) ? found.dynamicSections : [])
-        };
-        
-        setSprint(merged);
-        setReviewFeedback(found.reviewFeedback || {});
+          const merged: Sprint = {
+              ...found,
+              ...(found.pendingChanges || {}),
+              dailyContent: (Array.isArray(found.pendingChanges?.dailyContent) 
+                  ? found.pendingChanges.dailyContent 
+                  : (Array.isArray(found.dailyContent) ? found.dailyContent : [])).map(c => ({
+                      ...c,
+                      taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
+                  })),
+              duration: found.pendingChanges?.duration || found.duration || 0,
+              outcomes: Array.isArray(found.pendingChanges?.outcomes)
+                  ? found.pendingChanges.outcomes
+                  : (Array.isArray(found.outcomes) ? found.outcomes : []),
+              forWho: Array.isArray(found.pendingChanges?.forWho)
+                  ? found.pendingChanges.forWho
+                  : (Array.isArray(found.forWho) ? found.forWho : []),
+              notForWho: Array.isArray(found.pendingChanges?.notForWho)
+                  ? found.pendingChanges.notForWho
+                  : (Array.isArray(found.notForWho) ? found.notForWho : []),
+              methodSnapshot: Array.isArray(found.pendingChanges?.methodSnapshot)
+                  ? found.pendingChanges.methodSnapshot
+                  : (Array.isArray(found.methodSnapshot) ? found.methodSnapshot : []),
+              dynamicSections: Array.isArray(found.pendingChanges?.dynamicSections)
+                  ? found.pendingChanges.dynamicSections
+                  : (Array.isArray(found.dynamicSections) ? found.dynamicSections : [])
+          };
+          
+          setSprint(merged);
+          setReviewFeedback(found.reviewFeedback || {});
 
-        // Ensure system sections exist in dynamicSections for unified editing
-        const systemSections = [
-          { id: 'identity', title: 'Sprint Identity', body: '', type: 'identity' as any },
-          { id: 'metadata', title: 'Metadata', body: '', type: 'metadata' as any },
-          { id: 'pricing', title: 'Pricing & Economy', body: '', type: 'pricing' as any },
-          { id: 'completion', title: 'Completion Assets', body: '', type: 'completion' as any },
-          { id: 'overview', title: 'Sprint Overview', body: merged.description || merged.transformation || '', type: 'text' as any }
-        ];
-        
-        const initialDynamicSections = Array.isArray(merged.dynamicSections) ? [...merged.dynamicSections] : [];
-        
-        // Filter out any old custom sections that aren't 'overview'
-        const filteredSections = initialDynamicSections.filter(s => 
-          systemSections.find(sys => sys.id === s.id)
-        );
+          // Ensure system sections exist in dynamicSections for unified editing
+          const systemSections = [
+            { id: 'identity', title: 'Sprint Identity', body: '', type: 'identity' as any },
+            { id: 'metadata', title: 'Metadata', body: '', type: 'metadata' as any },
+            { id: 'pricing', title: 'Pricing & Economy', body: '', type: 'pricing' as any },
+            { id: 'completion', title: 'Completion Assets', body: '', type: 'completion' as any },
+            { id: 'overview', title: 'Sprint Overview', body: merged.description || merged.transformation || '', type: 'text' as any }
+          ];
+          
+          const initialDynamicSections = Array.isArray(merged.dynamicSections) ? [...merged.dynamicSections] : [];
+          
+          // Filter out any old custom sections that aren't 'overview'
+          const filteredSections = initialDynamicSections.filter(s => 
+            systemSections.find(sys => sys.id === s.id)
+          );
 
-        systemSections.forEach(sys => {
-            if (!filteredSections.find(s => s.id === sys.id)) {
-                filteredSections.push(sys);
-            }
-        });
+          systemSections.forEach(sys => {
+              if (!filteredSections.find(s => s.id === sys.id)) {
+                  filteredSections.push(sys);
+              }
+          });
 
-        setEditSettings({
-          ...merged,
-          audience: merged.audience || [],
-          overrideOrchestrator: merged.overrideOrchestrator || false,
-          dynamicSections: filteredSections
-        });
-        setIsLoading(false);
-      } else {
-        // If not found, wait a bit before giving up (handles race conditions on creation)
-        if (!timeoutId) {
-          timeoutId = setTimeout(() => {
-            console.error("Sprint not found after timeout");
-            navigate('/dashboard');
-          }, 3000);
+          setEditSettings({
+            ...merged,
+            audience: merged.audience || [],
+            overrideOrchestrator: merged.overrideOrchestrator || false,
+            dynamicSections: filteredSections
+          });
+          setIsLoading(false);
+        } else {
+          // If not found, wait a bit before giving up (handles race conditions on creation)
+          if (!timeoutId) {
+            timeoutId = setTimeout(async () => {
+              const retryFound = await sprintService.getSprintById(sprintId);
+              if (retryFound) {
+                loadSprint();
+              } else {
+                console.error("Sprint not found after timeout");
+                navigate('/dashboard');
+              }
+            }, 3000);
+          }
         }
+      } catch (err) {
+        console.error("Error loading sprint:", err);
+        navigate('/dashboard');
       }
-    });
+    };
+
+    loadSprint();
 
     return () => {
-      unsub();
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [sprintId, navigate, user]);
 
-  // Debounced autosave hook
-  useEffect(() => {
-    if (!sprint || !originalSprint) return;
-    
-    const changes = getPendingChanges(originalSprint, sprint);
-    const hasPendingChanges = Object.keys(changes).length > 0;
-    
-    if (!hasPendingChanges) {
-      return;
-    }
 
-    const timer = setTimeout(async () => {
-      setSaveStatus('saving');
-      try {
-        const isDraft = sprint.approvalStatus === 'draft';
-        const isDirectPush = isDraft || isAdmin;
-        
-        let updatedSprintData: any = {};
-
-        if (isDirectPush) {
-            updatedSprintData = { ...changes };
-
-            if (isAdmin && isFoundational) {
-                updatedSprintData.published = true;
-                updatedSprintData.approvalStatus = 'approved';
-            }
-        } else {
-            updatedSprintData = {
-                pendingChanges: changes,
-            };
-        }
-
-        if (!isAdmin && sprint.approvalStatus === 'rejected') {
-            updatedSprintData.approvalStatus = 'draft';
-        }
-
-        await sprintService.updateSprint(sprint.id, updatedSprintData, isAdmin);
-        
-        if (isDirectPush) {
-            setOriginalSprint({ ...sprint });
-        }
-
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 2000);
-      } catch (err: any) { 
-          console.error("Autosave failed in background:", err);
-          setSaveStatus('idle'); 
-      }
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [sprint, originalSprint, isAdmin, isFoundational]);
 
   const currentContent = useMemo((): DailyContent => {
     if (!sprint) return {
