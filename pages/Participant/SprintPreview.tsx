@@ -47,7 +47,7 @@ const TagInput: React.FC<{
   maxTags?: number;
   placeholder?: string;
   onNext?: () => void;
-}> = ({ value, onChange, maxTags = 5, placeholder = "Type and press Enter...", onNext }) => {
+}> = ({ value, onChange, maxTags = 10, placeholder = "Type and press Enter...", onNext }) => {
   const [inputValue, setInputValue] = useState("");
   const [error, setError] = useState<string | null>(null);
 

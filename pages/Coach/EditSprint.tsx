@@ -232,6 +232,33 @@ const EditSprint: React.FC = () => {
 
   const canEditDirectly = !isAdmin || isAdmin; // Admins should always be able to edit directly if they choose
 
+  const getPreviousDayConfiguredTags = () => {
+    if (selectedDay <= 1 || !sprint) return [];
+    const prevDay = selectedDay - 1;
+    const prevContent = Array.isArray(sprint.dailyContent)
+        ? sprint.dailyContent.find((c) => c.day === prevDay)
+        : undefined;
+    if (!prevContent) return [];
+    
+    const tags: { prompt: string; options: string[] }[] = [];
+    prevContent.taskInputTypes?.forEach((type, idx) => {
+        if (type === 'tags' || type === 'poll') {
+            const prompt = prevContent.taskPrompts?.[idx] || prevContent.taskPrompt || `Step ${idx + 1}`;
+            let options: string[] = [];
+            const pollOptsRaw = prevContent.taskPollOptions?.[idx];
+            if (pollOptsRaw) {
+                try {
+                    options = JSON.parse(pollOptsRaw);
+                } catch (e) {
+                    options = pollOptsRaw.split(',').map((o: any) => String(o).trim()).filter(Boolean);
+                }
+            }
+            tags.push({ prompt, options: options.filter(Boolean) });
+        }
+    });
+    return tags;
+  };
+
   const getSingleTagNoteValue = (tagNotesStr: string | undefined): string => {
     if (!tagNotesStr) return '';
     try {
@@ -263,15 +290,18 @@ const EditSprint: React.FC = () => {
 
     activeSources.forEach(srcIndex => {
       const type = String(currentContent.taskInputTypes?.[srcIndex] || '').trim().toLowerCase();
-      if (type === 'poll') {
+      if (type === 'poll' || type === 'tags') {
+        let hasOpts = false;
         try {
           const opts = JSON.parse(currentContent.taskPollOptions?.[srcIndex] || '[]');
-          if (Array.isArray(opts)) {
+          if (Array.isArray(opts) && opts.length > 0) {
             allTags.push(...opts.map(o => String(o || '').trim()).filter(Boolean));
+            hasOpts = true;
           }
         } catch (e) {}
-      } else if (type === 'tags') {
-        allTags.push("Mindset Shift", "Process Scale", "Goal Alignment");
+        if (!hasOpts && type === 'tags') {
+          allTags.push("Mindset Shift", "Process Scale", "Goal Alignment");
+        }
       }
     });
 
@@ -1781,8 +1811,40 @@ const EditSprint: React.FC = () => {
                                                             rows={2} 
                                                             className={editorInputClasses + " p-4 !py-3 w-full border-emerald-100 bg-emerald-50/20 text-gray-700"} 
                                                             placeholder="Add a context note. This note will appear just before the question in the participant view." 
-                                                        />
-                                                    </div>
+                                                         />
+                                                         {index === 0 && selectedDay > 1 && (() => {
+                                                             const prevTags = getPreviousDayConfiguredTags();
+                                                             if (prevTags.length === 0) return null;
+                                                             return (
+                                                                 <div className="mt-3 pt-2.5 border-t border-emerald-100/50 text-left">
+                                                                     <p className="text-[10px] font-black text-emerald-700 uppercase tracking-wider mb-2 flex items-center gap-1.5 select-none" title="You can copy/reference these tags in your Coach Note text.">
+                                                                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                                                         Yesterday's Configured Tags (Click to insert):
+                                                                     </p>
+                                                                     <div className="flex flex-wrap gap-1.5 text-left">
+                                                                         {prevTags.map((tagGroup) => 
+                                                                             tagGroup.options.map((opt, optIdx) => (
+                                                                                 <button
+                                                                                     key={`${tagGroup.prompt}-${optIdx}`}
+                                                                                     type="button"
+                                                                                     onClick={() => {
+                                                                                         const currentVal = currentContent.taskNotes?.[index] || '';
+                                                                                         const appendText = currentVal ? `${currentVal} #${opt}` : `#${opt}`;
+                                                                                         handleTaskNoteChange(index, appendText);
+                                                                                     }}
+                                                                                     className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 border border-emerald-100/80 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
+                                                                                     title={`Click to append #${opt} to your Coach Note`}
+                                                                                 >
+                                                                                     🏷️ {opt}
+                                                                                 </button>
+                                                                             ))
+                                                                         )}
+                                                                     </div>
+                                                                 </div>
+                                                             );
+                                                         })()}
+                                                     </div>
+
                                                  )}
                                                                                               {isLinkedFromPrevious && (
                                                     <div className="pl-3 border-l-2 border-emerald-500/20 space-y-3 text-left animate-fade-in w-full">
@@ -1915,43 +1977,41 @@ const EditSprint: React.FC = () => {
                                                         {(() => {
                                                             const precedingTagSteps = (currentContent.taskInputTypes || [])
                                                                 .map((type, idx) => ({ type, idx }))
-                                                                .filter(item => item.idx < index && item.type === 'tags');
+                                                                .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll'));
                                                             
-                                                            // If the current step's input type is set to 'tags', it must link to the exact next step below it
-                                                            if (currentContent.taskInputTypes?.[index] === 'tags') {
-                                                                return (
-                                                                    <button 
-                                                                        type="button"
-                                                                        onClick={() => handleToggleLinkToNext(index)}
-                                                                        title={currentContent.taskLinkedToNext?.[index] ? "Link Active: This step is linked to dynamically populate choices or follow-ups for the exact next step. Click to disconnect." : "Link Step: Link this tags step to feed its selected tags as active choices or follow-ups for the exact next question."}
-                                                                        className={`ml-2 p-1.5 rounded-md transition-all flex items-center justify-center ${currentContent.taskLinkedToNext?.[index] ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
-                                                                    >
-                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                                                                    </button>
-                                                                );
-                                                            }
-                                                            
-                                                            // If the current step's input type is 'text' or 'poll' (or undefined/empty), it links to preceding tag steps
-                                                            if (precedingTagSteps.length > 0) {
-                                                                const hasSelectedSources = (currentContent.taskLinkedSources?.[index]?.length || 0) > 0;
-                                                                return (
-                                                                    <button 
-                                                                        type="button"
-                                                                        onClick={() => setActiveLinkSelectorIndex(activeLinkSelectorIndex === index ? null : index)}
-                                                                        title={hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding tags-step(s). Click to configure or link more dynamic source questions.` : "Link Sources: Pull selected labels/tags from previous steps to populate this question's choices dynamically."}
-                                                                        className={`ml-2 p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20' : hasSelectedSources ? 'bg-primary/20 text-primary border border-primary/30 font-bold' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
-                                                                    >
-                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                                                                        {hasSelectedSources && (
-                                                                            <span className="ml-1 text-[10px] font-black bg-primary text-white rounded-full px-1 min-w-[14px]">
-                                                                                {currentContent.taskLinkedSources?.[index]?.length}
-                                                                            </span>
-                                                                        )}
-                                                                    </button>
-                                                                );
-                                                            }
-                                                            
-                                                            return null;
+                                                            const showSingleLink = currentContent.taskInputTypes?.[index] === 'tags' || currentContent.taskInputTypes?.[index] === 'poll';
+                                                            const showMultiLink = precedingTagSteps.length > 0 && (currentContent.taskInputTypes?.[index] === 'text' || currentContent.taskInputTypes?.[index] === 'poll' || !currentContent.taskInputTypes?.[index]);
+                                                            const hasSelectedSources = (currentContent.taskLinkedSources?.[index]?.length || 0) > 0;
+
+                                                            return (
+                                                                <div className="flex items-center gap-1.5 ml-2">
+                                                                    {showSingleLink && (
+                                                                        <button 
+                                                                            type="button"
+                                                                            onClick={() => handleToggleLinkToNext(index)}
+                                                                            title={currentContent.taskLinkedToNext?.[index] ? "Link Active: This step is linked to dynamically populate choices or follow-ups for the exact next step. Click to disconnect." : "Link Step: Link this step to feed its selected tags/options as active choices or follow-ups for the exact next question."}
+                                                                            className={`p-1.5 rounded-md transition-all flex items-center justify-center ${currentContent.taskLinkedToNext?.[index] ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                                                        </button>
+                                                                    )}
+                                                                    {showMultiLink && (
+                                                                        <button 
+                                                                            type="button"
+                                                                            onClick={() => setActiveLinkSelectorIndex(activeLinkSelectorIndex === index ? null : index)}
+                                                                            title={hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding step(s). Click to configure or link more dynamic source questions.` : "Link Sources: Pull selected labels/options from previous steps to populate this question dynamically."}
+                                                                            className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20' : hasSelectedSources ? 'bg-primary/20 text-primary border border-primary/30 font-bold' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                                                            {hasSelectedSources && (
+                                                                                <span className="ml-1 text-[10px] font-black bg-primary text-white rounded-full px-1 min-w-[14px]">
+                                                                                    {currentContent.taskLinkedSources?.[index]?.length}
+                                                                                </span>
+                                                                            )}
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            );
                                                         })()}
                                                     </div>
                                                 </div>
@@ -2031,13 +2091,13 @@ const EditSprint: React.FC = () => {
                                             {(() => {
                                                 const precedingTagSteps = (currentContent.taskInputTypes || [])
                                                     .map((type, idx) => ({ type, idx }))
-                                                    .filter(item => item.idx < index && item.type === 'tags');
+                                                    .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll'));
                                                 
                                                 if (activeLinkSelectorIndex === index && precedingTagSteps.length > 0) {
                                                     return (
                                                         <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-xl animate-fade-in relative z-30">
                                                             <p className="text-[10px] font-black text-gray-500 mb-2 uppercase tracking-wider flex items-center justify-between">
-                                                                <span>Link this question to receive tags from preceding steps:</span>
+                                                                <span>Link this question to receive tags/options from preceding steps:</span>
                                                                 <button 
                                                                     type="button" 
                                                                     onClick={() => setActiveLinkSelectorIndex(null)}
@@ -2071,7 +2131,7 @@ const EditSprint: React.FC = () => {
                                                                 })}
                                                             </div>
                                                             <p className="text-[9px] font-bold text-gray-400 mt-2 italic">
-                                                                Click preceding step numbers to toggle. Any tags defined in those steps will feed into this step.
+                                                                Click preceding step numbers to toggle. Any tags/options defined in those steps will feed into this step.
                                                             </p>
                                                         </div>
                                                     );
