@@ -387,6 +387,59 @@ const EditSprint: React.FC = () => {
     };
   }, [sprintId, navigate, user]);
 
+  // Debounced autosave hook
+  useEffect(() => {
+    if (!sprint || !originalSprint) return;
+    
+    const changes = getPendingChanges(originalSprint, sprint);
+    const hasPendingChanges = Object.keys(changes).length > 0;
+    
+    if (!hasPendingChanges) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSaveStatus('saving');
+      try {
+        const isDraft = sprint.approvalStatus === 'draft';
+        const isDirectPush = isDraft || isAdmin;
+        
+        let updatedSprintData: any = {};
+
+        if (isDirectPush) {
+            updatedSprintData = { ...changes };
+
+            if (isAdmin && isFoundational) {
+                updatedSprintData.published = true;
+                updatedSprintData.approvalStatus = 'approved';
+            }
+        } else {
+            updatedSprintData = {
+                pendingChanges: changes,
+            };
+        }
+
+        if (!isAdmin && sprint.approvalStatus === 'rejected') {
+            updatedSprintData.approvalStatus = 'draft';
+        }
+
+        await sprintService.updateSprint(sprint.id, updatedSprintData, isAdmin);
+        
+        if (isDirectPush) {
+            setOriginalSprint({ ...sprint });
+        }
+
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch (err: any) { 
+          console.error("Autosave failed in background:", err);
+          setSaveStatus('idle'); 
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [sprint, originalSprint, isAdmin, isFoundational]);
+
   const currentContent = useMemo((): DailyContent => {
     if (!sprint) return {
       day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], taskHints: []

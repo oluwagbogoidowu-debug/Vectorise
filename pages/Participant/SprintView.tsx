@@ -720,6 +720,53 @@ const SprintView: React.FC = () => {
   // Day Completion State (Task Inputs)
   const [taskInputs, setTaskInputs] = useState<string[]>(["", "", ""]);
   const [activeTaskIndex, setActiveTaskIndex] = useState(0);
+
+  // Refs to prevent loaders from overriding active page indices when database saves trigger subscription updates
+  const loadedDayRef = useRef<number | null>(null);
+  const loadedEnrollmentIdRef = useRef<string | null>(null);
+  const lastSavedInputsRef = useRef<string>("");
+
+  const saveParticipantInputImmediately = async (inputsToSave: string[]) => {
+    if (!enrollment || !user || !inputsToSave || dayProgress?.completed) return;
+    const currentInputsStr = JSON.stringify(inputsToSave);
+    if (currentInputsStr === lastSavedInputsRef.current) return;
+
+    try {
+      const timestamp = new Date().toISOString();
+      let foundDay = false;
+      const updatedProgress = enrollment.progress.map((p) => {
+        if (p.day === viewingDay) {
+          foundDay = true;
+          return {
+            ...p,
+            answers: inputsToSave,
+            submission: inputsToSave.filter((ti) => ti && ti.trim()).join(" | "),
+          };
+        }
+        return p;
+      });
+
+      if (!foundDay) {
+        updatedProgress.push({
+          day: viewingDay,
+          completed: false,
+          answers: inputsToSave,
+          submission: inputsToSave.filter((ti) => ti && ti.trim()).join(" | "),
+        });
+      }
+
+      const enrollmentRef = doc(db, "enrollments", enrollment.id);
+      await updateDoc(enrollmentRef, {
+        progress: updatedProgress,
+        last_activity_at: timestamp,
+      });
+      lastSavedInputsRef.current = currentInputsStr;
+      console.log("Immediately autosaved participant responses on navigation.");
+    } catch (err) {
+      console.error("Immediately autosave failed on navigation:", err);
+    }
+  };
+
   const [isFullBleed, setIsFullBleed] = useState(false);
   const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>(
     {},
@@ -890,37 +937,100 @@ const SprintView: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!enrollment || !sprint) return;
+
+    // Check if we have already loaded the inputs for this specific day and enrollment to avoid resetting page indexes on subscription updates
+    if (loadedDayRef.current === viewingDay && loadedEnrollmentIdRef.current === enrollment.id) {
+      return;
+    }
+
     const promptsLength = dayContent?.taskPrompts?.length || 1;
-    
+    let loaded: string[] = Array(promptsLength).fill("");
+
     if (dayProgress?.answers && Array.isArray(dayProgress.answers)) {
-      const loaded = Array.from({ length: promptsLength }, (_, idx) => dayProgress.answers?.[idx] || "");
-      setTaskInputs(loaded);
+      loaded = Array.from({ length: promptsLength }, (_, idx) => dayProgress.answers?.[idx] || "");
     } else if (dayProgress?.submission) {
       const parts = dayProgress.submission.split(" | ");
-      const loaded = Array.from({ length: promptsLength }, (_, idx) => parts[idx] || "");
-      setTaskInputs(loaded);
+      loaded = Array.from({ length: promptsLength }, (_, idx) => parts[idx] || "");
     } else {
       const pendingRaw = localStorage.getItem('pending_first_action');
-      if (viewingDay === 1 && pendingRaw && sprint) {
+      if (viewingDay === 1 && pendingRaw) {
         try {
           const pending = JSON.parse(pendingRaw);
           if (pending && pending.sprintId === sprint.id && pending.firstActionInput) {
-            const loaded = Array.from({ length: promptsLength }, (_, idx) => idx === 0 ? pending.firstActionInput : "");
-            setTaskInputs(loaded);
-          } else {
-            setTaskInputs(Array(promptsLength).fill(""));
+            loaded = Array.from({ length: promptsLength }, (_, idx) => idx === 0 ? pending.firstActionInput : "");
           }
-        } catch (err) {
-          setTaskInputs(Array(promptsLength).fill(""));
-        }
-      } else {
-        setTaskInputs(Array(promptsLength).fill(""));
+        } catch (err) {}
       }
     }
+
+    setTaskInputs(loaded);
     setActiveTaskIndex(0);
     setIsFullBleed(false);
     setRevealedHints({});
-  }, [viewingDay, sprint, dayProgress, dayContent]);
+
+    // Record that we have loaded for this day/enrollment
+    loadedDayRef.current = viewingDay;
+    loadedEnrollmentIdRef.current = enrollment.id;
+    lastSavedInputsRef.current = JSON.stringify(loaded);
+  }, [viewingDay, enrollment, sprint, dayProgress, dayContent]);
+
+  // Debounced autosave hook for participant inputs
+  useEffect(() => {
+    if (!enrollment || !user || !taskInputs || dayProgress?.completed) return;
+
+    const currentInputsStr = JSON.stringify(taskInputs);
+    // If the inputs haven't actually changed from what is in the database or what we last saved, don't trigger save
+    if (currentInputsStr === lastSavedInputsRef.current) return;
+    
+    // Also compare with progress answers in DB to make sure we don't overwrite if DB is identical
+    const dbAnswersStr = JSON.stringify(dayProgress?.answers || []);
+    if (currentInputsStr === dbAnswersStr) {
+      lastSavedInputsRef.current = currentInputsStr;
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const timestamp = new Date().toISOString();
+        let foundDay = false;
+        const updatedProgress = enrollment.progress.map((p) => {
+          if (p.day === viewingDay) {
+            foundDay = true;
+            return {
+              ...p,
+              answers: taskInputs,
+              submission: taskInputs.filter((ti) => ti && ti.trim()).join(" | "),
+            };
+          }
+          return p;
+        });
+
+        if (!foundDay) {
+          updatedProgress.push({
+            day: viewingDay,
+            completed: false,
+            answers: taskInputs,
+            submission: taskInputs.filter((ti) => ti && ti.trim()).join(" | "),
+          });
+        }
+
+        const enrollmentRef = doc(db, "enrollments", enrollment.id);
+        const updatePayload: any = {
+          progress: updatedProgress,
+          last_activity_at: timestamp,
+        };
+
+        await updateDoc(enrollmentRef, updatePayload);
+        lastSavedInputsRef.current = currentInputsStr;
+        console.log("Autosaved intermediate participant responses.");
+      } catch (err) {
+        console.error("Failed intermediate autosave:", err);
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [taskInputs, enrollment, user, viewingDay, dayProgress]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
@@ -1695,6 +1805,7 @@ const SprintView: React.FC = () => {
                                       const isValid = !!tagsVal && tagsVal !== "[]" && tagsVal !== "";
                                       if (isValid) {
                                         if (i < (dayContent.taskPrompts?.length || 0) - 1) {
+                                          saveParticipantInputImmediately(taskInputs);
                                           setActiveTaskIndex(i + 1);
                                         } else if (isProofMet) {
                                           handleFinishDay();
@@ -1967,7 +2078,10 @@ const SprintView: React.FC = () => {
                                   {i > 0 ? (
                                     <button
                                       type="button"
-                                      onClick={() => setActiveTaskIndex(i - 1)}
+                                      onClick={() => {
+                                        saveParticipantInputImmediately(taskInputs);
+                                        setActiveTaskIndex(i - 1);
+                                      }}
                                       className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30"
                                     >
                                       Back
@@ -2023,7 +2137,7 @@ const SprintView: React.FC = () => {
                                         <button
                                           type="button"
                                           onClick={() =>
-                                            setActiveTaskIndex(i + 1)
+                                            { saveParticipantInputImmediately(taskInputs); setActiveTaskIndex(i + 1); }
                                           }
                                           disabled={!isValid}
                                           className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${isValid ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
@@ -2383,6 +2497,7 @@ const SprintView: React.FC = () => {
                                   dayProgress?.completed ||
                                   idx < activeTaskIndex
                                 ) {
+                                  saveParticipantInputImmediately(taskInputs);
                                   setActiveTaskIndex(idx);
                                 }
                               }}
