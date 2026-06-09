@@ -200,6 +200,7 @@ const EditSprint: React.FC = () => {
   const [activeLinkSelectorIndex, setActiveLinkSelectorIndex] = useState<number | null>(null);
   const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
   const [addingCustomOption, setAddingCustomOption] = useState<Record<number, boolean>>({});
+  const [expandedStepEarlierDays, setExpandedStepEarlierDays] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     setPreviewTaskIndex(0);
@@ -207,6 +208,7 @@ const EditSprint: React.FC = () => {
     setSetupView('action');
     setRevealedHints({});
     setAddingCustomOption({});
+    setExpandedStepEarlierDays({});
   }, [selectedDay]);
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -259,6 +261,32 @@ const EditSprint: React.FC = () => {
     return tags;
   };
 
+  const getPrecedingDaysTagSteps = () => {
+    if (!sprint || selectedDay <= 1) return [];
+    const result: { day: number; stepIdx: number; type: string; label: string; prompt: string }[] = [];
+    
+    const sortedContent = [...(sprint.dailyContent || [])].sort((a, b) => b.day - a.day);
+    
+    sortedContent.forEach(dc => {
+        if (dc.day < selectedDay) {
+            dc.taskInputTypes?.forEach((type, idx) => {
+                if (type === 'tags' || type === 'poll') {
+                    const prompt = dc.taskPrompts?.[idx] || dc.taskPrompt || `Step ${idx + 1}`;
+                    result.push({
+                        day: dc.day,
+                        stepIdx: idx,
+                        type,
+                        label: `D${dc.day} - Step ${idx + 1}`,
+                        prompt
+                    });
+                }
+            });
+        }
+    });
+    
+    return result;
+  };
+
   const getSingleTagNoteValue = (tagNotesStr: string | undefined): string => {
     if (!tagNotesStr) return '';
     try {
@@ -289,18 +317,45 @@ const EditSprint: React.FC = () => {
       : (legacyLinkedIndex >= 0 ? [legacyLinkedIndex] : []);
 
     activeSources.forEach(srcIndex => {
-      const type = String(currentContent.taskInputTypes?.[srcIndex] || '').trim().toLowerCase();
-      if (type === 'poll' || type === 'tags') {
-        let hasOpts = false;
-        try {
-          const opts = JSON.parse(currentContent.taskPollOptions?.[srcIndex] || '[]');
-          if (Array.isArray(opts) && opts.length > 0) {
-            allTags.push(...opts.map(o => String(o || '').trim()).filter(Boolean));
-            hasOpts = true;
+      if (srcIndex < 0) {
+        // Cross-day link!
+        const absVal = Math.abs(srcIndex);
+        const targetDay = Math.floor(absVal / 100);
+        const targetStepIndex = absVal % 100;
+        const targetDayContent = Array.isArray(sprint?.dailyContent)
+          ? sprint.dailyContent.find((dc) => dc.day === targetDay)
+          : undefined;
+        if (targetDayContent) {
+          const type = String(targetDayContent.taskInputTypes?.[targetStepIndex] || '').trim().toLowerCase();
+          if (type === 'poll' || type === 'tags') {
+            let hasOpts = false;
+            try {
+              const opts = JSON.parse(targetDayContent.taskPollOptions?.[targetStepIndex] || '[]');
+              if (Array.isArray(opts) && opts.length > 0) {
+                allTags.push(...opts.map(o => String(o || '').trim()).filter(Boolean));
+                hasOpts = true;
+              }
+            } catch (e) {}
+            if (!hasOpts && type === 'tags') {
+              allTags.push("Mindset Shift", "Process Scale", "Goal Alignment");
+            }
           }
-        } catch (e) {}
-        if (!hasOpts && type === 'tags') {
-          allTags.push("Mindset Shift", "Process Scale", "Goal Alignment");
+        }
+      } else {
+        // Same-day link!
+        const type = String(currentContent.taskInputTypes?.[srcIndex] || '').trim().toLowerCase();
+        if (type === 'poll' || type === 'tags') {
+          let hasOpts = false;
+          try {
+            const opts = JSON.parse(currentContent.taskPollOptions?.[srcIndex] || '[]');
+            if (Array.isArray(opts) && opts.length > 0) {
+              allTags.push(...opts.map(o => String(o || '').trim()).filter(Boolean));
+              hasOpts = true;
+            }
+          } catch (e) {}
+          if (!hasOpts && type === 'tags') {
+            allTags.push("Mindset Shift", "Process Scale", "Goal Alignment");
+          }
         }
       }
     });
@@ -1812,37 +1867,7 @@ const EditSprint: React.FC = () => {
                                                             className={editorInputClasses + " p-4 !py-3 w-full border-emerald-100 bg-emerald-50/20 text-gray-700"} 
                                                             placeholder="Add a context note. This note will appear just before the question in the participant view." 
                                                          />
-                                                         {index === 0 && selectedDay > 1 && (() => {
-                                                             const prevTags = getPreviousDayConfiguredTags();
-                                                             if (prevTags.length === 0) return null;
-                                                             return (
-                                                                 <div className="mt-3 pt-2.5 border-t border-emerald-100/50 text-left">
-                                                                     <p className="text-[10px] font-black text-emerald-700 uppercase tracking-wider mb-2 flex items-center gap-1.5 select-none" title="You can copy/reference these tags in your Coach Note text.">
-                                                                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                                                         Yesterday's Configured Tags (Click to insert):
-                                                                     </p>
-                                                                     <div className="flex flex-wrap gap-1.5 text-left">
-                                                                         {prevTags.map((tagGroup) => 
-                                                                             tagGroup.options.map((opt, optIdx) => (
-                                                                                 <button
-                                                                                     key={`${tagGroup.prompt}-${optIdx}`}
-                                                                                     type="button"
-                                                                                     onClick={() => {
-                                                                                         const currentVal = currentContent.taskNotes?.[index] || '';
-                                                                                         const appendText = currentVal ? `${currentVal} #${opt}` : `#${opt}`;
-                                                                                         handleTaskNoteChange(index, appendText);
-                                                                                     }}
-                                                                                     className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 border border-emerald-100/80 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
-                                                                                     title={`Click to append #${opt} to your Coach Note`}
-                                                                                 >
-                                                                                     🏷️ {opt}
-                                                                                 </button>
-                                                                             ))
-                                                                         )}
-                                                                     </div>
-                                                                 </div>
-                                                             );
-                                                         })()}
+
                                                      </div>
 
                                                  )}
@@ -1979,8 +2004,9 @@ const EditSprint: React.FC = () => {
                                                                 .map((type, idx) => ({ type, idx }))
                                                                 .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll'));
                                                             
+                                                            const precedingDaysSteps = getPrecedingDaysTagSteps();
                                                             const showSingleLink = currentContent.taskInputTypes?.[index] === 'tags' || currentContent.taskInputTypes?.[index] === 'poll';
-                                                            const showMultiLink = precedingTagSteps.length > 0 && (currentContent.taskInputTypes?.[index] === 'text' || currentContent.taskInputTypes?.[index] === 'poll' || !currentContent.taskInputTypes?.[index]);
+                                                            const showMultiLink = (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0) && (currentContent.taskInputTypes?.[index] === 'text' || currentContent.taskInputTypes?.[index] === 'poll' || !currentContent.taskInputTypes?.[index]);
                                                             const hasSelectedSources = (currentContent.taskLinkedSources?.[index]?.length || 0) > 0;
 
                                                             return (
@@ -2093,10 +2119,19 @@ const EditSprint: React.FC = () => {
                                                     .map((type, idx) => ({ type, idx }))
                                                     .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll'));
                                                 
-                                                if (activeLinkSelectorIndex === index && precedingTagSteps.length > 0) {
+                                                const precedingDaysSteps = getPrecedingDaysTagSteps();
+                                                const showSelector = activeLinkSelectorIndex === index && (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0);
+                                                
+                                                if (showSelector) {
+                                                    const yesterdayNum = selectedDay - 1;
+                                                    const yesterdaySteps = precedingDaysSteps.filter(s => s.day === yesterdayNum);
+                                                    const earlierSteps = precedingDaysSteps.filter(s => s.day < yesterdayNum);
+                                                    const hasEarlier = earlierSteps.length > 0;
+                                                    const isEarlierExpanded = !expandedStepEarlierDays || !expandedStepEarlierDays[index] ? false : expandedStepEarlierDays[index];
+
                                                     return (
-                                                        <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-xl animate-fade-in relative z-30">
-                                                            <p className="text-[10px] font-black text-gray-500 mb-2 uppercase tracking-wider flex items-center justify-between">
+                                                        <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-xl animate-fade-in relative z-30 space-y-3 text-left">
+                                                            <div className="text-[10px] font-black text-gray-500 uppercase tracking-wider flex items-center justify-between">
                                                                 <span>Link this question to receive tags/options from preceding steps:</span>
                                                                 <button 
                                                                     type="button" 
@@ -2105,31 +2140,122 @@ const EditSprint: React.FC = () => {
                                                                 >
                                                                     ✕ Close
                                                                 </button>
-                                                            </p>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {precedingTagSteps.map(step => {
-                                                                    const isLinked = currentContent.taskLinkedSources?.[index]?.includes(step.idx);
-                                                                    return (
-                                                                        <button
-                                                                            key={step.idx}
-                                                                            type="button"
-                                                                            onClick={() => handleToggleSourceLink(index, step.idx)}
-                                                                            className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all border flex items-center gap-1.5 ${
-                                                                                isLinked 
-                                                                                    ? 'bg-primary text-white border-primary shadow-sm' 
-                                                                                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
-                                                                            }`}
-                                                                        >
-                                                                            <span>Step {step.idx + 1}</span>
-                                                                            {isLinked ? (
-                                                                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                                                                            ) : (
-                                                                                <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                                                                            )}
-                                                                        </button>
-                                                                    );
-                                                                })}
                                                             </div>
+
+                                                            {/* Same day steps */}
+                                                            {precedingTagSteps.length > 0 && (
+                                                                <div className="space-y-1.5">
+                                                                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Today's Preceding Steps:</div>
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        {precedingTagSteps.map(step => {
+                                                                            const isLinked = currentContent.taskLinkedSources?.[index]?.includes(step.idx);
+                                                                            return (
+                                                                                <button
+                                                                                    key={step.idx}
+                                                                                    type="button"
+                                                                                    onClick={() => handleToggleSourceLink(index, step.idx)}
+                                                                                    className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all border flex items-center gap-1.5 ${
+                                                                                        isLinked 
+                                                                                            ? 'bg-primary text-white border-primary shadow-sm' 
+                                                                                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+                                                                                    }`}
+                                                                                >
+                                                                                    <span>Step {step.idx + 1}</span>
+                                                                                    {isLinked ? (
+                                                                                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                                                                                    ) : (
+                                                                                        <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                                                                    )}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Yesterday's steps */}
+                                                            {yesterdaySteps.length > 0 && (
+                                                                <div className="space-y-1.5 pt-1.5 border-t border-gray-200/50">
+                                                                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Yesterday (Day {yesterdayNum}):</div>
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        {yesterdaySteps.map(step => {
+                                                                            const encodedVal = -(step.day * 100 + step.stepIdx);
+                                                                            const isLinked = currentContent.taskLinkedSources?.[index]?.includes(encodedVal);
+                                                                            return (
+                                                                                <button
+                                                                                    key={`prev-${step.day}-${step.stepIdx}`}
+                                                                                    type="button"
+                                                                                    onClick={() => handleToggleSourceLink(index, encodedVal)}
+                                                                                    className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all border flex items-center gap-1.5 ${
+                                                                                        isLinked 
+                                                                                            ? 'bg-primary text-white border-primary shadow-sm' 
+                                                                                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+                                                                                    }`}
+                                                                                >
+                                                                                    <span>Day {step.day} - Step {step.stepIdx + 1}</span>
+                                                                                    {isLinked ? (
+                                                                                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                                                                                    ) : (
+                                                                                        <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                                                                    )}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Earlier steps */}
+                                                            {hasEarlier && (
+                                                                <div className="pt-1.5 border-t border-gray-200/50">
+                                                                    {!isEarlierExpanded ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setExpandedStepEarlierDays(prev => ({ ...prev, [index]: true }))}
+                                                                            className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
+                                                                        >
+                                                                            ... show more previous days
+                                                                        </button>
+                                                                    ) : (
+                                                                        <div className="space-y-3">
+                                                                            {Array.from(new Set(earlierSteps.map(s => s.day))).sort((a, b) => b - a).map(dayNum => {
+                                                                                const daySteps = earlierSteps.filter(s => s.day === dayNum);
+                                                                                return (
+                                                                                    <div key={dayNum} className="space-y-1.5">
+                                                                                        <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Day {dayNum}:</div>
+                                                                                        <div className="flex flex-wrap gap-2">
+                                                                                            {daySteps.map(step => {
+                                                                                                const encodedVal = -(step.day * 100 + step.stepIdx);
+                                                                                                const isLinked = currentContent.taskLinkedSources?.[index]?.includes(encodedVal);
+                                                                                                return (
+                                                                                                    <button
+                                                                                                        key={`prev-${step.day}-${step.stepIdx}`}
+                                                                                                        type="button"
+                                                                                                        onClick={() => handleToggleSourceLink(index, encodedVal)}
+                                                                                                        className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all border flex items-center gap-1.5 ${
+                                                                                                            isLinked 
+                                                                                                                ? 'bg-primary text-white border-primary shadow-sm' 
+                                                                                                                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+                                                                                                        }`}
+                                                                                                    >
+                                                                                                        <span>Day {step.day} - Step {step.stepIdx + 1}</span>
+                                                                                                        {isLinked ? (
+                                                                                                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                                                                                                        ) : (
+                                                                                                            <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                                                                                        )}
+                                                                                                    </button>
+                                                                                                );
+                                                                                            })}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
                                                             <p className="text-[9px] font-bold text-gray-400 mt-2 italic">
                                                                 Click preceding step numbers to toggle. Any tags/options defined in those steps will feed into this step.
                                                             </p>

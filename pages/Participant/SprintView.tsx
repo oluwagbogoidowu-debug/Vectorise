@@ -788,19 +788,49 @@ const SprintView: React.FC = () => {
     if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex]) && dayContent.taskLinkedSources[stepIndex].length > 0) {
       const allTags: string[] = [];
       dayContent.taskLinkedSources[stepIndex].forEach(srcIndex => {
-        if (srcIndex >= 0 && srcIndex < taskInputs.length && taskInputs[srcIndex]) {
-          try {
-            const val = taskInputs[srcIndex];
-            const srcType = String(dayContent.taskInputTypes?.[srcIndex] || "").trim().toLowerCase();
-            if (val.startsWith("[")) {
-              allTags.push(...JSON.parse(val));
-            } else if (srcType === "poll") {
-              allTags.push(val);
-            } else {
-              allTags.push(...val.split(",").filter(Boolean));
+        if (srcIndex >= 0) {
+          if (srcIndex < taskInputs.length && taskInputs[srcIndex]) {
+            try {
+              const val = taskInputs[srcIndex];
+              const srcType = String(dayContent.taskInputTypes?.[srcIndex] || "").trim().toLowerCase();
+              if (val.startsWith("[")) {
+                allTags.push(...JSON.parse(val));
+              } else if (srcType === "poll") {
+                allTags.push(val);
+              } else {
+                allTags.push(...val.split(",").filter(Boolean));
+              }
+            } catch (e) {
+              console.error("Error parsing tags for source", srcIndex, e);
             }
-          } catch (e) {
-            console.error("Error parsing tags for source", srcIndex, e);
+          }
+        } else {
+          // Cross-day link!
+          const absVal = Math.abs(srcIndex);
+          const targetDay = Math.floor(absVal / 100);
+          const targetStepIdx = absVal % 100;
+          
+          const targetProgress = enrollment?.progress?.find((p) => p.day === targetDay);
+          const targetDayContent = Array.isArray(sprint?.dailyContent)
+            ? sprint.dailyContent.find((dc) => dc.day === targetDay)
+            : undefined;
+            
+          if (targetProgress && targetProgress.answers && Array.isArray(targetProgress.answers) && targetDayContent) {
+            const val = targetProgress.answers[targetStepIdx];
+            if (val) {
+              try {
+                const srcType = String(targetDayContent.taskInputTypes?.[targetStepIdx] || "").trim().toLowerCase();
+                if (val.startsWith("[")) {
+                  allTags.push(...JSON.parse(val));
+                } else if (srcType === "poll") {
+                  allTags.push(val);
+                } else {
+                  allTags.push(...val.split(",").filter(Boolean));
+                }
+              } catch (e) {
+                console.error("Error parsing cross-day tags for source", srcIndex, e);
+              }
+            }
           }
         }
       });
@@ -1755,27 +1785,9 @@ const SprintView: React.FC = () => {
                               <div className={isFullBleed ? "w-full max-w-4xl mx-auto space-y-6 flex flex-col relative" : "relative z-10"}>
                                 <SectionHeading>{`Action Step ${i + 1}`}</SectionHeading>
 
-                              {(dayContent?.taskNotes?.[i] || (i === 0 && getPreviousDayTags().length > 0)) && (
+                              {dayContent?.taskNotes?.[i] && (
                                 <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
-                                  {dayContent?.taskNotes?.[i] && <FormattedText text={dayContent.taskNotes[i]} />}
-                                  {i === 0 && getPreviousDayTags().length > 0 && (
-                                    <div className="mt-3 pt-2.5 border-t border-emerald-500/10">
-                                      <p className="text-[9px] font-black uppercase tracking-widest text-[#0E7850] mb-2 flex items-center gap-1.5 selection:bg-emerald-500/10">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                        Yesterday's Focus Tags:
-                                      </p>
-                                      <div className="flex flex-wrap gap-1.5">
-                                        {getPreviousDayTags().map((tag, tagIdx) => (
-                                          <span
-                                            key={tagIdx}
-                                            className="px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-primary/10 text-primary border border-primary/20 shadow-sm"
-                                          >
-                                            🏷️ {tag}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
+                                  <FormattedText text={dayContent.taskNotes[i]} />
                                 </div>
                               )}
 
@@ -2333,27 +2345,9 @@ const SprintView: React.FC = () => {
 
                         <div className={isFullBleed ? "w-full max-w-4xl mx-auto space-y-6 flex flex-col relative" : "relative z-10"}>
                           <SectionHeading>Today's Action Steps</SectionHeading>
-                        {(dayContent?.taskNotes?.[0] || getPreviousDayTags().length > 0) && (
+                        {dayContent?.taskNotes?.[0] && (
                           <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
-                            {dayContent?.taskNotes?.[0] && <FormattedText text={dayContent.taskNotes[0]} />}
-                            {getPreviousDayTags().length > 0 && (
-                              <div className="mt-3 pt-2.5 border-t border-emerald-500/10">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-[#0E7850] mb-2 flex items-center gap-1.5 selection:bg-emerald-500/10">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                  Yesterday's Focus Tags:
-                                </p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {getPreviousDayTags().map((tag, tagIdx) => (
-                                    <span
-                                      key={tagIdx}
-                                      className="px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-primary/10 text-primary border border-primary/20 shadow-sm"
-                                    >
-                                      🏷️ {tag}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                            <FormattedText text={dayContent.taskNotes[0]} />
                           </div>
                         )}
 
