@@ -494,16 +494,21 @@ const CoachingChatModal: React.FC<{
 interface SectionHeadingProps {
   children: React.ReactNode;
   color?: string;
+  showDot?: boolean;
 }
 
 const SectionHeading: React.FC<SectionHeadingProps> = ({
   children,
   color = "primary",
+  showDot = false,
 }) => (
   <h2
-    className={`text-[8px] font-black text-${color} uppercase tracking-[0.4em] mb-4`}
+    className={`text-[8px] font-black text-${color} uppercase tracking-[0.4em] mb-4 flex items-center gap-2`}
   >
-    {children}
+    {showDot && (
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+    )}
+    <span>{children}</span>
   </h2>
 );
 
@@ -1807,9 +1812,28 @@ const SprintView: React.FC = () => {
                               </div>
 
                               <div className={isFullBleed ? "w-full max-w-4xl mx-auto space-y-6 flex flex-col relative" : "relative z-10"}>
-                                <SectionHeading>
+                                <SectionHeading showDot={!dayProgress?.completed}>
                                   Action Step {i + 1}
                                 </SectionHeading>
+
+                                {/* Progress Bar under Action Step header in Full Bleed */}
+                                {isFullBleed && (
+                                  <div className="w-full mb-2 animate-fade-in font-sans -mt-2">
+                                    <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.4em] text-emerald-600 mb-2">
+                                      <span className="flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        {Math.round((i / (dayContent?.taskPrompts?.length || 1)) * 100)}% Complete
+                                      </span>
+                                      <span className="font-bold">{(dayContent?.taskPrompts?.length || 1) - (i + 1)} more steps to go</span>
+                                    </div>
+                                    <div className="w-full bg-emerald-500/10 rounded-full h-1.5 overflow-hidden shadow-inner font-sans">
+                                      <div 
+                                        className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out animate-pulse" 
+                                        style={{ width: `${((i + 1) / (dayContent?.taskPrompts?.length || 1)) * 100}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
 
                               {dayContent?.taskNotes?.[i] && (
                                 <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
@@ -2299,99 +2323,105 @@ const SprintView: React.FC = () => {
                                     )}
                                 </div>
                               )}
-                              {!dayProgress?.completed && (
-                                <div className="absolute top-6 right-16 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse z-40"></div>
-                              )}
-                              {isFullBleed && (
-                                <div className="w-full mt-8 mb-4 animate-fade-in font-sans">
-                                  <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.4em] text-emerald-600 mb-2.5">
-                                    <span className="flex items-center gap-2">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                      {Math.round((i / (dayContent?.taskPrompts?.length || 1)) * 100)}% Complete
-                                    </span>
-                                    <span className="font-bold">{(dayContent?.taskPrompts?.length || 1) - (i + 1)} more steps to go</span>
-                                  </div>
-                                  <div className="w-full bg-emerald-500/10 rounded-full h-2 overflow-hidden shadow-inner font-sans">
-                                    <div 
-                                      className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out animate-pulse" 
-                                      style={{ width: `${((i + 1) / (dayContent?.taskPrompts?.length || 1)) * 100}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              )}
                               {i === activeTaskIndex && (
-                                <div className="mt-4 flex justify-between items-center gap-4">
-                                  {i > 0 ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        saveParticipantInputImmediately(taskInputs);
-                                        setActiveTaskIndex(i - 1);
-                                      }}
-                                      className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30"
-                                    >
-                                      Back
-                                    </button>
-                                  ) : (
-                                    <div></div>
-                                  )}
+                                <div className="mt-4 flex flex-col gap-4 w-full">
+                                  <div className="flex justify-between items-center gap-4 w-full">
+                                    {i > 0 ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          saveParticipantInputImmediately(taskInputs);
+                                          setActiveTaskIndex(i - 1);
+                                        }}
+                                        className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30"
+                                      >
+                                        Back
+                                      </button>
+                                    ) : (
+                                      <div></div>
+                                    )}
 
-                                  {i <
-                                    (dayContent.taskPrompts?.length || 0) - 1 &&
-                                    (() => {
-                                      const val = taskInputs[i];
-                                      const isTags =
-                                        dayContent.taskInputTypes?.[i] ===
-                                        "tags";
-                                      const isNote =
-                                        dayContent.taskInputTypes?.[i] ===
-                                        "note";
-                                      const isMark =
-                                        dayContent.taskInputTypes?.[i] ===
-                                        "mark";
-                                      
-                                      let stepCompleted = isNote;
-                                      if (isMark) {
-                                        stepCompleted = val === "Completed";
-                                      } else if (!isNote && !!val) {
-                                        if (isTags || (dayContent.taskInputTypes?.[i] === "poll" && !!dayContent.taskPollMultiSelect?.[i])) {
-                                          stepCompleted = val !== "[]" && val !== "";
-                                        } else if (isLinkedTextStep(i)) {
-                                          const tags = getLinkedTagsForStep(i);
-                                          if (tags.length > 0) {
-                                            try {
-                                              if (val.startsWith("{")) {
-                                                const parsed = JSON.parse(val);
-                                                stepCompleted = tags.every(t => parsed[t] && parsed[t].trim().length > 0);
-                                              } else {
+                                    {i <
+                                      (dayContent.taskPrompts?.length || 0) - 1 &&
+                                      (() => {
+                                        const val = taskInputs[i];
+                                        const isTags =
+                                          dayContent.taskInputTypes?.[i] ===
+                                          "tags";
+                                        const isNote =
+                                          dayContent.taskInputTypes?.[i] ===
+                                          "note";
+                                        const isMark =
+                                          dayContent.taskInputTypes?.[i] ===
+                                          "mark";
+                                        
+                                        let stepCompleted = isNote;
+                                        if (isMark) {
+                                          stepCompleted = val === "Completed";
+                                        } else if (!isNote && !!val) {
+                                          if (isTags || (dayContent.taskInputTypes?.[i] === "poll" && !!dayContent.taskPollMultiSelect?.[i])) {
+                                            stepCompleted = val !== "[]" && val !== "";
+                                          } else if (isLinkedTextStep(i)) {
+                                            const tags = getLinkedTagsForStep(i);
+                                            if (tags.length > 0) {
+                                              try {
+                                                if (val.startsWith("{")) {
+                                                  const parsed = JSON.parse(val);
+                                                  stepCompleted = tags.every(t => parsed[t] && parsed[t].trim().length > 0);
+                                                } else {
+                                                  stepCompleted = false;
+                                                }
+                                              } catch (e) {
                                                 stepCompleted = false;
                                               }
-                                            } catch (e) {
-                                              stepCompleted = false;
+                                            } else {
+                                              stepCompleted = val.trim().length > 0;
                                             }
                                           } else {
                                             stepCompleted = val.trim().length > 0;
                                           }
-                                        } else {
-                                          stepCompleted = val.trim().length > 0;
                                         }
-                                      }
 
-                                      const isValid =
-                                        !!dayProgress?.completed || stepCompleted;
-                                      return (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            { saveParticipantInputImmediately(taskInputs); setActiveTaskIndex(i + 1); }
-                                          }
-                                          disabled={!isValid}
-                                          className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${isValid ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
-                                        >
-                                          Next
-                                        </button>
-                                      );
-                                    })()}
+                                        const isValid =
+                                          !!dayProgress?.completed || stepCompleted;
+                                        return (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              { saveParticipantInputImmediately(taskInputs); setActiveTaskIndex(i + 1); }
+                                            }
+                                            disabled={!isValid}
+                                            className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${isValid ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                          >
+                                            Next
+                                          </button>
+                                        );
+                                      })()}
+                                  </div>
+
+                                  {/* Pagination indicator below Back and Next, flowing with the page */}
+                                  {dayContent?.taskPrompts &&
+                                    dayContent.taskPrompts.length > 1 && (
+                                      <div className="flex justify-center items-center gap-2 mt-2 w-full">
+                                        {dayContent.taskPrompts.map((_, idx) => (
+                                          <button
+                                            type="button"
+                                            key={idx}
+                                            onClick={() => {
+                                              if (
+                                                dayProgress?.completed ||
+                                                idx < activeTaskIndex ||
+                                                idx === activeTaskIndex
+                                              ) {
+                                                saveParticipantInputImmediately(taskInputs);
+                                                setActiveTaskIndex(idx);
+                                              }
+                                            }}
+                                            className={`h-1.5 rounded-full transition-all duration-300 ${dayProgress?.completed || idx < activeTaskIndex ? "cursor-pointer" : "cursor-not-allowed"} ${idx === activeTaskIndex ? "w-8 bg-primary" : idx < activeTaskIndex ? "w-2 bg-primary/40 hover:bg-primary/60" : dayProgress?.completed ? "w-2 bg-primary/40 hover:bg-primary/60" : "w-2 bg-gray-200"}`}
+                                          />
+                                        ))}
+                                      </div>
+                                    )}
                                 </div>
                               )}
                               {isFullBleed && i === (dayContent.taskPrompts?.length || 1) - 1 && (
@@ -2441,13 +2471,32 @@ const SprintView: React.FC = () => {
                         </div>
 
                         <div className={isFullBleed ? "w-full max-w-4xl mx-auto space-y-6 flex flex-col relative" : "relative z-10"}>
-                          <SectionHeading>
+                          <SectionHeading showDot={!dayProgress?.completed}>
                             {isFullBleed ? (
                               <>Action Step 1</>
                             ) : (
                               "Today's Action Steps"
                             )}
                           </SectionHeading>
+
+                          {/* Progress Bar under Action Step header in Full Bleed */}
+                          {isFullBleed && (
+                            <div className="w-full mb-2 animate-fade-in font-sans -mt-2">
+                              <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.4em] text-[#0E7850] mb-2">
+                                <span className="flex items-center gap-2">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                  {dayProgress?.completed ? "100" : "0"}% Complete
+                                </span>
+                                <span className="font-bold">0 more steps to go</span>
+                              </div>
+                              <div className="w-full bg-emerald-500/10 rounded-full h-1.5 overflow-hidden shadow-inner font-sans">
+                                <div 
+                                  className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out animate-pulse" 
+                                  style={{ width: dayProgress?.completed ? "100%" : "50%" }}
+                                />
+                              </div>
+                            </div>
+                          )}
                         {dayContent?.taskNotes?.[0] && (
                           <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
                             <FormattedText text={dayContent.taskNotes[0]} />
@@ -2831,26 +2880,7 @@ const SprintView: React.FC = () => {
                               ) : taskInputs[0] || "Completed"}
                           </div>
                         )}
-                        {!dayProgress?.completed && (
-                          <div className="absolute top-6 right-16 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse z-40"></div>
-                        )}
-                        {isFullBleed && (
-                          <div className="w-full mt-8 animate-fade-in font-sans">
-                            <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.4em] text-[#0E7850] mb-2.5">
-                              <span className="flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                {dayProgress?.completed ? "100" : "0"}% Complete
-                              </span>
-                              <span className="font-bold">0 more steps to go</span>
-                            </div>
-                            <div className="w-full bg-emerald-500/10 rounded-full h-2 overflow-hidden shadow-inner font-sans">
-                              <div 
-                                className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out animate-pulse" 
-                                style={{ width: dayProgress?.completed ? "100%" : "50%" }}
-                              />
-                            </div>
-                          </div>
-                        )}
+                        {/* Removed absolute green dot and old bottom progress bar */}
                         {isFullBleed && (
                           <div className="mt-8 pt-6 border-t border-gray-100/50 flex flex-col gap-4">
                             {!dayProgress?.completed ? (
@@ -2872,27 +2902,7 @@ const SprintView: React.FC = () => {
                         </div>
                       </div>
                     )}
-                    {dayContent?.taskPrompts &&
-                      dayContent.taskPrompts.length > 1 && (
-                        <div className="flex justify-center items-center gap-2 mt-8">
-                          {dayContent.taskPrompts.map((_, idx) => (
-                            <button
-                              type="button"
-                              key={idx}
-                              onClick={() => {
-                                if (
-                                  dayProgress?.completed ||
-                                  idx < activeTaskIndex
-                                ) {
-                                  saveParticipantInputImmediately(taskInputs);
-                                  setActiveTaskIndex(idx);
-                                }
-                              }}
-                              className={`h-1.5 rounded-full transition-all duration-300 ${dayProgress?.completed || idx < activeTaskIndex ? "cursor-pointer" : "cursor-not-allowed"} ${idx === activeTaskIndex ? "w-8 bg-primary" : idx < activeTaskIndex ? "w-2 bg-primary/40 hover:bg-primary/60" : dayProgress?.completed ? "w-2 bg-primary/40 hover:bg-primary/60" : "w-2 bg-gray-200"}`}
-                            />
-                          ))}
-                        </div>
-                      )}
+
                         </>
                       );
                       return isFullBleed ? createPortal(
