@@ -1654,13 +1654,16 @@ const EditSprint: React.FC = () => {
                     <Button variant="secondary" onClick={handleSaveDraft} disabled={saveStatus === 'saving'} className="bg-white border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] rounded-xl px-6">
                       {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save Draft'}
                     </Button>
-                    {!isAdmin && !registryIncomplete && !curriculumIncomplete && (
+                    {!isAdmin && (
                         <Button 
                             onClick={handleSubmitForReview} 
                             isLoading={isSubmittingReview}
-                            disabled={isSubmittingReview} 
+                            disabled={isSubmittingReview || registryIncomplete || curriculumIncomplete} 
                             className="font-black uppercase tracking-widest text-[10px] rounded-xl px-6 animate-fade-in"
-                            title="Submit Review: Submit the fully completed curriculum to the Admin workspace for review and approval."
+                            title={registryIncomplete || curriculumIncomplete 
+                              ? `Cannot submit yet. Both registry details and curriculum content must be completely filled. (Registry: ${registryIncomplete ? 'Incomplete' : 'Complete'}, Curriculum: ${curriculumIncomplete ? 'Incomplete' : 'Complete'})`
+                              : "Submit Review: Submit the fully completed curriculum to the Admin workspace for review and approval."
+                            }
                         >
                         {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
                         </Button>
