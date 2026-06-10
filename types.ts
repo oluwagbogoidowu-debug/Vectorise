@@ -270,6 +270,7 @@ export interface DailyContent {
   taskPrompts?: string[];
   taskHints?: string[];
   taskInputTypes?: ('text' | 'tags' | 'poll' | 'note' | 'mark')[];
+  taskMultiTextLabels?: string[][];
   taskPollOptions?: string[];
   taskLinkedToNext?: boolean[];
   taskLinkedSources?: number[][];

@@ -934,6 +934,13 @@ const SprintView: React.FC = () => {
     return isText && getLinkedTagsForStep(stepIndex).length > 0;
   };
 
+  const isMultiTextStep = (stepIndex: number): boolean => {
+    if (!dayContent) return false;
+    const type = String(dayContent.taskInputTypes?.[stepIndex] || "").trim().toLowerCase();
+    const isText = type === "text" || type === "" || type === "undefined";
+    return isText && Array.isArray(dayContent.taskMultiTextLabels?.[stepIndex]) && dayContent.taskMultiTextLabels[stepIndex].length > 0;
+  };
+
   const dayProgress = enrollment?.progress?.find((p) => p.day === viewingDay);
 
   useEffect(() => {
@@ -1527,6 +1534,20 @@ const SprintView: React.FC = () => {
           }
         }
       }
+      
+      if (isMultiTextStep(i)) {
+        const labels = dayContent.taskMultiTextLabels?.[i] || [];
+        if (labels.length > 0) {
+          try {
+            if (!val.startsWith("{")) return false;
+            const parsed = JSON.parse(val);
+            return labels.every(lbl => parsed[lbl] && parsed[lbl].trim().length > 0);
+          } catch (e) {
+            return false;
+          }
+        }
+      }
+      
       return val.trim().length > 0;
     });
   }, [dayContent, taskInputs]);
@@ -2153,6 +2174,44 @@ const SprintView: React.FC = () => {
                                         );
                                       })}
                                     </div>
+                                  ) : isMultiTextStep(i) ? (
+                                    <div className="space-y-4 animate-fade-in text-left">
+                                      {(dayContent.taskMultiTextLabels?.[i] || []).map((lbl, lblIndex) => {
+                                        let currentAnswers: Record<string, string> = {};
+                                        if (taskInputs[i]) {
+                                          try {
+                                            if (taskInputs[i].startsWith("{")) {
+                                              currentAnswers = JSON.parse(taskInputs[i]);
+                                            } else {
+                                              currentAnswers = { [(dayContent.taskMultiTextLabels?.[i] || [])[0] || "default"]: taskInputs[i] };
+                                            }
+                                          } catch (e) {
+                                            currentAnswers = {};
+                                          }
+                                        }
+                                        const labelVal = currentAnswers[lbl] || "";
+                                        return (
+                                          <div key={lblIndex} className="space-y-1.5 pl-3 border-l-2 border-primary/20">
+                                            <div className="flex items-center">
+                                              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
+                                                📝 {lbl}
+                                              </span>
+                                            </div>
+                                            <AutoGrowingTextarea
+                                              value={labelVal}
+                                              onChange={(val) => {
+                                                const newAnswers = { ...currentAnswers, [lbl]: val };
+                                                const newInputs = [...taskInputs];
+                                                newInputs[i] = JSON.stringify(newAnswers);
+                                                setTaskInputs(newInputs);
+                                              }}
+                                              placeholder={`Your answer for ${lbl}...`}
+                                              className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                                            />
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
                                   ) : (
                                     <AutoGrowingTextarea
                                       value={taskInputs[i] || ""}
@@ -2204,6 +2263,26 @@ const SprintView: React.FC = () => {
                                               <div key={idx} className="flex flex-col gap-1 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary self-start uppercase tracking-wider">
                                                   🏷️ {tag}
+                                                </span>
+                                                <p className="text-gray-700 font-medium text-xs pl-1">
+                                                  {ans as string}
+                                                </p>
+                                              </div>
+                                            ));
+                                          } catch (e) {
+                                            return taskInputs[i];
+                                          }
+                                        })()}
+                                      </div>
+                                    ) : isMultiTextStep(i) && taskInputs[i]?.startsWith("{") ? (
+                                      <div className="space-y-2 w-full text-left font-medium animate-fade-in text-left">
+                                        {(() => {
+                                          try {
+                                            const parsed = JSON.parse(taskInputs[i]);
+                                            return Object.entries(parsed).map(([lbl, ans], idx) => (
+                                              <div key={idx} className="flex flex-col gap-1 border-b border-gray-100 pb-2 last:border-0 last:pb-0 text-left">
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary self-start uppercase tracking-wider">
+                                                  📝 {lbl}
                                                 </span>
                                                 <p className="text-gray-700 font-medium text-xs pl-1">
                                                   {ans as string}
@@ -2652,6 +2731,44 @@ const SprintView: React.FC = () => {
                                 )}
                               </button>
                             </div>
+                          ) : isMultiTextStep(0) ? (
+                            <div className="space-y-4 animate-fade-in text-left">
+                              {(dayContent?.taskMultiTextLabels?.[0] || []).map((lbl, lblIndex) => {
+                                let currentAnswers: Record<string, string> = {};
+                                if (taskInputs[0]) {
+                                  try {
+                                    if (taskInputs[0].startsWith("{")) {
+                                      currentAnswers = JSON.parse(taskInputs[0]);
+                                    } else {
+                                      currentAnswers = { [(dayContent?.taskMultiTextLabels?.[0] || [])[0] || "default"]: taskInputs[0] };
+                                    }
+                                  } catch (e) {
+                                    currentAnswers = {};
+                                  }
+                                }
+                                const labelVal = currentAnswers[lbl] || "";
+                                return (
+                                  <div key={lblIndex} className="space-y-1.5 pl-3 border-l-2 border-primary/20">
+                                    <div className="flex items-center">
+                                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
+                                        📝 {lbl}
+                                      </span>
+                                    </div>
+                                    <AutoGrowingTextarea
+                                      value={labelVal}
+                                      onChange={(val) => {
+                                        const newAnswers = { ...currentAnswers, [lbl]: val };
+                                        const newInputs = [...taskInputs];
+                                        newInputs[0] = JSON.stringify(newAnswers);
+                                        setTaskInputs(newInputs);
+                                      }}
+                                      placeholder={`Your answer for ${lbl}...`}
+                                      className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
                           ) : (
                             <AutoGrowingTextarea
                               value={taskInputs[0] || ""}
@@ -2691,7 +2808,27 @@ const SprintView: React.FC = () => {
                                     {tag}
                                   </span>
                                 ))
-                              : taskInputs[0] || "Completed"}
+                              : isMultiTextStep(0) && taskInputs[0]?.startsWith("{") ? (
+                                <div className="space-y-2 w-full text-left font-medium animate-fade-in">
+                                  {(() => {
+                                    try {
+                                      const parsed = JSON.parse(taskInputs[0]);
+                                      return Object.entries(parsed).map(([lbl, ans], idx) => (
+                                        <div key={idx} className="flex flex-col gap-1 border-b border-gray-100 pb-2 last:border-0 last:pb-0 text-left">
+                                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary self-start uppercase tracking-wider">
+                                            📝 {lbl}
+                                          </span>
+                                          <p className="text-gray-700 font-medium text-xs pl-1">
+                                            {ans as string}
+                                          </p>
+                                        </div>
+                                      ));
+                                    } catch (e) {
+                                      return taskInputs[0];
+                                    }
+                                  })()}
+                                </div>
+                              ) : taskInputs[0] || "Completed"}
                           </div>
                         )}
                         {!dayProgress?.completed && (

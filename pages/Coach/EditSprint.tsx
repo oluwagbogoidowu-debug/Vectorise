@@ -9,7 +9,7 @@ import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtil
 import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft } from 'lucide-react';
+import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers } from 'lucide-react';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import FormattedText from '../../components/FormattedText';
@@ -663,6 +663,10 @@ const EditSprint: React.FC = () => {
       ? (content as any).taskPollMultiSelect
       : [];
 
+    const safeMultiTextLabels = Array.isArray((content as any).taskMultiTextLabels)
+      ? (content as any).taskMultiTextLabels
+      : [];
+
     return {
         ...content,
         taskPrompts: paddedPrompts,
@@ -670,7 +674,8 @@ const EditSprint: React.FC = () => {
         taskNotes: safeNotes,
         taskTagNotes: safeTagNotes,
         taskFootnotes: safeFootnotes,
-        taskPollMultiSelect: safePollMultiSelect
+        taskPollMultiSelect: safePollMultiSelect,
+        taskMultiTextLabels: safeMultiTextLabels
     };
   }, [sprint, selectedDay]);
 
@@ -827,6 +832,40 @@ const EditSprint: React.FC = () => {
             taskPrompt: '',
             taskPrompts: ['', '', ''],
             taskFootnotes: currentFootnotes,
+          });
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTaskMultiTextLabelsChange = (index: number, values: string[]) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        
+        const currentLabels = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskMultiTextLabels || [])]
+            : [];
+        
+        while (currentLabels.length <= index) {
+            currentLabels.push(null as any);
+        }
+        currentLabels[index] = values;
+        
+        if (existingContentIndex >= 0) {
+          updatedDailyContent[existingContentIndex] = { 
+              ...updatedDailyContent[existingContentIndex], 
+              taskMultiTextLabels: currentLabels,
+          };
+        } else {
+          updatedDailyContent.push({
+            day: selectedDay,
+            lessonText: '',
+            taskPrompt: '',
+            taskPrompts: ['', '', ''],
+            taskMultiTextLabels: currentLabels,
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -1217,6 +1256,10 @@ const EditSprint: React.FC = () => {
         let currentFootnotes = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskFootnotes || [])]
             : [];
+
+        let currentMultiTextLabels = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskMultiTextLabels || [])]
+            : [];
             
         currentPrompts.push('');
         currentTypes.push('text');
@@ -1224,6 +1267,7 @@ const EditSprint: React.FC = () => {
         currentNotes.push(null as any);
         currentTagNotes.push('{}');
         currentFootnotes.push(null as any);
+        currentMultiTextLabels.push(null as any);
         
         if (existingContentIndex >= 0) {
           updatedDailyContent[existingContentIndex] = { 
@@ -1233,7 +1277,8 @@ const EditSprint: React.FC = () => {
               taskPollOptions: currentOptions,
               taskNotes: currentNotes,
               taskTagNotes: currentTagNotes,
-              taskFootnotes: currentFootnotes
+              taskFootnotes: currentFootnotes,
+              taskMultiTextLabels: currentMultiTextLabels
           };
         } else {
           updatedDailyContent.push({
@@ -1245,7 +1290,8 @@ const EditSprint: React.FC = () => {
             taskPollOptions: currentOptions,
             taskNotes: currentNotes,
             taskTagNotes: currentTagNotes,
-            taskFootnotes: currentFootnotes
+            taskFootnotes: currentFootnotes,
+            taskMultiTextLabels: currentMultiTextLabels
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -1292,6 +1338,10 @@ const EditSprint: React.FC = () => {
         let currentFootnotes = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskFootnotes || [])]
             : [];
+
+        let currentMultiTextLabels = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskMultiTextLabels || [])]
+            : [];
             
         let deleteCount = 1;
         if (currentLinked[index]) {
@@ -1306,6 +1356,7 @@ const EditSprint: React.FC = () => {
         while (currentNotes.length < maxNeeded) currentNotes.push(null as any);
         while (currentTagNotes.length < maxNeeded) currentTagNotes.push('{}');
         while (currentFootnotes.length < maxNeeded) currentFootnotes.push(null as any);
+        while (currentMultiTextLabels.length < maxNeeded) currentMultiTextLabels.push(null as any);
 
         let currentLinkedSources = existingContentIndex >= 0 && Array.isArray(updatedDailyContent[existingContentIndex].taskLinkedSources)
             ? updatedDailyContent[existingContentIndex].taskLinkedSources.map(sources => Array.isArray(sources) ? [...sources] : [])
@@ -1327,6 +1378,7 @@ const EditSprint: React.FC = () => {
         currentNotes.splice(index, deleteCount);
         currentTagNotes.splice(index, deleteCount);
         currentFootnotes.splice(index, deleteCount);
+        currentMultiTextLabels.splice(index, deleteCount);
         
         if (index > 0 && currentLinked.length >= index && currentLinked[index - 1]) {
             currentLinked[index - 1] = false;
@@ -1343,6 +1395,7 @@ const EditSprint: React.FC = () => {
             currentNotes.push(null as any);
             currentTagNotes.push('{}');
             currentFootnotes.push(null as any);
+            currentMultiTextLabels.push(null as any);
             currentLinkedSources.push([]);
         }
         
@@ -1361,6 +1414,7 @@ const EditSprint: React.FC = () => {
               taskNotes: currentNotes,
               taskTagNotes: currentTagNotes,
               taskFootnotes: currentFootnotes,
+              taskMultiTextLabels: currentMultiTextLabels,
               taskLinkedSources: currentLinkedSources
           };
         } else {
@@ -1376,6 +1430,7 @@ const EditSprint: React.FC = () => {
             taskNotes: currentNotes,
             taskTagNotes: currentTagNotes,
             taskFootnotes: currentFootnotes,
+            taskMultiTextLabels: currentMultiTextLabels,
             taskLinkedSources: currentLinkedSources
           });
         }
@@ -2149,6 +2204,33 @@ const EditSprint: React.FC = () => {
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
+                                                    {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && (
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const currentLabels = currentContent.taskMultiTextLabels?.[index];
+                                                                if (!currentLabels || currentLabels.length === 0) {
+                                                                    handleTaskMultiTextLabelsChange(index, ['Label 1']);
+                                                                } else {
+                                                                    handleTaskMultiTextLabelsChange(index, null as any);
+                                                                }
+                                                            }}
+                                                            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0) ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                            title="Multi Text Option: Add multiple labeled text inputs for participants to answer contextually."
+                                                        >
+                                                            {(currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0) ? (
+                                                                <>
+                                                                    <span className="text-[10px] text-primary mr-0.5">●</span>
+                                                                    <span>Multi Text</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Plus size={14} />
+                                                                    <span>Multi Text</span>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    )}
                                                     <button 
                                                         type="button"
                                                         onClick={() => {
@@ -2419,6 +2501,59 @@ const EditSprint: React.FC = () => {
                                                         className={editorInputClasses + " p-4 !py-3 w-full border-indigo-100 bg-indigo-50/20 text-gray-700"} 
                                                         placeholder="Add a footnote to show just below the question..." 
                                                     />
+                                                </div>
+                                            )}
+                                            {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0 && (
+                                                <div className="mt-3 pl-2 border-l-2 border-primary/20 space-y-2 animate-fade-in text-left">
+                                                    <div className="bg-primary/5 rounded-xl p-3 border border-primary/10 mb-2">
+                                                        <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                                                            <Layers size={14} />
+                                                            <span>Configure labels for the Multi-Text fields that participants can fill contextually.</span>
+                                                        </p>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        {currentContent.taskMultiTextLabels[index].map((lbl, lblIndex) => (
+                                                            <div key={lblIndex} className="flex gap-2 items-center group/lbl">
+                                                                <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-100 text-gray-400 text-[10px] font-bold shrink-0">
+                                                                    {lblIndex + 1}
+                                                                </div>
+                                                                <input 
+                                                                    type="text"
+                                                                    value={lbl}
+                                                                    onChange={(e) => {
+                                                                        const updatedLabels = [...(currentContent.taskMultiTextLabels?.[index] || [])];
+                                                                        updatedLabels[lblIndex] = e.target.value;
+                                                                        handleTaskMultiTextLabelsChange(index, updatedLabels);
+                                                                    }}
+                                                                    className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                                                                    placeholder={`Label for Field ${lblIndex + 1}...`}
+                                                                />
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const updatedLabels = (currentContent.taskMultiTextLabels?.[index] || []).filter((_, lIdx) => lIdx !== lblIndex);
+                                                                        handleTaskMultiTextLabelsChange(index, updatedLabels.length === 0 ? null as any : updatedLabels);
+                                                                    }}
+                                                                    className="p-1 px-1.5 text-gray-400 hover:text-red-500 rounded-lg transition-all"
+                                                                    title="Remove label field"
+                                                                >
+                                                                    <Trash2 size={13} strokeWidth={2} />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const updatedLabels = [...(currentContent.taskMultiTextLabels?.[index] || [])];
+                                                                updatedLabels.push(`Label ${updatedLabels.length + 1}`);
+                                                                handleTaskMultiTextLabelsChange(index, updatedLabels);
+                                                            }}
+                                                            className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-primary bg-primary/5 hover:bg-primary/10 border border-primary/10 hover:border-primary/20 rounded-lg transition-all cursor-pointer mt-1"
+                                                        >
+                                                            <Plus size={12} strokeWidth={2} />
+                                                            <span>Add Field Label</span>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             )}
                                             {currentContent.taskInputTypes?.[index] === 'poll' && (
