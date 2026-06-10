@@ -156,9 +156,9 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                 <div className="p-4 flex flex-col flex-grow">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span className="px-2 py-0.5 rounded-md bg-gray-50 border border-gray-100 text-gray-400 text-[8px] font-black uppercase tracking-[0.25em]">{sprint.category}</span>
-                        {sprint.audience && sprint.audience.length > 0 && (
-                            <span className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-primary text-[8px] font-black uppercase tracking-[0.25em] truncate max-w-[150px]" title={sprint.audience.join(", ")}>
-                                {sprint.audience[0]} {sprint.audience.length > 1 ? `+${sprint.audience.length - 1}` : ''}
+                        {(sprint.sprintType || (sprint.audience && sprint.audience.length > 0)) && (
+                            <span className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-primary text-[8px] font-black uppercase tracking-[0.25em] truncate max-w-[150px]" title={sprint.sprintType || sprint.audience?.join(", ")}>
+                                {sprint.sprintType || sprint.audience?.[0]}
                             </span>
                         )}
                     </div>

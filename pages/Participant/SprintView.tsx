@@ -1967,13 +1967,9 @@ const SprintView: React.FC = () => {
                                       customOptions = customOptions.filter(Boolean);
 
                                       // If Tag Note is ON, it does NOT receive tags. The poll acts like standard default.
-                                       if (dayContent.taskTagNoteActive?.[i]) {
-                                         pollOptions = customOptions;
-                                       } else {
-                                         // If Tag Note is OFF, merge the dynamic tags from previous steps as choices
-                                         const linkedTags = getLinkedTagsForStep(i);
-                                         pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
-                                       }
+                                      // Always merge the dynamic tags from previous steps as choices, regardless of Tag Note active state
+                                      const linkedTags = getLinkedTagsForStep(i);
+                                      pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
 
                                       // MULTI-SELECT SUPPORTED
                                       const isMultiSelect = !!dayContent.taskPollMultiSelect?.[i];

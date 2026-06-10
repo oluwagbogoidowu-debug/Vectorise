@@ -1202,6 +1202,38 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
+  const handleClearSourceLinks = (stepIndex: number) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        if (existingContentIndex < 0) return prev;
+        
+        let updatedDailyContent = [...prev.dailyContent];
+        let currentSources = Array.isArray(updatedDailyContent[existingContentIndex].taskLinkedSources)
+            ? [...(updatedDailyContent[existingContentIndex].taskLinkedSources || [])]
+            : [];
+        
+        while (currentSources.length <= stepIndex) {
+            currentSources.push([]);
+        }
+        
+        currentSources[stepIndex] = [];
+        
+        let currentTypes = [...(updatedDailyContent[existingContentIndex].taskInputTypes || [])];
+        if (currentTypes[stepIndex] === 'poll') {
+            currentTypes[stepIndex] = 'tags';
+        }
+
+        updatedDailyContent[existingContentIndex] = {
+            ...updatedDailyContent[existingContentIndex],
+            taskLinkedSources: currentSources,
+            taskInputTypes: currentTypes
+        };
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
   const handleTogglePollMultiSelect = (index: number) => {
     setSprint(prev => {
         if (!prev) return null;
@@ -2322,6 +2354,16 @@ const EditSprint: React.FC = () => {
                                                         <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-xl animate-fade-in relative z-30 space-y-3 text-left">
                                                             <div className="text-[10px] font-black text-gray-500 uppercase tracking-wider flex items-center justify-between">
                                                                 <span>Link this question to receive tags/options from preceding steps:</span>
+                                                                {((currentContent.taskLinkedSources?.[index]?.length || 0) > 0) && (
+                                                                    <button 
+                                                                        type="button" 
+                                                                        onClick={() => handleClearSourceLinks(index)}
+                                                                        className="text-red-500 hover:text-red-700 text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ml-auto mr-4"
+                                                                        title="Clear all links: Disconnect all linked dynamic source steps from this question."
+                                                                    >
+                                                                        ✕ Clear links
+                                                                    </button>
+                                                                )}
                                                                 <button 
                                                                     type="button" 
                                                                     onClick={() => setActiveLinkSelectorIndex(null)}
