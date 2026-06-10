@@ -238,8 +238,14 @@ const SprintPreview: React.FC = () => {
                 if (srcIndex >= 0 && srcIndex < taskInputs.length && taskInputs[srcIndex]) {
                     try {
                         const val = taskInputs[srcIndex];
-                        const tags = val.startsWith("[") ? JSON.parse(val) : val.split(",").filter(Boolean);
-                        allTags.push(...tags);
+                        const srcType = String(day1Content.taskInputTypes?.[srcIndex] || "").trim().toLowerCase();
+                        if (val.startsWith("[")) {
+                            allTags.push(...JSON.parse(val));
+                        } else if (srcType === "poll") {
+                            allTags.push(val);
+                        } else {
+                            allTags.push(...val.split(",").filter(Boolean));
+                        }
                     } catch (e) {
                         console.error("Error parsing tags for source in preview", srcIndex, e);
                     }
@@ -258,7 +264,7 @@ const SprintPreview: React.FC = () => {
                 const inputType = String(
                     day1Content.taskInputTypes?.[prevIndex] || ""
                 ).trim().toLowerCase();
-                if (inputType === "tags") {
+                if (inputType === "tags" || inputType === "poll") {
                     linkedSourceIndex = prevIndex;
                     break;
                 }
@@ -270,7 +276,7 @@ const SprintPreview: React.FC = () => {
                 const inputType = String(
                     day1Content.taskInputTypes?.[prevIndex] || ""
                 ).trim().toLowerCase();
-                if (inputType === "tags") {
+                if (inputType === "tags" || inputType === "poll") {
                     linkedSourceIndex = prevIndex;
                     break;
                 }
@@ -280,8 +286,11 @@ const SprintPreview: React.FC = () => {
         if (linkedSourceIndex !== -1 && taskInputs[linkedSourceIndex]) {
             try {
                 const val = taskInputs[linkedSourceIndex];
+                const srcType = String(day1Content.taskInputTypes?.[linkedSourceIndex] || "").trim().toLowerCase();
                 if (val.startsWith("[")) {
                     return JSON.parse(val);
+                } else if (srcType === "poll") {
+                    return [val];
                 } else {
                     return val.split(",").filter(Boolean);
                 }
@@ -676,7 +685,7 @@ const SprintPreview: React.FC = () => {
                                                     if (isMark) {
                                                         isValid = val === "Completed";
                                                     } else if (!isNote && val) {
-                                                        if (isTags) {
+                                                        if (isTags || (day1Content?.taskInputTypes?.[i] === "poll" && !!day1Content?.taskPollMultiSelect?.[i])) {
                                                             isValid = val !== "[]" && val !== "";
                                                         } else if (isLinkedTextStep(i)) {
                                                             const tags = getLinkedTagsForStep(i);

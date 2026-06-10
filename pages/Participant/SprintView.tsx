@@ -938,6 +938,7 @@ const SprintView: React.FC = () => {
 
   useEffect(() => {
     if (!enrollmentId) return;
+    let unsubSprint: (() => void) | undefined;
     const unsubscribe = sprintService.subscribeToEnrollment(
       enrollmentId,
       async (data) => {
@@ -949,9 +950,12 @@ const SprintView: React.FC = () => {
           if (data.notificationsDisabled !== undefined) {
             setNotificationsEnabled(!data.notificationsDisabled);
           }
-          if (!sprint) {
-            const found = await sprintService.getSprintById(data.sprint_id);
-            setSprint(found);
+          if (!unsubSprint) {
+            unsubSprint = sprintService.subscribeToSprint(data.sprint_id, (found) => {
+              if (found) {
+                setSprint(found);
+              }
+            });
 
             // Handle deep linking from query params
             const params = new URLSearchParams(location.search);
@@ -975,8 +979,11 @@ const SprintView: React.FC = () => {
         }
       },
     );
-    return () => unsubscribe();
-  }, [enrollmentId, sprint, location.search]);
+    return () => {
+      unsubscribe();
+      if (unsubSprint) unsubSprint();
+    };
+  }, [enrollmentId, location.search]);
 
   // Clean viewport body scroll locking for full-bleed focus mode
   useEffect(() => {
@@ -2273,7 +2280,7 @@ const SprintView: React.FC = () => {
                                       if (isMark) {
                                         stepCompleted = val === "Completed";
                                       } else if (!isNote && !!val) {
-                                        if (isTags) {
+                                        if (isTags || (dayContent.taskInputTypes?.[i] === "poll" && !!dayContent.taskPollMultiSelect?.[i])) {
                                           stepCompleted = val !== "[]" && val !== "";
                                         } else if (isLinkedTextStep(i)) {
                                           const tags = getLinkedTagsForStep(i);
