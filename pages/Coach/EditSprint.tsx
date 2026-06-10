@@ -1818,7 +1818,7 @@ const EditSprint: React.FC = () => {
                                     <div>
                                         <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
                                             <BookOpen className="text-primary" size={16} />
-                                            Mirror Report Setup
+                                            Rise Report Setup
                                         </h3>
                                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Configure Reflection Cards</p>
                                     </div>
@@ -1928,7 +1928,7 @@ const EditSprint: React.FC = () => {
                                         type="button"
                                         onClick={() => setShowMirrorPreview(true)}
                                         className="p-1.5 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-100/80 hover:text-amber-700 border border-amber-150 transition-all flex items-center justify-center shadow-sm shrink-0 cursor-pointer"
-                                        title="Preview Participant Mirror Report Pop-up: Test and verify how the end-of-day summary presents responses to participants."
+                                        title="Preview Participant Rise Report Pop-up: Test and verify how the end-of-day summary presents responses to participants."
                                     >
                                         <Eye size={13} />
                                     </button>
@@ -1936,10 +1936,10 @@ const EditSprint: React.FC = () => {
                                         type="button"
                                         onClick={() => setSetupView('mirror')}
                                         className="px-2.5 py-1.5 rounded-xl bg-gray-50 text-gray-500 hover:bg-primary/10 hover:text-primary border border-gray-100 transition-all flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer text-[10px] font-black uppercase tracking-wider"
-                                        title="Configure Mirror Report: Set up statements and phrasing that frame daily outputs inside the participant's Mirror Report."
+                                        title="Configure Rise Report: Set up statements and phrasing that frame daily outputs inside the participant's Rise Report."
                                     >
                                         <BookOpen size={13} className="text-primary/70" />
-                                        <span>Mirror Report</span>
+                                        <span>Rise Report</span>
                                     </button>
                                 </div>
                             </div>
@@ -3387,6 +3387,7 @@ const EditSprint: React.FC = () => {
         onClose={() => setShowMirrorPreview(false)} 
         day={selectedDay} 
         dayContent={currentContent} 
+        totalDays={sprint?.duration}
       />
     </ErrorBoundary>
   );
@@ -3398,12 +3399,12 @@ interface CoachMirrorPreviewModalProps {
   onClose: () => void;
   day: number;
   dayContent: any;
+  totalDays?: number;
 }
 
-const CoachMirrorPreviewModal: React.FC<CoachMirrorPreviewModalProps> = ({ isOpen, onClose, day, dayContent }) => {
+const CoachMirrorPreviewModal: React.FC<CoachMirrorPreviewModalProps> = ({ isOpen, onClose, day, dayContent, totalDays }) => {
   if (!isOpen) return null;
 
-  const introText = dayContent?.mirrorIntro || "Here is a mirror of your reflections and alignments from today's sprint action steps:";
   const prompts = dayContent?.taskPrompts || [dayContent?.taskPrompt || ''];
 
   const getDummyAnswerForStep = (i: number) => {
@@ -3464,8 +3465,10 @@ const CoachMirrorPreviewModal: React.FC<CoachMirrorPreviewModalProps> = ({ isOpe
               </svg>
             </div>
             <div>
-              <h3 className="text-2xl font-black text-gray-900 tracking-tight">Your Mirror Report</h3>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-0.5">Day {day} Reflection & Alignment</p>
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight">Rise Report</h2>
+              <p className="text-[10px] font-semibold text-gray-400 tracking-wide mt-1 normal-case">
+                Revise on day {day} of {totalDays || 5} sprint for intentional progress
+              </p>
             </div>
           </div>
           <button 
@@ -3477,17 +3480,6 @@ const CoachMirrorPreviewModal: React.FC<CoachMirrorPreviewModalProps> = ({ isOpe
             <X size={15} />
             <span>Close</span>
           </button>
-        </div>
-
-        {/* Coach Intro Text */}
-        <div className="mb-6 bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/10">
-          <p className="text-xs font-black text-emerald-800 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            Coach Note
-          </p>
-          <div className="text-gray-700 text-sm font-semibold leading-relaxed">
-            <FormattedText text={introText} />
-          </div>
         </div>
 
         {/* Steps and responses */}

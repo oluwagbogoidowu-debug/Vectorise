@@ -79,9 +79,10 @@ interface MirrorReportModalProps {
   day: number;
   dayContent: any;
   answers: string[];
+  totalDays?: number;
 }
 
-const MirrorReportModal: React.FC<MirrorReportModalProps> = ({ isOpen, onClose, day, dayContent, answers }) => {
+const MirrorReportModal: React.FC<MirrorReportModalProps> = ({ isOpen, onClose, day, dayContent, answers, totalDays }) => {
   if (!isOpen) return null;
 
   const introText = dayContent?.mirrorIntro || "Here is a mirror of your reflections and alignments from today's sprint action steps:";
@@ -121,21 +122,14 @@ const MirrorReportModal: React.FC<MirrorReportModalProps> = ({ isOpen, onClose, 
             </svg>
           </div>
           <div>
-            <h3 className="text-2xl font-black text-gray-900 tracking-tight">Your Mirror Report</h3>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-0.5">Day {day} Reflection & Alignment</p>
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight">Rise Report</h2>
+            <p className="text-[10px] font-semibold text-gray-400 tracking-wide mt-1 normal-case">
+              Revise on day {day} of {totalDays || 5} sprint for intentional progress
+            </p>
           </div>
         </div>
 
-        {/* Coach Intro Text */}
-        <div className="mb-6 bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/10">
-          <p className="text-xs font-black text-emerald-800 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            Coach Note
-          </p>
-          <p className="text-gray-750 text-sm font-semibold leading-relaxed">
-            {introText}
-          </p>
-        </div>
+
 
         {/* Steps and responses */}
         <div className="space-y-6 flex-1 pr-1 overflow-y-auto">
@@ -2943,7 +2937,7 @@ const SprintView: React.FC = () => {
                           className="w-full py-4.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] text-center border border-emerald-100 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
                         >
                           <BookOpen className="w-4 h-4 text-emerald-650 shrink-0" size={16} />
-                          Submitted version
+                          Rise Report
                         </button>
                       )}
 
@@ -3139,6 +3133,7 @@ const SprintView: React.FC = () => {
         day={viewingDay}
         dayContent={dayContent}
         answers={taskInputs}
+        totalDays={sprint?.duration}
       />
       <SprintCompletionModal
         isOpen={isCompletionModalOpen}
