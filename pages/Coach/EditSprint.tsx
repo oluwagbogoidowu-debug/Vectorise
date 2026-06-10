@@ -235,6 +235,78 @@ const EditSprint: React.FC = () => {
 
   const canEditDirectly = !isAdmin || isAdmin; // Admins should always be able to edit directly if they choose
 
+  const mergeUserEditsWithLatestDb = (
+    original: Sprint,
+    userUpdated: Sprint,
+    latestDb: Sprint
+  ): Sprint => {
+    const finalSprint = { ...latestDb };
+
+    const topFields: (keyof Sprint)[] = [
+      'title', 'subtitle', 'coverImageUrl', 'transformation', 'description', 
+      'category', 'difficulty', 'overrideOrchestrator', 'price', 'currency', 'pointCost', 
+      'pricingType', 'duration', 'protocol', 'outcomeTag', 'checkInReminder', 'checkInReminderDays',
+      'approvalStatus', 'published'
+    ];
+
+    topFields.forEach(f => {
+      const origVal = original[f];
+      const userVal = userUpdated[f];
+      const isMutated = JSON.stringify(sanitizeData(origVal)) !== JSON.stringify(sanitizeData(userVal));
+      if (isMutated) {
+        (finalSprint as any)[f] = userVal;
+      }
+    });
+
+    const listFields: (keyof Sprint)[] = ['forWho', 'notForWho', 'outcomes'];
+    listFields.forEach(f => {
+      const origVal = original[f];
+      const userVal = userUpdated[f];
+      const isMutated = JSON.stringify(sanitizeData(origVal)) !== JSON.stringify(sanitizeData(userVal));
+      if (isMutated) {
+        (finalSprint as any)[f] = userVal;
+      }
+    });
+
+    if (JSON.stringify(sanitizeData(original.methodSnapshot)) !== JSON.stringify(sanitizeData(userUpdated.methodSnapshot))) {
+      finalSprint.methodSnapshot = userUpdated.methodSnapshot;
+    }
+
+    if (JSON.stringify(sanitizeData(original.dynamicSections)) !== JSON.stringify(sanitizeData(userUpdated.dynamicSections))) {
+      finalSprint.dynamicSections = userUpdated.dynamicSections;
+    }
+
+    const originalDaily = Array.isArray(original.dailyContent) ? original.dailyContent : [];
+    const userDaily = Array.isArray(userUpdated.dailyContent) ? userUpdated.dailyContent : [];
+    const dbDaily = Array.isArray(latestDb.dailyContent) ? latestDb.dailyContent : [];
+
+    const finalDaily = [...dbDaily];
+
+    userDaily.forEach(userDay => {
+      const dayNum = userDay.day;
+      const origDay = originalDaily.find(d => d.day === dayNum);
+      const dbDayIdx = finalDaily.findIndex(d => d.day === dayNum);
+
+      const isModified = !origDay || JSON.stringify(sanitizeData(origDay)) !== JSON.stringify(sanitizeData(userDay));
+
+      if (isModified) {
+        if (dbDayIdx >= 0) {
+          finalDaily[dbDayIdx] = { ...userDay };
+        } else {
+          finalDaily.push({ ...userDay });
+        }
+      }
+    });
+
+    if (finalSprint.duration && finalDaily.length > finalSprint.duration) {
+      finalSprint.dailyContent = finalDaily.slice(0, finalSprint.duration);
+    } else {
+      finalSprint.dailyContent = finalDaily;
+    }
+
+    return finalSprint;
+  };
+
   const backgroundSaveDraft = async (currentSprint: Sprint, currentOriginal: Sprint) => {
     if (!currentSprint || !currentOriginal) return;
     setSaveStatus('saving');
@@ -247,21 +319,18 @@ const EditSprint: React.FC = () => {
         return;
       }
       
+      const latestDb = await sprintService.getSprintById(currentSprint.id) || currentSprint;
       let updatedSprintData: any = {};
 
       if (isDirectPush) {
-          // Apply all changes directly to the main document
-          updatedSprintData = { ...changes };
+          updatedSprintData = mergeUserEditsWithLatestDb(currentOriginal, currentSprint, latestDb);
 
           if (isAdmin && isFoundational) {
               updatedSprintData.published = true;
               updatedSprintData.approvalStatus = 'approved';
           }
       } else {
-          // Review flow: load the latest document version to preserve other fields
-          const latestSprint = await sprintService.getSprintById(currentSprint.id);
-          const existingPendingChanges = latestSprint?.pendingChanges || {};
-          
+          const existingPendingChanges = latestDb?.pendingChanges || {};
           updatedSprintData = {
               pendingChanges: {
                   ...existingPendingChanges,
@@ -276,7 +345,6 @@ const EditSprint: React.FC = () => {
 
       await sprintService.updateSprint(currentSprint.id, updatedSprintData, isAdmin);
       
-      // Update our baseline state to match currentSprint so further diffs are clean
       setOriginalSprint({ ...currentSprint });
 
       setSaveStatus('saved');
@@ -1480,31 +1548,32 @@ const EditSprint: React.FC = () => {
         const updatedLocalSprint = { ...sprint, ...updatedSprintData as any };
         const isDraft = sprint.approvalStatus === 'draft';
         const isDirectPush = isDraft || isAdmin;
-        const changes = getPendingChanges(originalSprint, updatedLocalSprint);
         
+        const latestDb = await sprintService.getSprintById(sprint.id) || sprint;
         let persistenceData: any = {};
 
         if (isDirectPush) {
-            // Apply all changes directly to the main document
-            persistenceData = { ...updatedSprintData };
+            persistenceData = mergeUserEditsWithLatestDb(originalSprint, updatedLocalSprint, latestDb);
 
             if (isAdmin && isFoundational) {
                 persistenceData.published = true;
                 persistenceData.approvalStatus = 'approved';
             }
         } else {
-            // If it's already approved/pending, save to pendingChanges
+            const changes = getPendingChanges(originalSprint, updatedLocalSprint);
+            const existingPendingChanges = latestDb?.pendingChanges || {};
             persistenceData = {
-                pendingChanges: changes
+                pendingChanges: {
+                    ...existingPendingChanges,
+                    ...changes
+                }
             };
         }
 
         await sprintService.updateSprint(sprint.id, persistenceData, isAdmin);
         
         setSprint(updatedLocalSprint);
-        if (isDirectPush) {
-            setOriginalSprint(updatedLocalSprint);
-        }
+        setOriginalSprint(updatedLocalSprint);
         setSettingsSaveStatus('saved');
         
         // Confirmation Popup
