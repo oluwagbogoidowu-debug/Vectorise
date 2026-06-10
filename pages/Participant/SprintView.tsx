@@ -26,7 +26,7 @@ import ConfirmModal from "../../components/ConfirmModal";
 import { Participant } from "../../types";
 
 import { PushToggle } from "../../components/PushToggle";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Maximize2, Minimize2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { createPortal } from "react-dom";
 
@@ -1777,40 +1777,18 @@ const SprintView: React.FC = () => {
                                   className="p-2 rounded-xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-sm transition-all cursor-pointer flex items-center justify-center active:scale-95"
                                   title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
                                 >
-                                  <svg 
-                                    xmlns="http://www.w3.org/2000/svg" 
-                                    className={`h-4.5 w-4.5 transition-transform duration-300 ${isFullBleed ? 'rotate-180' : ''}`} 
-                                    fill="none" 
-                                    viewBox="0 0 24 24" 
-                                    stroke="currentColor"
-                                  >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 19V5m0 0l-7 7m7-7l7 7" />
-                                  </svg>
+                                  {isFullBleed ? (
+                                    <Minimize2 className="h-4 w-4" />
+                                  ) : (
+                                    <Maximize2 className="h-4 w-4" />
+                                  )}
                                 </button>
                               </div>
 
                               <div className={isFullBleed ? "w-full max-w-4xl mx-auto space-y-6 flex flex-col relative" : "relative z-10"}>
                                 <SectionHeading>
-                                  Action Step <strong className="font-bold">↗</strong> {i + 1}
+                                  Action Step {i + 1}
                                 </SectionHeading>
-
-                                {isFullBleed && (
-                                  <div className="w-full mb-8">
-                                    <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-emerald-600 mb-2.5">
-                                      <span className="flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                        Momentum Monitor: Step {i + 1} of {dayContent?.taskPrompts?.length || 1}
-                                      </span>
-                                      <span className="font-bold">{Math.round(((i) / (dayContent?.taskPrompts?.length || 1)) * 100)}% Complete</span>
-                                    </div>
-                                    <div className="w-full bg-emerald-500/10 rounded-full h-2 overflow-hidden shadow-inner font-sans">
-                                      <div 
-                                        className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out animate-pulse" 
-                                        style={{ width: `${((i + 1) / (dayContent?.taskPrompts?.length || 1)) * 100}%` }}
-                                      />
-                                    </div>
-                                  </div>
-                                )}
 
                               {dayContent?.taskNotes?.[i] && (
                                 <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
@@ -2245,6 +2223,23 @@ const SprintView: React.FC = () => {
                               {!dayProgress?.completed && (
                                 <div className="absolute top-6 right-16 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse z-40"></div>
                               )}
+                              {isFullBleed && (
+                                <div className="w-full mt-8 mb-4 animate-fade-in font-sans">
+                                  <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.4em] text-emerald-600 mb-2.5">
+                                    <span className="flex items-center gap-2">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                      {Math.round((i / (dayContent?.taskPrompts?.length || 1)) * 100)}% Complete
+                                    </span>
+                                    <span className="font-bold">{(dayContent?.taskPrompts?.length || 1) - (i + 1)} more steps to go</span>
+                                  </div>
+                                  <div className="w-full bg-emerald-500/10 rounded-full h-2 overflow-hidden shadow-inner font-sans">
+                                    <div 
+                                      className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out animate-pulse" 
+                                      style={{ width: `${((i + 1) / (dayContent?.taskPrompts?.length || 1)) * 100}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
                               {i === activeTaskIndex && (
                                 <div className="mt-4 flex justify-between items-center gap-4">
                                   {i > 0 ? (
@@ -2358,44 +2353,22 @@ const SprintView: React.FC = () => {
                             className="p-2 rounded-xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-sm transition-all cursor-pointer flex items-center justify-center active:scale-95"
                             title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
                           >
-                            <svg 
-                              xmlns="http://www.w3.org/2000/svg" 
-                              className={`h-4.5 w-4.5 transition-transform duration-300 ${isFullBleed ? 'rotate-180' : ''}`} 
-                              fill="none" 
-                              viewBox="0 0 24 24" 
-                              stroke="currentColor"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 19V5m0 0l-7 7m7-7l7 7" />
-                            </svg>
+                            {isFullBleed ? (
+                              <Minimize2 className="h-4 w-4" />
+                            ) : (
+                              <Maximize2 className="h-4 w-4" />
+                            )}
                           </button>
                         </div>
 
                         <div className={isFullBleed ? "w-full max-w-4xl mx-auto space-y-6 flex flex-col relative" : "relative z-10"}>
                           <SectionHeading>
                             {isFullBleed ? (
-                              <>Action Step <strong className="font-bold">↗</strong> 1</>
+                              <>Action Step 1</>
                             ) : (
                               "Today's Action Steps"
                             )}
                           </SectionHeading>
-
-                          {isFullBleed && (
-                            <div className="w-full mb-8">
-                              <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-[#0E7850] mb-2.5">
-                                <span className="flex items-center gap-2">
-                                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                  Momentum Monitor: Step 1 of 1
-                                </span>
-                                <span className="font-bold">{dayProgress?.completed ? "100" : "0"}% Complete</span>
-                              </div>
-                              <div className="w-full bg-emerald-500/10 rounded-full h-2 overflow-hidden shadow-inner font-sans">
-                                <div 
-                                  className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out animate-pulse" 
-                                  style={{ width: dayProgress?.completed ? "100%" : "50%" }}
-                                />
-                              </div>
-                            </div>
-                          )}
                         {dayContent?.taskNotes?.[0] && (
                           <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
                             <FormattedText text={dayContent.taskNotes[0]} />
@@ -2723,6 +2696,23 @@ const SprintView: React.FC = () => {
                         )}
                         {!dayProgress?.completed && (
                           <div className="absolute top-6 right-16 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse z-40"></div>
+                        )}
+                        {isFullBleed && (
+                          <div className="w-full mt-8 animate-fade-in font-sans">
+                            <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.4em] text-[#0E7850] mb-2.5">
+                              <span className="flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                {dayProgress?.completed ? "100" : "0"}% Complete
+                              </span>
+                              <span className="font-bold">0 more steps to go</span>
+                            </div>
+                            <div className="w-full bg-emerald-500/10 rounded-full h-2 overflow-hidden shadow-inner font-sans">
+                              <div 
+                                className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out animate-pulse" 
+                                style={{ width: dayProgress?.completed ? "100%" : "50%" }}
+                              />
+                            </div>
+                          </div>
                         )}
                         {isFullBleed && (
                           <div className="mt-8 pt-6 border-t border-gray-100/50 flex flex-col gap-4">
