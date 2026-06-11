@@ -120,12 +120,23 @@ export const sprintService = {
         const now = new Date().toISOString();
         const newSprint = sanitizeData({ ...sprint, createdAt: now, updatedAt: now, deleted: false });
         await setDoc(doc(db, SPRINTS_COLLECTION, sprint.id), serializeSprint(newSprint));
+        await sprintService._writeSubcollections(sprint.id, newSprint);
         return newSprint;
     },
 
     getSprintById: async (sprintId: string) => {
         const snap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId));
-        return snap.exists() ? deserializeSprint(sanitizeData(snap.data())) as Sprint : null;
+        if (!snap.exists()) return null;
+        let sprintData = sanitizeData(snap.data()) as Sprint;
+        try {
+            const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'));
+            if (detailsSnap.exists()) {
+                sprintData = { ...sprintData, ...sanitizeData(detailsSnap.data()) };
+            }
+        } catch (e) {
+            console.warn("Failed to load sprintdetails info document", e);
+        }
+        return await sprintService.resolveSprintDays(sprintData);
     },
 
     getSprintsByIds: async (sprintIds: string[]) => {
@@ -138,7 +149,17 @@ export const sprintService = {
                 const chunk = validIds.slice(i, i + CHUNK_SIZE);
                 const q = query(collection(db, SPRINTS_COLLECTION), where("id", "in", chunk));
                 const querySnapshot = await getDocs(q);
-                querySnapshot.forEach((doc) => results.push(deserializeSprint(sanitizeData(doc.data())) as Sprint));
+                for (const d of querySnapshot.docs) {
+                    let sprintData = sanitizeData(d.data()) as Sprint;
+                    try {
+                        const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, d.id, 'sprintdetails', 'info'));
+                        if (detailsSnap.exists()) {
+                            sprintData = { ...sprintData, ...sanitizeData(detailsSnap.data()) };
+                        }
+                    } catch (e) {}
+                    const fullSprint = await sprintService.resolveSprintDays(sprintData);
+                    results.push(fullSprint);
+                }
             }
             return results;
         } catch (error) {
@@ -148,15 +169,28 @@ export const sprintService = {
     },
 
     subscribeToSprint: (sprintId: string, callback: (sprint: Sprint | null) => void) => {
-        return onSnapshot(doc(db, SPRINTS_COLLECTION, sprintId), (doc) => {
-            callback(doc.exists() ? deserializeSprint(sanitizeData(doc.data())) as Sprint : null);
+        return onSnapshot(doc(db, SPRINTS_COLLECTION, sprintId), async (docSnap) => {
+            if (!docSnap.exists()) {
+                callback(null);
+                return;
+            }
+            let sprintData = sanitizeData(docSnap.data()) as Sprint;
+            try {
+                const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'));
+                if (detailsSnap.exists()) {
+                    sprintData = { ...sprintData, ...sanitizeData(detailsSnap.data()) };
+                }
+            } catch (e) {}
+            const fullSprint = await sprintService.resolveSprintDays(sprintData);
+            callback(fullSprint);
         });
     },
 
     getCoachSprints: async (coachId: string) => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("coachId", "==", coachId), where("deleted", "==", false));
         const snap = await getDocs(q);
-        return snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint);
+        const raw = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+        return await sprintService.resolveSprintsList(raw);
     },
 
     getAdminCoachSprints: async () => {
@@ -165,8 +199,9 @@ export const sprintService = {
             where("deleted", "==", false)
         );
         const snap = await getDocs(q);
-        const allSprints = snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint);
-        return allSprints.filter(s => 
+        const allSprints = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+        const resolved = await sprintService.resolveSprintsList(allSprints);
+        return resolved.filter(s => 
             s.sprintType === 'Foundational' || 
             s.sprintType === 'Fundamentals' || 
             s.sprintType === 'Core' || 
@@ -178,21 +213,26 @@ export const sprintService = {
 
     subscribeToCoachSprints: (coachId: string, callback: (sprints: Sprint[]) => void) => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("coachId", "==", coachId), where("deleted", "==", false));
-        return onSnapshot(q, (snap) => {
-            callback(snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint));
+        return onSnapshot(q, async (snap) => {
+            const raw = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+            const resolved = await sprintService.resolveSprintsList(raw);
+            callback(resolved);
         });
     },
 
     getAdminSprints: async () => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("deleted", "==", false));
         const snap = await getDocs(q);
-        return snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint);
+        const raw = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+        return await sprintService.resolveSprintsList(raw);
     },
 
     subscribeToAdminSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("deleted", "==", false));
-        return onSnapshot(q, (snap) => {
-            callback(snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint));
+        return onSnapshot(q, async (snap) => {
+            const raw = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+            const resolved = await sprintService.resolveSprintsList(raw);
+            callback(resolved);
         }, (error) => {
             if (onError) onError(error);
         });
@@ -200,8 +240,10 @@ export const sprintService = {
 
     subscribeToAllSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
         const q = query(collection(db, SPRINTS_COLLECTION));
-        return onSnapshot(q, (snap) => {
-            callback(snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint));
+        return onSnapshot(q, async (snap) => {
+            const raw = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+            const resolved = await sprintService.resolveSprintsList(raw);
+            callback(resolved);
         }, (error) => {
             if (onError) onError(error);
         });
@@ -210,16 +252,104 @@ export const sprintService = {
     getPublishedSprints: async () => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("published", "==", true), where("deleted", "==", false));
         const snap = await getDocs(q);
-        return snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint);
+        const raw = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+        return await sprintService.resolveSprintsList(raw);
     },
 
     subscribeToPublishedSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
         const q = query(collection(db, SPRINTS_COLLECTION), where("published", "==", true), where("deleted", "==", false));
-        return onSnapshot(q, (snap) => {
-            callback(snap.docs.map(doc => deserializeSprint(sanitizeData(doc.data())) as Sprint));
+        return onSnapshot(q, async (snap) => {
+            const raw = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+            const resolved = await sprintService.resolveSprintsList(raw);
+            callback(resolved);
         }, (error) => {
             if (onError) onError(error);
         });
+    },
+
+    resolveSprintDays: async (sprint: Sprint): Promise<Sprint> => {
+        if (!sprint || !sprint.id) return sprint;
+        try {
+            const daysSnap = await getDocs(collection(db, SPRINTS_COLLECTION, sprint.id, 'days'));
+            const loadedDays: Record<number, any> = {};
+            if (!daysSnap.empty) {
+                daysSnap.forEach(dDoc => {
+                    const data = dDoc.data();
+                    const dayNum = parseInt(dDoc.id.replace('day ', ''));
+                    if (!isNaN(dayNum)) {
+                        loadedDays[dayNum] = data;
+                    }
+                });
+            } else {
+                const duration = sprint.duration || 14;
+                const promises = [];
+                for (let i = 1; i <= Math.max(duration, 30); i++) {
+                    const subcollDocRef = doc(db, SPRINTS_COLLECTION, sprint.id, `day ${i}`, 'content');
+                    promises.push((async () => {
+                        try {
+                            const subcollSnap = await getDoc(subcollDocRef);
+                            if (subcollSnap.exists()) {
+                                loadedDays[i] = subcollSnap.data();
+                            }
+                        } catch (e) {}
+                    })());
+                }
+                await Promise.all(promises);
+            }
+            if (Object.keys(loadedDays).length > 0) {
+                const dailyContent = [];
+                const maxDay = Math.max(...Object.keys(loadedDays).map(Number));
+                for (let d = 1; d <= maxDay; d++) {
+                    if (loadedDays[d]) {
+                        dailyContent.push({ day: d, ...loadedDays[d] });
+                    }
+                }
+                sprint.dailyContent = dailyContent;
+            } else if (sprint.dailyContent && sprint.dailyContent.length > 0) {
+                // Auto-migrate old format sprint to new subcollections in the background
+                console.log(`[Migration] Auto-migrating sprint ${sprint.id} to new subcollection structure in Firestore...`);
+                sprintService._writeSubcollections(sprint.id, sprint).catch(err => {
+                    console.error(`[Migration] Failed to auto-migrate sprint ${sprint.id}`, err);
+                });
+            }
+        } catch (err) {
+            console.error("Error resolving sprint subcollection days:", err);
+        }
+        return deserializeSprint(sprint);
+    },
+
+    resolveSprintsList: async (sprints: Sprint[]): Promise<Sprint[]> => {
+        return await Promise.all(sprints.map(async (s) => {
+            let sprintData = { ...s };
+            try {
+                const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, s.id, 'sprintdetails', 'info'));
+                if (detailsSnap.exists()) {
+                    sprintData = { ...sprintData, ...sanitizeData(detailsSnap.data()) };
+                }
+            } catch (e) {}
+            return await sprintService.resolveSprintDays(sprintData);
+        }));
+    },
+
+    _writeSubcollections: async (sprintId: string, sprintData: any) => {
+        try {
+            const { dailyContent, ...metadata } = sprintData;
+            const detailsData = sanitizeData({ ...metadata, updatedAt: new Date().toISOString() });
+            await setDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'), detailsData);
+            if (Array.isArray(dailyContent)) {
+                for (const day of dailyContent) {
+                    if (!day || typeof day.day === 'undefined') continue;
+                    const dayNum = day.day;
+                    const dayData = sanitizeData(day);
+                    const daysSubDocRef = doc(db, SPRINTS_COLLECTION, sprintId, 'days', `day ${dayNum}`);
+                    await setDoc(daysSubDocRef, dayData);
+                    const subcollDocRef = doc(db, SPRINTS_COLLECTION, sprintId, `day ${dayNum}`, 'content');
+                    await setDoc(subcollDocRef, dayData);
+                }
+            }
+        } catch (err) {
+            console.error("Error writing subcollections:", err);
+        }
     },
 
     subscribeToReviewsForSprints: (sprintIds: string[], callback: (reviews: Review[]) => void) => {
@@ -442,6 +572,15 @@ export const sprintService = {
     updateSprint: async (sprintId: string, data: Partial<Sprint>, isDirect: boolean = false) => {
         const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
         await updateDoc(sprintRef, serializeSprint(sanitizeData({ ...data, updatedAt: new Date().toISOString() })));
+        try {
+            const fullSprintSnap = await getDoc(sprintRef);
+            if (fullSprintSnap.exists()) {
+                const mergedSub = { ...fullSprintSnap.data(), ...data };
+                await sprintService._writeSubcollections(sprintId, mergedSub);
+            }
+        } catch (e) {
+            console.error("Failed to sync subcollections in updateSprint", e);
+        }
     },
 
     deleteSprint: async (sprintId: string) => {
@@ -507,6 +646,15 @@ export const sprintService = {
         const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
         const finalData = { ...(data || {}), approvalStatus: 'approved', published: true, updatedAt: new Date().toISOString(), pendingChanges: deleteField() };
         await updateDoc(sprintRef, serializeSprint(sanitizeData(finalData)));
+        try {
+            const fullSprintSnap = await getDoc(sprintRef);
+            if (fullSprintSnap.exists()) {
+                const mergedSub = { ...fullSprintSnap.data(), ...finalData };
+                await sprintService._writeSubcollections(sprintId, mergedSub);
+            }
+        } catch (e) {
+            console.error("Failed to sync subcollections in approveSprint", e);
+        }
     },
 
     startNextQueuedSprint: async (userId: string) => {

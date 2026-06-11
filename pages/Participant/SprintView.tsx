@@ -836,25 +836,13 @@ const SprintView: React.FC = () => {
       return Array.from(new Set(allTags)).filter(Boolean);
     }
 
-    // 2. Fallback to legacy structure
+    // 2. Fallback to legacy structure - only if taskLinkedToNext is true
     let linkedSourceIndex = -1;
     for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
       const isLinked = 
         dayContent.taskLinkedToNext?.[prevIndex] === true ||
         (dayContent.taskLinkedToNext?.[prevIndex] as any) === "true";
       if (isLinked) {
-        const inputType = String(
-          dayContent.taskInputTypes?.[prevIndex] || ""
-        ).trim().toLowerCase();
-        if (inputType === "tags" || inputType === "poll") {
-          linkedSourceIndex = prevIndex;
-          break;
-        }
-      }
-    }
-    // Robust fallback
-    if (linkedSourceIndex === -1) {
-      for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
         const inputType = String(
           dayContent.taskInputTypes?.[prevIndex] || ""
         ).trim().toLowerCase();
@@ -937,7 +925,10 @@ const SprintView: React.FC = () => {
     if (!dayContent) return false;
     const type = String(dayContent.taskInputTypes?.[stepIndex] || "").trim().toLowerCase();
     const isText = type === "text" || type === "" || type === "undefined";
-    return isText && Array.isArray(dayContent.taskMultiTextLabels?.[stepIndex]) && dayContent.taskMultiTextLabels[stepIndex].length > 0;
+    const labels = Array.isArray(dayContent.taskMultiTextLabels?.[stepIndex])
+      ? dayContent.taskMultiTextLabels[stepIndex].filter((l: any) => l && String(l).trim().length > 0)
+      : [];
+    return isText && labels.length > 0;
   };
 
   const dayProgress = enrollment?.progress?.find((p) => p.day === viewingDay);
@@ -2190,14 +2181,14 @@ const SprintView: React.FC = () => {
                                     </div>
                                   ) : isMultiTextStep(i) ? (
                                     <div className="space-y-4 animate-fade-in text-left">
-                                      {(dayContent.taskMultiTextLabels?.[i] || []).map((lbl, lblIndex) => {
+                                      {(dayContent.taskMultiTextLabels?.[i] || []).filter((l: any) => l && String(l).trim().length > 0).map((lbl, lblIndex) => {
                                         let currentAnswers: Record<string, string> = {};
                                         if (taskInputs[i]) {
                                           try {
                                             if (taskInputs[i].startsWith("{")) {
                                               currentAnswers = JSON.parse(taskInputs[i]);
                                             } else {
-                                              currentAnswers = { [(dayContent.taskMultiTextLabels?.[i] || [])[0] || "default"]: taskInputs[i] };
+                                              currentAnswers = { [(dayContent.taskMultiTextLabels?.[i] || []).filter((l: any) => l && String(l).trim().length > 0)[0] || "default"]: taskInputs[i] };
                                             }
                                           } catch (e) {
                                             currentAnswers = {};

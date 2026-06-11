@@ -154,19 +154,17 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                 </div>
                 
                 <div className="p-4 flex flex-col flex-grow">
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span className="px-2 py-0.5 rounded-md bg-gray-50 border border-gray-100 text-gray-400 text-[8px] font-black uppercase tracking-[0.25em]">{sprint.category}</span>
-                        {(sprint.sprintType || (sprint.audience && sprint.audience.length > 0)) && (
-                            <span className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-primary text-[8px] font-black uppercase tracking-[0.25em] truncate max-w-[150px]" title={sprint.sprintType || sprint.audience?.join(", ")}>
-                                {sprint.sprintType || sprint.audience?.[0]}
-                            </span>
-                        )}
-                    </div>
-
                     <h3 className={`text-lg font-black text-gray-900 mb-2 transition-colors leading-tight tracking-tight ${!isStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>
                     {sprint.subtitle && (
-                        <p className="text-[10px] font-bold text-gray-400 mb-4 leading-snug">{sprint.subtitle}</p>
+                        <p className="text-[10px] font-bold text-gray-400 mb-2 leading-snug">{sprint.subtitle}</p>
                     )}
+
+                    <div className="flex flex-wrap items-center gap-2 mb-4">
+                        <span className="px-2 py-0.5 rounded-md bg-gray-50 border border-gray-100 text-gray-400 text-[8px] font-black uppercase tracking-[0.25em]">{sprint.category}</span>
+                        <span className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-primary text-[8px] font-black uppercase tracking-[0.25em] truncate max-w-[150px]" title={sprint.sprintType || "Fundamentals"}>
+                            {sprint.sprintType || "Fundamentals"}
+                        </span>
+                    </div>
                     
                     <div className="pt-3 border-t border-gray-50 mt-auto">
                         <div className="flex items-center gap-2 mb-3">

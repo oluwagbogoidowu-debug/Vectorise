@@ -364,10 +364,10 @@ const EditSprint: React.FC = () => {
       return;
     }
 
-    // Set up a timer to run the background write strictly 15 seconds after the user stops typing
+    // Set up a timer to run the background write strictly 1.5 seconds after the user stops typing
     const timer = setTimeout(() => {
       backgroundSaveDraft(sprint, originalSprint);
-    }, 15000);
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, [sprint, originalSprint]);
