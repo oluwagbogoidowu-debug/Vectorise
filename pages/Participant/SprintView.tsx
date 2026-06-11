@@ -1828,6 +1828,53 @@ const SprintView: React.FC = () => {
 
                               {(() => {
                                 const dynamicNoteRaw = dayContent?.taskTagNotes?.[i] || '';
+                                 const linkedTagsForNoteSpec = getLinkedTagsForStep(i);
+                                 if (dynamicNoteRaw.trim() && linkedTagsForNoteSpec.length > 0) {
+                                     let notesMap: Record<string, string> = {};
+                                     let isJson = false;
+                                     try {
+                                         if (dynamicNoteRaw.trim().startsWith('{')) {
+                                             notesMap = JSON.parse(dynamicNoteRaw);
+                                             isJson = true;
+                                         }
+                                     } catch (e) {}
+
+                                     if (isJson) {
+                                         const tagsWithNotes = linkedTagsForNoteSpec.filter(tag => notesMap[tag] && notesMap[tag].trim() !== "");
+                                         if (tagsWithNotes.length > 0) {
+                                             return (
+                                                 <div className="mb-4 space-y-3 pl-4 border-l-4 border-emerald-500/30 py-1 text-left animate-fade-in">
+                                                     {tagsWithNotes.map((tag, tagIndex) => (
+                                                         <div key={tagIndex} className="text-gray-700 font-bold text-xs sm:text-sm leading-relaxed space-y-1.5 mt-1">
+                                                             <div className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-150 px-2.5 py-0.5 rounded-full font-black italic text-[9px] shadow-sm uppercase animate-fade-in">
+                                                                 🏷️ {tag}
+                                                             </div>
+                                                             <div className="text-gray-700 font-normal text-sm sm:text-base leading-relaxed pl-1 animate-fade-in">
+                                                                 <FormattedText text={notesMap[tag]} />
+                                                             </div>
+                                                         </div>
+                                                     ))}
+                                                 </div>
+                                             );
+                                         }
+                                     } else {
+                                         return (
+                                             <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-1.5">
+                                                 <div className="text-gray-700 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
+                                                     <FormattedText text={dynamicNoteRaw} />
+                                                 </div>
+                                                 <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                                     {linkedTagsForNoteSpec.map((tag, tagIndex) => (
+                                                         <span key={tagIndex} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-800 border border-indigo-150 px-2.5 py-0.5 rounded-full font-black italic text-[9px] uppercase shadow-sm animate-fade-in">
+                                                             🏷️ {tag}
+                                                         </span>
+                                                     ))}
+                                                 </div>
+                                             </div>
+                                         );
+                                     }
+                                 }
+                                 if (false) { const dummyVal = dayContent; }
                                 if (!dynamicNoteRaw.trim()) return null;
 
                                 let displayNoteText = '';

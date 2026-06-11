@@ -379,6 +379,54 @@ const SprintPreview: React.FC = () => {
 
                                         {(() => {
                                             let notesMap: Record<string, string> = {};
+                                             const dynamicNoteRawSpec = day1Content?.taskTagNotes?.[i] || '';
+                                             const linkedTagsSpec = getLinkedTagsForStep(i);
+                                             let isJsonSpec = false;
+                                             try {
+                                                 if (dynamicNoteRawSpec.trim().startsWith('{')) {
+                                                     notesMap = JSON.parse(dynamicNoteRawSpec);
+                                                     isJsonSpec = true;
+                                                 }
+                                             } catch (e) {}
+
+                                             if (linkedTagsSpec.length > 0 && dynamicNoteRawSpec.trim()) {
+                                                 if (isJsonSpec) {
+                                                     const tagsWithNotesSpec = linkedTagsSpec.filter(tag => notesMap[tag] && notesMap[tag].trim() !== "");
+                                                     if (tagsWithNotesSpec.length > 0) {
+                                                         return (
+                                                             <div className="mb-4 space-y-3 pl-4 border-l-4 border-emerald-500/30 py-1 text-left animate-fade-in">
+                                                                 {tagsWithNotesSpec.map((tag, tagIndex) => (
+                                                                     <div key={tagIndex} className="text-gray-700 font-bold text-xs sm:text-sm leading-relaxed space-y-1.5 mt-1">
+                                                                         <div className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-150 px-2.5 py-0.5 rounded-full font-black italic text-[9px] shadow-sm uppercase">
+                                                                             🏷️ {tag}
+                                                                         </div>
+                                                                         <div className="text-gray-700 font-normal text-sm sm:text-base leading-relaxed pl-1">
+                                                                             <FormattedText text={notesMap[tag]} />
+                                                                         </div>
+                                                                     </div>
+                                                                 ))}
+                                                             </div>
+                                                         );
+                                                     }
+                                                 } else {
+                                                     return (
+                                                         <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-1.5">
+                                                             <div className="text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
+                                                                 <FormattedText text={dynamicNoteRawSpec} />
+                                                             </div>
+                                                             <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                                                 {linkedTagsSpec.map((tag, tagIndex) => (
+                                                                     <span key={tagIndex} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-800 border border-indigo-150 px-2.5 py-0.5 rounded-full font-black italic text-[9px] uppercase shadow-sm">
+                                                                         🏷️ {tag}
+                                                                     </span>
+                                                                 ))}
+                                                             </div>
+                                                         </div>
+                                                     );
+                                                 }
+                                             }
+                                             const dummyNotUsed = true;
+                                             if (false) { const dummy = day1Content; }
                                             if (day1Content?.taskTagNotes?.[i]) {
                                                 try {
                                                     notesMap = JSON.parse(day1Content.taskTagNotes[i]);
