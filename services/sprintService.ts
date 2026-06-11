@@ -4,6 +4,19 @@ import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addD
 import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review, Track } from '../types';
 import { sanitizeData, userService } from './userService';
 
+const cleanDetailsData = (raw: any): any => {
+    const sanitized = sanitizeData(raw);
+    if (!sanitized) return {};
+    const cleaned = { ...sanitized };
+    delete cleaned.dailyContent;
+    delete cleaned.dynamicSections;
+    delete cleaned.forWho;
+    delete cleaned.notForWho;
+    delete cleaned.outcomes;
+    delete cleaned.outcomeStatement;
+    return cleaned;
+};
+
 const SPRINTS_COLLECTION = 'sprints';
 const ENROLLMENTS_COLLECTION = 'enrollments';
 const ORCHESTRATOR_LOGS = 'orchestrator_logs';
@@ -23,6 +36,17 @@ export const serializeSprint = (sprint: any): any => {
             const dayClone = { ...day };
             if (Array.isArray(dayClone.taskLinkedSources)) {
                 dayClone.taskLinkedSources = dayClone.taskLinkedSources.map((item: any) => {
+                    if (Array.isArray(item)) {
+                        return JSON.stringify(item);
+                    }
+                    if (typeof item === 'string') {
+                        return item;
+                    }
+                    return '[]';
+                });
+            }
+            if (Array.isArray(dayClone.taskMultiTextLabels)) {
+                dayClone.taskMultiTextLabels = dayClone.taskMultiTextLabels.map((item: any) => {
                     if (Array.isArray(item)) {
                         return JSON.stringify(item);
                     }
@@ -53,6 +77,22 @@ export const deserializeSprint = (sprint: any): any => {
             const dayClone = { ...day };
             if (Array.isArray(dayClone.taskLinkedSources)) {
                 dayClone.taskLinkedSources = dayClone.taskLinkedSources.map((item: any) => {
+                    if (typeof item === 'string') {
+                        try {
+                            const parsed = JSON.parse(item);
+                            return Array.isArray(parsed) ? parsed : [];
+                        } catch (e) {
+                            return [];
+                        }
+                    }
+                    if (Array.isArray(item)) {
+                        return item;
+                    }
+                    return [];
+                });
+            }
+            if (Array.isArray(dayClone.taskMultiTextLabels)) {
+                dayClone.taskMultiTextLabels = dayClone.taskMultiTextLabels.map((item: any) => {
                     if (typeof item === 'string') {
                         try {
                             const parsed = JSON.parse(item);
@@ -131,7 +171,7 @@ export const sprintService = {
         try {
             const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'));
             if (detailsSnap.exists()) {
-                sprintData = { ...sprintData, ...sanitizeData(detailsSnap.data()) };
+                sprintData = { ...sprintData, ...cleanDetailsData(detailsSnap.data()) };
             }
         } catch (e) {
             console.warn("Failed to load sprintdetails info document", e);
@@ -154,7 +194,7 @@ export const sprintService = {
                     try {
                         const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, d.id, 'sprintdetails', 'info'));
                         if (detailsSnap.exists()) {
-                            sprintData = { ...sprintData, ...sanitizeData(detailsSnap.data()) };
+                            sprintData = { ...sprintData, ...cleanDetailsData(detailsSnap.data()) };
                         }
                     } catch (e) {}
                     const fullSprint = await sprintService.resolveSprintDays(sprintData);
@@ -178,7 +218,7 @@ export const sprintService = {
             try {
                 const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'));
                 if (detailsSnap.exists()) {
-                    sprintData = { ...sprintData, ...sanitizeData(detailsSnap.data()) };
+                    sprintData = { ...sprintData, ...cleanDetailsData(detailsSnap.data()) };
                 }
             } catch (e) {}
             const fullSprint = await sprintService.resolveSprintDays(sprintData);
@@ -280,21 +320,6 @@ export const sprintService = {
                         loadedDays[dayNum] = data;
                     }
                 });
-            } else {
-                const duration = sprint.duration || 14;
-                const promises = [];
-                for (let i = 1; i <= Math.max(duration, 30); i++) {
-                    const subcollDocRef = doc(db, SPRINTS_COLLECTION, sprint.id, `day ${i}`, 'content');
-                    promises.push((async () => {
-                        try {
-                            const subcollSnap = await getDoc(subcollDocRef);
-                            if (subcollSnap.exists()) {
-                                loadedDays[i] = subcollSnap.data();
-                            }
-                        } catch (e) {}
-                    })());
-                }
-                await Promise.all(promises);
             }
             if (Object.keys(loadedDays).length > 0) {
                 const dailyContent = [];
@@ -324,7 +349,7 @@ export const sprintService = {
             try {
                 const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, s.id, 'sprintdetails', 'info'));
                 if (detailsSnap.exists()) {
-                    sprintData = { ...sprintData, ...sanitizeData(detailsSnap.data()) };
+                    sprintData = { ...sprintData, ...cleanDetailsData(detailsSnap.data()) };
                 }
             } catch (e) {}
             return await sprintService.resolveSprintDays(sprintData);
@@ -333,7 +358,16 @@ export const sprintService = {
 
     _writeSubcollections: async (sprintId: string, sprintData: any) => {
         try {
-            const { dailyContent, ...metadata } = sprintData;
+            const serializedSprint = serializeSprint(sprintData);
+            const { 
+                dailyContent, 
+                dynamicSections, 
+                forWho, 
+                notForWho, 
+                outcomes, 
+                outcomeStatement, 
+                ...metadata 
+            } = serializedSprint;
             const detailsData = sanitizeData({ ...metadata, updatedAt: new Date().toISOString() });
             await setDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'), detailsData);
             if (Array.isArray(dailyContent)) {
@@ -343,8 +377,6 @@ export const sprintService = {
                     const dayData = sanitizeData(day);
                     const daysSubDocRef = doc(db, SPRINTS_COLLECTION, sprintId, 'days', `day ${dayNum}`);
                     await setDoc(daysSubDocRef, dayData);
-                    const subcollDocRef = doc(db, SPRINTS_COLLECTION, sprintId, `day ${dayNum}`, 'content');
-                    await setDoc(subcollDocRef, dayData);
                 }
             }
         } catch (err) {

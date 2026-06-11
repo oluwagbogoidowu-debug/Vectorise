@@ -1016,6 +1016,19 @@ const EditSprint: React.FC = () => {
             ? updatedDailyContent[existingContentIndex].taskLinkedSources.map(sources => Array.isArray(sources) ? [...sources] : [])
             : [];
 
+        // Clean up the index element's own relationships if they no longer apply
+        if (type !== 'tags') {
+            if (currentLinked.length > index) {
+                currentLinked[index] = false;
+            }
+        }
+        if (type !== 'poll') {
+            while (currentSources.length <= index) {
+                currentSources.push([]);
+            }
+            currentSources[index] = [];
+        }
+
         for (let i = 0; i < currentTypes.length; i++) {
             if (currentTypes[i] !== 'tags') {
                 if (currentLinked.length > i) {
