@@ -1,8 +1,6 @@
 import { db } from './firebase';
-import { collection, collectionGroup, query, getDocs, onSnapshot, doc, setDoc } from 'firebase/firestore';
+import { collection, collectionGroup, query, getDocs, onSnapshot, doc } from 'firebase/firestore';
 import { 
-  AnalyticsEvent, 
-  TrafficRecord, 
   FunnelStats, 
   IdentityReport, 
   ParticipantSprint,
@@ -24,152 +22,109 @@ export const analyticsTracker = {
     },
 
     init: async (userId?: string, userEmail?: string) => {
-        // No-op - complex session traffic tracking removed
+        // No-op
     },
 
     handleScroll: () => {
-        // No-op - scroll telemetry tracking removed
+        // No-op
     },
 
     trackEvent: async (eventName: string, properties: any = {}, userId?: string, userEmail?: string) => {
         if (typeof window === 'undefined') return;
-        
-        // Strictly only track 'login' and 'sprint_submission' events
-        if (eventName !== 'login' && eventName !== 'sprint_submission') {
-            return;
-        }
-
-        const now = new Date();
-        const eventDocRef = doc(collection(db, 'analytics_events'));
-        
-        const newEvent: AnalyticsEvent = {
-            id: eventDocRef.id,
-            anonymous_id: 'anon',
-            session_id: 'session',
-            user_id: userEmail || userId || null,
-            uid: userId || null,
-            email: userEmail || null,
-            event_name: eventName,
-            event_properties: properties || {},
-            page_url: '',
-            scroll_depth: 100,
-            dwell_time: 0,
-            created_at: now.toISOString()
-        };
-
-        try {
-            await setDoc(eventDocRef, newEvent);
-            console.log(`[Analytics Tracker] Simple Event Tracked: ${eventName}`, newEvent);
-        } catch (err) {
-            console.error("[Analytics Tracker] Failed to save simple analytics event:", err);
-        }
+        // Local console log in development context. No Firestore writes for event telemetry.
+        console.log(`[Analytics Event Logged] : ${eventName}`, properties);
     },
 
     identify: async (userId: string, email: string) => {
-        // No-op - manual device mapping removed
+        // No-op
     },
 
     getIdentityLedger: async (): Promise<IdentityReport[]> => {
         try {
-            const eventsCollection = collection(db, 'analytics_events');
-            const eventsSnap = await getDocs(eventsCollection);
-            const eventsDocs = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as AnalyticsEvent);
+            // Get all participants
+            const usersRef = collection(db, 'users');
+            const usersSnap = await getDocs(usersRef);
+            const users = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as any);
 
+            // Get enrollments through collectionGroup
             const enrollmentsCollection = collectionGroup(db, 'enrollments');
             const enrollmentsSnap = await getDocs(enrollmentsCollection);
             const enrollmentsDocs = enrollmentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ParticipantSprint);
 
+            // Get payments
             const paymentsCollection = collection(db, 'payments');
             const paymentsSnap = await getDocs(paymentsCollection);
             const paymentsDocs = paymentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as PaymentRecord);
 
-            // Group events by user email or uid
-            const groups = new Map<string, {
-                email: string | null;
-                user_id: string | null;
-                events: AnalyticsEvent[];
-            }>();
-
-            eventsDocs.forEach(e => {
-                const email = e.email || (e.user_id && e.user_id.includes('@') ? e.user_id : null);
-                const uid = e.uid || (e.user_id && !e.user_id.includes('@') ? e.user_id : null);
-                const key = (email || uid || 'unknown').toLowerCase().trim();
-
-                if (!groups.has(key)) {
-                    groups.set(key, {
-                        email: email || null,
-                        user_id: uid || null,
-                        events: []
-                    });
-                }
-                groups.get(key)!.events.push(e);
-            });
+            // Get all activity logs via collectionGroup
+            const logsSnap = await getDocs(collectionGroup(db, 'user_activity_logs'));
+            const logsDocs = logsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as any);
 
             const identityReports: IdentityReport[] = [];
 
-            for (const [key, g] of groups.entries()) {
-                const sortedEvents = g.events.sort(
-                    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-                );
-
-                const firstEventTime = sortedEvents[0]?.created_at || new Date().toISOString();
-                const lastActiveAt = sortedEvents[sortedEvents.length - 1]?.created_at || firstEventTime;
-
-                const firstTouch: TrafficRecord = {
-                    id: 'traffic_' + key,
-                    anonymous_id: 'anon',
-                    session_id: 'session',
-                    user_id: g.email || g.user_id,
-                    uid: g.user_id,
-                    email: g.email,
-                    source: 'direct',
-                    medium: 'direct',
-                    landing_page: 'Active',
-                    referrer_url: '',
-                    user_agent: 'direct',
-                    device_type: 'desktop',
-                    created_at: firstEventTime
-                };
-
-                const userEnrollments = enrollmentsDocs.filter(en => {
-                    const enUser = (en.user_id || '').toLowerCase().trim();
-                    const emailMatch = g.email && enUser === g.email.toLowerCase().trim();
-                    const uidMatch = g.user_id && enUser === g.user_id.toLowerCase().trim();
-                    return emailMatch || uidMatch;
-                });
-
-                const userPayments = paymentsDocs.filter(p => {
-                    const pEmail = (p.userEmail || '').toLowerCase().trim();
-                    const pUid = (p.userId || '').toLowerCase().trim();
-                    const emailMatch = g.email && pEmail === g.email.toLowerCase().trim();
-                    const uidMatch = g.user_id && pUid === g.user_id.toLowerCase().trim();
-                    return emailMatch || uidMatch;
-                });
+            for (const u of users) {
+                // Focus only on active participants or administrative accounts for drilling down
+                const key = (u.email || u.id || 'unknown').toLowerCase().trim();
+                const userEnrollments = enrollmentsDocs.filter(en => en.user_id === u.id);
+                const userPayments = paymentsDocs.filter(p => p.userId === u.id);
+                const userLogs = logsDocs.filter(l => l.user_id === u.id);
 
                 const hasPaidAny = userPayments.length > 0 || userEnrollments.length > 0;
+                const lastActiveAt = u.lastActivityAt || u.createdAt || new Date().toISOString();
 
-                const sessionsList: UserSessionReport[] = [{
+                const firstTouch = {
+                    id: 'traffic_' + u.id,
                     anonymous_id: 'anon',
                     session_id: 'session',
-                    email: g.email,
-                    user_id: g.user_id,
+                    user_id: u.email || u.id,
+                    source: u.referralFirstTouch || 'direct',
+                    medium: 'organic',
+                    landing_page: u.risePathway || 'Home Dashboard',
+                    referrer_url: '',
+                    user_agent: 'browser',
+                    device_type: 'desktop' as const,
+                    created_at: u.createdAt || new Date().toISOString()
+                };
+
+                const mappedEvents = userLogs.map(log => ({
+                    id: log.id || 'log_' + Math.random(),
+                    anonymous_id: u.id,
+                    session_id: 'session_' + u.id,
+                    user_id: u.id,
+                    event_name: log.action_type || 'task_submission',
+                    page_url: `Sprint: ${log.sprint_id?.substring(0, 15) || 'n/a'}`,
+                    created_at: log.created_at || new Date().toISOString(),
+                    scroll_depth: 100,
+                    dwell_time: 0,
+                    event_properties: {
+                        date: log.date,
+                        sprint_id: log.sprint_id,
+                        completed: log.action_completed ? 'Yes' : 'No'
+                    }
+                }));
+
+                const sessionsList: UserSessionReport[] = [{
+                    anonymous_id: u.id,
+                    session_id: 'session_' + u.id,
+                    email: u.email,
+                    user_id: u.id,
                     traffic: firstTouch,
-                    events: sortedEvents,
-                    totalDwellTime: 0,
+                    events: mappedEvents,
+                    totalDwellTime: u.impactStats?.streak || 0,
                     maxScrollDepth: 100,
                     hasPaid: hasPaidAny,
-                    conversionPath: sortedEvents.map(e => e.event_name)
+                    conversionPath: userEnrollments.map(en => `enrolled_${en.sprint_id}`)
                 }];
 
                 identityReports.push({
                     identifier: key,
-                    anonymous_id: 'anon',
-                    email: g.email,
-                    user_id: g.user_id,
+                    anonymous_id: u.id,
+                    email: u.email,
+                    user_id: u.id,
                     firstTouch,
                     lastActiveAt,
                     totalSessions: 1,
-                    totalEvents: sortedEvents.length,
+                    totalEvents: mappedEvents.length,
                     hasPaid: hasPaidAny,
                     sessions: sessionsList,
                     enrollments: userEnrollments
@@ -183,14 +138,35 @@ export const analyticsTracker = {
         }
     },
 
-    subscribeToEvents: (callback: (events: AnalyticsEvent[]) => void) => {
-        const q = query(collection(db, 'analytics_events'));
+    subscribeToEvents: (callback: (events: any[]) => void) => {
+        // Since event stream is deprecated, we listen to all user activity logs instead so that
+        // the realtime logs screen keeps updating!
+        const q = query(collectionGroup(db, 'user_activity_logs'));
         return onSnapshot(q, (snapshot) => {
-            const rawEvents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as AnalyticsEvent);
-            const sorted = rawEvents.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            const rawLogs = snapshot.docs.map(doc => {
+                const log = doc.data() as any;
+                return {
+                    id: doc.id,
+                    anonymous_id: log.user_id,
+                    session_id: 'session_' + log.user_id,
+                    user_id: log.user_id,
+                    email: log.user_id,
+                    event_name: log.action_type || 'task_submission',
+                    page_url: `Sprint: ${log.sprint_id?.substring(0, 15) || 'n/a'}`,
+                    scroll_depth: 100,
+                    dwell_time: 0,
+                    created_at: log.created_at || new Date().toISOString(),
+                    event_properties: {
+                        date: log.date,
+                        sprint_id: log.sprint_id,
+                        completed: log.action_completed ? 'Yes' : 'No'
+                    }
+                };
+            });
+            const sorted = rawLogs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
             callback(sorted);
         }, (err) => {
-            console.error("[Analytics Tracker] Error listening to events:", err);
+            console.error("[Analytics Tracker] Error listening to activity logs:", err);
         });
     },
 

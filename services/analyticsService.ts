@@ -1,6 +1,7 @@
 import { db } from './firebase';
 import { 
   collection, 
+  collectionGroup,
   doc, 
   setDoc, 
   getDoc, 
@@ -44,12 +45,11 @@ export const analyticsService = {
       // Format current date in local time YYYY-MM-DD
       const dateStr = now.toLocaleDateString('sv');
 
-      const logsRef = collection(db, 'user_activity_logs');
+      const logsRef = collection(db, 'users', userId, 'user_activity_logs');
       
       // Prevent duplicates in a single day
       const existingQuery = query(
         logsRef,
-        where('user_id', '==', userId),
         where('sprint_id', '==', sprintId),
         where('date', '==', dateStr)
       );
@@ -87,8 +87,7 @@ export const analyticsService = {
 
       // Fetch all logs to calculate streak
       const logsQ = query(
-        collection(db, 'user_activity_logs'),
-        where('user_id', '==', userId),
+        collection(db, 'users', userId, 'user_activity_logs'),
         where('sprint_id', '==', sprintId),
         where('action_completed', '==', true)
       );
@@ -151,7 +150,7 @@ export const analyticsService = {
       }
 
       // Find or create in Core table
-      const coreDocRef = doc(db, 'user_sprint_analytics', `${userId}_${sprintId}`);
+      const coreDocRef = doc(db, 'users', userId, 'user_sprint_analytics', `${userId}_${sprintId}`);
       const coreSnap = await getDoc(coreDocRef);
 
       let sprint_start_date = now.toISOString();
@@ -187,7 +186,7 @@ export const analyticsService = {
    */
   getUserSprintAnalytics: async (userId: string, sprintId: string): Promise<UserSprintAnalytics | null> => {
     try {
-      const docRef = doc(db, 'user_sprint_analytics', `${userId}_${sprintId}`);
+      const docRef = doc(db, 'users', userId, 'user_sprint_analytics', `${userId}_${sprintId}`);
       const snap = await getDoc(docRef);
       return snap.exists() ? (snap.data() as UserSprintAnalytics) : null;
     } catch (e) {
@@ -200,7 +199,7 @@ export const analyticsService = {
    */
   getAllSprintAnalytics: async (): Promise<UserSprintAnalytics[]> => {
     try {
-      const snap = await getDocs(collection(db, 'user_sprint_analytics'));
+      const snap = await getDocs(collectionGroup(db, 'user_sprint_analytics'));
       return snap.docs.map(doc => doc.data() as UserSprintAnalytics);
     } catch (e) {
       console.error("[Streak Engine] Error fetching all sprints stats:", e);
@@ -213,9 +212,9 @@ export const analyticsService = {
    */
   getUserActivityLogs: async (userId: string, sprintId?: string): Promise<UserActivityLog[]> => {
     try {
-      let q = query(collection(db, 'user_activity_logs'), where('user_id', '==', userId));
+      let q = query(collection(db, 'users', userId, 'user_activity_logs'));
       if (sprintId) {
-        q = query(collection(db, 'user_activity_logs'), where('user_id', '==', userId), where('sprint_id', '==', sprintId));
+        q = query(collection(db, 'users', userId, 'user_activity_logs'), where('sprint_id', '==', sprintId));
       }
       const snap = await getDocs(q);
       return snap.docs.map(doc => doc.data() as UserActivityLog);
@@ -229,7 +228,7 @@ export const analyticsService = {
    */
   getAllActivityLogs: async (): Promise<UserActivityLog[]> => {
     try {
-      const snap = await getDocs(collection(db, 'user_activity_logs'));
+      const snap = await getDocs(collectionGroup(db, 'user_activity_logs'));
       return snap.docs.map(doc => doc.data() as UserActivityLog);
     } catch (e) {
       return [];
