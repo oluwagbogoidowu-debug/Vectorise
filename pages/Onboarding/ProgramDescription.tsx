@@ -296,23 +296,29 @@ const ProgramDescription: React.FC = () => {
 
             {/* MAIN CONTENT */}
             <div className="space-y-8">
-              {displayDescription && !hasDynamicContent && (
-                <section className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-sm animate-fade-in">
-                  <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed">
-                    "{displayDescription}"
-                  </p>
+              {(displayDescription || hasDynamicContent) && (
+                <section className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">
+                  <SectionHeading>Sprint Overview</SectionHeading>
+                  
+                  <div className="space-y-8">
+                    {displayDescription && (!Array.isArray(sprint.dynamicSections) || sprint.dynamicSections.filter(s => s.body && s.body.trim()).length === 0) && (
+                      <div className="text-base md:text-lg text-gray-600 font-medium leading-[1.6]">
+                        <FormattedText text={displayDescription} />
+                      </div>
+                    )}
+
+                    {Array.isArray(sprint.dynamicSections) && sprint.dynamicSections
+                      .filter(section => section.body && section.body.trim().length > 0)
+                      .map((section, index) => (
+                        <div key={index} className="animate-fade-in pt-6 first:pt-0 border-t first:border-0 border-gray-100">
+                          {section.id !== 'overview' && <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">{section.title}</h3>}
+                          <DynamicSectionRenderer section={section} />
+                        </div>
+                      ))
+                    }
+                  </div>
                 </section>
               )}
-
-              {Array.isArray(sprint.dynamicSections) && sprint.dynamicSections
-                .filter(section => section.body && section.body.trim().length > 0)
-                .map((section, index) => (
-                  <section key={index} className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">
-                    <SectionHeading>{section.title}</SectionHeading>
-                    <DynamicSectionRenderer section={section} />
-                  </section>
-                ))
-              }
             </div>
           </div>
 

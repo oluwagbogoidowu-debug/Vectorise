@@ -244,15 +244,15 @@ const SprintLandingPage: React.FC = () => {
                                     
                                     <div className="space-y-8">
                                         {displayDescription && !hasDynamicContent && (
-                                            <p className="text-base md:text-lg text-gray-600 font-medium leading-relaxed">
-                                                {displayDescription}
-                                            </p>
+                                            <div className="text-base md:text-lg text-gray-600 font-medium leading-[1.6]">
+                                                <FormattedText text={displayDescription} />
+                                            </div>
                                         )}
 
                                         {Array.isArray(sprint.dynamicSections) && sprint.dynamicSections
                                             .filter(section => section.body && section.body.trim().length > 0)
                                             .map((section, index) => (
-                                                <div key={index} className="animate-fade-in">
+                                                <div key={index} className="animate-fade-in pt-6 first:pt-0 border-t first:border-0 border-gray-100">
                                                     {section.id !== 'overview' && <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">{section.title}</h3>}
                                                     <DynamicSectionRenderer section={section} />
                                                 </div>
