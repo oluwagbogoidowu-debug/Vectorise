@@ -1594,46 +1594,26 @@ const EditSprint: React.FC = () => {
 
     try {
         const updatedLocalSprint = { ...sprint, ...updatedSprintData as any };
-        const isDraft = sprint.approvalStatus === 'draft';
-        const isDirectPush = isDraft || isAdmin;
-        
-        const latestDb = await sprintService.getSprintById(sprint.id) || sprint;
-        let persistenceData: any = {};
-
-        if (isDirectPush) {
-            persistenceData = mergeUserEditsWithLatestDb(originalSprint, updatedLocalSprint, latestDb);
-
-            if (isAdmin && isFoundational) {
-                persistenceData.published = true;
-                persistenceData.approvalStatus = 'approved';
-            }
-        } else {
-            const changes = getPendingChanges(originalSprint, updatedLocalSprint);
-            const existingPendingChanges = latestDb?.pendingChanges || {};
-            persistenceData = {
-                pendingChanges: {
-                    ...existingPendingChanges,
-                    ...changes
-                }
-            };
-        }
-
-        await sprintService.updateSprint(sprint.id, persistenceData, isAdmin);
         
         setSprint(updatedLocalSprint);
-        setOriginalSprint(updatedLocalSprint);
+        setEditSettings({
+            ...updatedLocalSprint,
+            audience: updatedLocalSprint.audience || [],
+            overrideOrchestrator: updatedLocalSprint.overrideOrchestrator || false,
+            dynamicSections: editSettings.dynamicSections
+        });
         setSettingsSaveStatus('saved');
         
         // Confirmation Popup
         setTimeout(() => {
-            alert("Sprint settings saved successfully.");
+            alert("Settings updated in draft. Please click the Save Draft button to persist changes to the database.");
             setSettingsSaveStatus('idle');
             setShowSettings(false);
         }, 500);
     } catch (err) {
-        console.error("Settings save failed:", err);
+        console.error("Settings update failed:", err);
         setSettingsSaveStatus('idle');
-        alert("Failed to save settings. Please try again.");
+        alert("Failed to update settings in draft. Please try again.");
     }
   };
 

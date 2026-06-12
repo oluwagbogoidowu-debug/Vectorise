@@ -168,6 +168,8 @@ export const sprintService = {
         let sprintData = { id: sprintId } as any;
         if (detailsSnap.exists()) {
             sprintData = { ...sprintData, ...cleanDetailsData(detailsSnap.data()) };
+        } else if (snap.exists()) {
+            sprintData = { ...sprintData, ...cleanDetailsData(snap.data()) };
         }
         return await sprintService.resolveSprintDays(sprintData);
     },
@@ -364,7 +366,7 @@ export const sprintService = {
                 if (hasDailyField) {
                     try {
                         const parentRef = doc(db, SPRINTS_COLLECTION, sprint.id);
-                        await setDoc(parentRef, {});
+                        await updateDoc(parentRef, { dailyContent: deleteField() }).catch(() => {});
                         
                         const detailsRef = doc(db, SPRINTS_COLLECTION, sprint.id, 'sprintdetails', 'info');
                         await updateDoc(detailsRef, { dailyContent: deleteField() }).catch(() => {});
@@ -378,7 +380,7 @@ export const sprintService = {
                 // Clean from parent and sprintdetails
                 try {
                     const parentRef = doc(db, SPRINTS_COLLECTION, sprint.id);
-                    await setDoc(parentRef, {});
+                    await updateDoc(parentRef, { dailyContent: deleteField() }).catch(() => {});
                     
                     const detailsRef = doc(db, SPRINTS_COLLECTION, sprint.id, 'sprintdetails', 'info');
                     await updateDoc(detailsRef, { dailyContent: deleteField() }).catch(() => {});
@@ -680,23 +682,28 @@ export const sprintService = {
 
     updateSprint: async (sprintId: string, data: Partial<Sprint>, isDirect: boolean = false) => {
         const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
-        
-        // Ensure the parent doc is completely empty to satisfies single subcollection source of truth
-        await setDoc(sprintRef, {});
+        const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
         
         try {
-            // Fetch existing details from subcollection
+            // Fetch existing details from subcollection OR parent doc as fallback
             let existingDetails = {};
-            const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
             const detailsSnap = await getDoc(detailsRef);
             if (detailsSnap.exists()) {
                 existingDetails = sanitizeData(detailsSnap.data());
+            } else {
+                const parentSnap = await getDoc(sprintRef);
+                if (parentSnap.exists()) {
+                    existingDetails = sanitizeData(parentSnap.data());
+                }
             }
             
             // Construct the merged data to write back to subcollections
             const mergedSub = { ...existingDetails, ...data, updatedAt: new Date().toISOString() };
             
             await sprintService._writeSubcollections(sprintId, mergedSub);
+
+            // Ensure the parent doc is completely empty to satisfies single subcollection source of truth ONLY after successful subcollections sync
+            await setDoc(sprintRef, {});
         } catch (e) {
             console.error("Failed to sync subcollections in updateSprint", e);
         }
@@ -778,14 +785,18 @@ export const sprintService = {
 
     approveSprint: async (sprintId: string, data?: Partial<Sprint>) => {
         const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
-        await setDoc(sprintRef, {}); // Entirely clear parent document fields
+        const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
 
         try {
             let existingDetails = {};
-            const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
             const detailsSnap = await getDoc(detailsRef);
             if (detailsSnap.exists()) {
                 existingDetails = sanitizeData(detailsSnap.data());
+            } else {
+                const parentSnap = await getDoc(sprintRef);
+                if (parentSnap.exists()) {
+                    existingDetails = sanitizeData(parentSnap.data());
+                }
             }
 
             const finalData = { ...existingDetails, ...(data || {}), approvalStatus: 'approved', published: true, updatedAt: new Date().toISOString() };
@@ -794,6 +805,9 @@ export const sprintService = {
             }
 
             await sprintService._writeSubcollections(sprintId, finalData);
+
+            // Entirely clear parent document fields ONLY after writing subcollections successfully
+            await setDoc(sprintRef, {});
         } catch (e) {
             console.error("Failed to sync subcollections in approveSprint", e);
         }
