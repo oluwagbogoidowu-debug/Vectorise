@@ -1,6 +1,6 @@
 
 import { db } from './firebase';
-import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review, Track } from '../types';
 import { sanitizeData, userService } from './userService';
 
@@ -9,11 +9,6 @@ const cleanDetailsData = (raw: any): any => {
     if (!sanitized) return {};
     const cleaned = { ...sanitized };
     delete cleaned.dailyContent;
-    delete cleaned.dynamicSections;
-    delete cleaned.forWho;
-    delete cleaned.notForWho;
-    delete cleaned.outcomes;
-    delete cleaned.outcomeStatement;
     return cleaned;
 };
 
@@ -159,7 +154,8 @@ export const sprintService = {
     createSprint: async (sprint: Sprint) => {
         const now = new Date().toISOString();
         const newSprint = sanitizeData({ ...sprint, createdAt: now, updatedAt: now, deleted: false });
-        await setDoc(doc(db, SPRINTS_COLLECTION, sprint.id), serializeSprint(newSprint));
+        const { dailyContent, ...sprintDetails } = newSprint;
+        await setDoc(doc(db, SPRINTS_COLLECTION, sprint.id), serializeSprint(sprintDetails));
         await sprintService._writeSubcollections(sprint.id, newSprint);
         return newSprint;
     },
@@ -361,16 +357,21 @@ export const sprintService = {
             const serializedSprint = serializeSprint(sprintData);
             const { 
                 dailyContent, 
-                dynamicSections, 
-                forWho, 
-                notForWho, 
-                outcomes, 
-                outcomeStatement, 
                 ...metadata 
             } = serializedSprint;
             const detailsData = sanitizeData({ ...metadata, updatedAt: new Date().toISOString() });
             await setDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'), detailsData);
             if (Array.isArray(dailyContent)) {
+                // Get all existing day documents to check for deletions (keeps the subcollection synchronized)
+                const daysSnap = await getDocs(collection(db, SPRINTS_COLLECTION, sprintId, 'days'));
+                const newDayNums = new Set(dailyContent.map(d => d.day));
+                for (const dDoc of daysSnap.docs) {
+                    const dayNum = parseInt(dDoc.id.replace('day ', ''));
+                    if (!isNaN(dayNum) && !newDayNums.has(dayNum)) {
+                        await deleteDoc(dDoc.ref);
+                    }
+                }
+
                 for (const day of dailyContent) {
                     if (!day || typeof day.day === 'undefined') continue;
                     const dayNum = day.day;
@@ -603,11 +604,30 @@ export const sprintService = {
 
     updateSprint: async (sprintId: string, data: Partial<Sprint>, isDirect: boolean = false) => {
         const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
-        await updateDoc(sprintRef, serializeSprint(sanitizeData({ ...data, updatedAt: new Date().toISOString() })));
+        
+        // 1. Separate dailyContent from details/metadata to prevent content repeating in parent doc
+        const { dailyContent, ...detailsToUpdate } = data;
+        
+        if (Object.keys(detailsToUpdate).length > 0 || isDirect) {
+            const updatePayload = { ...detailsToUpdate, updatedAt: new Date().toISOString() };
+            // Force-delete of dailyContent from parent document to ensure single source of truth as requested
+            (updatePayload as any).dailyContent = deleteField();
+            await updateDoc(sprintRef, serializeSprint(sanitizeData(updatePayload)));
+        }
+        
         try {
             const fullSprintSnap = await getDoc(sprintRef);
             if (fullSprintSnap.exists()) {
-                const mergedSub = { ...fullSprintSnap.data(), ...data };
+                const fullDetails = sanitizeData(fullSprintSnap.data());
+                
+                // Construct the merged data to write to subcollections
+                const mergedSub = { ...fullDetails, ...detailsToUpdate };
+                
+                // If the updated data contains dailyContent, keep/put it in mergedSub for subcollection write
+                if (dailyContent) {
+                    mergedSub.dailyContent = dailyContent;
+                }
+                
                 await sprintService._writeSubcollections(sprintId, mergedSub);
             }
         } catch (e) {
@@ -677,11 +697,24 @@ export const sprintService = {
     approveSprint: async (sprintId: string, data?: Partial<Sprint>) => {
         const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
         const finalData = { ...(data || {}), approvalStatus: 'approved', published: true, updatedAt: new Date().toISOString(), pendingChanges: deleteField() };
-        await updateDoc(sprintRef, serializeSprint(sanitizeData(finalData)));
+        
+        // Strip dailyContent from parent write and force-delete it from parent document
+        const { dailyContent, ...finalDetails } = finalData;
+        (finalDetails as any).dailyContent = deleteField();
+        
+        await updateDoc(sprintRef, serializeSprint(sanitizeData(finalDetails)));
         try {
             const fullSprintSnap = await getDoc(sprintRef);
             if (fullSprintSnap.exists()) {
-                const mergedSub = { ...fullSprintSnap.data(), ...finalData };
+                const fullDetails = sanitizeData(fullSprintSnap.data());
+                
+                const mergedSub = { ...fullDetails, ...finalData };
+                
+                // Keep dailyContent for subcollection write
+                if (dailyContent) {
+                    mergedSub.dailyContent = dailyContent;
+                }
+                
                 await sprintService._writeSubcollections(sprintId, mergedSub);
             }
         } catch (e) {
