@@ -191,7 +191,7 @@ async function startServer() {
       try {
         let docData: any = null;
         if (sprintId && typeof sprintId === 'string') {
-          const doc = await db.collection('sprints').doc(sprintId).get();
+          const doc = await db.collection('sprints').doc(sprintId).collection('sprintdetails').doc('info').get();
           if (doc.exists) docData = doc.data();
         } else if (trackId && typeof trackId === 'string') {
           const doc = await db.collection('tracks').doc(trackId).get();

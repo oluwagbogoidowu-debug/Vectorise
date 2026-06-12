@@ -125,7 +125,7 @@ export default async (req: any, res: any) => {
 
                 for (const sId of sprintIds) {
                   const enrollmentId = `enrollment_${userId}_${sId}`;
-                  const sprintSnap = await transaction.get(db.collection('sprints').doc(sId));
+                  const sprintSnap = await transaction.get(db.collection('sprints').doc(sId).collection('sprintdetails').doc('info'));
                   const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
                   const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
 
@@ -161,7 +161,7 @@ export default async (req: any, res: any) => {
               // Handle Single Sprint Enrollment
               const enrollmentId = `enrollment_${userId}_${sprintId}`;
               
-              const sprintSnap = await transaction.get(db.collection('sprints').doc(sprintId));
+              const sprintSnap = await transaction.get(db.collection('sprints').doc(sprintId).collection('sprintdetails').doc('info'));
               const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
               const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
 

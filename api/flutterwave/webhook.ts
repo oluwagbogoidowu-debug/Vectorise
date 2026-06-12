@@ -75,8 +75,8 @@ export default async (req: any, res: any) => {
       
       const hasActive = !activeEnrollments.empty;
 
-      const sprintSnap = await transaction.get(db.collection('sprints').doc(sprintId));
-      const duration = sprintSnap.data()?.duration || 7;
+      const sprintSnap = await transaction.get(db.collection('sprints').doc(sprintId).collection('sprintdetails').doc('info'));
+      const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
 
       transaction.set(enrollmentRef, {
         id: enrollmentId,

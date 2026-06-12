@@ -9,7 +9,7 @@ export default async function handler(req: Request, res: Response) {
     }
 
     let sprintData: any = null;
-    const docReq = await db.collection('sprints').doc(sprintId).get();
+    const docReq = await db.collection('sprints').doc(sprintId).collection('sprintdetails').doc('info').get();
     if (docReq.exists) {
       sprintData = docReq.data();
     }

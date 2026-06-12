@@ -350,7 +350,7 @@ export const pushNotificationManager = {
       if (enrollmentsSnap.empty) continue;
 
       const enrollment = { id: enrollmentsSnap.docs[0].id, ...enrollmentsSnap.docs[0].data() } as ParticipantSprint;
-      const sprintSnap = await db.collection('sprints').doc(enrollment.sprint_id).get();
+      const sprintSnap = await db.collection('sprints').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
       const sprint = sprintSnap.exists ? sprintSnap.data() as Sprint : null;
       const category = sprint?.category || 'Growth';
 
