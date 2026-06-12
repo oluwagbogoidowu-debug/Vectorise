@@ -864,5 +864,167 @@ export const sprintService = {
         } catch (err) {
             console.error("Error checking referral start:", err);
         }
+    },
+
+    runSystemMigration: async (onProgress?: (message: string) => void): Promise<any> => {
+        const report = {
+            sprintsScanned: 0,
+            sprintsMigratedToSubcollection: 0,
+            legacyDocsDeleted: 0,
+            parentFieldsCleaned: 0,
+            detailsFieldsCleaned: 0,
+            errors: [] as string[],
+            logs: [] as string[]
+        };
+
+        const log = (msg: string) => {
+            report.logs.push(msg);
+            console.log(`[Migration] ${msg}`);
+            if (onProgress) onProgress(msg);
+        };
+
+        try {
+            log("Starting system-wide legacy sprint document migration...");
+            const sprintsSnap = await getDocs(collection(db, SPRINTS_COLLECTION));
+            
+            report.sprintsScanned = sprintsSnap.size;
+            log(`Found ${sprintsSnap.size} sprints in the database.`);
+
+            for (const sprintDoc of sprintsSnap.docs) {
+                const sprintId = sprintDoc.id;
+                log(`Scanning sprint: ${sprintId}...`);
+
+                // 1. Fetch parent document
+                let parentData = sanitizeData(sprintDoc.data());
+                
+                // 2. Fetch details/info document
+                let detailsData: any = null;
+                const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
+                const detailsTypoRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetials', 'info');
+                
+                try {
+                    const snap = await getDoc(detailsRef);
+                    if (snap.exists()) {
+                        detailsData = sanitizeData(snap.data());
+                    }
+                } catch (e) {
+                    log(`Warning loading details info for ${sprintId}: ${e}`);
+                }
+
+                try {
+                    const typoSnap = await getDoc(detailsTypoRef);
+                    if (typoSnap.exists() && !detailsData) {
+                        detailsData = sanitizeData(typoSnap.data());
+                        log(`Found legacy data under sprintdetials typo path for ${sprintId}.`);
+                    }
+                } catch (e) {}
+
+                // Merge metadata to see what we have
+                const combinedMetadata = { ...parentData, ...detailsData };
+                
+                // 3. Resolve existing days in the 'days' subcollection
+                const daysSnap = await getDocs(collection(db, SPRINTS_COLLECTION, sprintId, 'days'));
+                const hasDaysSubcollection = !daysSnap.empty;
+
+                let dailyContentToSave = combinedMetadata.dailyContent || null;
+
+                // If days subcollection is empty but we have dailyContent, save it to 'days'
+                if (!hasDaysSubcollection && dailyContentToSave && dailyContentToSave.length > 0) {
+                    log(`Sprint ${sprintId} has dailyContent but empty 'days' subcollection. Migrating content...`);
+                    
+                    const mergedForSub = { ...combinedMetadata, dailyContent: dailyContentToSave };
+                    await sprintService._writeSubcollections(sprintId, mergedForSub);
+                    
+                    report.sprintsMigratedToSubcollection++;
+                    log(`Successfully migrated ${dailyContentToSave.length} days of content to 'sprints/${sprintId}/days'.`);
+                } else if (hasDaysSubcollection) {
+                    log(`Sprint ${sprintId} already has a 'days' subcollection of size ${daysSnap.size}.`);
+                }
+
+                // 4. CLEAN UP Parent document 'sprints/{sprintId}'
+                const fieldsToDelete: Record<string, any> = {
+                    dailyContent: deleteField(),
+                    attachments: deleteField(),
+                    lessonAttachments: deleteField(),
+                    taskAttachments: deleteField(),
+                    dailyContentAttachments: deleteField()
+                };
+
+                try {
+                    // Check if any of these fields exist in the parent document to count them
+                    let parentHasLegacy = false;
+                    for (const key of Object.keys(fieldsToDelete)) {
+                        if (key in parentData) {
+                            parentHasLegacy = true;
+                        }
+                    }
+
+                    if (parentHasLegacy) {
+                        await updateDoc(doc(db, SPRINTS_COLLECTION, sprintId), fieldsToDelete);
+                        report.parentFieldsCleaned++;
+                        log(`Cleaned legacy dailyContent/attachments fields from parent document sprints/${sprintId}.`);
+                    }
+                } catch (e: any) {
+                    log(`Error cleaning parent doc for ${sprintId}: ${e.message}`);
+                    report.errors.push(`ParentDoc ${sprintId}: ${e.message}`);
+                }
+
+                // 5. CLEAN UP 'sprints/{sprintId}/sprintdetails/info' and 'sprintdetials/info'
+                try {
+                    let detailsChanged = false;
+                    if (detailsData) {
+                        for (const key of Object.keys(fieldsToDelete)) {
+                            if (key in detailsData) {
+                                detailsChanged = true;
+                            }
+                        }
+                    }
+
+                    // Always execute update with deleteField on actual target subdocs to guarantee cleanup
+                    const detailsSnapObj = await getDoc(detailsRef);
+                    if (detailsSnapObj.exists()) {
+                        await updateDoc(detailsRef, fieldsToDelete);
+                        if (detailsChanged) report.detailsFieldsCleaned++;
+                    }
+
+                    // Run on typo collection too
+                    const typoSnapObj = await getDoc(detailsTypoRef);
+                    if (typoSnapObj.exists()) {
+                        await updateDoc(detailsTypoRef, fieldsToDelete);
+                        log(`Cleaned legacy fields from legacy typo path 'sprintdetials/info' for ${sprintId}.`);
+                    }
+                } catch (e: any) {
+                    log(`Error cleaning details info doc for ${sprintId}: ${e.message}`);
+                    report.errors.push(`DetailsDoc ${sprintId}: ${e.message}`);
+                }
+
+                // 6. Delete legacy subcollections / documents (e.g. 'day 1', 'day 2', ..., 'day 40')
+                log(`Scanning for legacy 'day X' subcollections under sprints/${sprintId}...`);
+                for (let d = 1; d <= 40; d++) {
+                    const legacyDayColName = `day ${d}`;
+                    try {
+                        const legacyDayColRef = collection(db, SPRINTS_COLLECTION, sprintId, legacyDayColName);
+                        const legacyDaySnap = await getDocs(legacyDayColRef);
+                        
+                        if (!legacyDaySnap.empty) {
+                            log(`Found legacy document(s) in collection 'sprints/${sprintId}/${legacyDayColName}'. Deleting...`);
+                            for (const docInSub of legacyDaySnap.docs) {
+                                await deleteDoc(docInSub.ref);
+                                report.legacyDocsDeleted++;
+                            }
+                        }
+                    } catch (e: any) {
+                        log(`Error scanning/deleting legacy subcollection ${legacyDayColName} for ${sprintId}: ${e.message}`);
+                    }
+                }
+            }
+
+            log("Migration complete!");
+            return report;
+        } catch (e: any) {
+            log(`Fatal error during migration: ${e.message}`);
+            report.errors.push(e.message);
+            return report;
+        }
     }
 };
