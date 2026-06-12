@@ -221,6 +221,19 @@ const EditSprint: React.FC = () => {
   const [editSettings, setEditSettings] = useState<Partial<Sprint>>({});
   const [isAudienceDropdownOpen, setIsAudienceDropdownOpen] = useState(false);
   const [reviewFeedback, setReviewFeedback] = useState<Record<string, string>>({});
+  const [scrolledDown, setScrolledDown] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 120) {
+        setScrolledDown(true);
+      } else {
+        setScrolledDown(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Input Refs for toolbars
   const lessonTextRef = useRef<HTMLTextAreaElement>(null);
@@ -306,71 +319,6 @@ const EditSprint: React.FC = () => {
 
     return finalSprint;
   };
-
-  const backgroundSaveDraft = async (currentSprint: Sprint, currentOriginal: Sprint) => {
-    if (!currentSprint || !currentOriginal) return;
-    setSaveStatus('saving');
-    try {
-      const isDraft = currentSprint.approvalStatus === 'draft';
-      const isDirectPush = isDraft || isAdmin;
-      const changes = getPendingChanges(currentOriginal, currentSprint);
-      if (Object.keys(changes).length === 0) {
-        setSaveStatus('idle');
-        return;
-      }
-      
-      const latestDb = await sprintService.getSprintById(currentSprint.id) || currentSprint;
-      let updatedSprintData: any = {};
-
-      if (isDirectPush) {
-          updatedSprintData = mergeUserEditsWithLatestDb(currentOriginal, currentSprint, latestDb);
-
-          if (isAdmin && isFoundational) {
-              updatedSprintData.published = true;
-              updatedSprintData.approvalStatus = 'approved';
-          }
-      } else {
-          const existingPendingChanges = latestDb?.pendingChanges || {};
-          updatedSprintData = {
-              pendingChanges: {
-                  ...existingPendingChanges,
-                  ...changes
-              }
-          };
-      }
-
-      if (!isAdmin && currentSprint.approvalStatus === 'rejected') {
-          updatedSprintData.approvalStatus = 'draft';
-      }
-
-      await sprintService.updateSprint(currentSprint.id, updatedSprintData, isAdmin);
-      
-      setOriginalSprint({ ...currentSprint });
-
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    } catch (err: any) { 
-        console.error("Background auto-save failed:", err);
-        setSaveStatus('idle'); 
-    }
-  };
-
-  useEffect(() => {
-    if (!sprint || !originalSprint) return;
-    
-    // Check if there are any differences
-    const changes = getPendingChanges(originalSprint, sprint);
-    if (Object.keys(changes).length === 0) {
-      return;
-    }
-
-    // Set up a timer to run the background write strictly 1.5 seconds after the user stops typing
-    const timer = setTimeout(() => {
-      backgroundSaveDraft(sprint, originalSprint);
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [sprint, originalSprint]);
 
   const getPreviousDayConfiguredTags = () => {
     if (selectedDay <= 1 || !sprint) return [];
@@ -3444,6 +3392,27 @@ const EditSprint: React.FC = () => {
         dayContent={currentContent} 
         totalDays={sprint?.duration}
       />
+
+      {scrolledDown && !(isAdmin && !isFoundational) && (
+        <button 
+          id="fixed-save-draft-btn"
+          onClick={handleSaveDraft}
+          disabled={saveStatus === 'saving'}
+          className="fixed bottom-6 right-6 z-50 w-10 h-10 bg-primary text-white rounded-full shadow-lg hover:bg-primary/95 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer border border-primary/20"
+          title="Save Draft"
+        >
+          {saveStatus === 'saving' ? (
+            <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+          ) : saveStatus === 'saved' ? (
+            <CheckCircle2 className="h-4.5 w-4.5 text-white" />
+          ) : (
+            <Save className="h-4.5 w-4.5" />
+          )}
+        </button>
+      )}
     </ErrorBoundary>
   );
 };
