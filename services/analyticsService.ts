@@ -139,8 +139,7 @@ export const analyticsService = {
 
       // Check enrollment to see if sprint is actually completed
       const enrollQ = query(
-        collection(db, 'enrollments'),
-        where('user_id', '==', userId),
+        collection(db, 'users', userId, 'enrollments'),
         where('sprint_id', '==', sprintId)
       );
       const enrollSnap = await getDocs(enrollQ);

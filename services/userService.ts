@@ -300,7 +300,7 @@ export const userService = {
       try {
           const { runTransaction } = await import('firebase/firestore');
           const userRef = doc(db, 'users', uid);
-          const claimRecordRef = doc(db, 'claims', `${uid}_${milestoneId}`);
+          const claimRecordRef = doc(db, 'users', uid, 'claims', `${uid}_${milestoneId}`);
           const transRef = collection(db, 'wallet_transactions');
 
           await runTransaction(db, async (transaction) => {

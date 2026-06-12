@@ -64,7 +64,7 @@ export default function AdminUserDetail() {
                 setSprints(sprintsData);
 
                 // Fetch referrals
-                const referralsQuery = query(collection(db, 'referrals'), where('referrerId', '==', userId));
+                const referralsQuery = query(collection(db, 'users', userId, 'referrals'));
                 const referralsSnap = await getDocs(referralsQuery);
                 const referralsList = referralsSnap.docs.map(doc => sanitizeData({ id: doc.id, ...doc.data() }) as Referral);
                 setReferrals(referralsList);

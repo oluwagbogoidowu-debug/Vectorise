@@ -4,13 +4,16 @@ import crypto from 'crypto';
 
 export default async function handler(req: Request, res: Response) {
   try {
-    const snapshot = await db.collection('subscriptions').get();
+    const snapshot = await db.collectionGroup('subscriptions').get();
 
     if (snapshot.empty) {
       return res.status(200).json({ message: 'No subscribers found' });
     }
 
-    const subs = snapshot.docs.map(doc => doc.data());
+    const subs = snapshot.docs.map(doc => ({
+      ref: doc.ref,
+      ...doc.data() as any
+    }));
 
     const results = await Promise.allSettled(
       subs.map(async (sub) => {
@@ -58,8 +61,7 @@ export default async function handler(req: Request, res: Response) {
             err.code === 'messaging/invalid-argument'
           ) {
             console.log(`Removing invalid subscription token: ${fcmToken.substring(0, 25)}...`);
-            const docId = crypto.createHash('md5').update(fcmToken).digest('hex');
-            await db.collection('subscriptions').doc(docId).delete().catch(() => {});
+            await sub.ref.delete().catch(() => {});
           }
           throw err;
         }

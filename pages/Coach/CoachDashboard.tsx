@@ -83,7 +83,7 @@ const CoachDashboard: React.FC = () => {
   }, [reviews]);
 
   const handleNotificationClick = async (notif: Notification) => {
-      await notificationService.markAsRead(notif.id);
+      await notificationService.markAsRead(notif.userId, notif.id);
       if (notif.actionUrl) {
           navigate(notif.actionUrl);
       }

@@ -54,7 +54,7 @@ const Header: React.FC = () => {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const handleNotificationClick = async (notif: Notification) => {
-    await notificationService.markAsRead(notif.id);
+    await notificationService.markAsRead(notif.userId, notif.id);
     setIsOpen(false);
     if (notif.actionUrl) {
       navigate(notif.actionUrl);
@@ -63,7 +63,7 @@ const Header: React.FC = () => {
 
   const markAllAsRead = async () => {
     const unread = notifications.filter(n => !n.isRead);
-    await Promise.all(unread.map(n => notificationService.markAsRead(n.id)));
+    await Promise.all(unread.map(n => notificationService.markAsRead(n.userId, n.id)));
   };
 
   const getIcon = (type: string) => {

@@ -162,7 +162,7 @@ export const pushNotificationManager = {
   startNotificationListener: () => {
     console.log('[PushManager] Starting FCM notification listener...');
     
-    db.collection('notifications')
+    db.collectionGroup('notifications')
       .where('pushSent', '==', false)
       .onSnapshot(async (snapshot) => {
         const changes = snapshot.docChanges();
@@ -184,7 +184,7 @@ export const pushNotificationManager = {
 
               // Only mark pushSent on actual success
               if (success) {
-                await db.collection('notifications').doc(notification.id).update({
+                await change.doc.ref.update({
                   pushSent: true,
                   pushSentAt: new Date().toISOString(),
                   pushFailed: false
@@ -192,7 +192,7 @@ export const pushNotificationManager = {
               } else {
                 // Save first failure trace and set backoff timers
                 const delay = Math.pow(2, 0) * 60 * 1000; // 1 minute
-                await db.collection('notifications').doc(notification.id).update({
+                await change.doc.ref.update({
                   pushFailed: true,
                   lastPushError: 'First FCM push attempt returned false status or was skipped',
                   retryCount: 1,
@@ -214,7 +214,7 @@ export const pushNotificationManager = {
     try {
       const now = new Date();
       
-      const snapshot = await db.collection('notifications')
+      const snapshot = await db.collectionGroup('notifications')
         .where('pushSent', '==', false)
         .get();
 
@@ -244,7 +244,7 @@ export const pushNotificationManager = {
           }, notification.bypassActiveCheck || false);
 
           if (success) {
-            await db.collection('notifications').doc(notification.id).update({
+            await doc.ref.update({
               pushSent: true,
               pushSentAt: new Date().toISOString(),
               pushFailed: false
@@ -252,7 +252,7 @@ export const pushNotificationManager = {
           } else {
             const nextRetryCount = (notification.retryCount || 1) + 1;
             const delay = Math.pow(2, nextRetryCount - 1) * 60 * 1000; // backoff
-            await db.collection('notifications').doc(notification.id).update({
+            await doc.ref.update({
               pushFailed: true,
               lastPushError: `Retry effort ${nextRetryCount} unsuccessful under FCM`,
               retryCount: admin.firestore.FieldValue.increment(1),
@@ -341,8 +341,7 @@ export const pushNotificationManager = {
       const sentToday = lastSentAt && lastSentAt.toDateString() === now.toDateString();
 
       // Get active enrollment to know the sprint category
-      const enrollmentsSnap = await db.collection('enrollments')
-        .where('user_id', '==', user.id)
+      const enrollmentsSnap = await db.collection('users').doc(user.id).collection('enrollments')
         .where('status', '==', 'active')
         .limit(1)
         .get();

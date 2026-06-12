@@ -65,11 +65,10 @@ export default async (req: any, res: any) => {
       });
 
       const enrollmentId = `enrollment_${userId}_${sprintId}`;
-      const enrollmentRef = db.collection('enrollments').doc(enrollmentId);
+      const enrollmentRef = db.collection('users').doc(userId).collection('enrollments').doc(enrollmentId);
       
       // Check for active enrollments
-      const activeEnrollments = await db.collection('enrollments')
-        .where('user_id', '==', userId)
+      const activeEnrollments = await db.collection('users').doc(userId).collection('enrollments')
         .where('status', '==', 'active')
         .get();
       
@@ -95,7 +94,7 @@ export default async (req: any, res: any) => {
       }, { merge: true });
     });
 
-    await db.collection('notifications').add({
+    await db.collection('users').doc(userId).collection('notifications').add({
       userId,
       type: 'payment_success',
       title: 'Growth Path Authorized',

@@ -101,7 +101,7 @@ const ParticipantDashboard: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
-    const qRef = query(collection(db, 'referrals'), where('referrerId', '==', user.id));
+    const qRef = query(collection(db, 'users', user.id, 'referrals'));
     const unsubRef = onSnapshot(qRef, (snap) => {
       setDashboardReferrals(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Referral));
     });

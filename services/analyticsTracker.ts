@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, query, getDocs, onSnapshot, doc, setDoc } from 'firebase/firestore';
+import { collection, collectionGroup, query, getDocs, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import { 
   AnalyticsEvent, 
   TrafficRecord, 
@@ -75,7 +75,7 @@ export const analyticsTracker = {
             const eventsSnap = await getDocs(eventsCollection);
             const eventsDocs = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as AnalyticsEvent);
 
-            const enrollmentsCollection = collection(db, 'enrollments');
+            const enrollmentsCollection = collectionGroup(db, 'enrollments');
             const enrollmentsSnap = await getDocs(enrollmentsCollection);
             const enrollmentsDocs = enrollmentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ParticipantSprint);
 
@@ -197,7 +197,7 @@ export const analyticsTracker = {
     getFunnelMetrics: async (): Promise<FunnelStats> => {
         try {
             const ledger = await analyticsTracker.getIdentityLedger();
-            const enrollmentsSnap = await getDocs(collection(db, 'enrollments'));
+            const enrollmentsSnap = await getDocs(collectionGroup(db, 'enrollments'));
             
             const visitors = ledger.length;
             const successPayments = ledger.filter(id => id.hasPaid).length;

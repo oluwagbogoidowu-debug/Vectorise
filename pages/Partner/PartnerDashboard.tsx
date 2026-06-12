@@ -40,18 +40,15 @@ const PartnerDashboard: React.FC = () => {
 
       const userIds = referralsData.map(r => r.id);
       if (userIds.length > 0) {
-        const enrollQuery = query(collection(db, 'enrollments'), where('participantId', 'in', userIds.slice(0, 30)));
-        const enrollSnap = await getDocs(enrollQuery);
-        const enrollments = enrollSnap.docs.map(d => sanitizeData(d.data()));
-
-        const merged = referralsData.map(refUser => {
-          const userEnrollments = enrollments.filter(e => e.participantId === refUser.id);
+        const merged = await Promise.all(referralsData.map(async (refUser) => {
+          const enrollSnap = await getDocs(collection(db, 'users', refUser.id, 'enrollments'));
+          const userEnrollments = enrollSnap.docs.map(d => sanitizeData(d.data()));
           return sanitizeData({
             ...refUser,
             enrollments: userEnrollments,
             hasPurchased: userEnrollments.some((e: any) => e.isCommissionTrigger)
           });
-        });
+        }));
         setRealTimeReferrals(merged);
       } else {
         setRealTimeReferrals([]);

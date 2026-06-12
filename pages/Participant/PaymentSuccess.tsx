@@ -64,7 +64,7 @@ const PaymentSuccess: React.FC = () => {
                                 const pending = JSON.parse(pendingRaw);
                                 if (pending && pending.sprintId === data.sprintId && pending.firstActionInput) {
                                     const enrollmentId = `enrollment_${finalUserId}_${data.sprintId}`;
-                                    const enrollmentRef = doc(db, 'enrollments', enrollmentId);
+                                    const enrollmentRef = doc(db, 'users', finalUserId, 'enrollments', enrollmentId);
                                     const enrollmentSnap = await getDoc(enrollmentRef);
                                     if (enrollmentSnap.exists()) {
                                         const enrollmentData = enrollmentSnap.data() as any;

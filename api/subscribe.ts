@@ -40,8 +40,9 @@ export default async function handler(req: Request, res: Response) {
       .update(fcmToken)
       .digest('hex');
 
-    await db.collection('subscriptions').doc(docId).set({
-      userId: userId || 'anonymous',
+    const userDocId = userId || 'anonymous';
+    await db.collection('users').doc(userDocId).collection('subscriptions').doc(docId).set({
+      userId: userDocId,
       fcmToken: fcmToken,
       createdAt: new Date(),
     });

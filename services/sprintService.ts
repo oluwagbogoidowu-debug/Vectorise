@@ -461,7 +461,7 @@ export const sprintService = {
             callback([]);
             return () => {};
         }
-        const q = query(collection(db, 'reviews'), where("sprintId", "in", sprintIds.slice(0, 10)));
+        const q = query(collectionGroup(db, 'reviews'), where("sprintId", "in", sprintIds.slice(0, 10)));
         return onSnapshot(q, (snapshot) => {
             callback(snapshot.docs.map(doc => sanitizeData(doc.data()) as Review));
         });
@@ -552,15 +552,14 @@ export const sprintService = {
         }
     ) => {
         const enrollmentId = `enrollment_${userId}_${sprintId}`;
-        const enrollmentRef = doc(db, ENROLLMENTS_COLLECTION, enrollmentId);
+        const enrollmentRef = doc(db, 'users', userId, 'enrollments', enrollmentId);
         const existing = await getDoc(enrollmentRef);
         
         if (existing.exists()) return sanitizeData(existing.data()) as ParticipantSprint;
 
         // Check for active enrollments to determine if this should be queued
         const activeQuery = query(
-            collection(db, ENROLLMENTS_COLLECTION), 
-            where("user_id", "==", userId), 
+            collection(db, 'users', userId, 'enrollments'), 
             where("status", "==", "active")
         );
         const activeSnap = await getDocs(activeQuery);
@@ -600,7 +599,7 @@ export const sprintService = {
     },
 
     getUserEnrollments: async (userId: string) => {
-        const q = query(collection(db, ENROLLMENTS_COLLECTION), where("user_id", "==", userId));
+        const q = query(collection(db, 'users', userId, 'enrollments'));
         const snap = await getDocs(q);
         return snap.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint));
     },
@@ -608,14 +607,16 @@ export const sprintService = {
     deleteEnrollment: async (enrollmentId: string) => {
         try {
             const { deleteDoc } = await import('firebase/firestore');
-            await deleteDoc(doc(db, ENROLLMENTS_COLLECTION, enrollmentId));
+            const parts = enrollmentId.split('_');
+            const userId = parts[1];
+            await deleteDoc(doc(db, 'users', userId, 'enrollments', enrollmentId));
         } catch (e) {
             console.error("Delete enrollment failed:", e);
         }
     },
 
     subscribeToUserEnrollments: (userId: string, callback: (enrollments: ParticipantSprint[]) => void, onError?: (error: any) => void) => {
-        const q = query(collection(db, ENROLLMENTS_COLLECTION), where("user_id", "==", userId));
+        const q = query(collection(db, 'users', userId, 'enrollments'));
         return onSnapshot(q, (snapshot) => {
             callback(snapshot.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint)));
         }, (error) => {
@@ -630,7 +631,7 @@ export const sprintService = {
         
         for (let i = 0; i < sprintIds.length; i += CHUNK_SIZE) {
             const chunk = sprintIds.slice(i, i + CHUNK_SIZE);
-            const q = query(collection(db, ENROLLMENTS_COLLECTION), where("sprint_id", "in", chunk));
+            const q = query(collectionGroup(db, 'enrollments'), where("sprint_id", "in", chunk));
             const snap = await getDocs(q);
             snap.forEach(doc => results.push({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint));
         }
@@ -639,7 +640,9 @@ export const sprintService = {
     },
 
     subscribeToEnrollment: (enrollmentId: string, callback: (data: ParticipantSprint | null) => void, onError?: (error: any) => void) => {
-        return onSnapshot(doc(db, ENROLLMENTS_COLLECTION, enrollmentId), (doc) => {
+        const parts = enrollmentId.split('_');
+        const userId = parts[1];
+        return onSnapshot(doc(db, 'users', userId, 'enrollments', enrollmentId), (doc) => {
             callback(doc.exists() ? ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint) : null);
         }, (error) => {
             if (onError) onError(error);
@@ -647,20 +650,22 @@ export const sprintService = {
     },
 
     getAllEnrollments: async () => {
-        const q = query(collection(db, ENROLLMENTS_COLLECTION));
+        const q = query(collectionGroup(db, 'enrollments'));
         const snap = await getDocs(q);
         return snap.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint));
     },
 
     subscribeToAllEnrollments: (callback: (enrollments: ParticipantSprint[]) => void) => {
-        const q = query(collection(db, ENROLLMENTS_COLLECTION));
+        const q = query(collectionGroup(db, 'enrollments'));
         return onSnapshot(q, (snapshot) => {
             callback(snapshot.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint)));
         });
     },
 
     updateEnrollment: async (enrollmentId: string, data: Partial<ParticipantSprint>) => {
-        const enrollmentRef = doc(db, ENROLLMENTS_COLLECTION, enrollmentId);
+        const parts = enrollmentId.split('_');
+        const userId = parts[1];
+        const enrollmentRef = doc(db, 'users', userId, 'enrollments', enrollmentId);
         await updateDoc(enrollmentRef, sanitizeData({ ...data, last_activity_at: new Date().toISOString() }));
         if (data.status === 'active') {
             const snap = await getDoc(enrollmentRef);
@@ -800,8 +805,7 @@ export const sprintService = {
             
             // 1. Check for any truly active enrollments
             const activeQuery = query(
-                collection(db, ENROLLMENTS_COLLECTION), 
-                where("user_id", "==", userId), 
+                collection(db, 'users', userId, 'enrollments'), 
                 where("status", "==", "active")
             );
             const activeSnap = await getDocs(activeQuery);
@@ -814,7 +818,7 @@ export const sprintService = {
                 if (isDone) {
                     console.log("[SprintService] Found 'active' sprint that is actually completed, ignoring:", e.id);
                     // Optionally update its status to completed in the background
-                    updateDoc(doc(db, ENROLLMENTS_COLLECTION, e.id), { status: 'completed', completed_at: new Date().toISOString() }).catch(err => console.error("Failed to auto-complete sprint:", err));
+                    updateDoc(doc(db, 'users', userId, 'enrollments', e.id), { status: 'completed', completed_at: new Date().toISOString() }).catch(err => console.error("Failed to auto-complete sprint:", err));
                 }
                 return !isDone;
             });
@@ -826,8 +830,7 @@ export const sprintService = {
 
             // 2. Find the oldest queued enrollment
             const queuedQuery = query(
-                collection(db, ENROLLMENTS_COLLECTION), 
-                where("user_id", "==", userId), 
+                collection(db, 'users', userId, 'enrollments'), 
                 where("status", "==", "queued")
             );
             const queuedSnap = await getDocs(queuedQuery);
@@ -845,7 +848,7 @@ export const sprintService = {
             const nextSprint = queued[0];
             console.log("[SprintService] Starting next queued sprint:", nextSprint.id);
             
-            const enrollmentRef = doc(db, ENROLLMENTS_COLLECTION, nextSprint.id);
+            const enrollmentRef = doc(db, 'users', userId, 'enrollments', nextSprint.id);
             
             const now = new Date().toISOString();
             await updateDoc(enrollmentRef, { 
@@ -866,7 +869,7 @@ export const sprintService = {
     checkReferralStart: async (userId: string) => {
         try {
             const q = query(
-                collection(db, 'referrals'),
+                collectionGroup(db, 'referrals'),
                 where('refereeId', '==', userId),
                 where('status', '==', 'joined')
             );
@@ -879,7 +882,7 @@ export const sprintService = {
                 const referrerId = rData.referrerId;
                 
                 await runTransaction(db, async (transaction) => {
-                    const refDocRef = doc(db, 'referrals', referralDoc.id);
+                    const refDocRef = referralDoc.ref;
                     const referrerRef = doc(db, 'users', referrerId);
                     
                     const referrerSnap = await transaction.get(referrerRef);

@@ -64,7 +64,7 @@ export const notificationService = {
         }
       };
 
-      const colRef = collection(db, COLLECTION_NAME);
+      const colRef = collection(db, 'users', userId, 'notifications');
       const docRef = await addDoc(colRef, sanitizeData(rawNotification));
       
       return { id: docRef.id, ...rawNotification } as Notification;
@@ -103,7 +103,7 @@ export const notificationService = {
           }
         );
 
-        const enrollRef = doc(db, 'enrollments', enrollment.id);
+        const enrollRef = doc(db, 'users', enrollment.user_id, 'enrollments', enrollment.id);
         await updateDoc(enrollRef, {
             sentNudges: [...(enrollment.sentNudges || []), currentMilestone]
         });
@@ -121,10 +121,9 @@ export const notificationService = {
         return () => {};
     }
 
-    const colRef = collection(db, COLLECTION_NAME);
+    const colRef = collection(db, 'users', userId, 'notifications');
     const q = query(
       colRef,
-      where("userId", "==", userId),
       limit(50)
     );
 
@@ -153,9 +152,9 @@ export const notificationService = {
   /**
    * Mark a single notification as read.
    */
-  markAsRead: async (notificationId: string) => {
+  markAsRead: async (userId: string, notificationId: string) => {
     try {
-      const docRef = doc(db, COLLECTION_NAME, notificationId);
+      const docRef = doc(db, 'users', userId, 'notifications', notificationId);
       await updateDoc(docRef, { 
         isRead: true,
         readAt: new Date().toISOString()

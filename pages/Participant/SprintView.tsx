@@ -754,7 +754,7 @@ const SprintView: React.FC = () => {
         });
       }
 
-      const enrollmentRef = doc(db, "enrollments", enrollment.id);
+      const enrollmentRef = doc(db, "users", enrollment.user_id, "enrollments", enrollment.id);
       await updateDoc(enrollmentRef, {
         progress: updatedProgress,
         last_activity_at: timestamp,
@@ -1100,7 +1100,7 @@ const SprintView: React.FC = () => {
           });
         }
 
-        const enrollmentRef = doc(db, "enrollments", enrollment.id);
+        const enrollmentRef = doc(db, "users", enrollment.user_id, "enrollments", enrollment.id);
         const updatePayload: any = {
           progress: updatedProgress,
           last_activity_at: timestamp,
@@ -1233,7 +1233,7 @@ const SprintView: React.FC = () => {
     const newState = !soundEnabled;
     setSoundEnabled(newState);
     try {
-      const enrollmentRef = doc(db, "enrollments", enrollment.id);
+      const enrollmentRef = doc(db, "users", enrollment.user_id, "enrollments", enrollment.id);
       await updateDoc(enrollmentRef, { soundDisabled: !newState });
     } catch (err) {
       console.error("Toggle sound state failed", err);
@@ -1246,7 +1246,7 @@ const SprintView: React.FC = () => {
       forcedState !== undefined ? forcedState : !notificationsEnabled;
     setNotificationsEnabled(newState);
     try {
-      const enrollmentRef = doc(db, "enrollments", enrollment.id);
+      const enrollmentRef = doc(db, "users", enrollment.user_id, "enrollments", enrollment.id);
       await updateDoc(enrollmentRef, { notificationsDisabled: !newState });
 
       if (
@@ -1276,7 +1276,7 @@ const SprintView: React.FC = () => {
       );
       setNotificationsEnabled(true);
 
-      const enrollmentRef = doc(db, "enrollments", enrollment!.id);
+      const enrollmentRef = doc(db, "users", enrollment!.user_id, "enrollments", enrollment!.id);
       await updateDoc(enrollmentRef, { notificationsDisabled: false });
 
       toast.success("Notifications activated!", { id: toastId });
@@ -1339,7 +1339,7 @@ const SprintView: React.FC = () => {
           : p,
       );
 
-      const enrollmentRef = doc(db, "enrollments", enrollment.id);
+      const enrollmentRef = doc(db, "users", enrollment.user_id, "enrollments", enrollment.id);
       const updatePayload: any = {
         progress: updatedProgress,
         last_activity_at: timestamp,
@@ -1448,7 +1448,7 @@ const SprintView: React.FC = () => {
     if (!enrollment) return;
     const newState = !enrollment.checkInReminderEnabled;
     try {
-      const enrollmentRef = doc(db, "enrollments", enrollment.id);
+      const enrollmentRef = doc(db, "users", enrollment.user_id, "enrollments", enrollment.id);
       await updateDoc(enrollmentRef, { checkInReminderEnabled: newState });
       toast.success(
         newState ? "Daily reminders enabled" : "Daily reminders disabled",
@@ -1480,7 +1480,7 @@ const SprintView: React.FC = () => {
     const updatedHistory = [...(enrollment.checkInHistory || []), newCheckIn];
 
     try {
-      const enrollmentRef = doc(db, "enrollments", enrollment.id);
+      const enrollmentRef = doc(db, "users", enrollment.user_id, "enrollments", enrollment.id);
       await updateDoc(enrollmentRef, { checkInHistory: updatedHistory });
       toast.success(`Checked in for Day ${day}!`);
       if (user?.id) {

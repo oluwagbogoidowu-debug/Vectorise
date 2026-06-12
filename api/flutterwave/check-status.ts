@@ -111,7 +111,7 @@ export default async (req: any, res: any) => {
             });
           } else {
             // Check for existing active enrollments
-            const existingEnrollmentsSnap = await transaction.get(db.collection('enrollments').where('user_id', '==', userId).where('status', '==', 'active'));
+            const existingEnrollmentsSnap = await transaction.get(db.collection('users').doc(userId).collection('enrollments').where('status', '==', 'active'));
             const hasActiveSprint = !existingEnrollmentsSnap.empty;
 
             if (trackId) {
@@ -137,7 +137,7 @@ export default async (req: any, res: any) => {
                       activeEnrollmentId = enrollmentId;
                   }
 
-                  transaction.set(db.collection('enrollments').doc(enrollmentId), {
+                  transaction.set(db.collection('users').doc(userId).collection('enrollments').doc(enrollmentId), {
                     id: enrollmentId,
                     sprint_id: sId,
                     track_id: trackId,
@@ -168,7 +168,7 @@ export default async (req: any, res: any) => {
               const shouldBeActive = !hasActiveSprint;
               if (shouldBeActive) activeEnrollmentId = enrollmentId;
 
-              transaction.set(db.collection('enrollments').doc(enrollmentId), {
+              transaction.set(db.collection('users').doc(userId).collection('enrollments').doc(enrollmentId), {
                 id: enrollmentId,
                 sprint_id: sprintId,
                 user_id: userId,
