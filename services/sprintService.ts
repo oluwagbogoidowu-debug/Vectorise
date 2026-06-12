@@ -317,6 +317,9 @@ export const sprintService = {
                     }
                 });
             }
+            
+            const hasDailyField = 'dailyContent' in sprint;
+
             if (Object.keys(loadedDays).length > 0) {
                 const dailyContent = [];
                 const maxDay = Math.max(...Object.keys(loadedDays).map(Number));
@@ -326,12 +329,30 @@ export const sprintService = {
                     }
                 }
                 sprint.dailyContent = dailyContent;
+                
+                // If parent doc contains dailyContent, clean it up immediately in Firestore
+                if (hasDailyField) {
+                    try {
+                        const parentRef = doc(db, SPRINTS_COLLECTION, sprint.id);
+                        await updateDoc(parentRef, { dailyContent: deleteField() });
+                        
+                        const detailsRef = doc(db, SPRINTS_COLLECTION, sprint.id, 'sprintdetails', 'info');
+                        await updateDoc(detailsRef, { dailyContent: deleteField() }).catch(() => {});
+                    } catch (e) {}
+                }
             } else if (sprint.dailyContent && sprint.dailyContent.length > 0) {
                 // Auto-migrate old format sprint to new subcollections in the background
                 console.log(`[Migration] Auto-migrating sprint ${sprint.id} to new subcollection structure in Firestore...`);
-                sprintService._writeSubcollections(sprint.id, sprint).catch(err => {
-                    console.error(`[Migration] Failed to auto-migrate sprint ${sprint.id}`, err);
-                });
+                await sprintService._writeSubcollections(sprint.id, sprint);
+                
+                // Clean from parent and sprintdetails
+                try {
+                    const parentRef = doc(db, SPRINTS_COLLECTION, sprint.id);
+                    await updateDoc(parentRef, { dailyContent: deleteField() });
+                    
+                    const detailsRef = doc(db, SPRINTS_COLLECTION, sprint.id, 'sprintdetails', 'info');
+                    await updateDoc(detailsRef, { dailyContent: deleteField() }).catch(() => {});
+                } catch (e) {}
             }
         } catch (err) {
             console.error("Error resolving sprint subcollection days:", err);
@@ -360,7 +381,27 @@ export const sprintService = {
                 ...metadata 
             } = serializedSprint;
             const detailsData = sanitizeData({ ...metadata, updatedAt: new Date().toISOString() });
+            
+            // Clean up dailyContent from detailsData
+            delete (detailsData as any).dailyContent;
+            
             await setDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'), detailsData);
+            
+            // Ensure any direct obsolete day documents (sprints/{sprintId}/day X) are deleted
+            for (let d = 1; d <= 30; d++) {
+                try {
+                    const obsoleteDayRef = doc(db, SPRINTS_COLLECTION, sprintId, `day ${d}`);
+                    await deleteDoc(obsoleteDayRef);
+                } catch (err) {}
+            }
+            
+            // Ensure dailyContent field is explicitly deleted from the parent and sprintdetails/info
+            const parentRef = doc(db, SPRINTS_COLLECTION, sprintId);
+            await updateDoc(parentRef, { dailyContent: deleteField() }).catch(() => {});
+            
+            const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
+            await updateDoc(detailsRef, { dailyContent: deleteField() }).catch(() => {});
+
             if (Array.isArray(dailyContent)) {
                 // Get all existing day documents to check for deletions (keeps the subcollection synchronized)
                 const daysSnap = await getDocs(collection(db, SPRINTS_COLLECTION, sprintId, 'days'));
