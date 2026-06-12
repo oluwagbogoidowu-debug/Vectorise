@@ -154,7 +154,7 @@ export const sprintService = {
     createSprint: async (sprint: Sprint) => {
         const now = new Date().toISOString();
         const newSprint = sanitizeData({ ...sprint, createdAt: now, updatedAt: now, deleted: false });
-        const { dailyContent, ...sprintDetails } = newSprint;
+        const { dailyContent, transformation, ...sprintDetails } = newSprint;
         await setDoc(doc(db, SPRINTS_COLLECTION, sprint.id), serializeSprint(sprintDetails));
         await sprintService._writeSubcollections(sprint.id, newSprint);
         return newSprint;
@@ -651,8 +651,9 @@ export const sprintService = {
         
         if (Object.keys(detailsToUpdate).length > 0 || isDirect) {
             const updatePayload = { ...detailsToUpdate, updatedAt: new Date().toISOString() };
-            // Force-delete of dailyContent from parent document to ensure single source of truth as requested
+            // Force-delete of dailyContent and transformation from parent document to ensure single source of truth as requested
             (updatePayload as any).dailyContent = deleteField();
+            (updatePayload as any).transformation = deleteField();
             await updateDoc(sprintRef, serializeSprint(sanitizeData(updatePayload)));
         }
         
@@ -661,8 +662,16 @@ export const sprintService = {
             if (fullSprintSnap.exists()) {
                 const fullDetails = sanitizeData(fullSprintSnap.data());
                 
+                // Fetch existing subcollection details to preserve subcollection-only fields (like transformation)
+                let existingDetails = {};
+                const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
+                const detailsSnap = await getDoc(detailsRef);
+                if (detailsSnap.exists()) {
+                    existingDetails = sanitizeData(detailsSnap.data());
+                }
+                
                 // Construct the merged data to write to subcollections
-                const mergedSub = { ...fullDetails, ...detailsToUpdate };
+                const mergedSub = { ...fullDetails, ...existingDetails, ...detailsToUpdate };
                 
                 // If the updated data contains dailyContent, keep/put it in mergedSub for subcollection write
                 if (dailyContent) {
@@ -950,19 +959,24 @@ export const sprintService = {
                     dailyContentAttachments: deleteField()
                 };
 
+                const parentFieldsToDelete = {
+                    ...fieldsToDelete,
+                    transformation: deleteField()
+                };
+
                 try {
                     // Check if any of these fields exist in the parent document to count them
                     let parentHasLegacy = false;
-                    for (const key of Object.keys(fieldsToDelete)) {
+                    for (const key of Object.keys(parentFieldsToDelete)) {
                         if (key in parentData) {
                             parentHasLegacy = true;
                         }
                     }
 
                     if (parentHasLegacy) {
-                        await updateDoc(doc(db, SPRINTS_COLLECTION, sprintId), fieldsToDelete);
+                        await updateDoc(doc(db, SPRINTS_COLLECTION, sprintId), parentFieldsToDelete);
                         report.parentFieldsCleaned++;
-                        log(`Cleaned legacy dailyContent/attachments fields from parent document sprints/${sprintId}.`);
+                        log(`Cleaned legacy fields and 'transformation' from parent document sprints/${sprintId}.`);
                     }
                 } catch (e: any) {
                     log(`Error cleaning parent doc for ${sprintId}: ${e.message}`);
