@@ -1,6 +1,6 @@
 
 import { db } from './firebase';
-import { collection, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, collectionGroup, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review, Track } from '../types';
 import { sanitizeData, userService } from './userService';
 
@@ -154,23 +154,20 @@ export const sprintService = {
     createSprint: async (sprint: Sprint) => {
         const now = new Date().toISOString();
         const newSprint = sanitizeData({ ...sprint, createdAt: now, updatedAt: now, deleted: false });
-        const { dailyContent, transformation, ...sprintDetails } = newSprint;
-        await setDoc(doc(db, SPRINTS_COLLECTION, sprint.id), serializeSprint(sprintDetails));
+        // Parent document is kept completely empty to store sprint details purely in subcollections
+        await setDoc(doc(db, SPRINTS_COLLECTION, sprint.id), {});
         await sprintService._writeSubcollections(sprint.id, newSprint);
         return newSprint;
     },
 
     getSprintById: async (sprintId: string) => {
         const snap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId));
-        if (!snap.exists()) return null;
-        let sprintData = sanitizeData(snap.data()) as Sprint;
-        try {
-            const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'));
-            if (detailsSnap.exists()) {
-                sprintData = { ...sprintData, ...cleanDetailsData(detailsSnap.data()) };
-            }
-        } catch (e) {
-            console.warn("Failed to load sprintdetails info document", e);
+        const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'));
+        if (!snap.exists() && !detailsSnap.exists()) return null;
+        
+        let sprintData = { id: sprintId } as any;
+        if (detailsSnap.exists()) {
+            sprintData = { ...sprintData, ...cleanDetailsData(detailsSnap.data()) };
         }
         return await sprintService.resolveSprintDays(sprintData);
     },
@@ -179,23 +176,11 @@ export const sprintService = {
         const validIds = Array.from(new Set((sprintIds || []).filter(id => !!id && typeof id === 'string' && id !== '')));
         if (validIds.length === 0) return [];
         try {
-            const CHUNK_SIZE = 10;
             const results: Sprint[] = [];
-            for (let i = 0; i < validIds.length; i += CHUNK_SIZE) {
-                const chunk = validIds.slice(i, i + CHUNK_SIZE);
-                const q = query(collection(db, SPRINTS_COLLECTION), where("id", "in", chunk));
-                const querySnapshot = await getDocs(q);
-                for (const d of querySnapshot.docs) {
-                    let sprintData = sanitizeData(d.data()) as Sprint;
-                    try {
-                        const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, d.id, 'sprintdetails', 'info'));
-                        if (detailsSnap.exists()) {
-                            sprintData = { ...sprintData, ...cleanDetailsData(detailsSnap.data()) };
-                        }
-                    } catch (e) {}
-                    const fullSprint = await sprintService.resolveSprintDays(sprintData);
-                    results.push(fullSprint);
-                }
+            const sprintPromises = validIds.map(id => sprintService.getSprintById(id));
+            const fetched = await Promise.all(sprintPromises);
+            for (const s of fetched) {
+                if (s) results.push(s);
             }
             return results;
         } catch (error) {
@@ -205,37 +190,48 @@ export const sprintService = {
     },
 
     subscribeToSprint: (sprintId: string, callback: (sprint: Sprint | null) => void) => {
-        return onSnapshot(doc(db, SPRINTS_COLLECTION, sprintId), async (docSnap) => {
-            if (!docSnap.exists()) {
-                callback(null);
+        const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
+        return onSnapshot(detailsRef, async (detailsSnap) => {
+            if (!detailsSnap.exists()) {
+                // Try parent fallback if it is not migrated yet
+                const parentSnap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId));
+                if (!parentSnap.exists()) {
+                    callback(null);
+                    return;
+                }
+                const parentData = sanitizeData(parentSnap.data()) as Sprint;
+                callback(await sprintService.resolveSprintDays(parentData));
                 return;
             }
-            let sprintData = sanitizeData(docSnap.data()) as Sprint;
-            try {
-                const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'));
-                if (detailsSnap.exists()) {
-                    sprintData = { ...sprintData, ...cleanDetailsData(detailsSnap.data()) };
-                }
-            } catch (e) {}
+            let sprintData = { id: sprintId, ...cleanDetailsData(detailsSnap.data()) } as Sprint;
             const fullSprint = await sprintService.resolveSprintDays(sprintData);
             callback(fullSprint);
         });
     },
 
     getCoachSprints: async (coachId: string) => {
-        const q = query(collection(db, SPRINTS_COLLECTION), where("coachId", "==", coachId), where("deleted", "==", false));
+        const q = query(collectionGroup(db, 'sprintdetails'));
         const snap = await getDocs(q);
-        const raw = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+        const raw = snap.docs
+            .map(d => {
+                const data = sanitizeData(d.data()) as Sprint;
+                data.id = d.ref.parent.parent!.id;
+                return data;
+            })
+            .filter(s => s.coachId === coachId && s.deleted !== true);
         return await sprintService.resolveSprintsList(raw);
     },
 
     getAdminCoachSprints: async () => {
-        const q = query(
-            collection(db, SPRINTS_COLLECTION), 
-            where("deleted", "==", false)
-        );
+        const q = query(collectionGroup(db, 'sprintdetails'));
         const snap = await getDocs(q);
-        const allSprints = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+        const allSprints = snap.docs
+            .map(d => {
+                const data = sanitizeData(d.data()) as Sprint;
+                data.id = d.ref.parent.parent!.id;
+                return data;
+            })
+            .filter(s => s.deleted !== true);
         const resolved = await sprintService.resolveSprintsList(allSprints);
         return resolved.filter(s => 
             s.sprintType === 'Foundational' || 
@@ -248,25 +244,43 @@ export const sprintService = {
     },
 
     subscribeToCoachSprints: (coachId: string, callback: (sprints: Sprint[]) => void) => {
-        const q = query(collection(db, SPRINTS_COLLECTION), where("coachId", "==", coachId), where("deleted", "==", false));
+        const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
-            const raw = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+            const raw = snap.docs
+                .map(d => {
+                    const data = sanitizeData(d.data()) as Sprint;
+                    data.id = d.ref.parent.parent!.id;
+                    return data;
+                })
+                .filter(s => s.coachId === coachId && s.deleted !== true);
             const resolved = await sprintService.resolveSprintsList(raw);
             callback(resolved);
         });
     },
 
     getAdminSprints: async () => {
-        const q = query(collection(db, SPRINTS_COLLECTION), where("deleted", "==", false));
+        const q = query(collectionGroup(db, 'sprintdetails'));
         const snap = await getDocs(q);
-        const raw = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+        const raw = snap.docs
+            .map(d => {
+                const data = sanitizeData(d.data()) as Sprint;
+                data.id = d.ref.parent.parent!.id;
+                return data;
+            })
+            .filter(s => s.deleted !== true);
         return await sprintService.resolveSprintsList(raw);
     },
 
     subscribeToAdminSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
-        const q = query(collection(db, SPRINTS_COLLECTION), where("deleted", "==", false));
+        const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
-            const raw = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+            const raw = snap.docs
+                .map(d => {
+                    const data = sanitizeData(d.data()) as Sprint;
+                    data.id = d.ref.parent.parent!.id;
+                    return data;
+                })
+                .filter(s => s.deleted !== true);
             const resolved = await sprintService.resolveSprintsList(raw);
             callback(resolved);
         }, (error) => {
@@ -275,9 +289,13 @@ export const sprintService = {
     },
 
     subscribeToAllSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
-        const q = query(collection(db, SPRINTS_COLLECTION));
+        const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
-            const raw = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+            const raw = snap.docs.map(d => {
+                const data = sanitizeData(d.data()) as Sprint;
+                data.id = d.ref.parent.parent!.id;
+                return data;
+            });
             const resolved = await sprintService.resolveSprintsList(raw);
             callback(resolved);
         }, (error) => {
@@ -286,16 +304,28 @@ export const sprintService = {
     },
 
     getPublishedSprints: async () => {
-        const q = query(collection(db, SPRINTS_COLLECTION), where("published", "==", true), where("deleted", "==", false));
+        const q = query(collectionGroup(db, 'sprintdetails'));
         const snap = await getDocs(q);
-        const raw = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+        const raw = snap.docs
+            .map(d => {
+                const data = sanitizeData(d.data()) as Sprint;
+                data.id = d.ref.parent.parent!.id;
+                return data;
+            })
+            .filter(s => s.published === true && s.deleted !== true);
         return await sprintService.resolveSprintsList(raw);
     },
 
     subscribeToPublishedSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
-        const q = query(collection(db, SPRINTS_COLLECTION), where("published", "==", true), where("deleted", "==", false));
+        const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
-            const raw = snap.docs.map(doc => sanitizeData(doc.data()) as Sprint);
+            const raw = snap.docs
+                .map(d => {
+                    const data = sanitizeData(d.data()) as Sprint;
+                    data.id = d.ref.parent.parent!.id;
+                    return data;
+                })
+                .filter(s => s.published === true && s.deleted !== true);
             const resolved = await sprintService.resolveSprintsList(raw);
             callback(resolved);
         }, (error) => {
@@ -334,7 +364,7 @@ export const sprintService = {
                 if (hasDailyField) {
                     try {
                         const parentRef = doc(db, SPRINTS_COLLECTION, sprint.id);
-                        await updateDoc(parentRef, { dailyContent: deleteField() });
+                        await setDoc(parentRef, {});
                         
                         const detailsRef = doc(db, SPRINTS_COLLECTION, sprint.id, 'sprintdetails', 'info');
                         await updateDoc(detailsRef, { dailyContent: deleteField() }).catch(() => {});
@@ -348,7 +378,7 @@ export const sprintService = {
                 // Clean from parent and sprintdetails
                 try {
                     const parentRef = doc(db, SPRINTS_COLLECTION, sprint.id);
-                    await updateDoc(parentRef, { dailyContent: deleteField() });
+                    await setDoc(parentRef, {});
                     
                     const detailsRef = doc(db, SPRINTS_COLLECTION, sprint.id, 'sprintdetails', 'info');
                     await updateDoc(detailsRef, { dailyContent: deleteField() }).catch(() => {});
@@ -395,9 +425,9 @@ export const sprintService = {
                 } catch (err) {}
             }
             
-            // Ensure dailyContent field is explicitly deleted from the parent and sprintdetails/info
+            // Ensure the parent is completely empty as requested
             const parentRef = doc(db, SPRINTS_COLLECTION, sprintId);
-            await updateDoc(parentRef, { dailyContent: deleteField() }).catch(() => {});
+            await setDoc(parentRef, {});
             
             const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
             await updateDoc(detailsRef, { dailyContent: deleteField() }).catch(() => {});
@@ -646,48 +676,45 @@ export const sprintService = {
     updateSprint: async (sprintId: string, data: Partial<Sprint>, isDirect: boolean = false) => {
         const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
         
-        // 1. Separate dailyContent from details/metadata to prevent content repeating in parent doc
-        const { dailyContent, ...detailsToUpdate } = data;
-        
-        if (Object.keys(detailsToUpdate).length > 0 || isDirect) {
-            const updatePayload = { ...detailsToUpdate, updatedAt: new Date().toISOString() };
-            // Force-delete of dailyContent and transformation from parent document to ensure single source of truth as requested
-            (updatePayload as any).dailyContent = deleteField();
-            (updatePayload as any).transformation = deleteField();
-            await updateDoc(sprintRef, serializeSprint(sanitizeData(updatePayload)));
-        }
+        // Ensure the parent doc is completely empty to satisfies single subcollection source of truth
+        await setDoc(sprintRef, {});
         
         try {
-            const fullSprintSnap = await getDoc(sprintRef);
-            if (fullSprintSnap.exists()) {
-                const fullDetails = sanitizeData(fullSprintSnap.data());
-                
-                // Fetch existing subcollection details to preserve subcollection-only fields (like transformation)
-                let existingDetails = {};
-                const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
-                const detailsSnap = await getDoc(detailsRef);
-                if (detailsSnap.exists()) {
-                    existingDetails = sanitizeData(detailsSnap.data());
-                }
-                
-                // Construct the merged data to write to subcollections
-                const mergedSub = { ...fullDetails, ...existingDetails, ...detailsToUpdate };
-                
-                // If the updated data contains dailyContent, keep/put it in mergedSub for subcollection write
-                if (dailyContent) {
-                    mergedSub.dailyContent = dailyContent;
-                }
-                
-                await sprintService._writeSubcollections(sprintId, mergedSub);
+            // Fetch existing details from subcollection
+            let existingDetails = {};
+            const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
+            const detailsSnap = await getDoc(detailsRef);
+            if (detailsSnap.exists()) {
+                existingDetails = sanitizeData(detailsSnap.data());
             }
+            
+            // Construct the merged data to write back to subcollections
+            const mergedSub = { ...existingDetails, ...data, updatedAt: new Date().toISOString() };
+            
+            await sprintService._writeSubcollections(sprintId, mergedSub);
         } catch (e) {
             console.error("Failed to sync subcollections in updateSprint", e);
         }
     },
 
     deleteSprint: async (sprintId: string) => {
-        // 1. Mark sprint as deleted
-        await updateDoc(doc(db, SPRINTS_COLLECTION, sprintId), { deleted: true, published: false });
+        // Mark sprint as deleted inside the subcollection info, parent doc remains completely empty
+        const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
+        await setDoc(sprintRef, {});
+
+        try {
+            const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
+            const detailsSnap = await getDoc(detailsRef);
+            if (detailsSnap.exists()) {
+                const details = sanitizeData(detailsSnap.data());
+                details.deleted = true;
+                details.published = false;
+                details.updatedAt = new Date().toISOString();
+                await setDoc(detailsRef, details);
+            }
+        } catch (err) {
+            console.error("[SprintService] Failed to mark subcollection as deleted:", err);
+        }
 
         // 2. Remove from all Tracks
         try {
@@ -746,27 +773,22 @@ export const sprintService = {
 
     approveSprint: async (sprintId: string, data?: Partial<Sprint>) => {
         const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
-        const finalData = { ...(data || {}), approvalStatus: 'approved', published: true, updatedAt: new Date().toISOString(), pendingChanges: deleteField() };
-        
-        // Strip dailyContent from parent write and force-delete it from parent document
-        const { dailyContent, ...finalDetails } = finalData;
-        (finalDetails as any).dailyContent = deleteField();
-        
-        await updateDoc(sprintRef, serializeSprint(sanitizeData(finalDetails)));
+        await setDoc(sprintRef, {}); // Entirely clear parent document fields
+
         try {
-            const fullSprintSnap = await getDoc(sprintRef);
-            if (fullSprintSnap.exists()) {
-                const fullDetails = sanitizeData(fullSprintSnap.data());
-                
-                const mergedSub = { ...fullDetails, ...finalData };
-                
-                // Keep dailyContent for subcollection write
-                if (dailyContent) {
-                    mergedSub.dailyContent = dailyContent;
-                }
-                
-                await sprintService._writeSubcollections(sprintId, mergedSub);
+            let existingDetails = {};
+            const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
+            const detailsSnap = await getDoc(detailsRef);
+            if (detailsSnap.exists()) {
+                existingDetails = sanitizeData(detailsSnap.data());
             }
+
+            const finalData = { ...existingDetails, ...(data || {}), approvalStatus: 'approved', published: true, updatedAt: new Date().toISOString() };
+            if ((finalData as any).pendingChanges) {
+                delete (finalData as any).pendingChanges;
+            }
+
+            await sprintService._writeSubcollections(sprintId, finalData);
         } catch (e) {
             console.error("Failed to sync subcollections in approveSprint", e);
         }
@@ -959,25 +981,12 @@ export const sprintService = {
                     dailyContentAttachments: deleteField()
                 };
 
-                const parentFieldsToDelete = {
-                    ...fieldsToDelete,
-                    transformation: deleteField()
-                };
-
                 try {
-                    // Check if any of these fields exist in the parent document to count them
-                    let parentHasLegacy = false;
-                    for (const key of Object.keys(parentFieldsToDelete)) {
-                        if (key in parentData) {
-                            parentHasLegacy = true;
-                        }
-                    }
-
-                    if (parentHasLegacy) {
-                        await updateDoc(doc(db, SPRINTS_COLLECTION, sprintId), parentFieldsToDelete);
-                        report.parentFieldsCleaned++;
-                        log(`Cleaned legacy fields and 'transformation' from parent document sprints/${sprintId}.`);
-                    }
+                    // Entirely clear the parent doc, converting it to an empty object
+                    const parentRef = doc(db, SPRINTS_COLLECTION, sprintId);
+                    await setDoc(parentRef, {});
+                    report.parentFieldsCleaned++;
+                    log(`Successfully cleared all fields from parent document sprints/${sprintId}, converting it to an empty placeholder.`);
                 } catch (e: any) {
                     log(`Error cleaning parent doc for ${sprintId}: ${e.message}`);
                     report.errors.push(`ParentDoc ${sprintId}: ${e.message}`);
