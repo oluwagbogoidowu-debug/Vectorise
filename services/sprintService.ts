@@ -628,16 +628,37 @@ export const sprintService = {
 
     getEnrollmentsForSprints: async (sprintIds: string[]) => {
         if (!sprintIds.length) return [];
-        const CHUNK_SIZE = 10;
         const results: ParticipantSprint[] = [];
-        
-        for (let i = 0; i < sprintIds.length; i += CHUNK_SIZE) {
-            const chunk = sprintIds.slice(i, i + CHUNK_SIZE);
-            const q = query(collectionGroup(db, 'enrollments'), where("sprint_id", "in", chunk));
-            const snap = await getDocs(q);
-            snap.forEach(doc => results.push({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint));
+        try {
+            const usersSnap = await getDocs(collection(db, 'users'));
+            const userDocs = usersSnap.docs;
+            
+            await Promise.all(userDocs.map(async (userDoc) => {
+                const userId = userDoc.id;
+                
+                // Fetch from users/{userId}/enrollments
+                const enrollmentsRef = collection(db, 'users', userId, 'enrollments');
+                const enrollmentsSnap = await getDocs(enrollmentsRef);
+                enrollmentsSnap.forEach(doc => {
+                    const data = sanitizeData(doc.data()) as ParticipantSprint;
+                    if (sprintIds.includes(data.sprint_id)) {
+                        results.push({ ...data, id: doc.id });
+                    }
+                });
+                
+                // Fallback: Fetch from users/{userId}/enrollment
+                const enrollmentRef = collection(db, 'users', userId, 'enrollment');
+                const enrollmentSnap = await getDocs(enrollmentRef);
+                enrollmentSnap.forEach(doc => {
+                    const data = sanitizeData(doc.data()) as ParticipantSprint;
+                    if (sprintIds.includes(data.sprint_id) && !results.some(r => r.id === doc.id)) {
+                        results.push({ ...data, id: doc.id });
+                    }
+                });
+            }));
+        } catch (e) {
+            console.error("Failed to fetch enrollments from individual user paths:", e);
         }
-        
         return results;
     },
 

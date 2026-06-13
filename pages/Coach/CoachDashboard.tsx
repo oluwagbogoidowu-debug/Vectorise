@@ -4,12 +4,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { notificationService } from '../../services/notificationService';
+import { userService } from '../../services/userService';
 import { Sprint, Notification, Review, UserRole } from '../../types';
 
 const CoachDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [dynamicNotifications, setDynamicNotifications] = useState<Notification[]>([]);
   const [mySprints, setMySprints] = useState<Sprint[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,6 +51,45 @@ const CoachDashboard: React.FC = () => {
                   const enrollments = await sprintService.getEnrollmentsForSprints(sprintIds);
                   setTotalStudentsCount(new Set(enrollments.map(e => e.user_id)).size);
 
+                  // 1b. Load participants details to enrich notifications
+                  const uniqueParticipantIds = Array.from(new Set(enrollments.map(e => e.user_id))) as string[];
+                  const dbParticipants = await userService.getUsersByIds(uniqueParticipantIds);
+
+                  const completionNotifications: Notification[] = [];
+                  const formatSprintName = (title: string) => {
+                      const t = title.toLowerCase();
+                      if (t.includes('sprint')) return t;
+                      return `${t} sprint`;
+                  };
+
+                  enrollments.forEach(enrollment => {
+                      const student = dbParticipants.find(u => u.id === enrollment.user_id);
+                      const studentName = student?.name || 'A student';
+                      const sprint = fetched.find(s => s.id === enrollment.sprint_id);
+                      const sprintTitle = sprint?.title || 'sprint';
+
+                      if (enrollment.progress && Array.isArray(enrollment.progress)) {
+                          enrollment.progress.forEach(item => {
+                              // Track via day 1 (and other days) submission or completed state
+                              const isCompleted = item.completed || !!item.submission;
+                              if (isCompleted) {
+                                  completionNotifications.push({
+                                      id: `comp_${enrollment.id}_day_${item.day}`,
+                                      userId: user.id, // For the coach
+                                      title: `${studentName} completed day ${item.day} of ${formatSprintName(sprintTitle)}.`,
+                                      body: item.submission ? `Submission: "${item.submission}"` : 'Day step completed.',
+                                      createdAt: item.completedAt || enrollment.last_activity_at || enrollment.started_at || new Date().toISOString(),
+                                      isRead: false,
+                                      type: 'sprint_day_completed',
+                                      actionUrl: `/coach/participants?studentId=${enrollment.user_id}&sprintId=${enrollment.sprint_id}&day=${item.day}`
+                                  });
+                              }
+                          });
+                      }
+                  });
+
+                  setDynamicNotifications(completionNotifications);
+
                   // 2. Subscribe to real-time reviews for impact score
                   unsubscribeReviews = sprintService.subscribeToReviewsForSprints(sprintIds, (updatedReviews) => {
                       setReviews(updatedReviews);
@@ -75,6 +116,21 @@ const CoachDashboard: React.FC = () => {
       };
   }, [user]);
 
+  // Merge database notifications with dynamic step completion notifications
+  const allNotificationsMerged = useMemo(() => {
+      const combined = [...notifications, ...dynamicNotifications];
+      const seenIds = new Set();
+      return combined.filter(n => {
+          if (seenIds.has(n.id)) return false;
+          seenIds.add(n.id);
+          return true;
+      }).sort((a, b) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+      });
+  }, [notifications, dynamicNotifications]);
+
   // Real-time Impact Score calculation
   const impactScore = useMemo(() => {
       if (reviews.length === 0) return "5.0";
@@ -83,6 +139,12 @@ const CoachDashboard: React.FC = () => {
   }, [reviews]);
 
   const handleNotificationClick = async (notif: Notification) => {
+      if (notif.id.startsWith('comp_')) {
+          if (notif.actionUrl) {
+              navigate(notif.actionUrl);
+          }
+          return;
+      }
       await notificationService.markAsRead(notif.userId, notif.id);
       if (notif.actionUrl) {
           navigate(notif.actionUrl);
@@ -104,7 +166,7 @@ const CoachDashboard: React.FC = () => {
               }`}
           >
               <span className="mt-0.5 text-lg sm:text-xl flex-shrink-0">
-                  {type === 'coach_message' ? '💬' : type === 'payment_success' ? '💳' : type === 'sprint_day_unlocked' ? '🔓' : '🔔'}
+                  {type === 'coach_message' ? '💬' : type === 'payment_success' ? '💳' : type === 'sprint_day_unlocked' ? '🔓' : type === 'sprint_day_completed' ? '🏁' : '🔔'}
               </span>
               <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start gap-2">
@@ -166,9 +228,9 @@ const CoachDashboard: React.FC = () => {
               <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(14,120,80,0.4)]"></div>
                   <h2 className="font-black text-gray-900 text-sm uppercase tracking-tight">Updates</h2>
-                  {notifications.filter(n => !n.isRead).length > 0 && (
+                  {allNotificationsMerged.filter(n => !n.isRead).length > 0 && (
                       <span className="bg-primary text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm">
-                          {notifications.filter(n => !n.isRead).length} NEW
+                          {allNotificationsMerged.filter(n => !n.isRead).length} NEW
                       </span>
                   )}
               </div>
@@ -185,8 +247,8 @@ const CoachDashboard: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-              {notifications.length > 0 ? (
-                  notifications.map((notif) => (
+              {allNotificationsMerged.length > 0 ? (
+                  allNotificationsMerged.map((notif) => (
                     <NotificationItem key={notif.id} notif={notif} />
                   ))
               ) : (

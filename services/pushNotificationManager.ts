@@ -1,6 +1,8 @@
 import admin, { db } from '../api/lib/firebaseAdmin.js';
 import { Participant, UserNotificationState, ParticipantSprint, Sprint, Notification } from '../types.js';
 
+const processingNotifications = new Set<string>();
+
 export const pushNotificationManager = {
   /**
    * Save an FCM registration token for a user.
@@ -173,6 +175,11 @@ export const pushNotificationManager = {
             
             const hasNotTriedOrFailed = !notification.pushFailed && (!notification.retryCount || notification.retryCount === 0);
             if (!notification.pushSent && hasNotTriedOrFailed) {
+              if (processingNotifications.has(notification.id)) {
+                continue;
+              }
+              processingNotifications.add(notification.id);
+
               console.log(`[PushManager] New notification detected for user ${notification.userId}. Sending FCM push...`);
               
               const success = await pushNotificationManager.sendPush(notification.userId, notification.data || {
@@ -190,6 +197,9 @@ export const pushNotificationManager = {
                   pushFailed: false
                 });
               } else {
+                // If it failed, we can optionally delete from processing Set to retry on next worker round
+                processingNotifications.delete(notification.id);
+                
                 // Save first failure trace and set backoff timers
                 const delay = Math.pow(2, 0) * 60 * 1000; // 1 minute
                 await change.doc.ref.update({
