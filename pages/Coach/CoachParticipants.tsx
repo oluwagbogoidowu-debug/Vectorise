@@ -562,11 +562,31 @@ const CoachParticipants: React.FC = () => {
                                             return (
                                                 <div className="space-y-6 animate-fade-in">
                                                     {itemsToDisplay.map((item, idx) => {
-                                                        const isTagType = item.type === 'tags';
-                                                        
-                                                        // Parse response tags cleanly
+                                                        const isArrayFormat = typeof item.answer === 'string' && item.answer.trim().startsWith('[') && item.answer.trim().endsWith(']');
+                                                        const isTagOrPollType = item.type === 'tags' || item.type === 'poll' || isArrayFormat;
                                                         let tags: string[] = [];
-                                                        if (isTagType && item.answer) {
+                                                        let displayAsTags = false;
+                                                        if (isTagOrPollType && item.answer) {
+                                                            if (isArrayFormat) {
+                                                                try {
+                                                                    const parsed = JSON.parse(item.answer);
+                                                                    if (Array.isArray(parsed)) {
+                                                                        tags = parsed.map(String).filter(Boolean);
+                                                                        displayAsTags = true;
+                                                                    }
+                                                                } catch (e) {}
+                                                            }
+                                                            if (!displayAsTags && (item.type === 'tags' || item.type === 'poll')) {
+                                                                tags = item.answer.split(',').map((t: string) => t.trim()).filter(Boolean);
+                                                                displayAsTags = true;
+                                                            }
+                                                        }
+
+
+
+                                                        
+
+                                                        if (false) {
                                                             try {
                                                                 if (item.answer.trim().startsWith('[')) {
                                                                     tags = JSON.parse(item.answer);
@@ -606,7 +626,7 @@ const CoachParticipants: React.FC = () => {
                                                                         Submitted Response
                                                                     </div>
                                                                     
-                                                                    {isTagType ? (
+                                                                    {displayAsTags ? (
                                                                         <div className="flex flex-wrap gap-2 py-1">
                                                                             {tags.length > 0 ? (
                                                                                 tags.map((tag, tIdx) => (

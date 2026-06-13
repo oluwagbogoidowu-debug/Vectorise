@@ -91,14 +91,15 @@ const MirrorReportModal: React.FC<MirrorReportModalProps> = ({ isOpen, onClose, 
   const renderSubmittedAnswer = (answer: string) => {
     if (!answer) return <span className="text-gray-400 italic">No response submitted</span>;
     
-    if (answer.startsWith("[") && answer.endsWith("]")) {
+    const trimmed = answer.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
       try {
-        const tags = JSON.parse(answer);
+        const tags = JSON.parse(trimmed);
         if (Array.isArray(tags)) {
           return (
             <div className="flex flex-wrap gap-1.5">
               {tags.map((tag, i) => (
-                <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+                <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 uppercase tracking-wider">
                   {tag}
                 </span>
               ))}
@@ -2289,23 +2290,28 @@ const SprintView: React.FC = () => {
                                       clipRule="evenodd"
                                     />
                                   </svg>
-                                  {dayContent.taskInputTypes?.[i] === "tags"
-                                    ? (taskInputs[i] &&
-                                      taskInputs[i].startsWith("[")
-                                        ? JSON.parse(taskInputs[i] || "[]")
-                                        : taskInputs[i]
-                                          ? taskInputs[i]
-                                              .split(",")
-                                              .filter(Boolean)
-                                          : []
-                                      ).map((tag: string, tIndex: number) => (
-                                        <span
-                                          key={tIndex}
-                                          className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary"
-                                        >
-                                          {tag}
-                                        </span>
-                                      ))
+                                  {dayContent.taskInputTypes?.[i] === "tags" || dayContent.taskInputTypes?.[i] === "poll" || (taskInputs[i] && taskInputs[i].trim().startsWith("[") && taskInputs[i].trim().endsWith("]"))
+                                    ? (() => {
+                                        let tags: string[] = [];
+                                        const cleanVal = taskInputs[i] ? taskInputs[i].trim() : "";
+                                        if (cleanVal.startsWith("[") && cleanVal.endsWith("]")) {
+                                          try {
+                                            tags = JSON.parse(cleanVal);
+                                          } catch (e) {
+                                            tags = [taskInputs[i]];
+                                          }
+                                        } else if (cleanVal) {
+                                          tags = cleanVal.split(",").map(t => t.trim()).filter(Boolean);
+                                        }
+                                        return tags.map((tag: string, tIndex: number) => (
+                                          <span
+                                            key={tIndex}
+                                            className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary uppercase tracking-wider"
+                                          >
+                                            {tag}
+                                          </span>
+                                        ));
+                                      })()
                                     : isLinkedTextStep(i) && taskInputs[i]?.startsWith("{") ? (
                                       <div className="space-y-2 w-full text-left font-medium">
                                         {(() => {
@@ -2871,20 +2877,28 @@ const SprintView: React.FC = () => {
                                 clipRule="evenodd"
                               />
                             </svg>
-                            {dayContent?.taskInputTypes?.[0] === "tags"
-                              ? (taskInputs[0] && taskInputs[0].startsWith("[")
-                                  ? JSON.parse(taskInputs[0] || "[]")
-                                  : taskInputs[0]
-                                    ? taskInputs[0].split(",").filter(Boolean)
-                                    : []
-                                ).map((tag: string, tIndex: number) => (
-                                  <span
-                                    key={tIndex}
-                                    className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary"
-                                  >
-                                    {tag}
-                                  </span>
-                                ))
+                            {dayContent?.taskInputTypes?.[0] === "tags" || dayContent?.taskInputTypes?.[0] === "poll" || (taskInputs[0] && taskInputs[0].trim().startsWith("[") && taskInputs[0].trim().endsWith("]"))
+                              ? (() => {
+                                  let tags: string[] = [];
+                                  const cleanVal = taskInputs[0] ? taskInputs[0].trim() : "";
+                                  if (cleanVal.startsWith("[") && cleanVal.endsWith("]")) {
+                                    try {
+                                      tags = JSON.parse(cleanVal);
+                                    } catch (e) {
+                                      tags = [taskInputs[0]];
+                                    }
+                                  } else if (cleanVal) {
+                                    tags = cleanVal.split(",").map(t => t.trim()).filter(Boolean);
+                                  }
+                                  return tags.map((tag: string, tIndex: number) => (
+                                    <span
+                                      key={tIndex}
+                                      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary uppercase tracking-wider"
+                                    >
+                                      {tag}
+                                    </span>
+                                  ));
+                                })()
                               : isMultiTextStep(0) && taskInputs[0]?.startsWith("{") ? (
                                 <div className="space-y-2 w-full text-left font-medium animate-fade-in">
                                   {(() => {
