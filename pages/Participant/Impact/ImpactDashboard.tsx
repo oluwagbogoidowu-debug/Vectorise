@@ -212,7 +212,7 @@ const ImpactDashboard: React.FC = () => {
                 </div>
 
                 {/* SIDEWAYS SWIPING COIN REWARD CARDS */}
-                <div className="relative w-full overflow-hidden pt-4">
+                <div className="relative w-full overflow-hidden pt-8">
                     <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory px-1 pb-4 scroll-smooth">
                         {activeCards.length > 0 ? (
                             activeCards.map((card) => {

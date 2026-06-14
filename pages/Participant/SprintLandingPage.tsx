@@ -165,7 +165,9 @@ const SprintLandingPage: React.FC = () => {
 
     const handleShare = () => {
         if (!sprint) return;
-        const shareUrl = `https://${window.location.host}/sprint/${sprint.id}`;
+        const referee = user as any;
+        const refSuffix = referee?.referralCode ? `?ref=${referee.referralCode}` : '';
+        const shareUrl = `https://${window.location.host}/sprint/${sprint.id}${refSuffix}`;
         navigator.clipboard.writeText(shareUrl)
             .then(() => toast.success('Share link copied to clipboard!'))
             .catch(() => toast.error('Failed to copy link.'));
