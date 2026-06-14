@@ -651,7 +651,7 @@ const Profile: React.FC = () => {
             <div className="flex items-center justify-between mb-2 px-1">
               <SectionLabel text="Growth Focus" />
               <button 
-                onClick={() => setSetupStep(0)} 
+                onClick={() => setSetupStep(1)} 
                 className="text-[8px] font-black text-primary uppercase tracking-widest hover:underline"
               >
                 Refine

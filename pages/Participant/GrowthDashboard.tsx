@@ -370,7 +370,7 @@ const GrowthDashboard: React.FC = () => {
                                             {analytics.growthScore}% Growth
                                         </span>
                                     </div>
-                                    <h2 className="text-5xl md:text-7xl font-black text-dark tracking-tighter leading-none mb-4 italic uppercase">
+                                    <h2 className="text-5xl md:text-7xl font-black text-dark tracking-tighter leading-none mb-4">
                                         {currentGrowthPhase.title}
                                     </h2>
                                     <div className="flex items-center gap-6">
@@ -382,7 +382,7 @@ const GrowthDashboard: React.FC = () => {
                                 </div>
                                 <div className="hidden lg:block text-right">
                                     <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em] mb-2">Current Standing</p>
-                                    <div className="text-6xl font-black text-primary/10 tracking-tighter uppercase italic">{currentGrowthPhase.tag}</div>
+                                    <div className="text-6xl font-black text-primary/10 tracking-tighter">{currentGrowthPhase.tag}</div>
                                 </div>
                             </div>
                         </section>
