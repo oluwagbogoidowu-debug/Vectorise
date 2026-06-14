@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
-import { Shield, Users } from 'lucide-react';
+import { Shield, Users, Handshake } from 'lucide-react';
 
 const RoleSelectorPage: React.FC = () => {
   const { user, switchRole } = useAuth();
@@ -22,6 +22,8 @@ const RoleSelectorPage: React.FC = () => {
       navigate('/admin/dashboard');
     } else if (role === UserRole.COACH) {
       navigate('/coach/dashboard');
+    } else if (role === UserRole.PARTNER) {
+      navigate('/partner/dashboard');
     } else {
       navigate('/dashboard');
     }
@@ -30,7 +32,7 @@ const RoleSelectorPage: React.FC = () => {
   return (
     <div className="h-[100dvh] w-screen bg-[#FAFAFA] flex items-center justify-center px-6 overflow-hidden font-sans">
       <div className="w-full max-w-md flex flex-col items-center animate-fade-in">
-        <div className="w-full bg-white p-10 rounded-[3rem] shadow-2xl border border-gray-100 text-center">
+        <div className="w-full bg-white p-8 rounded-[3rem] shadow-2xl border border-gray-100 text-center">
           <LocalLogo type="green" className="h-12 w-auto mx-auto mb-8" />
           
           <h1 className="text-3xl font-black text-gray-900 tracking-tight leading-none italic mb-2">
@@ -52,27 +54,37 @@ const RoleSelectorPage: React.FC = () => {
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mt-1">Full System Control</span>
             </button>
  
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => handleSelectRole(UserRole.COACH)}
-                className="group relative flex flex-col items-center p-6 bg-gray-50 border-2 border-transparent hover:border-primary rounded-[2rem] transition-all active:scale-95"
+                className="group relative flex flex-col items-center p-4 bg-gray-50 border-2 border-transparent hover:border-primary rounded-[1.5rem] transition-all active:scale-95 animate-fade-in"
               >
-                <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-3 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                  <Users className="w-6 h-6" />
+                <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center mb-2 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                  <Users className="w-5 h-5" />
                 </div>
-                <span className="text-xs font-black text-gray-900 uppercase tracking-widest">Coach Mode</span>
+                <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest leading-none text-center">Coach</span>
+              </button>
+
+              <button
+                onClick={() => handleSelectRole(UserRole.PARTNER)}
+                className="group relative flex flex-col items-center p-4 bg-gray-50 border-2 border-transparent hover:border-primary rounded-[1.5rem] transition-all active:scale-95 animate-fade-in"
+              >
+                <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center mb-2 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                  <Handshake className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest leading-none text-center">Partner</span>
               </button>
 
               <button
                 onClick={() => handleSelectRole(UserRole.PARTICIPANT)}
-                className="group relative flex flex-col items-center p-6 bg-gray-50 border-2 border-transparent hover:border-primary rounded-[2rem] transition-all active:scale-95"
+                className="group relative flex flex-col items-center p-4 bg-gray-50 border-2 border-transparent hover:border-primary rounded-[1.5rem] transition-all active:scale-95 animate-fade-in"
               >
-                <div className="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center mb-3 group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-10 h-10 bg-orange-500/10 rounded-xl flex items-center justify-center mb-2 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
-                <span className="text-xs font-black text-gray-900 uppercase tracking-widest">User Mode</span>
+                <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest leading-none text-center">User</span>
               </button>
             </div>
           </div>

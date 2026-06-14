@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { Participant, ParticipantSprint, Sprint, Coach } from '../../types';
+import { Participant, ParticipantSprint, Sprint, Coach, UserRole } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { userService, sanitizeData } from '../../services/userService';
 import { shineService } from '../../services/shineService';
@@ -13,7 +13,7 @@ import { ShinePost } from '../../types';
 import { MILESTONES } from '../../services/milestoneConstants';
 
 const Profile: React.FC = () => {
-  const { user, logout, updateProfile, mustVerifyEmail } = useAuth();
+  const { user, logout, updateProfile, mustVerifyEmail, activeRole, switchRole } = useAuth();
   const navigate = useNavigate();
   
   const [enrollments, setEnrollments] = useState<{ enrollment: ParticipantSprint; sprint: Sprint; coach: Coach | null }[]>([]);
@@ -361,7 +361,17 @@ const Profile: React.FC = () => {
               </div>
             </div>
           </div>
-
+          {user && user.role === UserRole.ADMIN && (activeRole === UserRole.PARTICIPANT || activeRole === UserRole.PARTNER) && (
+            <button 
+              onClick={() => {
+                switchRole(UserRole.ADMIN);
+                navigate('/admin/dashboard');
+              }} 
+              className="px-4 py-2 text-xs font-black text-white bg-dark rounded-xl uppercase tracking-widest hover:bg-black transition-colors"
+            >
+              Switch to Admin
+            </button>
+          )}
         </div>
 
         {/* Rise and Impact Cards Moved Up - Only show if identity is set */}
