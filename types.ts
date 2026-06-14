@@ -286,6 +286,7 @@ export interface DailyContent {
   mirrorIntro?: string;
   mirrorFraming?: string[];
   mirrorParaphrases?: string[];
+  mirrorDisabledSteps?: boolean[];
 }
 
 export interface User {

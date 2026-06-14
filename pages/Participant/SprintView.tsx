@@ -136,6 +136,7 @@ const MirrorReportModal: React.FC<MirrorReportModalProps> = ({ isOpen, onClose, 
         <div className="space-y-6 flex-1 pr-1 overflow-y-auto">
           {prompts.map((prompt: string, index: number) => {
             if (!prompt || !prompt.trim()) return null;
+            if (dayContent?.mirrorDisabledSteps?.[index]) return null;
             const framing = dayContent?.mirrorFraming?.[index];
             const answer = answers[index] || "";
 

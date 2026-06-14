@@ -1842,12 +1842,38 @@ const EditSprint: React.FC = () => {
                                     
                                     {(currentContent.taskPrompts || ['', '', '']).map((prompt, index) => {
                                         if (!prompt || !prompt.trim()) return null;
+                                        const isStepDisabled = !!currentContent.mirrorDisabledSteps?.[index];
                                         return (
-                                            <div key={index} className="bg-gray-50/50 rounded-[2rem] p-5 border border-gray-100 space-y-4">
+                                            <div key={index} className={`bg-gray-50/50 rounded-[2rem] p-5 border border-gray-100 space-y-4 transition-all duration-350 ${isStepDisabled ? 'opacity-70 bg-gray-100/50' : ''}`}>
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-[10px] font-black text-emerald-800 uppercase tracking-widest bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-500/10">
                                                         Step {index + 1} Question
                                                     </span>
+
+                                                    {/* Individual step Mirror ON/OFF Switch */}
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`text-[9px] font-black uppercase tracking-widest ${!isStepDisabled ? 'text-emerald-500' : 'text-gray-400'}`}>
+                                                            {!isStepDisabled ? 'Mirror ON' : 'Mirror OFF'}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const updatedDisabled = [...(currentContent.mirrorDisabledSteps || [])];
+                                                                while (updatedDisabled.length <= index) updatedDisabled.push(false);
+                                                                updatedDisabled[index] = !updatedDisabled[index];
+                                                                handleContentChange('mirrorDisabledSteps', updatedDisabled);
+                                                            }}
+                                                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                                                !isStepDisabled ? 'bg-emerald-500' : 'bg-gray-200'
+                                                            }`}
+                                                        >
+                                                            <span
+                                                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                                                    !isStepDisabled ? 'translate-x-4' : 'translate-x-0'
+                                                                }`}
+                                                            />
+                                                        </button>
+                                                    </div>
                                                 </div>
 
                                                 <div className="text-gray-700 bg-white border border-gray-100 p-4 rounded-2xl text-xs font-semibold leading-relaxed shadow-sm">
@@ -1855,7 +1881,7 @@ const EditSprint: React.FC = () => {
                                                 </div>
 
                                                 {/* Framing Input */}
-                                                <div className="space-y-1.5">
+                                                <div className={`space-y-1.5 transition-all duration-300 ${isStepDisabled ? 'opacity-40 pointer-events-none select-none' : ''}`}>
                                                     <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 pl-1">
                                                         <span>Framing Statement</span>
                                                         <span className="text-gray-300 font-medium normal-case">(coins how the report is framed)</span>
@@ -1871,8 +1897,14 @@ const EditSprint: React.FC = () => {
                                                         }}
                                                         className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
                                                         placeholder="e.g., You noted that..."
+                                                        disabled={isStepDisabled}
                                                     />
                                                 </div>
+                                                {isStepDisabled && (
+                                                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider pl-1.5 italic">
+                                                        * This question will not be included in the participant's Rise Report.
+                                                    </p>
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -3490,6 +3522,7 @@ const CoachMirrorPreviewModal: React.FC<CoachMirrorPreviewModalProps> = ({ isOpe
         <div className="space-y-6 flex-1 pr-1 overflow-y-auto">
           {prompts.map((prompt: string, index: number) => {
             if (!prompt || !prompt.trim()) return null;
+            if (dayContent?.mirrorDisabledSteps?.[index]) return null;
             const framing = dayContent?.mirrorFraming?.[index];
             const answer = getDummyAnswerForStep(index);
 
