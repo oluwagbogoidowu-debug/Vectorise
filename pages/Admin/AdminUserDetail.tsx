@@ -3,15 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { userService, sanitizeData } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { Participant, ParticipantSprint, Sprint, Referral } from '../../types';
-import { ArrowLeft, Calendar, Mail, User as UserIcon, Zap, Target, Clock, AlertCircle, ChevronRight, Award, Flame, TrendingUp, Users, Coins, Bell, Send, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Mail, User as UserIcon, Zap, Target, Clock, AlertCircle, ChevronRight, Award, Flame, TrendingUp, Users, Coins } from 'lucide-react';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { UserStreakVisualizer } from '../../components/UserStreakVisualizer';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { PERSONA_QUIZZES } from '../../services/mockData';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { notificationService } from '../../services/notificationService';
-import { pushNotificationService } from '../../services/pushNotificationService';
 
 export default function AdminUserDetail() {
     const { userId } = useParams<{ userId: string }>();
@@ -21,100 +19,6 @@ export default function AdminUserDetail() {
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [referrals, setReferrals] = useState<Referral[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-
-    const [isNudgeModalOpen, setIsNudgeModalOpen] = useState(false);
-    const [nudgeTitle, setNudgeTitle] = useState('Missing your momentum?');
-    const [nudgeBody, setNudgeBody] = useState('');
-    const [nudgeUrl, setNudgeUrl] = useState('');
-    const [selectedTemplateKey, setSelectedTemplateKey] = useState('');
-    const [isSendingNudge, setIsSendingNudge] = useState(false);
-    const [nudgeSuccessMsg, setNudgeSuccessMsg] = useState('');
-    const [nudgeErrorMsg, setNudgeErrorMsg] = useState('');
-
-    const nudgeTemplatesList = useMemo(() => {
-        const activeEnrollment = enrollments.find(e => e.status === 'active');
-        const nextDay = activeEnrollment && activeEnrollment.progress ? (activeEnrollment.progress.findIndex(p => !p.completed) + 1) : 1;
-        const currentSprintObj = activeEnrollment ? sprints.find(s => s.id === activeEnrollment.sprint_id) : null;
-        const sTitle = currentSprintObj?.title || 'your latest sprint';
-        const defaultUrl = activeEnrollment ? `/participant/sprint/${activeEnrollment.id}?day=${nextDay}` : '/participant/dashboard';
-
-        return [
-            {
-                key: 'day1',
-                label: 'Day 1 Momentum Drop',
-                title: 'Missing your momentum?',
-                body: `Day ${nextDay} is waiting for you in '${sTitle}'.`,
-                url: defaultUrl,
-                badge: '1 Day Inactive'
-            },
-            {
-                key: 'day2',
-                label: 'Day 2 Growth Warning',
-                title: 'Growth cycle stalling',
-                body: `Let's get back to it and finish Day ${nextDay} of '${sTitle}'.`,
-                url: defaultUrl,
-                badge: '2 Days Inactive'
-            },
-            {
-                key: 'day4',
-                label: 'Day 4 Consistency Bridge',
-                title: 'Bridge to Mastery',
-                body: `Consistency is the only bridge to mastery. Resume '${sTitle}' now to stay on track.`,
-                url: defaultUrl,
-                badge: '4 Days Inactive'
-            },
-            {
-                key: 'day7',
-                label: 'Day 7 Sparks Fading',
-                title: 'Weekly spark re-ignition',
-                body: `It's been a week since your last win. Re-ignite your spark in '${sTitle}' before it fades.`,
-                url: defaultUrl,
-                badge: '7 Days Inactive'
-            },
-            {
-                key: 'day10',
-                label: 'Day 10 Small Win Journey',
-                title: 'One small win changes everything',
-                body: `The path is still there. One small win today changes everything for your '${sTitle}' journey.`,
-                url: defaultUrl,
-                badge: '10 Days Inactive'
-            },
-            {
-                key: 'day15',
-                label: 'Day 15 Abandonment Hazard',
-                title: 'Don’t let it fade away',
-                body: `Your '${sTitle}' sprint is at high risk of abandonment. Your future self is counting on you to finish.`,
-                url: defaultUrl,
-                badge: '15 Days Inactive'
-            },
-            {
-                key: 'noprogress',
-                label: 'Pending Next Sprint Nudge',
-                title: 'Ready for your next rise?',
-                body: `You finished your last sprint but haven't started your next one yet. Ready to take the next step?`,
-                url: '/participant/dashboard',
-                badge: 'Finished Sprint'
-            },
-            {
-                key: 'generic',
-                label: 'General Gentle Sync Check-in',
-                title: 'Vectorise Habit Check-in',
-                body: `Time for an alignment check. Let's resume your daily action habits today.`,
-                url: '/participant/dashboard',
-                badge: 'Habit Sync'
-            }
-        ];
-    }, [enrollments, sprints]);
-
-    const selectTemplate = (key: string) => {
-        const item = nudgeTemplatesList.find(t => t.key === key);
-        if (item) {
-            setNudgeTitle(item.title);
-            setNudgeBody(item.body);
-            setNudgeUrl(item.url);
-            setSelectedTemplateKey(key);
-        }
-    };
 
     const getOnboardingQuestion = (key: string) => {
         if (!user || !user.onboardingAnswers) {
@@ -463,78 +367,6 @@ export default function AdminUserDetail() {
         }
     }
 
-    useEffect(() => {
-        if (isNudgeModalOpen && nudgeTemplatesList.length > 0) {
-            let matchKey = 'generic';
-            if (isNoProgress) {
-                matchKey = 'noprogress';
-            } else if (lastSubmissionTime !== null) {
-                const days = Math.floor((Date.now() - lastSubmissionTime) / oneDay);
-                if (days >= 15) {
-                    matchKey = 'day15';
-                } else if (days >= 10) {
-                    matchKey = 'day10';
-                } else if (days >= 7) {
-                    matchKey = 'day7';
-                } else if (days >= 4) {
-                    matchKey = 'day4';
-                } else if (days >= 2) {
-                    matchKey = 'day2';
-                } else {
-                    matchKey = 'day1';
-                }
-            } else if (user?.createdAt) {
-                const joinedAt = new Date(user.createdAt).getTime();
-                const days = Math.floor((Date.now() - joinedAt) / oneDay);
-                if (days >= 1) {
-                    matchKey = 'day1';
-                }
-            }
-            selectTemplate(matchKey);
-        }
-    }, [isNudgeModalOpen, isNoProgress, lastSubmissionTime, user?.createdAt]);
-
-    const handleSendNudge = async () => {
-        if (!userId) return;
-        setIsSendingNudge(true);
-        setNudgeSuccessMsg('');
-        setNudgeErrorMsg('');
-        try {
-            // 1. Send system in-app notification
-            await notificationService.createNotification(
-                userId,
-                'sprint_nudge',
-                nudgeTitle,
-                nudgeBody,
-                {
-                    actionUrl: nudgeUrl || '/participant/dashboard',
-                    bypassActiveCheck: true
-                }
-            );
-
-            // 2. Dispatch push notification
-            await pushNotificationService.sendPush(
-                userId,
-                nudgeTitle,
-                nudgeBody,
-                nudgeUrl || '/participant/dashboard',
-                'sprint-nudge',
-                true // bypassActiveCheck
-            );
-
-            setNudgeSuccessMsg('Push notification & in-app alert successfully dispatched!');
-            setTimeout(() => {
-                setIsNudgeModalOpen(false);
-                setNudgeSuccessMsg('');
-            }, 2500);
-        } catch (error: any) {
-            console.error("Failed to send nudge:", error);
-            setNudgeErrorMsg(error?.message || 'Error occurred while delivering push.');
-        } finally {
-            setIsSendingNudge(false);
-        }
-    };
-
     const getSprintTitle = (sprintId: string) => {
         return sprints.find(s => s.id === sprintId)?.title || 'Unknown Sprint';
     };
@@ -567,21 +399,12 @@ export default function AdminUserDetail() {
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Administrative View</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                            {inactivityWarning && (
-                                <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl border border-red-100 animate-pulse">
-                                    <AlertCircle className="w-4 h-4" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">{inactivityWarning}</span>
-                                </div>
-                            )}
-                            <button
-                                onClick={() => setIsNudgeModalOpen(true)}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm active:scale-95"
-                            >
-                                <Bell className="w-3.5 h-3.5" />
-                                <span>Nudge {isInactiveSystem ? 'Inactive' : 'Participant'}</span>
-                            </button>
-                        </div>
+                        {inactivityWarning && (
+                            <div className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl border border-red-100 animate-pulse">
+                                <AlertCircle className="w-4 h-4" />
+                                <span className="text-[10px] font-black uppercase tracking-widest">{inactivityWarning}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -841,15 +664,6 @@ export default function AdminUserDetail() {
                                         </p>
                                     </div>
                                 )}
-                                <div className="pt-3 border-t border-gray-100">
-                                    <button
-                                        onClick={() => setIsNudgeModalOpen(true)}
-                                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-extrabold text-[9px] uppercase tracking-widest rounded-xl transition-all border border-amber-200/50 hover:border-amber-200"
-                                    >
-                                        <Bell className="w-3 h-3 text-amber-500" />
-                                        <span>Trigger Manual Nudge Push</span>
-                                    </button>
-                                </div>
                             </div>
                         </div>
 
@@ -1018,8 +832,7 @@ export default function AdminUserDetail() {
                     <div className="space-y-6">
                         {sortedEnrollments.length > 0 ? (
                             sortedEnrollments.map((enrollment) => {
-                                const progressArr = enrollment.progress || [];
-                                const actualCompletionRate = progressArr.length > 0 ? (progressArr.filter(p => p.completed).length / progressArr.length) * 100 : 0;
+                                const actualCompletionRate = (enrollment.progress.filter(p => p.completed).length / enrollment.progress.length) * 100;
                                 const isCurrent = enrollment.status === 'active';
                                 const completionRate = (isNoProgress && isCurrent) ? 0 : actualCompletionRate;
                                 
@@ -1047,7 +860,7 @@ export default function AdminUserDetail() {
                                                         )}
                                                     </div>
                                                     <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
-                                                        Started {enrollment.started_at ? (() => { try { return format(parseISO(enrollment.started_at), 'MMM d, yyyy'); } catch(e) { return 'N/A'; } })() : 'N/A'}
+                                                        Started {format(parseISO(enrollment.started_at), 'MMM d, yyyy')}
                                                     </p>
                                                 </div>
                                             </div>
@@ -1075,7 +888,7 @@ export default function AdminUserDetail() {
                                                     {(isNoProgress && isCurrent) ? 'Daily Progress (Suspended: No Sprint)' : 'Daily Progress'}
                                                 </p>
                                                 <div className="flex gap-1">
-                                                    {(enrollment.progress || []).map((p, i) => (
+                                                    {enrollment.progress.map((p, i) => (
                                                         <div 
                                                             key={i}
                                                             className={`flex-1 h-2 rounded-sm ${(p.completed && !(isNoProgress && isCurrent)) ? 'bg-primary' : 'bg-gray-200'}`}
@@ -1097,208 +910,6 @@ export default function AdminUserDetail() {
                 </div>
 
             </div>
-
-            {/* Direct Push Nudge Modal */}
-            {isNudgeModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md overflow-y-auto">
-                    <div className="w-full max-w-2xl bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl overflow-hidden animate-fade-in flex flex-col my-8">
-                        {/* Modal Header */}
-                        <div className="px-8 pt-8 pb-4 flex items-center justify-between border-b border-gray-100 bg-gray-50/50">
-                            <div>
-                                <h3 className="text-sm font-black text-gray-900 tracking-tight italic flex items-center gap-2">
-                                    <Bell className="w-4 h-4 text-amber-500 fill-current" />
-                                    Dispatch Direct System Push Nudge.
-                                </h3>
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-0.5">
-                                    Target: {user.name} • {user.email}
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => setIsNudgeModalOpen(false)}
-                                className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-900 transition-colors font-bold text-sm"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto scrollbar-hidden">
-                            {/* Subscription warning notice if user hasn't subscribed to system push to alert admin */}
-                            {!user.pushSubscription ? (
-                                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200/50 flex items-start gap-3">
-                                    <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="text-[10px] font-black text-amber-900 uppercase tracking-wide">Participant is not yet push-subscribed</p>
-                                        <p className="text-xs text-amber-700 font-medium leading-relaxed mt-1">
-                                            They will still receive an in-app notification when they log in, but device-native push delivery may fail until they grant permissions from their dashboard.
-                                        </p>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100/50 flex items-start gap-3">
-                                    <Check className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="text-[10px] font-black text-emerald-950 uppercase tracking-wide">Device push channel fully established</p>
-                                        <p className="text-xs text-emerald-700 font-medium leading-relaxed mt-1">
-                                            This user is subscribed. The nudge will be delivered instantly to their active desktop or mobile device.
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Section: Pre-framed Redesigned Notification Logic */}
-                            <div>
-                                <h4 className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3">Redesigned Active Inactivity Templates</h4>
-                                <p className="text-[10px] text-gray-400 font-medium leading-relaxed mb-4">
-                                    Pick a pre-framed copywriting strategy matched to their current delay to automatically refresh the input form contents.
-                                </p>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                    {nudgeTemplatesList.map((tmpl) => {
-                                        const isSelected = selectedTemplateKey === tmpl.key;
-                                        return (
-                                            <button
-                                                key={tmpl.key}
-                                                type="button"
-                                                onClick={() => selectTemplate(tmpl.key)}
-                                                className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between h-24 whitespace-normal ${
-                                                    isSelected
-                                                        ? 'bg-primary/5 border-primary ring-1 ring-primary/20'
-                                                        : 'bg-white border-gray-100 hover:border-gray-300'
-                                                }`}
-                                            >
-                                                <div className="flex items-center justify-between w-full">
-                                                    <span className={`text-[9px] font-black uppercase tracking-wider ${isSelected ? 'text-primary' : 'text-gray-700'}`}>
-                                                        {tmpl.label}
-                                                    </span>
-                                                    <span className="text-[7.5px] font-bold bg-gray-100 text-gray-500 border border-gray-200/50 px-1.5 py-0.5 rounded-full shrink-0">
-                                                        {tmpl.badge}
-                                                    </span>
-                                                </div>
-                                                <p className="text-[10px] text-gray-500 font-medium line-clamp-2 leading-relaxed mt-1.5 italic">
-                                                    "{tmpl.body}"
-                                                </p>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {/* Section: Live Mobile Push Preview */}
-                            <div>
-                                <h4 className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3">Device Lock screen representation</h4>
-                                <div className="bg-gray-50 border border-gray-100 p-5 rounded-3xl">
-                                    <div className="bg-white/95 backdrop-blur shadow-md rounded-2xl p-4 border border-gray-200/50 flex items-start gap-3">
-                                        <span className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">
-                                            V
-                                        </span>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-[11px] font-black text-gray-950 truncate">Vectorise Application</p>
-                                                <p className="text-[8px] text-gray-400 font-bold uppercase shrink-0">Now • Push</p>
-                                            </div>
-                                            <p className="text-xs font-black text-gray-900 leading-tight mt-1">{nudgeTitle || 'Notification Title'}</p>
-                                            <p className="text-[10px] text-gray-500 font-medium leading-relaxed mt-0.5">{nudgeBody || 'No template or custom message body entered...'}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Section: Editable Inputs */}
-                            <div className="space-y-4 pt-2">
-                                <div>
-                                    <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Nudge Display Title</label>
-                                    <input
-                                        type="text"
-                                        value={nudgeTitle}
-                                        onChange={(e) => {
-                                            setNudgeTitle(e.target.value);
-                                            setSelectedTemplateKey('');
-                                        }}
-                                        className="w-full px-4 py-2 text-sm font-bold border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-sans text-gray-900"
-                                        placeholder="Customize notification title"
-                                        required
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Nudge Body Description</label>
-                                    <textarea
-                                        value={nudgeBody}
-                                        onChange={(e) => {
-                                            setNudgeBody(e.target.value);
-                                            setSelectedTemplateKey('');
-                                        }}
-                                        rows={3}
-                                        className="w-full px-4 py-3 text-sm font-bold border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary leading-relaxed font-sans text-gray-900"
-                                        placeholder="Write custom push notification wording..."
-                                        maxLength={180}
-                                        required
-                                    />
-                                    <div className="flex justify-between mt-1 text-[8px] font-black text-gray-400 uppercase tracking-wider">
-                                        <span>Highly legible framing recommended</span>
-                                        <span>{nudgeBody.length}/180 chars</span>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Action Landing Page URL (Target)</label>
-                                    <input
-                                        type="text"
-                                        value={nudgeUrl}
-                                        onChange={(e) => setNudgeUrl(e.target.value)}
-                                        className="w-full px-4 py-2 text-xs font-mono border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-700"
-                                        placeholder="Redirect route logic destination"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Status Indicators */}
-                            {nudgeSuccessMsg && (
-                                <div className="p-4 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-2xl border border-emerald-100 flex items-center gap-2">
-                                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                                    <span>{nudgeSuccessMsg}</span>
-                                </div>
-                            )}
-
-                            {nudgeErrorMsg && (
-                                <div className="p-4 bg-red-50 text-red-800 text-xs font-bold rounded-2xl border border-red-100 flex items-center gap-2">
-                                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-                                    <span>{nudgeErrorMsg}</span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Modal Footer Controls */}
-                        <div className="px-8 py-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3 rounded-b-[2.5rem]">
-                            <button
-                                type="button"
-                                onClick={() => setIsNudgeModalOpen(false)}
-                                disabled={isSendingNudge}
-                                className="px-5 py-3 text-[10px] font-black uppercase tracking-wider text-gray-500 hover:text-gray-900 transition-colors disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleSendNudge}
-                                disabled={isSendingNudge || !nudgeTitle.trim() || !nudgeBody.trim()}
-                                className="px-6 py-3 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-300 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all shadow-md active:scale-95 flex items-center gap-2"
-                            >
-                                {isSendingNudge ? (
-                                    <>
-                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                        <span>Dispatching Alert...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Send className="w-3.5 h-3.5" />
-                                        <span>Dispatch Active Nudge Alert</span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
