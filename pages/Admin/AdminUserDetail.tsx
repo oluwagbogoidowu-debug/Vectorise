@@ -33,7 +33,7 @@ export default function AdminUserDetail() {
 
     const nudgeTemplatesList = useMemo(() => {
         const activeEnrollment = enrollments.find(e => e.status === 'active');
-        const nextDay = activeEnrollment ? (activeEnrollment.progress.findIndex(p => !p.completed) + 1) : 1;
+        const nextDay = activeEnrollment && activeEnrollment.progress ? (activeEnrollment.progress.findIndex(p => !p.completed) + 1) : 1;
         const currentSprintObj = activeEnrollment ? sprints.find(s => s.id === activeEnrollment.sprint_id) : null;
         const sTitle = currentSprintObj?.title || 'your latest sprint';
         const defaultUrl = activeEnrollment ? `/participant/sprint/${activeEnrollment.id}?day=${nextDay}` : '/participant/dashboard';
@@ -1018,7 +1018,8 @@ export default function AdminUserDetail() {
                     <div className="space-y-6">
                         {sortedEnrollments.length > 0 ? (
                             sortedEnrollments.map((enrollment) => {
-                                const actualCompletionRate = (enrollment.progress.filter(p => p.completed).length / enrollment.progress.length) * 100;
+                                const progressArr = enrollment.progress || [];
+                                const actualCompletionRate = progressArr.length > 0 ? (progressArr.filter(p => p.completed).length / progressArr.length) * 100 : 0;
                                 const isCurrent = enrollment.status === 'active';
                                 const completionRate = (isNoProgress && isCurrent) ? 0 : actualCompletionRate;
                                 
@@ -1046,7 +1047,7 @@ export default function AdminUserDetail() {
                                                         )}
                                                     </div>
                                                     <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
-                                                        Started {format(parseISO(enrollment.started_at), 'MMM d, yyyy')}
+                                                        Started {enrollment.started_at ? (() => { try { return format(parseISO(enrollment.started_at), 'MMM d, yyyy'); } catch(e) { return 'N/A'; } })() : 'N/A'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -1074,7 +1075,7 @@ export default function AdminUserDetail() {
                                                     {(isNoProgress && isCurrent) ? 'Daily Progress (Suspended: No Sprint)' : 'Daily Progress'}
                                                 </p>
                                                 <div className="flex gap-1">
-                                                    {enrollment.progress.map((p, i) => (
+                                                    {(enrollment.progress || []).map((p, i) => (
                                                         <div 
                                                             key={i}
                                                             className={`flex-1 h-2 rounded-sm ${(p.completed && !(isNoProgress && isCurrent)) ? 'bg-primary' : 'bg-gray-200'}`}
