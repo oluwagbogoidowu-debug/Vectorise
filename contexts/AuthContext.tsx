@@ -6,6 +6,7 @@ import { onAuthStateChanged, signOut, deleteUser as firebaseDeleteUser, sendPass
 import { onSnapshot, doc, updateDoc, getDocFromServer } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { userService, sanitizeData } from '../services/userService';
+import { triggerHaptic, hapticPatterns } from '../utils/haptics';
 
 type AuthContextType = {
   user: User | Coach | Participant | Admin | null;
@@ -287,6 +288,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (role === user.role || (role === UserRole.COACH && isCoach) || isAdmin) {
         setActiveRole(role);
         localStorage.setItem('vectorise_active_role', role);
+        triggerHaptic(hapticPatterns.light);
     } else {
         console.warn(`Unauthorized role switch attempt to ${role}`);
     }

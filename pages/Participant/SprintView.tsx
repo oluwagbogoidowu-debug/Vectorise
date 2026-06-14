@@ -24,6 +24,7 @@ import SprintCompletionModal from "../../components/SprintCompletionModal";
 import PushPermissionModal from "../../components/PushPermissionModal";
 import ConfirmModal from "../../components/ConfirmModal";
 import { Participant } from "../../types";
+import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings } from "../../utils/haptics";
 
 import { PushToggle } from "../../components/PushToggle";
 import { BookOpen, Maximize2, Minimize2 } from "lucide-react";
@@ -179,6 +180,8 @@ const SprintSettingsModal: React.FC<{
   onToggleSound: () => void;
   notificationsEnabled: boolean;
   onToggleNotifications: (state: boolean) => void;
+  hapticsEnabled: boolean;
+  onToggleHaptics: () => void;
 }> = ({
   isOpen,
   onClose,
@@ -186,6 +189,8 @@ const SprintSettingsModal: React.FC<{
   onToggleSound,
   notificationsEnabled,
   onToggleNotifications,
+  hapticsEnabled,
+  onToggleHaptics,
 }) => {
   if (!isOpen) return null;
 
@@ -249,6 +254,11 @@ const SprintSettingsModal: React.FC<{
               enabled={soundEnabled}
               onToggle={onToggleSound}
               label="Completion Sound"
+            />
+            <Toggle
+              enabled={hapticsEnabled}
+              onToggle={onToggleHaptics}
+              label="Vibration Feedback"
             />
             <div className="py-2.5 border-b border-gray-50 last:border-0">
               <PushToggle
@@ -775,8 +785,35 @@ const SprintView: React.FC = () => {
 
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [hapticsEnabled, setHapticsEnabled] = useState(() => getHapticSettings());
   const [globalSettings, setGlobalSettings] =
     useState<GlobalOrchestrationSettings | null>(null);
+
+  const isFirstRenderTask = useRef(true);
+  const prevTaskIndexRef = useRef(0);
+  useEffect(() => {
+    if (isFirstRenderTask.current) {
+      isFirstRenderTask.current = false;
+      prevTaskIndexRef.current = activeTaskIndex;
+      return;
+    }
+    
+    // Play a delightful crisp mint/click sound if they advanced to the next step and sound is enabled
+    if (activeTaskIndex > prevTaskIndexRef.current) {
+      if (soundEnabled) {
+        try {
+          const sound = new Audio("https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3");
+          sound.volume = 0.55;
+          sound.play().catch((e) => console.log("Mint sound play deferred/blocked:", e));
+        } catch (e) {
+          console.error("Failed to load mint sound audio:", e);
+        }
+      }
+    }
+    
+    prevTaskIndexRef.current = activeTaskIndex;
+    triggerHaptic(hapticPatterns.light);
+  }, [activeTaskIndex, soundEnabled]);
 
   const dayContent = Array.isArray(sprint?.dailyContent)
     ? sprint?.dailyContent.find((dc) => dc.day === viewingDay)
@@ -1232,6 +1269,7 @@ const SprintView: React.FC = () => {
 
   const toggleSoundState = async () => {
     if (!enrollment) return;
+    triggerHaptic(hapticPatterns.light);
     const newState = !soundEnabled;
     setSoundEnabled(newState);
     try {
@@ -1244,6 +1282,7 @@ const SprintView: React.FC = () => {
 
   const toggleNotificationsState = async (forcedState?: boolean) => {
     if (!enrollment || !user) return;
+    triggerHaptic(hapticPatterns.light);
     const newState =
       forcedState !== undefined ? forcedState : !notificationsEnabled;
     setNotificationsEnabled(newState);
@@ -1260,6 +1299,13 @@ const SprintView: React.FC = () => {
     } catch (err) {
       console.error("Toggle notifications state failed", err);
     }
+  };
+
+  const toggleHapticsState = () => {
+    const newState = !hapticsEnabled;
+    setHapticsEnabled(newState);
+    setHapticSettings(newState);
+    triggerHaptic(hapticPatterns.light);
   };
 
   const handleAcceptPush = async () => {
@@ -1385,6 +1431,9 @@ const SprintView: React.FC = () => {
           console.error("Audio initialization failed:", e);
         }
       }
+
+      // Provide haptic feedback for satisfying task completion
+      triggerHaptic(hapticPatterns.success);
 
       if (isLastDay && updatedProgress.every((p) => p.completed)) {
         setIsCompletionModalOpen(true);
@@ -3154,6 +3203,8 @@ const SprintView: React.FC = () => {
         onToggleSound={toggleSoundState}
         notificationsEnabled={notificationsEnabled}
         onToggleNotifications={toggleNotificationsState}
+        hapticsEnabled={hapticsEnabled}
+        onToggleHaptics={toggleHapticsState}
       />
       <CoachingChatModal
         isOpen={isChatModalOpen}

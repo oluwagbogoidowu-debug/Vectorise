@@ -6,6 +6,7 @@ import { sprintService } from '../../services/sprintService';
 import { notificationService } from '../../services/notificationService';
 import { userService } from '../../services/userService';
 import { Sprint, Notification, Review, UserRole } from '../../types';
+import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 
 const CoachDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -77,7 +78,7 @@ const CoachDashboard: React.FC = () => {
                                       id: `comp_${enrollment.id}_day_${item.day}`,
                                       userId: user.id, // For the coach
                                       title: `${studentName} completed day ${item.day} of ${formatSprintName(sprintTitle)}.`,
-                                      body: item.submission ? `Submission: "${item.submission}"` : 'Day step completed.',
+                                      body: '',
                                       createdAt: item.completedAt || enrollment.last_activity_at || enrollment.started_at || new Date().toISOString(),
                                       isRead: false,
                                       type: 'sprint_day_completed',
@@ -139,6 +140,7 @@ const CoachDashboard: React.FC = () => {
   }, [reviews]);
 
   const handleNotificationClick = async (notif: Notification) => {
+      triggerHaptic(hapticPatterns.notification);
       if (notif.id.startsWith('comp_')) {
           if (notif.actionUrl) {
               navigate(notif.actionUrl);
@@ -174,9 +176,11 @@ const CoachDashboard: React.FC = () => {
                           <p className={`text-xs sm:text-sm leading-snug font-black mb-0.5 ${!notif.isRead ? 'text-gray-900' : 'text-gray-500'}`}>
                               {notif.title}
                           </p>
-                          <p className={`text-[10px] sm:text-xs leading-snug mb-1 font-medium ${!notif.isRead ? 'text-gray-700' : 'text-gray-400'}`}>
-                              {notif.body}
-                          </p>
+                          {notif.body && (
+                              <p className={`text-[10px] sm:text-xs leading-snug mb-1 font-medium ${!notif.isRead ? 'text-gray-700' : 'text-gray-400'}`}>
+                                  {notif.body}
+                              </p>
+                          )}
                       </div>
                       {!notif.isRead && <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1.5 animate-pulse"></span>}
                   </div>

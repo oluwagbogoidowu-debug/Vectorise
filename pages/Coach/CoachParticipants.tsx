@@ -163,6 +163,28 @@ const CoachParticipants: React.FC = () => {
     }, [user]);
 
     useEffect(() => {
+        if (!isLoading && allEnrollments.length > 0) {
+            const params = new URLSearchParams(window.location.search);
+            const studentId = params.get('studentId');
+            const sprintId = params.get('sprintId');
+            const dayStr = params.get('day');
+            
+            if (studentId && sprintId && dayStr) {
+                const day = parseInt(dayStr, 10);
+                const matchingEnrollment = allEnrollments.find(e => e.user_id === studentId && e.sprint_id === sprintId);
+                if (matchingEnrollment) {
+                    setIsContentExpanded(false);
+                    setIsChatOpen(false);
+                    setViewingSubmission({ enrollment: matchingEnrollment, day });
+                    // Clean URL query parameters
+                    const newUrl = window.location.pathname;
+                    window.history.replaceState({}, '', newUrl);
+                }
+            }
+        }
+    }, [isLoading, allEnrollments]);
+
+    useEffect(() => {
         if (!viewingSubmission || !user) {
             setDayComments([]);
             return;
