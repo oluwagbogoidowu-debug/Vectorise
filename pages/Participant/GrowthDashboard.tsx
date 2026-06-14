@@ -276,6 +276,43 @@ const GrowthDashboard: React.FC = () => {
         };
     }, [enrollments]);
 
+    const currentGrowthPhase = useMemo(() => {
+        const streak = streakStats?.currentStreak || 0;
+        const day = streak || 1; // Default to Day 1 if they have a 0-day streak
+
+        if (day <= 2) {
+            return {
+                tag: "First Moves",
+                title: "Beginning the Ascent",
+                insight: "You’ve just started. Energy is fragile here."
+            };
+        } else if (day <= 5) {
+            return {
+                tag: "Finding Rhythm",
+                title: "Building Momentum",
+                insight: "Now you’re proving it’s not a fluke."
+            };
+        } else if (day <= 10) {
+            return {
+                tag: "Holding Pace",
+                title: "Holding the Line",
+                insight: "This is where most people fall off. Staying matters."
+            };
+        } else if (day <= 20) {
+            return {
+                tag: "In the Flow",
+                title: "Deep in the Process",
+                insight: "Now it’s less emotional, more identity."
+            };
+        } else {
+            return {
+                tag: "Part of You",
+                title: "This Is What I Do",
+                insight: "At this point, it’s no longer effort. It’s who you are."
+            };
+        }
+    }, [streakStats?.currentStreak]);
+
     if (!user) return null;
     const p = user as Participant;
 
@@ -325,27 +362,27 @@ const GrowthDashboard: React.FC = () => {
                             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                                 <div>
                                     <div className="flex items-center gap-3 mb-4">
-                                        <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-black uppercase tracking-widest">
-                                            {analytics.level}
+                                        <span className="px-3 py-1 bg-[#0E7850]/10 text-[#0E7850] rounded-full text-[10px] font-black uppercase tracking-widest leading-none">
+                                            {currentGrowthPhase.tag}
                                         </span>
                                         <span className="w-1.5 h-1.5 rounded-full bg-gray-200" />
                                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                             {analytics.growthScore}% Growth
                                         </span>
                                     </div>
-                                    <h2 className="text-5xl md:text-7xl font-black text-dark tracking-tighter leading-none mb-4">
-                                        {analytics.growthScore > 70 ? "Building steady momentum." : analytics.growthScore > 40 ? "Finding your rhythm." : "Beginning the ascent."}
+                                    <h2 className="text-5xl md:text-7xl font-black text-dark tracking-tighter leading-none mb-4 italic uppercase">
+                                        {currentGrowthPhase.title}
                                     </h2>
                                     <div className="flex items-center gap-6">
                                         <div className="flex items-center gap-2">
                                             <Zap className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                                            <span className="text-sm font-black text-dark uppercase tracking-widest">{analytics.currentStreak} Day Streak</span>
+                                            <span className="text-sm font-black text-dark uppercase tracking-widest">{streakStats.currentStreak} Day Streak</span>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="hidden lg:block text-right">
                                     <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em] mb-2">Current Standing</p>
-                                    <div className="text-6xl font-black text-primary/10 tracking-tighter">{analytics.level}</div>
+                                    <div className="text-6xl font-black text-primary/10 tracking-tighter uppercase italic">{currentGrowthPhase.tag}</div>
                                 </div>
                             </div>
                         </section>
@@ -580,27 +617,14 @@ const GrowthDashboard: React.FC = () => {
                             </div>
 
                             {/* LAYER 5: INSIGHT */}
-                            <div className="bg-dark rounded-[3rem] p-10 md:p-12 text-white flex flex-col justify-center relative overflow-hidden">
+                            <div className="bg-dark rounded-[3rem] p-10 md:p-12 text-white flex flex-col justify-center relative overflow-hidden min-h-[280px]">
                                 <div className="relative z-10">
                                     <h3 className="text-[10px] font-black text-primary uppercase tracking-widest mb-6">Strategic Insight</h3>
-                                    <div className="space-y-4">
-                                        <p className="text-xl md:text-2xl font-bold leading-tight">
-                                            {analytics.growthScore > 70 
-                                                ? "Your growth is active and disciplined. You're hitting a high-performance stride."
-                                                : analytics.consistency > 60
-                                                ? "You're consistent, but not yet finishing what you start. Focus on closing loops."
-                                                : "Your growth is in the discovery phase. Build consistency before seeking depth."
-                                            }
-                                        </p>
-                                        <p className="text-white/40 text-sm font-medium">
-                                            {analytics.completionRate < 50 
-                                                ? "Focus on completing tasks before starting new ones to increase your mastery ratio."
-                                                : "Maintain your current streak to solidify these new neural pathways."
-                                            }
-                                        </p>
-                                    </div>
+                                    <p className="text-2xl md:text-3xl lg:text-4xl font-black italic tracking-tight leading-tight text-[#FAFAFA]">
+                                        "{currentGrowthPhase.insight}"
+                                    </p>
                                 </div>
-                                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[100px]" />
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-[#0E7850]/10 rounded-full blur-[100px]" />
                             </div>
                         </section>
 
