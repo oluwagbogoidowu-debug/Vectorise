@@ -8,12 +8,7 @@ import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { motion } from 'motion/react';
 import { 
     TrendingUp, 
-    TrendingDown, 
-    Minus, 
     Zap, 
-    Target, 
-    Shield, 
-    Layers, 
     ChevronLeft,
     Flame,
     Award
@@ -284,22 +279,7 @@ const GrowthDashboard: React.FC = () => {
     if (!user) return null;
     const p = user as Participant;
 
-    const MetricCard = ({ title, value, trend, insight, icon: Icon }: any) => (
-        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all">
-            <div className="flex justify-between items-start mb-4">
-                <div className="p-2 bg-gray-50 rounded-xl text-gray-400">
-                    <Icon className="w-4 h-4" />
-                </div>
-                <div className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${
-                    trend === 'up' ? 'text-green-500' : trend === 'down' ? 'text-red-500' : 'text-gray-400'
-                }`}>
-                    {value}% {trend === 'up' ? <TrendingUp className="w-3 h-3" /> : trend === 'down' ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
-                </div>
-            </div>
-            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{title}</h4>
-            <p className="text-xs font-medium text-gray-500 leading-tight">{insight}</p>
-        </div>
-    );
+
 
     return (
         <div className="h-full w-full overflow-y-auto custom-scrollbar bg-[#FAFAFA]">
@@ -370,53 +350,7 @@ const GrowthDashboard: React.FC = () => {
                             </div>
                         </section>
 
-                        {/* LAYER 2: DIRECTION (Slidable Key Performance Areas) */}
-                        <div>
-                            <div className="flex items-center justify-between mb-3 px-1">
-                                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Key Performance Areas</h3>
-                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1 animate-pulse">
-                                    Swipe Sideways ➔
-                                </span>
-                            </div>
-                            <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory scrollbar-hidden">
-                                <div className="snap-start flex-shrink-0 w-[240px]">
-                                    <MetricCard 
-                                        title="Consistency" 
-                                        value={analytics.consistency} 
-                                        trend={analytics.consistency > 50 ? 'up' : 'down'}
-                                        insight={analytics.consistency > 70 ? "Your daily rhythm is solidifying." : "Focus on showing up every day."}
-                                        icon={Target}
-                                    />
-                                </div>
-                                <div className="snap-start flex-shrink-0 w-[240px]">
-                                    <MetricCard 
-                                        title="Completion" 
-                                        value={analytics.completionRate} 
-                                        trend={analytics.completionRate > 60 ? 'up' : 'down'}
-                                        insight={analytics.completionRate > 80 ? "You finish what you start." : "Aim to close more open loops."}
-                                        icon={Shield}
-                                    />
-                                </div>
-                                <div className="snap-start flex-shrink-0 w-[240px]">
-                                    <MetricCard 
-                                        title="Discipline" 
-                                        value={Math.min(100, analytics.consistency + 10)} 
-                                        trend="up"
-                                        insight="Strong morning execution pattern."
-                                        icon={Zap}
-                                    />
-                                </div>
-                                <div className="snap-start flex-shrink-0 w-[240px]">
-                                    <MetricCard 
-                                        title="Depth" 
-                                        value={45} 
-                                        trend="neutral"
-                                        insight="Medium engagement with reflections."
-                                        icon={Layers}
-                                    />
-                                </div>
-                            </div>
-                        </div>
+
 
                         {/* Streak & Consistency Ledger */}
                         <div>
