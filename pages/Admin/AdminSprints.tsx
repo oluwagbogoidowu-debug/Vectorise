@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2, AlertTriangle } from 'lucide-react';
+import { Trash2, AlertTriangle, Flame, BookOpen, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Sprint } from '../../types';
 import { sprintService } from '../../services/sprintService';
@@ -12,6 +12,7 @@ type SprintFilter = 'all' | 'active' | 'core' | 'pending' | 'rejected';
 const AdminSprints: React.FC = () => {
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'sprint' | 'blog' | 'ignite'>('sprint');
   const [sprintFilter, setSprintFilter] = useState<SprintFilter>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -32,13 +33,20 @@ const AdminSprints: React.FC = () => {
   }, []);
 
   const filteredSprints = useMemo(() => {
+    let tFiltered = sprints.filter(s => {
+      if (activeTab === 'sprint') {
+        return !s.contentType || s.contentType === 'sprint';
+      }
+      return s.contentType === activeTab;
+    });
+
     let filtered: Sprint[] = [];
     switch (sprintFilter) {
       case 'active':
-        filtered = sprints.filter(s => s.approvalStatus === 'approved');
+        filtered = tFiltered.filter(s => s.approvalStatus === 'approved');
         break;
       case 'core':
-        filtered = sprints.filter(s => 
+        filtered = tFiltered.filter(s => 
           s.sprintType === 'Foundational' || 
           s.sprintType === 'Fundamentals' || 
           s.sprintType === 'Core' || 
@@ -48,13 +56,13 @@ const AdminSprints: React.FC = () => {
         );
         break;
       case 'pending':
-        filtered = sprints.filter(s => s.approvalStatus === 'pending_approval');
+        filtered = tFiltered.filter(s => s.approvalStatus === 'pending_approval');
         break;
       case 'rejected':
-        filtered = sprints.filter(s => s.approvalStatus === 'rejected');
+        filtered = tFiltered.filter(s => s.approvalStatus === 'rejected');
         break;
       default:
-        filtered = sprints;
+        filtered = tFiltered;
         break;
     }
 
@@ -63,7 +71,7 @@ const AdminSprints: React.FC = () => {
       const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
       return timeB - timeA;
     });
-  }, [sprints, sprintFilter]);
+  }, [sprints, sprintFilter, activeTab]);
 
   const handleDelete = async () => {
     if (!deletingId) return;
@@ -136,6 +144,51 @@ const AdminSprints: React.FC = () => {
         </div>
       )}
 
+
+      {/* Tabbed Interface Selector (Sprint, RiseBlog, Ignite) */}
+      <div className="flex justify-start">
+        <div className="inline-flex bg-gray-100 p-0.5 rounded-xl">
+            <button
+                type="button"
+                onClick={() => {
+                    setActiveTab('sprint');
+                    setSprintFilter('all');
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                    activeTab === 'sprint' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                }`}
+            >
+                <Flame className="w-3 h-3" />
+                Sprint
+            </button>
+            <button
+                type="button"
+                onClick={() => {
+                    setActiveTab('blog');
+                    setSprintFilter('all');
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                    activeTab === 'blog' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                }`}
+            >
+                <BookOpen className="w-3 h-3" />
+                RiseBlog
+            </button>
+            <button
+                type="button"
+                onClick={() => {
+                    setActiveTab('ignite');
+                    setSprintFilter('all');
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                    activeTab === 'ignite' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                }`}
+            >
+                <Sparkles className="w-3 h-3" />
+                Ignite
+            </button>
+        </div>
+      </div>
 
       <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar border-b border-gray-50">
         {['all', 'active', 'core', 'pending', 'rejected'].map(f => (

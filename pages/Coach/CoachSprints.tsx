@@ -565,32 +565,24 @@ const CoachSprints: React.FC = () => {
           />
       )}
 
-      <div className="flex justify-between items-center mb-8">
-        <div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight italic">Manage Sprints</h1>
-            <p className="text-gray-500 font-medium text-sm">Curate and track your growth cycles.</p>
-        </div>
+      <div className="flex flex-wrap items-center gap-3 mb-8">
         {hasPermission('sprint:create') && (
-            <Link to="/coach/sprint/new" className="bg-primary text-white rounded-xl px-6 py-3 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all text-center">
+            <Link to="/coach/sprint/new" className="bg-primary text-white rounded-xl px-4 py-2 font-black uppercase tracking-widest text-[9px] shadow shadow-primary/10 hover:scale-[1.02] active:scale-95 transition-all text-center whitespace-nowrap">
                 + Create New
             </Link>
         )}
-      </div>
-
-      {/* Tabbed Interface Selector (Sprint, RiseBlog, Ignite) */}
-      <div className="flex justify-start mb-6">
-        <div className="inline-flex bg-gray-100 p-1 rounded-2xl">
+        <div className="inline-flex bg-gray-100 p-0.5 rounded-xl">
             <button
                 type="button"
                 onClick={() => {
                     setActiveTab('sprint');
                     setFilter('all');
                 }}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                    activeTab === 'sprint' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                    activeTab === 'sprint' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                 }`}
             >
-                <Flame className="w-3.5 h-3.5" />
+                <Flame className="w-3 h-3" />
                 Sprint
             </button>
             <button
@@ -599,11 +591,11 @@ const CoachSprints: React.FC = () => {
                     setActiveTab('blog');
                     setFilter('all');
                 }}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                    activeTab === 'blog' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                    activeTab === 'blog' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                 }`}
             >
-                <BookOpen className="w-3.5 h-3.5" />
+                <BookOpen className="w-3 h-3" />
                 RiseBlog
             </button>
             <button
@@ -612,11 +604,11 @@ const CoachSprints: React.FC = () => {
                     setActiveTab('ignite');
                     setFilter('all');
                 }}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                    activeTab === 'ignite' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                    activeTab === 'ignite' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                 }`}
             >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-3 h-3" />
                 Ignite
             </button>
         </div>

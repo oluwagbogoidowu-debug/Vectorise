@@ -12,7 +12,7 @@ import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Type as TypeIcon, Clock } from 'lucide-react';
+import { List, Plus, Trash2, Type as TypeIcon, Clock, Flame, BookOpen, Sparkles } from 'lucide-react';
 
 const IGNITE_COLORS = [
   { hex: '#111827', name: 'Charcoal' },
@@ -478,38 +478,35 @@ const CreateSprint: React.FC = () => {
 
                 {/* Tabbed Interface Switcher */}
                 <div className="flex justify-start mb-8">
-                    <div className="inline-flex bg-white p-1 rounded-2xl border border-gray-100 shadow-sm">
+                    <div className="inline-flex bg-gray-100 p-0.5 rounded-xl">
                         <button
                             type="button"
                             onClick={() => setActiveTab('sprint')}
-                            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 ${
-                                activeTab === 'sprint'
-                                    ? 'bg-primary text-white shadow-md'
-                                    : 'text-gray-400 hover:text-primary hover:bg-gray-50'
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                                activeTab === 'sprint' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                             }`}
                         >
+                            <Flame className="w-3 h-3" />
                             Sprint
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTab('blog')}
-                            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 ${
-                                activeTab === 'blog'
-                                    ? 'bg-primary text-white shadow-md'
-                                    : 'text-gray-400 hover:text-primary hover:bg-gray-50'
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                                activeTab === 'blog' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                             }`}
                         >
+                            <BookOpen className="w-3 h-3" />
                             RiseBlog
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTab('ignite')}
-                            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 ${
-                                activeTab === 'ignite'
-                                    ? 'bg-primary text-white shadow-md'
-                                    : 'text-gray-400 hover:text-primary hover:bg-gray-50'
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                                activeTab === 'ignite' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                             }`}
                         >
+                            <Sparkles className="w-3 h-3" />
                             Ignite
                         </button>
                     </div>

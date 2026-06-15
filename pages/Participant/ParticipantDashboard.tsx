@@ -597,9 +597,9 @@ const ParticipantDashboard: React.FC = () => {
                     </Link>
                 ) : (
                     <div className="py-20 md:py-24 text-center bg-gray-50 rounded-[2.5rem] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center px-6">
-                        <p className="text-gray-900 font-extrabold text-[8.5px] md:text-[9.5px] uppercase tracking-wider">No active focus right now.</p>
-                        <p className="text-gray-400 font-medium text-[7.5px] md:text-[8.5px] mt-1 max-w-sm">Choose from your recommended sprints to get back on track.</p>
-                        <Link to="/explore" onClick={handleExploreClick} className="mt-3.5 inline-block text-primary font-black uppercase text-[8px] md:text-[8.5px] tracking-widest border-b border-primary/25 pb-0.5 transition-all hover:text-primary-dark">Explore recommended</Link>
+                        <p className="text-gray-900 font-extrabold text-xs md:text-sm uppercase tracking-wider">No active focus right now.</p>
+                        <p className="text-gray-500 font-semibold text-[11px] md:text-xs mt-1.5 max-w-sm">Choose from your recommended sprints to get back on track.</p>
+                        <Link to="/explore" onClick={handleExploreClick} className="mt-4 inline-block text-primary font-black uppercase text-[10px] md:text-[11px] tracking-widest border-b border-primary/25 pb-1 transition-all hover:text-primary-dark">Explore recommended</Link>
                     </div>
                 )}
             </div>
