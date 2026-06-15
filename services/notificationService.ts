@@ -66,6 +66,25 @@ export const notificationService = {
 
       const colRef = collection(db, 'users', userId, 'notifications');
       const docRef = await addDoc(colRef, sanitizeData(rawNotification));
+
+      // Trigger immediate FCM push notification on creation
+      try {
+        pushNotificationService.sendPush(
+          userId,
+          title,
+          body,
+          options.actionUrl || '/',
+          type === 'coach_message' ? 'coach-message' : type.replace(/_/g, '-'),
+          options.bypassActiveCheck || false
+        ).then(() => {
+          updateDoc(docRef, {
+            pushSent: true,
+            pushSentAt: new Date().toISOString()
+          }).catch(e => console.warn("[NotificationService] Failed to mark push as sent:", e));
+        }).catch(e => console.error("[NotificationService] Immediate push failed:", e));
+      } catch (err) {
+        console.error("[NotificationService] Failed to trigger push via service:", err);
+      }
       
       return { id: docRef.id, ...rawNotification } as Notification;
     } catch (error) {

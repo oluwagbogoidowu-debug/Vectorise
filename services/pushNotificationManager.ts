@@ -173,56 +173,74 @@ export const pushNotificationManager = {
   startNotificationListener: () => {
     console.log('[PushManager] Starting FCM notification listener...');
     
-    db.collectionGroup('notifications')
-      .where('pushSent', '==', false)
-      .onSnapshot(async (snapshot) => {
-        const changes = snapshot.docChanges();
-        
-        for (const change of changes) {
-          if (change.type === 'added') {
-            const notification = { id: change.doc.id, ...change.doc.data() } as Notification;
-            
-            const hasNotTriedOrFailed = !notification.pushFailed && (!notification.retryCount || notification.retryCount === 0);
-            if (!notification.pushSent && hasNotTriedOrFailed) {
-              if (processingNotifications.has(notification.id)) {
-                continue;
-              }
-              processingNotifications.add(notification.id);
+    const activeListeners = new Map<string, () => void>();
 
-              console.log(`[PushManager] New notification detected for user ${notification.userId}. Sending FCM push...`);
-              
-              const success = await pushNotificationManager.sendPush(notification.userId, notification.data || {
-                title: notification.title,
-                body: notification.body,
-                url: notification.actionUrl || '/',
-                tag: notification.type
-              }, notification.bypassActiveCheck || false);
+    db.collection('users')
+      .where('fcmToken', '!=', null)
+      .onSnapshot((usersSnapshot) => {
+        usersSnapshot.docs.forEach((userDoc) => {
+          const userId = userDoc.id;
+          if (activeListeners.has(userId)) return;
 
-              // Only mark pushSent on actual success
-              if (success) {
-                await change.doc.ref.update({
-                  pushSent: true,
-                  pushSentAt: new Date().toISOString(),
-                  pushFailed: false
-                });
-              } else {
-                // If it failed, we can optionally delete from processing Set to retry on next worker round
-                processingNotifications.delete(notification.id);
-                
-                // Save first failure trace and set backoff timers
-                const delay = Math.pow(2, 0) * 60 * 1000; // 1 minute
-                await change.doc.ref.update({
-                  pushFailed: true,
-                  lastPushError: 'First FCM push attempt returned false status or was skipped',
-                  retryCount: 1,
-                  nextRetryAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + delay))
-                });
+          const unsubscribe = db.collection('users').doc(userId).collection('notifications')
+            .where('pushSent', '==', false)
+            .onSnapshot(async (snapshot) => {
+              for (const change of snapshot.docChanges()) {
+                if (change.type === 'added') {
+                  const notification = { id: change.doc.id, ...change.doc.data() } as Notification;
+                  
+                  const hasNotTriedOrFailed = !notification.pushFailed && (!notification.retryCount || notification.retryCount === 0);
+                  if (!notification.pushSent && hasNotTriedOrFailed) {
+                    if (processingNotifications.has(notification.id)) {
+                      continue;
+                    }
+                    processingNotifications.add(notification.id);
+
+                    console.log(`[PushManager] New subcollection notification detected for user ${userId}. Sending FCM push...`);
+                    
+                    const success = await pushNotificationManager.sendPush(userId, notification.data || {
+                      title: notification.title,
+                      body: notification.body,
+                      url: notification.actionUrl || '/',
+                      tag: notification.type
+                    }, notification.bypassActiveCheck || false);
+
+                    if (success) {
+                      await change.doc.ref.update({
+                        pushSent: true,
+                        pushSentAt: new Date().toISOString(),
+                        pushFailed: false
+                      }).catch((e: any) => console.error('[PushManager] Failed to update pushSent:', e));
+                    } else {
+                      processingNotifications.delete(notification.id);
+                      
+                      const delay = Math.pow(2, 0) * 60 * 1000; // 1 minute
+                      await change.doc.ref.update({
+                        pushFailed: true,
+                        lastPushError: 'First FCM push attempt returned false status or was skipped',
+                        retryCount: 1,
+                        nextRetryAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + delay))
+                      }).catch((e: any) => console.error('[PushManager] Failed to update fail details:', e));
+                    }
+                  }
+                }
               }
-            }
+            }, (err) => {
+              console.error(`[PushManager] Notification listener error for user ${userId}:`, err);
+            });
+
+          activeListeners.set(userId, unsubscribe);
+        });
+
+        const activeUserIds = new Set(usersSnapshot.docs.map(d => d.id));
+        for (const [userId, unsubscribe] of activeListeners.entries()) {
+          if (!activeUserIds.has(userId)) {
+            unsubscribe();
+            activeListeners.delete(userId);
           }
         }
       }, (error) => {
-        console.error('[PushManager] Notification listener error:', error);
+        console.error('[PushManager] User-based FCM push subscription setup error:', error);
       });
   },
 
@@ -233,50 +251,54 @@ export const pushNotificationManager = {
     try {
       const now = new Date();
       
-      const snapshot = await db.collectionGroup('notifications')
-        .where('pushSent', '==', false)
+      const usersSnap = await db.collection('users')
+        .where('fcmToken', '!=', null)
         .get();
 
-      const candidateDocs = snapshot.docs.filter(doc => {
-        const data = doc.data();
-        return data.pushFailed === true && (data.retryCount || 0) < 5;
-      });
-
-      if (candidateDocs.length > 0) {
-        console.log(`[PushManager] Processing retry queue: ${candidateDocs.length} pending items found.`);
-      }
-
-      for (const doc of candidateDocs) {
-        const notification = { id: doc.id, ...doc.data() } as any;
+      for (const userDoc of usersSnap.docs) {
+        const userId = userDoc.id;
         
-        if (notification.isRead) continue;
+        const snapshot = await db.collection('users').doc(userId).collection('notifications')
+          .where('pushSent', '==', false)
+          .get();
 
-        const nextRetryAt = notification.nextRetryAt ? notification.nextRetryAt.toDate() : null;
-        if (nextRetryAt && nextRetryAt <= now) {
-          console.log(`[PushManager] Re-transmitting FCM notification ${notification.id} for user ${notification.userId} (Attempt #${notification.retryCount + 1})...`);
+        const candidateDocs = snapshot.docs.filter(doc => {
+          const data = doc.data();
+          return data.pushFailed === true && (data.retryCount || 0) < 5;
+        });
+
+        for (const doc of candidateDocs) {
+          const notification = { id: doc.id, ...doc.data() } as any;
           
-          const success = await pushNotificationManager.sendPush(notification.userId, notification.data || {
-            title: notification.title,
-            body: notification.body,
-            url: notification.actionUrl || '/',
-            tag: notification.type
-          }, notification.bypassActiveCheck || false);
+          if (notification.isRead) continue;
 
-          if (success) {
-            await doc.ref.update({
-              pushSent: true,
-              pushSentAt: new Date().toISOString(),
-              pushFailed: false
-            });
-          } else {
-            const nextRetryCount = (notification.retryCount || 1) + 1;
-            const delay = Math.pow(2, nextRetryCount - 1) * 60 * 1000; // backoff
-            await doc.ref.update({
-              pushFailed: true,
-              lastPushError: `Retry effort ${nextRetryCount} unsuccessful under FCM`,
-              retryCount: admin.firestore.FieldValue.increment(1),
-              nextRetryAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + delay))
-            });
+          const nextRetryAt = notification.nextRetryAt ? notification.nextRetryAt.toDate() : null;
+          if (nextRetryAt && nextRetryAt <= now) {
+            console.log(`[PushManager] Re-transmitting FCM notification ${notification.id} for user ${userId} (Attempt #${notification.retryCount + 1})...`);
+            
+            const success = await pushNotificationManager.sendPush(userId, notification.data || {
+              title: notification.title,
+              body: notification.body,
+              url: notification.actionUrl || '/',
+              tag: notification.type
+            }, notification.bypassActiveCheck || false);
+
+            if (success) {
+              await doc.ref.update({
+                pushSent: true,
+                pushSentAt: new Date().toISOString(),
+                pushFailed: false
+              });
+            } else {
+              const nextRetryCount = (notification.retryCount || 1) + 1;
+              const delay = Math.pow(2, nextRetryCount - 1) * 60 * 1000; // backoff
+              await doc.ref.update({
+                pushFailed: true,
+                lastPushError: `Retry effort ${nextRetryCount} unsuccessful under FCM`,
+                retryCount: admin.firestore.FieldValue.increment(1),
+                nextRetryAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + delay))
+              });
+            }
           }
         }
       }
