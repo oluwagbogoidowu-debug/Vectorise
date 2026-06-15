@@ -14,6 +14,8 @@ import PWAInstallPrompt from './components/PWAInstallPrompt';
 import { analyticsTracker } from './services/analyticsTracker';
 import { AppRoutes } from './routes';
 import { UserRole } from './types';
+import { localNotificationScheduler } from './services/localNotificationScheduler';
+import OfflineBanner from './components/OfflineBanner';
 
 const AppContent: React.FC = () => {
   const { user, activeRole, loading, logout } = useAuth();
@@ -54,6 +56,57 @@ const AppContent: React.FC = () => {
       if (interval) clearInterval(interval);
     };
   }, [user?.id]);
+
+  // Set up local task reminders checker for active participant sprints
+  useEffect(() => {
+    if (!user || activeRole !== UserRole.PARTICIPANT) return;
+
+    let unsub: (() => void) | null = null;
+    let checkInterval: any = null;
+
+    try {
+      unsub = sprintService.subscribeToUserEnrollments(user.id, async (enrollments) => {
+        const activeEnrollments = enrollments.filter(e => e.status === 'active');
+        
+        const enrichedSprints = await Promise.all(activeEnrollments.map(async (e) => {
+          try {
+            const sprintDetails = await sprintService.getSprintById(e.sprint_id);
+            const nextDayIdx = e.progress.findIndex(p => !p.completed);
+            const currentDayNum = nextDayIdx !== -1 ? nextDayIdx + 1 : 1;
+            return {
+              id: e.sprint_id,
+              title: sprintDetails?.title || 'Active Sprint Task',
+              currentDayNum: currentDayNum
+            };
+          } catch (err) {
+            const nextDayIdx = e.progress.findIndex(p => !p.completed);
+            const currentDayNum = nextDayIdx !== -1 ? nextDayIdx + 1 : 1;
+            return {
+              id: e.sprint_id,
+              title: 'Active Sprint Task',
+              currentDayNum: currentDayNum
+            };
+          }
+        }));
+
+        // Run checks right away
+        localNotificationScheduler.checkAndTriggerDueReminders(enrichedSprints);
+
+        // Then re-check every minute
+        if (checkInterval) clearInterval(checkInterval);
+        checkInterval = setInterval(() => {
+          localNotificationScheduler.checkAndTriggerDueReminders(enrichedSprints);
+        }, 60 * 1000);
+      });
+    } catch (e) {
+      console.error('[NotificationScheduler] Setup failed:', e);
+    }
+
+    return () => {
+      if (unsub) unsub();
+      if (checkInterval) clearInterval(checkInterval);
+    };
+  }, [user?.id, activeRole]);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -127,6 +180,7 @@ const AppContent: React.FC = () => {
       </main>
       {showParticipantNav && <BottomNavigation />}
       <NotificationManager />
+      <OfflineBanner />
       <DormancyPrompt />
       <PWAInstallPrompt deferredPrompt={deferredPrompt} />
 

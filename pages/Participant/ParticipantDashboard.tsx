@@ -419,61 +419,6 @@ const ParticipantDashboard: React.FC = () => {
                 </Link>
             </div>
 
-            {/* Sticky Successful Invite Toast Notification */}
-            <AnimatePresence>
-              {showInviteBanner && dashboardReferrals && dashboardReferrals.length > 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                  className="fixed top-20 left-4 right-4 md:left-auto md:right-6 md:w-[380px] bg-white border-2 border-[#0E7850]/20 rounded-[2rem] p-5 shadow-2xl z-50 flex flex-col gap-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="h-10 w-10 rounded-2xl bg-[#0E7850]/10 flex items-center justify-center text-xl flex-shrink-0 animate-pulse">
-                        🤝
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[9px] font-black text-[#0E7850] uppercase tracking-widest leading-none mb-1">SUCCESSFUL INVITE</p>
-                        <h4 className="text-xs font-black text-gray-900 leading-snug truncate">
-                          {dashboardReferrals.length === 1 
-                            ? `${dashboardReferrals[0].refereeName} joined!` 
-                            : `${dashboardReferrals[0].refereeName} & ${dashboardReferrals.length - 1} others joined!`}
-                        </h4>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={handleDismissInviteBanner}
-                      className="text-gray-400 hover:text-gray-700 transition-colors p-1 flex-shrink-0"
-                      aria-label="Cancel"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  
-                  <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
-                    A friend has joined through your invite circle. Your influence matters—build the rising squad today.
-                  </p>
-                  
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={handleDismissInviteBanner}
-                      className="flex-1 py-2.5 bg-gray-50 text-gray-500 hover:bg-gray-100 font-black uppercase tracking-widest text-[9px] rounded-xl active:scale-95 transition-all text-center border border-gray-100"
-                    >
-                      Cancel
-                    </button>
-                    <Link 
-                      to="/impact"
-                      className="flex-1 py-2.5 bg-[#0E7850] text-white hover:bg-[#159E6A] font-black uppercase tracking-widest text-[9px] rounded-xl active:scale-95 transition-all text-center flex items-center justify-center shadow-md shadow-emerald-950/10"
-                    >
-                      View Impact
-                    </Link>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
             <div className="flex justify-between items-end mb-6 px-1">
                 <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">
                     {allTasksDoneToday ? (mainTask ? `Day ${mainTask.status.day - 1 || 1} Complete` : "Day 1 Complete") : "Today's Focus"}

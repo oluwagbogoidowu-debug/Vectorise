@@ -27,7 +27,9 @@ import { Participant } from "../../types";
 import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings } from "../../utils/haptics";
 
 import { PushToggle } from "../../components/PushToggle";
-import { BookOpen, Maximize2, Minimize2 } from "lucide-react";
+import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell } from "lucide-react";
+import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
+import { offlineSyncService } from "../../services/offlineSyncService";
 import { motion, AnimatePresence } from "motion/react";
 import { createPortal } from "react-dom";
 
@@ -182,6 +184,7 @@ const SprintSettingsModal: React.FC<{
   onToggleNotifications: (state: boolean) => void;
   hapticsEnabled: boolean;
   onToggleHaptics: () => void;
+  sprint?: Sprint | null;
 }> = ({
   isOpen,
   onClose,
@@ -191,8 +194,83 @@ const SprintSettingsModal: React.FC<{
   onToggleNotifications,
   hapticsEnabled,
   onToggleHaptics,
+  sprint,
 }) => {
   if (!isOpen) return null;
+
+  // Local notification scheduler state
+  const [reminderConfig, setReminderConfig] = useState<SprintReminderConfig & { id?: string }>({
+    sprintId: sprint?.id || '',
+    sprintTitle: sprint?.title || '',
+    enabled: false,
+    dailyTime: '09:00',
+    taskReminders: {}
+  });
+
+  const [selectedOverrideDay, setSelectedOverrideDay] = useState<number>(1);
+  const [selectedOverrideTime, setSelectedOverrideTime] = useState<string>('12:00');
+  const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
+
+  // Sync state on mount / open
+  useEffect(() => {
+    if (isOpen && sprint) {
+      const saved = localNotificationScheduler.getConfig(sprint.id) || {
+        sprintId: sprint.id,
+        sprintTitle: sprint.title,
+        enabled: false,
+        dailyTime: '09:00',
+        taskReminders: {}
+      };
+      setReminderConfig(saved);
+      setPermissionGranted(localNotificationScheduler.hasNotificationPermission());
+    }
+  }, [isOpen, sprint]);
+
+  const handleToggleReminders = () => {
+    if (!sprint) return;
+    const nextState = !reminderConfig.enabled;
+    const updated = { ...reminderConfig, enabled: nextState };
+    setReminderConfig(updated);
+    localNotificationScheduler.saveConfig(updated);
+    toast.success(nextState ? 'Local task reminders enabled!' : 'Local task reminders disabled.');
+  };
+
+  const handleUpdateDailyTime = (newTime: string) => {
+    const updated = { ...reminderConfig, dailyTime: newTime };
+    setReminderConfig(updated);
+    localNotificationScheduler.saveConfig(updated);
+  };
+
+  const handleAddOverride = () => {
+    if (!sprint) return;
+    const updatedTasks = { ...reminderConfig.taskReminders };
+    updatedTasks[selectedOverrideDay] = selectedOverrideTime;
+
+    const updated = { ...reminderConfig, taskReminders: updatedTasks };
+    setReminderConfig(updated);
+    localNotificationScheduler.saveConfig(updated);
+    toast.success(`Custom reminder set of ${selectedOverrideTime} for Day ${selectedOverrideDay}!`);
+  };
+
+  const handleRemoveOverride = (dayNum: number) => {
+    const updatedTasks = { ...reminderConfig.taskReminders };
+    delete updatedTasks[dayNum];
+
+    const updated = { ...reminderConfig, taskReminders: updatedTasks };
+    setReminderConfig(updated);
+    localNotificationScheduler.saveConfig(updated);
+    toast.info(`Removed custom reminder for Day ${dayNum}.`);
+  };
+
+  const handleRequestPermission = async () => {
+    const granted = await localNotificationScheduler.requestNotificationPermission();
+    setPermissionGranted(granted);
+    if (granted) {
+      toast.success('System reminders unlocked successfully!');
+    } else {
+      toast.error('Could not request permission. Ensure browser redirects or blocks are cleared.');
+    }
+  };
 
   const Toggle = ({
     enabled,
@@ -218,11 +296,13 @@ const SprintSettingsModal: React.FC<{
     </div>
   );
 
+  const durationDays = sprint?.duration || 7;
+
   return (
     <div className="modal-overlay animate-fade-in" onClick={onClose}>
       <div className="modal-content-wrapper" onClick={onClose}>
         <div
-          className="modal-content w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden animate-slide-up flex flex-col max-h-[80vh] border border-gray-100"
+          className="modal-content w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden animate-slide-up flex flex-col max-h-[85vh] border border-gray-100"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="p-8 pb-4 flex justify-between items-center flex-shrink-0">
@@ -249,25 +329,139 @@ const SprintSettingsModal: React.FC<{
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-8 py-2 min-h-0 custom-scrollbar">
-            <Toggle
-              enabled={soundEnabled}
-              onToggle={onToggleSound}
-              label="Completion Sound"
-            />
-            <Toggle
-              enabled={hapticsEnabled}
-              onToggle={onToggleHaptics}
-              label="Vibration Feedback"
-            />
-            <div className="py-2.5 border-b border-gray-50 last:border-0">
-              <PushToggle
-                label="Unlock Notifications"
-                showSubLabel={false}
-                labelClassName="text-xs font-black text-gray-700 uppercase tracking-widest"
-                onToggleSuccess={(state) => onToggleNotifications(state)}
+          <div className="flex-1 overflow-y-auto px-8 py-2 min-h-0 custom-scrollbar space-y-4">
+            <div className="border-b border-gray-50 pb-2">
+              <Toggle
+                enabled={soundEnabled}
+                onToggle={onToggleSound}
+                label="Completion Sound"
               />
+              <Toggle
+                enabled={hapticsEnabled}
+                onToggle={onToggleHaptics}
+                label="Vibration Feedback"
+              />
+              <div className="py-2.5">
+                <PushToggle
+                  label="Unlock Notifications"
+                  showSubLabel={false}
+                  labelClassName="text-xs font-black text-gray-700 uppercase tracking-widest"
+                  onToggleSuccess={(state) => onToggleNotifications(state)}
+                />
+              </div>
             </div>
+
+            {sprint && (
+              <div className="pt-2 flex flex-col gap-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#0E7850]" />
+                  <span className="text-[11px] font-black text-gray-800 uppercase tracking-[0.15em]">Local Task Scheduler</span>
+                </div>
+
+                <div className="bg-gray-50/50 p-4 rounded-3xl border border-gray-100 flex flex-col gap-3">
+                  {/* Enabled Toggle */}
+                  <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                    <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">Enable Task Reminders</span>
+                    <button
+                      onClick={handleToggleReminders}
+                      className={`w-10 h-5 rounded-full transition-all duration-305 relative ${reminderConfig.enabled ? "bg-[#0E7850]" : "bg-gray-200"}`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all duration-305 ${reminderConfig.enabled ? "right-0.5" : "left-0.5"}`}
+                      />
+                    </button>
+                  </div>
+
+                  {reminderConfig.enabled && (
+                    <div className="flex flex-col gap-4 animate-fade-in">
+                      {/* Permission Check */}
+                      <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                        <span className="text-[10px] font-bold text-gray-650 uppercase tracking-wider">System Reminders</span>
+                        {permissionGranted ? (
+                          <span className="text-[8px] font-black uppercase text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Check className="w-2.5 h-2.5" /> Authorized
+                          </span>
+                        ) : (
+                          <button
+                            onClick={handleRequestPermission}
+                            className="text-[9px] font-black uppercase text-[#0E7850] hover:text-[#0b5d3e] hover:bg-[#0E7850]/5 p-1 px-2.5 rounded-lg border border-emerald-100 transition-all"
+                          >
+                            Authorize
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Daily Time Input */}
+                      <div className="flex items-center justify-between pb-2">
+                        <span className="text-[10px] font-bold text-gray-700 uppercase tracking-wider">Daily Time</span>
+                        <input
+                          type="time"
+                          value={reminderConfig.dailyTime}
+                          onChange={(e) => handleUpdateDailyTime(e.target.value)}
+                          className="bg-white border border-gray-200 rounded-xl px-2.5 py-1 text-xs font-bold text-gray-800 outline-none w-24 text-center focus:border-[#0E7850]"
+                        />
+                      </div>
+
+                      {/* Day Overrides Add Form */}
+                      <div className="pt-2 border-t border-gray-100 flex flex-col gap-2">
+                        <span className="text-[9px] font-black text-gray-450 uppercase tracking-widest block mb-1">Set Custom Time Per Day</span>
+                        
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={selectedOverrideDay}
+                            onChange={(e) => setSelectedOverrideDay(Number(e.target.value))}
+                            className="flex-1 bg-white border border-gray-200 rounded-xl px-2 py-1.5 text-[10px] font-black text-gray-700 outline-none cursor-pointer"
+                          >
+                            {Array.from({ length: durationDays }).map((_, i) => (
+                              <option key={i} value={i + 1}>Day {i + 1}</option>
+                            ))}
+                          </select>
+
+                          <input
+                            type="time"
+                            value={selectedOverrideTime}
+                            onChange={(e) => setSelectedOverrideTime(e.target.value)}
+                            className="bg-white border border-gray-200 rounded-xl px-2 py-1 text-[10px] font-bold text-gray-800 outline-none w-20 text-center"
+                          />
+
+                          <button
+                            onClick={handleAddOverride}
+                            className="p-1.5 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-xl shadow-sm hover:scale-105 active:scale-95 transition-all"
+                            title="Add Daily Override"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Existing Overrides List */}
+                      {Object.keys(reminderConfig.taskReminders).length > 0 && (
+                        <div className="pt-2 border-t border-gray-100 flex flex-col gap-1.5 max-h-32 overflow-y-auto custom-scrollbar">
+                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Configured Day Reminders</span>
+                          {Object.entries(reminderConfig.taskReminders)
+                            .sort((a, b) => Number(a[0]) - Number(b[0]))
+                            .map(([dayNum, time]) => (
+                              <div key={dayNum} className="flex items-center justify-between bg-white px-3 py-1.5 rounded-xl border border-gray-100">
+                                <span className="text-[10px] font-bold text-gray-650">Day {dayNum} task</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[9px] font-black text-[#0E7850] bg-emerald-50 px-2 py-0.5 rounded-md">{time}</span>
+                                  <button
+                                    onClick={() => handleRemoveOverride(Number(dayNum))}
+                                    className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                                    title="Delete reminder settings"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="p-8 pt-4 flex-shrink-0">
@@ -1396,6 +1590,58 @@ const SprintView: React.FC = () => {
       if (isLastDay && updatedProgress.every((p) => p.completed)) {
         updatePayload.completed_at = timestamp;
         updatePayload.status = "completed";
+      }
+
+      if (!window.navigator.onLine) {
+        offlineSyncService.addPendingCompletion({
+          userId: enrollment.user_id,
+          enrollmentId: enrollment.id,
+          sprint_id: enrollment.sprint_id,
+          viewingDay,
+          taskInputs,
+          timestamp,
+          isLastDay
+        });
+
+        setEnrollment({
+          ...enrollment,
+          progress: updatedProgress,
+          last_activity_at: timestamp,
+          ...(isLastDay && updatedProgress.every((p) => p.completed) ? { completed_at: timestamp, status: 'completed' } : {})
+        });
+
+        toast.warning("Task completed offline! Progress saved locally. We will auto-sync once you're back online.");
+        setIsReflectionModalOpen(false);
+
+        if (soundEnabled) {
+          try {
+            const audio = new Audio(
+              "https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3",
+            );
+            audio.play().catch((e) => console.error("Sound playback failed:", e));
+          } catch (e) {
+            console.error("Audio initialization failed:", e);
+          }
+        }
+
+        triggerHaptic(hapticPatterns.success);
+
+        if (isLastDay && updatedProgress.every((p) => p.completed)) {
+          setIsCompletionModalOpen(true);
+        } else {
+          setIsDayCompletionModalOpen(true);
+        }
+
+        if (dayContent?.mirrorActive) {
+          if (mirrorTimerRef.current) clearTimeout(mirrorTimerRef.current);
+          mirrorTimerRef.current = setTimeout(() => {
+            setIsDayCompletionModalOpen(false);
+            setIsMirrorReportModalOpen(true);
+          }, 7000);
+        }
+
+        setIsSubmitting(false);
+        return;
       }
 
       await updateDoc(enrollmentRef, updatePayload);
@@ -3205,6 +3451,7 @@ const SprintView: React.FC = () => {
         onToggleNotifications={toggleNotificationsState}
         hapticsEnabled={hapticsEnabled}
         onToggleHaptics={toggleHapticsState}
+        sprint={sprint}
       />
       <CoachingChatModal
         isOpen={isChatModalOpen}

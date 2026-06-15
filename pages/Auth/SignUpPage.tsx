@@ -182,17 +182,49 @@ const SignUpPage: React.FC = () => {
       if (resolvedReferrerId) {
         try {
           const referralId = `${resolvedReferrerId}_${firebaseUser.uid}`;
-          const refDocRef = doc(db, 'referrals', referralId);
-          await setDoc(refDocRef, {
+          const referralData = {
             id: referralId,
             referrerId: resolvedReferrerId,
             refereeId: firebaseUser.uid,
             refereeName: `${firstName} ${lastName}`,
-            refereeAvatar: newUser.profileImageUrl,
+            refereeAvatar: newUser.profileImageUrl || `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=0E7850&color=fff`,
             status: 'joined',
             timestamp: new Date().toISOString()
+          };
+          
+          // Write top-level collection document
+          const refDocRef = doc(db, 'referrals', referralId);
+          await setDoc(refDocRef, referralData);
+          
+          // Write nested subcollection document under the referrer key
+          const subRefDoc = doc(db, 'users', resolvedReferrerId, 'referrals', firebaseUser.uid);
+          await setDoc(subRefDoc, referralData);
+          
+          // Drop a notification inside the referrer's notifications collection
+          const notifId = `${resolvedReferrerId}_joined_${firebaseUser.uid}`;
+          const notifRef = doc(db, 'users', resolvedReferrerId, 'notifications', notifId);
+          await setDoc(notifRef, {
+            id: notifId,
+            userId: resolvedReferrerId,
+            type: 'referral_update',
+            title: 'New Referrer Connection! 🌱',
+            body: `${firstName} ${lastName} has joined using your link. Start building your rising squad!`,
+            actionUrl: '/impact',
+            isRead: false,
+            readAt: null,
+            pushSent: false,
+            createdAt: new Date().toISOString(),
+            expiresAt: null,
+            bypassActiveCheck: true,
+            data: {
+              title: 'New Referrer Connection! 🌱',
+              body: `${firstName} ${lastName} has joined using your link. Start building your rising squad!`,
+              tag: 'referral-update',
+              url: '/impact'
+            }
           });
-          console.log(`[Referral Recorded] Saved referral document for referee ${firebaseUser.uid} under referrer ${resolvedReferrerId}`);
+
+          console.log(`[Referral Recorded] Saved referral document for referee ${firebaseUser.uid} under referrer ${resolvedReferrerId} and dropped a notification`);
         } catch (err) {
           console.error("Failed to record referral document:", err);
         }

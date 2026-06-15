@@ -138,6 +138,13 @@ const Header: React.FC = () => {
                            {!notif.isRead && <div className="w-1.5 h-1.5 bg-primary rounded-full mt-1 flex-shrink-0"></div>}
                         </div>
                         <p className={`text-[10px] leading-snug line-clamp-2 ${!notif.isRead ? 'text-gray-700 font-bold' : 'text-gray-400 font-medium'}`}>{notif.body}</p>
+                        {notif.type === 'referral_update' && (
+                          <div className="mt-2 text-left">
+                            <button className="px-2.5 py-1.5 text-[8px] font-black uppercase tracking-widest text-white bg-[#0E7850] hover:bg-[#159E6A] rounded-lg transition-colors leading-none">
+                              View Referrals &rarr;
+                            </button>
+                          </div>
+                        )}
                         <p className="text-[8px] text-gray-300 font-black uppercase mt-1.5 tracking-tighter">
                           {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>

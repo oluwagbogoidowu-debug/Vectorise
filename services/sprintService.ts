@@ -927,8 +927,36 @@ export const sprintService = {
                     transaction.update(referrerRef, {
                         'impactStats.peopleHelped': increment(1)
                     });
+
+                    // Also update nested subcollection record
+                    const subRefDoc = doc(db, 'users', referrerId, 'referrals', userId);
+                    transaction.set(subRefDoc, { status: 'started_sprint' }, { merge: true });
+
+                    // Drop a notification about referral completion immediately
+                    const notifId = `${referrerId}_completed_${userId}`;
+                    const notifRef = doc(db, 'users', referrerId, 'notifications', notifId);
+                    transaction.set(notifRef, {
+                        id: notifId,
+                        userId: referrerId,
+                        type: 'referral_update',
+                        title: 'Referral Completed! 🌱',
+                        body: 'Congratulations! A friend completed registration and started a sprint. Click to view rewards.',
+                        actionUrl: '/impact',
+                        isRead: false,
+                        readAt: null,
+                        pushSent: false,
+                        createdAt: new Date().toISOString(),
+                        expiresAt: null,
+                        bypassActiveCheck: true,
+                        data: {
+                          title: 'Referral Completed! 🌱',
+                          body: 'Congratulations! A friend completed registration and started a sprint. Click to view rewards.',
+                          tag: 'referral-completion',
+                          url: '/impact'
+                        }
+                    });
                 });
-                console.log(`[Referral System] Realtime trigger: Referee ${userId} started first sprint. Referrer ${referrerId} peopleHelped count incremented.`);
+                console.log(`[Referral System] Realtime trigger: Referee ${userId} started first sprint. Referrer ${referrerId} peopleHelped count incremented. Nested referral and notifications set.`);
             }
         } catch (err) {
             console.error("Error checking referral start:", err);
