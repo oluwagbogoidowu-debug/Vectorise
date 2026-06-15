@@ -36,7 +36,7 @@ export const pushNotificationManager = {
   /**
    * Send a push notification to a specific user via FCM.
    */
-  sendPush: async (userId: string, payload: { title: string; body: string; url?: string; tag?: string }, bypassActiveCheck: boolean = false) => {
+  sendPush: async (userId: string, payload: { title: string; body: string; url?: string; tag?: string; image?: string; icon?: string }, bypassActiveCheck: boolean = false) => {
     try {
       const userRef = db.collection('users').doc(userId);
       const userSnap = await userRef.get();
@@ -92,8 +92,10 @@ export const pushNotificationManager = {
         const body = payload.body;
         const msgUrl = payload.url || '/';
         const msgTag = payload.tag || 'default';
+        const msgImage = payload.image || '';
+        const msgIcon = payload.icon || '';
 
-        const message = {
+        const message: any = {
           token: fcmToken,
           notification: {
             title: title,
@@ -107,12 +109,22 @@ export const pushNotificationManager = {
           },
           webpush: {
             notification: {
-              icon: 'https://img.icons8.com/fluency-systems-filled/96/0E7850/clock.png',
+              icon: msgIcon || 'https://img.icons8.com/fluency-systems-filled/96/0E7850/clock.png',
               badge: 'https://lh3.googleusercontent.com/d/1iPPiCUwdOmGZ-KScVrvOpOw0LiauXE7X',
               clickAction: msgUrl
             }
           }
         };
+
+        if (msgImage) {
+          message.notification.image = msgImage;
+          message.data.image = msgImage;
+          message.webpush.notification.image = msgImage;
+        }
+
+        if (msgIcon) {
+          message.data.icon = msgIcon;
+        }
 
         const resultId = await admin.messaging().send(message);
         console.log(`[PushManager] Successfully sent FCM push: response ID = ${resultId}`);

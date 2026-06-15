@@ -30,7 +30,9 @@ export const notificationService = {
       actionUrl?: string, 
       context?: any, 
       expiresInDays?: number,
-      bypassActiveCheck?: boolean
+      bypassActiveCheck?: boolean,
+      image?: string,
+      icon?: string
     } = {}
   ) => {
     try {
@@ -60,7 +62,9 @@ export const notificationService = {
           title,
           body,
           tag: type === 'coach_message' ? 'coach-message' : type.replace(/_/g, '-'),
-          url: options.actionUrl || '/'
+          url: options.actionUrl || '/',
+          image: options.image || undefined,
+          icon: options.icon || undefined
         }
       };
 
@@ -75,7 +79,9 @@ export const notificationService = {
           body,
           options.actionUrl || '/',
           type === 'coach_message' ? 'coach-message' : type.replace(/_/g, '-'),
-          options.bypassActiveCheck || false
+          options.bypassActiveCheck || false,
+          options.image,
+          options.icon
         ).then(() => {
           updateDoc(docRef, {
             pushSent: true,

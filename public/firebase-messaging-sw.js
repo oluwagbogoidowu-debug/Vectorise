@@ -42,9 +42,13 @@ messaging.onBackgroundMessage((payload) => {
     }
   }
 
+  const customIcon = payload.data?.icon || payload.notification?.icon || stateIcon;
+  const customImage = payload.data?.image || payload.notification?.image || undefined;
+
   const notificationOptions = {
     body: rawBody,
-    icon: payload.notification?.image || payload.data?.icon || stateIcon,
+    icon: customIcon,
+    image: customImage,
     badge: LOGO_MONO,
     color: '#0E7850',
     data: { url },

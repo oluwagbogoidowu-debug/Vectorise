@@ -21,30 +21,42 @@ const AccountSettings: React.FC = () => {
   const [testTitle, setTestTitle] = useState('Test Push Notification 🚀');
   const [testBody, setTestBody] = useState('Welcome to the Notification Playground! Your device is successfully subscribed.');
   const [testUrl, setTestUrl] = useState('/profile/settings');
+  const [testIcon, setTestIcon] = useState('https://img.icons8.com/fluency-systems-filled/96/0E7850/star.png');
+  const [testImage, setTestImage] = useState('https://images.unsplash.com/photo-1579202673506-ca3ce28943ef?q=80&w=600&auto=format&fit=crop');
   const [sendingPush, setSendingPush] = useState(false);
   const [sendingInApp, setSendingInApp] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState('welcome');
 
-  const templates: Record<string, { title: string; body: string }> = {
+  const templates: Record<string, { title: string; body: string; image?: string; icon?: string }> = {
     welcome: {
       title: 'Test Push Notification 🚀',
       body: 'Welcome to the Notification Playground! Your device is successfully subscribed.',
+      icon: 'https://img.icons8.com/fluency-systems-filled/96/0E7850/star.png',
+      image: 'https://images.unsplash.com/photo-1579202673506-ca3ce28943ef?q=80&w=600&auto=format&fit=crop'
     },
     milestone: {
       title: 'Streak Milestones Hit! 🏆',
       body: 'Outstanding consistency! You completed 3 consecutive days. Your streak is glowing.',
+      icon: 'https://img.icons8.com/fluency-systems-filled/96/0E7850/trophy.png',
+      image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=600&auto=format&fit=crop'
     },
     sprint: {
       title: 'Sprint Day Unlocked ⏰',
       body: 'Ready to complete Day 4 of your Vision Sprint? Touch to begin your session.',
+      icon: 'https://img.icons8.com/fluency-systems-filled/96/0E7850/unlock.png',
+      image: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?q=80&w=600&auto=format&fit=crop'
     },
     coach: {
       title: 'Coach Sarah sent feedback 💬',
       body: '"Superb reflections on today\'s check-in! Love how you connected your values to your actions."',
+      icon: 'https://img.icons8.com/fluency-systems-filled/96/0E7850/chat.png',
+      image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=600&auto=format&fit=crop'
     },
     custom: {
       title: '',
       body: '',
+      icon: '',
+      image: ''
     }
   };
 
@@ -54,6 +66,8 @@ const AccountSettings: React.FC = () => {
       const t = templates[key];
       setTestTitle(t.title);
       setTestBody(t.body);
+      setTestIcon(t.icon || '');
+      setTestImage(t.image || '');
     }
   };
 
@@ -79,7 +93,9 @@ const AccountSettings: React.FC = () => {
         testBody || 'This is a test notification payload.',
         testUrl || '/profile/settings',
         'test-notification',
-        true // bypassActiveCheck = true
+        true, // bypassActiveCheck = true
+        testImage || undefined,
+        testIcon || undefined
       );
       toast.success('FCM push payload dispatched successfully!', { id: toastId });
     } catch (err: any) {
@@ -106,7 +122,9 @@ const AccountSettings: React.FC = () => {
         testBody || 'This notice was successfully recorded in your database ledger.',
         {
           actionUrl: testUrl || '/profile/settings',
-          bypassActiveCheck: true
+          bypassActiveCheck: true,
+          image: testImage || undefined,
+          icon: testIcon || undefined
         }
       );
       toast.success('In-app database notification saved & push triggered!', { id: toastId });
@@ -259,6 +277,36 @@ const AccountSettings: React.FC = () => {
                 />
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-1">Custom Icon URL</label>
+                  <input
+                    type="text"
+                    placeholder="https://img.icons8.com/... (optional)"
+                    value={testIcon}
+                    onChange={(e) => {
+                      setTestIcon(e.target.value);
+                      setActiveTemplate('custom');
+                    }}
+                    className="w-full px-4 py-2.5 text-[10px] font-mono bg-gray-50 dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#0E7850] text-gray-900 dark:text-gray-150 transition-all placeholder-gray-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-1">Custom Image URL</label>
+                  <input
+                    type="text"
+                    placeholder="https://images.unsplash.com/... (optional)"
+                    value={testImage}
+                    onChange={(e) => {
+                      setTestImage(e.target.value);
+                      setActiveTemplate('custom');
+                    }}
+                    className="w-full px-4 py-2.5 text-[10px] font-mono bg-gray-50 dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0E7850] text-gray-900 dark:text-gray-150 transition-all placeholder-gray-400"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-1">Launch Redirect URL</label>
                 <input
@@ -278,8 +326,19 @@ const AccountSettings: React.FC = () => {
               </span>
               <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-xl p-3.5 shadow-sm flex items-start gap-3 relative overflow-hidden transition-all duration-300">
                 <div className="w-1.5 h-full bg-[#0E7850] absolute left-0 top-0 bottom-0" />
-                <div className="p-1.5 bg-gray-50 dark:bg-zinc-850 rounded-lg flex-shrink-0 text-md">
-                  📲
+                <div className="w-10 h-10 bg-gray-50 dark:bg-zinc-850 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border border-gray-100 dark:border-zinc-800">
+                  {testIcon ? (
+                    <img 
+                      src={testIcon} 
+                      alt="Icon" 
+                      className="w-7 h-7 object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://img.icons8.com/fluency-systems-filled/96/0E7850/clock.png';
+                      }}
+                    />
+                  ) : (
+                    <span className="text-md">📲</span>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-baseline">
@@ -291,6 +350,13 @@ const AccountSettings: React.FC = () => {
                   <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-normal mt-0.5 max-h-12 overflow-hidden line-clamp-2">
                     {testBody || 'Type a customized title/body or pick a template above.'}
                   </p>
+                  
+                  {testImage && (
+                    <div className="mt-2.5 overflow-hidden rounded-lg border border-gray-100 dark:border-zinc-850/60 aspect-[1.91] max-h-32 bg-gray-50/50">
+                      <img src={testImage} alt="Notification Banner" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+
                   <p className="text-[8px] text-[#0E7850] font-black uppercase tracking-wider mt-1.5 flex items-center gap-1">
                     <span>Redirect URL:</span>
                     <span className="text-gray-400 dark:text-gray-500 font-medium lowercase tracking-normal">{testUrl}</span>
