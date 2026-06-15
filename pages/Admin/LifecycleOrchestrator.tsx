@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 import { LifecycleStage, LifecycleSlot, Sprint, SprintType, MicroSelector, MicroSelectorStep, GlobalOrchestrationSettings, OrchestrationTrigger, OrchestrationAction, LifecycleSlotAssignment, Track } from '../../types';
-import { LIFECYCLE_STAGES_CONFIG, LIFECYCLE_SLOTS, FOCUS_OPTIONS, FOUNDATION_CLARITY_OPTIONS, PERSONA_HIERARCHY, PERSONAS } from '../../services/mockData';
+import { LIFECYCLE_STAGES_CONFIG, LIFECYCLE_SLOTS, FOCUS_OPTIONS, FOUNDATION_CLARITY_OPTIONS, PERSONA_HIERARCHY, PERSONAS, CATEGORY_TO_STAGE_MAP } from '../../services/mockData';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
 
@@ -48,14 +48,39 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
         const results: {
             sprint: Sprint | { id: string; title: string; category: string; coverImageUrl?: string; duration?: number } | Track;
             slotName: string;
+            slotId?: string;
             isSystem: boolean;
             isTrack: boolean;
             priorityLabel: string;
             priorityNum: number;
+            isOverride?: boolean;
         }[] = [];
 
-        // Filter slots for the current selectedStage
+        // 1. Gather overrideOrchestrator sprints that belong to the selectedStage
+        const overrideSprints = allSprints.filter(s => s.overrideOrchestrator && s.approvalStatus === 'approved');
+        const stageOverrides = overrideSprints.filter(s => {
+            const sprintStage = CATEGORY_TO_STAGE_MAP[s.category] || 'Direction';
+            return sprintStage === selectedStage;
+        });
+        
+        stageOverrides.sort((a, b) => (a.overrideOrder || 0) - (b.overrideOrder || 0));
+
+        stageOverrides.forEach((s, idx) => {
+            results.push({
+                sprint: s,
+                slotName: 'Coach Override',
+                slotId: 'override',
+                isSystem: false,
+                isTrack: false,
+                priorityLabel: `Override Priority ${idx + 1}`,
+                priorityNum: s.overrideOrder || (idx + 1),
+                isOverride: true
+            });
+        });
+
+        // 2. Filter slots for the current selectedStage
         const currentSlots = LIFECYCLE_SLOTS.filter(s => s.stage === selectedStage);
+        const regularResults: typeof results = [];
 
         currentSlots.forEach(slot => {
             const assignment = assignments[slot.id];
@@ -66,7 +91,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
             assignedSprintIds.forEach(sId => {
                 const sprintFocus = (assignment.sprintFocusMap || {})[sId] || [];
                 
-                // If the sprint's focus criteria includes the selected poll option (poll)
                 if (sprintFocus.includes(selectedPriorityPoll)) {
                     const s = allSprints.find(x => x.id === sId) || 
                              SYSTEM_DESTINATIONS.find(x => x.id === sId) ||
@@ -76,7 +100,6 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                         const isSystem = sId.startsWith('system_');
                         const isTrack = 'sprintIds' in s && !isSystem;
 
-                        // Calculate priority label
                         const priorityList = assignment.focusOptionPriorityMap?.[selectedPriorityPoll] || [];
                         const priorityIndex = priorityList.indexOf(sId);
                         
@@ -86,9 +109,10 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                         
                         const priorityNum = priorityIndex > -1 ? priorityIndex + 1 : 999;
 
-                        results.push({
+                        regularResults.push({
                             sprint: s,
                             slotName: slot.name,
+                            slotId: slot.id,
                             isSystem,
                             isTrack,
                             priorityLabel,
@@ -99,14 +123,80 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
             });
         });
 
-        // Sort by slot name, then priorityNum
-        return results.sort((a, b) => {
+        regularResults.sort((a, b) => {
             if (a.slotName !== b.slotName) {
                 return a.slotName.localeCompare(b.slotName);
             }
             return a.priorityNum - b.priorityNum;
         });
+
+        return [...results, ...regularResults];
     }, [selectedPriorityPoll, selectedStage, assignments, allSprints, allTracks]);
+
+    const handleMovePriority = async (slotId: string, sprintId: string, direction: 'up' | 'down') => {
+        const assignment = assignments[slotId];
+        if (!assignment) return;
+        
+        const priorityMap = { ...(assignment.focusOptionPriorityMap || {}) };
+        const optionPriorities = [...(priorityMap[selectedPriorityPoll] || [])];
+        
+        const idx = optionPriorities.indexOf(sprintId);
+        if (idx === -1) return;
+        
+        if (direction === 'up' && idx > 0) {
+            const temp = optionPriorities[idx];
+            optionPriorities[idx] = optionPriorities[idx - 1];
+            optionPriorities[idx - 1] = temp;
+        } else if (direction === 'down' && idx < optionPriorities.length - 1) {
+            const temp = optionPriorities[idx];
+            optionPriorities[idx] = optionPriorities[idx + 1];
+            optionPriorities[idx + 1] = temp;
+        } else {
+            return;
+        }
+        
+        priorityMap[selectedPriorityPoll] = optionPriorities;
+        const newAssignment = { ...assignment, focusOptionPriorityMap: priorityMap };
+        
+        try {
+            await sprintService.saveSlotAssignment(slotId, newAssignment);
+            toast.success("Priority moved successfully!");
+        } catch (err) {
+            toast.error("Failed to move priority.");
+        }
+    };
+
+    const handleMoveOverride = async (sprintId: string, direction: 'up' | 'down') => {
+        const stageOverrides = allSprints
+            .filter(s => s.overrideOrchestrator && s.approvalStatus === 'approved')
+            .filter(s => (CATEGORY_TO_STAGE_MAP[s.category] || 'Direction') === selectedStage)
+            .sort((a, b) => (a.overrideOrder || 0) - (b.overrideOrder || 0));
+            
+        const idx = stageOverrides.findIndex(s => s.id === sprintId);
+        if (idx === -1) return;
+        
+        if (direction === 'up' && idx > 0) {
+            const temp = stageOverrides[idx];
+            stageOverrides[idx] = stageOverrides[idx - 1];
+            stageOverrides[idx - 1] = temp;
+        } else if (direction === 'down' && idx < stageOverrides.length - 1) {
+            const temp = stageOverrides[idx];
+            stageOverrides[idx] = stageOverrides[idx + 1];
+            stageOverrides[idx + 1] = temp;
+        } else {
+            return;
+        }
+        
+        try {
+            for (let i = 0; i < stageOverrides.length; i++) {
+                const s = stageOverrides[i];
+                await sprintService.updateSprint(s.id, { overrideOrder: i + 1 });
+            }
+            toast.success("Override priority updated successfully! Please reload/refresh to see refreshed sorting.");
+        } catch (err) {
+            toast.error("Failed to update override priority.");
+        }
+    };
 
     useEffect(() => {
         setIsInitialLoading(true);
@@ -785,8 +875,27 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                             {selectedPriorityPoll ? (
                                 prioritySprintsForSelectedPoll.length > 0 ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {prioritySprintsForSelectedPoll.map(({ sprint, slotName, isSystem, isTrack, priorityLabel, priorityNum }, kIdx) => {
+                                        {prioritySprintsForSelectedPoll.map(({ sprint, slotName, slotId, isSystem, isTrack, priorityLabel, priorityNum, isOverride }, kIdx) => {
                                             const sId = sprint.id;
+                                            
+                                            let canMoveUp = false;
+                                            let canMoveDown = false;
+                                            
+                                            if (isOverride) {
+                                                const stageOverrides = allSprints
+                                                    .filter(s => s.overrideOrchestrator && s.approvalStatus === 'approved')
+                                                    .filter(s => (CATEGORY_TO_STAGE_MAP[s.category] || 'Direction') === selectedStage)
+                                                    .sort((a, b) => (a.overrideOrder || 0) - (b.overrideOrder || 0));
+                                                const overrideIndex = stageOverrides.findIndex(s => s.id === sId);
+                                                canMoveUp = overrideIndex > 0;
+                                                canMoveDown = overrideIndex > -1 && overrideIndex < stageOverrides.length - 1;
+                                            } else if (slotId) {
+                                                const priorityList = assignments[slotId]?.focusOptionPriorityMap?.[selectedPriorityPoll] || [];
+                                                const priorityIndex = priorityList.indexOf(sId);
+                                                canMoveUp = priorityIndex > 0;
+                                                canMoveDown = priorityIndex > -1 && priorityIndex < priorityList.length - 1;
+                                            }
+
                                             return (
                                                 <div 
                                                     key={`${sId}_${kIdx}`} 
@@ -816,14 +925,63 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                                             </div>
                                                         </div>
                                                         
-                                                        {/* Priority indicator */}
-                                                        <span className={`px-2.5 py-1 text-[8px] font-black uppercase tracking-widest rounded-lg border flex-shrink-0 ${
-                                                            priorityNum <= 3 
-                                                            ? 'bg-primary/5 border-primary/10 text-primary' 
-                                                            : 'bg-gray-50 border-gray-150 text-gray-400'
-                                                        }`}>
-                                                            {priorityLabel}
-                                                        </span>
+                                                        {/* Priority controls and indicator */}
+                                                        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                                                            <span className={`px-2.5 py-1 text-[8px] font-black uppercase tracking-widest rounded-lg border flex-shrink-0 ${
+                                                                priorityNum <= 3 
+                                                                ? 'bg-primary/5 border-primary/10 text-primary' 
+                                                                : 'bg-gray-50 border-gray-150 text-gray-400'
+                                                            }`}>
+                                                                {priorityLabel}
+                                                            </span>
+                                                            
+                                                            <div className="flex items-center gap-1">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (isOverride) {
+                                                                            handleMoveOverride(sId, 'up');
+                                                                        } else if (slotId) {
+                                                                            handleMovePriority(slotId, sId, 'up');
+                                                                        }
+                                                                    }}
+                                                                    disabled={!canMoveUp}
+                                                                    className={`p-1 rounded-md transition-all ${
+                                                                        canMoveUp 
+                                                                        ? 'bg-white hover:bg-primary/10 text-gray-600 hover:text-primary border border-gray-100 shadow-sm cursor-pointer' 
+                                                                        : 'bg-gray-50 text-gray-300 border border-gray-100 cursor-not-allowed opacity-50'
+                                                                    }`}
+                                                                    title="Move Up"
+                                                                >
+                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                                                                    </svg>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (isOverride) {
+                                                                            handleMoveOverride(sId, 'down');
+                                                                        } else if (slotId) {
+                                                                            handleMovePriority(slotId, sId, 'down');
+                                                                        }
+                                                                    }}
+                                                                    disabled={!canMoveDown}
+                                                                    className={`p-1 rounded-md transition-all ${
+                                                                        canMoveDown 
+                                                                        ? 'bg-white hover:bg-primary/10 text-gray-600 hover:text-primary border border-gray-100 shadow-sm cursor-pointer' 
+                                                                        : 'bg-gray-50 text-gray-300 border border-gray-100 cursor-not-allowed opacity-50'
+                                                                    }`}
+                                                                    title="Move Down"
+                                                                >
+                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             );

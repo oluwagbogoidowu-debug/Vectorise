@@ -336,7 +336,9 @@ const DiscoverSprints: React.FC = () => {
         };
 
         // 0. Include sprints that override orchestrator
-        const overrideSprintsActive = sprints.filter(s => s.overrideOrchestrator && !enrolledSprintIds.has(s.id));
+        const overrideSprintsActive = sprints
+            .filter(s => s.overrideOrchestrator && !enrolledSprintIds.has(s.id))
+            .sort((a, b) => (a.overrideOrder || 0) - (b.overrideOrder || 0));
         overrideSprintsActive.forEach(s => {
             addSprint(s);
         });
