@@ -20,6 +20,8 @@ const CoachParticipants: React.FC = () => {
     const { user } = useAuth();
     const [selectedSprintId, setSelectedSprintId] = useState<string>('all');
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+    const [sortBy, setSortBy] = useState<'recent' | 'progress'>('recent');
     const [allEnrollments, setAllEnrollments] = useState<ExtendedEnrollment[]>([]);
     const [mySprints, setMySprints] = useState<Sprint[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -33,52 +35,11 @@ const CoachParticipants: React.FC = () => {
     const [chatMessage, setChatMessage] = useState('');
     const [isSendingFeedback, setIsSendingFeedback] = useState(false);
     const [feedbackSent, setFeedbackSent] = useState(false);
+
     const [dayComments, setDayComments] = useState<CoachingComment[]>([]);
+    const [focusedCommentId, setFocusedCommentId] = useState<string | null>(null);
+    const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
     const chatScrollRef = useRef<HTMLDivElement>(null);
-
-    // Touch swipe references for side navigation inside the popup
-    const touchStartX = useRef<number | null>(null);
-    const touchStartY = useRef<number | null>(null);
-
-    const handleTouchStart = (e: React.TouchEvent) => {
-        touchStartX.current = e.touches[0].clientX;
-        touchStartY.current = e.touches[0].clientY;
-    };
-
-    const handleTouchEnd = (e: React.TouchEvent) => {
-        if (touchStartX.current === null || touchStartY.current === null || !viewingSubmission) return;
-        
-        const endX = e.changedTouches[0].clientX;
-        const endY = e.changedTouches[0].clientY;
-        
-        const diffX = touchStartX.current - endX;
-        const diffY = touchStartY.current - endY;
-        
-        const swipeThreshold = 55;
-        // Check if swipe is horizontal and exceeds the threshold
-        if (Math.abs(diffX) > swipeThreshold && Math.abs(diffX) > Math.abs(diffY)) {
-            const duration = viewingSubmission.enrollment.sprint.duration || 7;
-            if (diffX > 0) {
-                // Swipe Left => Next Day
-                if (viewingSubmission.day < duration) {
-                    setViewingSubmission({
-                        ...viewingSubmission,
-                        day: viewingSubmission.day + 1
-                    });
-                }
-            } else {
-                // Swipe Right => Prev Day
-                if (viewingSubmission.day > 1) {
-                    setViewingSubmission({
-                        ...viewingSubmission,
-                        day: viewingSubmission.day - 1
-                    });
-                }
-            }
-        }
-        touchStartX.current = null;
-        touchStartY.current = null;
-    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -217,13 +178,25 @@ const CoachParticipants: React.FC = () => {
             const matchesSprint = selectedSprintId === 'all' || e.sprint_id === selectedSprintId;
             const matchesSearch = e.student.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                                  e.sprint.title.toLowerCase().includes(searchTerm.toLowerCase());
-            return matchesSprint && matchesSearch;
+            
+            let matchesStatus = true;
+            if (statusFilter === 'active') {
+                matchesStatus = e.completedCount < e.sprint.duration;
+            } else if (statusFilter === 'inactive') {
+                matchesStatus = e.completedCount === e.sprint.duration;
+            }
+
+            return matchesSprint && matchesSearch && matchesStatus;
         }).sort((a, b) => {
-            if (a.isActiveToday && !b.isActiveToday) return -1;
-            if (!a.isActiveToday && b.isActiveToday) return 1;
-            return b.completedCount - a.completedCount;
+            if (sortBy === 'recent') {
+                const dateA = new Date(a.started_at || 0).getTime();
+                const dateB = new Date(b.started_at || 0).getTime();
+                return dateB - dateA;
+            } else {
+                return b.completedCount - a.completedCount;
+            }
         });
-    }, [allEnrollments, selectedSprintId, searchTerm]);
+    }, [allEnrollments, selectedSprintId, searchTerm, statusFilter, sortBy]);
 
     const handleSendFeedback = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -268,6 +241,22 @@ const CoachParticipants: React.FC = () => {
         }
     };
 
+    const handleDeleteComment = async (commentId: string) => {
+        if (!viewingSubmission) return;
+        try {
+            await chatService.deleteMessage(commentId);
+            // Reload comments
+            const dayMessages = await chatService.getConversation(
+                viewingSubmission.enrollment.sprint_id, 
+                viewingSubmission.enrollment.user_id,
+                viewingSubmission.day
+            );
+            setDayComments(dayMessages);
+        } catch (err) {
+            console.error("Failed to delete comment:", err);
+        }
+    };
+
     const hasAlreadySentFeedback = useMemo(() => {
         if (!user) return false;
         return dayComments.some(c => c.authorId === user.id);
@@ -279,32 +268,49 @@ const CoachParticipants: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 py-8 pb-32">
             {!viewingSubmission ? (
                 <>
-                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+                    <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
                         <div>
                             <h1 className="text-4xl font-black text-gray-900 tracking-tight mb-2">Participant Tracker</h1>
                             <p className="text-gray-500 font-medium">Tracking students in your {mySprints.length} live programs.</p>
                         </div>
                         
-                        <div className="flex flex-col sm:flex-row gap-3">
-                            <div className="relative">
+                        <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center">
+                            <div className="relative min-w-[200px]">
                                 <input 
                                     type="text"
-                                    placeholder="Search by name..."
+                                    placeholder="Search student/sprint..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full sm:w-64 pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none shadow-sm"
+                                    className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-bold text-gray-800 placeholder:text-gray-400 focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none shadow-sm h-11"
                                 />
                                 <svg className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                             </div>
                             <select 
                                 value={selectedSprintId}
                                 onChange={(e) => setSelectedSprintId(e.target.value)}
-                                className="bg-white border border-gray-200 rounded-2xl px-4 py-3 text-sm font-bold text-gray-700 focus:ring-4 focus:ring-primary/10 outline-none min-w-[220px] shadow-sm cursor-pointer"
+                                className="bg-white border border-gray-200 rounded-2xl px-4 py-2.5 text-xs font-black text-gray-700 focus:ring-4 focus:ring-primary/10 outline-none shadow-sm cursor-pointer h-11 min-w-[160px]"
                             >
-                                <option value="all">All Live Sprints</option>
+                                <option value="all">All Sprints</option>
                                 {mySprints.map(s => (
                                     <option key={s.id} value={s.id}>{s.title}</option>
                                 ))}
+                            </select>
+                            <select 
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value as any)}
+                                className="bg-white border border-gray-200 rounded-2xl px-4 py-2.5 text-xs font-black text-gray-700 focus:ring-4 focus:ring-primary/10 outline-none shadow-sm cursor-pointer h-11 min-w-[140px]"
+                            >
+                                <option value="all">All Statuses</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Completed</option>
+                            </select>
+                            <select 
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value as any)}
+                                className="bg-white border border-gray-200 rounded-2xl px-4 py-2.5 text-xs font-black text-gray-700 focus:ring-4 focus:ring-primary/10 outline-none shadow-sm cursor-pointer h-11 min-w-[160px]"
+                            >
+                                <option value="recent">Most Recent First</option>
+                                <option value="progress">Highest Progress</option>
                             </select>
                         </div>
                     </div>
@@ -315,108 +321,107 @@ const CoachParticipants: React.FC = () => {
                             <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Syncing Registry Data...</p>
                         </div>
                     ) : filteredEnrollments.length > 0 ? (
-                        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-gray-50/80 border-b border-gray-100">
-                                        <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Participant</th>
-                                        <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Sprint Program</th>
-                                        <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Progress (Click Day to Review)</th>
-                                        <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Latest Task</th>
-                                        <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Connect</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                    {filteredEnrollments.map((e) => {
-                                        const latestCompleted = [...e.progress].filter(p => p.completed).sort((a,b) => b.day - a.day)[0];
-                                        const displayDay = latestCompleted ? latestCompleted.day : 1;
-                                        const subData = e.progress.find(p => p.day === displayDay);
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {filteredEnrollments.map((e) => {
+                                const latestCompleted = [...e.progress].filter(p => p.completed).sort((a,b) => b.day - a.day)[0];
+                                const displayDay = latestCompleted ? latestCompleted.day : 1;
+                                const subData = e.progress.find(p => p.day === displayDay);
 
-                                        return (
-                                            <tr key={e.id} className="hover:bg-gray-50/50 transition-colors group">
-                                                <td className="px-8 py-6">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="relative">
-                                                            <img src={e.student.profileImageUrl} alt="" className="w-11 h-11 rounded-full object-cover border-2 border-white shadow-sm" />
-                                                            {e.isActiveToday && (
-                                                                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full shadow-sm"></span>
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-bold text-gray-900">{e.student.name}</p>
-                                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">Started {formatTimeAgo(e.started_at)}</p>
-                                                        </div>
+                                return (
+                                    <div key={e.id} className="bg-white rounded-[2rem] border-2 border-gray-100 p-6 shadow-sm hover:border-primary/10 hover:shadow-md transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
+                                        <div>
+                                            {/* Profile and connection/chat quick access */}
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="relative">
+                                                        <img src={e.student.profileImageUrl || 'https://picsum.photos/seed/student/100/100'} alt="" className="w-11 h-11 rounded-full object-cover border-2 border-white shadow-sm" />
+                                                        {e.isActiveToday && (
+                                                            <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full shadow-sm"></span>
+                                                        )}
                                                     </div>
-                                                </td>
-                                                <td className="px-8 py-6">
-                                                    <p className="text-xs font-black text-primary uppercase mb-1.5">{e.sprint.title}</p>
-                                                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest ${
-                                                        e.completedCount === e.sprint.duration 
-                                                            ? 'bg-green-100 text-green-700' 
-                                                            : 'bg-blue-100 text-blue-700'
-                                                    }`}>
-                                                        {e.completedCount} / {e.sprint.duration} Days
-                                                    </span>
-                                                </td>
-                                                <td className="px-8 py-6">
-                                                    <div className="flex gap-1.5 flex-wrap max-w-[140px]">
-                                                        {e.progress.map((p) => (
+                                                    <div>
+                                                        <p className="text-sm font-black text-gray-900 leading-tight">{e.student.name}</p>
+                                                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Started {formatTimeAgo(e.started_at)}</p>
+                                                    </div>
+                                                </div>
+
+                                                <button 
+                                                    onClick={() => {
+                                                        setIsContentExpanded(false);
+                                                        setViewingSubmission({ enrollment: e, day: displayDay });
+                                                        setIsChatOpen(true);
+                                                    }}
+                                                    className="p-2 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all border border-transparent hover:border-primary/10 cursor-pointer"
+                                                    title="Open direct discussion channel"
+                                                >
+                                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            {/* Sprint detail info text */}
+                                            <div className="mb-4">
+                                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
+                                                    {e.sprint.title} • {e.completedCount} / {e.sprint.duration} Days
+                                                </p>
+                                            </div>
+
+                                            {/* Required structural divider: "----" */}
+                                            <div className="border-t border-gray-100 my-3"></div>
+
+                                            {/* Progress symbol dots block: "■■■■■     those dots for each day" */}
+                                            <div className="mb-4">
+                                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1.5 label-dots">Schedule Tracker</p>
+                                                <div className="flex gap-1 items-center flex-wrap">
+                                                    {e.progress.map((p) => {
+                                                        const isCompleted = p.completed;
+                                                        const isCurrentMilestone = !isCompleted && p.day === e.currentMilestoneDay;
+                                                        return (
                                                             <button 
                                                                 key={p.day}
                                                                 onClick={() => {
-                                                                    if (p.completed) {
+                                                                    if (isCompleted) {
                                                                         setIsContentExpanded(false);
                                                                         setIsChatOpen(false);
                                                                         setViewingSubmission({ enrollment: e, day: p.day });
                                                                     }
                                                                 }}
-                                                                disabled={!p.completed}
-                                                                title={`Day ${p.day}: ${p.completed ? 'Click to Review Submission' : 'Pending'}`}
-                                                                className={`w-3.5 h-3.5 rounded-sm transition-all duration-300 ${
-                                                                    p.completed 
-                                                                        ? 'bg-primary shadow-sm cursor-pointer hover:scale-125 hover:ring-2 hover:ring-primary/40' 
-                                                                        : 'bg-gray-100 cursor-default'
-                                                                } ${!p.completed && p.day === e.currentMilestoneDay ? 'ring-2 ring-primary/20 animate-pulse' : ''}`}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                </td>
-                                                <td className="px-8 py-6">
-                                                    {subData?.submission || subData?.submissionFileUrl ? (
-                                                        <div className="max-w-[220px]">
-                                                            <p className="text-xs text-gray-650 line-clamp-1 italic font-medium mb-1.5">
-                                                                {subData.submission || "File submission detected"}
-                                                            </p>
-                                                            <button 
-                                                                onClick={() => {
-                                                                    setIsContentExpanded(false);
-                                                                    setIsChatOpen(false);
-                                                                    setViewingSubmission({ enrollment: e, day: displayDay });
-                                                                }}
-                                                                className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest"
+                                                                disabled={!isCompleted}
+                                                                title={`Day ${p.day}: ${isCompleted ? 'Click to Review Submission' : 'Pending'}`}
+                                                                className={`text-base leading-none transition-all duration-200 select-none ${
+                                                                    isCompleted 
+                                                                        ? 'text-primary hover:scale-125 cursor-pointer' 
+                                                                        : isCurrentMilestone
+                                                                            ? 'text-amber-500 animate-pulse'
+                                                                            : 'text-gray-200 cursor-default'
+                                                                }`}
                                                             >
-                                                                Review Day {displayDay} &rarr;
+                                                                ■
                                                             </button>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-[10px] font-bold text-gray-300 uppercase italic">No submissions</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-8 py-6 text-right">
-                                                    <button 
-                                                        className="p-3 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-2xl transition-all border border-transparent hover:border-primary/10"
-                                                        title="Open Chat"
-                                                    >
-                                                        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                                                        </svg>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Review Day present day trigger button */}
+                                        <div className="mt-2 pt-2 border-t border-gray-50 flex flex-col">
+                                            <button 
+                                                onClick={() => {
+                                                    setIsContentExpanded(false);
+                                                    setIsChatOpen(false);
+                                                    setViewingSubmission({ enrollment: e, day: displayDay });
+                                                }}
+                                                className="w-full py-2.5 px-4 bg-primary text-white hover:bg-primary-dark font-black text-[10px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-between group/vbtn cursor-pointer"
+                                            >
+                                                <span>Review Day {displayDay}</span>
+                                                <span className="font-bold text-xs transform group-hover/vbtn:translate-x-1 transition-transform">&rarr;</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="py-32 text-center flex flex-col items-center bg-white rounded-[3rem] border-2 border-dashed border-gray-100">
@@ -429,11 +434,7 @@ const CoachParticipants: React.FC = () => {
                     )}
                 </>
             ) : (
-                <div 
-                    onTouchStart={handleTouchStart}
-                    onTouchEnd={handleTouchEnd}
-                    className="space-y-8 animate-fade-in"
-                >
+                <div className="space-y-8 animate-fade-in">
                     {/* Header bar and day switches */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-100 pb-6">
                         <div>
@@ -450,41 +451,58 @@ const CoachParticipants: React.FC = () => {
                         </div>
 
                         {/* Pagination switches */}
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => {
-                                    if (viewingSubmission.day > 1) {
-                                        setViewingSubmission({
-                                            ...viewingSubmission,
-                                            day: viewingSubmission.day - 1
-                                        });
-                                    }
-                                }}
-                                disabled={viewingSubmission.day <= 1}
-                                className="px-4 py-2.5 bg-white text-gray-750 font-black text-[10px] uppercase tracking-widest border border-gray-100 rounded-xl hover:bg-gray-50 hover:text-primary disabled:opacity-30 disabled:pointer-events-none transition-all shadow-sm flex items-center gap-1.5"
-                            >
-                                &larr; Prev Day
-                            </button>
-                            
-                            <span className="text-[10px] font-black text-primary bg-primary/10 px-4 py-2.5 rounded-xl uppercase tracking-widest select-none">
-                                Day {viewingSubmission.day} of {viewingSubmission.enrollment.sprint.duration || 7}
-                            </span>
+                        <div className="inline-flex bg-white p-1 rounded-2xl border border-gray-100 shadow-sm">
+                            {(() => {
+                                const currentDay = viewingSubmission.day;
+                                const doneDays = (viewingSubmission.enrollment.progress || [])
+                                    .filter(p => p.completed)
+                                    .map(p => p.day)
+                                    .sort((a, b) => a - b);
+                                
+                                // Ensure current active day is included safely
+                                if (!doneDays.includes(currentDay)) {
+                                    doneDays.push(currentDay);
+                                    doneDays.sort((a, b) => a - b);
+                                }
 
-                            <button
-                                onClick={() => {
-                                    const duration = viewingSubmission.enrollment.sprint.duration || 7;
-                                    if (viewingSubmission.day < duration) {
-                                        setViewingSubmission({
-                                            ...viewingSubmission,
-                                            day: viewingSubmission.day + 1
-                                        });
+                                const currentIndex = doneDays.indexOf(currentDay);
+                                let visibleDays: number[] = [];
+
+                                if (doneDays.length <= 3) {
+                                    visibleDays = [...doneDays];
+                                } else {
+                                    if (currentIndex === 0) {
+                                        visibleDays = doneDays.slice(0, 3);
+                                    } else if (currentIndex === doneDays.length - 1) {
+                                        visibleDays = doneDays.slice(doneDays.length - 3);
+                                    } else {
+                                        visibleDays = doneDays.slice(currentIndex - 1, currentIndex + 2);
                                     }
-                                }}
-                                disabled={viewingSubmission.day >= (viewingSubmission.enrollment.sprint.duration || 7)}
-                                className="px-4 py-2.5 bg-white text-gray-750 font-black text-[10px] uppercase tracking-widest border border-gray-100 rounded-xl hover:bg-gray-50 hover:text-primary disabled:opacity-30 disabled:pointer-events-none transition-all shadow-sm flex items-center gap-1.5"
-                            >
-                                Next Day &rarr;
-                            </button>
+                                }
+
+                                return visibleDays.map((d) => {
+                                    const isActive = d === currentDay;
+                                    return (
+                                        <button
+                                            key={d}
+                                            type="button"
+                                            onClick={() => {
+                                                setViewingSubmission({
+                                                    ...viewingSubmission,
+                                                    day: d
+                                                });
+                                            }}
+                                            className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                                                isActive 
+                                                    ? 'bg-primary text-white shadow-md' 
+                                                    : 'text-gray-400 hover:text-primary hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            Day {d}{isActive ? '(active)' : ''}
+                                        </button>
+                                    );
+                                });
+                            })()}
                         </div>
                     </div>
 
@@ -493,49 +511,30 @@ const CoachParticipants: React.FC = () => {
                         {/* LEFT COLUMN: Lesson materials & Student response context */}
                         <div className="lg:col-span-7 space-y-6">
                             {/* Lesson materials context */}
-                            <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-300">
-                                <button 
-                                    onClick={() => setIsContentExpanded(!isContentExpanded)}
-                                    className="w-full px-6 py-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition-colors"
-                                >
+                            <div className="border-2 border-slate-100 rounded-3xl overflow-hidden bg-white shadow-sm hover:shadow hover:border-emerald-100/50 transition-all duration-300">
+                                <div className="px-6 py-4.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className={`p-2 rounded-xl ${isContentExpanded ? 'bg-primary text-white' : 'bg-primary/10 text-primary'}`}>
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                                        <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
                                         </div>
-                                        <span className="text-xs font-black text-gray-700 uppercase tracking-widest">Day {viewingSubmission.day} Content Context</span>
+                                        <span className="text-[11px] font-black text-gray-700 uppercase tracking-widest">Day {viewingSubmission.day} Daily Lesson Guide</span>
                                     </div>
-                                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-gray-400 transition-transform duration-300 ${isContentExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
-                                </button>
-                                {isContentExpanded && (
-                                    <div className="p-6 animate-fade-in border-t border-gray-50 bg-white">
-                                        <div className="mb-6">
-                                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Lesson Text</h4>
-                                            <p className="text-sm text-gray-700 leading-relaxed italic font-medium bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                                {Array.isArray(viewingSubmission.enrollment.sprint.dailyContent) ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c.day === viewingSubmission.day)?.lessonText : "No lesson text recorded."}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-3">Task Prompt(s)</h4>
+                                    <span className="text-[9px] font-black text-emerald-700 bg-emerald-100/60 px-2.5 py-1 rounded-full uppercase tracking-wider">Active Lesson</span>
+                                </div>
+                                <div className="p-6 bg-white space-y-4">
+                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none mb-1">Lesson Text</h4>
+                                    <div className="text-sm text-gray-800 leading-relaxed font-semibold bg-emerald-50/20 border border-emerald-100/30 p-5 rounded-[1.5rem] relative">
+                                        <span className="absolute -top-3 left-4 px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[8px] font-black uppercase tracking-wider rounded-md shadow-sm">Expository Material</span>
+                                        <p className="whitespace-pre-line mt-1.5 italic font-sans block text-gray-805 leading-relaxed">
                                             {(() => {
-                                                const contentData = Array.isArray(viewingSubmission.enrollment.sprint.dailyContent) ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c.day === viewingSubmission.day) : null;
-                                                const prompts = contentData?.taskPrompts || (contentData?.taskPrompt ? [contentData.taskPrompt] : []);
-                                                return prompts.map((prompt, idx) => (
-                                                    <div key={idx} className="mb-2">
-                                                        <span className="text-[10px] font-bold text-gray-400 mr-2">Q{idx + 1}.</span>
-                                                        <p className="text-sm text-gray-900 font-bold leading-tight bg-primary/5 p-4 rounded-2xl border border-primary/10 inline-block w-full">
-                                                            "{prompt}"
-                                                        </p>
-                                                        {contentData?.taskFootnotes?.[idx] && (
-                                                            <div className="text-xs text-[#0e7850] font-bold leading-relaxed mt-1.5 italic pl-1">
-                                                                {contentData.taskFootnotes[idx]}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))
+                                                const contentData = Array.isArray(viewingSubmission.enrollment.sprint.dailyContent) 
+                                                    ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c.day === viewingSubmission.day) 
+                                                    : null;
+                                                return contentData?.lessonText || "No lesson text recorded.";
                                             })()}
-                                        </div>
+                                        </p>
                                     </div>
-                                )}
+                                </div>
                             </div>
 
                             {/* Student's Submissions */}
@@ -579,75 +578,85 @@ const CoachParticipants: React.FC = () => {
                                           }));
 
                                     return (
-                                        <div className="space-y-6 animate-fade-in">
-                                            {itemsToDisplay.map((item, idx) => {
-                                                const isArrayFormat = typeof item.answer === 'string' && item.answer.trim().startsWith('[') && item.answer.trim().endsWith(']');
-                                                const isTagOrPollType = item.type === 'tags' || item.type === 'poll' || isArrayFormat;
-                                                let tags: string[] = [];
-                                                let displayAsTags = false;
-                                                if (isTagOrPollType && item.answer) {
-                                                    if (isArrayFormat) {
-                                                        try {
-                                                            const parsed = JSON.parse(item.answer);
-                                                            if (Array.isArray(parsed)) {
-                                                                tags = parsed.map(String).filter(Boolean);
-                                                                displayAsTags = true;
-                                                            }
-                                                        } catch (e) {}
+                                        <div className="space-y-4 animate-fade-in">
+                                            <div className="flex items-center justify-between px-1">
+                                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">Step Responses Deck</h4>
+                                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1 animate-pulse">
+                                                    Swipe Sideways ➔
+                                                </span>
+                                            </div>
+                                            <div className="flex gap-4 overflow-x-auto pb-6 pt-1 px-1 snap-x snap-mandatory scrollbar-hidden">
+                                                {itemsToDisplay.map((item, idx) => {
+                                                    const isArrayFormat = typeof item.answer === 'string' && item.answer.trim().startsWith('[') && item.answer.trim().endsWith(']');
+                                                    const isTagOrPollType = item.type === 'tags' || item.type === 'poll' || isArrayFormat;
+                                                    let tags: string[] = [];
+                                                    let displayAsTags = false;
+                                                    if (isTagOrPollType && item.answer) {
+                                                        if (isArrayFormat) {
+                                                            try {
+                                                                const parsed = JSON.parse(item.answer);
+                                                                if (Array.isArray(parsed)) {
+                                                                    tags = parsed.map(String).filter(Boolean);
+                                                                    displayAsTags = true;
+                                                                }
+                                                            } catch (e) {}
+                                                        }
+                                                        if (!displayAsTags && (item.type === 'tags' || item.type === 'poll')) {
+                                                            tags = item.answer.split(',').map((t: string) => t.trim()).filter(Boolean);
+                                                            displayAsTags = true;
+                                                        }
                                                     }
-                                                    if (!displayAsTags && (item.type === 'tags' || item.type === 'poll')) {
-                                                        tags = item.answer.split(',').map((t: string) => t.trim()).filter(Boolean);
-                                                        displayAsTags = true;
-                                                    }
-                                                }
 
-                                                return (
-                                                    <div key={idx} className="p-6 bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm space-y-4">
-                                                        <div>
-                                                            <div className="text-[10px] font-black text-primary uppercase tracking-[0.15em] mb-1">
-                                                                Question {item.index + 1}
-                                                            </div>
-                                                            <p className="text-sm font-black text-gray-800 leading-tight">
-                                                                "{item.prompt}"
-                                                            </p>
-                                                            {contentData?.taskFootnotes?.[item.index] && (
-                                                                <div className="text-xs text-emerald-600 font-bold leading-relaxed mt-1.5 italic pl-1">
-                                                                    {contentData.taskFootnotes[item.index]}
-                                                                </div>
-                                                            )}
-                                                        </div>
-
-                                                        <div className="border-t border-gray-50"></div>
-
-                                                        <div>
-                                                            <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2.5">
-                                                                Submitted Response
-                                                            </div>
-                                                            
-                                                            {displayAsTags ? (
-                                                                <div className="flex flex-wrap gap-2 py-1">
-                                                                    {tags.length > 0 ? (
-                                                                        tags.map((tag, tIdx) => (
-                                                                            <span 
-                                                                                key={tIdx} 
-                                                                                className="inline-flex items-center px-3.5 py-1.5 rounded-xl text-xs font-bold bg-primary/10 text-primary border border-primary/20 shadow-sm animate-fade-in uppercase tracking-wider"
-                                                                            >
-                                                                                {tag}
-                                                                            </span>
-                                                                        ))
-                                                                    ) : (
-                                                                        <span className="text-xs text-gray-400 font-medium italic">Empty tags submitted</span>
+                                                    return (
+                                                        <div key={idx} className="flex-shrink-0 w-[290px] sm:w-[325px] md:w-[360px] bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm p-6 snap-start flex flex-col justify-between hover:border-primary/10 transition-all duration-300 min-h-[300px]">
+                                                            <div className="space-y-4 flex flex-col h-full justify-between">
+                                                                <div>
+                                                                    <div className="text-[10px] font-black text-primary uppercase tracking-[0.15em] mb-1">
+                                                                        Question {item.index + 1}
+                                                                    </div>
+                                                                    <p className="text-sm font-black text-gray-800 leading-tight line-clamp-3" title={item.prompt}>
+                                                                        "{item.prompt}"
+                                                                    </p>
+                                                                    {contentData?.taskFootnotes?.[item.index] && (
+                                                                        <div className="text-xs text-emerald-600 font-bold leading-relaxed mt-1 italic pl-1 truncate" title={contentData.taskFootnotes[item.index]}>
+                                                                            {contentData.taskFootnotes[item.index]}
+                                                                        </div>
                                                                     )}
                                                                 </div>
-                                                            ) : (
-                                                                <div className="text-gray-900 font-semibold text-base whitespace-pre-wrap leading-relaxed py-1">
-                                                                    {item.answer || <span className="text-gray-350 italic font-medium text-xs">No response provided</span>}
+
+                                                                <div className="border-t border-gray-50 my-2"></div>
+
+                                                                <div className="flex-1 flex flex-col justify-end">
+                                                                    <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                                                                        Submitted Response
+                                                                    </div>
+                                                                    
+                                                                    {displayAsTags ? (
+                                                                        <div className="flex flex-wrap gap-1.5 py-1 max-h-[140px] overflow-y-auto custom-scrollbar">
+                                                                            {tags.length > 0 ? (
+                                                                                tags.map((tag, tIdx) => (
+                                                                                    <span 
+                                                                                        key={tIdx} 
+                                                                                        className="inline-flex items-center px-3 py-1 rounded-xl text-[9px] font-bold bg-primary/10 text-primary border border-primary/20 shadow-sm animate-fade-in uppercase tracking-wider h-fit"
+                                                                                    >
+                                                                                        {tag}
+                                                                                    </span>
+                                                                                ))
+                                                                            ) : (
+                                                                                <span className="text-xs text-gray-400 font-medium italic">Empty tags submitted</span>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="text-gray-900 font-bold text-sm whitespace-pre-wrap leading-relaxed py-1 max-h-[140px] overflow-y-auto custom-scrollbar pr-1">
+                                                                            {item.answer || <span className="text-gray-350 italic font-medium text-xs">No response provided</span>}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                            )}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                );
-                                            })}
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                     );
                                 })()}
@@ -701,7 +710,10 @@ const CoachParticipants: React.FC = () => {
                                             const isMe = comment.authorId === user.id;
                                             return (
                                                 <div key={comment.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                                    <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-xs shadow-sm relative ${isMe ? 'bg-primary text-white rounded-br-none' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none'}`}>
+                                                    <div 
+                                                        onClick={() => setFocusedCommentId(focusedCommentId === comment.id ? null : comment.id)}
+                                                        className={`max-w-[85%] px-4 py-3 rounded-2xl text-xs shadow-sm relative cursor-pointer select-none transition-all duration-200 hover:scale-[0.99] active:scale-[0.97] hover:ring-2 hover:ring-red-100/50 ${isMe ? 'bg-primary text-white rounded-br-none' : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none'} ${focusedCommentId === comment.id ? 'ring-2 ring-red-300' : ''}`}
+                                                    >
                                                         {isMe && (
                                                             <span className="text-[8px] font-black text-primary/70 uppercase tracking-widest mb-1.5 block">Today's Feedback</span>
                                                         )}
@@ -715,9 +727,34 @@ const CoachParticipants: React.FC = () => {
                                                                 <p className="font-bold italic">"{comment.prompt}"</p>
                                                             </div>
                                                         )}
-                                                        <span className={`text-[7px] block mt-1 text-right font-black uppercase tracking-tighter ${isMe ? 'text-white/60' : 'text-gray-400'}`}>
-                                                            {new Date(comment.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                                        </span>
+                                                        <div className="flex items-center justify-between mt-1 gap-2 border-t border-black/5 pt-1.5">
+                                                            <div className="min-h-[16px] flex items-center">
+                                                                {focusedCommentId === comment.id && !isDeletingId && (
+                                                                    <button
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation(); // Stop click from toggling bubble focus
+                                                                            setIsDeletingId(comment.id);
+                                                                            await handleDeleteComment(comment.id);
+                                                                            setIsDeletingId(null);
+                                                                            setFocusedCommentId(null);
+                                                                        }}
+                                                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-600 hover:bg-red-700 text-white font-black text-[8px] uppercase tracking-widest rounded-md shadow-sm transition-all focus:outline-none"
+                                                                        title="Permanently remove message"
+                                                                    >
+                                                                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                        </svg>
+                                                                        Delete
+                                                                    </button>
+                                                                )}
+                                                                {isDeletingId === comment.id && (
+                                                                    <span className="text-[8px] text-red-500 font-black uppercase tracking-widest animate-pulse">Deleting...</span>
+                                                                )}
+                                                            </div>
+                                                            <span className={`text-[7px] font-black uppercase tracking-tighter ${isMe ? 'text-white/60' : 'text-gray-400'}`}>
+                                                                {new Date(comment.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             );
@@ -804,6 +841,13 @@ const CoachParticipants: React.FC = () => {
                 }
                 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
                   background: #d1d5db;
+                }
+                .scrollbar-hidden::-webkit-scrollbar {
+                  display: none;
+                }
+                .scrollbar-hidden {
+                  -ms-overflow-style: none; /* IE and Edge */
+                  scrollbar-width: none; /* Firefox */
                 }
             `}</style>
         </div>

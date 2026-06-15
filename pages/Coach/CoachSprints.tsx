@@ -30,49 +30,49 @@ const BlogPreviewModal: React.FC<{
   });
 
   return (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 md:p-10 bg-black/70 backdrop-blur-md overflow-y-auto animate-fade-in">
-      <div className="bg-white rounded-[2.5rem] w-full max-w-4xl shadow-2xl overflow-hidden relative my-8 animate-slide-up flex flex-col">
-        {/* Header toolbar */}
-        <div className="bg-white border-b border-gray-100 px-8 py-5 flex justify-between items-center sticky top-0 z-10 shadow-sm">
-          <span className="text-sm font-black text-primary uppercase tracking-[0.25em]">Rise Blog</span>
-          <button 
-            type="button"
-            onClick={onClose} 
-            className="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer"
-          >
-            Close Preview
-          </button>
+    <div className="fixed inset-0 z-[400] bg-white flex flex-col overflow-y-auto animate-fade-in text-gray-900">
+      {/* Cover Image Banner (Full Bleed) */}
+      <div className="relative w-full h-80 md:h-[480px] bg-gray-100 flex-shrink-0">
+        <img 
+          src={coverImage || 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80'} 
+          className="w-full h-full object-cover" 
+          alt="Cover Image" 
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-900/95 via-gray-900/50 to-black/20" />
+        
+        {/* Float Close Button */}
+        <button 
+          type="button"
+          onClick={onClose} 
+          className="absolute top-6 right-6 md:top-8 md:right-8 z-[420] bg-black/40 hover:bg-black/60 p-3 rounded-full transition-all text-white font-bold active:scale-90 cursor-pointer shadow-lg backdrop-blur-sm"
+          title="Close Preview"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        {/* Overlaid Title and Info for immersive reading look */}
+        <div className="absolute bottom-0 inset-x-0 p-6 md:p-12 max-w-4xl mx-auto text-white flex flex-col justify-end h-full w-full">
+          <span className="text-[10px] md:text-[11px] font-black text-amber-400 uppercase tracking-[0.25em] mb-3">RiseBlog Preview</span>
+          <h1 className="text-3xl md:text-5xl font-black leading-tight tracking-tight italic drop-shadow-sm mb-4">
+            {title || 'Untitled Rising Post'}
+          </h1>
+          
+          {/* Meta details over gradient */}
+          <div className="flex items-center gap-3 pt-2 text-[10px] font-black text-white/80 uppercase tracking-widest border-t border-white/20">
+            <span className="px-2.5 py-1 bg-white/15 rounded-lg text-white">Author</span>
+            <span className="text-white font-black">{coachName}</span>
+            <div className="w-1.5 h-1.5 bg-white/30 rounded-full"></div>
+            <span className="text-white/70">{currentDate}</span>
+          </div>
         </div>
+      </div>
 
-        {/* Blog Post Layout */}
-        <div className="p-6 md:p-12 overflow-y-auto max-h-[80vh] custom-scrollbar">
-          {/* Cover Image banner */}
-          <div className="w-full h-64 md:h-[350px] rounded-[2rem] overflow-hidden shadow-lg bg-gray-100 mb-10">
-            <img 
-              src={coverImage || 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80'} 
-              className="w-full h-full object-cover" 
-              alt="Course Post Cover" 
-            />
-          </div>
-
-          <div className="max-w-2xl mx-auto space-y-6">
-            <h1 className="text-3xl md:text-5xl font-black text-gray-900 leading-tight tracking-tight italic">
-              {title || 'Untitled Rising Post'}
-            </h1>
-
-            {/* Meta details */}
-            <div className="flex items-center gap-3 pt-2 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-6">
-              <span className="px-2.5 py-1 bg-primary/10 text-primary rounded-lg">Author</span>
-              <span className="text-gray-950 font-black">{coachName}</span>
-              <div className="w-1.5 h-1.5 bg-gray-200 rounded-full"></div>
-              <span>{currentDate}</span>
-            </div>
-
-            {/* Body */}
-            <div className="text-gray-700 text-base md:text-lg leading-relaxed whitespace-pre-wrap font-medium font-sans">
-              {body || 'Write something inspiring to rise...'}
-            </div>
-          </div>
+      {/* Article content below */}
+      <div className="flex-1 max-w-4xl w-full mx-auto px-6 py-12 md:py-16 space-y-8 animate-slide-up">
+        <div className="bg-white rounded-[2rem] p-6 md:p-12 border border-gray-100 shadow-sm leading-relaxed text-gray-800 text-base md:text-lg whitespace-pre-wrap font-medium font-sans">
+          {body || 'Write something inspiring to rise...'}
         </div>
       </div>
     </div>
@@ -552,7 +552,7 @@ const CoachSprints: React.FC = () => {
             title={previewingBlog.title || ''}
             body={previewingBlog.blogBody || previewingBlog.description || ''}
             coverImage={previewingBlog.blogImage || previewingBlog.coverImageUrl || ''}
-            coachName={(user as Coach)?.displayName || user.email || 'Coach'}
+            coachName={user.name || user.email || 'Coach'}
             onClose={() => setPreviewingBlog(null)}
           />
       )}

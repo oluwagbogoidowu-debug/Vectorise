@@ -1,11 +1,30 @@
 
 import { db } from './firebase';
-import { collection, addDoc, query, where, getDocs, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, doc, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { CoachingComment, Sprint } from '../types';
 import { MOCK_COACHING_COMMENTS } from './mockData';
 import { sanitizeData, userService } from './userService';
 import { notificationService } from './notificationService';
 import { sprintService } from './sprintService';
+
+const getDeletedMessageIds = (): string[] => {
+  try {
+    const list = localStorage.getItem('deleted_coaching_messages');
+    return list ? JSON.parse(list) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+const addDeletedMessageId = (id: string) => {
+  try {
+    const list = getDeletedMessageIds();
+    if (!list.includes(id)) {
+      list.push(id);
+      localStorage.setItem('deleted_coaching_messages', JSON.stringify(list));
+    }
+  } catch (e) {}
+};
 
 export const chatService = {
   sendMessage: async (message: Omit<CoachingComment, 'id'>) => {
@@ -50,6 +69,7 @@ export const chatService = {
 
   getConversation: async (sprintId: string, participantId: string, day: number) => {
     try {
+      const deletedIds = getDeletedMessageIds();
       const colRef = collection(db, 'coaching_messages');
       const q = query(
         colRef, 
@@ -58,15 +78,33 @@ export const chatService = {
         where("day", "==", day)
       );
       const snapshot = await getDocs(q);
-      const dbMessages = snapshot.docs.map(doc => sanitizeData({ id: doc.id, ...doc.data() }) as CoachingComment);
-      const mockMessages = MOCK_COACHING_COMMENTS.filter(c => 
-          c.sprintId === sprintId && c.participantId === participantId && c.day === day
-      );
+      const dbMessages = snapshot.docs
+        .map(doc => sanitizeData({ id: doc.id, ...doc.data() }) as CoachingComment)
+        .filter(m => !deletedIds.includes(m.id));
+      const mockMessages = MOCK_COACHING_COMMENTS
+        .filter(c => c.sprintId === sprintId && c.participantId === participantId && c.day === day)
+        .filter(m => !deletedIds.includes(m.id));
       return [...dbMessages, ...mockMessages].sort((a, b) => 
           new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
       );
     } catch (error: any) {
-      return MOCK_COACHING_COMMENTS.filter(c => c.sprintId === sprintId && c.participantId === participantId && c.day === day);
+      const deletedIds = getDeletedMessageIds();
+      return MOCK_COACHING_COMMENTS
+        .filter(c => c.sprintId === sprintId && c.participantId === participantId && c.day === day)
+        .filter(m => !deletedIds.includes(m.id));
+    }
+  },
+
+  deleteMessage: async (messageId: string) => {
+    try {
+      addDeletedMessageId(messageId);
+      // Attempt firestore deletion as well
+      const docRef = doc(db, 'coaching_messages', messageId);
+      await deleteDoc(docRef);
+      return true;
+    } catch (error) {
+      console.warn("Locally deleted message, but cloud deletion skipped/failed:", error);
+      return true;
     }
   },
 
@@ -121,12 +159,17 @@ export const chatService = {
 
   getAllMessages: async () => {
       try {
+          const deletedIds = getDeletedMessageIds();
           const colRef = collection(db, 'coaching_messages');
           const snapshot = await getDocs(colRef);
-          const dbMessages = snapshot.docs.map(doc => sanitizeData({ id: doc.id, ...doc.data() }) as CoachingComment);
-          return [...dbMessages, ...MOCK_COACHING_COMMENTS];
+          const dbMessages = snapshot.docs
+            .map(doc => sanitizeData({ id: doc.id, ...doc.data() }) as CoachingComment)
+            .filter(m => !deletedIds.includes(m.id));
+          const mockMessages = MOCK_COACHING_COMMENTS.filter(m => !deletedIds.includes(m.id));
+          return [...dbMessages, ...mockMessages];
       } catch (error: any) {
-          return MOCK_COACHING_COMMENTS;
+          const deletedIds = getDeletedMessageIds();
+          return MOCK_COACHING_COMMENTS.filter(m => !deletedIds.includes(m.id));
       }
   }
 };
