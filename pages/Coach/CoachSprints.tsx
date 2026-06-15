@@ -565,12 +565,7 @@ const CoachSprints: React.FC = () => {
           />
       )}
 
-      <div className="flex flex-wrap items-center gap-3 mb-8">
-        {hasPermission('sprint:create') && (
-            <Link to="/coach/sprint/new" className="bg-primary text-white rounded-xl px-4 py-2 font-black uppercase tracking-widest text-[9px] shadow shadow-primary/10 hover:scale-[1.02] active:scale-95 transition-all text-center whitespace-nowrap">
-                + Create New
-            </Link>
-        )}
+      <div className="flex items-center justify-between gap-3 mb-8 w-full">
         <div className="inline-flex bg-gray-100 p-0.5 rounded-xl">
             <button
                 type="button"
@@ -612,6 +607,15 @@ const CoachSprints: React.FC = () => {
                 Ignite
             </button>
         </div>
+        {hasPermission('sprint:create') && (
+            <Link 
+                to="/coach/sprint/new" 
+                className="bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-xl w-9 h-9 flex items-center justify-center font-black text-sm shadow-md hover:scale-[1.05] active:scale-95 transition-all flex-shrink-0"
+                title="Create New"
+            >
+                +
+            </Link>
+        )}
       </div>
 
       {/* filter menu */}

@@ -57,7 +57,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
         }[] = [];
 
         // 1. Gather overrideOrchestrator sprints that belong to the selectedStage
-        const overrideSprints = allSprints.filter(s => s.overrideOrchestrator && s.approvalStatus === 'approved');
+        const overrideSprints = allSprints.filter(s => s.overrideOrchestrator);
         const stageOverrides = overrideSprints.filter(s => {
             const sprintStage = CATEGORY_TO_STAGE_MAP[s.category] || 'Direction';
             return sprintStage === selectedStage;
@@ -168,7 +168,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
 
     const handleMoveOverride = async (sprintId: string, direction: 'up' | 'down') => {
         const stageOverrides = allSprints
-            .filter(s => s.overrideOrchestrator && s.approvalStatus === 'approved')
+            .filter(s => s.overrideOrchestrator)
             .filter(s => (CATEGORY_TO_STAGE_MAP[s.category] || 'Direction') === selectedStage)
             .sort((a, b) => (a.overrideOrder || 0) - (b.overrideOrder || 0));
             
@@ -209,6 +209,16 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
 
     const currentStageConfig = LIFECYCLE_STAGES_CONFIG[selectedStage];
     const currentSlots = LIFECYCLE_SLOTS.filter(s => s.stage === selectedStage);
+
+    const activeStageOverrides = useMemo(() => {
+        return allSprints
+            .filter(s => s.overrideOrchestrator)
+            .filter(s => {
+                const sprintStage = CATEGORY_TO_STAGE_MAP[s.category] || 'Direction';
+                return sprintStage === selectedStage;
+            })
+            .sort((a, b) => (a.overrideOrder || 0) - (b.overrideOrder || 0));
+    }, [allSprints, selectedStage]);
 
     const handleClearSlot = async (slotId: string) => {
         try {
@@ -791,6 +801,116 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                             </div>
                         );
                     })}
+
+                    {/* Coach Override Sprints Card (Explore Page Bypass) */}
+                    <div className="bg-white rounded-[2.5rem] border border-dashed border-amber-200 p-8 shadow-sm flex flex-col gap-8 transition-all hover:border-amber-300 relative overflow-visible bg-amber-50/5">
+                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                            <div className="flex items-center gap-3 mb-1">
+                                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h4 className="text-lg font-black text-gray-900 tracking-tight italic">Coach Overrides</h4>
+                                    <p className="text-[10px] text-amber-700 font-semibold uppercase tracking-wider mt-0.5">Explore Page Direct Bypass</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between gap-2 px-1">
+                                <h5 className="text-[9px] font-black text-gray-450 uppercase tracking-[0.25em]">Registry Bypass (Direct Explore)</h5>
+                                {activeStageOverrides.length > 0 && (
+                                    <span className="px-2 py-0.5 bg-amber-100/50 text-[8px] font-black text-amber-700 rounded-full border border-amber-200 uppercase tracking-widest">
+                                        {activeStageOverrides.length} Active {activeStageOverrides.length === 1 ? 'Program' : 'Programs'}
+                                    </span>
+                                )}
+                            </div>
+
+                            {activeStageOverrides.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {activeStageOverrides.map((s, idx) => {
+                                        const canMoveUp = idx > 0;
+                                        const canMoveDown = idx < activeStageOverrides.length - 1;
+                                        
+                                        let statusColor = "bg-gray-100 text-gray-600 border-gray-200";
+                                        if (s.approvalStatus === 'approved') statusColor = "bg-green-50 text-green-600 border-green-100";
+                                        else if (s.approvalStatus === 'pending_approval') statusColor = "bg-amber-50 text-amber-600 border-amber-150";
+
+                                        return (
+                                            <div key={s.id} className="w-full p-5 rounded-[2rem] border border-gray-100 bg-white hover:bg-gray-50/50 transition-all flex flex-col gap-3">
+                                                <div className="flex items-center justify-between gap-4 min-w-0">
+                                                    <div className="flex items-center gap-4 min-w-0">
+                                                        <div className="w-11 h-11 rounded-xl overflow-hidden shadow-sm border border-gray-100 flex-shrink-0">
+                                                            <img src={s.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                                                        </div>
+                                                        <div className="text-left min-w-0">
+                                                            <div className="flex items-center gap-2 mb-0.5">
+                                                                <p className="text-[8px] font-black uppercase tracking-widest leading-none text-amber-500">Coach Override</p>
+                                                                <span className={`px-1.5 py-0.5 border text-[7px] font-black rounded uppercase tracking-wider ${statusColor}`}>
+                                                                    {s.approvalStatus}
+                                                                </span>
+                                                            </div>
+                                                            <h6 className="text-[13px] font-black tracking-tight text-gray-900 truncate">
+                                                                {s.title}
+                                                            </h6>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleMoveOverride(s.id, 'up');
+                                                            }}
+                                                            disabled={!canMoveUp}
+                                                            className={`p-1.5 rounded-lg border transition-all ${
+                                                                canMoveUp 
+                                                                ? 'bg-white hover:bg-amber-50 text-amber-700 hover:text-amber-800 border-gray-200 shadow-sm cursor-pointer' 
+                                                                : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-50'
+                                                            }`}
+                                                            title="Move Up"
+                                                        >
+                                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                                                            </svg>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleMoveOverride(s.id, 'down');
+                                                            }}
+                                                            disabled={!canMoveDown}
+                                                            className={`p-1.5 rounded-lg border transition-all ${
+                                                                canMoveDown 
+                                                                ? 'bg-white hover:bg-amber-50 text-amber-700 hover:text-amber-800 border-gray-200 shadow-sm cursor-pointer' 
+                                                                : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-50'
+                                                            }`}
+                                                            title="Move Down"
+                                                        >
+                                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="py-8 text-center bg-gray-50/50 rounded-[2rem] border border-dashed border-gray-200/50 flex flex-col items-center justify-center p-6">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No override programs configured for this stage</p>
+                                    <p className="text-[9px] text-gray-300 font-semibold mt-1 max-w-sm">
+                                        Coach override programs bypass the standard onboarding flow mapping and display directly on the user explore dashboard.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Priority List Subsession for stages from Direction to the end */}
@@ -883,7 +1003,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                             
                                             if (isOverride) {
                                                 const stageOverrides = allSprints
-                                                    .filter(s => s.overrideOrchestrator && s.approvalStatus === 'approved')
+                                                    .filter(s => s.overrideOrchestrator)
                                                     .filter(s => (CATEGORY_TO_STAGE_MAP[s.category] || 'Direction') === selectedStage)
                                                     .sort((a, b) => (a.overrideOrder || 0) - (b.overrideOrder || 0));
                                                 const overrideIndex = stageOverrides.findIndex(s => s.id === sId);
