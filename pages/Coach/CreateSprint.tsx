@@ -91,7 +91,7 @@ const IgnitePlayer: React.FC<{
   onClose: () => void;
 }> = ({ text, bgColor, onClose }) => {
   const slides = React.useMemo(() => {
-    return text.split('\n').map(s => s.trim()).filter(Boolean);
+    return text.split(/\r?\n\s*\r?\n/).map(s => s.trim()).filter(Boolean);
   }, [text]);
 
   const activeSlides = slides.length > 0 ? slides : ["Type some inspiration to preview!"];
