@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { userService } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { Participant, ParticipantSprint, Sprint } from '../../types';
+import { adminCache } from './adminCache';
 
 export default function AdminUsers() {
     const navigate = useNavigate();
@@ -13,6 +14,14 @@ export default function AdminUsers() {
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
+        if (adminCache.users) {
+            setParticipants(adminCache.users.participants);
+            setEnrollments(adminCache.users.enrollments);
+            setSprints(adminCache.users.sprints);
+            setIsLoading(false);
+            return;
+        }
+
         const fetchData = async () => {
             setIsLoading(true);
             try {
@@ -24,6 +33,11 @@ export default function AdminUsers() {
                 setParticipants(usersData);
                 setEnrollments(enrollmentsData);
                 setSprints(sprintsData);
+                adminCache.users = {
+                    participants: usersData,
+                    enrollments: enrollmentsData,
+                    sprints: sprintsData
+                };
             } catch (error) {
                 console.error("Error fetching admin users data:", error);
             } finally {

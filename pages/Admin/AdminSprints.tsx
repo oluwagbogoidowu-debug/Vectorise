@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Sprint } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
+import { adminCache } from './adminCache';
 
 type SprintFilter = 'all' | 'active' | 'core' | 'pending' | 'rejected';
 
@@ -16,9 +17,15 @@ const AdminSprints: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
+    if (adminCache.sprints) {
+      setSprints(adminCache.sprints);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     const unsubscribe = sprintService.subscribeToAdminSprints((data) => {
       setSprints(data);
+      adminCache.sprints = data;
       setIsLoading(false);
     });
     return () => unsubscribe();
@@ -64,6 +71,9 @@ const AdminSprints: React.FC = () => {
     try {
       await sprintService.deleteSprint(deletingId);
       toast.success("Sprint deleted successfully");
+      const updatedSprints = sprints.filter(s => s.id !== deletingId);
+      setSprints(updatedSprints);
+      adminCache.sprints = updatedSprints;
       setDeletingId(null);
     } catch (error) {
       console.error("Error deleting sprint:", error);

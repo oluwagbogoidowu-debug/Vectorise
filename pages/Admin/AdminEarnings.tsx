@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PaymentRecord, FinancialStats } from '../../types';
 import { paymentService } from '../../services/paymentService';
+import { adminCache } from './adminCache';
 
 const AdminEarnings: React.FC = () => {
     const [ledger, setLedger] = useState<PaymentRecord[]>([]);
@@ -14,8 +15,15 @@ const AdminEarnings: React.FC = () => {
     });
 
     useEffect(() => {
+        if (adminCache.earnings) {
+            setLedger(adminCache.earnings);
+            setIsLoading(false);
+            return;
+        }
+
         const unsubscribe = paymentService.subscribeToPayments((data) => {
             setLedger(data);
+            adminCache.earnings = data;
             setIsLoading(false);
         });
         return () => unsubscribe();

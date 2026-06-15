@@ -7,6 +7,7 @@ import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
 import { Edit2, Trash2, Eye, Package, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { adminCache } from './adminCache';
 
 const AdminTracks: React.FC = () => {
     const navigate = useNavigate();
@@ -21,6 +22,11 @@ const AdminTracks: React.FC = () => {
         try {
             await trackService.deleteTrack(id);
             toast.success('Track deleted successfully');
+            const updatedTracks = tracks.filter(t => t.id !== id);
+            setTracks(updatedTracks);
+            if (adminCache.tracks) {
+                adminCache.tracks.tracks = updatedTracks;
+            }
             setDeletingId(null);
         } catch (error) {
             console.error('Error deleting track:', error);
@@ -31,13 +37,27 @@ const AdminTracks: React.FC = () => {
     };
 
     useEffect(() => {
+        if (adminCache.tracks) {
+            setTracks(adminCache.tracks.tracks);
+            setSprints(adminCache.tracks.sprints);
+            setIsLoading(false);
+            return;
+        }
         setIsLoading(true);
         const unsubscribeTracks = trackService.subscribeToTracks((data) => {
             setTracks(data);
+            adminCache.tracks = {
+                tracks: data,
+                sprints: adminCache.tracks?.sprints || [],
+            };
             setIsLoading(false);
         });
         const unsubscribeSprints = sprintService.subscribeToAdminSprints((data) => {
             setSprints(data);
+            adminCache.tracks = {
+                tracks: adminCache.tracks?.tracks || [],
+                sprints: data,
+            };
         });
         return () => {
             unsubscribeTracks();

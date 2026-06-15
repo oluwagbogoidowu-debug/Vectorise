@@ -1,17 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Quote } from '../../types';
 import { quoteService } from '../../services/quoteService';
+import { adminCache } from './adminCache';
 
 const AdminQuotes: React.FC = () => {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (adminCache.quotes) {
+      setQuotes(adminCache.quotes);
+      setIsLoading(false);
+      return;
+    }
+
     const fetchQuotes = async () => {
       setIsLoading(true);
       try {
         const fetched = await quoteService.getQuotes();
         setQuotes(fetched);
+        adminCache.quotes = fetched;
       } catch (err) {
         console.error(err);
       } finally {

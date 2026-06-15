@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Coach } from '../../types';
 import { userService } from '../../services/userService';
+import { adminCache } from './adminCache';
 
 const AdminCoaches: React.FC = () => {
   const [coaches, setCoaches] = useState<Coach[]>([]);
@@ -9,11 +10,18 @@ const AdminCoaches: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (adminCache.coaches) {
+      setCoaches(adminCache.coaches);
+      setIsLoading(false);
+      return;
+    }
+
     const fetchCoaches = async () => {
       setIsLoading(true);
       try {
         const fetchedCoaches = await userService.getAllCoaches();
         setCoaches(fetchedCoaches);
+        adminCache.coaches = fetchedCoaches;
       } catch (err) {
         console.error("Failed to fetch coaches:", err);
       } finally {

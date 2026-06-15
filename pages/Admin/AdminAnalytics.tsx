@@ -32,6 +32,7 @@ import {
   Tooltip,
   Legend
 } from 'recharts';
+import { adminCache } from './adminCache';
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
@@ -92,6 +93,10 @@ const AdminAnalytics: React.FC = () => {
 
       setCoreAnalytics(sortedCore);
       setActivityLogs(sortedLogs);
+      adminCache.analytics = {
+        coreAnalytics: sortedCore,
+        activityLogs: sortedLogs,
+      };
     } catch (err) {
       console.error("[AdminAnalytics] Fetch failed:", err);
       toast.error("Failed to fetch streak analytics data.");
@@ -101,7 +106,13 @@ const AdminAnalytics: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchData();
+    if (adminCache.analytics) {
+      setCoreAnalytics(adminCache.analytics.coreAnalytics);
+      setActivityLogs(adminCache.analytics.activityLogs);
+      setIsLoading(false);
+    } else {
+      fetchData();
+    }
   }, []);
 
   // Filter systems

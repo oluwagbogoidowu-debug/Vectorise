@@ -5,6 +5,7 @@ import { partnerService } from '../../services/partnerService';
 import { sprintService } from '../../services/sprintService';
 import { Settings, Users, FileText, CheckCircle, XCircle, BarChart3, ChevronRight, ExternalLink } from 'lucide-react';
 import Button from '../../components/Button';
+import { adminCache } from './adminCache';
 
 const AdminPartners: React.FC = () => {
   const navigate = useNavigate();
@@ -18,6 +19,15 @@ const AdminPartners: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
+    if (adminCache.partners) {
+      setPartnerApps(adminCache.partners.partnerApps);
+      setPartners(adminCache.partners.partners);
+      setAllSprints(adminCache.partners.allSprints);
+      setPartnerMetrics(adminCache.partners.partnerMetrics);
+      setIsLoading(false);
+      return;
+    }
+
     const fetchData = async () => {
       setIsLoading(true);
       try {
@@ -37,6 +47,12 @@ const AdminPartners: React.FC = () => {
           metrics[p.id] = m;
         }));
         setPartnerMetrics(metrics);
+        adminCache.partners = {
+          partnerApps: apps,
+          partners: pts,
+          allSprints: sprints,
+          partnerMetrics: metrics
+        };
       } catch (err) {
         console.error(err);
       } finally {
@@ -54,6 +70,9 @@ const AdminPartners: React.FC = () => {
       // For now, we just refresh the list
       const updatedApps = await partnerService.getApplications();
       setPartnerApps(updatedApps);
+      if (adminCache.partners) {
+        adminCache.partners.partnerApps = updatedApps;
+      }
     } catch (err) {
       alert("Failed to approve application");
     }
@@ -65,6 +84,9 @@ const AdminPartners: React.FC = () => {
       await partnerService.updateApplicationStatus(app.id, 'rejected');
       const updatedApps = await partnerService.getApplications();
       setPartnerApps(updatedApps);
+      if (adminCache.partners) {
+        adminCache.partners.partnerApps = updatedApps;
+      }
     } catch (err) {
       alert("Failed to reject application");
     }
@@ -74,11 +96,15 @@ const AdminPartners: React.FC = () => {
     try {
       await partnerService.updatePartnerSprints(partnerId, sprintIds);
       // Update local state
-      setPartners(prev => prev.map(p => 
+      const updatedPartners = partners.map(p => 
         p.id === partnerId 
           ? { ...p, partnerData: { ...p.partnerData, selectedSprintIds: sprintIds } } 
           : p
-      ));
+      );
+      setPartners(updatedPartners);
+      if (adminCache.partners) {
+        adminCache.partners.partners = updatedPartners;
+      }
       setIsSettingsOpen(false);
       setSelectedPartner(null);
     } catch (err) {

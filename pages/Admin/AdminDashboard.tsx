@@ -18,6 +18,7 @@ import AdminPartners from './AdminPartners';
 import AdminQuotes from './AdminQuotes';
 import AdminUsers from './AdminUsers';
 import AdminTracks from './AdminTracks';
+import { adminCache, resetAdminCache } from './adminCache';
 
 type Tab = 'pulse' | 'orchestrator' | 'analytics' | 'earning' | 'sprints' | 'tracks' | 'coaches' | 'partners' | 'quotes' | 'roles' | 'users';
 type SprintFilter = 'all' | 'active' | 'core' | 'pending' | 'rejected';
@@ -47,6 +48,7 @@ export default function AdminDashboard() {
                 setMigrationLogs(prev => [...prev, msg]);
             });
             setMigrationResult(report);
+            resetAdminCache(); // Clear the local cache to fetch fresh data after migration
             setRefreshKey(prev => prev + 1);
         } catch (err: any) {
             setMigrationLogs(prev => [...prev, `CRITICAL ERROR: ${err.message || err}`]);
@@ -56,10 +58,19 @@ export default function AdminDashboard() {
     };
 
     const fetchPulse = async () => {
+        if (adminCache.pulse) {
+            setPlatformPulse(adminCache.pulse.platformPulse);
+            setBehavioralStats(adminCache.pulse.behavioralStats);
+            return;
+        }
         const pulse = await analyticsService.getPlatformPulse();
         setPlatformPulse(pulse);
         const bStats = await analyticsTracker.getFunnelMetrics();
         setBehavioralStats(bStats);
+        adminCache.pulse = {
+            platformPulse: pulse,
+            behavioralStats: bStats
+        };
     };
 
 
