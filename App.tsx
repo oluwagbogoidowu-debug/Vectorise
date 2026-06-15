@@ -90,12 +90,12 @@ const AppContent: React.FC = () => {
         }));
 
         // Run checks right away
-        localNotificationScheduler.checkAndTriggerDueReminders(enrichedSprints);
+        localNotificationScheduler.checkAndTriggerDueReminders(enrichedSprints, user.id);
 
         // Then re-check every minute
         if (checkInterval) clearInterval(checkInterval);
         checkInterval = setInterval(() => {
-          localNotificationScheduler.checkAndTriggerDueReminders(enrichedSprints);
+          localNotificationScheduler.checkAndTriggerDueReminders(enrichedSprints, user.id);
         }, 60 * 1000);
       });
     } catch (e) {

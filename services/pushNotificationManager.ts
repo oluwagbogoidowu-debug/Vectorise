@@ -3,6 +3,15 @@ import { Participant, UserNotificationState, ParticipantSprint, Sprint, Notifica
 
 const processingNotifications = new Set<string>();
 
+const NUDGE_TEMPLATES: Record<number, string> = {
+  1: "Missing your momentum? Day {day} is waiting for you in '{title}'.",
+  2: "Your growth cycle is stalling. Let's get back to it and finish Day {day} of '{title}'.",
+  4: "Consistency is the only bridge to mastery. Resume '{title}' now to stay on track.",
+  7: "It's been a week since your last win. Re-ignite your spark in '{title}' before it fades.",
+  10: "The path is still there. One small win today changes everything for your '{title}' journey.",
+  15: "Your '{title}' sprint is at high risk of abandonment. Your future self is counting on you to finish."
+};
+
 export const pushNotificationManager = {
   /**
    * Save an FCM registration token for a user.
@@ -361,7 +370,6 @@ export const pushNotificationManager = {
       const enrollment = { id: enrollmentsSnap.docs[0].id, ...enrollmentsSnap.docs[0].data() } as ParticipantSprint;
       const sprintSnap = await db.collection('sprints').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
       const sprint = sprintSnap.exists ? sprintSnap.data() as Sprint : null;
-      const category = sprint?.category || 'Growth';
 
       const lastActivity = user.lastActivityAt ? new Date(user.lastActivityAt) : new Date(user.createdAt);
       const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
@@ -372,57 +380,67 @@ export const pushNotificationManager = {
       const todayProgress = enrollment.progress.find(p => p.day === currentDay);
       const isTaskCompleted = todayProgress?.completed || false;
 
-      // Logic for Missed Days (2+ days)
-      if (daysSinceActivity >= 2) {
-        if (sentToday) continue; // Only 1 per day if missed 2+
+      // Inactivity or Missed Days Nudges
+      if (daysSinceActivity >= 1) {
+        const milestones = [1, 2, 4, 7, 10, 15];
+        const currentMilestone = [...milestones].reverse().find(m => daysSinceActivity >= m);
+        
+        if (currentMilestone) {
+          const alreadyNudged = (enrollment.sentNudges || []).includes(currentMilestone);
+          if (!alreadyNudged && !sentToday) {
+            // Send exact drop-off template nudge
+            const nextDay = enrollment.progress.findIndex(p => !p.completed) + 1 || 1;
+            const template = NUDGE_TEMPLATES[currentMilestone];
+            const message = template.replace('{day}', nextDay.toString()).replace('{title}', sprint?.title || 'your sprint');
+            
+            const success = await pushNotificationManager.sendPush(user.id, {
+              title: 'Resume Sprint',
+              body: message,
+              url: `/participant/sprint/${enrollment.id}?day=${nextDay}`,
+              tag: 'sprint_nudge'
+            }, true); // bypass active check
 
-        // Trigger in the morning (8am)
-        if (currentHour >= 8 && currentHour < 10) {
-          if (daysSinceActivity >= 3) {
-            await pushNotificationManager.sendPush(user.id, {
-              title: 'Keep the Momentum',
-              body: `Your ${category} Sprint is still in motion. Continue where you stopped.`,
-              url: '/participant/sprint',
-              tag: 'missed-long'
-            });
-          } else {
-            await pushNotificationManager.sendPush(user.id, {
-              title: 'Still in Motion',
-              body: `Your ${category} Sprint is still in motion. This is going somewhere. Let’s keep it moving.`,
-              url: '/participant/sprint',
-              tag: 'missed-short'
-            });
+            if (success) {
+              const enrollRef = db.collection('users').doc(user.id).collection('enrollments').doc(enrollment.id);
+              await enrollRef.update({
+                sentNudges: admin.firestore.FieldValue.arrayUnion(currentMilestone)
+              }).catch(e => console.error('[PushManager] Failed to update sentNudges:', e));
+            }
+            continue;
           }
         }
-        continue;
       }
 
       // Active Reminders (if task not completed)
       if (!isTaskCompleted) {
+        const sprintTitle = sprint?.title || 'Gain Clarity First';
+        const notifTitle = `⏰ Reminder: ${sprintTitle}`;
+        const notifBody = `Ready to complete Day ${currentDay}? Click here to view task!`;
+
         // 8 AM - Task Unlocked
         if (currentHour === 8) {
           await pushNotificationManager.sendPush(user.id, {
-            title: 'Today’s task is unlocked',
-            body: 'Your next step is ready',
-            url: '/participant/sprint',
+            title: notifTitle,
+            body: notifBody,
+            url: `/participant/sprint/${enrollment.id}`,
             tag: 'daily-unlock'
           });
         }
         // 3 PM - Quick Check
         else if (currentHour === 15) {
           await pushNotificationManager.sendPush(user.id, {
-            title: 'Quick check',
-            body: 'Quick check — have you completed today’s step?',
-            url: '/participant/sprint',
+            title: notifTitle,
+            body: notifBody,
+            url: `/participant/sprint/${enrollment.id}`,
             tag: 'midday-check'
           });
         }
         // 8 PM - Evening Reminder
         else if (currentHour === 20) {
           await pushNotificationManager.sendPush(user.id, {
-            title: 'Don’t let today slip',
-            body: 'Don’t let today slip. Your task is waiting.',
-            url: '/participant/sprint',
+            title: notifTitle,
+            body: notifBody,
+            url: `/participant/sprint/${enrollment.id}`,
             tag: 'evening-reminder'
           });
         }

@@ -1,5 +1,6 @@
 import { toast } from 'sonner';
 import { triggerHaptic, hapticPatterns } from '../utils/haptics';
+import { notificationService } from './notificationService';
 
 export interface SprintReminderConfig {
   sprintId: string;
@@ -114,8 +115,9 @@ export const localNotificationScheduler = {
    * This is designed to be called periodically (e.g., once every 30-60 secs).
    * 
    * @param activeSprints - List of active enrollments with their linked sprint metadata.
+   * @param userId - Optional string of the current user's ID to route via real FCM push notifications.
    */
-  checkAndTriggerDueReminders(activeSprints: Array<{ id: string; title: string; currentDayNum?: number }>) {
+  checkAndTriggerDueReminders(activeSprints: Array<{ id: string; title: string; currentDayNum?: number }>, userId?: string) {
     const allConfigs = this.getAllConfigs();
     const now = new Date();
     const currentHour = now.getHours();
@@ -177,9 +179,9 @@ export const localNotificationScheduler = {
           firedLogs[logKey] = true;
           hasUnsavedChanges = true;
 
-          // Compile notification content
-          const notifTitle = `⚡ Task Prep Reminder: ${sprint.title}`;
-          const notifBody = `Day ${currentDay} task is scheduled and ready for you under your Consistency Dashboard! Let's build momentum now.`;
+          // Compile notification content in the requested exact format
+          const notifTitle = `⏰ Reminder: ${sprint.title}`;
+          const notifBody = `Ready to complete Day ${currentDay}? Click here to view task!`;
           const actionUrl = `/participant/sprint/${sprint.id}`;
 
           // 1. Play Completion/Review haptic
@@ -187,17 +189,21 @@ export const localNotificationScheduler = {
             triggerHaptic(hapticPatterns.notification);
           } catch (hErr) {}
 
-          // 2. Play beautiful in-app toast notification with details
-          toast.info(`⏰ Reminder: ${sprint.title}`, {
-            description: `Ready to complete Day ${currentDay}? Click here to view task!`,
-            duration: 10000,
-            action: {
-              label: 'Go To Task',
-              onClick: () => {
-                window.location.href = actionUrl;
+          // 2. Route via real FCM push notifications if userId is available, saving it to user's notifications subcollection
+          if (userId) {
+            notificationService.createNotification(
+              userId,
+              'sprint_day_unlocked',
+              notifTitle,
+              notifBody,
+              {
+                actionUrl,
+                bypassActiveCheck: true
               }
-            }
-          });
+            ).catch(err => console.error('[NotificationScheduler] Failed to dispatch push notification:', err));
+          } else {
+            console.warn('[NotificationScheduler] Skipping FCM push: no userId available');
+          }
 
           // 3. Fire local OS/Browser notification
           this.triggerNativeNotification(notifTitle, notifBody, actionUrl);
