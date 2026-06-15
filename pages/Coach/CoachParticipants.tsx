@@ -512,29 +512,38 @@ const CoachParticipants: React.FC = () => {
                         <div className="lg:col-span-7 space-y-6">
                             {/* Lesson materials context */}
                             <div className="border-2 border-slate-100 rounded-3xl overflow-hidden bg-white shadow-sm hover:shadow hover:border-emerald-100/50 transition-all duration-300">
-                                <div className="px-6 py-4.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                <button 
+                                    type="button"
+                                    onClick={() => setIsContentExpanded(!isContentExpanded)}
+                                    className="w-full px-6 py-4.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between hover:bg-slate-100/80 transition-colors text-left focus:outline-none cursor-pointer"
+                                >
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
                                         </div>
                                         <span className="text-[11px] font-black text-gray-700 uppercase tracking-widest">Day {viewingSubmission.day} Daily Lesson Guide</span>
                                     </div>
-                                    <span className="text-[9px] font-black text-emerald-700 bg-emerald-100/60 px-2.5 py-1 rounded-full uppercase tracking-wider">Active Lesson</span>
-                                </div>
-                                <div className="p-6 bg-white space-y-4">
-                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none mb-1">Lesson Text</h4>
-                                    <div className="text-sm text-gray-800 leading-relaxed font-semibold bg-emerald-50/20 border border-emerald-100/30 p-5 rounded-[1.5rem] relative">
-                                        <span className="absolute -top-3 left-4 px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[8px] font-black uppercase tracking-wider rounded-md shadow-sm">Expository Material</span>
-                                        <p className="whitespace-pre-line mt-1.5 italic font-sans block text-gray-805 leading-relaxed">
-                                            {(() => {
-                                                const contentData = Array.isArray(viewingSubmission.enrollment.sprint.dailyContent) 
-                                                    ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c.day === viewingSubmission.day) 
-                                                    : null;
-                                                return contentData?.lessonText || "No lesson text recorded.";
-                                            })()}
-                                        </p>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[9px] font-black text-emerald-700 bg-emerald-100/60 px-2.5 py-1 rounded-full uppercase tracking-wider">Active Lesson</span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-4.5 w-4.5 text-gray-500 transition-transform duration-300 ${isContentExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
                                     </div>
-                                </div>
+                                </button>
+                                {isContentExpanded && (
+                                    <div className="p-6 bg-white space-y-4 animate-fade-in border-t border-slate-100">
+                                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none mb-1">Lesson Text</h4>
+                                        <div className="text-sm text-gray-800 leading-relaxed font-semibold bg-emerald-50/20 border border-emerald-100/30 p-5 rounded-[1.5rem] relative">
+                                            <span className="absolute -top-3 left-4 px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[8px] font-black uppercase tracking-wider rounded-md shadow-sm">Expository Material</span>
+                                            <p className="whitespace-pre-line mt-1.5 italic font-sans block text-gray-805 leading-relaxed">
+                                                {(() => {
+                                                    const contentData = Array.isArray(viewingSubmission.enrollment.sprint.dailyContent) 
+                                                        ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c.day === viewingSubmission.day) 
+                                                        : null;
+                                                    return contentData?.lessonText || "No lesson text recorded.";
+                                                })()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Student's Submissions */}
