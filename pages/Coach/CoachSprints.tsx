@@ -5,7 +5,7 @@ import { Sprint, Coach } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { assetService } from '../../services/assetService';
 import Button from '../../components/Button';
-import { Eye } from 'lucide-react';
+import { Eye, Flame, BookOpen, Sparkles } from 'lucide-react';
 
 const IGNITE_COLORS = [
   { hex: '#111827', name: 'Charcoal' },
@@ -579,17 +579,18 @@ const CoachSprints: React.FC = () => {
 
       {/* Tabbed Interface Selector (Sprint, RiseBlog, Ignite) */}
       <div className="flex justify-start mb-6">
-        <div className="inline-flex bg-white p-1 rounded-2xl border border-gray-100 shadow-sm">
+        <div className="inline-flex bg-gray-100 p-1 rounded-2xl">
             <button
                 type="button"
                 onClick={() => {
                     setActiveTab('sprint');
                     setFilter('all');
                 }}
-                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                    activeTab === 'sprint' ? 'bg-primary text-white shadow-md' : 'text-gray-400 hover:text-primary hover:bg-gray-50'
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                    activeTab === 'sprint' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
                 }`}
             >
+                <Flame className="w-3.5 h-3.5" />
                 Sprint
             </button>
             <button
@@ -598,10 +599,11 @@ const CoachSprints: React.FC = () => {
                     setActiveTab('blog');
                     setFilter('all');
                 }}
-                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                    activeTab === 'blog' ? 'bg-primary text-white shadow-md' : 'text-gray-400 hover:text-primary hover:bg-gray-50'
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                    activeTab === 'blog' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
                 }`}
             >
+                <BookOpen className="w-3.5 h-3.5" />
                 RiseBlog
             </button>
             <button
@@ -610,10 +612,11 @@ const CoachSprints: React.FC = () => {
                     setActiveTab('ignite');
                     setFilter('all');
                 }}
-                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                    activeTab === 'ignite' ? 'bg-primary text-white shadow-md' : 'text-gray-400 hover:text-primary hover:bg-gray-50'
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                    activeTab === 'ignite' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
                 }`}
             >
+                <Sparkles className="w-3.5 h-3.5" />
                 Ignite
             </button>
         </div>

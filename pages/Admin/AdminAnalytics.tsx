@@ -4,6 +4,7 @@ import {
   UserSprintAnalytics, 
   UserActivityLog 
 } from '../../services/analyticsService';
+import { userService } from '../../services/userService';
 import { 
   Activity, 
   Calendar, 
@@ -65,6 +66,7 @@ const CustomTooltip = ({ active, payload }: any) => {
 const AdminAnalytics: React.FC = () => {
   const [coreAnalytics, setCoreAnalytics] = useState<UserSprintAnalytics[]>([]);
   const [activityLogs, setActivityLogs] = useState<UserActivityLog[]>([]);
+  const [userMap, setUserMap] = useState<{ [id: string]: { name: string; email?: string } }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'core_table' | 'activity_logs'>('core_table');
   
@@ -91,11 +93,38 @@ const AdminAnalytics: React.FC = () => {
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
+      // Fetch user details for names
+      const uniqueUserIds = Array.from(
+        new Set([
+          ...coreData.map(c => c.user_id),
+          ...logsData.map(l => l.user_id)
+        ].filter(id => !!id && typeof id === 'string'))
+      ).filter(Boolean);
+
+      const userMapLocal: { [id: string]: { name: string; email?: string } } = {};
+      if (uniqueUserIds.length > 0) {
+        try {
+          const fetchedUsers = await userService.getUsersByIds(uniqueUserIds);
+          fetchedUsers.forEach(u => {
+            if (u && u.id) {
+              userMapLocal[u.id] = {
+                name: u.name || u.email || u.id,
+                email: u.email
+              };
+            }
+          });
+        } catch (fetchUsersErr) {
+          console.error("[AdminAnalytics] Failed to fetch user names:", fetchUsersErr);
+        }
+      }
+
       setCoreAnalytics(sortedCore);
       setActivityLogs(sortedLogs);
+      setUserMap(userMapLocal);
       adminCache.analytics = {
         coreAnalytics: sortedCore,
         activityLogs: sortedLogs,
+        userMap: userMapLocal,
       };
     } catch (err) {
       console.error("[AdminAnalytics] Fetch failed:", err);
@@ -109,6 +138,9 @@ const AdminAnalytics: React.FC = () => {
     if (adminCache.analytics) {
       setCoreAnalytics(adminCache.analytics.coreAnalytics);
       setActivityLogs(adminCache.analytics.activityLogs);
+      if (adminCache.analytics.userMap) {
+        setUserMap(adminCache.analytics.userMap);
+      }
       setIsLoading(false);
     } else {
       fetchData();
@@ -118,7 +150,13 @@ const AdminAnalytics: React.FC = () => {
   // Filter systems
   const filteredCore = useMemo(() => {
     return coreAnalytics.filter(item => {
+      const uInfo = userMap[item.user_id];
+      const uName = uInfo?.name || item.user_id || '';
+      const uEmail = uInfo?.email || '';
+      
       const matchesSearch = 
+        uName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        uEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.user_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.active_sprint_id?.toLowerCase().includes(searchQuery.toLowerCase());
       
@@ -126,11 +164,17 @@ const AdminAnalytics: React.FC = () => {
       
       return matchesSearch && matchesStatus;
     });
-  }, [coreAnalytics, searchQuery, statusFilter]);
+  }, [coreAnalytics, searchQuery, statusFilter, userMap]);
 
   const filteredLogs = useMemo(() => {
     return activityLogs.filter(item => {
+      const uInfo = userMap[item.user_id];
+      const uName = uInfo?.name || item.user_id || '';
+      const uEmail = uInfo?.email || '';
+
       const matchesSearch = 
+        uName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        uEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.user_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.sprint_id?.toLowerCase().includes(searchQuery.toLowerCase());
       
@@ -138,7 +182,7 @@ const AdminAnalytics: React.FC = () => {
       
       return matchesSearch && matchesActionType;
     });
-  }, [activityLogs, searchQuery, actionTypeFilter]);
+  }, [activityLogs, searchQuery, actionTypeFilter, userMap]);
 
   // Aggregate metrics
   const stats = useMemo(() => {
@@ -258,24 +302,22 @@ const AdminAnalytics: React.FC = () => {
     }
 
     return coreAnalytics.map(item => {
-      let displayName = 'Unknown';
-      if (item.user_id) {
-        if (item.user_id.includes('@')) {
-          displayName = item.user_id.split('@')[0];
-        } else {
-          displayName = item.user_id.substring(0, 8);
-        }
+      const uInfo = userMap[item.user_id];
+      const fullName = uInfo?.name || item.user_id || 'Unknown';
+      let displayName = fullName;
+      if (displayName.includes('@')) {
+        displayName = displayName.split('@')[0];
       }
       displayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
       
       return {
         name: displayName,
-        fullName: item.user_id || 'Unknown',
+        fullName: fullName,
         current_streak: item.current_streak || 0,
         longest_streak: item.longest_streak || 0
       };
     }).sort((a, b) => b.longest_streak - a.longest_streak);
-  }, [coreAnalytics]);
+  }, [coreAnalytics, userMap]);
 
   if (isLoading) {
     return (
@@ -582,7 +624,7 @@ const AdminAnalytics: React.FC = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50/50 border-b border-gray-100">
-                  <th className="px-8 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest">User Identifier</th>
+                  <th className="px-8 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest">User Name</th>
                   <th className="px-8 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest">Active Sprint</th>
                   <th className="px-8 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest">Sprint Start</th>
                   <th className="px-8 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Run / Peak Streak</th>
@@ -601,7 +643,7 @@ const AdminAnalytics: React.FC = () => {
                             {idx + 1}
                           </div>
                           <span className="text-xs font-bold text-gray-900 truncate max-w-[180px]" title={item.user_id}>
-                            {item.user_id}
+                            {userMap[item.user_id]?.name || item.user_id}
                           </span>
                         </div>
                       </td>
@@ -670,7 +712,7 @@ const AdminAnalytics: React.FC = () => {
               <thead>
                 <tr className="bg-gray-50/50 border-b border-gray-100">
                   <th className="px-8 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest">Log ID / Reference</th>
-                  <th className="px-8 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest">User Identifier</th>
+                  <th className="px-8 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest">User Name</th>
                   <th className="px-8 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest">Sprint Identifier</th>
                   <th className="px-8 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Calendar Date</th>
                   <th className="px-8 py-5 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
@@ -687,7 +729,7 @@ const AdminAnalytics: React.FC = () => {
                       </td>
                       <td className="px-8 py-5">
                         <span className="text-xs font-bold text-gray-900 truncate max-w-[180px]" title={log.user_id}>
-                          {log.user_id}
+                          {userMap[log.user_id]?.name || log.user_id}
                         </span>
                       </td>
                       <td className="px-8 py-5">

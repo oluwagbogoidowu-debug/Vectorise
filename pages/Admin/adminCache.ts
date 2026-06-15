@@ -6,7 +6,7 @@
 export interface AdminCache {
   pulse: { platformPulse: any; behavioralStats: any } | null;
   users: { participants: any[]; enrollments: any[]; sprints: any[] } | null;
-  analytics: { coreAnalytics: any[]; activityLogs: any[] } | null;
+  analytics: { coreAnalytics: any[]; activityLogs: any[]; userMap?: { [id: string]: { name: string; email?: string } } } | null;
   sprints: any[] | null;
   tracks: { tracks: any[]; sprints: any[] } | null;
   coaches: any[] | null;
