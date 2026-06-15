@@ -5,6 +5,7 @@ import { Sprint, Coach } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { assetService } from '../../services/assetService';
 import Button from '../../components/Button';
+import { Eye } from 'lucide-react';
 
 const IGNITE_COLORS = [
   { hex: '#111827', name: 'Charcoal' },
@@ -14,6 +15,170 @@ const IGNITE_COLORS = [
   { hex: '#B45309', name: 'Warm Amber' },
   { hex: '#BE123C', name: 'Crimson' },
 ];
+
+const BlogPreviewModal: React.FC<{
+  title: string;
+  body: string;
+  coverImage: string;
+  coachName: string;
+  onClose: () => void;
+}> = ({ title, body, coverImage, coachName, onClose }) => {
+  const currentDate = new Date().toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  });
+
+  return (
+    <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 md:p-10 bg-black/70 backdrop-blur-md overflow-y-auto animate-fade-in">
+      <div className="bg-white rounded-[2.5rem] w-full max-w-4xl shadow-2xl overflow-hidden relative my-8 animate-slide-up flex flex-col">
+        {/* Header toolbar */}
+        <div className="bg-white border-b border-gray-100 px-8 py-5 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+          <span className="text-sm font-black text-primary uppercase tracking-[0.25em]">Rise Blog</span>
+          <button 
+            type="button"
+            onClick={onClose} 
+            className="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+          >
+            Close Preview
+          </button>
+        </div>
+
+        {/* Blog Post Layout */}
+        <div className="p-6 md:p-12 overflow-y-auto max-h-[80vh] custom-scrollbar">
+          {/* Cover Image banner */}
+          <div className="w-full h-64 md:h-[350px] rounded-[2rem] overflow-hidden shadow-lg bg-gray-100 mb-10">
+            <img 
+              src={coverImage || 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80'} 
+              className="w-full h-full object-cover" 
+              alt="Course Post Cover" 
+            />
+          </div>
+
+          <div className="max-w-2xl mx-auto space-y-6">
+            <h1 className="text-3xl md:text-5xl font-black text-gray-900 leading-tight tracking-tight italic">
+              {title || 'Untitled Rising Post'}
+            </h1>
+
+            {/* Meta details */}
+            <div className="flex items-center gap-3 pt-2 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-6">
+              <span className="px-2.5 py-1 bg-primary/10 text-primary rounded-lg">Author</span>
+              <span className="text-gray-950 font-black">{coachName}</span>
+              <div className="w-1.5 h-1.5 bg-gray-200 rounded-full"></div>
+              <span>{currentDate}</span>
+            </div>
+
+            {/* Body */}
+            <div className="text-gray-700 text-base md:text-lg leading-relaxed whitespace-pre-wrap font-medium font-sans">
+              {body || 'Write something inspiring to rise...'}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const IgnitePlayer: React.FC<{
+  text: string;
+  bgColor: string;
+  onClose: () => void;
+}> = ({ text, bgColor, onClose }) => {
+  const slides = React.useMemo(() => {
+    return text.split(/\r?\n\s*\r?\n/).map(s => s.trim()).filter(Boolean);
+  }, [text]);
+
+  const activeSlides = slides.length > 0 ? slides : ["Type some inspiration to preview!"];
+  
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    setProgress(0);
+  }, [activeSlide]);
+
+  useEffect(() => {
+    const slideDuration = 4500; // 4.5 seconds per slide
+    const intervalTime = 50; // tick every 50ms
+    const step = (intervalTime / slideDuration) * 100;
+
+    const timer = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          setActiveSlide(curr => (curr + 1) % activeSlides.length);
+          return 0;
+        }
+        return prev + step;
+      });
+    }, intervalTime);
+
+    return () => clearInterval(timer);
+  }, [activeSlides.length, activeSlide]);
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveSlide(curr => (curr + 1) % activeSlides.length);
+  };
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveSlide(curr => (curr - 1 + activeSlides.length) % activeSlides.length);
+  };
+
+  return (
+    <div 
+      className="fixed inset-0 z-[400] flex flex-col justify-between p-6 select-none animate-fade-in text-white font-sans"
+      style={{ backgroundColor: bgColor }}
+    >
+      {/* Bars at the top */}
+      <div className="absolute top-6 left-6 right-6 flex gap-1 z-[410]">
+        {activeSlides.map((_, idx) => (
+          <div key={idx} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-white rounded-full"
+              style={{
+                width: idx < activeSlide ? '100%' : idx === activeSlide ? `${progress}%` : '0%',
+                transition: idx === activeSlide ? 'none' : 'width 0.05s linear'
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Close button */}
+      <button 
+        type="button"
+        onClick={onClose} 
+        className="absolute top-10 right-6 z-[420] bg-black/40 hover:bg-black/60 p-2.5 rounded-full transition-all text-white/90 font-bold active:scale-90 cursor-pointer"
+        title="Exit Fullscreen"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      {/* Main slide display - split clickable regions for left/right nav */}
+      <div className="relative flex-1 flex items-center justify-center px-4 md:px-12 my-12">
+        {/* Left click catcher */}
+        <div className="absolute left-0 top-0 bottom-0 w-1/3 cursor-w-resize" onClick={handlePrev} />
+        
+        {/* Main large text content */}
+        <p className="text-3xl md:text-5xl font-extrabold text-center leading-relaxed tracking-wide text-white drop-shadow-md whitespace-pre-wrap max-w-3xl pointer-events-none px-4 select-none animate-slide-up">
+          {activeSlides[activeSlide]}
+        </p>
+
+        {/* Right click catcher */}
+        <div className="absolute right-0 top-0 bottom-0 w-2/3 cursor-e-resize" onClick={handleNext} />
+      </div>
+
+      {/* Bottom info */}
+      <div className="flex justify-between items-center z-[410] px-4 font-black tracking-widest text-[10px] text-white/60 uppercase">
+        <span>Ignite Post</span>
+        <span>Slide {activeSlide + 1} of {activeSlides.length}</span>
+      </div>
+    </div>
+  );
+};
 
 const DeleteConfirmationModal: React.FC<{
     sprint: Sprint;
@@ -253,6 +418,10 @@ const CoachSprints: React.FC = () => {
   const [editingIgnite, setEditingIgnite] = useState<Sprint | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Preview states
+  const [previewingBlog, setPreviewingBlog] = useState<Sprint | null>(null);
+  const [previewingIgnite, setPreviewingIgnite] = useState<Sprint | null>(null);
+
   useEffect(() => {
     if (!user) return;
     
@@ -378,6 +547,24 @@ const CoachSprints: React.FC = () => {
           />
       )}
 
+      {previewingBlog && (
+          <BlogPreviewModal 
+            title={previewingBlog.title || ''}
+            body={previewingBlog.blogBody || previewingBlog.description || ''}
+            coverImage={previewingBlog.blogImage || previewingBlog.coverImageUrl || ''}
+            coachName={(user as Coach)?.displayName || user.email || 'Coach'}
+            onClose={() => setPreviewingBlog(null)}
+          />
+      )}
+
+      {previewingIgnite && (
+          <IgnitePlayer 
+            text={previewingIgnite.igniteBody || previewingIgnite.description || ''}
+            bgColor={previewingIgnite.igniteBgColor || '#6D28D9'}
+            onClose={() => setPreviewingIgnite(null)}
+          />
+      )}
+
       <div className="flex justify-between items-center mb-8">
         <div>
             <h1 className="text-3xl font-black text-gray-900 tracking-tight italic">Manage Sprints</h1>
@@ -496,19 +683,37 @@ const CoachSprints: React.FC = () => {
                           </div>
                           <div className="flex items-center gap-2 w-full sm:w-auto mt-4 sm:mt-0">
                             {sprint.contentType === 'blog' ? (
-                                <button 
-                                    onClick={() => setEditingBlog(sprint)}
-                                    className="px-8 py-3 bg-white border border-gray-100 hover:bg-gray-50 hover:text-primary rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex-1 sm:flex-none cursor-pointer"
-                                >
-                                    Edit RiseBlog
-                                </button>
+                                <div className="flex items-center gap-2 w-full sm:w-auto">
+                                    <button 
+                                        onClick={() => setEditingBlog(sprint)}
+                                        className="px-6 py-3 bg-white border border-gray-100 hover:bg-gray-50 hover:text-primary rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex-1 sm:flex-none cursor-pointer"
+                                    >
+                                        Edit RiseBlog
+                                    </button>
+                                    <button 
+                                        onClick={() => setPreviewingBlog(sprint)}
+                                        className="p-3 bg-white border border-gray-100 text-gray-400 hover:text-primary hover:bg-gray-50 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                        title="Preview RiseBlog"
+                                    >
+                                        <Eye className="h-4 w-4" />
+                                    </button>
+                                </div>
                             ) : sprint.contentType === 'ignite' ? (
-                                <button 
-                                    onClick={() => setEditingIgnite(sprint)}
-                                    className="px-8 py-3 bg-white border border-gray-100 hover:bg-gray-50 hover:text-primary rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex-1 sm:flex-none cursor-pointer"
-                                >
-                                    Edit Ignite
-                                </button>
+                                <div className="flex items-center gap-2 w-full sm:w-auto">
+                                    <button 
+                                        onClick={() => setEditingIgnite(sprint)}
+                                        className="px-6 py-3 bg-white border border-gray-100 hover:bg-gray-50 hover:text-primary rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex-1 sm:flex-none cursor-pointer"
+                                    >
+                                        Edit Ignite
+                                    </button>
+                                    <button 
+                                        onClick={() => setPreviewingIgnite(sprint)}
+                                        className="p-3 bg-white border border-gray-100 text-gray-400 hover:text-primary hover:bg-gray-50 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                        title="Preview Ignite"
+                                    >
+                                        <Eye className="h-4 w-4" />
+                                    </button>
+                                </div>
                             ) : (
                                 <Link to={`/coach/sprint/edit/${sprint.id}`} className="flex-1 sm:flex-none">
                                     <button className={`w-full sm:w-auto px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer ${
