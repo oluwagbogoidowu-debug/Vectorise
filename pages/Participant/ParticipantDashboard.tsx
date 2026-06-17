@@ -136,18 +136,15 @@ const ParticipantDashboard: React.FC = () => {
   const activeIgnite = processedIgnitePosts[0];
   const isIgniteChecked = activeIgnite ? checkedIgnites[activeIgnite.id] : true;
 
-  // Load published ignites
+  // Load published ignites in real-time
   useEffect(() => {
-    const fetchIgnites = async () => {
-      try {
-        const published = await sprintService.getPublishedSprints();
-        const ignites = published.filter(s => s.contentType === 'ignite');
-        setIgnitePosts(ignites);
-      } catch (err) {
-        console.error("Failed to load ignites", err);
-      }
-    };
-    fetchIgnites();
+    const unsubscribe = sprintService.subscribeToPublishedSprints((published) => {
+      const ignites = published.filter(s => s.contentType === 'ignite');
+      setIgnitePosts(ignites);
+    }, (err) => {
+      console.error("Failed to load ignites", err);
+    });
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {

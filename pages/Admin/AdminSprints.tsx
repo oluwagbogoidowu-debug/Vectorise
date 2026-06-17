@@ -91,6 +91,17 @@ const AdminSprints: React.FC = () => {
     }
   };
 
+  const handleTogglePublish = async (sprint: Sprint) => {
+    const newPublished = !sprint.published;
+    try {
+      await sprintService.updateSprint(sprint.id, { published: newPublished });
+      toast.success(`${sprint.title} is now ${newPublished ? 'ON (Published)' : 'OFF (Hidden)'}`);
+    } catch (error) {
+      console.error("Error toggling publish state:", error);
+      toast.error("Failed to update status");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -208,6 +219,26 @@ const AdminSprints: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {activeTab === 'ignite' && (
+                <div className="flex items-center gap-2 border-r border-gray-150 pr-4 mr-1">
+                  <span className={`text-[9px] font-black uppercase tracking-wider ${s.published ? 'text-emerald-600' : 'text-gray-405'}`}>
+                    {s.published ? 'ON' : 'OFF'}
+                  </span>
+                  <button
+                    onClick={() => handleTogglePublish(s)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      s.published ? 'bg-emerald-500' : 'bg-gray-200'
+                    }`}
+                    title={s.published ? "Turn Off" : "Turn On"}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        s.published ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              )}
               <Link to={`/coach/sprint/edit/${s.id}`}><button className="px-8 py-3 bg-white border border-gray-100 text-gray-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-primary transition-all">Edit</button></Link>
               <button 
                 onClick={() => setDeletingId(s.id)}

@@ -6,6 +6,7 @@ import { sprintService } from '../../services/sprintService';
 import { assetService } from '../../services/assetService';
 import Button from '../../components/Button';
 import { Eye, Flame, BookOpen, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 
 const IGNITE_COLORS = [
   { hex: '#111827', name: 'Charcoal' },
@@ -465,6 +466,17 @@ const CoachSprints: React.FC = () => {
     return () => unsubSprints();
   }, [user, location.key]);
 
+  const handleTogglePublish = async (sprint: Sprint) => {
+    const newPublished = !sprint.published;
+    try {
+      await sprintService.updateSprint(sprint.id, { published: newPublished });
+      toast.success(`${sprint.title} is now ${newPublished ? 'ON (Published)' : 'OFF (Hidden)'}`);
+    } catch (error) {
+      console.error("Error toggling publish state:", error);
+      toast.error("Failed to update status");
+    }
+  };
+
   const filteredSprints = useMemo(() => {
     // Standard tab isolation
     let tFiltered = sprints.filter(s => {
@@ -711,7 +723,26 @@ const CoachSprints: React.FC = () => {
                                     </button>
                                 </div>
                             ) : sprint.contentType === 'ignite' ? (
-                                <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <div className="flex items-center gap-4 w-full sm:w-auto p-1">
+                                    {/* Toggle Switch */}
+                                    <div className="flex items-center gap-2 border-r border-gray-150 pr-4 mr-1">
+                                        <span className={`text-[9px] font-black uppercase tracking-wider ${sprint.published ? 'text-emerald-600' : 'text-gray-405'}`}>
+                                            {sprint.published ? 'ON' : 'OFF'}
+                                        </span>
+                                        <button
+                                            onClick={() => handleTogglePublish(sprint)}
+                                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                                sprint.published ? 'bg-emerald-500' : 'bg-gray-200'
+                                            }`}
+                                            title={sprint.published ? "Turn Off" : "Turn On"}
+                                        >
+                                            <span
+                                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                                    sprint.published ? 'translate-x-4' : 'translate-x-0'
+                                                }`}
+                                            />
+                                        </button>
+                                    </div>
                                     <button 
                                         onClick={() => setEditingIgnite(sprint)}
                                         className="px-6 py-3 bg-white border border-gray-100 hover:bg-gray-50 hover:text-primary rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex-1 sm:flex-none cursor-pointer"
