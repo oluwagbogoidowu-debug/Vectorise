@@ -260,12 +260,12 @@ export const pushNotificationService = {
     }
   },
 
-  sendPush: async (userId: string, title: string, body: string, url?: string, tag?: string, bypassActiveCheck: boolean = false, image?: string, icon?: string) => {
+  sendPush: async (userId: string, title: string, body: string, url?: string, tag?: string, bypassActiveCheck: boolean = false) => {
     try {
       await fetch(`${window.location.origin}/api/notifications/send-push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sanitizeData({ userId, title, body, url, tag, bypassActiveCheck, image, icon }))
+        body: JSON.stringify(sanitizeData({ userId, title, body, url, tag, bypassActiveCheck }))
       });
     } catch (error) {
       console.error('Failed to send push:', error);

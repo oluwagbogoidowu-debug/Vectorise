@@ -541,10 +541,28 @@ const ParticipantDashboard: React.FC = () => {
                         </div>
                     </Link>
                 ) : (
-                    <div className="py-20 md:py-24 text-center bg-gray-50 rounded-[2.5rem] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center px-6">
-                        <p className="text-gray-900 font-extrabold text-xs md:text-sm uppercase tracking-wider">No active focus right now.</p>
-                        <p className="text-gray-500 font-semibold text-[11px] md:text-xs mt-1.5 max-w-sm">Choose from your recommended sprints to get back on track.</p>
-                        <Link to="/explore" onClick={handleExploreClick} className="mt-4 inline-block text-primary font-black uppercase text-[10px] md:text-[11px] tracking-widest border-b border-primary/25 pb-1 transition-all hover:text-primary-dark">Explore recommended</Link>
+                    <div className="space-y-4">
+                        <Link to="/explore" onClick={handleExploreClick} className="block group animate-fade-in">
+                            <div className="bg-emerald-50/30 border border-emerald-100/75 p-5 rounded-[1.8rem] flex items-center gap-4 relative overflow-hidden hover:shadow-md hover:border-emerald-200/90 transition-all duration-300">
+                                <div className="w-10 h-10 bg-[#0E7850]/10 rounded-2xl flex items-center justify-center text-[#0E7850] flex-shrink-0 shadow-sm border border-[#0E7850]/10 group-hover:scale-110 transition-transform duration-300">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707-.707M12 17a5 5 0 100-10 5 5 0 000 10z" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[13px] md:text-sm font-black text-[#0E7850]">No active focus right now.</p>
+                                    <p className="text-[11px] md:text-xs text-gray-500 font-medium mt-0.5 leading-relaxed">
+                                        Choose from your recommended sprints to get back on track.
+                                    </p>
+                                </div>
+                                <div className="absolute -right-8 -bottom-8 w-24 h-24 bg-[#0E7850]/5 rounded-full blur-2xl pointer-events-none"></div>
+                            </div>
+                        </Link>
+                        <div className="flex justify-center pt-2">
+                            <Link to="/explore" onClick={handleExploreClick} className="inline-block text-primary font-black uppercase text-[10px] md:text-[11px] tracking-widest border-b border-primary/25 pb-1 transition-all hover:text-[#0E7850] hover:border-[#0E7850]/25">
+                                Explore recommended
+                            </Link>
+                        </div>
                     </div>
                 )}
             </div>

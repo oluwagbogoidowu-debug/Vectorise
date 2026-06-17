@@ -141,10 +141,10 @@ async function startServer() {
   });
 
   app.post('/api/notifications/send-push', async (req, res) => {
-    const { userId, title, body, url, tag, bypassActiveCheck, image, icon } = req.body;
+    const { userId, title, body, url, tag, bypassActiveCheck } = req.body;
     if (!userId || !title || !body) return res.status(400).json({ error: 'userId, title, and body are required' });
     try {
-      const success = await pushNotificationManager.sendPush(userId, { title, body, url, tag, image, icon }, bypassActiveCheck || false);
+      const success = await pushNotificationManager.sendPush(userId, { title, body, url, tag }, bypassActiveCheck || false);
       res.json({ success });
     } catch (error) {
       res.status(500).json({ error: 'Failed to send push notification' });
