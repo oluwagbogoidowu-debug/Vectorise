@@ -403,64 +403,64 @@ const ParticipantDashboard: React.FC = () => {
                 </div>
             )}
             
-            <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                <div className={`p-2.5 md:p-3 rounded-[1.3rem] flex items-center gap-2.5 relative overflow-hidden transition-transform active:scale-[0.98] ${
+            <div className="grid grid-cols-2 gap-4 md:gap-5 mb-8">
+                <div className={`p-4 md:p-5 rounded-[1.6rem] flex items-center gap-3.5 relative overflow-hidden transition-all duration-300 active:scale-[0.98] shadow-sm hover:shadow-md ${
                     cardState === 'well_done' || cardState === 'task_ready'
-                    ? 'bg-[#0E7850] text-white shadow-lg'
-                    : 'bg-[#159E6A] text-white shadow-lg'
+                    ? 'bg-[#0E7850] text-white'
+                    : 'bg-[#128F5E] text-white'
                 }`}>
                     {cardState === 'well_done' && (
                         <>
-                            <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 text-white shadow-sm border border-white/10">
-                                <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                            <div className="w-9 h-9 md:w-11 md:h-11 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0 text-white shadow-sm border border-white/10">
+                                <svg className="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in">
-                                <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    Day {completedDaysCount}<br/>Done
+                            <div className="relative z-10 min-w-0 animate-fade-in text-left">
+                                <p className="text-xs md:text-[13px] font-black uppercase tracking-wider text-white leading-tight">
+                                    Well<br/>Done
                                 </p>
                             </div>
                         </>
                     )}
                     {cardState === 'start_rising' && (
                         <>
-                            <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                                <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                            <div className="w-9 h-9 md:w-11 md:h-11 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                                <svg className="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in">
-                                <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    First<br/>Move
+                            <div className="relative z-10 min-w-0 animate-fade-in text-left">
+                                <p className="text-xs md:text-[13px] font-black uppercase tracking-wider text-white leading-tight">
+                                    Start<br/>Rising
                                 </p>
                             </div>
                         </>
                     )}
                     {cardState === 'keep_rising' && (
                         <>
-                            <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                                <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                            <div className="w-9 h-9 md:w-11 md:h-11 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                                <svg className="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in">
-                                <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    Next<br/>Move
+                            <div className="relative z-10 min-w-0 animate-fade-in text-left">
+                                <p className="text-xs md:text-[13px] font-black uppercase tracking-wider text-white leading-tight">
+                                    Keep<br/>Rising
                                 </p>
                             </div>
                         </>
                     )}
                     {cardState === 'task_ready' && (
                         <>
-                            <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                                <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <div className="w-9 h-9 md:w-11 md:h-11 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                                <svg className="w-5 h-5 md:w-6 md:h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in">
-                                <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    Today's<br/>Focus
+                            <div className="relative z-10 min-w-0 animate-fade-in text-left">
+                                <p className="text-xs md:text-[13px] font-black uppercase tracking-wider text-white leading-tight">
+                                    Task<br/>Ready
                                 </p>
                             </div>
                         </>
@@ -468,18 +468,18 @@ const ParticipantDashboard: React.FC = () => {
                     <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                 </div>
 
-                <Link to="/growth" className="bg-white border border-gray-100 p-2.5 md:p-3 rounded-[1.3rem] shadow-sm flex items-center gap-2.5 hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
-                    <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100 group-hover:bg-primary/5 transition-colors flex-shrink-0">
-                        <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-[#0E7850]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <Link to="/growth" className="bg-white border border-gray-100 p-4 md:p-5 rounded-[1.6rem] shadow-sm flex items-center gap-3.5 hover:border-[#0E7850]/30 hover:shadow-md transition-all duration-300 active:scale-[0.98] group relative overflow-hidden">
+                    <div className="w-9 h-9 md:w-11 md:h-11 bg-emerald-50 rounded-2xl flex items-center justify-center border border-emerald-100 group-hover:bg-[#0E7850]/5 transition-colors flex-shrink-0">
+                        <svg className="w-5 h-5 md:w-6 md:h-6 text-[#0E7850]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                         </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-center mb-0.5">
-                            <p className="text-[5.5px] md:text-[6.5px] font-black text-gray-400 uppercase tracking-[0.1em] group-hover:text-primary transition-colors">Growth<br/>Analysis</p>
-                            <p className="text-[11px] md:text-sm font-black text-gray-900 leading-none">{overallProgress}%</p>
+                        <div className="flex justify-between items-center mb-1">
+                            <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none group-hover:text-[#0E7850] transition-colors">Growth<br/>Analysis</p>
+                            <p className="text-sm md:text-base font-black text-gray-900 leading-none">{overallProgress}%</p>
                         </div>
-                        <div className="h-1 w-full bg-gray-50 rounded-full overflow-hidden">
+                        <div className="h-1.5 w-full bg-gray-50 rounded-full overflow-hidden">
                             <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
                         </div>
                     </div>
@@ -487,13 +487,13 @@ const ParticipantDashboard: React.FC = () => {
             </div>
 
             <div className="flex justify-between items-end mb-6 px-1">
-                <h2 className="text-lg md:text-xl font-black text-gray-900 tracking-tight">
-                    {cardState === 'start_rising' ? "First Move" :
-                     cardState === 'keep_rising' ? "Next Move" :
-                     allTasksDoneToday ? `Day ${mainTask ? (mainTask.status.isCompleted ? mainTask.sprint.duration : (mainTask.status.day - 1 || 1)) : 1} Done` :
-                     "Today's Focus"}
+                <h2 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-none">
+                    {cardState === 'start_rising' ? "Start Rising" :
+                     cardState === 'keep_rising' ? "Keep Rising" :
+                     cardState === 'well_done' ? "Well done" :
+                     "Task Ready"}
                 </h2>
-                <Link to="/my-sprints" className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] hover:opacity-80 transition-opacity mb-1">
+                <Link to="/my-sprints" className="text-[9px] md:text-[10px] font-black text-[#0E7850] uppercase tracking-[0.15em] hover:opacity-80 transition-opacity mb-1 pb-1">
                     View Journey
                 </Link>
             </div>
@@ -504,16 +504,16 @@ const ParticipantDashboard: React.FC = () => {
                 ) : mainTask && mainTask.sprint ? (
                     <Link to={`/participant/sprint/${mainTask.enrollment.id}`} className="block group">
                         <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-100 relative overflow-hidden flex animate-fade-in group-hover:shadow-xl transition-all duration-500">
-                            <div className={`w-2 md:w-3 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-amber-400' : 'bg-[#0E7850]'}`}></div>
+                            <div className={`w-3.5 md:w-4.5 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-amber-400' : 'bg-[#0E7850]'}`}></div>
                             
-                            <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col">
-                                <div className={isMainTaskLocked ? "mb-3 md:mb-4" : "mb-6 md:mb-8"}>
-                                    <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">{mainTask.sprint.category}</p>
-                                    <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight mt-1">{mainTask.sprint.title}</h3>
-                                    <p className="text-[9px] md:text-[10px] font-black text-gray-500 uppercase tracking-widest mt-2">Day {mainTask.status.day} of {mainTask.sprint.duration}</p>
+                            <div className="flex-1 p-8 md:p-12 lg:p-14 flex flex-col">
+                                <div className={isMainTaskLocked ? "mb-4 md:mb-5" : "mb-8 md:mb-10"}>
+                                    <p className="text-[10px] md:text-xs font-black text-gray-400 uppercase tracking-[0.1em]">{mainTask.sprint.category}</p>
+                                    <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-gray-900 leading-tight tracking-tight mt-2.5">{mainTask.sprint.title}</h3>
+                                    <p className="text-[10px] md:text-xs font-black text-gray-500 uppercase tracking-widest mt-3.5">Day {mainTask.status.day} of {mainTask.sprint.duration}</p>
                                 </div>
 
-                                <div className={`mt-auto ${isMainTaskLocked ? 'pt-3 md:pt-4' : 'pt-8'}`}>
+                                <div className={`mt-auto ${isMainTaskLocked ? 'pt-4 md:pt-5' : 'pt-10'}`}>
                                     {isMainTaskLocked && (
                                         <div className="relative py-6 my-1 overflow-hidden flex items-center min-h-[58px]">
                                             <AnimatePresence mode="wait">
