@@ -483,7 +483,7 @@ const ParticipantDashboard: React.FC = () => {
                 {isLoading ? (
                     <div className="bg-white rounded-[2.5rem] h-64 animate-pulse border border-gray-100 shadow-sm"></div>
                 ) : mainTask && mainTask.sprint ? (
-                    <Link to={isMainTaskLocked ? '#' : `/participant/sprint/${mainTask.enrollment.id}`} className={isMainTaskLocked ? 'block cursor-default pointer-events-none' : 'block group'}>
+                    <Link to={`/participant/sprint/${mainTask.enrollment.id}`} className="block group">
                         <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-100 relative overflow-hidden flex animate-fade-in group-hover:shadow-xl transition-all duration-500">
                             <div className={`w-2 md:w-3 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-amber-400' : 'bg-[#0E7850]'}`}></div>
                             
