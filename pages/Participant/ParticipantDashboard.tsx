@@ -307,6 +307,10 @@ const ParticipantDashboard: React.FC = () => {
     }
   }, [allEnrollments, mySprints, hasActiveSprints, tasksReady]);
 
+  const completedDaysCount = useMemo(() => {
+    return mainTask?.enrollment?.progress?.filter(p => p.completed).length || 1;
+  }, [mainTask]);
+
   const p = user as Participant;
   const currentArchetype = ARCHETYPES.find(a => a.id === p.archetype);
 
@@ -384,65 +388,63 @@ const ParticipantDashboard: React.FC = () => {
             )}
             
             <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                <div className={`p-3 md:p-4 rounded-[1.5rem] flex items-center gap-3 relative overflow-hidden transition-transform active:scale-[0.98] ${
-                    cardState === 'well_done'
-                    ? 'bg-white border border-gray-100 shadow-sm text-[#0E7850]'
-                    : cardState === 'task_ready'
+                <div className={`p-2.5 md:p-3 rounded-[1.3rem] flex items-center gap-2.5 relative overflow-hidden transition-transform active:scale-[0.98] ${
+                    cardState === 'well_done' || cardState === 'task_ready'
                     ? 'bg-[#0E7850] text-white shadow-lg'
                     : 'bg-[#159E6A] text-white shadow-lg'
                 }`}>
                     {cardState === 'well_done' && (
                         <>
-                            <div className="w-8 h-8 md:w-10 md:h-10 bg-[#0E7850]/10 rounded-xl flex items-center justify-center flex-shrink-0 text-[#0E7850] shadow-sm border border-[#0E7850]/10">
-                                <svg className="w-4 h-4 md:w-5 md:h-5 text-[#0E7850]" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                            <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 text-white shadow-sm border border-white/10">
+                                <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                                 </svg>
                             </div>
                             <div className="relative z-10 min-w-0 animate-fade-in">
-                                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] text-[#0E7850] leading-tight">
-                                    Well<br/>Done
+                                <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.1em] text-white leading-tight">
+                                    Day {completedDaysCount}<br/>Done
                                 </p>
                             </div>
                         </>
                     )}
                     {cardState === 'start_rising' && (
                         <>
-                            <div className="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                                <svg className="w-4 h-4 md:w-5 md:h-5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                            <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                                <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                             </div>
                             <div className="relative z-10 min-w-0 animate-fade-in">
-                                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    Start<br/>Rising
+                                <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.1em] text-white leading-tight">
+                                    First<br/>Move
                                 </p>
                             </div>
                         </>
                     )}
                     {cardState === 'keep_rising' && (
                         <>
-                            <div className="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                                <svg className="w-4 h-4 md:w-5 md:h-5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                            <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                                <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                                 </svg>
                             </div>
                             <div className="relative z-10 min-w-0 animate-fade-in">
-                                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    Keep<br/>Rising
+                                <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.1em] text-white leading-tight">
+                                    Next<br/>Move
                                 </p>
                             </div>
                         </>
                     )}
                     {cardState === 'task_ready' && (
                         <>
-                            <div className="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                                <svg className="w-4 h-4 md:w-5 md:h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                                <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                                 </svg>
                             </div>
                             <div className="relative z-10 min-w-0 animate-fade-in">
-                                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    Task<br/>Ready
+                                <p className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.1em] text-white leading-tight">
+                                    Today's<br/>Focus
                                 </p>
                             </div>
                         </>
@@ -450,16 +452,16 @@ const ParticipantDashboard: React.FC = () => {
                     <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                 </div>
 
-                <Link to="/growth" className="bg-white border border-gray-100 p-3 md:p-4 rounded-[1.5rem] shadow-sm flex items-center gap-3 hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
-                    <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100 group-hover:bg-primary/5 transition-colors flex-shrink-0">
-                        <svg className="w-4 h-4 md:w-5 md:h-5 text-[#0E7850]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <Link to="/growth" className="bg-white border border-gray-100 p-2.5 md:p-3 rounded-[1.3rem] shadow-sm flex items-center gap-2.5 hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
+                    <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100 group-hover:bg-primary/5 transition-colors flex-shrink-0">
+                        <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-[#0E7850]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                         </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-center mb-1">
-                            <p className="text-[6px] md:text-[7px] font-black text-gray-400 uppercase tracking-[0.1em] group-hover:text-primary transition-colors">Growth<br/>Analysis</p>
-                            <p className="text-xs md:text-sm font-black text-gray-900 leading-none">{overallProgress}%</p>
+                        <div className="flex justify-between items-center mb-0.5">
+                            <p className="text-[5.5px] md:text-[6.5px] font-black text-gray-400 uppercase tracking-[0.1em] group-hover:text-primary transition-colors">Growth<br/>Analysis</p>
+                            <p className="text-[11px] md:text-sm font-black text-gray-900 leading-none">{overallProgress}%</p>
                         </div>
                         <div className="h-1 w-full bg-gray-50 rounded-full overflow-hidden">
                             <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
@@ -617,22 +619,27 @@ const ParticipantDashboard: React.FC = () => {
             </div>
 
             {isAfterDay1OfFirstSprint && (
-                <Link to="/impact" className="block group mb-8 animate-fade-in">
-                    <div className="bg-emerald-50/30 border border-emerald-100/75 p-5 rounded-[1.8rem] flex items-center gap-4 relative overflow-hidden hover:shadow-md hover:border-emerald-200/90 transition-all duration-300">
-                        <div className="w-10 h-10 bg-[#0E7850]/10 rounded-2xl flex items-center justify-center text-[#0E7850] flex-shrink-0 shadow-sm border border-[#0E7850]/10 group-hover:scale-110 transition-transform duration-300">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[13px] md:text-sm font-black text-[#0E7850]">You can become a Catalyst.</p>
-                            <p className="text-[11px] md:text-xs text-gray-500 font-medium mt-0.5 leading-relaxed">
-                                Don’t grow alone, bring others along.
-                            </p>
-                        </div>
-                        <div className="absolute -right-8 -bottom-8 w-24 h-24 bg-[#0E7850]/5 rounded-full blur-2xl pointer-events-none"></div>
+                <div className="mb-8">
+                    <div className="mb-2 px-1">
+                        <p className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] leading-none">Step up your Rise</p>
                     </div>
-                </Link>
+                    <Link to="/impact" className="block group animate-fade-in">
+                        <div className="bg-emerald-50/30 border border-emerald-100/75 p-5 rounded-[1.8rem] flex items-center gap-4 relative overflow-hidden hover:shadow-md hover:border-emerald-200/90 transition-all duration-300">
+                            <div className="w-10 h-10 bg-[#0E7850]/10 rounded-2xl flex items-center justify-center text-[#0E7850] flex-shrink-0 shadow-sm border border-[#0E7850]/10 group-hover:scale-110 transition-transform duration-300">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-[13px] md:text-sm font-black text-[#0E7850]">You can become a Catalyst.</p>
+                                <p className="text-[11px] md:text-xs text-gray-500 font-medium mt-0.5 leading-relaxed">
+                                    Step up your Rise
+                                </p>
+                            </div>
+                            <div className="absolute -right-8 -bottom-8 w-24 h-24 bg-[#0E7850]/5 rounded-full blur-2xl pointer-events-none"></div>
+                        </div>
+                    </Link>
+                </div>
             )}
 
             {checkInSprints.length > 0 && (
