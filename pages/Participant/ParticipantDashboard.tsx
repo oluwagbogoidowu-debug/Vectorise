@@ -411,7 +411,7 @@ const ParticipantDashboard: React.FC = () => {
             )}
             
             <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                <div className={`p-2.5 md:p-3 rounded-[1.3rem] flex items-center gap-2.5 relative overflow-hidden transition-transform active:scale-[0.98] ${
+                <div className={`py-5 px-3 md:py-6.5 md:px-4 rounded-[1.3rem] flex flex-col items-center justify-center text-center gap-2 relative overflow-hidden transition-transform active:scale-[0.98] ${
                     cardState === 'well_done' || cardState === 'task_ready'
                     ? 'bg-[#0E7850] text-white shadow-lg'
                     : 'bg-[#159E6A] text-white shadow-lg'
@@ -423,7 +423,7 @@ const ParticipantDashboard: React.FC = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in">
+                            <div className="relative z-10 min-w-0 animate-fade-in text-center">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
                                     Well<br/>done
                                 </p>
@@ -437,7 +437,7 @@ const ParticipantDashboard: React.FC = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in">
+                            <div className="relative z-10 min-w-0 animate-fade-in text-center">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
                                     Start<br/>Rising
                                 </p>
@@ -451,7 +451,7 @@ const ParticipantDashboard: React.FC = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in">
+                            <div className="relative z-10 min-w-0 animate-fade-in text-center">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
                                     Keep<br/>Rising
                                 </p>
@@ -465,7 +465,7 @@ const ParticipantDashboard: React.FC = () => {
                                     <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in">
+                            <div className="relative z-10 min-w-0 animate-fade-in text-center">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
                                     Task<br/>Ready
                                 </p>
@@ -475,16 +475,16 @@ const ParticipantDashboard: React.FC = () => {
                     <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                 </div>
 
-                <Link to="/growth" className="bg-white border border-gray-100 p-2.5 md:p-3 rounded-[1.3rem] shadow-sm flex items-center gap-2.5 hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
+                <Link to="/growth" className="bg-white border border-gray-100 py-5 px-3 md:py-6.5 md:px-4 rounded-[1.3rem] shadow-sm flex items-center justify-center gap-3 hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
                     <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100 group-hover:bg-primary/5 transition-colors flex-shrink-0">
                         <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-[#0E7850]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                         </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-center mb-0.5">
-                            <p className="text-[5.5px] md:text-[6.5px] font-black text-gray-400 uppercase tracking-[0.1em] group-hover:text-primary transition-colors">Growth<br/>Analysis</p>
-                            <p className="text-[11px] md:text-sm font-black text-gray-900 leading-none">{overallProgress}%</p>
+                        <div className="flex justify-between items-center mb-1">
+                            <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em] group-hover:text-primary transition-colors leading-tight">Growth<br/>Analysis</p>
+                            <p className="text-xs md:text-sm font-black text-gray-900 leading-none">{overallProgress}%</p>
                         </div>
                         <div className="h-1 w-full bg-gray-50 rounded-full overflow-hidden">
                             <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
@@ -656,32 +656,30 @@ const ParticipantDashboard: React.FC = () => {
                         <p className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] leading-none">Step up your Rise</p>
                     </div>
                     <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory no-scrollbar relative">
-                        {/* 1. Read Ignite - Sticky/Fixed Left Square card */}
-                        <div className="sticky left-0 z-10 bg-[#FDFDFD] pr-3 flex-shrink-0">
-                            <div 
-                                onClick={() => {
-                                    // Play recent ignite post or fallback preset
-                                    if (ignitePosts && ignitePosts.length > 0) {
-                                        setActivePlayIgnite(ignitePosts[0]);
-                                    } else {
-                                        setActivePlayIgnite({
-                                            id: 'default_ignite',
-                                            title: 'Ignite Post',
-                                            description: 'Daily Spark.',
-                                            igniteBgColor: '#6D28D9',
-                                            igniteBody: "Consistency is not about perfection. It’s about returning to the practice day after day.\n\n" +
-                                                        "Step up your Rise. Unlocking your potential starts with microscopic daily decisions.\n\n" +
-                                                        "Be the Catalyst. Your momentum is contagious, inspire your circle to act.\n\n" +
-                                                        "The secret to growing is to never grow alone. Bring others along and lift everyone together."
-                                        } as any);
-                                    }
-                                }}
-                                className="w-24 h-24 bg-gradient-to-br from-[#6D28D9] to-[#4F46E5] border border-violet-500/10 rounded-[1.5rem] shadow-sm hover:scale-[1.02] cursor-pointer transition-all duration-300 relative overflow-hidden flex items-center justify-center p-3 select-none text-center"
-                            >
-                                <span className="text-[10px] font-black text-white tracking-wider uppercase leading-tight select-none">
-                                    Read Ignite
-                                </span>
-                            </div>
+                        {/* 1. Read Ignite - Standard flowing square card */}
+                        <div 
+                            onClick={() => {
+                                // Play recent ignite post or fallback preset
+                                if (ignitePosts && ignitePosts.length > 0) {
+                                    setActivePlayIgnite(ignitePosts[0]);
+                                } else {
+                                    setActivePlayIgnite({
+                                        id: 'default_ignite',
+                                        title: 'Ignite Post',
+                                        description: 'Daily Spark.',
+                                        igniteBgColor: '#6D28D9',
+                                        igniteBody: "Consistency is not about perfection. It’s about returning to the practice day after day.\n\n" +
+                                                    "Step up your Rise. Unlocking your potential starts with microscopic daily decisions.\n\n" +
+                                                    "Be the Catalyst. Your momentum is contagious, inspire your circle to act.\n\n" +
+                                                    "The secret to growing is to never grow alone. Bring others along and lift everyone together."
+                                    } as any);
+                                }
+                            }}
+                            className="flex-shrink-0 w-24 h-24 bg-gradient-to-br from-[#6D28D9] to-[#4F46E5] border border-violet-500/10 rounded-[1.5rem] shadow-sm hover:scale-[1.02] cursor-pointer transition-all duration-300 relative overflow-hidden flex items-center justify-center p-3 select-none text-center snap-start"
+                        >
+                            <span className="text-[10px] font-black text-white tracking-wider uppercase leading-tight select-none">
+                                Read Ignite
+                            </span>
                         </div>
 
                         {/* 2. Revisit your Rise */}
