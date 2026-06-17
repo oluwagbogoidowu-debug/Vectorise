@@ -11,7 +11,7 @@ import { pushNotificationService } from '../../services/pushNotificationService'
 import { toast } from 'sonner';
 import { db } from '../../services/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { X, History, Sparkles } from 'lucide-react';
+import { X, History, Sparkles, Heart } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { ARCHETYPES } from '../../constants';
@@ -86,6 +86,55 @@ const ParticipantDashboard: React.FC = () => {
   const [ignitePosts, setIgnitePosts] = useState<Sprint[]>([]);
   const [activePlayIgnite, setActivePlayIgnite] = useState<Sprint | null>(null);
   const [showPulse, setShowPulse] = useState(false);
+  const [checkedIgnites, setCheckedIgnites] = useState<Record<string, boolean>>({});
+
+  // Mark active Ignite as checked when opened
+  useEffect(() => {
+    if (activePlayIgnite) {
+      localStorage.setItem(`ignite_checked_${activePlayIgnite.id}`, 'true');
+    }
+  }, [activePlayIgnite]);
+
+  // Read checked state for all ignites
+  useEffect(() => {
+    const checkedMap: Record<string, boolean> = {};
+    ignitePosts.forEach(post => {
+      checkedMap[post.id] = localStorage.getItem(`ignite_checked_${post.id}`) === 'true';
+    });
+    setCheckedIgnites(checkedMap);
+  }, [ignitePosts, activePlayIgnite]);
+
+  const getLocalYYYYMMDD = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const processedIgnitePosts = useMemo(() => {
+    if (ignitePosts.length === 0) return [];
+    const todayStr = getLocalYYYYMMDD();
+    
+    // Filter out future-scheduled ignites
+    const available = ignitePosts.filter(post => {
+      if (!post.igniteDate) return true; // not tagged -> always live
+      return post.igniteDate <= todayStr; // tagged -> live once that day arrives
+    });
+
+    if (available.length === 0) return [];
+
+    // Prioritize today's specific tagged ignite if one exists
+    const todayIgnite = available.find(post => post.igniteDate === todayStr);
+    if (todayIgnite) {
+      return [todayIgnite, ...available.filter(p => p.id !== todayIgnite.id)];
+    }
+
+    return available;
+  }, [ignitePosts]);
+
+  const activeIgnite = processedIgnitePosts[0];
+  const isIgniteChecked = activeIgnite ? checkedIgnites[activeIgnite.id] : true;
 
   // Load published ignites
   useEffect(() => {
@@ -446,7 +495,7 @@ const ParticipantDashboard: React.FC = () => {
                             </div>
                             <div className="relative z-10 min-w-0 animate-fade-in">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    Well done
+                                    Well<br/>Done
                                 </p>
                             </div>
                         </>
@@ -460,7 +509,7 @@ const ParticipantDashboard: React.FC = () => {
                             </div>
                             <div className="relative z-10 min-w-0 animate-fade-in">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    Start Rising
+                                    Start<br/>Rising
                                 </p>
                             </div>
                         </>
@@ -474,7 +523,7 @@ const ParticipantDashboard: React.FC = () => {
                             </div>
                             <div className="relative z-10 min-w-0 animate-fade-in">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    Keep Rising
+                                    Keep<br/>Rising
                                 </p>
                             </div>
                         </>
@@ -488,7 +537,7 @@ const ParticipantDashboard: React.FC = () => {
                             </div>
                             <div className="relative z-10 min-w-0 animate-fade-in">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    Task Ready
+                                    Task<br/>Ready
                                 </p>
                             </div>
                         </>
@@ -504,7 +553,7 @@ const ParticipantDashboard: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-center mb-1">
-                            <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em] group-hover:text-primary transition-colors leading-tight">Growth<br/>Analysis</p>
+                            <p className="text-[7.5px] md:text-[8px] font-black text-gray-400 uppercase tracking-[0.1em] group-hover:text-primary transition-colors leading-[1.1]">Growth<br/>Analysis</p>
                             <p className="text-xs md:text-sm font-black text-gray-900 leading-none">{overallProgress}%</p>
                         </div>
                         <div className="h-1 w-full bg-gray-50 rounded-full overflow-hidden">
@@ -688,14 +737,6 @@ const ParticipantDashboard: React.FC = () => {
                     `}</style>
                     <div className="mb-2 px-1 flex justify-between items-center">
                         <p className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] leading-none">Step up your Rise</p>
-                        {isStepUpLocked && (
-                            <span className="text-[7.5px] font-black text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded uppercase tracking-[0.15em] flex items-center gap-1 select-none animate-fade-in">
-                                <svg className="w-2.5 h-2.5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                                </svg>
-                                Locked until Daily Action Complete
-                            </span>
-                        )}
                     </div>
                     <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory no-scrollbar relative">
                         {/* 1. Read Ignite - Standard flowing square card */}
@@ -703,8 +744,8 @@ const ParticipantDashboard: React.FC = () => {
                             onClick={() => {
                                 if (isStepUpLocked) return;
                                 // Play recent ignite post or fallback preset
-                                if (ignitePosts && ignitePosts.length > 0) {
-                                    setActivePlayIgnite(ignitePosts[0]);
+                                if (processedIgnitePosts && processedIgnitePosts.length > 0) {
+                                    setActivePlayIgnite(processedIgnitePosts[0]);
                                 } else {
                                     setActivePlayIgnite({
                                         id: 'default_ignite',
@@ -724,6 +765,9 @@ const ParticipantDashboard: React.FC = () => {
                                 : 'hover:scale-[1.02] cursor-pointer'
                             } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                         >
+                            {!isIgniteChecked && !isStepUpLocked && (
+                                <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-rose-500 rounded-full border border-white ring-2 ring-rose-500/35 animate-pulse" />
+                            )}
                             <span className="text-[9px] font-black text-white tracking-wider uppercase leading-tight select-none">
                                 Read Ignite
                             </span>
@@ -767,6 +811,16 @@ const ParticipantDashboard: React.FC = () => {
                             </div>
                         </Link>
                     </div>
+                    {isStepUpLocked && (
+                        <div className="flex justify-center mt-2 animate-fade-in select-none">
+                            <span className="text-[7.5px] md:text-[8px] font-black text-gray-400 bg-gray-50/80 px-2.5 py-1 rounded-full uppercase tracking-[0.15em] flex items-center gap-1.5 border border-gray-100 shadow-sm">
+                                <svg className="w-2.5 h-2.5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                </svg>
+                                Locked until Daily Action Complete
+                            </span>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -885,8 +939,7 @@ const ParticipantDashboard: React.FC = () => {
       )}
       {activePlayIgnite && (
         <IgnitePlayer 
-          text={activePlayIgnite.igniteBody || activePlayIgnite.description || ''}
-          bgColor={activePlayIgnite.igniteBgColor || '#6D28D9'}
+          ignite={activePlayIgnite}
           onClose={() => setActivePlayIgnite(null)}
         />
       )}
@@ -896,10 +949,12 @@ const ParticipantDashboard: React.FC = () => {
 
 // Beautiful fullscreen immersive custom Ignite player
 const IgnitePlayer: React.FC<{
-  text: string;
-  bgColor: string;
+  ignite: Sprint;
   onClose: () => void;
-}> = ({ text, bgColor, onClose }) => {
+}> = ({ ignite, onClose }) => {
+  const text = ignite.igniteBody || ignite.description || '';
+  const bgColor = ignite.igniteBgColor || '#6D28D9';
+
   const slides = React.useMemo(() => {
     return text.split(/\r?\n\s*\r?\n/).map(s => s.trim()).filter(Boolean);
   }, [text]);
@@ -908,6 +963,58 @@ const IgnitePlayer: React.FC<{
   
   const [activeSlide, setActiveSlide] = useState(0);
   const [progress, setProgress] = useState(0);
+
+  // Persistence of Liked Ignite
+  const [isLiked, setIsLiked] = useState(() => {
+    return localStorage.getItem(`ignite_liked_${ignite.id}`) === 'true';
+  });
+
+  const handleToggleLike = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newLiked = !isLiked;
+    setIsLiked(newLiked);
+    localStorage.setItem(`ignite_liked_${ignite.id}`, newLiked ? 'true' : 'false');
+    if (newLiked) {
+      toast.success("Added to your Liked sparks!", { icon: "❤️" });
+    }
+  };
+
+  const formattedDate = React.useMemo(() => {
+    // Custom date formatting function "Thursday, 12th July"
+    let d: Date;
+    if (ignite.igniteDate) {
+      try {
+        const parts = ignite.igniteDate.split('-');
+        if (parts.length === 3) {
+          d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        } else {
+          d = new Date();
+        }
+      } catch {
+        d = new Date();
+      }
+    } else {
+      d = new Date();
+    }
+
+    if (isNaN(d.getTime())) {
+      d = new Date();
+    }
+
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    const dayName = days[d.getDay()];
+    const monthName = months[d.getMonth()];
+    const dayNum = d.getDate();
+    
+    let suffix = 'th';
+    if (dayNum === 1 || dayNum === 21 || dayNum === 31) suffix = 'st';
+    else if (dayNum === 2 || dayNum === 22) suffix = 'nd';
+    else if (dayNum === 3 || dayNum === 23) suffix = 'rd';
+    
+    return `${dayName}, ${dayNum}${suffix} ${monthName}`;
+  }, [ignite.igniteDate]);
 
   useEffect(() => {
     setProgress(0);
@@ -946,8 +1053,13 @@ const IgnitePlayer: React.FC<{
       className="fixed inset-0 z-[400] flex flex-col justify-between p-6 select-none animate-fade-in text-white font-sans"
       style={{ backgroundColor: bgColor }}
     >
+      {/* Date above indicators */}
+      <div className="absolute top-3.5 left-0 right-0 text-center z-[410] text-[10px] font-black tracking-[0.25em] text-white/90 uppercase drop-shadow-sm select-none">
+        {formattedDate}
+      </div>
+
       {/* Bars at the top */}
-      <div className="absolute top-6 left-6 right-6 flex gap-1 z-[410]">
+      <div className="absolute top-9 left-6 right-6 flex gap-1 z-[410]">
         {activeSlides.map((_, idx) => (
           <div key={idx} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
             <div 
@@ -961,11 +1073,21 @@ const IgnitePlayer: React.FC<{
         ))}
       </div>
 
+      {/* Love/Like Icon (the other side of cancel icon) */}
+      <button 
+        type="button"
+        onClick={handleToggleLike} 
+        className="absolute top-13 left-6 z-[420] bg-black/40 hover:bg-black/60 p-2.5 rounded-full transition-all text-white/93 font-bold active:scale-90 cursor-pointer flex items-center justify-center outline-none border-none shadow-md"
+        title={isLiked ? "Unlike Spark" : "Like Spark"}
+      >
+        <Heart className={`h-5 w-5 transition-transform duration-300 ${isLiked ? 'fill-rose-500 text-rose-500 scale-110 animate-pulse' : 'text-white'}`} strokeWidth={2.5} />
+      </button>
+
       {/* Close button */}
       <button 
         type="button"
         onClick={onClose} 
-        className="absolute top-10 right-6 z-[420] bg-black/40 hover:bg-black/60 p-2.5 rounded-full transition-all text-white/90 font-bold active:scale-90 cursor-pointer"
+        className="absolute top-13 right-6 z-[420] bg-black/40 hover:bg-black/60 p-2.5 rounded-full transition-all text-white/90 font-bold active:scale-90 cursor-pointer flex items-center justify-center outline-none border-none shadow-md"
         title="Exit Fullscreen"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -7,6 +7,7 @@ import { userService } from '../../../services/userService';
 import { ParticipantSprint, Sprint, Coach } from '../../../types';
 import { Share2, ChevronRight, ChevronLeft, Lock, CheckCircle2, Calendar, Award, Zap, Sparkles, BookOpen } from 'lucide-react';
 import SprintShareModal from '../../../components/SprintShareModal';
+import FormattedText from '../../../components/FormattedText';
 
 const RiseArchive: React.FC = () => {
   const navigate = useNavigate();
@@ -224,7 +225,7 @@ const RiseArchive: React.FC = () => {
 
       {/* Full-Bleed Action Step Detail Overlay */}
       {selectedSprintDetails && (
-        <div className="fixed inset-0 z-50 bg-[#FDFDFD] flex flex-col overflow-hidden animate-fade-in font-sans">
+        <div className="fixed inset-0 z-50 bg-[#FCDFD3]/5 bg-white flex flex-col overflow-hidden animate-fade-in font-sans">
           {/* Header */}
           <header className="bg-white px-6 pt-12 pb-5 border-b border-gray-50 flex items-center justify-between shadow-sm flex-shrink-0">
             <button 
@@ -292,173 +293,280 @@ const RiseArchive: React.FC = () => {
           </div>
 
           {/* Scrollable Report Content Area */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-[#FAFBFD]">
-            {(() => {
-              const dayContent = selectedSprintDetails.sprint.dailyContent?.find(d => d.day === selectedDay);
-              const progressRecord = selectedSprintDetails.enrollment.progress?.find(p => p.day === selectedDay);
-              const isCompleted = !!progressRecord?.completed;
-              
-              const completedDayNumbers = selectedSprintDetails.enrollment.progress?.filter(p => p.completed).map(p => p.day) || [];
-              const maxCompleted = completedDayNumbers.length > 0 ? Math.max(...completedDayNumbers) : 0;
-              const isUnlocked = selectedDay <= maxCompleted + 1 || selectedSprintDetails.enrollment.status === 'completed';
+          <div className="flex-1 overflow-y-auto px-4 md:px-12 py-8 md:py-12 custom-scrollbar bg-slate-50/50">
+            <div className="w-full max-w-4xl mx-auto space-y-8 flex flex-col relative pb-16">
+              {(() => {
+                const dayContent = selectedSprintDetails.sprint.dailyContent?.find(d => d.day === selectedDay);
+                const progressRecord = selectedSprintDetails.enrollment.progress?.find(p => p.day === selectedDay);
+                const isCompleted = !!progressRecord?.completed;
+                
+                const completedDayNumbers = selectedSprintDetails.enrollment.progress?.filter(p => p.completed).map(p => p.day) || [];
+                const maxCompleted = completedDayNumbers.length > 0 ? Math.max(...completedDayNumbers) : 0;
+                const isUnlocked = selectedDay <= maxCompleted + 1 || selectedSprintDetails.enrollment.status === 'completed';
 
-              if (!isUnlocked) {
-                return (
-                  <div className="h-64 flex flex-col items-center justify-center text-center p-8 bg-white rounded-[2rem] border border-gray-100 shadow-sm animate-fade-in mt-4">
-                    <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 mb-4 border border-gray-100">
-                      <Lock className="w-6 h-6" />
-                    </div>
-                    <h3 className="text-base font-black text-gray-900 uppercase tracking-wider">Day Locked</h3>
-                    <p className="text-xs text-gray-400 max-w-xs mt-1.5 leading-relaxed font-semibold">
-                      Complete previous days in your active workspace first to unlock this daily report.
-                    </p>
-                  </div>
-                );
-              }
-
-              if (!isCompleted) {
-                return (
-                  <div className="space-y-6 animate-fade-in mt-2">
-                    <div className="p-6 bg-white rounded-[2rem] border border-gray-100 shadow-sm space-y-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
-                          <Zap className="w-4 h-4 text-amber-600" />
-                        </div>
-                        <h3 className="font-black text-gray-800 text-[10px] uppercase tracking-widest leading-none">Present Day Task Active</h3>
+                if (!isUnlocked) {
+                  return (
+                    <div className="h-64 flex flex-col items-center justify-center text-center p-8 bg-white rounded-[2rem] border border-gray-150 shadow-sm animate-fade-in max-w-md mx-auto w-full mt-8">
+                      <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 mb-4 border border-gray-105">
+                        <Lock className="w-6 h-6" />
                       </div>
-                      <div className="border-l-2 border-amber-200 pl-4 py-1">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-1">Today's Focus Prompt</p>
-                        <p className="text-sm font-black text-gray-900 leading-tight">
-                          {dayContent?.taskPrompt || "Check your current focus in the main workout view."}
-                        </p>
-                      </div>
-                      <div className="pt-2">
-                        <p className="text-xs text-gray-500 font-medium leading-relaxed">
-                          You haven't completed this step yet. Return to your dashboard and select <span className="font-black text-[#0E7850]">Today's Focus</span> to execute and log your progress.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-
-              // Rendering Day Report completed values
-              const prompts = dayContent?.taskPrompts || (dayContent?.taskPrompt ? [dayContent.taskPrompt] : []);
-              const answers = progressRecord?.answers || [];
-              const submission = progressRecord?.submission || "";
-              const proofSelection = progressRecord?.proofSelection || "";
-              const completedAt = progressRecord?.completedAt;
-
-              return (
-                <div className="space-y-6 animate-fade-in mt-1">
-                  {/* Completion Date Badge */}
-                  <div className="flex flex-wrap items-center justify-between p-4 bg-[#0E7850]/5 border border-[#0E7850]/10 rounded-[1.5rem] gap-2">
-                    <div className="flex items-center gap-2.5">
-                      <Award className="w-5 h-5 text-[#0E7850]" />
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-[#0E7850] leading-none">Daily Action Completed</p>
-                        <p className="text-[11px] font-bold text-gray-600 mt-1">Consistency momentum logged successfully.</p>
-                      </div>
-                    </div>
-                    {completedAt && (
-                      <span className="text-[8px] font-black bg-[#0E7850]/15 text-[#0E7850] px-2 py-1 rounded-lg uppercase tracking-wider flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Micro Decision Selected Highlight Column */}
-                  {proofSelection && (
-                    <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm relative overflow-hidden group">
-                      <div className="absolute right-0 top-0 translate-x-2 -translate-y-2 w-16 h-16 bg-[#0E7850]/5 rounded-full blur-xl pointer-events-none"></div>
-                      <span className="px-2 py-0.5 bg-primary/10 text-primary text-[8px] font-black uppercase tracking-[0.15em] rounded-md inline-block mb-3">Micro Decision Selected</span>
-                      <p className="text-base font-black text-gray-900 leading-tight italic">
-                        "{proofSelection}"
+                      <h3 className="text-base font-black text-gray-900 uppercase tracking-wider">Day Locked</h3>
+                      <p className="text-xs text-gray-400 max-w-xs mt-1.5 leading-relaxed font-semibold">
+                        Complete previous days in your active workspace first to unlock this daily report.
                       </p>
                     </div>
-                  )}
+                  );
+                }
 
-                  {/* Submission Text Block */}
-                  {submission && (
-                    <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm relative overflow-hidden group">
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[8px] font-black uppercase tracking-[0.15em] rounded-md inline-block mb-3">Core Submission</span>
-                      <p className="text-sm font-black text-gray-855 leading-relaxed whitespace-pre-line">{submission}</p>
-                    </div>
-                  )}
-
-                  {/* Detailed Action Step Prompts & Answers */}
-                  {prompts.length > 0 && (
-                    <div className="space-y-4">
-                      <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.25em] px-1">Action Report Details</h4>
-                      
-                      {prompts.map((promptText, idx) => {
-                        if (!promptText || !promptText.trim()) return null;
-                        const answer = answers[idx] || "";
-                        
-                        // Check if answer is serialised tags array
-                        const isJsonTags = typeof answer === 'string' && answer.trim().startsWith('[') && answer.trim().endsWith(']');
-                        let parsedTags: string[] | null = null;
-                        if (isJsonTags) {
-                          try {
-                            const pTags = JSON.parse(answer);
-                            if (Array.isArray(pTags)) parsedTags = pTags;
-                          } catch(err) {}
-                        }
-
-                        return (
-                          <div key={idx} className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm space-y-3 relative">
-                            <div className="flex items-start gap-2.5">
-                              <span className="w-5 h-5 rounded-full bg-gray-50 flex items-center justify-center text-[10px] font-black text-gray-400 border border-gray-100">{idx + 1}</span>
-                              <p className="text-xs font-black text-gray-400 uppercase tracking-wider flex-1 mt-0.5 leading-normal">{promptText}</p>
-                            </div>
-
-                            <div className="border-l-2 border-[#0E7850]/70 pl-4 py-1 bg-gray-50/50 rounded-r-xl p-3">
-                              {parsedTags ? (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {parsedTags.map((tagValue, tagIdx) => (
-                                    <span key={tagIdx} className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black bg-[#0E7850]/10 text-[#0E7850] border border-[#0E7850]/10 uppercase tracking-widest">
-                                      {tagValue}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : answer ? (
-                                <p className="text-sm font-black text-gray-800 leading-relaxed">{answer}</p>
-                              ) : (
-                                <span className="text-xs text-gray-400 italic font-semibold">No response logged</span>
-                              )}
-                            </div>
+                if (!isCompleted) {
+                  return (
+                    <div className="space-y-6 animate-fade-in w-full max-w-2xl mx-auto mt-4">
+                      <div className="p-8 bg-white rounded-[2.5rem] border border-gray-155 shadow-sm space-y-5 text-left">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100 shadow-sm">
+                            <Zap className="w-5 h-5 text-amber-600" />
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Submission File attachment if existing */}
-                  {progressRecord?.submissionFileUrl && (
-                    <div className="p-4 bg-white rounded-2xl border border-gray-100 text-left flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                          <BookOpen className="w-4 h-4 text-indigo-600" />
+                          <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest leading-none">Present Day Task Active</h3>
                         </div>
-                        <div>
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0.5">Attachment Submitted</p>
-                          <p className="text-xs font-bold text-gray-800">Uploaded Evidence Doc</p>
+                        <div className="border-l-4 border-amber-200 pl-4 py-1">
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-1">Today's Focus Prompt</p>
+                          <p className="text-base font-black text-gray-900 leading-tight">
+                            {dayContent?.taskPrompt || "Check your current focus in the main workout view."}
+                          </p>
+                        </div>
+                        <div className="pt-2">
+                          <p className="text-sm text-gray-500 font-semibold leading-relaxed">
+                            You haven't completed this step yet. Return to your dashboard and select <span className="font-black text-[#0E7850]">Today's Focus</span> to execute and log your progress.
+                          </p>
                         </div>
                       </div>
-                      <a 
-                        href={progressRecord.submissionFileUrl} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="px-3 py-1.5 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-100 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
-                      >
-                        View Doc
-                      </a>
                     </div>
-                  )}
-                </div>
-              );
-            })()}
+                  );
+                }
+
+                // Rendering Day Report completed values
+                const prompts = dayContent?.taskPrompts || (dayContent?.taskPrompt ? [dayContent.taskPrompt] : []);
+                const answers = progressRecord?.answers || [];
+                const submission = progressRecord?.submission || "";
+                const proofSelection = progressRecord?.proofSelection || "";
+                const completedAt = progressRecord?.completedAt;
+
+                return (
+                  <div className="space-y-8 animate-fade-in w-full">
+                    {/* Progress Bar styled header exactly like SprintView Full Bleed */}
+                    <div className="w-full bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-[0.3em] text-[#0E7850]">
+                        <span className="flex items-center gap-2.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                          Day {selectedDay} Complete
+                        </span>
+                        {completedAt && (
+                          <span className="flex items-center gap-1.5 opacity-80 text-gray-500 font-bold">
+                            <Calendar className="w-3.5 h-3.5" />
+                            {new Date(completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        )}
+                      </div>
+                      <div className="w-full bg-emerald-500/10 rounded-full h-2 overflow-hidden shadow-inner">
+                        <div className="bg-emerald-500 h-full rounded-full w-full transition-all duration-500 ease-out" />
+                      </div>
+                      <p className="text-xs font-semibold text-gray-500">Your logged performance results have been successfully preserved in your personal archives.</p>
+                    </div>
+
+                    {/* Lesson Prep Section if present */}
+                    {dayContent?.lessonText && (
+                      <div className="p-6 md:p-8 bg-white rounded-[2rem] border border-gray-100 shadow-sm text-left relative">
+                        <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-[8px] font-black uppercase tracking-[0.2em] rounded-md inline-block mb-4 border border-indigo-100/50">Lesson Reading</span>
+                        <div className="text-gray-805 font-medium text-sm sm:text-base leading-relaxed">
+                          <FormattedText text={dayContent.lessonText} />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Micro Decision Selected Highlight Bar */}
+                    {proofSelection && (
+                      <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm text-left relative overflow-hidden group">
+                        <div className="absolute right-0 top-0 translate-x-2 -translate-y-2 w-16 h-16 bg-[#0E7850]/5 rounded-full blur-xl pointer-events-none"></div>
+                        <span className="px-2.5 py-1 bg-[#0E7850]/10 text-[#0E7850] text-[8px] font-black uppercase tracking-[0.15em] rounded-md inline-block mb-3 border border-[#0E7850]/10">Decision Lock</span>
+                        <p className="text-lg font-black text-gray-900 leading-tight italic">
+                          "{proofSelection}"
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Submission text if not multiple */}
+                    {submission && (!answers || answers.length === 0) && (
+                      <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm text-left relative overflow-hidden group">
+                        <span className="px-2.5 py-1 bg-gray-100 text-gray-500 text-[8px] font-black uppercase tracking-[0.15em] rounded-md inline-block mb-3 border border-gray-200/50">Core Submission</span>
+                        <p className="text-sm font-semibold text-gray-800 leading-relaxed whitespace-pre-line">{submission}</p>
+                      </div>
+                    )}
+
+                    {/* Detailed Action Steps content mapping */}
+                    {prompts.length > 0 && (
+                      <div className="space-y-6">
+                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] px-1">Action Report Details</h4>
+                        
+                        {prompts.map((promptText, idx) => {
+                          if (!promptText || !promptText.trim()) return null;
+                          const answer = answers[idx] || "";
+                          const inputType = dayContent?.taskInputTypes?.[idx] || '';
+
+                          // Check if it's a poll representation
+                          let pollOpts: string[] = [];
+                          if (dayContent?.taskPollOptions?.[idx]) {
+                            try {
+                              pollOpts = JSON.parse(dayContent.taskPollOptions[idx]);
+                            } catch (e) {}
+                          }
+                          pollOpts = pollOpts.filter(Boolean);
+                          const isPoll = inputType === 'poll' || pollOpts.length > 0;
+
+                          // Parse JSON answers if applicable
+                          let selectedOpts: string[] = [];
+                          try {
+                            if (answer && answer.trim().startsWith("[")) {
+                              selectedOpts = JSON.parse(answer);
+                            } else if (answer) {
+                              selectedOpts = [answer];
+                            }
+                          } catch (e) {}
+
+                          return (
+                            <div key={idx} className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm space-y-4 text-left relative">
+                              {/* Step Index Indicator */}
+                              <div className="flex items-center gap-2.5 border-b border-gray-50 pb-3">
+                                <span className="w-6 h-6 rounded-lg bg-[#0E7850]/10 text-[#0E7850] flex items-center justify-center text-[11px] font-black border border-[#0E7850]/15">
+                                  {idx + 1}
+                                </span>
+                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mt-0.5">Report step {idx + 1}</p>
+                              </div>
+
+                              {/* Task Notes from SprintView logic if present */}
+                              {dayContent?.taskNotes?.[idx] && (
+                                <div className="text-left border-l-4 border-emerald-500/20 pl-4 py-1.5 text-gray-600 font-semibold text-sm leading-relaxed">
+                                  <FormattedText text={dayContent.taskNotes[idx]} />
+                                </div>
+                              )}
+
+                              {/* Task Prompt styled exactly like SprintView */}
+                              <div className="text-gray-950 font-black text-base sm:text-lg md:text-xl leading-relaxed mt-2">
+                                <FormattedText text={promptText} />
+                              </div>
+
+                              {/* Task Footnote if present */}
+                              {dayContent?.taskFootnotes?.[idx] && (
+                                <div className="text-left text-emerald-600 font-bold text-xs sm:text-sm leading-relaxed">
+                                  <FormattedText text={dayContent.taskFootnotes[idx]} />
+                                </div>
+                              )}
+
+                              {/* Render Answer value nicely with no data string */}
+                              <div className="pt-2">
+                                {isPoll ? (
+                                  <div className="space-y-3.5">
+                                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">
+                                      📊 Poll Response
+                                    </p>
+                                    <div className="flex flex-wrap gap-2 w-full">
+                                      {pollOpts.map((opt, optIndex) => {
+                                        const isSel = selectedOpts.includes(opt);
+                                        return (
+                                          <span
+                                            key={optIndex}
+                                            className={`px-4 py-2.5 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-2 transition-all select-none ${
+                                              isSel 
+                                                ? "bg-[#0E7850]/10 border-[#0E7850]/35 text-[#0E7850] shadow-sm font-black" 
+                                                : "bg-gray-50/50 border-gray-150 text-gray-400 opacity-60 font-semibold"
+                                            }`}
+                                          >
+                                            {isSel ? (
+                                              <span className="w-1.5 h-1.5 rounded-full bg-[#0E7850] animate-pulse shrink-0"></span>
+                                            ) : (
+                                              <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0"></span>
+                                            )}
+                                            {opt}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                    {selectedOpts.length === 0 && (
+                                      <p className="text-xs text-gray-400 italic pl-1">No response selected for this poll card.</p>
+                                    )}
+                                  </div>
+                                ) : inputType === 'tags' || (answer && answer.trim().startsWith('[') && answer.trim().endsWith(']')) ? (
+                                  <div className="space-y-2">
+                                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">
+                                      🏷️ Tags Selection
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5 w-full">
+                                      {selectedOpts.map((tagValue, tagIdx) => (
+                                        <span key={tagIdx} className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-black bg-primary/10 text-primary border border-primary/10 uppercase tracking-widest">
+                                          {tagValue}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : answer && answer.trim().startsWith("{") && answer.trim().endsWith("}") ? (
+                                  <div className="space-y-2.5 w-full text-left font-semibold">
+                                    {(() => {
+                                      try {
+                                        const parsed = JSON.parse(answer);
+                                        return Object.entries(parsed).map(([lbl, ans], pidx) => (
+                                          <div key={pidx} className="flex flex-col gap-1 border-b border-gray-50 pb-2 last:border-0 last:pb-0 text-left">
+                                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black bg-primary/10 text-primary self-start uppercase tracking-wider">
+                                              🔎 {lbl}
+                                            </span>
+                                            <p className="text-gray-800 font-bold text-sm pl-1 mt-0.5">
+                                              {ans as string}
+                                            </p>
+                                          </div>
+                                        ));
+                                      } catch (e) {
+                                        return <p className="text-sm font-bold text-gray-800">{answer}</p>;
+                                      }
+                                    })()}
+                                  </div>
+                                ) : answer ? (
+                                  <div className="p-4 bg-gray-50/50 border border-gray-100/50 rounded-2xl">
+                                    <p className="text-sm font-semibold text-gray-800 leading-relaxed whitespace-pre-line">{answer}</p>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-gray-400 italic font-semibold">No response logged</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Submission File attachment if existing */}
+                    {progressRecord?.submissionFileUrl && (
+                      <div className="p-5 bg-white rounded-2xl border border-gray-100 text-left flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
+                            <BookOpen className="w-5 h-5 text-indigo-600" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0.5">Attachment Submitted</p>
+                            <p className="text-xs font-bold text-gray-900">Uploaded Evidence Doc</p>
+                          </div>
+                        </div>
+                        <a 
+                          href={progressRecord.submissionFileUrl} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm shadow-indigo-100"
+                        >
+                          View Doc
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         </div>
       )}

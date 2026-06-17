@@ -317,6 +317,7 @@ const EditIgniteModal: React.FC<{
 }> = ({ ignite, onClose, onSave, isSaving }) => {
   const [body, setBody] = useState(ignite.igniteBody || ignite.description || '');
   const [bgColor, setBgColor] = useState(ignite.igniteBgColor || '#6D28D9');
+  const [igniteDate, setIgniteDate] = useState(ignite.igniteDate || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -330,6 +331,7 @@ const EditIgniteModal: React.FC<{
       igniteBody: body,
       description: body,
       igniteBgColor: bgColor,
+      igniteDate: igniteDate || "",
     });
   };
 
@@ -394,6 +396,17 @@ const EditIgniteModal: React.FC<{
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">Live Date (Optional)</label>
+            <input 
+              type="date" 
+              value={igniteDate} 
+              onChange={e => setIgniteDate(e.target.value)} 
+              className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all mt-2" 
+            />
+            <p className="text-[10px] text-gray-400 font-extrabold mt-1.5 uppercase tracking-widest leading-none">Schedule this Ignite to go live on a specific day. If left blank, it comes live immediately.</p>
           </div>
         </div>
       </div>

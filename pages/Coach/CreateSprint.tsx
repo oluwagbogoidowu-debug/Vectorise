@@ -219,6 +219,7 @@ const CreateSprint: React.FC = () => {
     // Ignite State
     const [igniteBody, setIgniteBody] = useState('');
     const [igniteBgColor, setIgniteBgColor] = useState('#6D28D9');
+    const [igniteDate, setIgniteDate] = useState('');
     const [isPreviewingIgnite, setIsPreviewingIgnite] = useState(false);
     const [isSubmittingIgnite, setIsSubmittingIgnite] = useState(false);
 
@@ -279,6 +280,7 @@ const CreateSprint: React.FC = () => {
             contentType: 'ignite',
             igniteBody: igniteBody,
             igniteBgColor: igniteBgColor,
+            igniteDate: igniteDate || undefined,
             coverImageUrl: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80',
             duration: 1,
             price: 0,
@@ -892,6 +894,17 @@ const CreateSprint: React.FC = () => {
                                                 </button>
                                             ))}
                                         </div>
+                                    </div>
+
+                                    <div>
+                                        <label className={labelClasses}>Live Date (Optional)</label>
+                                        <input 
+                                            type="date" 
+                                            value={igniteDate} 
+                                            onChange={e => setIgniteDate(e.target.value)} 
+                                            className={inputClasses + " mt-2"} 
+                                        />
+                                        <p className="text-[10px] text-gray-400 font-extrabold mt-1.5 uppercase tracking-widest leading-none">Schedule this Ignite to go live on a specific day. If left blank, it comes live immediately.</p>
                                     </div>
                                 </div>
 

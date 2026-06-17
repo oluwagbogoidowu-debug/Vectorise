@@ -267,6 +267,7 @@ export interface Sprint {
   blogImage?: string;
   igniteBody?: string;
   igniteBgColor?: string;
+  igniteDate?: string; // Format: YYYY-MM-DD
 }
 
 export interface DailyContent {
