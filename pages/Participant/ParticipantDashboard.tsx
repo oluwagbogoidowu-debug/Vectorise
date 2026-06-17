@@ -85,6 +85,7 @@ const ParticipantDashboard: React.FC = () => {
   const [showInviteBanner, setShowInviteBanner] = useState(false);
   const [ignitePosts, setIgnitePosts] = useState<Sprint[]>([]);
   const [activePlayIgnite, setActivePlayIgnite] = useState<Sprint | null>(null);
+  const [showPulse, setShowPulse] = useState(false);
 
   // Load published ignites
   useEffect(() => {
@@ -250,6 +251,8 @@ const ParticipantDashboard: React.FC = () => {
 
   const tasksReady = activeSprintsData.filter(item => !item.status.isLocked);
   const mainTask = tasksReady[0] || activeSprintsData[0];
+  const hasActiveSprints = mySprints.length > 0;
+  const allTasksDoneToday = hasActiveSprints && tasksReady.length === 0;
 
   useEffect(() => {
     if (mainTask?.status?.isLocked && mainTask.status.unlockTime) {
@@ -264,6 +267,27 @@ const ParticipantDashboard: React.FC = () => {
         }
     }
   }, [mainTask, now]);
+
+  const isStepUpLocked = hasActiveSprints && tasksReady.length > 0;
+
+  useEffect(() => {
+    if (hasActiveSprints && tasksReady.length === 0) {
+      const currentDayKey = mainTask ? `${mainTask.enrollment.id}_${mainTask.enrollment.progress?.length || 0}` : 'generic';
+      const sessionKey = `unlocked_pulse_seen_${currentDayKey}`;
+      const seen = sessionStorage.getItem(sessionKey);
+      
+      if (!seen) {
+        setShowPulse(true);
+        const timer = setTimeout(() => {
+          setShowPulse(false);
+          sessionStorage.setItem(sessionKey, 'true');
+        }, 6500);
+        return () => clearTimeout(timer);
+      }
+    } else {
+      setShowPulse(false);
+    }
+  }, [hasActiveSprints, tasksReady.length, mainTask]);
   
   const isNoProgress = useMemo(() => {
       const completedEvents = allEnrollments.filter(e => e.status === 'completed' || e.progress?.every(p => p.completed));
@@ -307,9 +331,6 @@ const ParticipantDashboard: React.FC = () => {
 
   const isMainTaskLocked = mainTask?.status?.isLocked;
   const mainTaskProgress = mainTask ? Math.round(((mainTask.enrollment?.progress?.filter(p => p.completed).length || 0) / (mainTask.sprint?.duration || 1)) * 100) : 0;
-
-  const hasActiveSprints = mySprints.length > 0;
-  const allTasksDoneToday = hasActiveSprints && tasksReady.length === 0;
 
   const cardState = useMemo(() => {
     if (allEnrollments.length === 0 || allEnrollments.every(e => e.status === 'queued')) {
@@ -411,63 +432,63 @@ const ParticipantDashboard: React.FC = () => {
             )}
             
             <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                <div className={`py-5 px-3 md:py-6.5 md:px-4 rounded-[1.3rem] flex flex-col items-center justify-center text-center gap-2 relative overflow-hidden transition-transform active:scale-[0.98] ${
+                <div className={`py-3 px-3 md:py-4 md:px-4 rounded-[1.3rem] flex flex-row items-center justify-center gap-2.5 relative overflow-hidden transition-transform active:scale-[0.98] ${
                     cardState === 'well_done' || cardState === 'task_ready'
                     ? 'bg-[#0E7850] text-white shadow-lg'
                     : 'bg-[#159E6A] text-white shadow-lg'
                 }`}>
                     {cardState === 'well_done' && (
                         <>
-                            <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 text-white shadow-sm border border-white/10">
+                            <div className="w-7 h-7 md:w-8 md:h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 text-white shadow-sm border border-white/10">
                                 <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in text-center">
+                            <div className="relative z-10 min-w-0 animate-fade-in">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    Well<br/>done
+                                    Well done
                                 </p>
                             </div>
                         </>
                     )}
                     {cardState === 'start_rising' && (
                         <>
-                            <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                            <div className="w-7 h-7 md:w-8 md:h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
                                 <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in text-center">
+                            <div className="relative z-10 min-w-0 animate-fade-in">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    Start<br/>Rising
+                                    Start Rising
                                 </p>
                             </div>
                         </>
                     )}
                     {cardState === 'keep_rising' && (
                         <>
-                            <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                            <div className="w-7 h-7 md:w-8 md:h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
                                 <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in text-center">
+                            <div className="relative z-10 min-w-0 animate-fade-in">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    Keep<br/>Rising
+                                    Keep Rising
                                 </p>
                             </div>
                         </>
                     )}
                     {cardState === 'task_ready' && (
                         <>
-                            <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                            <div className="w-7 h-7 md:w-8 md:h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
                                 <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in text-center">
+                            <div className="relative z-10 min-w-0 animate-fade-in">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    Task<br/>Ready
+                                    Task Ready
                                 </p>
                             </div>
                         </>
@@ -475,7 +496,7 @@ const ParticipantDashboard: React.FC = () => {
                     <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                 </div>
 
-                <Link to="/growth" className="bg-white border border-gray-100 py-5 px-3 md:py-6.5 md:px-4 rounded-[1.3rem] shadow-sm flex items-center justify-center gap-3 hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
+                <Link to="/growth" className="bg-white border border-gray-100 py-3 px-3 md:py-4 md:px-4 rounded-[1.3rem] shadow-sm flex items-center justify-center gap-3 hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
                     <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100 group-hover:bg-primary/5 transition-colors flex-shrink-0">
                         <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-[#0E7850]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -651,14 +672,36 @@ const ParticipantDashboard: React.FC = () => {
                             -ms-overflow-style: none;
                             scrollbar-width: none;
                         }
+                        @keyframes unlockPulse {
+                            0%, 100% {
+                                opacity: 1;
+                                filter: grayscale(0%) saturate(100%);
+                            }
+                            50% {
+                                opacity: 0.45;
+                                filter: grayscale(40%) saturate(30%);
+                            }
+                        }
+                        .animate-unlock-pulse-card {
+                            animation: unlockPulse 1.8s ease-in-out infinite;
+                        }
                     `}</style>
-                    <div className="mb-2 px-1">
+                    <div className="mb-2 px-1 flex justify-between items-center">
                         <p className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] leading-none">Step up your Rise</p>
+                        {isStepUpLocked && (
+                            <span className="text-[7.5px] font-black text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded uppercase tracking-[0.15em] flex items-center gap-1 select-none animate-fade-in">
+                                <svg className="w-2.5 h-2.5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                </svg>
+                                Locked until Daily Action Complete
+                            </span>
+                        )}
                     </div>
                     <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory no-scrollbar relative">
                         {/* 1. Read Ignite - Standard flowing square card */}
                         <div 
                             onClick={() => {
+                                if (isStepUpLocked) return;
                                 // Play recent ignite post or fallback preset
                                 if (ignitePosts && ignitePosts.length > 0) {
                                     setActivePlayIgnite(ignitePosts[0]);
@@ -675,38 +718,52 @@ const ParticipantDashboard: React.FC = () => {
                                     } as any);
                                 }
                             }}
-                            className="flex-shrink-0 w-24 h-24 bg-gradient-to-br from-[#6D28D9] to-[#4F46E5] border border-violet-500/10 rounded-[1.5rem] shadow-sm hover:scale-[1.02] cursor-pointer transition-all duration-300 relative overflow-hidden flex items-center justify-center p-3 select-none text-center snap-start"
+                            className={`flex-shrink-0 w-20 h-20 bg-gradient-to-br from-[#6D28D9] to-[#4F46E5] border border-violet-500/10 rounded-[1.2rem] shadow-sm select-none text-center snap-start transition-all duration-300 relative overflow-hidden flex items-center justify-center p-2.5 ${
+                                isStepUpLocked 
+                                ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
+                                : 'hover:scale-[1.02] cursor-pointer'
+                            } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                         >
-                            <span className="text-[10px] font-black text-white tracking-wider uppercase leading-tight select-none">
+                            <span className="text-[9px] font-black text-white tracking-wider uppercase leading-tight select-none">
                                 Read Ignite
                             </span>
                         </div>
 
                         {/* 2. Revisit your Rise */}
                         <Link 
-                            to="/profile/archive" 
-                            className="flex-shrink-0 w-60 h-24 bg-white border border-gray-100 rounded-[1.5rem] px-5 shadow-sm hover:shadow-md hover:border-[#0E7850]/20 cursor-pointer transition-all duration-300 flex items-center gap-3.5 group snap-start animate-fade-in"
+                            to={isStepUpLocked ? "#" : "/profile/archive"} 
+                            onClick={(e) => isStepUpLocked && e.preventDefault()}
+                            className={`flex-shrink-0 w-52 h-20 bg-white border border-gray-100 rounded-[1.2rem] px-4 shadow-sm transition-all duration-300 flex items-center gap-3 group snap-start animate-fade-in ${
+                                isStepUpLocked 
+                                ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
+                                : 'hover:shadow-md hover:border-[#0E7850]/20 cursor-pointer'
+                            } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                         >
-                            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-indigo-100/50 group-hover:scale-105 transition-transform duration-300">
-                                <History className="w-5 h-5" />
+                            <div className="w-8.5 h-8.5 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-indigo-100/50 group-hover:scale-105 transition-transform duration-300">
+                                <History className="w-4.5 h-4.5" />
                             </div>
                             <div className="min-w-0">
-                                <h4 className="text-sm font-black text-gray-950 tracking-tight leading-none group-hover:text-[#0E7850] transition-colors">Revisit your Rise</h4>
+                                <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-none group-hover:text-[#0E7850] transition-colors">Revisit your Rise</h4>
                             </div>
                         </Link>
 
                         {/* 3. Become a Catalyst */}
                         <Link 
-                            to="/impact" 
-                            className="flex-shrink-0 w-60 h-24 bg-emerald-50/40 border border-emerald-100/75 p-5 rounded-[1.5rem] shadow-sm hover:shadow-md hover:border-emerald-200/95 cursor-pointer transition-all duration-100 flex items-center gap-3.5 group snap-start animate-fade-in"
+                            to={isStepUpLocked ? "#" : "/impact"} 
+                            onClick={(e) => isStepUpLocked && e.preventDefault()}
+                            className={`flex-shrink-0 w-52 h-20 bg-emerald-50/40 border border-emerald-100/75 px-4 rounded-[1.2rem] shadow-sm transition-all duration-100 flex items-center gap-3 group snap-start animate-fade-in ${
+                                isStepUpLocked 
+                                ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
+                                : 'hover:shadow-md hover:border-emerald-200/95 cursor-pointer'
+                            } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                         >
-                            <div className="w-10 h-10 bg-[#0E7850]/10 rounded-xl flex items-center justify-center text-[#0E7850] flex-shrink-0 shadow-sm border border-[#0E7850]/10 group-hover:scale-105 transition-transform duration-300">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="w-8.5 h-8.5 bg-[#0E7850]/10 rounded-lg flex items-center justify-center text-[#0E7850] flex-shrink-0 shadow-sm border border-[#0E7850]/10 group-hover:scale-105 transition-transform duration-300">
+                                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                             </div>
                             <div className="min-w-0">
-                                <h4 className="text-sm font-black text-gray-950 tracking-tight leading-none group-hover:text-[#0E7850] transition-colors">Become a Catalyst</h4>
+                                <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-none group-hover:text-[#0E7850] transition-colors">Become a Catalyst</h4>
                             </div>
                         </Link>
                     </div>
