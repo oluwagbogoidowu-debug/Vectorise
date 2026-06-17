@@ -655,73 +655,60 @@ const ParticipantDashboard: React.FC = () => {
                     <div className="mb-2 px-1">
                         <p className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] leading-none">Step up your Rise</p>
                     </div>
-                    <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory no-scrollbar">
-                        {/* 1. Revisit your rise */}
-                        <Link 
-                            to="/profile/archive" 
-                            className="flex-shrink-0 w-44 h-40 bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm hover:shadow-md hover:border-[#0E7850]/20 cursor-pointer transition-all duration-300 relative overflow-hidden flex flex-col justify-between group snap-start animate-fade-in"
-                        >
-                            <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-16 h-16 bg-indigo-50/30 rounded-full blur-xl pointer-events-none group-hover:scale-125 transition-transform duration-500"></div>
-                            
-                            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm border border-indigo-100/50 group-hover:scale-105 transition-transform duration-300">
-                                <History className="w-5 h-5 animate-pulse" />
-                            </div>
-                            
-                            <div className="z-10 mt-3">
-                                <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-tight uppercase group-hover:text-[#0E7850] transition-colors leading-[1.1]">Revisit your rise</h4>
-                                <p className="text-[9px] text-gray-400 font-bold mt-1 tracking-wide uppercase">Historical Actions</p>
-                            </div>
-                        </Link>
-
-                        {/* 2. Read Ignite */}
-                        <div 
-                            onClick={() => {
-                                // Play recent ignite post or fallback preset
-                                if (ignitePosts && ignitePosts.length > 0) {
-                                    setActivePlayIgnite(ignitePosts[0]);
-                                } else {
-                                    setActivePlayIgnite({
-                                        id: 'default_ignite',
-                                        title: 'Ignite Post',
-                                        description: 'Daily Spark.',
-                                        igniteBgColor: '#6D28D9',
-                                        igniteBody: "Consistency is not about perfection. It’s about returning to the practice day after day.\n\n" +
-                                                    "Step up your Rise. Unlocking your potential starts with microscopic daily decisions.\n\n" +
-                                                    "Be the Catalyst. Your momentum is contagious, inspire your circle to act.\n\n" +
-                                                    "The secret to growing is to never grow alone. Bring others along and lift everyone together."
-                                    } as any);
-                                }
-                            }}
-                            className="flex-shrink-0 w-44 h-40 bg-gradient-to-br from-[#6D28D9] to-[#4F46E5] border border-violet-500/10 rounded-[2rem] p-5 shadow-sm hover:scale-[1.02] cursor-pointer transition-all duration-300 relative overflow-hidden flex flex-col justify-between group snap-start animate-fade-in"
-                        >
-                            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/5 rounded-full blur-2xl pointer-events-none group-hover:scale-110 transition-transform duration-500"></div>
-                            
-                            <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center text-white flex-shrink-0 border border-white/10 group-hover:scale-105 transition-transform duration-300">
-                                <Sparkles className="w-5 h-5 text-white" />
-                            </div>
-                            
-                            <div className="z-10 mt-3">
-                                <h4 className="text-[13px] font-black text-white tracking-tight leading-tight uppercase">Read Ignite</h4>
-                                <p className="text-[9px] text-white/70 font-bold mt-1 tracking-wide uppercase">Daily Sparks</p>
+                    <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory no-scrollbar relative">
+                        {/* 1. Read Ignite - Sticky/Fixed Left Square card */}
+                        <div className="sticky left-0 z-10 bg-[#FDFDFD] pr-3 flex-shrink-0">
+                            <div 
+                                onClick={() => {
+                                    // Play recent ignite post or fallback preset
+                                    if (ignitePosts && ignitePosts.length > 0) {
+                                        setActivePlayIgnite(ignitePosts[0]);
+                                    } else {
+                                        setActivePlayIgnite({
+                                            id: 'default_ignite',
+                                            title: 'Ignite Post',
+                                            description: 'Daily Spark.',
+                                            igniteBgColor: '#6D28D9',
+                                            igniteBody: "Consistency is not about perfection. It’s about returning to the practice day after day.\n\n" +
+                                                        "Step up your Rise. Unlocking your potential starts with microscopic daily decisions.\n\n" +
+                                                        "Be the Catalyst. Your momentum is contagious, inspire your circle to act.\n\n" +
+                                                        "The secret to growing is to never grow alone. Bring others along and lift everyone together."
+                                        } as any);
+                                    }
+                                }}
+                                className="w-24 h-24 bg-gradient-to-br from-[#6D28D9] to-[#4F46E5] border border-violet-500/10 rounded-[1.5rem] shadow-sm hover:scale-[1.02] cursor-pointer transition-all duration-300 relative overflow-hidden flex items-center justify-center p-3 select-none text-center"
+                            >
+                                <span className="text-[10px] font-black text-white tracking-wider uppercase leading-tight select-none">
+                                    Read Ignite
+                                </span>
                             </div>
                         </div>
+
+                        {/* 2. Revisit your Rise */}
+                        <Link 
+                            to="/profile/archive" 
+                            className="flex-shrink-0 w-60 h-24 bg-white border border-gray-100 rounded-[1.5rem] px-5 shadow-sm hover:shadow-md hover:border-[#0E7850]/20 cursor-pointer transition-all duration-300 flex items-center gap-3.5 group snap-start animate-fade-in"
+                        >
+                            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-indigo-100/50 group-hover:scale-105 transition-transform duration-300">
+                                <History className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                                <h4 className="text-sm font-black text-gray-950 tracking-tight leading-none group-hover:text-[#0E7850] transition-colors">Revisit your Rise</h4>
+                            </div>
+                        </Link>
 
                         {/* 3. Become a Catalyst */}
                         <Link 
                             to="/impact" 
-                            className="flex-shrink-0 w-44 h-40 bg-emerald-50/40 border border-emerald-100/75 p-5 rounded-[2rem] shadow-sm hover:shadow-md hover:border-emerald-200/95 cursor-pointer transition-all duration-100 relative overflow-hidden flex flex-col justify-between group snap-start animate-fade-in"
+                            className="flex-shrink-0 w-60 h-24 bg-emerald-50/40 border border-emerald-100/75 p-5 rounded-[1.5rem] shadow-sm hover:shadow-md hover:border-emerald-200/95 cursor-pointer transition-all duration-100 flex items-center gap-3.5 group snap-start animate-fade-in"
                         >
-                            <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-16 h-16 bg-[#0E7850]/5 rounded-full blur-xl pointer-events-none group-hover:scale-125 transition-transform duration-500"></div>
-                            
-                            <div className="w-10 h-10 bg-[#0E7850]/10 rounded-2xl flex items-center justify-center text-[#0E7850] flex-shrink-0 shadow-sm border border-[#0E7850]/10 group-hover:scale-105 transition-transform duration-300">
+                            <div className="w-10 h-10 bg-[#0E7850]/10 rounded-xl flex items-center justify-center text-[#0E7850] flex-shrink-0 shadow-sm border border-[#0E7850]/10 group-hover:scale-105 transition-transform duration-300">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                             </div>
-                            
-                            <div className="z-10 mt-3">
-                                <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-tight uppercase group-hover:text-[#0E7850] transition-colors">Become a Catalyst</h4>
-                                <p className="text-[9px] text-gray-400 font-bold mt-1 tracking-wide uppercase">Share the rise</p>
+                            <div className="min-w-0">
+                                <h4 className="text-sm font-black text-gray-950 tracking-tight leading-none group-hover:text-[#0E7850] transition-colors">Become a Catalyst</h4>
                             </div>
                         </Link>
                     </div>
