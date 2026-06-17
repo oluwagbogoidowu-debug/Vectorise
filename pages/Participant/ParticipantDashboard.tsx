@@ -11,7 +11,7 @@ import { pushNotificationService } from '../../services/pushNotificationService'
 import { toast } from 'sonner';
 import { db } from '../../services/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { X } from 'lucide-react';
+import { X, History, Sparkles } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { ARCHETYPES } from '../../constants';
@@ -83,6 +83,22 @@ const ParticipantDashboard: React.FC = () => {
   const [activeSlide, setActiveSlide] = useState<'timer' | 'days'>('timer');
   const [dashboardReferrals, setDashboardReferrals] = useState<Referral[]>([]);
   const [showInviteBanner, setShowInviteBanner] = useState(false);
+  const [ignitePosts, setIgnitePosts] = useState<Sprint[]>([]);
+  const [activePlayIgnite, setActivePlayIgnite] = useState<Sprint | null>(null);
+
+  // Load published ignites
+  useEffect(() => {
+    const fetchIgnites = async () => {
+      try {
+        const published = await sprintService.getPublishedSprints();
+        const ignites = published.filter(s => s.contentType === 'ignite');
+        setIgnitePosts(ignites);
+      } catch (err) {
+        console.error("Failed to load ignites", err);
+      }
+    };
+    fetchIgnites();
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -620,25 +636,88 @@ const ParticipantDashboard: React.FC = () => {
 
             {isAfterDay1OfFirstSprint && (
                 <div className="mb-8">
+                    <style>{`
+                        .no-scrollbar::-webkit-scrollbar {
+                            display: none;
+                        }
+                        .no-scrollbar {
+                            -ms-overflow-style: none;
+                            scrollbar-width: none;
+                        }
+                    `}</style>
                     <div className="mb-2 px-1">
                         <p className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] leading-none">Step up your Rise</p>
                     </div>
-                    <Link to="/impact" className="block group animate-fade-in">
-                        <div className="bg-emerald-50/30 border border-emerald-100/75 p-5 rounded-[1.8rem] flex items-center gap-4 relative overflow-hidden hover:shadow-md hover:border-emerald-200/90 transition-all duration-300">
-                            <div className="w-10 h-10 bg-[#0E7850]/10 rounded-2xl flex items-center justify-center text-[#0E7850] flex-shrink-0 shadow-sm border border-[#0E7850]/10 group-hover:scale-110 transition-transform duration-300">
+                    <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory no-scrollbar">
+                        {/* 1. Revisit your rise */}
+                        <Link 
+                            to="/profile/archive" 
+                            className="flex-shrink-0 w-44 h-40 bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm hover:shadow-md hover:border-[#0E7850]/20 cursor-pointer transition-all duration-300 relative overflow-hidden flex flex-col justify-between group snap-start animate-fade-in"
+                        >
+                            <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-16 h-16 bg-indigo-50/30 rounded-full blur-xl pointer-events-none group-hover:scale-125 transition-transform duration-500"></div>
+                            
+                            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm border border-indigo-100/50 group-hover:scale-105 transition-transform duration-300">
+                                <History className="w-5 h-5 animate-pulse" />
+                            </div>
+                            
+                            <div className="z-10 mt-3">
+                                <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-tight uppercase group-hover:text-[#0E7850] transition-colors leading-[1.1]">Revisit your rise</h4>
+                                <p className="text-[9px] text-gray-400 font-bold mt-1 tracking-wide uppercase">Historical Actions</p>
+                            </div>
+                        </Link>
+
+                        {/* 2. Read Ignite */}
+                        <div 
+                            onClick={() => {
+                                // Play recent ignite post or fallback preset
+                                if (ignitePosts && ignitePosts.length > 0) {
+                                    setActivePlayIgnite(ignitePosts[0]);
+                                } else {
+                                    setActivePlayIgnite({
+                                        id: 'default_ignite',
+                                        title: 'Ignite Post',
+                                        description: 'Daily Spark.',
+                                        igniteBgColor: '#6D28D9',
+                                        igniteBody: "Consistency is not about perfection. It’s about returning to the practice day after day.\n\n" +
+                                                    "Step up your Rise. Unlocking your potential starts with microscopic daily decisions.\n\n" +
+                                                    "Be the Catalyst. Your momentum is contagious, inspire your circle to act.\n\n" +
+                                                    "The secret to growing is to never grow alone. Bring others along and lift everyone together."
+                                    } as any);
+                                }
+                            }}
+                            className="flex-shrink-0 w-44 h-40 bg-gradient-to-br from-[#6D28D9] to-[#4F46E5] border border-violet-500/10 rounded-[2rem] p-5 shadow-sm hover:scale-[1.02] cursor-pointer transition-all duration-300 relative overflow-hidden flex flex-col justify-between group snap-start animate-fade-in"
+                        >
+                            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/5 rounded-full blur-2xl pointer-events-none group-hover:scale-110 transition-transform duration-500"></div>
+                            
+                            <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center text-white flex-shrink-0 border border-white/10 group-hover:scale-105 transition-transform duration-300">
+                                <Sparkles className="w-5 h-5 text-white" />
+                            </div>
+                            
+                            <div className="z-10 mt-3">
+                                <h4 className="text-[13px] font-black text-white tracking-tight leading-tight uppercase">Read Ignite</h4>
+                                <p className="text-[9px] text-white/70 font-bold mt-1 tracking-wide uppercase">Daily Sparks</p>
+                            </div>
+                        </div>
+
+                        {/* 3. Become a Catalyst */}
+                        <Link 
+                            to="/impact" 
+                            className="flex-shrink-0 w-44 h-40 bg-emerald-50/40 border border-emerald-100/75 p-5 rounded-[2rem] shadow-sm hover:shadow-md hover:border-emerald-200/95 cursor-pointer transition-all duration-100 relative overflow-hidden flex flex-col justify-between group snap-start animate-fade-in"
+                        >
+                            <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 w-16 h-16 bg-[#0E7850]/5 rounded-full blur-xl pointer-events-none group-hover:scale-125 transition-transform duration-500"></div>
+                            
+                            <div className="w-10 h-10 bg-[#0E7850]/10 rounded-2xl flex items-center justify-center text-[#0E7850] flex-shrink-0 shadow-sm border border-[#0E7850]/10 group-hover:scale-105 transition-transform duration-300">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[13px] md:text-sm font-black text-[#0E7850]">You can become a Catalyst.</p>
-                                <p className="text-[11px] md:text-xs text-gray-500 font-medium mt-0.5 leading-relaxed">
-                                    Step up your Rise
-                                </p>
+                            
+                            <div className="z-10 mt-3">
+                                <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-tight uppercase group-hover:text-[#0E7850] transition-colors">Become a Catalyst</h4>
+                                <p className="text-[9px] text-gray-400 font-bold mt-1 tracking-wide uppercase">Share the rise</p>
                             </div>
-                            <div className="absolute -right-8 -bottom-8 w-24 h-24 bg-[#0E7850]/5 rounded-full blur-2xl pointer-events-none"></div>
-                        </div>
-                    </Link>
+                        </Link>
+                    </div>
                 </div>
             )}
 
@@ -755,6 +834,115 @@ const ParticipantDashboard: React.FC = () => {
             onClose={() => setIsNextSprintModalOpen(false)}
           />
       )}
+      {activePlayIgnite && (
+        <IgnitePlayer 
+          text={activePlayIgnite.igniteBody || activePlayIgnite.description || ''}
+          bgColor={activePlayIgnite.igniteBgColor || '#6D28D9'}
+          onClose={() => setActivePlayIgnite(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+// Beautiful fullscreen immersive custom Ignite player
+const IgnitePlayer: React.FC<{
+  text: string;
+  bgColor: string;
+  onClose: () => void;
+}> = ({ text, bgColor, onClose }) => {
+  const slides = React.useMemo(() => {
+    return text.split(/\r?\n\s*\r?\n/).map(s => s.trim()).filter(Boolean);
+  }, [text]);
+
+  const activeSlides = slides.length > 0 ? slides : ["Type some inspiration to preview!"];
+  
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    setProgress(0);
+  }, [activeSlide]);
+
+  useEffect(() => {
+    const slideDuration = 4500; // 4.5 seconds per slide
+    const intervalTime = 50; // tick every 50ms
+    const step = (intervalTime / slideDuration) * 100;
+
+    const timer = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          setActiveSlide(curr => (curr + 1) % activeSlides.length);
+          return 0;
+        }
+        return prev + step;
+      });
+    }, intervalTime);
+
+    return () => clearInterval(timer);
+  }, [activeSlides.length, activeSlide]);
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveSlide(curr => (curr + 1) % activeSlides.length);
+  };
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveSlide(curr => (curr - 1 + activeSlides.length) % activeSlides.length);
+  };
+
+  return (
+    <div 
+      className="fixed inset-0 z-[400] flex flex-col justify-between p-6 select-none animate-fade-in text-white font-sans"
+      style={{ backgroundColor: bgColor }}
+    >
+      {/* Bars at the top */}
+      <div className="absolute top-6 left-6 right-6 flex gap-1 z-[410]">
+        {activeSlides.map((_, idx) => (
+          <div key={idx} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-white rounded-full"
+              style={{
+                width: idx < activeSlide ? '100%' : idx === activeSlide ? `${progress}%` : '0%',
+                transition: idx === activeSlide ? 'none' : 'width 0.05s linear'
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Close button */}
+      <button 
+        type="button"
+        onClick={onClose} 
+        className="absolute top-10 right-6 z-[420] bg-black/40 hover:bg-black/60 p-2.5 rounded-full transition-all text-white/90 font-bold active:scale-90 cursor-pointer"
+        title="Exit Fullscreen"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      {/* Main slide display - split clickable regions for left/right nav */}
+      <div className="relative flex-1 flex items-center justify-center px-4 md:px-12 my-12">
+        {/* Left click catcher */}
+        <div className="absolute left-0 top-0 bottom-0 w-1/3 cursor-w-resize" onClick={handlePrev} />
+        
+        {/* Main large text content */}
+        <p className="text-3xl md:text-5xl font-extrabold text-center leading-relaxed tracking-wide text-white drop-shadow-md whitespace-pre-wrap max-w-3xl pointer-events-none px-4 select-none animate-slide-up">
+          {activeSlides[activeSlide]}
+        </p>
+
+        {/* Right click catcher */}
+        <div className="absolute right-0 top-0 bottom-0 w-2/3 cursor-e-resize" onClick={handleNext} />
+      </div>
+
+      {/* Bottom info */}
+      <div className="flex justify-between items-center z-[410] px-4 font-black tracking-widest text-[10px] text-white/60 uppercase">
+        <span>Ignite Post</span>
+        <span>Slide {activeSlide + 1} of {activeSlides.length}</span>
+      </div>
     </div>
   );
 };
