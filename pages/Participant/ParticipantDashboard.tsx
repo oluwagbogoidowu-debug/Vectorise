@@ -487,8 +487,11 @@ const ParticipantDashboard: React.FC = () => {
             </div>
 
             <div className="flex justify-between items-end mb-6 px-1">
-                <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">
-                    {allTasksDoneToday ? (mainTask ? `Day ${mainTask.status.day - 1 || 1} Complete` : "Day 1 Complete") : "Today's Focus"}
+                <h2 className="text-lg md:text-xl font-black text-gray-900 tracking-tight">
+                    {cardState === 'start_rising' ? "First Move" :
+                     cardState === 'keep_rising' ? "Next Move" :
+                     allTasksDoneToday ? `Day ${mainTask ? (mainTask.status.isCompleted ? mainTask.sprint.duration : (mainTask.status.day - 1 || 1)) : 1} Done` :
+                     "Today's Focus"}
                 </h2>
                 <Link to="/my-sprints" className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] hover:opacity-80 transition-opacity mb-1">
                     View Journey
