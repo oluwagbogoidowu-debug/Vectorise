@@ -295,6 +295,18 @@ const ParticipantDashboard: React.FC = () => {
   const hasActiveSprints = mySprints.length > 0;
   const allTasksDoneToday = hasActiveSprints && tasksReady.length === 0;
 
+  const cardState = useMemo(() => {
+    if (allEnrollments.length === 0 || allEnrollments.every(e => e.status === 'queued')) {
+        return 'start_rising';
+    } else if (allEnrollments.length > 0 && mySprints.length === 0) {
+        return 'keep_rising';
+    } else if (hasActiveSprints && tasksReady.length === 0) {
+        return 'well_done';
+    } else {
+        return 'task_ready';
+    }
+  }, [allEnrollments, mySprints, hasActiveSprints, tasksReady]);
+
   const p = user as Participant;
   const currentArchetype = ARCHETYPES.find(a => a.id === p.archetype);
 
@@ -372,27 +384,64 @@ const ParticipantDashboard: React.FC = () => {
             )}
             
             <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                <div className="bg-[#0E7850] text-white p-3 md:p-4 rounded-[1.5rem] shadow-lg flex items-center gap-3 relative overflow-hidden transition-transform active:scale-[0.98]">
-                    {allTasksDoneToday ? (
+                <div className={`p-3 md:p-4 rounded-[1.5rem] flex items-center gap-3 relative overflow-hidden transition-transform active:scale-[0.98] ${
+                    cardState === 'well_done'
+                    ? 'bg-white border border-gray-100 shadow-sm text-[#0E7850]'
+                    : cardState === 'task_ready'
+                    ? 'bg-[#0E7850] text-white shadow-lg'
+                    : 'bg-[#159E6A] text-white shadow-lg'
+                }`}>
+                    {cardState === 'well_done' && (
                         <>
-                            <div className="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                                <span className="text-sm md:text-base leading-none">👏</span>
+                            <div className="w-8 h-8 md:w-10 md:h-10 bg-[#0E7850]/10 rounded-xl flex items-center justify-center flex-shrink-0 text-[#0E7850] shadow-sm border border-[#0E7850]/10">
+                                <svg className="w-4 h-4 md:w-5 md:h-5 text-[#0E7850]" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                </svg>
                             </div>
                             <div className="relative z-10 min-w-0 animate-fade-in">
-                                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] text-white leading-tight">
+                                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] text-[#0E7850] leading-tight">
                                     Well<br/>Done
                                 </p>
                             </div>
                         </>
-                    ) : (
+                    )}
+                    {cardState === 'start_rising' && (
                         <>
-                            <div className="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <div className="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                                <svg className="w-4 h-4 md:w-5 md:h-5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            </div>
+                            <div className="relative z-10 min-w-0 animate-fade-in">
+                                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] text-white leading-tight">
+                                    Start<br/>Rising
+                                </p>
+                            </div>
+                        </>
+                    )}
+                    {cardState === 'keep_rising' && (
+                        <>
+                            <div className="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                                <svg className="w-4 h-4 md:w-5 md:h-5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                </svg>
+                            </div>
+                            <div className="relative z-10 min-w-0 animate-fade-in">
+                                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] text-white leading-tight">
+                                    Keep<br/>Rising
+                                </p>
+                            </div>
+                        </>
+                    )}
+                    {cardState === 'task_ready' && (
+                        <>
+                            <div className="w-8 h-8 md:w-10 md:h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
                                 <svg className="w-4 h-4 md:w-5 md:h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0">
-                                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] opacity-70 leading-tight">
+                            <div className="relative z-10 min-w-0 animate-fade-in">
+                                <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] text-white leading-tight">
                                     Task<br/>Ready
                                 </p>
                             </div>
