@@ -234,7 +234,9 @@ const EditSprint: React.FC = () => {
       checkInReminderDays: 7,
       sprintType: 'Core' as 'Fundamentals' | 'Core' | 'Expert' | 'Foundational' | 'Execution' | 'Skill',
       description: '',
-      overrideOrchestrator: false
+      overrideOrchestrator: false,
+      versionNumber: 2,
+      versionTag: ''
   });
   const [previewType, setPreviewType] = useState<'card' | 'landing' | 'daily'>('daily');
   const [editSettings, setEditSettings] = useState<Partial<Sprint>>({});
@@ -1565,6 +1567,8 @@ const EditSprint: React.FC = () => {
       outcomeTag: editSettings.outcomeTag,
       checkInReminder: editSettings.checkInReminder || false,
       checkInReminderDays: editSettings.checkInReminderDays || 7,
+      versionNumber: editSettings.versionNumber ?? 1,
+      versionTag: editSettings.versionTag || ''
     };
 
     // Handle duration change by adjusting dailyContent array
@@ -1642,11 +1646,23 @@ const EditSprint: React.FC = () => {
     setEditSettings({ ...editSettings, dynamicSections: newSections });
   };
 
-  const handleInitiateAddVersion = () => {
-    if (!sprint) return;
+  const handleInitiateAddVersion = async () => {
+    if (!user || !sprint) return;
     if (sprint.parentSprintId) {
       alert("You can only create a version of a sprint from its true source.");
       return;
+    }
+
+    // Determine next version number based on sibling versions
+    let nextVersion = 2;
+    try {
+      const allCoachSprints = await sprintService.getCoachSprints(user.id);
+      const parentId = sprint.id; // Since we can only create a version from the true source
+      const siblingVersions = allCoachSprints.filter(s => s.parentSprintId === parentId || s.id === parentId);
+      const maxVersion = siblingVersions.reduce((max, s) => Math.max(max, s.versionNumber || 1), 1);
+      nextVersion = maxVersion + 1;
+    } catch (e) {
+      console.error("Error calculating next version:", e);
     }
     
     setVersionSettings({
@@ -1662,7 +1678,9 @@ const EditSprint: React.FC = () => {
       checkInReminderDays: sprint.checkInReminderDays || 7,
       sprintType: sprint.sprintType || 'Core',
       description: sprint.description || sprint.transformation || '',
-      overrideOrchestrator: sprint.overrideOrchestrator || false
+      overrideOrchestrator: sprint.overrideOrchestrator || false,
+      versionNumber: nextVersion,
+      versionTag: ''
     });
     setShowAddVersionFullBleed(true);
   };
@@ -1673,24 +1691,13 @@ const EditSprint: React.FC = () => {
     try {
       const newId = `sprint_${Date.now()}`;
       
-      // Determine next version number based on sibling versions
-      let nextVersion = 2;
-      try {
-        const allCoachSprints = await sprintService.getCoachSprints(user.id);
-        const parentId = sprint.id; // Since we can only create a version from the true source
-        const siblingVersions = allCoachSprints.filter(s => s.parentSprintId === parentId || s.id === parentId);
-        const maxVersion = siblingVersions.reduce((max, s) => Math.max(max, s.versionNumber || 1), 1);
-        nextVersion = maxVersion + 1;
-      } catch (e) {
-        console.error("Error calculating next version:", e);
-      }
-
       const newSprintObj: Sprint = {
         ...sprint,
         id: newId,
         parentSprintId: sprint.id,
         isVersion: true,
-        versionNumber: nextVersion,
+        versionNumber: versionSettings.versionNumber,
+        versionTag: versionSettings.versionTag || '',
         title: sprint.title,
         subtitle: sprint.subtitle,
         coverImageUrl: sprint.coverImageUrl,
@@ -1792,8 +1799,13 @@ const EditSprint: React.FC = () => {
               {!sprint.parentSprintId ? (
                 <div className="flex items-center gap-2">
                   <span className="text-[9px] font-black text-gray-500 bg-white border border-gray-150 px-3 py-1.5 rounded-xl uppercase tracking-widest">
-                    Version 1
+                    Version {sprint.versionNumber || 1}
                   </span>
+                  {sprint.versionTag && (
+                    <span className="px-3 py-1.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest">
+                      {sprint.versionTag}
+                    </span>
+                  )}
                   <button 
                     onClick={handleInitiateAddVersion}
                     className="group flex items-center gap-1.5 px-3.5 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all"
@@ -1807,6 +1819,11 @@ const EditSprint: React.FC = () => {
                   <span className="px-3.5 py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-xl text-[10px] font-black uppercase tracking-widest shrink-0">
                     Version {sprint.versionNumber || 2}
                   </span>
+                  {sprint.versionTag && (
+                    <span className="px-3.5 py-1.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest shrink-0">
+                      {sprint.versionTag}
+                    </span>
+                  )}
                   <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest hidden sm:inline-block">
                     (Locked Version)
                   </span>
@@ -3278,225 +3295,287 @@ const EditSprint: React.FC = () => {
             </div>
 
             {/* Editable Settings Fields */}
-            <div className="space-y-8">
-              <h3 className="text-[11px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-100 pb-3">Version Settings</h3>
+            <div className="space-y-16">
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                
-                {/* Duration */}
-                <div>
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Duration (Days)</label>
-                  <select 
-                    value={versionSettings.duration} 
-                    onChange={e => setVersionSettings({...versionSettings, duration: Number(e.target.value)})}
-                    className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all cursor-pointer"
-                  >
-                    {[3, 5, 7, 10, 14, 21, 30].map(d => <option key={d} value={d}>{d} Continuous Days</option>)}
-                  </select>
+              {/* 01 Version Profile */}
+              <section className="space-y-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">01</div>
+                  <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Version Profile</h4>
                 </div>
-
-                {/* Discovery Category */}
-                <div>
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Discovery Category</label>
-                  <select 
-                    value={versionSettings.category} 
-                    onChange={e => setVersionSettings({...versionSettings, category: e.target.value})}
-                    className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all cursor-pointer"
-                  >
-                    {ALL_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                  </select>
-                </div>
-
-                {/* Sprint Difficulty */}
-                <div>
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Difficulty</label>
-                  <select 
-                    value={versionSettings.difficulty} 
-                    onChange={e => setVersionSettings({...versionSettings, difficulty: e.target.value as any})}
-                    className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all cursor-pointer"
-                  >
-                    <option value="Beginner">Beginner</option>
-                    <option value="Intermediate">Intermediate</option>
-                    <option value="Advanced">Advanced</option>
-                  </select>
-                </div>
-
-                {/* Sprint Type */}
-                <div>
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Sprint Type</label>
-                  <select 
-                    value={versionSettings.sprintType} 
-                    onChange={e => setVersionSettings({...versionSettings, sprintType: e.target.value as any})}
-                    className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all cursor-pointer"
-                  >
-                    <option value="Fundamentals">Fundamentals</option>
-                    <option value="Core">Core</option>
-                    <option value="Expert">Expert</option>
-                  </select>
-                </div>
-
-                {/* Target Audience */}
-                <div className="md:col-span-2 relative">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Target Audience</label>
-                  <div 
-                    onClick={() => setIsAudienceDropdownOpen(!isAudienceDropdownOpen)}
-                    className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all cursor-pointer flex justify-between items-center"
-                  >
-                    <span className="text-gray-700 font-bold text-xs select-none">
-                      {versionSettings.audience && versionSettings.audience.length > 0 
-                        ? versionSettings.audience.join(", ") 
-                        : "Select target audience..."}
-                    </span>
-                    <span className="text-[10px] text-gray-400">▼</span>
-                  </div>
-                  {isAudienceDropdownOpen && (
-                    <>
-                      <div className="fixed inset-0 z-30" onClick={() => setIsAudienceDropdownOpen(false)}></div>
-                      <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-2xl shadow-xl z-40 p-2 flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
-                        {["Entrepreneur", "Business Owner", "Freelancer/Consultant", "9-5 Professional", "Student/Graduate", "Creative/Hustler"].map(opt => {
-                          const isSelected = versionSettings.audience?.includes(opt);
-                          return (
-                            <div 
-                              key={opt}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const currentAudience = versionSettings.audience || [];
-                                const updated = isSelected 
-                                  ? currentAudience.filter(x => x !== opt)
-                                  : [...currentAudience, opt];
-                                setVersionSettings(prev => ({ ...prev, audience: updated }));
-                              }}
-                              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer text-xs font-bold transition-all ${
-                                isSelected 
-                                  ? 'bg-primary/5 text-primary' 
-                                  : 'text-gray-600 hover:bg-gray-50'
-                              }`}
-                            >
-                              <input 
-                                type="checkbox" 
-                                checked={isSelected}
-                                onChange={() => {}}
-                                className="rounded border-gray-300 text-primary focus:ring-primary h-3.5 w-3.5"
-                              />
-                              <span>{opt}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* Pricing Type */}
-                <div>
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Pricing Type</label>
-                  <select 
-                    value={versionSettings.pricingType} 
-                    onChange={e => setVersionSettings({...versionSettings, pricingType: e.target.value as 'cash' | 'credits'})}
-                    className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all cursor-pointer"
-                  >
-                    <option value="cash">Cash (NGN/USD)</option>
-                    <option value="credits">Credits (Points)</option>
-                  </select>
-                </div>
-
-                {/* Price / points cost */}
-                {versionSettings.pricingType === 'credits' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Version Number */}
                   <div>
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Point Cost</label>
+                    <label className={labelClasses}>Version Number</label>
                     <input 
                       type="number" 
-                      value={versionSettings.pointCost} 
-                      onChange={e => setVersionSettings({...versionSettings, pointCost: Number(e.target.value)})}
-                      className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
-                      placeholder="0" 
+                      value={versionSettings.versionNumber} 
+                      onChange={e => setVersionSettings({...versionSettings, versionNumber: Math.max(1, Number(e.target.value))})}
+                      className={registryInputClasses + " mt-2"}
+                      placeholder="e.g. 2"
                     />
                   </div>
-                ) : (
+
+                  {/* Version Tag */}
                   <div>
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Proposed Price (NGN)</label>
+                    <label className={labelClasses}>Version Tag (Admins/Coaches See This)</label>
                     <input 
-                      type="number" 
-                      value={versionSettings.price} 
-                      onChange={e => setVersionSettings({...versionSettings, price: Number(e.target.value)})}
-                      className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
-                      placeholder="0" 
+                      type="text" 
+                      value={versionSettings.versionTag} 
+                      onChange={e => setVersionSettings({...versionSettings, versionTag: e.target.value})}
+                      className={registryInputClasses + " mt-2"}
+                      placeholder="e.g. Redesign, A/B Test, Marketing, v1-core"
                     />
                   </div>
-                )}
-
-                {/* Archive Outcome Tag */}
-                <div className="md:col-span-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Archive Outcome Tag</label>
-                  <select 
-                    value={versionSettings.outcomeTag} 
-                    onChange={e => setVersionSettings({...versionSettings, outcomeTag: e.target.value})} 
-                    className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
-                  >
-                    {OUTCOME_TAGS.map((tag: string) => (
-                      <option key={tag} value={tag}>{tag}</option>
-                    ))}
-                  </select>
                 </div>
+              </section>
 
-                {/* Sprint Description / Overview */}
-                <div className="md:col-span-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Sprint Description / Overview</label>
+              {/* 02 Sprint Overview */}
+              <section className="space-y-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">02</div>
+                  <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Sprint Overview</h4>
+                </div>
+                <div className="w-full">
+                  <label className={labelClasses}>Sprint Description / Overview</label>
                   <textarea
                     value={versionSettings.description}
                     onChange={e => setVersionSettings({...versionSettings, description: e.target.value})}
-                    className="w-full p-4 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all resize-none"
-                    rows={6}
+                    className="w-full p-5 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all resize-none mt-2"
+                    rows={8}
                     placeholder="Enter the comprehensive sprint description or overview..."
                   />
                 </div>
+              </section>
 
-                {/* Override Orchestrator */}
-                <div className="md:col-span-2 flex items-center justify-between p-5 bg-gray-50 border border-gray-100 rounded-2xl">
-                  <div>
-                    <label className="text-[10px] font-black text-gray-950 uppercase tracking-widest block mb-1">Override Orchestrator</label>
-                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Bypass recommended pathways and force inclusion in general Explore catalog</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setVersionSettings({...versionSettings, overrideOrchestrator: !versionSettings.overrideOrchestrator})}
-                    className={`w-12 h-6 rounded-full transition-all duration-300 relative ${versionSettings.overrideOrchestrator ? "bg-primary shadow-lg shadow-primary/20" : "bg-gray-200"}`}
-                  >
-                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${versionSettings.overrideOrchestrator ? "right-1" : "left-1"}`} />
-                  </button>
+              {/* 03 Metadata */}
+              <section className="space-y-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">03</div>
+                  <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Metadata</h4>
                 </div>
-
-                {/* Check in Reminders */}
-                <div className="md:col-span-2 flex items-center justify-between p-5 bg-gray-50 border border-gray-100 rounded-2xl">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Duration */}
                   <div>
-                    <label className="text-[10px] font-black text-gray-950 uppercase tracking-widest block mb-1">Daily Check-in Reminder</label>
-                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Enable to keep pushing reminders after completion</p>
+                    <label className={labelClasses}>Duration (Days)</label>
+                    <select 
+                      value={versionSettings.duration} 
+                      onChange={e => setVersionSettings({...versionSettings, duration: Number(e.target.value)})}
+                      className={registryInputClasses + " mt-2 cursor-pointer"}
+                    >
+                      {[3, 5, 7, 10, 14, 21, 30].map(d => <option key={d} value={d}>{d} Continuous Days</option>)}
+                    </select>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setVersionSettings({...versionSettings, checkInReminder: !versionSettings.checkInReminder})}
-                    className={`w-12 h-6 rounded-full transition-all duration-300 relative ${versionSettings.checkInReminder ? "bg-primary shadow-lg shadow-primary/20" : "bg-gray-200"}`}
-                  >
-                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${versionSettings.checkInReminder ? "right-1" : "left-1"}`} />
-                  </button>
+
+                  {/* Discovery Category */}
+                  <div>
+                    <label className={labelClasses}>Discovery Category</label>
+                    <select 
+                      value={versionSettings.category} 
+                      onChange={e => setVersionSettings({...versionSettings, category: e.target.value})}
+                      className={registryInputClasses + " mt-2 cursor-pointer"}
+                    >
+                      {ALL_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Sprint Difficulty */}
+                  <div>
+                    <label className={labelClasses}>Difficulty</label>
+                    <select 
+                      value={versionSettings.difficulty} 
+                      onChange={e => setVersionSettings({...versionSettings, difficulty: e.target.value as any})}
+                      className={registryInputClasses + " mt-2 cursor-pointer"}
+                    >
+                      <option value="Beginner">Beginner</option>
+                      <option value="Intermediate">Intermediate</option>
+                      <option value="Advanced">Advanced</option>
+                    </select>
+                  </div>
+
+                  {/* Sprint Type */}
+                  <div>
+                    <label className={labelClasses}>Sprint Type</label>
+                    <select 
+                      value={versionSettings.sprintType} 
+                      onChange={e => setVersionSettings({...versionSettings, sprintType: e.target.value as any})}
+                      className={registryInputClasses + " mt-2 cursor-pointer"}
+                    >
+                      <option value="Fundamentals">Fundamentals</option>
+                      <option value="Core">Core</option>
+                      <option value="Expert">Expert</option>
+                    </select>
+                  </div>
+
+                  {/* Target Audience */}
+                  <div className="md:col-span-2 relative">
+                    <label className={labelClasses}>Audience</label>
+                    <div 
+                      onClick={() => setIsAudienceDropdownOpen(!isAudienceDropdownOpen)}
+                      className={`${registryInputClasses} mt-2 cursor-pointer flex justify-between items-center bg-white border border-gray-100 px-4 py-2.5 rounded-xl`}
+                    >
+                      <span className="text-gray-700 font-bold text-xs select-none">
+                        {versionSettings.audience && versionSettings.audience.length > 0 
+                          ? versionSettings.audience.join(", ") 
+                          : "Select target audience..."}
+                      </span>
+                      <span className="text-[10px] text-gray-400">▼</span>
+                    </div>
+                    {isAudienceDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0 z-30" onClick={() => setIsAudienceDropdownOpen(false)}></div>
+                        <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-250 rounded-2xl shadow-xl z-40 p-2 flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
+                          {["Entrepreneur", "Business Owner", "Freelancer/Consultant", "9-5 Professional", "Student/Graduate", "Creative/Hustler"].map(opt => {
+                            const isSelected = versionSettings.audience?.includes(opt);
+                            return (
+                              <div 
+                                key={opt}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const currentAudience = versionSettings.audience || [];
+                                  const updated = isSelected 
+                                    ? currentAudience.filter(x => x !== opt)
+                                    : [...currentAudience, opt];
+                                  setVersionSettings(prev => ({ ...prev, audience: updated }));
+                                }}
+                                className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer text-xs font-bold transition-all ${
+                                  isSelected 
+                                    ? 'bg-primary/5 text-primary' 
+                                    : 'text-gray-600 hover:bg-gray-50'
+                                }`}
+                              >
+                                <input 
+                                  type="checkbox" 
+                                  checked={isSelected}
+                                  onChange={() => {}}
+                                  className="rounded border-gray-350 text-primary focus:ring-primary h-3.5 w-3.5"
+                                />
+                                <span>{opt}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Override Orchestrator */}
+                  <div className="md:col-span-2 flex items-center justify-between p-5 bg-[#F4F9F6] border border-emerald-500/10 rounded-2xl">
+                    <div>
+                      <label className="text-[11px] font-black text-gray-900 uppercase tracking-widest block mb-1">Override Orchestrator to appear in the Explore page</label>
+                      <p className="text-[10px] text-emerald-700/70 font-medium leading-relaxed">Force this sprint to bypass orchestrator assignment and appear in the Explore page.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setVersionSettings({...versionSettings, overrideOrchestrator: !versionSettings.overrideOrchestrator})}
+                      className={`w-12 h-6 rounded-full transition-all duration-300 relative shrink-0 ${versionSettings.overrideOrchestrator ? "bg-[#047857] shadow-lg shadow-emerald-500/10" : "bg-gray-200"}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${versionSettings.overrideOrchestrator ? "right-1" : "left-1"}`} />
+                    </button>
+                  </div>
                 </div>
+              </section>
 
-                {/* Check in Reminders Duration */}
-                {versionSettings.checkInReminder && (
-                  <div className="md:col-span-2 space-y-2">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block">Reminder Active Duration (Days)</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={30}
-                      value={versionSettings.checkInReminderDays}
-                      onChange={e => setVersionSettings({...versionSettings, checkInReminderDays: Math.max(1, Number(e.target.value))})}
-                      className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
-                    />
+              {/* 04 Pricing & Economy */}
+              <section className="space-y-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">04</div>
+                  <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Pricing & Economy</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Pricing Type */}
+                  <div>
+                    <label className={labelClasses}>Pricing Type</label>
+                    <select 
+                      value={versionSettings.pricingType} 
+                      onChange={e => setVersionSettings({...versionSettings, pricingType: e.target.value as 'cash' | 'credits'})}
+                      className={registryInputClasses + " mt-2 cursor-pointer"}
+                    >
+                      <option value="cash">Cash (NGN/USD)</option>
+                      <option value="credits">Credits (Points)</option>
+                    </select>
                   </div>
-                )}
 
-              </div>
+                  {/* Price / points cost */}
+                  {versionSettings.pricingType === 'credits' ? (
+                    <div>
+                      <label className={labelClasses}>Point Cost</label>
+                      <input 
+                        type="number" 
+                        value={versionSettings.pointCost} 
+                        onChange={e => setVersionSettings({...versionSettings, pointCost: Number(e.target.value)})}
+                        className={registryInputClasses + " mt-2"}
+                        placeholder="0" 
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className={labelClasses}>Proposed Price (NGN)</label>
+                      <input 
+                        type="number" 
+                        value={versionSettings.price} 
+                        onChange={e => setVersionSettings({...versionSettings, price: Number(e.target.value)})}
+                        className={registryInputClasses + " mt-2"}
+                        placeholder="0" 
+                      />
+                    </div>
+                  )}
+
+                  {/* Archive Outcome Tag */}
+                  <div className="md:col-span-2">
+                    <label className={labelClasses}>Archive Outcome Tag</label>
+                    <select 
+                      value={versionSettings.outcomeTag} 
+                      onChange={e => setVersionSettings({...versionSettings, outcomeTag: e.target.value})} 
+                      className={registryInputClasses + " mt-2 cursor-pointer"}
+                    >
+                      {OUTCOME_TAGS.map((tag: string) => (
+                        <option key={tag} value={tag}>{tag}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </section>
+
+              {/* 05 Engagement Settings */}
+              <section className="space-y-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">05</div>
+                  <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Engagement Settings</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Check in Reminders */}
+                  <div className="md:col-span-2 flex items-center justify-between p-5 bg-gray-50 border border-gray-100 rounded-2xl">
+                    <div>
+                      <label className="text-[11px] font-black text-gray-900 uppercase tracking-widest block mb-1">Daily Check-in Reminder</label>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Enable to keep pushing reminders after completion</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setVersionSettings({...versionSettings, checkInReminder: !versionSettings.checkInReminder})}
+                      className={`w-12 h-6 rounded-full transition-all duration-300 relative shrink-0 ${versionSettings.checkInReminder ? "bg-primary shadow-lg shadow-primary/20" : "bg-gray-200"}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${versionSettings.checkInReminder ? "right-1" : "left-1"}`} />
+                    </button>
+                  </div>
+
+                  {/* Check in Reminders Duration */}
+                  {versionSettings.checkInReminder && (
+                    <div className="md:col-span-2 space-y-2">
+                      <label className={labelClasses}>Reminder Active Duration (Days)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={30}
+                        value={versionSettings.checkInReminderDays}
+                        onChange={e => setVersionSettings({...versionSettings, checkInReminderDays: Math.max(1, Number(e.target.value))})}
+                        className={registryInputClasses + " mt-2"}
+                      />
+                    </div>
+                  )}
+                </div>
+              </section>
+
             </div>
 
             {/* Create Button */}
@@ -3725,6 +3804,26 @@ const EditSprint: React.FC = () => {
                                                     <option value="Core">Core</option>
                                                     <option value="Expert">Expert</option>
                                                 </select>
+                                            </div>
+                                            <div>
+                                                <label className={labelClasses}>Version Number</label>
+                                                <input 
+                                                    type="number" 
+                                                    value={editSettings.versionNumber ?? 1} 
+                                                    onChange={e => setEditSettings({...editSettings, versionNumber: Math.max(1, Number(e.target.value))})} 
+                                                    className={registryInputClasses + " mt-2"} 
+                                                    placeholder="e.g. 1"
+                                                />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className={labelClasses}>Version Tag (Admins/Coaches See This)</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={editSettings.versionTag || ''} 
+                                                    onChange={e => setEditSettings({...editSettings, versionTag: e.target.value})} 
+                                                    className={registryInputClasses + " mt-2"} 
+                                                    placeholder="e.g. Redesign, A/B Test, Marketing, v1-core"
+                                                />
                                             </div>
                                             <div className="md:col-span-2 flex items-center gap-3 bg-[#F4F9F6] border border-emerald-500/10 rounded-2xl p-4 mt-2">
                                                 <input

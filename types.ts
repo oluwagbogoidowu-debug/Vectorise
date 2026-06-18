@@ -265,6 +265,7 @@ export interface Sprint {
   parentSprintId?: string;
   isVersion?: boolean;
   versionNumber?: number;
+  versionTag?: string;
   contentType?: 'sprint' | 'blog' | 'ignite';
   blogBody?: string;
   blogImage?: string;

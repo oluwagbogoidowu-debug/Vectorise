@@ -688,6 +688,11 @@ const CoachSprints: React.FC = () => {
                                 <span className="px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded-md text-[9px] font-black uppercase tracking-wider shrink-0" title={`Version ${sprint.versionNumber || 1}`}>
                                     V{sprint.versionNumber || 1}
                                 </span>
+                                {sprint.versionTag && (
+                                    <span className="px-2 py-0.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-md text-[9px] font-black uppercase tracking-wider shrink-0" title={`Version Tag: ${sprint.versionTag}`}>
+                                        {sprint.versionTag}
+                                    </span>
+                                )}
                                 {showNotLiveBadge && (
                                     <span className="px-2 py-0.5 bg-orange-50 text-orange-600 border border-orange-100 rounded-md text-[7px] font-black uppercase tracking-widest shrink-0">
                                         Not Live (Pending Orchestration)
