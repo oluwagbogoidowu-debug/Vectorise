@@ -217,6 +217,23 @@ const EditSprint: React.FC = () => {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showMirrorPreview, setShowMirrorPreview] = useState(false);
+  const [showAddVersionFullBleed, setShowAddVersionFullBleed] = useState(false);
+  const [isCreatingVersion, setIsCreatingVersion] = useState(false);
+  const [showCreatedPopup, setShowCreatedPopup] = useState(false);
+  const [newlyCreatedSprintId, setNewlyCreatedSprintId] = useState('');
+  const [versionSettings, setVersionSettings] = useState({
+      duration: 7,
+      category: '',
+      audience: [] as string[],
+      difficulty: 'Beginner' as SprintDifficulty,
+      pricingType: 'cash' as 'cash' | 'credits',
+      price: 0,
+      pointCost: 0,
+      outcomeTag: '',
+      checkInReminder: false,
+      checkInReminderDays: 7,
+      sprintType: 'Core' as 'Fundamentals' | 'Core' | 'Expert' | 'Foundational' | 'Execution' | 'Skill'
+  });
   const [previewType, setPreviewType] = useState<'card' | 'landing' | 'daily'>('daily');
   const [editSettings, setEditSettings] = useState<Partial<Sprint>>({});
   const [isAudienceDropdownOpen, setIsAudienceDropdownOpen] = useState(false);
@@ -1623,6 +1640,89 @@ const EditSprint: React.FC = () => {
     setEditSettings({ ...editSettings, dynamicSections: newSections });
   };
 
+  const handleInitiateAddVersion = () => {
+    if (!sprint) return;
+    setVersionSettings({
+      duration: sprint.duration || 7,
+      category: sprint.category || '',
+      audience: sprint.audience || [],
+      difficulty: sprint.difficulty || 'Beginner',
+      pricingType: sprint.pricingType || 'cash',
+      price: sprint.price || 0,
+      pointCost: sprint.pointCost || 0,
+      outcomeTag: sprint.outcomeTag || '',
+      checkInReminder: sprint.checkInReminder || false,
+      checkInReminderDays: sprint.checkInReminderDays || 7,
+      sprintType: sprint.sprintType || 'Core'
+    });
+    setShowAddVersionFullBleed(true);
+  };
+
+  const handleCreateNewVersion = async () => {
+    if (!user || !sprint) return;
+    setIsCreatingVersion(true);
+    try {
+      const newId = `sprint_${Date.now()}`;
+      
+      const newSprintObj: Sprint = {
+        ...sprint,
+        id: newId,
+        title: sprint.title,
+        subtitle: sprint.subtitle,
+        coverImageUrl: sprint.coverImageUrl,
+        
+        duration: versionSettings.duration,
+        category: versionSettings.category,
+        difficulty: versionSettings.difficulty,
+        audience: versionSettings.audience,
+        pricingType: versionSettings.pricingType,
+        price: versionSettings.price,
+        pointCost: versionSettings.pointCost,
+        outcomeTag: versionSettings.outcomeTag,
+        checkInReminder: versionSettings.checkInReminder,
+        checkInReminderDays: versionSettings.checkInReminderDays,
+        sprintType: versionSettings.sprintType as any,
+        
+        published: false,
+        approvalStatus: 'draft',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      let newDailyContent = [...(sprint.dailyContent || [])];
+      if (newDailyContent.length > versionSettings.duration) {
+         newDailyContent = newDailyContent.slice(0, versionSettings.duration);
+      } else {
+         while (newDailyContent.length < versionSettings.duration) {
+           newDailyContent.push({
+             day: newDailyContent.length + 1,
+             lessonText: '',
+             taskPrompt: '',
+             taskPrompts: ['', '', ''],
+           });
+         }
+      }
+      
+      newDailyContent = newDailyContent.map((item, idx) => ({
+         ...item,
+         day: idx + 1
+      }));
+      
+      newSprintObj.dailyContent = newDailyContent;
+
+      await sprintService.createSprint(newSprintObj);
+      
+      setNewlyCreatedSprintId(newId);
+      setShowAddVersionFullBleed(false);
+      setShowCreatedPopup(true);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to create new version of the sprint.");
+    } finally {
+      setIsCreatingVersion(false);
+    }
+  };
+
   if (isLoading || !sprint) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -1651,11 +1751,21 @@ const EditSprint: React.FC = () => {
       
       <div className="max-w-5xl mx-auto">
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <div>
-            <button onClick={() => navigate(-1)} className="group flex items-center text-gray-400 hover:text-primary transition-colors mb-4 text-[10px] font-black uppercase tracking-widest cursor-pointer">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
-              Go Back
-            </button>
+          <div className="w-full">
+            <div className="flex justify-between items-center mb-4">
+              <button onClick={() => navigate(-1)} className="group flex items-center text-gray-400 hover:text-primary transition-colors text-[10px] font-black uppercase tracking-widest cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+                Go Back
+              </button>
+              
+              <button 
+                onClick={handleInitiateAddVersion}
+                className="group flex items-center gap-1.5 px-4 py-2 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add new version
+              </button>
+            </div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-black text-gray-900 tracking-tight">{sprint.title}</h1>
               <div className="flex items-center gap-2">
@@ -1726,7 +1836,21 @@ const EditSprint: React.FC = () => {
                 {/* Today's Insight Section */}
                 <div className="space-y-2">
                     <div className="flex justify-between items-end">
-                        <label className={labelClasses}>Today's Insight</label>
+                        <div className="flex items-center gap-3">
+                            <label className={labelClasses}>Today's Insight</label>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (window.confirm("Are you sure you want to clear Today's Insight content?")) {
+                                        handleContentChange('lessonText', '');
+                                    }
+                                }}
+                                className="px-2 py-0.5 border border-red-200 text-red-500 hover:text-red-700 bg-red-50/50 hover:bg-red-50 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer"
+                                title="Clear Today's Insight Lesson"
+                            >
+                                Clear Content
+                            </button>
+                        </div>
                         {canEditDirectly && (
                             <FormattingToolbar 
                                 onFormat={(prefix, suffix) => {
@@ -1926,7 +2050,33 @@ const EditSprint: React.FC = () => {
                     ) : (
                         <>
                             <div className="flex justify-between items-center sm:items-end">
-                                <label className={labelClasses}>Today's Action Steps</label>
+                                <div className="flex items-center gap-3">
+                                    <label className={labelClasses}>Today's Action Steps</label>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (window.confirm("Are you sure you want to clear all Today's Action Steps?")) {
+                                                handleContentChange('taskPrompt', '');
+                                                handleContentChange('taskPrompts', ['', '', '']);
+                                                handleContentChange('taskInputTypes', ['text', 'text', 'text']);
+                                                handleContentChange('taskHints', []);
+                                                handleContentChange('taskNotes', []);
+                                                handleContentChange('taskTagNotes', []);
+                                                handleContentChange('taskTagNoteActive', []);
+                                                handleContentChange('taskFootnotes', []);
+                                                handleContentChange('taskPollMultiSelect', []);
+                                                handleContentChange('taskMultiTextLabels', []);
+                                                handleContentChange('taskLinkedToNext', []);
+                                                handleContentChange('taskLinkedSources', []);
+                                                handleContentChange('taskPollOptions', []);
+                                            }
+                                        }}
+                                        className="px-2 py-0.5 border border-red-200 text-red-500 hover:text-red-700 bg-red-50/50 hover:bg-red-50 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer"
+                                        title="Clear Today's Action Steps content"
+                                    >
+                                        Clear Action
+                                    </button>
+                                </div>
                                 <div className="flex items-center gap-2">
                                     <span className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">Min. 3 Steps</span>
                                     <button
@@ -3027,6 +3177,234 @@ const EditSprint: React.FC = () => {
                 className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all"
               >
                 Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Bleed Modal for Add New Version */}
+      {showAddVersionFullBleed && (
+        <div className="fixed inset-0 z-[100] bg-gray-50 flex flex-col overflow-y-auto animate-fade-in text-gray-900 font-sans p-6 md:p-12">
+          <div className="max-w-4xl mx-auto w-full space-y-8 bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-xl relative my-8">
+            <button 
+              onClick={() => setShowAddVersionFullBleed(false)}
+              className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-50 transition-all cursor-pointer"
+            >
+              <X className="h-6 w-6" />
+            </button>
+            
+            <div className="border-b border-gray-100 pb-6">
+              <span className="text-[10px] font-black text-primary uppercase tracking-[0.25em]">Add New Version</span>
+              <h2 className="text-3xl font-black text-gray-900 tracking-tight mt-1">Configure Sprint Version</h2>
+              <p className="text-xs text-gray-400 font-medium mt-1">Configure settings for the new version. Sprint identifier identity is locked.</p>
+            </div>
+            
+            {/* Locked Identity Section */}
+            <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100 space-y-4">
+              <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Sprint Identity (Locked)
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Sprint Title</label>
+                  <p className="text-sm font-bold text-gray-700">{sprint.title}</p>
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Sprint Subtitle</label>
+                  <p className="text-xs font-semibold text-gray-500">{sprint.subtitle || '—'}</p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Cover Image URL</label>
+                  <div className="flex items-center gap-3 mt-1">
+                    {sprint.coverImageUrl && (
+                      <img src={sprint.coverImageUrl} className="w-14 h-10 object-cover rounded-lg border border-gray-100 shadow-sm" alt="" />
+                    )}
+                    <span className="text-xs text-gray-400 truncate">{sprint.coverImageUrl || 'No cover image'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Editable Settings Fields */}
+            <div className="space-y-6">
+              <h3 className="text-[11px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Version Settings</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Duration */}
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Duration (Days)</label>
+                  <select 
+                    value={versionSettings.duration} 
+                    onChange={e => setVersionSettings({...versionSettings, duration: Number(e.target.value)})}
+                    className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                  >
+                    {[3, 5, 7, 10, 14, 21, 30].map(d => <option key={d} value={d}>{d} Continuous Days</option>)}
+                  </select>
+                </div>
+
+                {/* Discovery Category */}
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Discovery Category</label>
+                  <select 
+                    value={versionSettings.category} 
+                    onChange={e => setVersionSettings({...versionSettings, category: e.target.value})}
+                    className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                  >
+                    {ALL_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                  </select>
+                </div>
+
+                {/* Sprint Difficulty */}
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Difficulty</label>
+                  <select 
+                    value={versionSettings.difficulty} 
+                    onChange={e => setVersionSettings({...versionSettings, difficulty: e.target.value as any})}
+                    className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                  >
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                  </select>
+                </div>
+
+                {/* Sprint Type */}
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Sprint Type</label>
+                  <select 
+                    value={versionSettings.sprintType} 
+                    onChange={e => setVersionSettings({...versionSettings, sprintType: e.target.value as any})}
+                    className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                  >
+                    <option value="Fundamentals">Fundamentals</option>
+                    <option value="Core">Core</option>
+                    <option value="Expert">Expert</option>
+                  </select>
+                </div>
+
+                {/* Pricing Type */}
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Pricing Type</label>
+                  <select 
+                    value={versionSettings.pricingType} 
+                    onChange={e => setVersionSettings({...versionSettings, pricingType: e.target.value as 'cash' | 'credits'})}
+                    className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                  >
+                    <option value="cash">Cash (NGN/USD)</option>
+                    <option value="credits">Credits (Points)</option>
+                  </select>
+                </div>
+
+                {/* Price / points cost */}
+                {versionSettings.pricingType === 'credits' ? (
+                  <div>
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Point Cost</label>
+                    <input 
+                      type="number" 
+                      value={versionSettings.pointCost} 
+                      onChange={e => setVersionSettings({...versionSettings, pointCost: Number(e.target.value)})}
+                      className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                      placeholder="0" 
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Proposed Price (NGN)</label>
+                    <input 
+                      type="number" 
+                      value={versionSettings.price} 
+                      onChange={e => setVersionSettings({...versionSettings, price: Number(e.target.value)})}
+                      className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                      placeholder="0" 
+                    />
+                  </div>
+                )}
+
+                {/* Archive Outcome Tag */}
+                <div className="md:col-span-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Archive Outcome Tag</label>
+                  <select 
+                    value={versionSettings.outcomeTag} 
+                    onChange={e => setVersionSettings({...versionSettings, outcomeTag: e.target.value})} 
+                    className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                  >
+                    {OUTCOME_TAGS.map((tag: string) => (
+                      <option key={tag} value={tag}>{tag}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Check in Reminders */}
+                <div className="md:col-span-2 flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-2xl">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-950 uppercase tracking-widest block mb-1">Daily Check-in Reminder</label>
+                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Enable to stay consistent after the sprint on the last day</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setVersionSettings({...versionSettings, checkInReminder: !versionSettings.checkInReminder})}
+                    className={`w-12 h-6 rounded-full transition-all duration-300 relative ${versionSettings.checkInReminder ? "bg-primary shadow-lg shadow-primary/20" : "bg-gray-200"}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${versionSettings.checkInReminder ? "right-1" : "left-1"}`} />
+                  </button>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Create Button */}
+            <div className="pt-6 border-t border-gray-100 flex justify-end gap-3">
+              <Button variant="secondary" onClick={() => setShowAddVersionFullBleed(false)} className="px-6 py-3 border-gray-200 font-black uppercase text-[10px] tracking-widest rounded-xl">
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleCreateNewVersion} 
+                isLoading={isCreatingVersion}
+                className="px-8 py-3 bg-primary text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg hover:shadow-primary/20 animate-pulse"
+              >
+                Create New Version
+              </Button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Success Dialog for view newly created sprint */}
+      {showCreatedPopup && (
+        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in shadow-2xl">
+          <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl border border-gray-100 flex flex-col items-center text-center animate-scale-up">
+            <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mb-4 border border-emerald-100">
+              <CheckCircle2 size={24} />
+            </div>
+            <h3 className="text-base font-black text-gray-900 uppercase tracking-wider mb-2">New Version Created!</h3>
+            <p className="text-xs text-gray-500 mb-6 leading-relaxed">The new version of the sprint has been created with all original contents duplicate. Choose view below to start editing settings for this version.</p>
+            <div className="flex gap-3 w-full">
+              <button 
+                type="button"
+                onClick={() => {
+                  setShowCreatedPopup(false);
+                  setNewlyCreatedSprintId('');
+                }}
+                className="flex-1 py-3 border border-gray-200 rounded-xl text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 bg-white hover:bg-gray-50 transition-all cursor-pointer"
+              >
+                Close
+              </button>
+              <button 
+                type="button"
+                onClick={() => {
+                  setShowCreatedPopup(false);
+                  navigate(`/coach/sprint/edit/${newlyCreatedSprintId}`);
+                  window.location.reload();
+                }}
+                className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md transition-all active:scale-95 cursor-pointer"
+              >
+                View
               </button>
             </div>
           </div>
