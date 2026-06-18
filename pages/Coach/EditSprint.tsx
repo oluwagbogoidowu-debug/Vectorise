@@ -233,11 +233,7 @@ const EditSprint: React.FC = () => {
       checkInReminder: false,
       checkInReminderDays: 7,
       sprintType: 'Core' as 'Fundamentals' | 'Core' | 'Expert' | 'Foundational' | 'Execution' | 'Skill',
-      transformation: '',
-      forWho: '',
-      notForWho: '',
-      methodSnapshot: '',
-      outcomes: '',
+      description: '',
       overrideOrchestrator: false
   });
   const [previewType, setPreviewType] = useState<'card' | 'landing' | 'daily'>('daily');
@@ -1653,22 +1649,6 @@ const EditSprint: React.FC = () => {
       return;
     }
     
-    const formattedForWho = Array.isArray(sprint.forWho) 
-      ? sprint.forWho.join('\n') 
-      : (sprint.forWho || '');
-
-    const formattedNotForWho = Array.isArray(sprint.notForWho) 
-      ? sprint.notForWho.join('\n') 
-      : (sprint.notForWho || '');
-
-    const formattedOutcomes = Array.isArray(sprint.outcomes) 
-      ? sprint.outcomes.join('\n') 
-      : (sprint.outcomes || '');
-
-    const formattedMethodSnapshot = Array.isArray(sprint.methodSnapshot) 
-      ? sprint.methodSnapshot.map(m => m.verb && m.description ? `${m.verb}: ${m.description}` : (m.verb || m.description || '')).join('\n') 
-      : (sprint.methodSnapshot || '');
-
     setVersionSettings({
       duration: sprint.duration || 7,
       category: sprint.category || '',
@@ -1681,11 +1661,7 @@ const EditSprint: React.FC = () => {
       checkInReminder: sprint.checkInReminder || false,
       checkInReminderDays: sprint.checkInReminderDays || 7,
       sprintType: sprint.sprintType || 'Core',
-      transformation: sprint.transformation || sprint.description || '',
-      forWho: formattedForWho,
-      notForWho: formattedNotForWho,
-      methodSnapshot: formattedMethodSnapshot,
-      outcomes: formattedOutcomes,
+      description: sprint.description || sprint.transformation || '',
       overrideOrchestrator: sprint.overrideOrchestrator || false
     });
     setShowAddVersionFullBleed(true);
@@ -1697,19 +1673,6 @@ const EditSprint: React.FC = () => {
     try {
       const newId = `sprint_${Date.now()}`;
       
-      const parsedForWho = versionSettings.forWho.split('\n').map(s => s.trim()).filter(s => s);
-      const parsedNotForWho = versionSettings.notForWho.split('\n').map(s => s.trim()).filter(s => s);
-      const parsedOutcomes = versionSettings.outcomes.split('\n').map(s => s.trim()).filter(s => s);
-      const parsedMethodSnapshot = versionSettings.methodSnapshot.split('\n').map(line => {
-        const colonIdx = line.indexOf(':');
-        if (colonIdx === -1) {
-          return { verb: '', description: line.trim() };
-        }
-        const verb = line.substring(0, colonIdx).trim();
-        const description = line.substring(colonIdx + 1).trim();
-        return { verb, description };
-      }).filter(m => m.verb || m.description);
-
       // Determine next version number based on sibling versions
       let nextVersion = 2;
       try {
@@ -1743,12 +1706,12 @@ const EditSprint: React.FC = () => {
         checkInReminder: versionSettings.checkInReminder,
         checkInReminderDays: versionSettings.checkInReminderDays,
         sprintType: versionSettings.sprintType as any,
-        transformation: versionSettings.transformation,
-        description: versionSettings.transformation, // Make sure description matches transformation
-        forWho: parsedForWho,
-        notForWho: parsedNotForWho,
-        methodSnapshot: parsedMethodSnapshot,
-        outcomes: parsedOutcomes,
+        transformation: versionSettings.description, // also keep transformation in sync if needed
+        description: versionSettings.description,
+        forWho: [],
+        notForWho: [],
+        methodSnapshot: [],
+        outcomes: [],
         overrideOrchestrator: versionSettings.overrideOrchestrator,
         
         published: false,
@@ -3476,63 +3439,15 @@ const EditSprint: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Transformation Statement */}
+                {/* Sprint Description / Overview */}
                 <div className="md:col-span-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Transformation Statement</label>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Sprint Description / Overview</label>
                   <textarea
-                    value={versionSettings.transformation}
-                    onChange={e => setVersionSettings({...versionSettings, transformation: e.target.value})}
+                    value={versionSettings.description}
+                    onChange={e => setVersionSettings({...versionSettings, description: e.target.value})}
                     className="w-full p-4 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all resize-none"
-                    rows={3}
-                    placeholder="Describe the ultimate transformation or objective..."
-                  />
-                </div>
-
-                {/* For Who / Target Signals */}
-                <div className="md:col-span-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Target Signals (For Who)</label>
-                  <textarea
-                    value={versionSettings.forWho}
-                    onChange={e => setVersionSettings({...versionSettings, forWho: e.target.value})}
-                    className="w-full p-4 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all resize-none"
-                    rows={2}
-                    placeholder="Who is this specifically designed of? (e.g. Entrepreneurs seeking to scale, professionals having difficulty staying focused)"
-                  />
-                </div>
-
-                {/* Exclusions / Not For Who */}
-                <div className="md:col-span-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Exclusions (Not For Who)</label>
-                  <textarea
-                    value={versionSettings.notForWho}
-                    onChange={e => setVersionSettings({...versionSettings, notForWho: e.target.value})}
-                    className="w-full p-4 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all resize-none"
-                    rows={2}
-                    placeholder="Who is this not suitable for?"
-                  />
-                </div>
-
-                {/* Method Snapshot */}
-                <div className="md:col-span-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Method Snapshot</label>
-                  <textarea
-                    value={versionSettings.methodSnapshot}
-                    onChange={e => setVersionSettings({...versionSettings, methodSnapshot: e.target.value})}
-                    className="w-full p-4 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all resize-none"
-                    rows={3}
-                    placeholder="Detail the sprint's distinctive learning approach or methodology..."
-                  />
-                </div>
-
-                {/* Outcomes / Evidence of Completion */}
-                <div className="md:col-span-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Evidence of Completion (Outcomes)</label>
-                  <textarea
-                    value={versionSettings.outcomes}
-                    onChange={e => setVersionSettings({...versionSettings, outcomes: e.target.value})}
-                    className="w-full p-4 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all resize-none"
-                    rows={3}
-                    placeholder="Explain expectations and rewards upon completion..."
+                    rows={6}
+                    placeholder="Enter the comprehensive sprint description or overview..."
                   />
                 </div>
 
@@ -3682,11 +3597,7 @@ const EditSprint: React.FC = () => {
                             <DiffHighlight label="Title" original={originalSprint?.title} updated={editSettings.title} />
                             <DiffHighlight label="Subtitle" original={originalSprint?.subtitle} updated={editSettings.subtitle} />
                             <DiffHighlight label="Cover Image URL" original={originalSprint?.coverImageUrl} updated={editSettings.coverImageUrl} />
-                            <DiffHighlight label="Transformation Statement" original={originalSprint?.transformation || originalSprint?.description} updated={editSettings.transformation} />
-                            <DiffHighlight label="Target Signals (forWho)" original={originalSprint?.forWho} updated={editSettings.forWho} />
-                            <DiffHighlight label="Exclusions (notForWho)" original={originalSprint?.notForWho} updated={editSettings.notForWho} />
-                            <DiffHighlight label="Method Snapshot" original={originalSprint?.methodSnapshot} updated={editSettings.methodSnapshot} />
-                            <DiffHighlight label="Evidence of Completion (outcomes)" original={originalSprint?.outcomes} updated={editSettings.outcomes} />
+                            <DiffHighlight label="Sprint Description / Overview" original={originalSprint?.description} updated={editSettings.description} />
                             <DiffHighlight label="Archive Outcome Tag" original={originalSprint?.outcomeTag} updated={editSettings.outcomeTag} />
                             
                             <div className="grid grid-cols-2 gap-4">
