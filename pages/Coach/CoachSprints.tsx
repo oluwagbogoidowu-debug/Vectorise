@@ -683,8 +683,11 @@ const CoachSprints: React.FC = () => {
                               />
                           </div>
                           <div className="flex-1 min-w-0 text-center sm:text-left">
-                              <div className="flex items-center gap-3 mb-1 justify-center sm:justify-start">
+                              <div className="flex items-center gap-2 mb-1 justify-center sm:justify-start flex-wrap">
                                 <h3 className="font-black text-gray-900 text-lg group-hover:text-primary transition-colors truncate tracking-tight">{sprint.title}</h3>
+                                <span className="px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded-md text-[9px] font-black uppercase tracking-wider shrink-0" title={`Version ${sprint.versionNumber || 1}`}>
+                                    V{sprint.versionNumber || 1}
+                                </span>
                                 {showNotLiveBadge && (
                                     <span className="px-2 py-0.5 bg-orange-50 text-orange-600 border border-orange-100 rounded-md text-[7px] font-black uppercase tracking-widest shrink-0">
                                         Not Live (Pending Orchestration)

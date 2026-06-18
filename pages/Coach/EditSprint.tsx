@@ -1648,6 +1648,10 @@ const EditSprint: React.FC = () => {
 
   const handleInitiateAddVersion = () => {
     if (!sprint) return;
+    if (sprint.parentSprintId) {
+      alert("You can only create a version of a sprint from its true source.");
+      return;
+    }
     
     const formattedForWho = Array.isArray(sprint.forWho) 
       ? sprint.forWho.join('\n') 
@@ -1706,9 +1710,24 @@ const EditSprint: React.FC = () => {
         return { verb, description };
       }).filter(m => m.verb || m.description);
 
+      // Determine next version number based on sibling versions
+      let nextVersion = 2;
+      try {
+        const allCoachSprints = await sprintService.getCoachSprints(user.id);
+        const parentId = sprint.id; // Since we can only create a version from the true source
+        const siblingVersions = allCoachSprints.filter(s => s.parentSprintId === parentId || s.id === parentId);
+        const maxVersion = siblingVersions.reduce((max, s) => Math.max(max, s.versionNumber || 1), 1);
+        nextVersion = maxVersion + 1;
+      } catch (e) {
+        console.error("Error calculating next version:", e);
+      }
+
       const newSprintObj: Sprint = {
         ...sprint,
         id: newId,
+        parentSprintId: sprint.id,
+        isVersion: true,
+        versionNumber: nextVersion,
         title: sprint.title,
         subtitle: sprint.subtitle,
         coverImageUrl: sprint.coverImageUrl,
@@ -1807,13 +1826,29 @@ const EditSprint: React.FC = () => {
                 Go Back
               </button>
               
-              <button 
-                onClick={handleInitiateAddVersion}
-                className="group flex items-center gap-1.5 px-4 py-2 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Add new version
-              </button>
+              {!sprint.parentSprintId ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-black text-gray-500 bg-white border border-gray-150 px-3 py-1.5 rounded-xl uppercase tracking-widest">
+                    Version 1
+                  </span>
+                  <button 
+                    onClick={handleInitiateAddVersion}
+                    className="group flex items-center gap-1.5 px-3.5 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Create New Version
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="px-3.5 py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-xl text-[10px] font-black uppercase tracking-widest shrink-0">
+                    Version {sprint.versionNumber || 2}
+                  </span>
+                  <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest hidden sm:inline-block">
+                    (Locked Version)
+                  </span>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-black text-gray-900 tracking-tight">{sprint.title}</h1>

@@ -262,6 +262,9 @@ export interface Sprint {
   dynamicSections?: DynamicSection[];
   checkInReminder?: boolean;
   checkInReminderDays?: number;
+  parentSprintId?: string;
+  isVersion?: boolean;
+  versionNumber?: number;
   contentType?: 'sprint' | 'blog' | 'ignite';
   blogBody?: string;
   blogImage?: string;
