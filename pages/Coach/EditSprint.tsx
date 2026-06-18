@@ -232,7 +232,13 @@ const EditSprint: React.FC = () => {
       outcomeTag: '',
       checkInReminder: false,
       checkInReminderDays: 7,
-      sprintType: 'Core' as 'Fundamentals' | 'Core' | 'Expert' | 'Foundational' | 'Execution' | 'Skill'
+      sprintType: 'Core' as 'Fundamentals' | 'Core' | 'Expert' | 'Foundational' | 'Execution' | 'Skill',
+      transformation: '',
+      forWho: '',
+      notForWho: '',
+      methodSnapshot: '',
+      outcomes: '',
+      overrideOrchestrator: false
   });
   const [previewType, setPreviewType] = useState<'card' | 'landing' | 'daily'>('daily');
   const [editSettings, setEditSettings] = useState<Partial<Sprint>>({});
@@ -1642,6 +1648,23 @@ const EditSprint: React.FC = () => {
 
   const handleInitiateAddVersion = () => {
     if (!sprint) return;
+    
+    const formattedForWho = Array.isArray(sprint.forWho) 
+      ? sprint.forWho.join('\n') 
+      : (sprint.forWho || '');
+
+    const formattedNotForWho = Array.isArray(sprint.notForWho) 
+      ? sprint.notForWho.join('\n') 
+      : (sprint.notForWho || '');
+
+    const formattedOutcomes = Array.isArray(sprint.outcomes) 
+      ? sprint.outcomes.join('\n') 
+      : (sprint.outcomes || '');
+
+    const formattedMethodSnapshot = Array.isArray(sprint.methodSnapshot) 
+      ? sprint.methodSnapshot.map(m => m.verb && m.description ? `${m.verb}: ${m.description}` : (m.verb || m.description || '')).join('\n') 
+      : (sprint.methodSnapshot || '');
+
     setVersionSettings({
       duration: sprint.duration || 7,
       category: sprint.category || '',
@@ -1653,7 +1676,13 @@ const EditSprint: React.FC = () => {
       outcomeTag: sprint.outcomeTag || '',
       checkInReminder: sprint.checkInReminder || false,
       checkInReminderDays: sprint.checkInReminderDays || 7,
-      sprintType: sprint.sprintType || 'Core'
+      sprintType: sprint.sprintType || 'Core',
+      transformation: sprint.transformation || sprint.description || '',
+      forWho: formattedForWho,
+      notForWho: formattedNotForWho,
+      methodSnapshot: formattedMethodSnapshot,
+      outcomes: formattedOutcomes,
+      overrideOrchestrator: sprint.overrideOrchestrator || false
     });
     setShowAddVersionFullBleed(true);
   };
@@ -1664,6 +1693,19 @@ const EditSprint: React.FC = () => {
     try {
       const newId = `sprint_${Date.now()}`;
       
+      const parsedForWho = versionSettings.forWho.split('\n').map(s => s.trim()).filter(s => s);
+      const parsedNotForWho = versionSettings.notForWho.split('\n').map(s => s.trim()).filter(s => s);
+      const parsedOutcomes = versionSettings.outcomes.split('\n').map(s => s.trim()).filter(s => s);
+      const parsedMethodSnapshot = versionSettings.methodSnapshot.split('\n').map(line => {
+        const colonIdx = line.indexOf(':');
+        if (colonIdx === -1) {
+          return { verb: '', description: line.trim() };
+        }
+        const verb = line.substring(0, colonIdx).trim();
+        const description = line.substring(colonIdx + 1).trim();
+        return { verb, description };
+      }).filter(m => m.verb || m.description);
+
       const newSprintObj: Sprint = {
         ...sprint,
         id: newId,
@@ -1682,6 +1724,13 @@ const EditSprint: React.FC = () => {
         checkInReminder: versionSettings.checkInReminder,
         checkInReminderDays: versionSettings.checkInReminderDays,
         sprintType: versionSettings.sprintType as any,
+        transformation: versionSettings.transformation,
+        description: versionSettings.transformation, // Make sure description matches transformation
+        forWho: parsedForWho,
+        notForWho: parsedNotForWho,
+        methodSnapshot: parsedMethodSnapshot,
+        outcomes: parsedOutcomes,
+        overrideOrchestrator: versionSettings.overrideOrchestrator,
         
         published: false,
         approvalStatus: 'draft',
@@ -3185,33 +3234,34 @@ const EditSprint: React.FC = () => {
 
       {/* Full Bleed Modal for Add New Version */}
       {showAddVersionFullBleed && (
-        <div className="fixed inset-0 z-[100] bg-gray-50 flex flex-col overflow-y-auto animate-fade-in text-gray-900 font-sans p-6 md:p-12">
-          <div className="max-w-4xl mx-auto w-full space-y-8 bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-xl relative my-8">
+        <div className="fixed inset-0 z-[100] bg-white flex flex-col overflow-y-auto animate-fade-in text-gray-900 font-sans">
+          <div className="max-w-4xl mx-auto w-full px-6 py-12 md:py-20 space-y-12 relative animate-scale-up">
             <button 
               onClick={() => setShowAddVersionFullBleed(false)}
-              className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-50 transition-all cursor-pointer"
+              className="absolute top-8 right-6 text-gray-400 hover:text-gray-600 p-2.5 rounded-full hover:bg-gray-50 transition-all cursor-pointer"
+              title="Close and Return"
             >
               <X className="h-6 w-6" />
             </button>
             
-            <div className="border-b border-gray-100 pb-6">
+            <div className="border-b border-gray-100 pb-8">
               <span className="text-[10px] font-black text-primary uppercase tracking-[0.25em]">Add New Version</span>
-              <h2 className="text-3xl font-black text-gray-900 tracking-tight mt-1">Configure Sprint Version</h2>
-              <p className="text-xs text-gray-400 font-medium mt-1">Configure settings for the new version. Sprint identifier identity is locked.</p>
+              <h2 className="text-4xl font-black text-gray-900 tracking-tight mt-1">Configure Sprint Version</h2>
+              <p className="text-xs text-gray-400 font-medium mt-1">Configure settings for the new version of your sprint. Sprint identity is locked.</p>
             </div>
             
             {/* Locked Identity Section */}
-            <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100 space-y-4">
+            <div className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100 space-y-5">
               <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
                 Sprint Identity (Locked)
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Sprint Title</label>
-                  <p className="text-sm font-bold text-gray-700">{sprint.title}</p>
+                  <p className="text-base font-black text-gray-800">{sprint.title}</p>
                 </div>
                 <div>
                   <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Sprint Subtitle</label>
@@ -3221,19 +3271,19 @@ const EditSprint: React.FC = () => {
                   <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Cover Image URL</label>
                   <div className="flex items-center gap-3 mt-1">
                     {sprint.coverImageUrl && (
-                      <img src={sprint.coverImageUrl} className="w-14 h-10 object-cover rounded-lg border border-gray-100 shadow-sm" alt="" />
+                      <img src={sprint.coverImageUrl} className="w-16 h-11 object-cover rounded-xl border border-gray-150 shadow-sm" alt="" />
                     )}
-                    <span className="text-xs text-gray-400 truncate">{sprint.coverImageUrl || 'No cover image'}</span>
+                    <span className="text-xs text-gray-400 truncate font-mono">{sprint.coverImageUrl || 'No cover image URL supplied'}</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Editable Settings Fields */}
-            <div className="space-y-6">
-              <h3 className="text-[11px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Version Settings</h3>
+            <div className="space-y-8">
+              <h3 className="text-[11px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-100 pb-3">Version Settings</h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 
                 {/* Duration */}
                 <div>
@@ -3241,7 +3291,7 @@ const EditSprint: React.FC = () => {
                   <select 
                     value={versionSettings.duration} 
                     onChange={e => setVersionSettings({...versionSettings, duration: Number(e.target.value)})}
-                    className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                    className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all cursor-pointer"
                   >
                     {[3, 5, 7, 10, 14, 21, 30].map(d => <option key={d} value={d}>{d} Continuous Days</option>)}
                   </select>
@@ -3253,7 +3303,7 @@ const EditSprint: React.FC = () => {
                   <select 
                     value={versionSettings.category} 
                     onChange={e => setVersionSettings({...versionSettings, category: e.target.value})}
-                    className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                    className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all cursor-pointer"
                   >
                     {ALL_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                   </select>
@@ -3265,7 +3315,7 @@ const EditSprint: React.FC = () => {
                   <select 
                     value={versionSettings.difficulty} 
                     onChange={e => setVersionSettings({...versionSettings, difficulty: e.target.value as any})}
-                    className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                    className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all cursor-pointer"
                   >
                     <option value="Beginner">Beginner</option>
                     <option value="Intermediate">Intermediate</option>
@@ -3279,12 +3329,64 @@ const EditSprint: React.FC = () => {
                   <select 
                     value={versionSettings.sprintType} 
                     onChange={e => setVersionSettings({...versionSettings, sprintType: e.target.value as any})}
-                    className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                    className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all cursor-pointer"
                   >
                     <option value="Fundamentals">Fundamentals</option>
                     <option value="Core">Core</option>
                     <option value="Expert">Expert</option>
                   </select>
+                </div>
+
+                {/* Target Audience */}
+                <div className="md:col-span-2 relative">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Target Audience</label>
+                  <div 
+                    onClick={() => setIsAudienceDropdownOpen(!isAudienceDropdownOpen)}
+                    className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all cursor-pointer flex justify-between items-center"
+                  >
+                    <span className="text-gray-700 font-bold text-xs select-none">
+                      {versionSettings.audience && versionSettings.audience.length > 0 
+                        ? versionSettings.audience.join(", ") 
+                        : "Select target audience..."}
+                    </span>
+                    <span className="text-[10px] text-gray-400">▼</span>
+                  </div>
+                  {isAudienceDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-30" onClick={() => setIsAudienceDropdownOpen(false)}></div>
+                      <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-2xl shadow-xl z-40 p-2 flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
+                        {["Entrepreneur", "Business Owner", "Freelancer/Consultant", "9-5 Professional", "Student/Graduate", "Creative/Hustler"].map(opt => {
+                          const isSelected = versionSettings.audience?.includes(opt);
+                          return (
+                            <div 
+                              key={opt}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const currentAudience = versionSettings.audience || [];
+                                const updated = isSelected 
+                                  ? currentAudience.filter(x => x !== opt)
+                                  : [...currentAudience, opt];
+                                setVersionSettings(prev => ({ ...prev, audience: updated }));
+                              }}
+                              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer text-xs font-bold transition-all ${
+                                isSelected 
+                                  ? 'bg-primary/5 text-primary' 
+                                  : 'text-gray-600 hover:bg-gray-50'
+                              }`}
+                            >
+                              <input 
+                                type="checkbox" 
+                                checked={isSelected}
+                                onChange={() => {}}
+                                className="rounded border-gray-300 text-primary focus:ring-primary h-3.5 w-3.5"
+                              />
+                              <span>{opt}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Pricing Type */}
@@ -3293,7 +3395,7 @@ const EditSprint: React.FC = () => {
                   <select 
                     value={versionSettings.pricingType} 
                     onChange={e => setVersionSettings({...versionSettings, pricingType: e.target.value as 'cash' | 'credits'})}
-                    className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                    className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all cursor-pointer"
                   >
                     <option value="cash">Cash (NGN/USD)</option>
                     <option value="credits">Credits (Points)</option>
@@ -3308,7 +3410,7 @@ const EditSprint: React.FC = () => {
                       type="number" 
                       value={versionSettings.pointCost} 
                       onChange={e => setVersionSettings({...versionSettings, pointCost: Number(e.target.value)})}
-                      className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                      className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
                       placeholder="0" 
                     />
                   </div>
@@ -3319,7 +3421,7 @@ const EditSprint: React.FC = () => {
                       type="number" 
                       value={versionSettings.price} 
                       onChange={e => setVersionSettings({...versionSettings, price: Number(e.target.value)})}
-                      className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                      className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
                       placeholder="0" 
                     />
                   </div>
@@ -3331,7 +3433,7 @@ const EditSprint: React.FC = () => {
                   <select 
                     value={versionSettings.outcomeTag} 
                     onChange={e => setVersionSettings({...versionSettings, outcomeTag: e.target.value})} 
-                    className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                    className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
                   >
                     {OUTCOME_TAGS.map((tag: string) => (
                       <option key={tag} value={tag}>{tag}</option>
@@ -3339,11 +3441,86 @@ const EditSprint: React.FC = () => {
                   </select>
                 </div>
 
+                {/* Transformation Statement */}
+                <div className="md:col-span-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Transformation Statement</label>
+                  <textarea
+                    value={versionSettings.transformation}
+                    onChange={e => setVersionSettings({...versionSettings, transformation: e.target.value})}
+                    className="w-full p-4 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all resize-none"
+                    rows={3}
+                    placeholder="Describe the ultimate transformation or objective..."
+                  />
+                </div>
+
+                {/* For Who / Target Signals */}
+                <div className="md:col-span-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Target Signals (For Who)</label>
+                  <textarea
+                    value={versionSettings.forWho}
+                    onChange={e => setVersionSettings({...versionSettings, forWho: e.target.value})}
+                    className="w-full p-4 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all resize-none"
+                    rows={2}
+                    placeholder="Who is this specifically designed of? (e.g. Entrepreneurs seeking to scale, professionals having difficulty staying focused)"
+                  />
+                </div>
+
+                {/* Exclusions / Not For Who */}
+                <div className="md:col-span-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Exclusions (Not For Who)</label>
+                  <textarea
+                    value={versionSettings.notForWho}
+                    onChange={e => setVersionSettings({...versionSettings, notForWho: e.target.value})}
+                    className="w-full p-4 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all resize-none"
+                    rows={2}
+                    placeholder="Who is this not suitable for?"
+                  />
+                </div>
+
+                {/* Method Snapshot */}
+                <div className="md:col-span-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Method Snapshot</label>
+                  <textarea
+                    value={versionSettings.methodSnapshot}
+                    onChange={e => setVersionSettings({...versionSettings, methodSnapshot: e.target.value})}
+                    className="w-full p-4 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all resize-none"
+                    rows={3}
+                    placeholder="Detail the sprint's distinctive learning approach or methodology..."
+                  />
+                </div>
+
+                {/* Outcomes / Evidence of Completion */}
+                <div className="md:col-span-2">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Evidence of Completion (Outcomes)</label>
+                  <textarea
+                    value={versionSettings.outcomes}
+                    onChange={e => setVersionSettings({...versionSettings, outcomes: e.target.value})}
+                    className="w-full p-4 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all resize-none"
+                    rows={3}
+                    placeholder="Explain expectations and rewards upon completion..."
+                  />
+                </div>
+
+                {/* Override Orchestrator */}
+                <div className="md:col-span-2 flex items-center justify-between p-5 bg-gray-50 border border-gray-100 rounded-2xl">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-950 uppercase tracking-widest block mb-1">Override Orchestrator</label>
+                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Bypass recommended pathways and force inclusion in general Explore catalog</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setVersionSettings({...versionSettings, overrideOrchestrator: !versionSettings.overrideOrchestrator})}
+                    className={`w-12 h-6 rounded-full transition-all duration-300 relative ${versionSettings.overrideOrchestrator ? "bg-primary shadow-lg shadow-primary/20" : "bg-gray-200"}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${versionSettings.overrideOrchestrator ? "right-1" : "left-1"}`} />
+                  </button>
+                </div>
+
                 {/* Check in Reminders */}
-                <div className="md:col-span-2 flex items-center justify-between p-4 bg-gray-50 border border-gray-100 rounded-2xl">
+                <div className="md:col-span-2 flex items-center justify-between p-5 bg-gray-50 border border-gray-100 rounded-2xl">
                   <div>
                     <label className="text-[10px] font-black text-gray-950 uppercase tracking-widest block mb-1">Daily Check-in Reminder</label>
-                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Enable to stay consistent after the sprint on the last day</p>
+                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Enable to keep pushing reminders after completion</p>
                   </div>
                   <button
                     type="button"
@@ -3354,18 +3531,33 @@ const EditSprint: React.FC = () => {
                   </button>
                 </div>
 
+                {/* Check in Reminders Duration */}
+                {versionSettings.checkInReminder && (
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block">Reminder Active Duration (Days)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={versionSettings.checkInReminderDays}
+                      onChange={e => setVersionSettings({...versionSettings, checkInReminderDays: Math.max(1, Number(e.target.value))})}
+                      className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all"
+                    />
+                  </div>
+                )}
+
               </div>
             </div>
 
             {/* Create Button */}
-            <div className="pt-6 border-t border-gray-100 flex justify-end gap-3">
-              <Button variant="secondary" onClick={() => setShowAddVersionFullBleed(false)} className="px-6 py-3 border-gray-200 font-black uppercase text-[10px] tracking-widest rounded-xl">
+            <div className="pt-8 border-t border-gray-100 flex justify-end gap-3">
+              <Button variant="secondary" onClick={() => setShowAddVersionFullBleed(false)} className="px-6 py-3.5 border-gray-200 font-black uppercase text-[10px] tracking-widest rounded-xl">
                 Cancel
               </Button>
               <Button 
                 onClick={handleCreateNewVersion} 
                 isLoading={isCreatingVersion}
-                className="px-8 py-3 bg-primary text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg hover:shadow-primary/20 animate-pulse"
+                className="px-8 py-3.5 bg-primary text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg hover:shadow-primary/20"
               >
                 Create New Version
               </Button>
