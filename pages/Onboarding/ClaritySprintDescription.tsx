@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
 import { sprintService } from '../../services/sprintService';
@@ -27,6 +28,7 @@ const ClaritySprintDescription: React.FC = () => {
   const navigate = useNavigate();
   const { sprintId } = useParams();
   const location = useLocation();
+  const { user } = useAuth();
   const [sprint, setSprint] = useState<Sprint | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
@@ -77,7 +79,11 @@ const ClaritySprintDescription: React.FC = () => {
 
   const handleProceed = () => {
     if (!sprint) return;
-    navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus, trigger: activeTrigger } });
+    if (!user) {
+      navigate(`/sprint/preview/${sprint.id}`, { state: { sprintId: sprint.id, sprint: sprint, selectedFocus, trigger: activeTrigger } });
+    } else {
+      navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus, trigger: activeTrigger } });
+    }
   };
 
   const handleSkipClarity = () => {

@@ -758,24 +758,23 @@ const SprintPreview: React.FC = () => {
                                                         return;
                                                     }
 
-                                                    if (!user) {
-                                                        // Explicit guest check. First action goes through but next action is locked
-                                                        const pendingObj = {
-                                                            sprintId: sprint.id,
-                                                            pricingType: sprint.pricingType || 'cash',
-                                                            firstActionInput: taskInputs[0],
-                                                            prefilledEmail: prefilledEmail || ''
-                                                        };
-                                                        localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
-                                                        setShowLockModal(true);
-                                                        return;
-                                                    }
-
                                                     if (i < activePrompts.length - 1) {
                                                         setActiveTaskIndex(i + 1);
                                                     } else {
-                                                        // Last step prompts the signup modal
-                                                        setShowSignupModal(true);
+                                                        if (!user) {
+                                                            // Explicit guest check. All actions went through, show lock/signup modal at end of actions
+                                                            const pendingObj = {
+                                                                sprintId: sprint.id,
+                                                                pricingType: sprint.pricingType || 'cash',
+                                                                firstActionInput: taskInputs[0],
+                                                                prefilledEmail: prefilledEmail || ''
+                                                            };
+                                                            localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
+                                                            setShowLockModal(true);
+                                                        } else {
+                                                            // Last step prompts the signup modal
+                                                            setShowSignupModal(true);
+                                                        }
                                                     }
                                                 }}
                                                 className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95"

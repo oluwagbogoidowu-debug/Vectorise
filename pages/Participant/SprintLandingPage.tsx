@@ -123,9 +123,9 @@ const SprintLandingPage: React.FC = () => {
                 const emailExists = await userService.checkEmailExists(guestEmail);
                 localStorage.setItem('guest_email', guestEmail);
                 
-                // Always proceed to commitment & preview flow to allow preview before logging in (as requested)
+                // Always proceed directly to day one preview flow to allow preview before logging in (as requested)
                 analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, existing_user: emailExists }, undefined, guestEmail);
-                navigate('/onboarding/commitment', { 
+                navigate(`/sprint/preview/${sprint.id}`, { 
                     state: { 
                         sprintId: sprint.id, 
                         sprint: sprint, 

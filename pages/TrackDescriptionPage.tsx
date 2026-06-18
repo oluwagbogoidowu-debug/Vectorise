@@ -188,9 +188,14 @@ const TrackDescriptionPage: React.FC = () => {
                     analyticsTracker.trackEvent('track_intent_captured', { track_id: trackId, existing_user: true }, undefined, guestEmail);
                     navigate('/login', { state: { prefilledEmail: guestEmail, targetTrackId: track.id } });
                 } else {
-                    // New user, proceed to commitment
+                    // New/guest user, proceed directly to day one preview of the first sprint in track
                     analyticsTracker.trackEvent('track_intent_captured', { track_id: trackId, existing_user: false }, undefined, guestEmail);
-                    navigate('/onboarding/commitment', { state: { trackId: track.id, track: track, prefilledEmail: guestEmail } });
+                    const firstSprintId = sprints[0]?.id;
+                    if (firstSprintId) {
+                        navigate(`/sprint/preview/${firstSprintId}`, { state: { trackId: track.id, track: track, prefilledEmail: guestEmail } });
+                    } else {
+                        navigate('/onboarding/commitment', { state: { trackId: track.id, track: track, prefilledEmail: guestEmail } });
+                    }
                 }
             } catch (err) {
                 console.error("Error checking email:", err);

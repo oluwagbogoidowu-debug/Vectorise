@@ -198,7 +198,11 @@ const ProgramDescription: React.FC = () => {
   const handleProceed = () => {
     if (!sprint) return;
     analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, onboarding: true }, user?.id);
-    navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus, trigger: activeTrigger, allMatchedSprintIds } });
+    if (!user) {
+      navigate(`/sprint/preview/${sprint.id}`, { state: { sprintId: sprint.id, sprint: sprint, selectedFocus, trigger: activeTrigger, allMatchedSprintIds } });
+    } else {
+      navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus, trigger: activeTrigger, allMatchedSprintIds } });
+    }
   };
 
   const handleRefineFocus = () => {
