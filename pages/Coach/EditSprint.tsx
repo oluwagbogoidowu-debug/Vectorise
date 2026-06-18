@@ -3259,11 +3259,7 @@ const EditSprint: React.FC = () => {
               <X className="h-6 w-6" />
             </button>
             
-            <div className="border-b border-gray-100 pb-8">
-              <span className="text-[10px] font-black text-primary uppercase tracking-[0.25em]">Add New Version</span>
-              <h2 className="text-4xl font-black text-gray-900 tracking-tight mt-1">Configure Sprint Version</h2>
-              <p className="text-xs text-gray-400 font-medium mt-1">Configure settings for the new version of your sprint. Sprint identity is locked.</p>
-            </div>
+
             
             {/* Locked Identity Section */}
             <div className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100 space-y-5">
@@ -3632,15 +3628,17 @@ const EditSprint: React.FC = () => {
         </div>
       )}
 
-      {/* Registry Settings Modal */}
+      {/* Registry Settings Full Bleed Overlay */}
       {showSettings && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-8 border-b border-gray-100 bg-gray-50/50 flex-shrink-0">
-              <h3 className="text-2xl font-black text-gray-900 tracking-tight">{(isAdmin && !isFoundational) ? 'Sprint Audit Diff' : 'Sprint Settings'}</h3>
-              <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-white rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg></button>
+        <div className="fixed inset-0 z-[60] bg-[#FAFAFA] flex flex-col overflow-y-auto animate-fade-in font-sans">
+          <div className="w-full max-w-4xl mx-auto py-16 px-6 sm:px-8">
+            <div className="flex justify-between items-center pb-8 border-b border-gray-200 mb-12 flex-shrink-0">
+              <h3 className="text-3xl font-black text-gray-900 tracking-tight">{(isAdmin && !isFoundational) ? 'Sprint Audit Diff' : 'Sprint Settings'}</h3>
+              <button onClick={() => setShowSettings(false)} className="bg-white hover:bg-gray-100 border border-gray-200 shadow-sm text-gray-400 hover:text-gray-600 transition-colors p-3 rounded-2xl flex items-center justify-center cursor-pointer">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
-            <div className="p-10 overflow-y-auto space-y-12 custom-scrollbar">
+            <div className="space-y-16">
                 
                 {isAdmin && !isFoundational ? (
                     <section className="space-y-8">
@@ -3710,8 +3708,11 @@ const EditSprint: React.FC = () => {
                         {Array.isArray(editSettings.dynamicSections) && editSettings.dynamicSections.map((section, index) => {
                             if (section.id === 'identity') {
                                 return (
-                                    <section key={section.id} className="space-y-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
-                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">01 Sprint Identity</h4>
+                                    <section key={section.id} className="space-y-6">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="w-8 h-8 bg-gray-150 rounded-xl flex items-center justify-center text-gray-500 text-xs font-black">01</div>
+                                            <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Sprint Identity</h4>
+                                        </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="md:col-span-2">
                                                 <label className={labelClasses}>Sprint Title</label>
@@ -3732,8 +3733,11 @@ const EditSprint: React.FC = () => {
 
                             if (section.id === 'metadata') {
                                 return (
-                                    <section key={section.id} className="space-y-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
-                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Metadata</h4>
+                                    <section key={section.id} className="space-y-6">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="w-8 h-8 bg-gray-150 rounded-xl flex items-center justify-center text-gray-500 text-xs font-black">03</div>
+                                            <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Metadata</h4>
+                                        </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                             <div>
                                                 <label className={labelClasses}>Duration (Days)</label>
@@ -3853,8 +3857,11 @@ const EditSprint: React.FC = () => {
 
                             if (section.id === 'pricing') {
                                 return (
-                                    <section key={section.id} className="space-y-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
-                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Pricing & Economy</h4>
+                                    <section key={section.id} className="space-y-6">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="w-8 h-8 bg-gray-150 rounded-xl flex items-center justify-center text-gray-500 text-xs font-black">04</div>
+                                            <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Pricing & Economy</h4>
+                                        </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                             <div>
                                                 <label className={labelClasses}>Pricing Type</label>
@@ -3882,8 +3889,11 @@ const EditSprint: React.FC = () => {
 
                             if (section.id === 'completion') {
                                 return (
-                                    <section key={section.id} className="space-y-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
-                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Completion Assets & End reminders</h4>
+                                    <section key={section.id} className="space-y-6">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="w-8 h-8 bg-gray-150 rounded-xl flex items-center justify-center text-gray-500 text-xs font-black">05</div>
+                                            <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Completion Assets & End reminders</h4>
+                                        </div>
                                         <div className="space-y-6">
                                             <div>
                                                 <label className={labelClasses}>Archive Outcome Tag</label>
@@ -3939,8 +3949,11 @@ const EditSprint: React.FC = () => {
 
                             if (section.id === 'overview') {
                                 return (
-                                    <section key={section.id} className="space-y-6 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
-                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] border-b border-gray-50 pb-2">Sprint Overview</h4>
+                                    <section key={section.id} className="space-y-6">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="w-8 h-8 bg-gray-150 rounded-xl flex items-center justify-center text-gray-500 text-xs font-black">02</div>
+                                            <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Sprint Overview</h4>
+                                        </div>
                                         <label className={labelClasses}>
                                             Detailed Overview
                                         </label>

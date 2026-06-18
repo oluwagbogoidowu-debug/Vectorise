@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Button from '../../components/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
@@ -205,9 +205,18 @@ const CreateSprint: React.FC = () => {
         );
     }
 
+    const location = useLocation();
+
     const [previewType, setPreviewType] = useState<'card' | 'landing'>('card');
 
-    const [activeTab, setActiveTab] = useState<'sprint' | 'blog' | 'ignite'>('sprint');
+    const [activeTab, setActiveTab ] = useState<'sprint' | 'blog' | 'ignite'>(() => {
+        const params = new URLSearchParams(location.search);
+        const tab = params.get('tab');
+        if (tab === 'blog' || tab === 'ignite' || tab === 'sprint') {
+            return tab;
+        }
+        return 'sprint';
+    });
 
     // RiseBlog State
     const [blogTitle, setBlogTitle] = useState('');
@@ -231,16 +240,17 @@ const CreateSprint: React.FC = () => {
             return;
         }
         setIsSubmittingBlog(true);
+        const blogId = `blog_${Date.now()}`;
         const newBlog: Sprint = {
-            id: `blog_${Date.now()}`,
+            id: blogId,
             coachId: user.id,
             title: blogTitle,
             subtitle: 'Learning that keeps you rising.',
             description: blogBody || '',
             contentType: 'blog',
             blogBody: blogBody,
-            blogImage: blogImage || `https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80`,
-            coverImageUrl: blogImage || `https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80`,
+            blogImage: blogImage || `https://picsum.photos/seed/${blogId}/800/600`,
+            coverImageUrl: blogImage || `https://picsum.photos/seed/${blogId}/800/600`,
             duration: 1,
             price: 0,
             currency: 'NGN',
@@ -271,8 +281,9 @@ const CreateSprint: React.FC = () => {
         }
         setIsSubmittingIgnite(true);
         const cleanSnippet = igniteBody.substring(0, 30) + (igniteBody.length > 30 ? '...' : '');
+        const igniteId = `ignite_${Date.now()}`;
         const newIgnite: Sprint = {
-            id: `ignite_${Date.now()}`,
+            id: igniteId,
             coachId: user.id,
             title: cleanSnippet,
             subtitle: 'Inspire someone today',
@@ -281,7 +292,7 @@ const CreateSprint: React.FC = () => {
             igniteBody: igniteBody,
             igniteBgColor: igniteBgColor,
             igniteDate: igniteDate || undefined,
-            coverImageUrl: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80',
+            coverImageUrl: `https://picsum.photos/seed/${igniteId}/800/600`,
             duration: 1,
             price: 0,
             currency: 'NGN',
@@ -516,9 +527,9 @@ const CreateSprint: React.FC = () => {
 
                 {activeTab === 'sprint' && (
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-                        <div className="lg:col-span-8 bg-white rounded-[3rem] shadow-sm border border-gray-100 overflow-hidden">
-                            <form onSubmit={handleSubmit} className="p-8 md:p-12 space-y-20">
-                                <section>
+                        <div className="lg:col-span-8">
+                            <form onSubmit={handleSubmit} className="space-y-16">
+                                <section className="space-y-6">
                                     <div className="flex items-center gap-3 mb-8">
                                         <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">01</div>
                                         <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Sprint Identity</h4>
@@ -541,9 +552,10 @@ const CreateSprint: React.FC = () => {
 
                                 {/* Sprint Overview Section */}
                                 {Array.isArray(formData.dynamicSections) && formData.dynamicSections.filter(s => s.id === 'overview').map((section, index) => (
-                                    <section key={section.id} className="space-y-6 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                                        <div className="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
-                                            <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Sprint Overview</h4>
+                                    <section key={section.id} className="space-y-6">
+                                        <div className="flex items-center gap-3 mb-8">
+                                            <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">02</div>
+                                            <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Sprint Overview</h4>
                                         </div>
                                         
                                         <div className="space-y-2">
@@ -583,10 +595,10 @@ const CreateSprint: React.FC = () => {
                                     </section>
                                 ))}
 
-                                {/* 07 Metadata */}
-                                <section>
+                                {/* 03 Metadata */}
+                                <section className="space-y-6">
                                     <div className="flex items-center gap-3 mb-8">
-                                        <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">07</div>
+                                        <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">03</div>
                                         <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Metadata</h4>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -684,10 +696,10 @@ const CreateSprint: React.FC = () => {
                                     </div>
                                 </section>
 
-                                {/* Pricing & Economy */}
-                                <section>
+                                {/* 04 Pricing & Economy */}
+                                <section className="space-y-6">
                                     <div className="flex items-center gap-3 mb-8">
-                                        <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">08</div>
+                                        <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">04</div>
                                         <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Pricing & Economy</h4>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -713,10 +725,10 @@ const CreateSprint: React.FC = () => {
                                     </div>
                                 </section>
 
-                                {/* 09 Completion Assets */}
-                                <section>
+                                {/* 05 Completion Assets */}
+                                <section className="space-y-6">
                                     <div className="flex items-center gap-3 mb-8">
-                                        <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">09</div>
+                                        <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">05</div>
                                         <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Completion Assets</h4>
                                     </div>
                                     <div className="space-y-6">

@@ -239,8 +239,8 @@ const EditBlogModal: React.FC<{
       title,
       blogBody: body,
       description: body,
-      blogImage: image || `https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80`,
-      coverImageUrl: image || `https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80`,
+      blogImage: image || `https://picsum.photos/seed/${blog.id}/800/400`,
+      coverImageUrl: image || `https://picsum.photos/seed/${blog.id}/800/400`,
     });
   };
 
@@ -634,7 +634,7 @@ const CoachSprints: React.FC = () => {
         </div>
         {hasPermission('sprint:create') && (
             <Link 
-                to="/coach/sprint/new" 
+                to={`/coach/sprint/new?tab=${activeTab}`} 
                 className="bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-xl w-9 h-9 flex items-center justify-center font-black text-sm shadow-md hover:scale-[1.05] active:scale-95 transition-all flex-shrink-0"
                 title="Create New"
             >
@@ -685,7 +685,7 @@ const CoachSprints: React.FC = () => {
                           <div className="flex-1 min-w-0 text-center sm:text-left">
                               <div className="flex items-center gap-2 mb-1 justify-center sm:justify-start flex-wrap">
                                 <h3 className="font-black text-gray-900 text-lg group-hover:text-primary transition-colors truncate tracking-tight">{sprint.title}</h3>
-                                <span className="px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded-md text-[9px] font-black uppercase tracking-wider shrink-0" title={`Version ${sprint.versionNumber || 1}`}>
+                                <span className="hidden" title={`Version ${sprint.versionNumber || 1}`}>
                                     V{sprint.versionNumber || 1}
                                 </span>
                                 {sprint.versionTag && (
