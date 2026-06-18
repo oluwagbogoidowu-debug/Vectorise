@@ -827,10 +827,10 @@ const SprintPreview: React.FC = () => {
                         {sprint.pricingType === 'credits' ? (
                             <>
                                 <h3 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight mb-3">
-                                    You’ve completed the first step.
+                                    You’ve completed the first day of your sprint.
                                 </h3>
                                 <p className="text-gray-500 font-semibold text-xs leading-relaxed mb-8">
-                                    Create an account to save your progress and continue the next step.
+                                    Create an account to save your progress.
                                 </p>
                                 
                                 <div className="space-y-4">
@@ -874,12 +874,11 @@ const SprintPreview: React.FC = () => {
                             </>
                         ) : (
                             <>
-                                <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2 col-auto">Unlock Full Sprint</h3>
-                                <p className="text-amber-600 font-extrabold text-[10px] uppercase tracking-widest mb-4">
-                                    Unlock full sprint at log in / sign up
-                                </p>
-                                <p className="text-gray-500 font-medium text-xs leading-relaxed mb-8">
-                                    Check out securely to save your Day 1 progress and continue with the remaining steps.
+                                <h3 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight mb-3">
+                                    You’ve completed the first day of your sprint.
+                                </h3>
+                                <p className="text-gray-500 font-semibold text-xs leading-relaxed mb-8">
+                                    Create an account to save your progress.
                                 </p>
                                 
                                 <div className="space-y-3">
