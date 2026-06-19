@@ -149,13 +149,29 @@ const LoginPage: React.FC = () => {
                           }
 
                           if (pendingFirstAction && pendingFirstAction.sprintId === targetSprintId) {
-                              if (pendingFirstAction.pricingType === 'cash') {
-                                  const sprint = await sprintService.getSprintById(targetSprintId);
-                                  navigate('/onboarding/sprint-payment', { state: { sprint: sprint, prefilledEmail: user.email } });
-                                  return;
-                              } else {
-                                  // Coin-based sprint target => redirect to dashboard where the coin award/unlock popup will trigger
-                                  navigate('/dashboard', { replace: true });
+                              const sprint = await sprintService.getSprintById(targetSprintId);
+                              if (sprint) {
+                                  const enrollment = await sprintService.enrollUser(user.id, targetSprintId, sprint.duration, {
+                                      firstActionInput: pendingFirstAction.firstActionInput
+                                  });
+                                  if (enrollment && enrollment.progress && enrollment.progress[0]) {
+                                      const updatedProgress = [...enrollment.progress];
+                                      updatedProgress[0] = {
+                                          ...updatedProgress[0],
+                                          completed: true,
+                                          completedAt: new Date().toISOString()
+                                      };
+                                      const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
+                                      await updateDoc(enrollmentRef, { 
+                                          progress: updatedProgress,
+                                          last_activity_at: new Date().toISOString()
+                                      });
+                                  }
+                                  localStorage.removeItem('pending_first_action');
+                                  navigate(`/participant/sprint/${enrollment.id}?day=1`, { 
+                                      replace: true, 
+                                      state: { showCompletion: true, isFirstActionAutoClaim: true } 
+                                  });
                                   return;
                               }
                           }

@@ -204,8 +204,25 @@ const SprintPreview: React.FC = () => {
     const [showSignupModal, setShowSignupModal] = useState(false);
     const [showLockModal, setShowLockModal] = useState(false);
     const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
+    const [isInsightExpanded, setIsInsightExpanded] = useState(false);
+    
+    const previewStepsContainerRef = useRef<HTMLDivElement>(null);
+    const isScrollingInternal = useRef(false);
 
     const prefilledEmail = location.state?.prefilledEmail || localStorage.getItem('guest_email');
+
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, []);
+
+    useEffect(() => {
+        if (!isLoading) {
+            const timer = setTimeout(() => {
+                window.scrollTo(0, 0);
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [isLoading]);
 
     useEffect(() => {
         const fetchSprint = async () => {
@@ -222,6 +239,42 @@ const SprintPreview: React.FC = () => {
         };
         fetchSprint();
     }, [sprintId]);
+
+    // Sync Horizontal Scroll Container offset on activeTaskIndex changes
+    useEffect(() => {
+        if (previewStepsContainerRef.current) {
+            const container = previewStepsContainerRef.current;
+            const cards = container.querySelectorAll('.action-step-card-item');
+            const targetCard = cards[activeTaskIndex] as HTMLElement;
+            if (targetCard) {
+                isScrollingInternal.current = true;
+                container.scrollTo({
+                    left: targetCard.offsetLeft - container.offsetLeft,
+                    behavior: 'smooth'
+                });
+                const timer = setTimeout(() => {
+                    isScrollingInternal.current = false;
+                }, 500);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [activeTaskIndex]);
+
+    const handlePreviewScroll = () => {
+        if (isScrollingInternal.current) return;
+        if (previewStepsContainerRef.current) {
+            const container = previewStepsContainerRef.current;
+            const scrollLeft = container.scrollLeft;
+            const cardWidth = container.clientWidth;
+            if (cardWidth > 0) {
+                const index = Math.round(scrollLeft / cardWidth);
+                const activePrompts = day1Content?.taskPrompts?.filter(p => p && p.trim()) || (day1Content?.taskPrompt ? [day1Content.taskPrompt] : []);
+                if (index >= 0 && index < activePrompts.length && index !== activeTaskIndex) {
+                    setActiveTaskIndex(index);
+                }
+            }
+        }
+    };
 
     if (isLoading) return <div className="flex items-center justify-center h-screen bg-[#FAFAFA]"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
     if (!sprint) return <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center"><h2 className="text-base font-black mb-4">Sprint not found.</h2><button onClick={() => navigate('/discover')} className="text-primary font-black uppercase tracking-widest text-xs">Back to Discover</button></div>;
@@ -309,6 +362,16 @@ const SprintPreview: React.FC = () => {
         return isText && getLinkedTagsForStep(stepIndex).length > 0;
     };
 
+    const isMultiTextStep = (stepIndex: number): boolean => {
+        if (!day1Content) return false;
+        const type = String(day1Content.taskInputTypes?.[stepIndex] || "").trim().toLowerCase();
+        const isText = type === "text" || type === "" || type === "undefined";
+        const labels = Array.isArray(day1Content.taskMultiTextLabels?.[stepIndex])
+          ? day1Content.taskMultiTextLabels[stepIndex].filter((l: any) => l && String(l).trim().length > 0)
+          : [];
+        return isText && labels.length > 0;
+    };
+
     return (
         <div className="w-full bg-[#FAFAFA] min-h-screen flex flex-col font-sans text-dark animate-fade-in pb-24">
             <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
@@ -339,16 +402,25 @@ const SprintPreview: React.FC = () => {
                     ))}
                 </div>
 
-                <div className="bg-white rounded-3xl p-6 md:p-10 border border-gray-100 shadow-sm animate-slide-up relative overflow-hidden">
-                    <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day 1 (Preview)</h2>
-                    
-                    {/* Lesson Content - Fully Visible */}
-                    <div className="space-y-2">
-                        <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Today's Insight</h2>
-                        <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
-                            <FormattedText text={day1Content?.lessonText || ""} />
-                        </div>
-                    </div>
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
+                    <button
+                      onClick={() => setIsInsightExpanded(!isInsightExpanded)}
+                      className="w-full flex items-center justify-between p-6 focus:outline-none text-left"
+                    >
+                      <span className="text-gray-900 font-black text-sm uppercase tracking-wider">
+                        Daily Insight
+                      </span>
+                      <span className={`transform transition-transform duration-300 ${isInsightExpanded ? 'rotate-180' : 'rotate-0'}`}>
+                        <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </span>
+                    </button>
+                    {isInsightExpanded && (
+                      <div className="px-6 pb-6 border-t border-gray-50 pt-4 text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch] animate-fade-in pl-6 pr-6">
+                        <FormattedText text={day1Content?.lessonText || ""} />
+                      </div>
+                    )}
                 </div>
 
                 <div className="space-y-6 w-full animate-slide-up relative overflow-hidden">
@@ -699,6 +771,44 @@ const SprintPreview: React.FC = () => {
                                                          );
                                                      })}
                                                  </div>
+                                             ) : isMultiTextStep(i) ? (
+                                                 <div className="space-y-4 animate-fade-in text-left mb-4">
+                                                     {(day1Content?.taskMultiTextLabels?.[i] || []).filter((l: any) => l && String(l).trim().length > 0).map((lbl, lblIndex) => {
+                                                         let currentAnswers: Record<string, string> = {};
+                                                         if (taskInputs[i]) {
+                                                             try {
+                                                                 if (taskInputs[i].startsWith("{")) {
+                                                                     currentAnswers = JSON.parse(taskInputs[i]);
+                                                                 } else {
+                                                                     currentAnswers = { [(day1Content?.taskMultiTextLabels?.[i] || []).filter((l: any) => l && String(l).trim().length > 0)[0] || "default"]: taskInputs[i] };
+                                                                 }
+                                                             } catch (e) {
+                                                                 currentAnswers = {};
+                                                             }
+                                                         }
+                                                         const labelVal = currentAnswers[lbl] || "";
+                                                         return (
+                                                             <div key={lblIndex} className="space-y-1.5 pl-3 border-l-2 border-primary/20">
+                                                                 <div className="flex items-center">
+                                                                     <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
+                                                                         📝 {lbl}
+                                                                     </span>
+                                                                 </div>
+                                                                 <AutoGrowingTextarea
+                                                                     value={labelVal}
+                                                                     onChange={(val) => {
+                                                                         const newAnswers = { ...currentAnswers, [lbl]: val };
+                                                                         const newInputs = [...taskInputs];
+                                                                         newInputs[i] = JSON.stringify(newAnswers);
+                                                                         setTaskInputs(newInputs);
+                                                                     }}
+                                                                     placeholder={`Your answer for ${lbl}...`}
+                                                                     className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                                                                 />
+                                                             </div>
+                                                         );
+                                                     })}
+                                                 </div>
                                              ) : (
                                                  <AutoGrowingTextarea 
                                                 value={taskInputs[i] || ''}
@@ -722,65 +832,85 @@ const SprintPreview: React.FC = () => {
                                                 </button>
                                             ) : <div />}
                                             
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const isTags = day1Content?.taskInputTypes?.[i] === "tags";
-                                                    const isNote = day1Content?.taskInputTypes?.[i] === "note";
-                                                    const isMark = day1Content?.taskInputTypes?.[i] === "mark";
-                                                    const val = taskInputs[i];
-                                                    let isValid = isNote;
-                                                    if (isMark) {
-                                                        isValid = val === "Completed";
-                                                    } else if (!isNote && val) {
-                                                        if (isTags || (day1Content?.taskInputTypes?.[i] === "poll" && !!day1Content?.taskPollMultiSelect?.[i])) {
-                                                            isValid = val !== "[]" && val !== "";
-                                                        } else if (isLinkedTextStep(i)) {
-                                                            const tags = getLinkedTagsForStep(i);
-                                                            if (tags.length > 0) {
-                                                                try {
-                                                                    if (val.startsWith("{")) {
-                                                                        const parsed = JSON.parse(val);
-                                                                        isValid = tags.every(t => parsed[t] && parsed[t].trim().length > 0);
-                                                                    }
-                                                                } catch (e) {
-                                                                    isValid = false;
+                                            {(() => {
+                                                const isTags = day1Content?.taskInputTypes?.[i] === "tags";
+                                                const isNote = day1Content?.taskInputTypes?.[i] === "note";
+                                                const isMark = day1Content?.taskInputTypes?.[i] === "mark";
+                                                const val = taskInputs[i];
+                                                let stepCompleted = isNote;
+                                                if (isMark) {
+                                                    stepCompleted = val === "Completed";
+                                                } else if (!isNote && val) {
+                                                    if (isTags || (day1Content?.taskInputTypes?.[i] === "poll" && !!day1Content?.taskPollMultiSelect?.[i])) {
+                                                        stepCompleted = val !== "[]" && val !== "";
+                                                    } else if (isLinkedTextStep(i)) {
+                                                        const tags = getLinkedTagsForStep(i);
+                                                        if (tags.length > 0) {
+                                                            try {
+                                                                if (val.startsWith("{")) {
+                                                                    const parsed = JSON.parse(val);
+                                                                    stepCompleted = tags.every(t => parsed[t] && parsed[t].trim().length > 0);
+                                                                } else {
+                                                                    stepCompleted = false;
                                                                 }
-                                                            } else {
-                                                                isValid = val.trim().length > 0;
+                                                            } catch (e) {
+                                                                stepCompleted = false;
                                                             }
                                                         } else {
-                                                            isValid = val.trim().length > 0;
+                                                            stepCompleted = val.trim().length > 0;
                                                         }
-                                                    }
-                                                    if (!isValid) {
-                                                        toast.error("Please provide an answer to continue.");
-                                                        return;
-                                                    }
-
-                                                    if (i < activePrompts.length - 1) {
-                                                        setActiveTaskIndex(i + 1);
-                                                    } else {
-                                                        if (!user) {
-                                                            // Explicit guest check. All actions went through, show lock/signup modal at end of actions
-                                                            const pendingObj = {
-                                                                sprintId: sprint.id,
-                                                                pricingType: sprint.pricingType || 'cash',
-                                                                firstActionInput: taskInputs[0],
-                                                                prefilledEmail: prefilledEmail || ''
-                                                            };
-                                                            localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
-                                                            setShowLockModal(true);
+                                                    } else if (isMultiTextStep(i)) {
+                                                        const labels = Array.isArray(day1Content?.taskMultiTextLabels?.[i])
+                                                          ? day1Content.taskMultiTextLabels[i].filter((l: any) => l && String(l).trim().length > 0)
+                                                          : [];
+                                                        if (labels.length > 0) {
+                                                            try {
+                                                                if (val.startsWith("{")) {
+                                                                    const parsed = JSON.parse(val);
+                                                                    stepCompleted = labels.every(lbl => parsed[lbl] && parsed[lbl].trim().length > 0);
+                                                                } else {
+                                                                    stepCompleted = false;
+                                                                }
+                                                            } catch (e) {
+                                                                stepCompleted = false;
+                                                            }
                                                         } else {
-                                                            // Last step prompts the signup modal
-                                                            setShowSignupModal(true);
+                                                            stepCompleted = val.trim().length > 0;
                                                         }
+                                                    } else {
+                                                        stepCompleted = val.trim().length > 0;
                                                     }
-                                                }}
-                                                className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 active:scale-95"
-                                            >
-                                                {i < activePrompts.length - 1 ? 'Next Step' : 'Complete Action'}
-                                            </button>
+                                                }
+
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (!stepCompleted) return;
+                                                            if (i < activePrompts.length - 1) {
+                                                                setActiveTaskIndex(i + 1);
+                                                            } else {
+                                                                if (!user) {
+                                                                    const pendingObj = {
+                                                                        sprintId: sprint.id,
+                                                                        pricingType: sprint.pricingType || 'cash',
+                                                                        firstActionInput: taskInputs[0],
+                                                                        prefilledEmail: prefilledEmail || ''
+                                                                    };
+                                                                    localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
+                                                                    setShowLockModal(true);
+                                                                } else {
+                                                                    setShowSignupModal(true);
+                                                                }
+                                                            }
+                                                        }}
+                                                        disabled={!stepCompleted}
+                                                        className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${stepCompleted ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                                    >
+                                                        {i < activePrompts.length - 1 ? 'Next Step' : 'Complete Action'}
+                                                    </button>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                     

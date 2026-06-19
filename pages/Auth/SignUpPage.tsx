@@ -169,7 +169,7 @@ const SignUpPage: React.FC = () => {
         enrolledSprintIds: [],
         isPartner: !!isPartnerApplication,
         partnerData: partnerData || null,
-        walletBalance: 50, // Explicit account creation coin gift
+        walletBalance: 0, // No coin is given on signup
         
         // ATTACH REFERRAL DATA PERMANENTLY
         referrerId: resolvedReferrerId || null,
@@ -260,16 +260,30 @@ const SignUpPage: React.FC = () => {
       }
 
       if (pendingFirstAction && pendingFirstAction.sprintId === targetSprintId) {
-          if (pendingFirstAction.pricingType === 'cash') {
-              const sprint = await sprintService.getSprintById(targetSprintId);
+          const sprint = await sprintService.getSprintById(targetSprintId);
+          if (sprint) {
+              const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprintId, sprint.duration, {
+                  firstActionInput: pendingFirstAction.firstActionInput
+              });
+              if (enrollment && enrollment.progress && enrollment.progress[0]) {
+                  const updatedProgress = [...enrollment.progress];
+                  updatedProgress[0] = {
+                      ...updatedProgress[0],
+                      completed: true,
+                      completedAt: new Date().toISOString()
+                  };
+                  const enrollmentRef = doc(db, "users", firebaseUser.uid, "enrollments", enrollment.id);
+                  await updateDoc(enrollmentRef, { 
+                      progress: updatedProgress,
+                      last_activity_at: new Date().toISOString()
+                  });
+              }
+              localStorage.removeItem('pending_first_action');
               await sendEmailVerification(firebaseUser);
-              setPendingRedirect({ path: '/onboarding/sprint-payment', state: { sprint: sprint, prefilledEmail: email } });
-              setShowVerifyModal(true);
-              return;
-          } else {
-              // Coin-based sprint target => redirect to dashboard where the coin award and unlock modal will trigger
-              await sendEmailVerification(firebaseUser);
-              setPendingRedirect({ path: '/dashboard', state: { replace: true } });
+              setPendingRedirect({ 
+                  path: `/participant/sprint/${enrollment.id}?day=1`, 
+                  state: { showCompletion: true, isFirstActionAutoClaim: true } 
+              });
               setShowVerifyModal(true);
               return;
           }

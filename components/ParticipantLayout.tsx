@@ -4,6 +4,8 @@ import Header from './Header';
 import BottomNav from './BottomNav';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { db } from '../services/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 import { sprintService } from '../services/sprintService';
 import { userService } from '../services/userService';
 import { toast } from 'sonner';
@@ -37,16 +39,37 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
     if (!pendingRaw) return;
     try {
       const pending = JSON.parse(pendingRaw);
-      if (pending && pending.pricingType === 'credits') {
+      if (pending && pending.sprintId) {
         sprintService.getSprintById(pending.sprintId).then((sprint) => {
           if (sprint) {
-            sprintService.getUserEnrollments(user.id).then((enrollments) => {
+            sprintService.getUserEnrollments(user.id).then(async (enrollments) => {
               const existingEnrollment = enrollments.find(e => e.sprint_id === pending.sprintId);
               if (!existingEnrollment) {
-                // Case 3: Not done at all, show Coin balance option
-                setPendingAction(pending);
-                setPendingSprint(sprint);
-                setShowCoinPopup(true);
+                try {
+                  const enrollment = await sprintService.enrollUser(user.id, pending.sprintId, sprint.duration, {
+                    firstActionInput: pending.firstActionInput
+                  });
+                  if (enrollment && enrollment.progress && enrollment.progress[0]) {
+                    const updatedProgress = [...enrollment.progress];
+                    updatedProgress[0] = {
+                        ...updatedProgress[0],
+                        completed: true,
+                        completedAt: new Date().toISOString()
+                    };
+                    const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
+                    await updateDoc(enrollmentRef, { 
+                        progress: updatedProgress,
+                        last_activity_at: new Date().toISOString()
+                    });
+                  }
+                  localStorage.removeItem('pending_first_action');
+                  navigate(`/participant/sprint/${enrollment.id}?day=1`, { 
+                    replace: true, 
+                    state: { showCompletion: true, isFirstActionAutoClaim: true } 
+                  });
+                } catch (autoErr) {
+                  console.error("Auto enrollment inside layout failed:", autoErr);
+                }
               } else if (existingEnrollment.status === 'completed') {
                 // Case 1: Already completed/done before, show "Check out recommended sprint" popup
                 setPendingSprint(sprint);

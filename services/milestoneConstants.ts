@@ -13,6 +13,7 @@ export interface MilestoneDefinition {
 
 export const MILESTONES: MilestoneDefinition[] = [
     // Core Progress
+    { id: 'first_leap', title: 'You have taken the first leap', description: 'Completed your first sprint task.', icon: '🚀', targetValue: 1, points: 10, category: 'coreProgress', isAutoClaim: true },
     { id: 's2', title: 'The Closer', description: 'You finished what you started.', icon: '🏁', targetValue: 1, points: 15, category: 'coreProgress' },
     { id: 's4', title: 'Growth Habit', description: 'Consistency is becoming your default.', icon: '🏗️', targetValue: 14, points: 50, category: 'coreProgress' },
     
