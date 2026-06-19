@@ -225,6 +225,7 @@ const Badges: React.FC = () => {
         
         const getStatValue = (id: string) => {
             switch(id) {
+                case 'first_leap': return enrollments.reduce((sum, e) => sum + e.progress.filter(day => day.completed).length, 0);
                 case 's2': return stats.completed;
                 case 's4': return stats.totalTaskDays;
                 case 'cm1': return stats.totalTaskDays;
@@ -411,13 +412,10 @@ const Badges: React.FC = () => {
                     <div className="bg-white rounded-[2.5rem] border border-gray-100/80 shadow-sm p-6 sm:p-8 animate-fade-in">
                         <div className="mb-6">
                             <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
-                                🎯 ROADMAP TO NEXT MILESTONES
+                                🎯 QUICK ROADMAP TO NEXT MILESTONES
                             </h3>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase mt-1 tracking-wider leading-relaxed">
-                                Track completion progress towards the next tier within each category
-                            </p>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-4 scroll-smooth">
                             {categoryProgressData.map((data, idx) => {
                                 const barColorClass = data.color === 'primary' ? 'bg-primary' : 
                                                     data.color === 'blue' ? 'bg-blue-600' : 
@@ -430,7 +428,7 @@ const Badges: React.FC = () => {
                                                       data.color === 'teal' ? 'text-teal-600' : 'text-primary';
 
                                 return (
-                                    <div key={idx} className="p-5 rounded-2xl bg-[#FAFAFA]/70 border border-gray-100 hover:border-gray-200/80 transition-all flex flex-col justify-between group">
+                                    <div key={idx} className="p-5 rounded-2xl bg-[#FAFAFA]/70 border border-gray-100 hover:border-gray-200/80 transition-all flex flex-col justify-between group flex-shrink-0 w-[78vw] sm:w-[240px] snap-center min-h-[180px]">
                                         <div>
                                             <div className="flex items-center justify-between mb-3">
                                                 <span className="text-[9px] font-black tracking-widest uppercase text-gray-400">
@@ -496,6 +494,8 @@ const Badges: React.FC = () => {
             <style>{`
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
                 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
             `}</style>
         </div>
     );
