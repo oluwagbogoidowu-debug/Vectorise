@@ -965,6 +965,7 @@ const IgnitePlayer: React.FC<{
   
   const [activeSlide, setActiveSlide] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   // Persistence of Liked Ignite
   const [isLiked, setIsLiked] = useState(() => {
@@ -1023,6 +1024,8 @@ const IgnitePlayer: React.FC<{
   }, [activeSlide]);
 
   useEffect(() => {
+    if (isPaused) return;
+
     const slideDuration = 4500; // 4.5 seconds per slide
     const intervalTime = 50; // tick every 50ms
     const step = (intervalTime / slideDuration) * 100;
@@ -1038,7 +1041,7 @@ const IgnitePlayer: React.FC<{
     }, intervalTime);
 
     return () => clearInterval(timer);
-  }, [activeSlides.length, activeSlide]);
+  }, [activeSlides.length, activeSlide, isPaused]);
 
   const handleNext = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1050,10 +1053,19 @@ const IgnitePlayer: React.FC<{
     setActiveSlide(curr => (curr - 1 + activeSlides.length) % activeSlides.length);
   };
 
+  const handlePageClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('a')) {
+      return;
+    }
+    setIsPaused(prev => !prev);
+  };
+
   return (
     <div 
-      className="fixed inset-0 z-[400] flex flex-col justify-between p-6 select-none animate-fade-in text-white font-sans"
+      className="fixed inset-0 z-[400] flex flex-col justify-between p-6 select-none animate-fade-in text-white font-sans cursor-pointer"
       style={{ backgroundColor: bgColor }}
+      onClick={handlePageClick}
     >
       {/* Date above indicators */}
       <div className="absolute top-3.5 left-0 right-0 text-center z-[410] text-[10px] font-black tracking-[0.25em] text-white/90 uppercase drop-shadow-sm select-none">
@@ -1088,7 +1100,10 @@ const IgnitePlayer: React.FC<{
       {/* Close button */}
       <button 
         type="button"
-        onClick={onClose} 
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }} 
         className="absolute top-13 right-6 z-[420] bg-black/40 hover:bg-black/60 p-2.5 rounded-full transition-all text-white/90 font-bold active:scale-90 cursor-pointer flex items-center justify-center outline-none border-none shadow-md"
         title="Exit Fullscreen"
       >
@@ -1103,9 +1118,14 @@ const IgnitePlayer: React.FC<{
         <div className="absolute left-0 top-0 bottom-0 w-1/3 cursor-w-resize" onClick={handlePrev} />
         
         {/* Main large text content */}
-        <p className="text-3xl md:text-5xl font-extrabold text-center leading-relaxed tracking-wide text-white drop-shadow-md whitespace-pre-wrap max-w-3xl pointer-events-none px-4 select-none animate-slide-up">
-          {activeSlides[activeSlide]}
-        </p>
+        <div className="z-10 text-center select-none pointer-events-none max-w-3xl px-4 flex flex-col items-center">
+          <p className="text-3xl md:text-5xl font-extrabold leading-relaxed tracking-wide text-white drop-shadow-md whitespace-pre-wrap animate-slide-up">
+            {activeSlides[activeSlide]}
+          </p>
+          <p className="text-[10px] uppercase tracking-widest font-black text-white/40 mt-6 animate-pulse select-none">
+            {isPaused ? "Tap background to resume" : "Tap background to pause"}
+          </p>
+        </div>
 
         {/* Right click catcher */}
         <div className="absolute right-0 top-0 bottom-0 w-2/3 cursor-e-resize" onClick={handleNext} />
@@ -1113,7 +1133,12 @@ const IgnitePlayer: React.FC<{
 
       {/* Bottom info */}
       <div className="flex justify-between items-center z-[410] px-4 font-black tracking-widest text-[10px] text-white/60 uppercase">
-        <span>Ignite Post</span>
+        <div className="flex items-center gap-1.5">
+          <span>Ignite Post</span>
+          {isPaused && (
+            <span className="px-1 rounded bg-white/20 text-white text-[8px] tracking-normal font-black animate-pulse">PAUSED</span>
+          )}
+        </div>
         <span>Slide {activeSlide + 1} of {activeSlides.length}</span>
       </div>
     </div>
