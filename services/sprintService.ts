@@ -550,7 +550,7 @@ export const sprintService = {
             currency?: string,
             source?: PaymentSource, 
             referral?: string | null,
-            firstActionInput?: string
+            firstActionInput?: string, taskInputs?: string[]
         }
     ) => {
         const enrollmentId = `enrollment_${userId}_${sprintId}`;
@@ -586,8 +586,8 @@ export const sprintService = {
             progress: Array.from({ length: duration }, (_, i) => ({
                 day: i + 1,
                 completed: false,
-                answers: (i === 0 && commercial?.firstActionInput) ? [commercial.firstActionInput] : [],
-                submission: (i === 0 && commercial?.firstActionInput) ? commercial.firstActionInput : ""
+                answers: (i === 0 && commercial?.taskInputs) ? commercial.taskInputs : (i === 0 && commercial?.firstActionInput) ? [commercial.firstActionInput] : [],
+                submission: (i === 0 && commercial?.taskInputs) ? commercial.taskInputs[0] || "" : (i === 0 && commercial?.firstActionInput) ? commercial.firstActionInput : ""
             }))
         };
 

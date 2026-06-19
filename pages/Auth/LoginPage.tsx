@@ -152,14 +152,14 @@ const LoginPage: React.FC = () => {
                               const sprint = await sprintService.getSprintById(targetSprintId);
                               if (sprint) {
                                   const enrollment = await sprintService.enrollUser(user.id, targetSprintId, sprint.duration, {
-                                      firstActionInput: pendingFirstAction.firstActionInput
+                                      firstActionInput: pendingFirstAction.firstActionInput, taskInputs: pendingFirstAction.taskInputs
                                   });
                                   if (enrollment && enrollment.progress && enrollment.progress[0]) {
                                       const updatedProgress = [...enrollment.progress];
                                       updatedProgress[0] = {
                                           ...updatedProgress[0],
                                           completed: true,
-                                          completedAt: new Date().toISOString()
+                                          completedAt: new Date().toISOString(), answers: pendingFirstAction.taskInputs || [pendingFirstAction.firstActionInput], submission: pendingFirstAction.taskInputs?.[0] || pendingFirstAction.firstActionInput
                                       };
                                       const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
                                       await updateDoc(enrollmentRef, { 

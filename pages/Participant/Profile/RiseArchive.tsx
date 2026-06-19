@@ -220,8 +220,8 @@ const RiseArchive: React.FC = () => {
               <span>Back</span>
             </button>
             <div className="text-center flex-1 mx-4 min-w-0">
+              <h2 className="text-xs md:text-sm font-black text-gray-900 tracking-tight leading-tight uppercase mb-1 truncate">{selectedSprintDetails.sprint.title}</h2>
               <span className="text-[7px] font-black bg-emerald-50 text-[#0E7850] px-1.5 py-0.5 rounded-md uppercase tracking-wider">{selectedSprintDetails.sprint.category}</span>
-              <h2 className="text-xs md:text-sm font-black text-gray-900 tracking-tight leading-tight uppercase mt-0.5 truncate">{selectedSprintDetails.sprint.title}</h2>
             </div>
             <div className="w-14"></div>
           </header>
@@ -237,6 +237,9 @@ const RiseArchive: React.FC = () => {
                 
                 const checkIsDayLocked = (dayNum: number) => {
                   if (selectedSprintDetails.enrollment.status === 'completed') return false;
+                  const totalDays = selectedSprintDetails.sprint.duration || 5;
+                  const completedDaysCount = selectedSprintDetails.enrollment.progress?.filter(p => p.completed).length || 0;
+                  if (completedDaysCount >= totalDays) return false;
                   if (dayNum === 1) return false;
                   
                   const prevDay = selectedSprintDetails.enrollment.progress?.find(p => p.day === dayNum - 1);
@@ -304,6 +307,9 @@ const RiseArchive: React.FC = () => {
                 
                 const checkIsDayLocked = (dayNum: number) => {
                   if (selectedSprintDetails.enrollment.status === 'completed') return false;
+                  const totalDays = selectedSprintDetails.sprint.duration || 5;
+                  const completedDaysCount = selectedSprintDetails.enrollment.progress?.filter(p => p.completed).length || 0;
+                  if (completedDaysCount >= totalDays) return false;
                   if (dayNum === 1) return false;
                   
                   const prevDay = selectedSprintDetails.enrollment.progress?.find(p => p.day === dayNum - 1);

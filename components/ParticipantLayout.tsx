@@ -10,6 +10,7 @@ import { sprintService } from '../services/sprintService';
 import { userService } from '../services/userService';
 import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
+import { NotificationManager } from './NotificationManager';
 
 interface ParticipantLayoutProps {
   children?: React.ReactNode;
@@ -47,14 +48,14 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
               if (!existingEnrollment) {
                 try {
                   const enrollment = await sprintService.enrollUser(user.id, pending.sprintId, sprint.duration, {
-                    firstActionInput: pending.firstActionInput
+                    firstActionInput: pending.firstActionInput, taskInputs: pending.taskInputs
                   });
                   if (enrollment && enrollment.progress && enrollment.progress[0]) {
                     const updatedProgress = [...enrollment.progress];
                     updatedProgress[0] = {
                         ...updatedProgress[0],
                         completed: true,
-                        completedAt: new Date().toISOString()
+                        completedAt: new Date().toISOString(), answers: pending.taskInputs || [pending.firstActionInput], submission: pending.taskInputs?.[0] || pending.firstActionInput
                     };
                     const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
                     await updateDoc(enrollmentRef, { 
@@ -88,6 +89,25 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
       console.error("Error reading pending first action in layout:", err);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (localStorage.getItem('show_bonus_toast') === 'true') {
+      localStorage.removeItem('show_bonus_toast');
+      const timer = setTimeout(() => {
+        toast.success("10 coin bonus claimed and first step completed successfully! 🪙", {
+          duration: 5000,
+        });
+        
+        const pushTimer = setTimeout(() => {
+          localStorage.setItem('trigger_push_prompt_small', 'true');
+          window.dispatchEvent(new Event('trigger_push_prompt'));
+        }, 2000);
+        
+        return () => clearTimeout(pushTimer);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [location.pathname]);
 
   return (
     <div className="h-[100dvh] w-full bg-light overflow-hidden flex flex-col">
@@ -247,6 +267,8 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
         </div>,
         document.body
       )}
+
+      <NotificationManager />
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }

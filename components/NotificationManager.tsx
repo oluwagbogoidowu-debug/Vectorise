@@ -57,6 +57,23 @@ export const NotificationManager: React.FC = () => {
     };
   }, [user]);
 
+  useEffect(() => {
+    const handleTrigger = () => {
+      setShowPrompt(true);
+    };
+    window.addEventListener('trigger_push_prompt', handleTrigger);
+    
+    // Check if the trigger flag is set in localStorage on mount
+    if (localStorage.getItem('trigger_push_prompt_small') === 'true') {
+      localStorage.removeItem('trigger_push_prompt_small');
+      handleTrigger();
+    }
+
+    return () => {
+      window.removeEventListener('trigger_push_prompt', handleTrigger);
+    };
+  }, []);
+
   const handleSubscribe = async () => {
     if (!user) return;
 

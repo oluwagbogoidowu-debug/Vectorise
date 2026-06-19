@@ -1509,7 +1509,7 @@ const SprintView: React.FC = () => {
         newState &&
         pushNotificationService.shouldShowPermissionRequest(user as Participant)
       ) {
-        setIsPushPermissionModalOpen(true);
+        window.dispatchEvent(new Event('trigger_push_prompt'));
       }
     } catch (err) {
       console.error("Toggle notifications state failed", err);
@@ -1722,7 +1722,7 @@ const SprintView: React.FC = () => {
         user &&
         pushNotificationService.shouldShowPermissionRequest(user as Participant)
       ) {
-        setIsPushPermissionModalOpen(true);
+        window.dispatchEvent(new Event('trigger_push_prompt'));
       }
     } catch (err) {
       console.error("Completion failed", err);
@@ -3486,6 +3486,11 @@ const SprintView: React.FC = () => {
         isOpen={isDayCompletionModalOpen}
         onClose={() => {
           setIsDayCompletionModalOpen(false);
+          if (location.state?.showCompletion) {
+            localStorage.setItem('show_bonus_toast', 'true');
+            navigate('/dashboard', { replace: true });
+            return;
+          }
           if (dayContent?.mirrorActive) {
             if (mirrorTimerRef.current) clearTimeout(mirrorTimerRef.current);
             mirrorTimerRef.current = setTimeout(() => {
@@ -3509,13 +3514,6 @@ const SprintView: React.FC = () => {
         onStartNext={handleCompletionModalAction}
         sprintTitle={sprint?.title}
         streakCount={(user as any)?.impactStats?.streak || 0}
-      />
-      <PushPermissionModal
-        isOpen={isPushPermissionModalOpen}
-        onAccept={handleAcceptPush}
-        onDecline={handleDeclinePush}
-        onIgnore={handleIgnorePush}
-        isLoading={isSubmittingPush}
       />
       <ConfirmModal
         isOpen={confirmCheckInDay !== null}

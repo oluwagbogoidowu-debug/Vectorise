@@ -204,7 +204,7 @@ const SprintPreview: React.FC = () => {
     const [showSignupModal, setShowSignupModal] = useState(false);
     const [showLockModal, setShowLockModal] = useState(false);
     const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
-    const [isInsightExpanded, setIsInsightExpanded] = useState(false);
+    const [isInsightExpanded, setIsInsightExpanded] = useState(true);
     
     const previewStepsContainerRef = useRef<HTMLDivElement>(null);
     const isScrollingInternal = useRef(false);
@@ -572,6 +572,7 @@ const SprintPreview: React.FC = () => {
                                                                 sprintId: sprint.id,
                                                                 pricingType: sprint.pricingType || 'cash',
                                                                 firstActionInput: taskInputs[0],
+                                                                taskInputs: taskInputs,
                                                                 prefilledEmail: prefilledEmail || ''
                                                             };
                                                             localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
@@ -610,13 +611,9 @@ const SprintPreview: React.FC = () => {
                                                     customOptions = customOptions.filter(Boolean);
 
                                                     // If Tag Note is ON, it does NOT receive tags. The poll acts like standard default.
-                                                     if (day1Content.taskTagNoteActive?.[i]) {
-                                                         pollOptions = customOptions;
-                                                     } else {
-                                                         // If Tag Note is OFF, merge the dynamic tags from previous steps as choices
-                                                         const linkedTags = getLinkedTagsForStep(i);
-                                                         pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
-                                                     }
+                                                    // Always merge the dynamic tags from previous steps as choices, regardless of Tag Note active state
+                                                    const linkedTags = getLinkedTagsForStep(i);
+                                                    pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
 
                                                     const isMultiSelect = !!day1Content.taskPollMultiSelect?.[i];
                                                     let selectedOpts: string[] = [];
@@ -627,6 +624,70 @@ const SprintPreview: React.FC = () => {
                                                             selectedOpts = [taskInputs[i]];
                                                         }
                                                     } catch (e) {}
+
+                                                    if (pollOptions.length > 6) {
+                                                        if (isMultiSelect) {
+                                                            return (
+                                                                <>
+                                                                    <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-2 animate-pulse flex items-center gap-1.5 overflow-hidden">
+                                                                        <span>☑️ Select one or more:</span>
+                                                                    </p>
+                                                                    <div className="flex flex-wrap gap-1.5 w-full">
+                                                                        {pollOptions
+                                                                            .filter(Boolean)
+                                                                            .map((opt: string, optIndex: number) => {
+                                                                                const isSel = selectedOpts.includes(opt);
+                                                                                return (
+                                                                                    <button
+                                                                                        key={optIndex}
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            const newInputs = [...taskInputs];
+                                                                                            const indexInSel = selectedOpts.indexOf(opt);
+                                                                                            let newSelected: string[];
+                                                                                            if (indexInSel !== -1) {
+                                                                                                newSelected = selectedOpts.filter(o => o !== opt);
+                                                                                            } else {
+                                                                                                newSelected = [...selectedOpts, opt];
+                                                                                            }
+                                                                                            newInputs[i] = JSON.stringify(newSelected);
+                                                                                            setTaskInputs(newInputs);
+                                                                                        }}
+                                                                                        className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
+                                                                                    >
+                                                                                        {opt}
+                                                                                    </button>
+                                                                                );
+                                                                            })}
+                                                                    </div>
+                                                                </>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <div className="flex flex-wrap gap-1.5 w-full">
+                                                                {pollOptions
+                                                                    .filter(Boolean)
+                                                                    .map((opt: string, optIndex: number) => {
+                                                                        const isSel = taskInputs[i] === opt;
+                                                                        return (
+                                                                            <button
+                                                                                key={optIndex}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const newInputs = [...taskInputs];
+                                                                                    newInputs[i] = opt;
+                                                                                    setTaskInputs(newInputs);
+                                                                                }}
+                                                                                className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
+                                                                            >
+                                                                                {opt}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                            </div>
+                                                        );
+                                                    }
 
                                                     if (isMultiSelect) {
                                                         return (
@@ -970,6 +1031,7 @@ const SprintPreview: React.FC = () => {
                                                 sprintId: sprint.id,
                                                 pricingType: sprint.pricingType || 'credits',
                                                 firstActionInput: taskInputs[0],
+                                                taskInputs: taskInputs,
                                                 prefilledEmail: prefilledEmail || ''
                                             };
                                             localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
@@ -985,6 +1047,7 @@ const SprintPreview: React.FC = () => {
                                                 sprintId: sprint.id,
                                                 pricingType: sprint.pricingType || 'credits',
                                                 firstActionInput: taskInputs[0],
+                                                taskInputs: taskInputs,
                                                 prefilledEmail: prefilledEmail || ''
                                             };
                                             localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
@@ -1018,6 +1081,7 @@ const SprintPreview: React.FC = () => {
                                                 sprintId: sprint.id,
                                                 pricingType: sprint.pricingType || 'cash',
                                                 firstActionInput: taskInputs[0],
+                                                taskInputs: taskInputs,
                                                 prefilledEmail: prefilledEmail || ''
                                             };
                                             localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
@@ -1033,6 +1097,7 @@ const SprintPreview: React.FC = () => {
                                                 sprintId: sprint.id,
                                                 pricingType: sprint.pricingType || 'cash',
                                                 firstActionInput: taskInputs[0],
+                                                taskInputs: taskInputs,
                                                 prefilledEmail: prefilledEmail || ''
                                             };
                                             localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));

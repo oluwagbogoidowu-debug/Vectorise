@@ -263,14 +263,17 @@ const SignUpPage: React.FC = () => {
           const sprint = await sprintService.getSprintById(targetSprintId);
           if (sprint) {
               const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprintId, sprint.duration, {
-                  firstActionInput: pendingFirstAction.firstActionInput
-              });
+                  firstActionInput: pendingFirstAction.firstActionInput,
+                  taskInputs: pendingFirstAction.taskInputs
+              } as any);
               if (enrollment && enrollment.progress && enrollment.progress[0]) {
                   const updatedProgress = [...enrollment.progress];
                   updatedProgress[0] = {
                       ...updatedProgress[0],
                       completed: true,
-                      completedAt: new Date().toISOString()
+                      completedAt: new Date().toISOString(),
+                      answers: pendingFirstAction.taskInputs || [pendingFirstAction.firstActionInput],
+                      submission: pendingFirstAction.taskInputs?.[0] || pendingFirstAction.firstActionInput
                   };
                   const enrollmentRef = doc(db, "users", firebaseUser.uid, "enrollments", enrollment.id);
                   await updateDoc(enrollmentRef, { 

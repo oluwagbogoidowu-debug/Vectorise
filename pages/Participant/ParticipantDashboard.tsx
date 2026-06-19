@@ -11,7 +11,7 @@ import { pushNotificationService } from '../../services/pushNotificationService'
 import { toast } from 'sonner';
 import { db } from '../../services/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { X, History, Sparkles, Heart } from 'lucide-react';
+import { X, History, Sparkles, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { ARCHETYPES } from '../../constants';
@@ -1115,7 +1115,13 @@ const IgnitePlayer: React.FC<{
       {/* Main slide display - split clickable regions for left/right nav */}
       <div className="relative flex-1 flex items-center justify-center px-4 md:px-12 my-12">
         {/* Left click catcher */}
-        <div className="absolute left-0 top-0 bottom-0 w-1/3 cursor-w-resize" onClick={handlePrev} />
+        <div 
+          onClick={handlePrev}
+          className="absolute left-0 top-0 bottom-0 w-16 cursor-w-resize z-[420] flex items-center justify-center text-white/30 hover:text-white transition-colors"
+          title="Previous Slide"
+        >
+          <ChevronLeft className="h-6 w-6 stroke-[3px]" />
+        </div>
         
         {/* Main large text content */}
         <div className="z-10 text-center select-none pointer-events-none max-w-3xl px-4 flex flex-col items-center">
@@ -1128,7 +1134,13 @@ const IgnitePlayer: React.FC<{
         </div>
 
         {/* Right click catcher */}
-        <div className="absolute right-0 top-0 bottom-0 w-2/3 cursor-e-resize" onClick={handleNext} />
+        <div 
+          onClick={handleNext}
+          className="absolute right-0 top-0 bottom-0 w-16 cursor-e-resize z-[420] flex items-center justify-center text-white/30 hover:text-white transition-colors"
+          title="Next Slide"
+        >
+          <ChevronRight className="h-6 w-6 stroke-[3px]" />
+        </div>
       </div>
 
       {/* Bottom info */}
