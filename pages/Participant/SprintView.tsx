@@ -1363,7 +1363,7 @@ const SprintView: React.FC = () => {
     
     if (location.state?.showCompletion) {
       setHasTriggeredAutoClaim(true);
-      setIsDayCompletionModalOpen(true);
+      setIsCompletionModalOpen(true);
       
       const triggerMilestone = async () => {
         try {
@@ -3486,11 +3486,6 @@ const SprintView: React.FC = () => {
         isOpen={isDayCompletionModalOpen}
         onClose={() => {
           setIsDayCompletionModalOpen(false);
-          if (location.state?.showCompletion) {
-            localStorage.setItem('show_bonus_toast', 'true');
-            navigate('/dashboard', { replace: true });
-            return;
-          }
           if (dayContent?.mirrorActive) {
             if (mirrorTimerRef.current) clearTimeout(mirrorTimerRef.current);
             mirrorTimerRef.current = setTimeout(() => {
@@ -3510,7 +3505,12 @@ const SprintView: React.FC = () => {
       />
       <SprintCompletionModal
         isOpen={isCompletionModalOpen}
-        onClose={() => navigate("/dashboard", { replace: true })}
+        onClose={() => {
+          if (location.state?.showCompletion) {
+            localStorage.setItem("show_bonus_toast", "true");
+          }
+          navigate("/dashboard", { replace: true });
+        }}
         onStartNext={handleCompletionModalAction}
         sprintTitle={sprint?.title}
         streakCount={(user as any)?.impactStats?.streak || 0}
