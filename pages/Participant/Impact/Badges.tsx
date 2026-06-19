@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -8,6 +8,7 @@ import { shineService } from '../../../services/shineService';
 import { userService, sanitizeData } from '../../../services/userService';
 import { Share2 } from 'lucide-react';
 import AchievementShareModal from '../../../components/AchievementShareModal';
+import { motion } from 'motion/react';
 
 import { MILESTONES, MilestoneDefinition } from '../../../services/milestoneConstants';
 
@@ -134,6 +135,28 @@ const Badges: React.FC = () => {
 
     // Expansion states for each badge category
     const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+
+    const carouselRef = useRef<HTMLDivElement>(null);
+    const [dragWidth, setDragWidth] = useState(0);
+
+    // Track when data updates, or when screen resizes, to dynamically update horizontal drag bounds
+    useEffect(() => {
+        const updateWidth = () => {
+            if (carouselRef.current) {
+                const scrollWidth = carouselRef.current.scrollWidth;
+                const offsetWidth = carouselRef.current.offsetWidth;
+                setDragWidth(Math.max(0, scrollWidth - offsetWidth));
+            }
+        };
+
+        const timer = setTimeout(updateWidth, 300); // Small delay to let cards render first
+
+        window.addEventListener('resize', updateWidth);
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('resize', updateWidth);
+        };
+    }, [enrollments, allSprintData, reflections, isLoading]);
 
     useEffect(() => {
         if (!user) return;
@@ -409,65 +432,85 @@ const Badges: React.FC = () => {
             ) : (
                 <div className="space-y-16">
                     {/* Category Milestones Summary Dashboard */}
-                    <div className="bg-white rounded-[2.5rem] border border-gray-100/80 shadow-sm p-6 sm:p-8 animate-fade-in">
-                        <div className="mb-6">
+                    <div className="bg-white rounded-[2.5rem] border border-gray-100/80 shadow-sm p-6 sm:p-8 animate-fade-in overflow-hidden">
+                        <div className="mb-6 flex justify-between items-center">
                             <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
                                 🎯 QUICK ROADMAP TO NEXT MILESTONES
                             </h3>
+                            <span className="text-[8px] font-black tracking-widest uppercase text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full select-none">
+                                Swipe / Drag
+                            </span>
                         </div>
-                        <div className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-4 scroll-smooth">
-                            {categoryProgressData.map((data, idx) => {
-                                const barColorClass = data.color === 'primary' ? 'bg-primary' : 
-                                                    data.color === 'blue' ? 'bg-blue-600' : 
-                                                    data.color === 'yellow' ? 'bg-yellow-500' : 
-                                                    data.color === 'teal' ? 'bg-teal-500' : 'bg-primary';
+                        <motion.div 
+                            ref={carouselRef}
+                            className="overflow-hidden select-none cursor-grab active:cursor-grabbing"
+                            style={{ touchAction: 'pan-y' }}
+                            whileTap={{ cursor: 'grabbing' }}
+                        >
+                            <motion.div
+                                drag="x"
+                                dragConstraints={{ right: 0, left: -dragWidth }}
+                                dragElastic={0.15}
+                                className="flex gap-4 pb-4"
+                            >
+                                {categoryProgressData.map((data, idx) => {
+                                    const barColorClass = data.color === 'primary' ? 'bg-primary' : 
+                                                        data.color === 'blue' ? 'bg-blue-600' : 
+                                                        data.color === 'yellow' ? 'bg-yellow-500' : 
+                                                        data.color === 'teal' ? 'bg-teal-500' : 'bg-primary';
 
-                                const textAccentClass = data.color === 'primary' ? 'text-primary' : 
-                                                      data.color === 'blue' ? 'text-blue-600' : 
-                                                      data.color === 'yellow' ? 'text-yellow-600' : 
-                                                      data.color === 'teal' ? 'text-teal-600' : 'text-primary';
+                                    const textAccentClass = data.color === 'primary' ? 'text-primary' : 
+                                                          data.color === 'blue' ? 'text-blue-600' : 
+                                                          data.color === 'yellow' ? 'text-yellow-600' : 
+                                                          data.color === 'teal' ? 'text-teal-600' : 'text-primary';
 
-                                return (
-                                    <div key={idx} className="p-5 rounded-2xl bg-[#FAFAFA]/70 border border-gray-100 hover:border-gray-200/80 transition-all flex flex-col justify-between group flex-shrink-0 w-[78vw] sm:w-[240px] snap-center min-h-[180px]">
-                                        <div>
-                                            <div className="flex items-center justify-between mb-3">
-                                                <span className="text-[9px] font-black tracking-widest uppercase text-gray-400">
-                                                    {data.category}
-                                                </span>
-                                                <span className="text-xl group-hover:scale-110 transition-transform duration-300">
-                                                    {data.icon}
-                                                </span>
+                                    return (
+                                        <motion.div 
+                                            key={idx} 
+                                            className="p-5 rounded-2xl bg-[#FAFAFA]/70 border border-gray-100 hover:border-gray-200/80 transition-all flex flex-col justify-between group flex-shrink-0 w-[78vw] sm:w-[240px] min-h-[180px]"
+                                            whileHover={{ scale: 1.01 }}
+                                            whileTap={{ scale: 0.99 }}
+                                        >
+                                            <div>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-[9px] font-black tracking-widest uppercase text-gray-400">
+                                                        {data.category}
+                                                    </span>
+                                                    <span className="text-xl group-hover:scale-110 transition-transform duration-300">
+                                                        {data.icon}
+                                                    </span>
+                                                </div>
+                                                
+                                                <div className="mb-4">
+                                                    <h4 className="font-black text-gray-900 text-xs truncate uppercase tracking-tight">
+                                                        {data.title}
+                                                    </h4>
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">
+                                                        {data.isAllCompleted 
+                                                            ? 'All Milestones Met!' 
+                                                            : `${data.remaining.toFixed(0)} more ${data.unitName}`
+                                                        }
+                                                    </p>
+                                                </div>
                                             </div>
-                                            
-                                            <div className="mb-4">
-                                                <h4 className="font-black text-gray-900 text-xs truncate uppercase tracking-tight">
-                                                    {data.title}
-                                                </h4>
-                                                <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">
-                                                    {data.isAllCompleted 
-                                                        ? 'All Milestones Met!' 
-                                                        : `${data.remaining.toFixed(0)} more ${data.unitName}`
-                                                    }
-                                                </p>
-                                            </div>
-                                        </div>
 
-                                        <div className="mt-2">
-                                            <div className="flex justify-between items-center mb-1.5 text-[9px] font-black text-gray-700 font-mono">
-                                                <span>{data.current.toFixed(0)} / {data.target}</span>
-                                                <span className={textAccentClass}>{data.percent.toFixed(0)}%</span>
+                                            <div className="mt-2">
+                                                <div className="flex justify-between items-center mb-1.5 text-[9px] font-black text-gray-700 font-mono">
+                                                    <span>{data.current.toFixed(0)} / {data.target}</span>
+                                                    <span className={textAccentClass}>{data.percent.toFixed(0)}%</span>
+                                                </div>
+                                                <div className="h-1.5 bg-gray-200/60 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className={`h-full rounded-full transition-all duration-1000 ease-out ${barColorClass}`}
+                                                        style={{ width: `${data.percent}%` }}
+                                                    ></div>
+                                                </div>
                                             </div>
-                                            <div className="h-1.5 bg-gray-200/60 rounded-full overflow-hidden">
-                                                <div 
-                                                    className={`h-full rounded-full transition-all duration-1000 ease-out ${barColorClass}`}
-                                                    style={{ width: `${data.percent}%` }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                        </motion.div>
+                                    );
+                                })}
+                            </motion.div>
+                        </motion.div>
                     </div>
 
                     <CategorySection title="Core Progress" type="coreProgress" milestones={milestonesByType.coreProgress} color="primary" />
