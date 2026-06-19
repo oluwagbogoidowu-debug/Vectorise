@@ -78,7 +78,7 @@ const ImpactDashboard: React.FC = () => {
         }
     };
 
-    const peopleHelped = p.impactStats?.peopleHelped || 0;
+    const peopleHelped = referrals.length;
     const claimedIds = p.claimedMilestoneIds || [];
 
     // The customized 6 impact referral milestone cards
