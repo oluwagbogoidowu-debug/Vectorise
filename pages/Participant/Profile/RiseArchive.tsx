@@ -5,7 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { sprintService } from '../../../services/sprintService';
 import { userService } from '../../../services/userService';
 import { ParticipantSprint, Sprint, Coach } from '../../../types';
-import { Share2, ChevronRight, ChevronLeft, Lock, CheckCircle2, Calendar, Award, Zap, Sparkles, BookOpen } from 'lucide-react';
+import { Share2, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Lock, CheckCircle2, Calendar, Award, Zap, Sparkles, BookOpen } from 'lucide-react';
 import SprintShareModal from '../../../components/SprintShareModal';
 import FormattedText from '../../../components/FormattedText';
 
@@ -20,6 +20,11 @@ const RiseArchive: React.FC = () => {
     sprint: Sprint;
   } | null>(null);
   const [selectedDay, setSelectedDay] = useState<number>(1);
+  const [isDailyInsightExpanded, setIsDailyInsightExpanded] = useState<boolean>(false);
+
+  useEffect(() => {
+    setIsDailyInsightExpanded(false);
+  }, [selectedDay, selectedSprintDetails]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -202,39 +207,61 @@ const RiseArchive: React.FC = () => {
         </section>
       </main>
 
-      {/* Action Step Detail Overlay (Modal) */}
+      {/* Full-bleed Action Step Detail Overlay */}
       {selectedSprintDetails && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-fade-in font-sans">
-          <div className="bg-[#FAFAFA] rounded-[2.5rem] border border-gray-150 shadow-2xl flex flex-col w-full max-w-2xl h-full max-h-[85vh] overflow-hidden">
-            {/* Header */}
-            <header className="bg-white px-6 py-5 border-b border-gray-55 flex items-center justify-between shadow-sm flex-shrink-0">
-              <button 
-                onClick={() => setSelectedSprintDetails(null)} 
-                className="p-2 -ml-2 text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1 text-[11px] font-black uppercase tracking-widest"
-              >
-                <ChevronLeft className="w-5 h-5 text-gray-800" />
-                <span>Back</span>
-              </button>
-              <div className="text-center flex-1 mx-4 min-w-0">
-                <span className="text-[7px] font-black bg-emerald-50 text-[#0E7850] px-1.5 py-0.5 rounded-md uppercase tracking-wider">{selectedSprintDetails.sprint.category}</span>
-                <h2 className="text-xs md:text-sm font-black text-gray-900 tracking-tight leading-tight uppercase mt-0.5 truncate">{selectedSprintDetails.sprint.title}</h2>
-              </div>
-              <div className="w-14"></div>
-            </header>
+        <div className="fixed inset-0 z-50 bg-white flex flex-col overflow-hidden animate-fade-in font-sans">
+          {/* Header */}
+          <header className="bg-white px-6 pt-12 pb-5 border-b border-gray-50 flex items-center justify-between shadow-sm flex-shrink-0">
+            <button 
+              onClick={() => setSelectedSprintDetails(null)} 
+              className="p-2 -ml-2 text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1 text-[11px] font-black uppercase tracking-widest"
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-800" />
+              <span>Back</span>
+            </button>
+            <div className="text-center flex-1 mx-4 min-w-0">
+              <span className="text-[7px] font-black bg-emerald-50 text-[#0E7850] px-1.5 py-0.5 rounded-md uppercase tracking-wider">{selectedSprintDetails.sprint.category}</span>
+              <h2 className="text-xs md:text-sm font-black text-gray-900 tracking-tight leading-tight uppercase mt-0.5 truncate">{selectedSprintDetails.sprint.title}</h2>
+            </div>
+            <div className="w-14"></div>
+          </header>
 
           {/* Days Sub-Header Navigation Selector Bar */}
           <div className="bg-white border-b border-gray-50 px-6 py-4 flex-shrink-0">
             <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.25em] mb-2 px-1">Curriculum Days</h3>
             <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
               {(() => {
+                const now = Date.now();
                 const completedDayNumbers = selectedSprintDetails.enrollment.progress?.filter(p => p.completed).map(p => p.day) || [];
                 const maxCompleted = completedDayNumbers.length > 0 ? Math.max(...completedDayNumbers) : 0;
                 
+                const checkIsDayLocked = (dayNum: number) => {
+                  if (selectedSprintDetails.enrollment.status === 'completed') return false;
+                  if (dayNum === 1) return false;
+                  
+                  const prevDay = selectedSprintDetails.enrollment.progress?.find(p => p.day === dayNum - 1);
+                  if (!prevDay?.completed) return true;
+                  
+                  if (prevDay.completedAt) {
+                    const completedDate = new Date(prevDay.completedAt);
+                    const nextMidnight = new Date(
+                      completedDate.getFullYear(),
+                      completedDate.getMonth(),
+                      completedDate.getDate() + 1,
+                      0,
+                      0,
+                      0
+                    ).getTime();
+                    return now < nextMidnight;
+                  }
+                  return false;
+                };
+
                 return Array.from({ length: selectedSprintDetails.sprint.duration || 5 }, (_, i) => i + 1).map((dayNum) => {
                   const isCompleted = selectedSprintDetails.enrollment.progress?.some(p => p.day === dayNum && p.completed);
                   const isSelected = selectedDay === dayNum;
-                  // Present day navigable <= maxCompleted + 1 OR full sprint completed
-                  const isUnlocked = dayNum <= maxCompleted + 1 || selectedSprintDetails.enrollment.status === 'completed';
+                  const isLocked = checkIsDayLocked(dayNum);
+                  const isUnlocked = !isLocked;
 
                   return (
                     <button
@@ -267,16 +294,38 @@ const RiseArchive: React.FC = () => {
           </div>
 
           {/* Scrollable Report Content Area */}
-          <div className="flex-1 overflow-y-auto px-4 md:px-12 py-8 md:py-12 custom-scrollbar bg-slate-50/50">
+          <div className="flex-1 overflow-y-auto px-4 md:px-12 py-8 md:py-12 custom-scrollbar bg-white">
             <div className="w-full max-w-4xl mx-auto space-y-8 flex flex-col relative pb-16">
               {(() => {
+                const now = Date.now();
                 const dayContent = selectedSprintDetails.sprint.dailyContent?.find(d => d.day === selectedDay);
                 const progressRecord = selectedSprintDetails.enrollment.progress?.find(p => p.day === selectedDay);
                 const isCompleted = !!progressRecord?.completed;
                 
-                const completedDayNumbers = selectedSprintDetails.enrollment.progress?.filter(p => p.completed).map(p => p.day) || [];
-                const maxCompleted = completedDayNumbers.length > 0 ? Math.max(...completedDayNumbers) : 0;
-                const isUnlocked = selectedDay <= maxCompleted + 1 || selectedSprintDetails.enrollment.status === 'completed';
+                const checkIsDayLocked = (dayNum: number) => {
+                  if (selectedSprintDetails.enrollment.status === 'completed') return false;
+                  if (dayNum === 1) return false;
+                  
+                  const prevDay = selectedSprintDetails.enrollment.progress?.find(p => p.day === dayNum - 1);
+                  if (!prevDay?.completed) return true;
+                  
+                  if (prevDay.completedAt) {
+                    const completedDate = new Date(prevDay.completedAt);
+                    const nextMidnight = new Date(
+                      completedDate.getFullYear(),
+                      completedDate.getMonth(),
+                      completedDate.getDate() + 1,
+                      0,
+                      0,
+                      0
+                    ).getTime();
+                    return now < nextMidnight;
+                  }
+                  return false;
+                };
+
+                const isLocked = checkIsDayLocked(selectedDay);
+                const isUnlocked = !isLocked;
 
                 if (!isUnlocked) {
                   return (
@@ -286,7 +335,7 @@ const RiseArchive: React.FC = () => {
                       </div>
                       <h3 className="text-base font-black text-gray-900 uppercase tracking-wider">Day Locked</h3>
                       <p className="text-xs text-gray-400 max-w-xs mt-1.5 leading-relaxed font-semibold">
-                        Complete previous days in your active workspace first to unlock this daily report.
+                        This day is currently locked. Complete previous days and wait until after midnight to unlock this daily report.
                       </p>
                     </div>
                   );
@@ -347,13 +396,32 @@ const RiseArchive: React.FC = () => {
                       <p className="text-xs font-semibold text-gray-500">Your logged performance results have been successfully preserved in your personal archives.</p>
                     </div>
 
-                    {/* Lesson Prep Section if present */}
+                    {/* Daily Insight (Collapsible) */}
                     {dayContent?.lessonText && (
-                      <div className="p-6 md:p-8 bg-white rounded-[2rem] border border-gray-100 shadow-sm text-left relative">
-                        <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-[8px] font-black uppercase tracking-[0.2em] rounded-md inline-block mb-4 border border-indigo-100/50">Lesson Reading</span>
-                        <div className="text-gray-805 font-medium text-sm sm:text-base leading-relaxed">
-                          <FormattedText text={dayContent.lessonText} />
-                        </div>
+                      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm text-left relative overflow-hidden">
+                        <button 
+                          onClick={() => setIsDailyInsightExpanded(!isDailyInsightExpanded)}
+                          className="w-full px-6 py-5 flex items-center justify-between hover:bg-gray-50/50 transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-[8px] font-black uppercase tracking-[0.2em] rounded-md inline-block border border-indigo-100/50">
+                              Daily Insight
+                            </span>
+                          </div>
+                          <div className="p-1.5 rounded-lg bg-gray-50 text-gray-500">
+                            {isDailyInsightExpanded ? (
+                              <ChevronUp className="w-4 h-4 text-gray-600" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-gray-600" />
+                            )}
+                          </div>
+                        </button>
+                        
+                        {isDailyInsightExpanded && (
+                          <div className="px-6 pb-6 md:px-8 md:pb-8 border-t border-gray-50 pt-5 text-gray-805 font-medium text-sm sm:text-base leading-relaxed animate-fade-in">
+                            <FormattedText text={dayContent.lessonText} />
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -376,142 +444,144 @@ const RiseArchive: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Detailed Action Steps content mapping */}
+                    {/* Detailed Action Steps content mapping (Sideways scrolling) */}
                     {prompts.length > 0 && (
-                      <div className="space-y-6">
+                      <div className="space-y-4">
                         <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] px-1">Action Report Details</h4>
                         
-                        {prompts.map((promptText, idx) => {
-                          if (!promptText || !promptText.trim()) return null;
-                          const answer = answers[idx] || "";
-                          const inputType = dayContent?.taskInputTypes?.[idx] || '';
+                        <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory no-scrollbar relative w-full">
+                          {prompts.map((promptText, idx) => {
+                            if (!promptText || !promptText.trim()) return null;
+                            const answer = answers[idx] || "";
+                            const inputType = dayContent?.taskInputTypes?.[idx] || '';
 
-                          // Check if it's a poll representation
-                          let pollOpts: string[] = [];
-                          if (dayContent?.taskPollOptions?.[idx]) {
-                            try {
-                              pollOpts = JSON.parse(dayContent.taskPollOptions[idx]);
-                            } catch (e) {}
-                          }
-                          pollOpts = pollOpts.filter(Boolean);
-                          const isPoll = inputType === 'poll' || pollOpts.length > 0;
-
-                          // Parse JSON answers if applicable
-                          let selectedOpts: string[] = [];
-                          try {
-                            if (answer && answer.trim().startsWith("[")) {
-                              selectedOpts = JSON.parse(answer);
-                            } else if (answer) {
-                              selectedOpts = [answer];
+                            // Check if it's a poll representation
+                            let pollOpts: string[] = [];
+                            if (dayContent?.taskPollOptions?.[idx]) {
+                              try {
+                                pollOpts = JSON.parse(dayContent.taskPollOptions[idx]);
+                              } catch (e) {}
                             }
-                          } catch (e) {}
+                            pollOpts = pollOpts.filter(Boolean);
+                            const isPoll = inputType === 'poll' || pollOpts.length > 0;
 
-                          return (
-                            <div key={idx} className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm space-y-4 text-left relative">
-                              {/* Step Index Indicator */}
-                              <div className="flex items-center gap-2.5 border-b border-gray-50 pb-3">
-                                <span className="w-6 h-6 rounded-lg bg-[#0E7850]/10 text-[#0E7850] flex items-center justify-center text-[11px] font-black border border-[#0E7850]/15">
-                                  {idx + 1}
-                                </span>
-                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mt-0.5">Report step {idx + 1}</p>
-                              </div>
+                            // Parse JSON answers if applicable
+                            let selectedOpts: string[] = [];
+                            try {
+                              if (answer && answer.trim().startsWith("[")) {
+                                selectedOpts = JSON.parse(answer);
+                              } else if (answer) {
+                                selectedOpts = [answer];
+                              }
+                            } catch (e) {}
 
-                              {/* Task Notes from SprintView logic if present */}
-                              {dayContent?.taskNotes?.[idx] && (
-                                <div className="text-left border-l-4 border-emerald-500/20 pl-4 py-1.5 text-gray-600 font-semibold text-sm leading-relaxed">
-                                  <FormattedText text={dayContent.taskNotes[idx]} />
+                            return (
+                              <div key={idx} className="flex-shrink-0 w-[85vw] sm:w-[500px] bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm space-y-4 text-left relative snap-start">
+                                {/* Step Index Indicator */}
+                                <div className="flex items-center gap-2.5 border-b border-gray-50 pb-3">
+                                  <span className="w-6 h-6 rounded-lg bg-[#0E7850]/10 text-[#0E7850] flex items-center justify-center text-[11px] font-black border border-[#0E7850]/15">
+                                    {idx + 1}
+                                  </span>
+                                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mt-0.5">Report step {idx + 1}</p>
                                 </div>
-                              )}
 
-                              {/* Task Prompt styled exactly like SprintView */}
-                              <div className="text-gray-950 font-black text-base sm:text-lg md:text-xl leading-relaxed mt-2">
-                                <FormattedText text={promptText} />
-                              </div>
-
-                              {/* Task Footnote if present */}
-                              {dayContent?.taskFootnotes?.[idx] && (
-                                <div className="text-left text-emerald-600 font-bold text-xs sm:text-sm leading-relaxed">
-                                  <FormattedText text={dayContent.taskFootnotes[idx]} />
-                                </div>
-                              )}
-
-                              {/* Render Answer value nicely with no data string */}
-                              <div className="pt-2">
-                                {isPoll ? (
-                                  <div className="space-y-3.5">
-                                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">
-                                      📊 Poll Response
-                                    </p>
-                                    <div className="flex flex-wrap gap-2 w-full">
-                                      {pollOpts.map((opt, optIndex) => {
-                                        const isSel = selectedOpts.includes(opt);
-                                        return (
-                                          <span
-                                            key={optIndex}
-                                            className={`px-4 py-2.5 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-2 transition-all select-none ${
-                                              isSel 
-                                                ? "bg-[#0E7850]/10 border-[#0E7850]/35 text-[#0E7850] shadow-sm font-black" 
-                                                : "bg-gray-50/50 border-gray-150 text-gray-400 opacity-60 font-semibold"
-                                            }`}
-                                          >
-                                            {isSel ? (
-                                              <span className="w-1.5 h-1.5 rounded-full bg-[#0E7850] animate-pulse shrink-0"></span>
-                                            ) : (
-                                              <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0"></span>
-                                            )}
-                                            {opt}
-                                          </span>
-                                        );
-                                      })}
-                                    </div>
-                                    {selectedOpts.length === 0 && (
-                                      <p className="text-xs text-gray-400 italic pl-1">No response selected for this poll card.</p>
-                                    )}
+                                {/* Task Notes from SprintView logic if present */}
+                                {dayContent?.taskNotes?.[idx] && (
+                                  <div className="text-left border-l-4 border-emerald-500/20 pl-4 py-1.5 text-gray-600 font-semibold text-sm leading-relaxed">
+                                    <FormattedText text={dayContent.taskNotes[idx]} />
                                   </div>
-                                ) : inputType === 'tags' || (answer && answer.trim().startsWith('[') && answer.trim().endsWith(']')) ? (
-                                  <div className="space-y-2">
-                                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">
-                                      🏷️ Tags Selection
-                                    </p>
-                                    <div className="flex flex-wrap gap-1.5 w-full">
-                                      {selectedOpts.map((tagValue, tagIdx) => (
-                                        <span key={tagIdx} className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-black bg-primary/10 text-primary border border-primary/10 uppercase tracking-widest">
-                                          {tagValue}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ) : answer && answer.trim().startsWith("{") && answer.trim().endsWith("}") ? (
-                                  <div className="space-y-2.5 w-full text-left font-semibold">
-                                    {(() => {
-                                      try {
-                                        const parsed = JSON.parse(answer);
-                                        return Object.entries(parsed).map(([lbl, ans], pidx) => (
-                                          <div key={pidx} className="flex flex-col gap-1 border-b border-gray-50 pb-2 last:border-0 last:pb-0 text-left">
-                                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black bg-primary/10 text-primary self-start uppercase tracking-wider">
-                                              🔎 {lbl}
-                                            </span>
-                                            <p className="text-gray-800 font-bold text-sm pl-1 mt-0.5">
-                                              {ans as string}
-                                            </p>
-                                          </div>
-                                        ));
-                                      } catch (e) {
-                                        return <p className="text-sm font-bold text-gray-800">{answer}</p>;
-                                      }
-                                    })()}
-                                  </div>
-                                ) : answer ? (
-                                  <div className="p-4 bg-gray-50/50 border border-gray-100/50 rounded-2xl">
-                                    <p className="text-sm font-semibold text-gray-800 leading-relaxed whitespace-pre-line">{answer}</p>
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-gray-400 italic font-semibold">No response logged</span>
                                 )}
+
+                                {/* Task Prompt styled exactly like SprintView */}
+                                <div className="text-gray-950 font-black text-sm sm:text-base leading-relaxed mt-2 line-clamp-4 overflow-y-auto">
+                                  <FormattedText text={promptText} />
+                                </div>
+
+                                {/* Task Footnote if present */}
+                                {dayContent?.taskFootnotes?.[idx] && (
+                                  <div className="text-left text-emerald-600 font-bold text-xs sm:text-xs leading-relaxed">
+                                    <FormattedText text={dayContent.taskFootnotes[idx]} />
+                                  </div>
+                                )}
+
+                                {/* Render Answer value nicely with no data string */}
+                                <div className="pt-2">
+                                  {isPoll ? (
+                                    <div className="space-y-3.5">
+                                      <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">
+                                        📊 Poll Response
+                                      </p>
+                                      <div className="flex flex-wrap gap-2 w-full">
+                                        {pollOpts.map((opt, optIndex) => {
+                                          const isSel = selectedOpts.includes(opt);
+                                          return (
+                                            <span
+                                              key={optIndex}
+                                              className={`px-4 py-2.5 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-2 transition-all select-none ${
+                                                isSel 
+                                                  ? "bg-[#0E7850]/10 border-[#0E7850]/35 text-[#0E7850] shadow-sm font-black" 
+                                                  : "bg-gray-50/50 border-gray-150 text-gray-400 opacity-60 font-semibold"
+                                              }`}
+                                            >
+                                              {isSel ? (
+                                                <span className="w-1.5 h-1.5 rounded-full bg-[#0E7850] animate-pulse shrink-0"></span>
+                                              ) : (
+                                                <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0"></span>
+                                              )}
+                                              {opt}
+                                            </span>
+                                          );
+                                        })}
+                                      </div>
+                                      {selectedOpts.length === 0 && (
+                                        <p className="text-xs text-gray-400 italic pl-1">No response selected for this poll card.</p>
+                                      )}
+                                    </div>
+                                  ) : inputType === 'tags' || (answer && answer.trim().startsWith('[') && answer.trim().endsWith(']')) ? (
+                                    <div className="space-y-2">
+                                      <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">
+                                        🏷️ Tags Selection
+                                      </p>
+                                      <div className="flex flex-wrap gap-1.5 w-full">
+                                        {selectedOpts.map((tagValue, tagIdx) => (
+                                          <span key={tagIdx} className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-black bg-primary/10 text-primary border border-primary/10 uppercase tracking-widest">
+                                            {tagValue}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : answer && answer.trim().startsWith("{") && answer.trim().endsWith("}") ? (
+                                    <div className="space-y-2.5 w-full text-left font-semibold">
+                                      {(() => {
+                                        try {
+                                          const parsed = JSON.parse(answer);
+                                          return Object.entries(parsed).map(([lbl, ans], pidx) => (
+                                            <div key={pidx} className="flex flex-col gap-1 border-b border-gray-50 pb-2 last:border-0 last:pb-0 text-left">
+                                              <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black bg-primary/10 text-primary self-start uppercase tracking-wider">
+                                                🔎 {lbl}
+                                              </span>
+                                              <p className="text-gray-800 font-bold text-sm pl-1 mt-0.5">
+                                                {ans as string}
+                                              </p>
+                                            </div>
+                                          ));
+                                        } catch (e) {
+                                          return <p className="text-sm font-bold text-gray-800">{answer}</p>;
+                                        }
+                                      })()}
+                                    </div>
+                                  ) : answer ? (
+                                    <div className="p-4 bg-gray-50/50 border border-gray-100/50 rounded-2xl max-h-36 overflow-y-auto">
+                                      <p className="text-xs font-semibold text-gray-800 leading-relaxed whitespace-pre-line">{answer}</p>
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-gray-400 italic font-semibold">No response logged</span>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
 
@@ -543,7 +613,6 @@ const RiseArchive: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
       )}
 
       <SprintShareModal
