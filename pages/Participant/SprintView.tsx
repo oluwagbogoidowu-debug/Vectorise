@@ -928,13 +928,6 @@ const SprintView: React.FC = () => {
   // Day Completion State (Task Inputs)
   const [taskInputs, setTaskInputs] = useState<string[]>(["", "", ""]);
   const [activeTaskIndex, setActiveTaskIndex] = useState(0);
-  const [isInsightExpanded, setIsInsightExpanded] = useState(false);
-  const stepsScrollRef = useRef<HTMLDivElement>(null);
-  const isScrollingInternal = useRef(false);
-
-  useEffect(() => {
-    setIsInsightExpanded(false);
-  }, [viewingDay]);
 
   // Refs to prevent loaders from overriding active page indices when database saves trigger subscription updates
   const loadedDayRef = useRef<number | null>(null);
@@ -1018,42 +1011,6 @@ const SprintView: React.FC = () => {
     prevTaskIndexRef.current = activeTaskIndex;
     triggerHaptic(hapticPatterns.light);
   }, [activeTaskIndex, soundEnabled]);
-
-  // Sync Horizontal Scroll Container offset on activeTaskIndex changes
-  useEffect(() => {
-    if (stepsScrollRef.current) {
-      const container = stepsScrollRef.current;
-      const cards = container.querySelectorAll('.action-step-card-item');
-      const targetCard = cards[activeTaskIndex] as HTMLElement;
-      if (targetCard) {
-        isScrollingInternal.current = true;
-        container.scrollTo({
-          left: targetCard.offsetLeft - container.offsetLeft,
-          behavior: 'smooth'
-        });
-        const timer = setTimeout(() => {
-          isScrollingInternal.current = false;
-        }, 500);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [activeTaskIndex]);
-
-  const handleStepsScroll = () => {
-    if (isScrollingInternal.current) return;
-    if (stepsScrollRef.current) {
-      const container = stepsScrollRef.current;
-      const scrollLeft = container.scrollLeft;
-      const cardWidth = container.clientWidth;
-      if (cardWidth > 0) {
-        const index = Math.round(scrollLeft / cardWidth);
-        const activePrompts = dayContent?.taskPrompts?.filter((p) => p && p.trim()) || [];
-        if (index >= 0 && index < activePrompts.length && index !== activeTaskIndex) {
-          setActiveTaskIndex(index);
-        }
-      }
-    }
-  };
 
   const dayContent = Array.isArray(sprint?.dailyContent)
     ? sprint?.dailyContent.find((dc) => dc.day === viewingDay)
@@ -2110,25 +2067,13 @@ const SprintView: React.FC = () => {
             ) : (
               <>
                 <div className="animate-fade-in space-y-6 w-full">
-                  <div className="bg-white rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
-                    <button
-                      onClick={() => setIsInsightExpanded(!isInsightExpanded)}
-                      className="w-full flex items-center justify-between p-6 focus:outline-none text-left"
-                    >
-                      <span className="text-gray-950 font-black text-sm uppercase tracking-wider">
-                        Daily Insight
-                      </span>
-                      <span className={`transform transition-transform duration-300 ${isInsightExpanded ? 'rotate-180' : 'rotate-0'}`}>
-                        <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </span>
-                    </button>
-                    {isInsightExpanded && (
-                      <div className="px-6 pb-6 border-t border-gray-50 pt-4 text-gray-755 font-medium text-sm sm:text-base leading-relaxed max-w-[60ch] animate-fade-in pl-6 pr-6">
+                  <div className="bg-white p-6 md:p-10 border border-gray-100 shadow-sm rounded-3xl animate-slide-up relative overflow-hidden min-h-[200px]">
+                    <div className="space-y-2">
+                      <SectionHeading>Today's Insight</SectionHeading>
+                      <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
                         <FormattedText text={dayContent?.lessonText || ""} />
                       </div>
-                    )}
+                    </div>
                   </div>
 
                   <div className="space-y-6 w-full animate-slide-up relative overflow-hidden">
@@ -2138,25 +2083,21 @@ const SprintView: React.FC = () => {
                         <>
                           {dayContent?.taskPrompts &&
                           dayContent.taskPrompts.length > 1 ? (
-                            <div 
-                              ref={stepsScrollRef}
-                              onScroll={handleStepsScroll}
+                            <AnimatePresence mode="wait">
+                              {dayContent.taskPrompts.map((prompt, i) => {
+                                if (i !== activeTaskIndex) return null;
+                                return (
+                                  <motion.div
+                              key={i}
+                              initial={{ opacity: 0, x: 12 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: -12 }}
+                              transition={{ duration: 0.2, ease: "easeInOut" }}
                               className={isFullBleed 
-                                ? "fixed inset-0 z-50 bg-white flex overflow-x-auto snap-x snap-mandatory no-scrollbar h-screen w-screen" 
-                                : "flex overflow-x-auto gap-4 snap-x snap-mandatory no-scrollbar pb-4 w-full"
+                                ? "fixed inset-0 z-50 bg-transparent overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in" 
+                                : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left"
                               }
                             >
-                              {dayContent.taskPrompts.map((prompt, i) => {
-                                return (
-                                  <div
-                                    key={i}
-                                    style={{ width: isFullBleed ? '100vw' : '100%' }}
-                                    className={`action-step-card-item flex-shrink-0 snap-center ${
-                                      isFullBleed 
-                                        ? "h-screen w-screen overflow-y-auto px-6 md:px-12 py-12 md:py-20 flex flex-col items-center bg-white text-left relative" 
-                                        : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left w-full flex-shrink-0"
-                                    }`}
-                                  >
                               {/* Full-bleed Focus Toggle Button in Top Right */}
                               <div className="absolute top-4 right-4 z-55 flex items-center gap-2">
                                 <button
@@ -2853,10 +2794,10 @@ const SprintView: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                          </div>
+                          </motion.div>
                         );
                       })}
-                    </div>
+                      </AnimatePresence>
                     ) : (
                       <div 
                           className={isFullBleed 

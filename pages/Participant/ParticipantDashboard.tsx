@@ -736,7 +736,7 @@ const ParticipantDashboard: React.FC = () => {
                         <p className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] leading-none">Step up your Rise</p>
                     </div>
                     <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory no-scrollbar relative">
-                        {/* 1. Read Ignite - Standard flowing circular card with dynamic covers */}
+                        {/* 1. Read Ignite - Standard flowing square card */}
                         <div 
                             onClick={() => {
                                 if (isStepUpLocked) return;
@@ -756,24 +756,16 @@ const ParticipantDashboard: React.FC = () => {
                                     } as any);
                                 }
                             }}
-                            className={`flex-shrink-0 w-20 h-20 border border-violet-500/10 rounded-full shadow-sm select-none text-center snap-start transition-all duration-300 relative overflow-hidden flex items-center justify-center p-2.5 ${
+                            className={`flex-shrink-0 w-20 h-20 bg-gradient-to-br from-[#6D28D9] to-[#4F46E5] border border-violet-500/10 rounded-[1.2rem] shadow-sm select-none text-center snap-start transition-all duration-300 relative overflow-hidden flex items-center justify-center p-2.5 ${
                                 isStepUpLocked 
                                 ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
                                 : 'hover:scale-[1.02] cursor-pointer'
                             } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
-                            style={{ 
-                                backgroundImage: activeIgnite?.coverImageUrl ? `url(${activeIgnite.coverImageUrl})` : 'linear-gradient(to bottom right, #6D28D9, #4F46E5)', 
-                                backgroundSize: 'cover', 
-                                backgroundPosition: 'center' 
-                            }}
                         >
-                            {/* Dark semi-transparent overlay for maximum contrast and legibility */}
-                            <div className="absolute inset-0 bg-black/40 z-0" />
-
                             {!isIgniteChecked && !isStepUpLocked && (
-                                <span className="absolute top-2.5 right-2 text-rose-500 z-10 font-bold leading-none select-none text-[10px]">●</span>
+                                <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-rose-500 rounded-full border border-white ring-2 ring-rose-500/35 animate-pulse" />
                             )}
-                            <span className="relative z-10 text-[9px] font-black text-white tracking-wider uppercase leading-tight select-none px-1">
+                            <span className="text-[9px] font-black text-white tracking-wider uppercase leading-tight select-none">
                                 Read Ignite
                             </span>
                         </div>
@@ -782,12 +774,15 @@ const ParticipantDashboard: React.FC = () => {
                         <Link 
                             to={isStepUpLocked ? "#" : "/profile/archive"} 
                             onClick={(e) => isStepUpLocked && e.preventDefault()}
-                            className={`flex-shrink-0 w-52 h-20 bg-white border border-gray-100 rounded-[1.2rem] px-4 shadow-sm transition-all duration-300 flex items-center group snap-start animate-fade-in ${
+                            className={`flex-shrink-0 w-52 h-20 bg-white border border-gray-100 rounded-[1.2rem] px-4 shadow-sm transition-all duration-300 flex items-center gap-3 group snap-start animate-fade-in ${
                                 isStepUpLocked 
                                 ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
                                 : 'hover:shadow-md hover:border-[#0E7850]/20 cursor-pointer'
                             } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                         >
+                            <div className="w-8.5 h-8.5 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-indigo-100/50 group-hover:scale-105 transition-transform duration-300">
+                                <History className="w-4.5 h-4.5" />
+                            </div>
                             <div className="min-w-0">
                                 <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-none group-hover:text-[#0E7850] transition-colors">Revisit your Rise</h4>
                             </div>
@@ -965,7 +960,6 @@ const IgnitePlayer: React.FC<{
   
   const [activeSlide, setActiveSlide] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
 
   // Persistence of Liked Ignite
   const [isLiked, setIsLiked] = useState(() => {
@@ -1024,8 +1018,6 @@ const IgnitePlayer: React.FC<{
   }, [activeSlide]);
 
   useEffect(() => {
-    if (isPaused) return;
-
     const slideDuration = 4500; // 4.5 seconds per slide
     const intervalTime = 50; // tick every 50ms
     const step = (intervalTime / slideDuration) * 100;
@@ -1041,7 +1033,7 @@ const IgnitePlayer: React.FC<{
     }, intervalTime);
 
     return () => clearInterval(timer);
-  }, [activeSlides.length, activeSlide, isPaused]);
+  }, [activeSlides.length, activeSlide]);
 
   const handleNext = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1055,16 +1047,9 @@ const IgnitePlayer: React.FC<{
 
   return (
     <div 
-      onClick={() => setIsPaused(!isPaused)}
-      className="fixed inset-0 z-[400] flex flex-col justify-between p-6 select-none animate-fade-in text-white font-sans cursor-pointer"
+      className="fixed inset-0 z-[400] flex flex-col justify-between p-6 select-none animate-fade-in text-white font-sans"
       style={{ backgroundColor: bgColor }}
     >
-      {isPaused && (
-        <div className="absolute top-16 left-0 right-0 text-center z-[410] text-[9px] font-black uppercase tracking-[0.2em] bg-white text-[#0E7850] px-3 py-1 rounded-full w-fit mx-auto shadow-md animate-pulse">
-          ⏸️ Reading Mode (Paused - Click to Resume)
-        </div>
-      )}
-
       {/* Date above indicators */}
       <div className="absolute top-3.5 left-0 right-0 text-center z-[410] text-[10px] font-black tracking-[0.25em] text-white/90 uppercase drop-shadow-sm select-none">
         {formattedDate}
