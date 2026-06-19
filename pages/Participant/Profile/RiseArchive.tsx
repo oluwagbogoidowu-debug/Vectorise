@@ -109,12 +109,6 @@ const RiseArchive: React.FC = () => {
             {allArchiveEntries.length > 0 ? (
               allArchiveEntries.map(({ enrollment, sprint }) => {
                 const completedDaysCount = enrollment.progress?.filter(p => p.completed).length || 0;
-                const isFoundational = sprint.sprintType === 'Foundational' || 
-                                       sprint.sprintType === 'Fundamentals' ||
-                                       sprint.sprintType === 'Core' ||
-                                       sprint.sprintType === 'Expert' ||
-                                       sprint.category === 'Core Platform Sprint' || 
-                                       sprint.category === 'Growth Fundamentals';
                 const isCompleted = enrollment.status === 'completed' || completedDaysCount >= (sprint.duration || 5);
                 const isActive = enrollment.status === 'active';
 
@@ -145,13 +139,9 @@ const RiseArchive: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <div className="text-left min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                          {isFoundational && (
-                            <span className="px-1.5 py-0.5 bg-[#0E7850]/10 text-[#0E7850] text-[7px] font-black uppercase tracking-widest rounded flex items-center gap-0.5">
-                              FOUNDATIONAL
-                            </span>
-                          )}
+                      <div className="text-left min-w-0 flex-1">
+                        <h4 className="text-sm md:text-base font-black text-gray-900 tracking-tight group-hover:text-primary transition-colors leading-tight line-clamp-1 mb-1">{sprint.title}</h4>
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <span className="px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[7px] font-black uppercase tracking-widest rounded">{sprint.category}</span>
                           <span className="text-[7px] font-black text-primary uppercase tracking-widest">{sprint.duration} Days</span>
                           {isCompleted ? (
@@ -162,20 +152,9 @@ const RiseArchive: React.FC = () => {
                             <span className="px-1.5 py-0.5 bg-gray-100 text-gray-400 text-[7px] font-black uppercase tracking-widest rounded">Enrolled</span>
                           )}
                         </div>
-                        <h4 className="text-sm md:text-base font-black text-gray-900 tracking-tight group-hover:text-primary transition-colors leading-tight line-clamp-1">{sprint.title}</h4>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedShareSprint(sprint.title);
-                        }}
-                        className="p-1.5 bg-gray-50 hover:bg-primary/10 hover:text-primary text-gray-400 rounded-lg transition-all"
-                        title="Share Sprint"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                      </button>
                       <div className="p-2 rounded-xl bg-gray-50 text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-all flex-shrink-0">
                         <ChevronRight className="w-4 h-4" />
                       </div>
@@ -223,30 +202,25 @@ const RiseArchive: React.FC = () => {
         </section>
       </main>
 
-      {/* Full-Bleed Action Step Detail Overlay */}
+      {/* Action Step Detail Overlay (Modal) */}
       {selectedSprintDetails && (
-        <div className="fixed inset-0 z-50 bg-[#FCDFD3]/5 bg-white flex flex-col overflow-hidden animate-fade-in font-sans">
-          {/* Header */}
-          <header className="bg-white px-6 pt-12 pb-5 border-b border-gray-50 flex items-center justify-between shadow-sm flex-shrink-0">
-            <button 
-              onClick={() => setSelectedSprintDetails(null)} 
-              className="p-2 -ml-2 text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1 text-[11px] font-black uppercase tracking-widest"
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-800" />
-              <span>Back</span>
-            </button>
-            <div className="text-center flex-1 mx-4 min-w-0">
-              <span className="text-[7px] font-black bg-emerald-50 text-[#0E7850] px-1.5 py-0.5 rounded-md uppercase tracking-wider">{selectedSprintDetails.sprint.category}</span>
-              <h2 className="text-xs md:text-sm font-black text-gray-900 tracking-tight leading-tight uppercase mt-0.5 truncate">{selectedSprintDetails.sprint.title}</h2>
-            </div>
-            <button
-              onClick={() => setSelectedShareSprint(selectedSprintDetails.sprint.title)}
-              className="p-2 bg-gray-50 hover:bg-primary/5 text-gray-500 hover:text-primary rounded-xl transition-all"
-              title="Share report"
-            >
-              <Share2 className="w-4 h-4" />
-            </button>
-          </header>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-fade-in font-sans">
+          <div className="bg-[#FAFAFA] rounded-[2.5rem] border border-gray-150 shadow-2xl flex flex-col w-full max-w-2xl h-full max-h-[85vh] overflow-hidden">
+            {/* Header */}
+            <header className="bg-white px-6 py-5 border-b border-gray-55 flex items-center justify-between shadow-sm flex-shrink-0">
+              <button 
+                onClick={() => setSelectedSprintDetails(null)} 
+                className="p-2 -ml-2 text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1 text-[11px] font-black uppercase tracking-widest"
+              >
+                <ChevronLeft className="w-5 h-5 text-gray-800" />
+                <span>Back</span>
+              </button>
+              <div className="text-center flex-1 mx-4 min-w-0">
+                <span className="text-[7px] font-black bg-emerald-50 text-[#0E7850] px-1.5 py-0.5 rounded-md uppercase tracking-wider">{selectedSprintDetails.sprint.category}</span>
+                <h2 className="text-xs md:text-sm font-black text-gray-900 tracking-tight leading-tight uppercase mt-0.5 truncate">{selectedSprintDetails.sprint.title}</h2>
+              </div>
+              <div className="w-14"></div>
+            </header>
 
           {/* Days Sub-Header Navigation Selector Bar */}
           <div className="bg-white border-b border-gray-50 px-6 py-4 flex-shrink-0">
@@ -569,6 +543,7 @@ const RiseArchive: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
       )}
 
       <SprintShareModal

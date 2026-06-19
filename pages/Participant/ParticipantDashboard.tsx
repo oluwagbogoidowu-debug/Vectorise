@@ -736,7 +736,7 @@ const ParticipantDashboard: React.FC = () => {
                         <p className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] leading-none">Step up your Rise</p>
                     </div>
                     <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory no-scrollbar relative">
-                        {/* 1. Read Ignite - Standard flowing square card */}
+                        {/* 1. Read Ignite - Circular card with background image */}
                         <div 
                             onClick={() => {
                                 if (isStepUpLocked) return;
@@ -756,16 +756,24 @@ const ParticipantDashboard: React.FC = () => {
                                     } as any);
                                 }
                             }}
-                            className={`flex-shrink-0 w-20 h-20 bg-gradient-to-br from-[#6D28D9] to-[#4F46E5] border border-violet-500/10 rounded-[1.2rem] shadow-sm select-none text-center snap-start transition-all duration-300 relative overflow-hidden flex items-center justify-center p-2.5 ${
+                            className={`flex-shrink-0 w-20 h-20 rounded-full shadow-sm select-none text-center snap-start transition-all duration-300 relative overflow-hidden flex items-center justify-center p-2.5 border border-violet-500/10 ${
                                 isStepUpLocked 
                                 ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
                                 : 'hover:scale-[1.02] cursor-pointer'
                             } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                         >
+                            {/* Backdrop Image & Overlay */}
+                            <img 
+                                src={activeIgnite?.coverImageUrl || "https://images.unsplash.com/photo-1518495973542-4542c06a5843?auto=format&fit=crop&w=300&q=80"} 
+                                className="absolute inset-0 w-full h-full object-cover" 
+                                alt="" 
+                            />
+                            <div className="absolute inset-0 bg-black/50" />
+
                             {!isIgniteChecked && !isStepUpLocked && (
-                                <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-rose-500 rounded-full border border-white ring-2 ring-rose-500/35 animate-pulse" />
+                                <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-rose-500 rounded-full border border-white ring-2 ring-rose-500/35 animate-pulse z-10" />
                             )}
-                            <span className="text-[9px] font-black text-white tracking-wider uppercase leading-tight select-none">
+                            <span className="text-[9px] font-black text-white tracking-wider uppercase leading-tight select-none z-10 relative">
                                 Read Ignite
                             </span>
                         </div>
@@ -774,15 +782,12 @@ const ParticipantDashboard: React.FC = () => {
                         <Link 
                             to={isStepUpLocked ? "#" : "/profile/archive"} 
                             onClick={(e) => isStepUpLocked && e.preventDefault()}
-                            className={`flex-shrink-0 w-52 h-20 bg-white border border-gray-100 rounded-[1.2rem] px-4 shadow-sm transition-all duration-300 flex items-center gap-3 group snap-start animate-fade-in ${
+                            className={`flex-shrink-0 w-52 h-20 bg-white border border-gray-100 rounded-[1.2rem] px-4 shadow-sm transition-all duration-300 flex items-center justify-center text-center group snap-start animate-fade-in ${
                                 isStepUpLocked 
                                 ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
                                 : 'hover:shadow-md hover:border-[#0E7850]/20 cursor-pointer'
                             } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                         >
-                            <div className="w-8.5 h-8.5 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-indigo-100/50 group-hover:scale-105 transition-transform duration-300">
-                                <History className="w-4.5 h-4.5" />
-                            </div>
                             <div className="min-w-0">
                                 <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-none group-hover:text-[#0E7850] transition-colors">Revisit your Rise</h4>
                             </div>
