@@ -6,7 +6,7 @@ import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestor
 import { Participant, Referral, UserRole, Sprint, ParticipantSprint } from '../../../types';
 import { sanitizeData, userService } from '../../../services/userService';
 import { sprintService } from '../../../services/sprintService';
-import { Share2 } from 'lucide-react';
+import { Share2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const IMPACT_DEGREE_POINTS: Record<string, number> = {
@@ -201,10 +201,23 @@ const ImpactDashboard: React.FC = () => {
                 {/* CURRENT IMPACT SCORECARD */}
                 <div className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm mb-6 flex items-center justify-between">
                     <div>
-                        <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">Current Reading</p>
-                        <h2 className="text-3xl font-black text-gray-950 tracking-tight leading-none">
-                            {peopleHelped} <span className="text-primary italic font-normal">lives impacted</span>
-                        </h2>
+                        {claimedIds.length === 0 ? (
+                            <>
+                                <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">
+                                    Invite someone to start their growth journey today
+                                </p>
+                                <h2 className="text-lg font-black text-gray-950 tracking-tight leading-snug">
+                                    Don't grow alone, bring others along.
+                                </h2>
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1">Current Reading</p>
+                                <h2 className="text-3xl font-black text-gray-950 tracking-tight leading-none">
+                                    {peopleHelped} <span className="text-primary italic font-normal">lives impacted</span>
+                                </h2>
+                            </>
+                        )}
                     </div>
                     <div className="w-12 h-12 bg-emerald-50 text-[#0E7850] rounded-2xl flex items-center justify-center text-xl shadow-inner">
                         🌍
@@ -313,47 +326,6 @@ const ImpactDashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* INVITE SHARING */}
-                <section className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 space-y-4 mt-6">
-                    <div>
-                        <h3 className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em]">Invite System</h3>
-                        <p className="text-sm font-black text-gray-900 tracking-tight leading-none italic">Catalyst Link</p>
-                    </div>
-
-                    <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-                        <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2">Personal Message</p>
-                        <p className="text-xs text-gray-600 leading-relaxed">
-                            {`"I found a platform that helps me stay consistent with my growth. Join me on this path: https://www.vectorise.online/?ref=${p.referralCode}"`}
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <a 
-                            href={`https://wa.me/?text=I found a platform that helps me stay consistent with my growth. Join me on this path: https://www.vectorise.online/?ref=${p.referralCode}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-2 bg-white border border-gray-100 shadow-sm rounded-xl py-3 text-center text-[10px] font-black text-gray-900 uppercase tracking-widest active:scale-95 transition-transform"
-                        >
-                            <span>💬</span>
-                            <span>WhatsApp</span>
-                        </a>
-                        <a 
-                            href={`mailto:?subject=Join me on Vectorise&body=I found a platform that helps me stay consistent with my growth. Join me on this path: https://www.vectorise.online/?ref=${p.referralCode}`}
-                            className="flex items-center justify-center gap-2 bg-white border border-gray-100 shadow-sm rounded-xl py-3 text-center text-[10px] font-black text-gray-900 uppercase tracking-widest active:scale-95 transition-transform"
-                        >
-                            <span>✉️</span>
-                            <span>Email</span>
-                        </a>
-                    </div>
-
-                    <div>
-                        <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2">🔗 Unified Invite Link</p>
-                        <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 text-center">
-                            <p className="text-xs text-primary font-mono break-all">{`https://www.vectorise.online/?ref=${p.referralCode}`}</p>
-                        </div>
-                    </div>
-                </section>
-
                 {/* ENROLLED SPRINTS */}
                 <section>
                     <SectionLabel text="My Sprints" />
@@ -368,12 +340,26 @@ const ImpactDashboard: React.FC = () => {
                                         <p className="text-xs font-black text-gray-900 truncate">{sprint.title}</p>
                                         <p className="text-[9px] font-bold text-gray-400 capitalize">{enrollment.status}</p>
                                     </div>
-                                    <button
-                                        onClick={() => handleShareSprint(sprint.id || '')}
-                                        className="p-2.5 bg-gray-50 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors shrink-0"
-                                    >
-                                        <Share2 className="w-4 h-4" />
-                                    </button>
+                                    <div className="flex gap-1.5 shrink-0">
+                                        <button
+                                            onClick={() => handleShareSprint(sprint.id || '')}
+                                            className="p-2.5 bg-gray-50 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-colors"
+                                            title="Copy Link"
+                                        >
+                                            <Share2 className="w-4 h-4" />
+                                        </button>
+                                        <a
+                                            href={`https://wa.me/?text=${encodeURIComponent(
+                                                `Hey! Join me on this sprint: *${sprint.title}*\n\n_${sprint.description || ''}_\n\nCheck it out and register here: https://${window.location.host}/sprint/${sprint.id}?ref=${p.referralCode}`
+                                            )}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-2.5 bg-emerald-50 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100/50 rounded-xl transition-colors flex items-center justify-center"
+                                            title="Share on WhatsApp"
+                                        >
+                                            <MessageCircle className="w-4 h-4" />
+                                        </a>
+                                    </div>
                                 </div>
                             ))
                         ) : (
@@ -391,10 +377,10 @@ const ImpactDashboard: React.FC = () => {
                     </div>
                 </section>
 
-                {/* HORIZONTAL HISTORY AND RECENT STATUS PER INVITE */}
+                {/* THE RIPPLE EFFECT AND LEADERBOARD */}
                 <section>
-                    <SectionLabel text="Recent Catalysts" />
-                    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                    <SectionLabel text="The Ripple Effect" />
+                    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 mb-4">
                         {referrals.length > 0 ? (
                             referrals.map((ref) => {
                                 const isStarted = ref.status === 'started_sprint';
@@ -421,8 +407,51 @@ const ImpactDashboard: React.FC = () => {
                                 );
                             })
                         ) : (
-                            <div className="w-full py-4 text-center text-gray-300 italic text-[9px] bg-gray-50/50 rounded-2xl border border-dashed border-gray-100">No records yet.</div>
+                            <div className="w-full py-4 text-center text-gray-300 italic text-[9px] bg-gray-50/50 rounded-2xl border border-dashed border-gray-100 leading-normal">
+                                No direct invitations yet. Build your ripple effect today.
+                            </div>
                         )}
+                    </div>
+
+                    {/* Others on the platform (The Leaderboard) */}
+                    <div className="mt-4 bg-white rounded-[2rem] border border-gray-100/80 p-5 shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.25em]">Others' Impact</p>
+                            <span className="text-[7px] font-black text-[#0E7850] bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Top Catalysts</span>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            {fullLeaderboard && fullLeaderboard.length > 0 ? (
+                                fullLeaderboard
+                                    .filter(leader => leader.id !== p.id)
+                                    .slice(0, 5)
+                                    .map((leader, index) => (
+                                        <div key={leader.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <span className="text-[9px] font-black text-gray-300 font-mono w-4 shrink-0 text-center">#{index + 1}</span>
+                                                <div className="w-7 h-7 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden">
+                                                    <img 
+                                                        src={leader.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(leader.name || 'Participant')}&background=0E7850&color=fff`} 
+                                                        className="w-full h-full object-cover" 
+                                                        referrerPolicy="no-referrer"
+                                                        alt="Avatar"
+                                                    />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-[10px] font-black text-gray-900 truncate leading-snug">{leader.name || 'Anonymous Catalyst'}</p>
+                                                    <p className="text-[7.5px] font-black text-gray-400 uppercase tracking-wider leading-none">
+                                                        {leader.claimedMilestoneIds?.length || 0} rewards claimed
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <span className="text-[8px] font-black text-primary bg-primary/5 border border-primary/10 px-2 py-0.5 rounded-md leading-none shrink-0 whitespace-nowrap">
+                                                {leader.impactStats?.peopleHelped || 0} lives
+                                            </span>
+                                        </div>
+                                    ))
+                            ) : (
+                                <p className="text-[9.5px] text-gray-300 italic text-center py-2">Discovering other catalysts on the platform...</p>
+                            )}
+                        </div>
                     </div>
                 </section>
 

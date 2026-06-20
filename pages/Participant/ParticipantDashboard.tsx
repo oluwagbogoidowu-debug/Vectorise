@@ -872,33 +872,7 @@ const ParticipantDashboard: React.FC = () => {
                 </div>
             )}
 
-            {queuedSprints.length > 0 && (
-                <div className="mb-6 animate-fade-in">
-                    <div className="flex justify-between items-center mb-3 px-1">
-                        <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Next in Queue</h2>
-                    </div>
-                    <div className="grid grid-cols-1 gap-2">
-                        {queuedSprints.map(({ enrollment, sprint }) => (
-                            <Link key={enrollment.id} to={`/participant/sprint/${enrollment.id}`} className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm flex items-center justify-between group hover:border-primary/20 transition-all">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100">
-                                        <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 className="text-[10px] font-black text-gray-900 leading-tight group-hover:text-primary transition-colors">{sprint.title}</h4>
-                                        <p className="text-[7px] font-bold text-gray-400 uppercase tracking-widest">{sprint.duration} Days • {sprint.category}</p>
-                                    </div>
-                                </div>
-                                <div className="px-2 py-1 bg-primary/5 rounded-lg border border-primary/10">
-                                    <span className="text-[6px] font-black text-primary uppercase tracking-widest">Queued</span>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                </div>
-            )}
+
 
 
           </div>
