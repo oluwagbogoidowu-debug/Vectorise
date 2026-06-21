@@ -337,8 +337,8 @@ const ProgramDescription: React.FC = () => {
                 <SectionHeading>Sprint Status</SectionHeading>
                 {enrollmentStatus === 'none' && (
                     <div className="flex flex-col items-center">
-                        <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1">Securing Path</h3>
-                        <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Awaiting Authorization</p>
+                        <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1">Path Ready</h3>
+                        <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Start Now</p>
                     </div>
                 )}
                 {enrollmentStatus === 'active' && (
@@ -387,7 +387,7 @@ const ProgramDescription: React.FC = () => {
               <div className="space-y-4 relative z-10">
                 {enrollmentStatus === 'none' ? (
                     <Button onClick={handleProceed} className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black group/btn">
-                        Authorize Path 
+                        Begin Day 1 
                         <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
                     </Button>
                 ) : enrollmentStatus === 'active' ? (

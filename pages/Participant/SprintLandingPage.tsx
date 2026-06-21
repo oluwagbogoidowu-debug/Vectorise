@@ -359,7 +359,7 @@ const SprintLandingPage: React.FC = () => {
                                             isLoading={isCheckingEmail}
                                             className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black group/btn"
                                         >
-                                            Authorize Path 
+                                            Begin Day 1 
                                             <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
                                         </Button>
                                     </div>

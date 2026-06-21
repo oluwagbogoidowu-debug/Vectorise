@@ -412,47 +412,6 @@ const ImpactDashboard: React.FC = () => {
                             </div>
                         )}
                     </div>
-
-                    {/* Others on the platform (The Leaderboard) */}
-                    <div className="mt-4 bg-white rounded-[2rem] border border-gray-100/80 p-5 shadow-sm">
-                        <div className="flex items-center justify-between mb-4">
-                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-[0.25em]">Others' Impact</p>
-                            <span className="text-[7px] font-black text-[#0E7850] bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Top Catalysts</span>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            {fullLeaderboard && fullLeaderboard.length > 0 ? (
-                                fullLeaderboard
-                                    .filter(leader => leader.id !== p.id)
-                                    .slice(0, 5)
-                                    .map((leader, index) => (
-                                        <div key={leader.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                                            <div className="flex items-center gap-2.5 min-w-0">
-                                                <span className="text-[9px] font-black text-gray-300 font-mono w-4 shrink-0 text-center">#{index + 1}</span>
-                                                <div className="w-7 h-7 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden">
-                                                    <img 
-                                                        src={leader.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(leader.name || 'Participant')}&background=0E7850&color=fff`} 
-                                                        className="w-full h-full object-cover" 
-                                                        referrerPolicy="no-referrer"
-                                                        alt="Avatar"
-                                                    />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="text-[10px] font-black text-gray-900 truncate leading-snug">{leader.name || 'Anonymous Catalyst'}</p>
-                                                    <p className="text-[7.5px] font-black text-gray-400 uppercase tracking-wider leading-none">
-                                                        {leader.claimedMilestoneIds?.length || 0} rewards claimed
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <span className="text-[8px] font-black text-primary bg-primary/5 border border-primary/10 px-2 py-0.5 rounded-md leading-none shrink-0 whitespace-nowrap">
-                                                {leader.impactStats?.peopleHelped || 0} lives
-                                            </span>
-                                        </div>
-                                    ))
-                            ) : (
-                                <p className="text-[9.5px] text-gray-300 italic text-center py-2">Discovering other catalysts on the platform...</p>
-                            )}
-                        </div>
-                    </div>
                 </section>
 
                 <footer className="text-center pt-4">
