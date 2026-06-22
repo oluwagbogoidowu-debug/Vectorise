@@ -284,10 +284,8 @@ const SprintLandingPage: React.FC = () => {
                                         <SectionHeading>Sprint Status</SectionHeading>
                                         {enrollmentStatus === 'none' && (
                                             <div className="flex flex-col items-center">
-                                                <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1">
-                                                    {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost}` : `₦${sprint.price.toLocaleString()}`}
-                                                </h3>
-                                                <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Authorized Access</p>
+                                                <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1">Path Ready</h3>
+                                                <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Start Now</p>
                                             </div>
                                         )}
                                         {enrollmentStatus === 'active' && (
