@@ -223,6 +223,7 @@ const EditSprint: React.FC = () => {
   const [selectedText, setSelectedText] = useState('');
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number, y: number } | null>(null);
   const [lastAssignedField, setLastAssignedField] = useState<string | null>(null);
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [showAddVersionFullBleed, setShowAddVersionFullBleed] = useState(false);
   const [isCreatingVersion, setIsCreatingVersion] = useState(false);
   const [showCreatedPopup, setShowCreatedPopup] = useState(false);
@@ -3309,12 +3310,26 @@ const EditSprint: React.FC = () => {
           {/* Header */}
           <div className="bg-white border-b border-gray-150 px-8 py-4 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 shadow-xs">
-                <Sparkles size={20} />
+              <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 shadow-xs">
+                <Sparkles size={16} />
               </div>
               <div>
-                <h2 className="text-lg font-black text-gray-900 uppercase tracking-wider">Advanced Actions Workspace</h2>
-                <p className="text-xs text-gray-500 font-medium">Day {selectedDay} • Select text on the left to assign directly to fields on the right</p>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-widest leading-none">Advanced Actions Workspace</h2>
+                  
+                  {/* Tooltip for Advanced Actions header */}
+                  <div className="relative group inline-block">
+                    <button type="button" className="text-purple-400 hover:text-purple-600 transition-all p-1 rounded-lg bg-purple-50 flex items-center justify-center cursor-pointer">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 hidden group-hover:flex flex-col bg-gray-950 border border-gray-800 text-white text-[10px] leading-relaxed p-3.5 rounded-2xl shadow-xl z-[200] pointer-events-none uppercase tracking-wider font-sans font-bold">
+                      💡 Select text on the left pane and instantly assign it to any input field in the slide workspace on the right.
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[10px] text-gray-400 font-extrabold uppercase mt-0.5">Day {selectedDay} Setup</p>
               </div>
             </div>
             <button 
@@ -3335,7 +3350,22 @@ const EditSprint: React.FC = () => {
               <div className="lg:col-span-5 flex flex-col h-full bg-white rounded-3xl border border-gray-150 p-6 shadow-sm relative">
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">General Content Hub</label>
+                    <div className="flex items-center gap-1.5">
+                      <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">General Content Hub</label>
+                      
+                      {/* Tooltip for General Content Hub explanation */}
+                      <div className="relative group inline-block">
+                        <button type="button" className="text-gray-400 hover:text-gray-650 transition-colors p-0.5 rounded flex items-center justify-center cursor-pointer">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                        <div className="absolute left-0 top-full mt-2 w-64 hidden group-hover:flex flex-col bg-gray-950 border border-gray-800 text-white text-[10px] leading-relaxed p-3.5 rounded-2xl shadow-xl z-[200] pointer-events-none uppercase tracking-wider font-sans font-bold">
+                          💡 Paste layout or curriculum guidelines here. Highlight any phrase, notes, or items to instantly assign it to any input field on the right side.
+                        </div>
+                      </div>
+                    </div>
+
                     {advancedGeneralInput && (
                       <button 
                         type="button"
@@ -3345,15 +3375,13 @@ const EditSprint: React.FC = () => {
                             setSelectedText('');
                           }
                         }}
-                        className="text-[10px] font-black text-red-500 hover:text-red-600 uppercase tracking-wider cursor-pointer font-sans"
+                        className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-755 transition-colors flex items-center justify-center cursor-pointer shadow-2xs border border-red-100"
+                        title="Delete Entire Content"
                       >
-                        Clear Content
+                        <Trash2 size={12} />
                       </button>
                     )}
                   </div>
-                  <p className="text-[11px] text-gray-400 font-medium leading-relaxed font-sans">
-                    💡 Highlight any phrase, notes, or items to instantly assign it to any input field on the right side.
-                  </p>
                 </div>
 
                 {/* Selection helper floating widget */}
@@ -3370,12 +3398,13 @@ const EditSprint: React.FC = () => {
                           setSelectedText('');
                           setTooltipPosition(null);
                         }}
-                        className="text-xs font-bold text-gray-400 hover:text-gray-600"
+                        className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-550 transition-colors"
+                        title="Dismiss selection"
                       >
-                        Cancel
+                        <X size={10} />
                       </button>
                     </div>
-                    <blockquote className="text-xs text-gray-700 italic bg-white/80 p-3 rounded-xl border border-purple-100/50 max-h-20 overflow-y-auto mb-3 pr-2 select-text font-medium leading-relaxed">
+                    <blockquote className="text-xs text-gray-750 italic bg-white/80 p-3 rounded-xl border border-purple-100/50 max-h-20 overflow-y-auto mb-3 pr-2 select-text font-medium leading-relaxed">
                       "{selectedText}"
                     </blockquote>
                     
@@ -3428,164 +3457,208 @@ const EditSprint: React.FC = () => {
                   onChange={e => setAdvancedGeneralInput(e.target.value)}
                   onMouseUp={handleTextareaMouseUp}
                   onSelect={handleTextareaSelect}
-                  className="flex-1 w-full p-4 border border-gray-200 bg-gray-50/20 text-gray-700 rounded-2xl font-mono text-xs focus:ring-4 focus:ring-purple-100 focus:bg-white focus:border-purple-300 outline-none transition-all resize-none shadow-inner"
-                  placeholder="💡 EXAMPLE WORKFLOW:
-1. Paste your raw day's layout or curriculum guidelines here.
-2. Highlight a sentence (e.g., 'What is your primary goal this week?').
-3. Tap 'Step 1 - Prompt' in the assign assistant that appears!
-4. Highlight some help details and tap 'Step 1 - Hint'."
+                  className="w-full flex-1 p-6 bg-white border border-gray-150 rounded-2xl shadow-sm focus:ring-4 focus:ring-purple-100/50 focus:border-purple-400 outline-none text-sm font-medium transition-all placeholder-gray-300 resize-none min-h-[460px] h-full"
+                  placeholder="Paste or type curriculum source materials here..."
                 />
               </div>
 
-              {/* Right side: Action Steps editable list */}
+              {/* Right side: Action Steps editable list with sideways sliding workspace */}
               <div className="lg:col-span-7 flex flex-col h-full bg-white rounded-3xl border border-gray-150 p-6 shadow-sm overflow-hidden font-sans">
-                <div className="flex items-center justify-between mb-4 shrink-0">
-                  <div>
-                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Active Setup Workspace</h3>
-                    <p className="text-[11px] text-gray-400 font-medium">These represent the exact curriculum fields participants see</p>
-                  </div>
+                <div className="flex items-center justify-between mb-4 shrink-0 border-b border-gray-100 pb-3">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-black text-gray-300 uppercase tracking-wider">Dynamic Sync</span>
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
+                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Active Setup Workspace</h3>
+                    
+                    {/* Tooltip for Active Setup Workspace explanation */}
+                    <div className="relative group inline-block">
+                      <button type="button" className="text-gray-400 hover:text-purple-650 transition-colors p-0.5 rounded flex items-center justify-center cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                      <div className="absolute right-0 top-full mt-2 w-64 hidden group-hover:flex flex-col bg-gray-950 border border-gray-800 text-white text-[10px] leading-relaxed p-3.5 rounded-2xl shadow-xl z-[200] pointer-events-none uppercase tracking-wider font-sans font-bold">
+                        💡 These represent the exact curriculum fields participants see inside the mobile journey. Slide between steps or tap numbers to configure.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Slider tab pagination */}
+                  <div className="flex items-center gap-1 bg-gray-50 p-1 border border-gray-150 rounded-xl">
+                    {(currentContent.taskPrompts || ['', '', '']).map((_, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setActiveSlideIndex(idx)}
+                        className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-black transition-all cursor-pointer ${activeSlideIndex === idx ? 'bg-purple-600 text-white shadow-xs scale-105' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                      >
+                        {idx + 1}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {/* Scrollable inputs panel */}
-                <div className="flex-1 overflow-y-auto pr-2 space-y-6">
-                  {(currentContent.taskPrompts || ['', '', '']).map((prompt, index) => {
-                    const isLastAssignedPrompt = lastAssignedField === `prompt-${index}`;
-                    const isLastAssignedNote = lastAssignedField === `note-${index}`;
-                    const isLastAssignedHint = lastAssignedField === `hint-${index}`;
-                    const isLastAssignedFootnote = lastAssignedField === `footnote-${index}`;
+                {/* Slidable/sliding step cards with handles */}
+                <div className="flex-1 flex items-center gap-2 relative">
+                  {/* Left slide handle */}
+                  <button
+                    type="button"
+                    disabled={activeSlideIndex === 0}
+                    onClick={() => setActiveSlideIndex(prev => Math.max(0, prev - 1))}
+                    className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white border border-gray-150 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 text-gray-400 disabled:opacity-0 disabled:pointer-events-none cursor-pointer transition-all flex items-center justify-center shadow-md shrink-0"
+                    title="Slide to Previous Action Step"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
 
-                    return (
-                      <div key={index} className="bg-gray-50/50 p-5 rounded-[1.5rem] border border-gray-150 space-y-4">
-                        
-                        {/* Step Header */}
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-extrabold bg-primary/10 text-primary px-3 py-1 rounded-lg uppercase tracking-wider">
-                            Action Step {index + 1}
-                          </span>
+                  {/* Active Step Slide Viewport */}
+                  <div className="flex-1 overflow-y-auto h-full px-5 py-1">
+                    {(() => {
+                      const index = activeSlideIndex;
+                      const prompt = currentContent.taskPrompts?.[index] || '';
+                      const isLastAssignedPrompt = lastAssignedField === `prompt-${index}`;
+                      const isLastAssignedNote = lastAssignedField === `note-${index}`;
+                      const isLastAssignedHint = lastAssignedField === `hint-${index}`;
+                      const isLastAssignedFootnote = lastAssignedField === `footnote-${index}`;
+
+                      return (
+                        <div key={index} className="bg-gray-50/40 p-5 rounded-[1.5rem] border border-gray-150 space-y-4 animate-fade-in">
                           
-                          {/* Status tag */}
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Input Type:</span>
-                            <span className="text-[9px] font-extrabold bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full uppercase">
-                              {currentContent.taskInputTypes?.[index] || 'text'}
+                          {/* Step Header */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-extrabold bg-purple-50 text-purple-600 border border-purple-100/50 px-3 py-1 rounded-lg uppercase tracking-wider">
+                              Action Step {index + 1} of {(currentContent.taskPrompts || ['', '', '']).length}
                             </span>
+                            
+                            {/* Input type indicator */}
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Input Type:</span>
+                              <span className="text-[9px] font-extrabold bg-gray-100 text-gray-650 px-2.5 py-0.5 rounded-full uppercase">
+                                {currentContent.taskInputTypes?.[index] || 'text'}
+                              </span>
+                            </div>
                           </div>
-                        </div>
 
-                        {/* Coach Note field */}
-                        <div className={`space-y-1.5 transition-all duration-300 ${isLastAssignedNote ? 'ring-2 ring-emerald-500 ring-offset-2 p-1 rounded-xl animate-pulse bg-emerald-50 text-emerald-900 border-emerald-300' : ''}`}>
-                          <div className="flex justify-between items-center px-1">
-                            <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Coach Note</label>
-                            {currentContent.taskNotes?.[index] ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newNotes = [...(currentContent.taskNotes || [])];
-                                  newNotes[index] = null as any;
-                                  handleContentChange('taskNotes', newNotes);
-                                }}
-                                className="text-[9px] font-bold text-red-400 hover:text-red-500 uppercase tracking-wider"
-                              >
-                                Remove
-                              </button>
-                            ) : (
-                              <span className="text-[9px] italic text-gray-400 font-medium">Empty (highlight & select Note to assign)</span>
-                            )}
+                          {/* Coach Note Field */}
+                          <div className={`space-y-1.5 transition-all duration-300 ${isLastAssignedNote ? 'ring-2 ring-emerald-500 ring-offset-2 p-1 rounded-xl animate-pulse bg-emerald-50 text-emerald-900 border-emerald-300' : ''}`}>
+                            <div className="flex justify-between items-center px-1">
+                              <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Coach Note</label>
+                              {currentContent.taskNotes?.[index] ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newNotes = [...(currentContent.taskNotes || [])];
+                                    newNotes[index] = null as any;
+                                    handleContentChange('taskNotes', newNotes);
+                                  }}
+                                  className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-500 transition-colors cursor-pointer"
+                                  title="Delete note"
+                                >
+                                  <Trash2 size={10} />
+                                </button>
+                              ) : (
+                                <span className="text-[9px] italic text-gray-400 font-medium">Empty (assign from general hub)</span>
+                              )}
+                            </div>
+                            <textarea
+                              value={currentContent.taskNotes?.[index] || ''}
+                              onChange={e => handleTaskNoteChange(index, e.target.value)}
+                              rows={2}
+                              className="w-full px-3 py-2 bg-white border border-gray-200 hover:border-emerald-200 focus:border-emerald-400 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-emerald-50 outline-none transition-all resize-none text-gray-750"
+                              placeholder="Provide context, links, or instructions that show before the step..."
+                            />
                           </div>
-                          <textarea
-                            value={currentContent.taskNotes?.[index] || ''}
-                            onChange={e => handleTaskNoteChange(index, e.target.value)}
-                            rows={2}
-                            className="w-full px-3 py-2 bg-white border border-gray-200 hover:border-emerald-200 focus:border-emerald-400 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-emerald-50 outline-none transition-all resize-none text-gray-750"
-                            placeholder="Provide context, links, or instructions that show before the step..."
-                          />
-                        </div>
 
-                        {/* Prompt Question Input */}
-                        <div className={`space-y-1.5 transition-all duration-300 ${isLastAssignedPrompt ? 'ring-2 ring-primary ring-offset-2 p-1 rounded-xl animate-pulse bg-primary/5 text-primary border-primary/30' : ''}`}>
-                          <div className="flex justify-between items-center px-1">
-                            <label className="text-[10px] font-black text-primary uppercase tracking-widest">Action Step Prompt (Question)</label>
-                            {!prompt && (
-                              <span className="text-[9px] italic text-red-400 font-bold uppercase tracking-wider">Required Field</span>
-                            )}
+                          {/* Prompt Question Input */}
+                          <div className={`space-y-1.5 transition-all duration-300 ${isLastAssignedPrompt ? 'ring-2 ring-primary ring-offset-2 p-1 rounded-xl animate-pulse bg-primary/5 text-primary border-primary/30' : ''}`}>
+                            <div className="flex justify-between items-center px-1">
+                              <label className="text-[10px] font-black text-primary uppercase tracking-widest">Action Step Prompt (Question)</label>
+                              {!prompt && (
+                                <span className="text-[9px] italic text-red-400 font-bold uppercase tracking-wider">Required Field</span>
+                              )}
+                            </div>
+                            <textarea
+                              value={prompt}
+                              onChange={e => handleTaskPromptChange(index, e.target.value)}
+                              rows={2}
+                              className="w-full px-3 py-2 bg-white border border-gray-200 hover:border-primary/20 focus:border-primary rounded-xl text-xs font-semibold focus:ring-4 focus:ring-primary/5 outline-none transition-all resize-none text-gray-750"
+                              placeholder="Enter clear, concise question prompt..."
+                            />
                           </div>
-                          <textarea
-                            value={prompt}
-                            onChange={e => handleTaskPromptChange(index, e.target.value)}
-                            rows={2}
-                            className="w-full px-3 py-2 bg-white border border-gray-200 hover:border-primary/20 focus:border-primary rounded-xl text-xs font-semibold focus:ring-4 focus:ring-primary/5 outline-none transition-all resize-none text-gray-750"
-                            placeholder="Enter clear, concise question prompt..."
-                          />
-                        </div>
 
-                        {/* Hint Input */}
-                        <div className={`space-y-1.5 transition-all duration-300 ${isLastAssignedHint ? 'ring-2 ring-amber-500 ring-offset-2 p-1 rounded-xl animate-pulse bg-amber-50 text-amber-900 border-amber-300' : ''}`}>
-                          <div className="flex justify-between items-center px-1">
-                            <label className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Optional Helper Hint</label>
-                            {currentContent.taskHints?.[index] ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newHints = [...(currentContent.taskHints || [])];
-                                  newHints[index] = null as any;
-                                  handleContentChange('taskHints', newHints);
-                                }}
-                                className="text-[9px] font-bold text-red-400 hover:text-red-500 uppercase tracking-wider"
-                              >
-                                Remove
-                              </button>
-                            ) : (
-                              <span className="text-[9px] italic text-gray-400 font-medium">Empty (highlight & select Hint to assign)</span>
-                            )}
+                          {/* Hint Input */}
+                          <div className={`space-y-1.5 transition-all duration-300 ${isLastAssignedHint ? 'ring-2 ring-amber-500 ring-offset-2 p-1 rounded-xl animate-pulse bg-amber-50 text-amber-900 border-amber-300' : ''}`}>
+                            <div className="flex justify-between items-center px-1">
+                              <label className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Optional Helper Hint</label>
+                              {currentContent.taskHints?.[index] ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newHints = [...(currentContent.taskHints || [])];
+                                    newHints[index] = null as any;
+                                    handleContentChange('taskHints', newHints);
+                                  }}
+                                  className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-500 transition-colors cursor-pointer"
+                                  title="Delete hint"
+                                >
+                                  <Trash2 size={10} />
+                                </button>
+                              ) : (
+                                <span className="text-[9px] italic text-gray-400 font-medium">Empty (assign from general hub)</span>
+                              )}
+                            </div>
+                            <textarea
+                              value={currentContent.taskHints?.[index] || ''}
+                              onChange={e => handleTaskHintChange(index, e.target.value)}
+                              rows={2}
+                              className="w-full px-3 py-2 bg-white border border-gray-200 hover:border-amber-200 focus:border-amber-400 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-amber-50 outline-none transition-all resize-none text-gray-750"
+                              placeholder="Provide sample responses or guidance to prevent coaches block..."
+                            />
                           </div>
-                          <textarea
-                            value={currentContent.taskHints?.[index] || ''}
-                            onChange={e => handleTaskHintChange(index, e.target.value)}
-                            rows={2}
-                            className="w-full px-3 py-2 bg-white border border-gray-200 hover:border-amber-200 focus:border-amber-400 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-amber-50 outline-none transition-all resize-none text-gray-750"
-                            placeholder="Provide sample responses or guidance to prevent coaches block..."
-                          />
-                        </div>
 
-                        {/* Footnote Input */}
-                        <div className={`space-y-1.5 transition-all duration-300 ${isLastAssignedFootnote ? 'ring-2 ring-indigo-500 ring-offset-2 p-1 rounded-xl animate-pulse bg-indigo-50 text-indigo-900 border-indigo-300' : ''}`}>
-                          <div className="flex justify-between items-center px-1">
-                            <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Optional Footnote</label>
-                            {currentContent.taskFootnotes?.[index] ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newFootnotes = [...(currentContent.taskFootnotes || [])];
-                                  newFootnotes[index] = null as any;
-                                  handleContentChange('taskFootnotes', newFootnotes);
-                                }}
-                                className="text-[9px] font-bold text-red-400 hover:text-red-500 uppercase tracking-wider"
-                              >
-                                Remove
-                              </button>
-                            ) : (
-                              <span className="text-[9px] italic text-gray-400 font-medium">Empty (highlight & select Foot to assign)</span>
-                            )}
+                          {/* Footnote Input */}
+                          <div className={`space-y-1.5 transition-all duration-300 ${isLastAssignedFootnote ? 'ring-2 ring-indigo-500 ring-offset-2 p-1 rounded-xl animate-pulse bg-indigo-50 text-indigo-900 border-indigo-300' : ''}`}>
+                            <div className="flex justify-between items-center px-1">
+                              <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Optional Footnote</label>
+                              {currentContent.taskFootnotes?.[index] ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newFootnotes = [...(currentContent.taskFootnotes || [])];
+                                    newFootnotes[index] = null as any;
+                                    handleContentChange('taskFootnotes', newFootnotes);
+                                  }}
+                                  className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-500 transition-colors cursor-pointer"
+                                  title="Delete footnote"
+                                >
+                                  <Trash2 size={10} />
+                                </button>
+                              ) : (
+                                <span className="text-[9px] italic text-gray-400 font-medium">Empty (assign from general hub)</span>
+                              )}
+                            </div>
+                            <textarea
+                              value={currentContent.taskFootnotes?.[index] || ''}
+                              onChange={e => handleTaskFootnoteChange(index, e.target.value)}
+                              rows={1}
+                              className="w-full px-3 py-2 bg-white border border-gray-200 hover:border-indigo-200 focus:border-indigo-400 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-indigo-50 outline-none transition-all resize-none text-gray-750"
+                              placeholder="Add supportive micro-copy, bibliography or source tags..."
+                            />
                           </div>
-                          <textarea
-                            value={currentContent.taskFootnotes?.[index] || ''}
-                            onChange={e => handleTaskFootnoteChange(index, e.target.value)}
-                            rows={1}
-                            className="w-full px-3 py-2 bg-white border border-gray-200 hover:border-indigo-200 focus:border-indigo-400 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-indigo-50 outline-none transition-all resize-none text-gray-750"
-                            placeholder="Add supportive micro-copy, bibliography or source tags..."
-                          />
-                        </div>
 
-                      </div>
-                    );
-                  })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Right slide handle */}
+                  <button
+                    type="button"
+                    disabled={activeSlideIndex === (currentContent.taskPrompts || ['', '', '']).length - 1}
+                    onClick={() => setActiveSlideIndex(prev => Math.min((currentContent.taskPrompts || ['', '', '']).length - 1, prev + 1))}
+                    className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white border border-gray-150 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 text-gray-400 disabled:opacity-0 disabled:pointer-events-none cursor-pointer transition-all flex items-center justify-center shadow-md shrink-0"
+                    title="Slide to Next Action Step"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
                 </div>
               </div>
 
