@@ -130,6 +130,7 @@ const ProgramDescription: React.FC = () => {
       try {
         const data = await sprintService.getSprintById(sprintId);
         setSprint(data);
+        setImageError(false);
         
         if (data) {
             const dbCoach = await userService.getUserDocument(data.coachId);
@@ -158,6 +159,10 @@ const ProgramDescription: React.FC = () => {
 
     return () => unsubOrchestration();
   }, [sprintId, user]);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [sprint?.coverImageUrl]);
 
   const slotInfo = useMemo(() => {
     if (!sprintId || !orchestration) return null;

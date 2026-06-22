@@ -57,6 +57,7 @@ const ClaritySprintDescription: React.FC = () => {
         
         setSprint(sprintData);
         setGlobalSettings(settings);
+        setImageError(false);
         
         if (sprintData?.coachId) {
             const coachData = await userService.getUserDocument(sprintData.coachId);
@@ -76,6 +77,10 @@ const ClaritySprintDescription: React.FC = () => {
     };
     fetchData();
   }, [sprintId]);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [sprint?.coverImageUrl]);
 
   const handleProceed = () => {
     if (!sprint) return;
@@ -157,6 +162,7 @@ const ClaritySprintDescription: React.FC = () => {
                 className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
                 alt={sprint.title} 
                 onError={() => setImageError(true)}
+                referrerPolicy="no-referrer"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
               <div className="absolute bottom-10 left-10 right-10 text-white">

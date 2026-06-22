@@ -61,6 +61,7 @@ const SprintLandingPage: React.FC = () => {
             try {
                 const data = await sprintService.getSprintById(sprintId);
                 setSprint(data);
+                setImageError(false);
                 
                 if (data) {
                     document.title = `${data.title} - Vectorise`;
@@ -87,6 +88,10 @@ const SprintLandingPage: React.FC = () => {
         };
         fetchData();
     }, [sprintId, user]);
+
+    useEffect(() => {
+        setImageError(false);
+    }, [sprint?.coverImageUrl]);
 
     const enrollmentStatus = useMemo(() => {
         if (!user || !sprint) return 'none';

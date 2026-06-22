@@ -148,6 +148,7 @@ const TrackDescriptionPage: React.FC = () => {
                 const trackData = await trackService.getTrackById(trackId);
                 if (trackData) {
                     setTrack(trackData);
+                    setImageError(false);
                     const sprintPromises = (trackData.sprintIds || []).map(id => sprintService.getSprintById(id));
                     const sprintData = await Promise.all(sprintPromises);
                     setSprints(sprintData.filter((s): s is Sprint => !!s));
@@ -160,6 +161,10 @@ const TrackDescriptionPage: React.FC = () => {
         };
         fetchData();
     }, [trackId]);
+
+    useEffect(() => {
+        setImageError(false);
+    }, [track?.coverImageUrl]);
 
     const totalPrice = useMemo(() => {
         return sprints.reduce((sum, s) => sum + (s.price || 0), 0);

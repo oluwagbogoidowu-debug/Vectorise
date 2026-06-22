@@ -488,7 +488,13 @@ const SprintPreviewPage: React.FC = () => {
                                     <div className="p-8 space-y-6">
                                         {/* Purchase Summary */}
                                         <div className="flex gap-4 items-center bg-gray-50 p-4 rounded-2xl border border-gray-150">
-                                            <img src={sprint.coverImageUrl} className="w-16 h-16 rounded-xl object-cover" alt="" />
+                                            <img 
+                                                src={sprint.coverImageUrl || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80'} 
+                                                className="w-16 h-16 rounded-xl object-cover" 
+                                                alt="" 
+                                                referrerPolicy="no-referrer"
+                                                onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80'; }}
+                                            />
                                             <div className="min-w-0">
                                                 <h4 className="text-sm font-black text-gray-900 truncate">{sprint.title}</h4>
                                                 <p className="text-xs text-gray-400 font-medium">{sprint.duration} Days Acceleration</p>
