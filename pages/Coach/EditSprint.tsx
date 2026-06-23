@@ -1887,6 +1887,25 @@ const EditSprint: React.FC = () => {
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-black text-gray-900 tracking-tight">{sprint.title}</h1>
               <div className="flex items-center gap-2">
+                {!(isAdmin && !isFoundational) && (
+                  <button 
+                    onClick={handleSaveDraft} 
+                    disabled={saveStatus === 'saving'}
+                    title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : 'Save Draft'}
+                    className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm cursor-pointer ${saveStatus === 'saved' ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100' : 'bg-white text-gray-400 border-gray-100 hover:text-primary hover:border-primary/20'}`}
+                  >
+                    {saveStatus === 'saving' ? (
+                      <svg className="animate-spin h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    ) : saveStatus === 'saved' ? (
+                      <CheckCircle2 size={18} className="text-green-600 animate-bounce" />
+                    ) : (
+                      <Save size={18} />
+                    )}
+                  </button>
+                )}
                 <button 
                   onClick={() => setShowSettings(true)} 
                   title={(isAdmin && !isFoundational) ? 'Audit Registry' : 'Registry Settings'}
@@ -1913,9 +1932,6 @@ const EditSprint: React.FC = () => {
                 </>
             ) : (
                 <>
-                    <Button variant="secondary" onClick={handleSaveDraft} disabled={saveStatus === 'saving'} className="bg-white border-gray-200 text-gray-600 font-black uppercase tracking-widest text-[10px] rounded-xl px-6">
-                      {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save Draft'}
-                    </Button>
                     {!isAdmin && (
                         <Button 
                             onClick={handleSubmitForReview} 
@@ -1965,14 +1981,15 @@ const EditSprint: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    if (window.confirm("Are you sure you want to clear Today's Insight content?")) {
+                                    if (window.confirm("Are you sure you want to delete Today's Insight content?")) {
                                         handleContentChange('lessonText', '');
                                     }
                                 }}
-                                className="px-2 py-0.5 border border-red-200 text-red-500 hover:text-red-700 bg-red-50/50 hover:bg-red-50 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer"
-                                title="Clear Today's Insight Lesson"
+                                className="p-1 px-2 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-lg border border-red-100 transition-all flex items-center gap-1 cursor-pointer text-[9px] font-black uppercase tracking-widest"
+                                title="Delete Today's Insight Lesson"
                             >
-                                Clear Content
+                                <Trash2 size={11} />
+                                <span>Delete</span>
                             </button>
                         </div>
                         {canEditDirectly && (
@@ -2188,10 +2205,10 @@ const EditSprint: React.FC = () => {
                                         type="button"
                                         onClick={() => setShowAdvancedActionModal(true)}
                                         className="h-8 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-650 hover:text-purple-750 border border-purple-150 px-2.5 transition-all flex items-center gap-1 shadow-xs shrink-0 cursor-pointer text-[10px] font-black uppercase tracking-wider"
-                                        title="Advanced Action Steps Setup: Paste bulk text and select strings to assign"
+                                        title="Daily action setup: Paste bulk text and select strings to assign"
                                     >
                                         <Sparkles size={11} className="text-purple-500" />
-                                        <span>Advanced</span>
+                                        <span>Daily action</span>
                                     </button>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -2332,9 +2349,11 @@ const EditSprint: React.FC = () => {
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => handleTaskSingleTagNoteChange(index, '')}
-                                                                            className="text-[9px] font-bold text-gray-400 hover:text-red-500 uppercase tracking-wider transition-colors"
+                                                                            className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-500 transition-colors flex items-center gap-1 cursor-pointer font-bold text-[9px] uppercase tracking-wider pr-2 pl-1.5"
+                                                                            title="Delete Tag Note Content"
                                                                         >
-                                                                            Clear Note
+                                                                            <Trash2 size={10} />
+                                                                            <span>Delete</span>
                                                                         </button>
                                                                     )}
                                                                 </div>
@@ -2590,10 +2609,11 @@ const EditSprint: React.FC = () => {
                                                                     <button 
                                                                         type="button" 
                                                                         onClick={() => handleClearSourceLinks(index)}
-                                                                        className="text-red-500 hover:text-red-700 text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer ml-auto mr-4"
-                                                                        title="Clear all links: Disconnect all linked dynamic source steps from this question."
+                                                                        className="p-1 px-2.5 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-lg border border-red-100 transition-colors cursor-pointer text-[9px] font-black uppercase tracking-widest flex items-center gap-1 ml-auto mr-4"
+                                                                        title="Delete all links: Disconnect all linked dynamic source steps from this question."
                                                                     >
-                                                                        ✕ Clear links
+                                                                        <Trash2 size={10} />
+                                                                        <span>Delete Links</span>
                                                                     </button>
                                                                 )}
                                                                 <button 
@@ -3306,16 +3326,16 @@ const EditSprint: React.FC = () => {
 
       {/* Advanced Action Steps Workspace Modal Overlay */}
       {showAdvancedActionModal && (
-        <div className="fixed inset-0 z-[120] bg-gray-50 flex flex-col overflow-hidden animate-fade-in font-sans">
+        <div className="fixed inset-0 z-[120] bg-gray-50 overflow-y-auto animate-fade-in font-sans flex flex-col min-h-screen">
           {/* Header */}
-          <div className="bg-white border-b border-gray-150 px-8 py-4 flex items-center justify-between shrink-0">
+          <div className="bg-white border-b border-gray-150 px-8 py-4 flex items-center justify-between shrink-0 sticky top-0 z-50 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 shadow-xs">
                 <Sparkles size={16} />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-[7.5px] font-black text-gray-900 uppercase tracking-widest leading-none">Advanced Actions Workspace</h2>
+                  <h2 className="text-[7.5px] font-black text-gray-900 uppercase tracking-widest leading-none">Daily action</h2>
                   
                   {/* Tooltip for Advanced Actions header */}
                   <div className="relative group inline-block">
@@ -3343,11 +3363,11 @@ const EditSprint: React.FC = () => {
           </div>
 
           {/* Body */}
-          <div className="flex-1 overflow-hidden p-8">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full max-w-7xl mx-auto items-stretch">
+          <div className="flex-grow p-4 sm:p-8 overflow-visible">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto items-start">
               
               {/* Left side: Large General Input area without outer card container */}
-              <div className="lg:col-span-4 flex flex-col h-full relative">
+              <div className="lg:col-span-4 flex flex-col relative space-y-4">
                 <div className="mb-3">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5">
@@ -3457,16 +3477,16 @@ const EditSprint: React.FC = () => {
                   onChange={e => setAdvancedGeneralInput(e.target.value)}
                   onMouseUp={handleTextareaMouseUp}
                   onSelect={handleTextareaSelect}
-                  className="w-full flex-1 p-4 bg-white border border-gray-150 rounded-2xl shadow-sm focus:ring-4 focus:ring-purple-100/50 focus:border-purple-400 outline-none text-xs font-semibold transition-all placeholder-gray-300 resize-none min-h-[380px] h-full"
+                  className="w-full p-4 bg-white border border-gray-150 rounded-2xl shadow-sm focus:ring-4 focus:ring-purple-100/50 focus:border-purple-400 outline-none text-xs font-semibold transition-all placeholder-gray-300 resize-none min-h-[380px] h-[500px]"
                   placeholder="Paste or type curriculum source materials here..."
                 />
               </div>
 
               {/* Right side: Action Steps editable list with sideways sliding workspace */}
-              <div className="lg:col-span-8 flex flex-col h-full bg-white rounded-3xl border border-gray-150 p-6 shadow-sm overflow-hidden font-sans">
+              <div className="lg:col-span-8 flex flex-col bg-white rounded-3xl border border-gray-150 p-6 shadow-sm font-sans">
                 <div className="flex items-center justify-between mb-4 shrink-0 border-b border-gray-100 pb-3">
                   <div className="flex items-center gap-1.5">
-                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Active Setup Workspace</h3>
+                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Daily action</h3>
                     
                     {/* Tooltip for Active Setup Workspace explanation */}
                     <div className="relative group inline-block">
@@ -3497,7 +3517,7 @@ const EditSprint: React.FC = () => {
                 </div>
 
                 {/* Slidable/sliding step cards with handles */}
-                <div className="flex-1 flex items-center gap-2 relative">
+                <div className="flex-grow flex items-stretch gap-2 relative">
                   {/* Left slide handle */}
                   <button
                     type="button"
@@ -3510,7 +3530,7 @@ const EditSprint: React.FC = () => {
                   </button>
 
                   {/* Active Step Slide Viewport */}
-                  <div className="flex-1 overflow-y-auto h-full px-5 py-1">
+                  <div className="flex-1 px-5 py-1">
                     {(() => {
                       const index = activeSlideIndex;
                       const prompt = currentContent.taskPrompts?.[index] || '';
@@ -3518,131 +3538,689 @@ const EditSprint: React.FC = () => {
                       const isLastAssignedNote = lastAssignedField === `note-${index}`;
                       const isLastAssignedHint = lastAssignedField === `hint-${index}`;
                       const isLastAssignedFootnote = lastAssignedField === `footnote-${index}`;
+                      const isLinkedFromPrevious = (index > 0 && currentContent.taskLinkedToNext?.[index - 1]) || (Array.isArray(currentContent.taskLinkedSources?.[index]) && currentContent.taskLinkedSources[index].length > 0);
 
                       return (
-                        <div key={index} className="bg-gray-50/40 p-5 rounded-[1.5rem] border border-gray-150 space-y-4 animate-fade-in">
+                        <div key={index} className="bg-white p-6 rounded-[2rem] border border-gray-150 space-y-4 animate-fade-in text-left">
                           
                           {/* Step Header */}
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-extrabold bg-purple-50 text-purple-600 border border-purple-100/50 px-3 py-1 rounded-lg uppercase tracking-wider">
-                              Action Step {index + 1} of {(currentContent.taskPrompts || ['', '', '']).length}
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <span className="text-xs font-black bg-primary/10 text-primary px-3 py-1.5 rounded-lg flex items-center gap-1">
+                              Action Step {index + 1}
                             </span>
-                            
-                            {/* Input type indicator */}
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Input Type:</span>
-                              <span className="text-[9px] font-extrabold bg-gray-100 text-gray-650 px-2.5 py-0.5 rounded-full uppercase">
-                                {currentContent.taskInputTypes?.[index] || 'text'}
+
+                            {/* + coach note button right in front of the tag */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentNote = currentContent.taskNotes?.[index];
+                                if (typeof currentNote !== 'string') {
+                                  handleTaskNoteChange(index, '');
+                                } else {
+                                  const newNotes = [...(currentContent.taskNotes || [])];
+                                  newNotes[index] = null as any;
+                                  handleContentChange('taskNotes', newNotes);
+                                }
+                              }}
+                              className={`flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
+                                typeof currentContent.taskNotes?.[index] === 'string'
+                                  ? 'bg-emerald-50 text-emerald-600 border-emerald-110 hover:bg-emerald-100/50'
+                                  : 'bg-white text-gray-500 hover:text-primary hover:bg-primary/5 hover:border-primary/20 border-gray-200'
+                              }`}
+                              title="Coach Note: Add guidance, background information, or resources that will appear immediately above this prompt for the participant."
+                            >
+                              <Plus size={11} strokeWidth={2.5} className="shrink-0" />
+                              <span>Coach Note</span>
+                            </button>
+
+                            {isLinkedFromPrevious && (
+                              <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-md uppercase tracking-wider flex items-center gap-1.5">
+                                <svg className="w-3.5 h-3.5 text-primary shrink-0 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                </svg>
+                                <span>Linked Follow-Up</span>
                               </span>
-                            </div>
+                            )}
                           </div>
 
-                          {/* Coach Note Field */}
-                          <div className={`space-y-1.5 transition-all duration-300 ${isLastAssignedNote ? 'ring-2 ring-emerald-500 ring-offset-2 p-1 rounded-xl animate-pulse bg-emerald-50 text-emerald-900 border-emerald-300' : ''}`}>
-                            <div className="flex justify-between items-center px-1">
-                              <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Coach Note</label>
-                              {currentContent.taskNotes?.[index] ? (
-                                <button
+                          {/* Note inputs BEFORE the question prompt */}
+                          <div className="space-y-4 mb-3">
+                            {(typeof currentContent.taskNotes?.[index] === 'string') && (
+                              <div className={`animate-fade-in border border-emerald-100/70 rounded-2xl p-4 bg-emerald-50/5 ${isLastAssignedNote ? 'ring-2 ring-emerald-500 ring-offset-2' : ''}`}>
+                                <div className="flex justify-between items-center mb-1.5">
+                                  <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest px-1">Coach Note</label>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => {
+                                      const newNotes = [...(currentContent.taskNotes || [])];
+                                      newNotes[index] = null as any;
+                                      handleContentChange('taskNotes', newNotes);
+                                    }}
+                                    className="text-gray-300 hover:text-red-500 transition-colors"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </div>
+                                <textarea 
+                                  value={currentContent.taskNotes[index] || ''} 
+                                  onChange={e => handleTaskNoteChange(index, e.target.value)} 
+                                  rows={2} 
+                                  className={editorInputClasses + " p-4 !py-3 w-full border-emerald-105 bg-emerald-50/10 text-gray-700 font-semibold"} 
+                                  placeholder="Add a context note. This note will appear just before the question in the participant view." 
+                                />
+                              </div>
+                            )}
+
+                            {isLinkedFromPrevious && (
+                              <div className="pl-3 border-l-2 border-emerald-500/20 space-y-3 text-left animate-fade-in w-full">
+                                <div className="flex items-center justify-between bg-gray-50 p-2.5 rounded-xl border border-gray-150">
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-black text-gray-700 uppercase tracking-wide">
+                                      Tag Note
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const currentActive = !!currentContent.taskTagNoteActive?.[index];
+                                      handleToggleTaskTagNoteActive(index, !currentActive);
+                                    }}
+                                    className={`px-3 py-1 text-xs font-black uppercase rounded-lg border transition-all cursor-pointer ${
+                                      currentContent.taskTagNoteActive?.[index]
+                                        ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
+                                        : 'bg-white text-gray-400 hover:text-gray-600 border-gray-200'
+                                    }`}
+                                    title="Tag Note: Toggle custom feedback or insights that show up for the participant specifically when these active choices/tags are selected."
+                                  >
+                                    {currentContent.taskTagNoteActive?.[index] ? 'ON' : 'OFF'}
+                                  </button>
+                                </div>
+
+                                {currentContent.taskTagNoteActive?.[index] && (
+                                  <div className="space-y-2 animate-fade-in">
+                                    <div className="flex items-center justify-between">
+                                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">
+                                        Tag Note Content
+                                      </label>
+                                      {getSingleTagNoteValue(currentContent.taskTagNotes?.[index]).trim() && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleTaskSingleTagNoteChange(index, '')}
+                                          className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-500 transition-colors flex items-center gap-1 cursor-pointer font-bold text-[9px] uppercase tracking-wider pr-2 pl-1.5"
+                                          title="Delete Tag Note Content"
+                                        >
+                                          <Trash2 size={10} />
+                                          <span>Delete</span>
+                                        </button>
+                                      )}
+                                    </div>
+                                    <textarea
+                                      value={getSingleTagNoteValue(currentContent.taskTagNotes?.[index])}
+                                      onChange={(e) => handleTaskSingleTagNoteChange(index, e.target.value)}
+                                      rows={2}
+                                      placeholder="Add Tag Note feedback that participants see when they select these tags."
+                                      className={editorInputClasses + " p-4 !py-4 w-full border-teal-100 bg-teal-50/10 text-gray-700 font-semibold"}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className={`space-y-1 ${isLastAssignedPrompt ? 'ring-2 ring-primary ring-offset-2 p-1 rounded-2xl' : ''}`}>
+                            <textarea 
+                              value={prompt} 
+                              onChange={e => handleTaskPromptChange(index, e.target.value)} 
+                              rows={2} 
+                              className={editorInputClasses + " p-4 !py-4 w-full font-semibold"} 
+                              placeholder={`Action Step ${index + 1}...`} 
+                            />
+                          </div>
+
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2.5 pt-2 border-t border-gray-100">
+                            <div className="flex items-center gap-2">
+                              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">Input Type:</label>
+                              <div className="flex items-center gap-1">
+                                <div className="flex p-0.5 bg-gray-100 rounded-lg">
+                                  <button 
+                                    type="button"
+                                    onClick={() => handleTaskPromptTypeChange(index, 'text')}
+                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'}`}
+                                    title="Text Input: Instructs the participant to enter a freeform text response or reflection."
+                                  >
+                                    Text
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    disabled={isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index]}
+                                    onClick={() => handleTaskPromptTypeChange(index, 'tags')}
+                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? 'opacity-40 cursor-not-allowed text-gray-350' : currentContent.taskInputTypes?.[index] === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'}`}
+                                    title={isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? "Locked: This step is a linked follow-up and cannot be Tag-labeled unless Tag Note mode is turned ON." : "Tags Input: Participants select multi-choice labels/tags to categorize their state or choices."}
+                                  >
+                                    Tags
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    onClick={() => handleTaskPromptTypeChange(index, 'poll')}
+                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'}`}
+                                    title="Poll Input: A multiple-choice poll. Standard polls use static choices; linked follow-ups use dynamic tags chosen earlier."
+                                  >
+                                    Poll
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    onClick={() => handleTaskPromptTypeChange(index, 'mark')}
+                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'mark' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'}`}
+                                    title="Mark Complete Input: A simple checklist item that participants can mark as finished once they execute the action step."
+                                  >
+                                    Mark
+                                  </button>
+                                </div>
+                                {(() => {
+                                  const precedingTagSteps = (currentContent.taskInputTypes || [])
+                                    .map((type, idx) => ({ type, idx }))
+                                    .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll'));
+                                  
+                                  const precedingDaysSteps = getPrecedingDaysTagSteps();
+                                  const showSingleLink = currentContent.taskInputTypes?.[index] === 'tags';
+                                  const showMultiLink = (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0) && (currentContent.taskInputTypes?.[index] === 'text' || currentContent.taskInputTypes?.[index] === 'poll' || !currentContent.taskInputTypes?.[index]);
+                                  const hasSelectedSources = (currentContent.taskLinkedSources?.[index]?.length || 0) > 0;
+
+                                  return (
+                                    <div className="flex items-center gap-1.5 ml-2">
+                                      {showSingleLink && (
+                                        <button 
+                                          type="button"
+                                          onClick={() => handleToggleLinkToNext(index)}
+                                          title={currentContent.taskLinkedToNext?.[index] ? "Link Active: This step is linked to dynamically populate choices or follow-ups for the exact next step. Click to disconnect." : "Link Step: Link this step to feed its selected tags/options as active choices or follow-ups for the exact next question."}
+                                          className={`p-1.5 rounded-md transition-all flex items-center justify-center ${currentContent.taskLinkedToNext?.[index] ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:text-gray-605'}`}
+                                        >
+                                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                        </button>
+                                      )}
+                                      {showMultiLink && (
+                                        <button 
+                                          type="button"
+                                          onClick={() => setActiveLinkSelectorIndex(activeLinkSelectorIndex === index ? null : index)}
+                                          title={hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding step(s). Click to configure or link more dynamic source questions.` : "Link Sources: Pull selected labels/options from previous steps to populate this question dynamically."}
+                                          className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20' : hasSelectedSources ? 'bg-primary/20 text-primary border border-primary/30 font-bold' : 'bg-gray-100 text-gray-400 hover:text-gray-605'}`}
+                                        >
+                                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                          {hasSelectedSources && (
+                                            <span className="ml-1 text-[10px] font-black bg-primary text-white rounded-full px-1 min-w-[14px]">
+                                              {currentContent.taskLinkedSources?.[index]?.length}
+                                            </span>
+                                          )}
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && (
+                                <button 
                                   type="button"
                                   onClick={() => {
-                                    const newNotes = [...(currentContent.taskNotes || [])];
-                                    newNotes[index] = null as any;
-                                    handleContentChange('taskNotes', newNotes);
+                                    const currentLabels = currentContent.taskMultiTextLabels?.[index];
+                                    if (!currentLabels || currentLabels.length === 0) {
+                                      handleTaskMultiTextLabelsChange(index, ['Label 1']);
+                                    } else {
+                                      handleTaskMultiTextLabelsChange(index, null as any);
+                                    }
                                   }}
-                                  className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-500 transition-colors cursor-pointer"
-                                  title="Delete note"
+                                  className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0) ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                  title="Multi Text Option: Add multiple labeled text inputs for participants to answer contextually."
                                 >
-                                  <Trash2 size={10} />
+                                  {(currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0) ? (
+                                    <>
+                                      <span className="text-[10px] text-primary mr-0.5">●</span>
+                                      <span>Multi Text</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus size={14} />
+                                      <span>Multi Text</span>
+                                    </>
+                                  )}
                                 </button>
-                              ) : (
-                                <span className="text-[9px] italic text-gray-400 font-medium">Empty (assign from general hub)</span>
                               )}
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  const currentHint = currentContent.taskHints?.[index];
+                                  if (currentHint === undefined || currentHint === null) {
+                                    handleTaskHintChange(index, '');
+                                  }
+                                }}
+                                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? 'bg-amber-50 text-amber-605 border border-amber-100 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                title="Hint Option: Toggle an optional expandable hint or helper prompt to guide the participant if they get stuck."
+                              >
+                                {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? (
+                                  <>
+                                    <span className="text-[10px] text-amber-550 mr-0.5">●</span>
+                                    <span>Hint</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus size={14} />
+                                    <span>Hint</span>
+                                  </>
+                                )}
+                              </button>
+
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  const currentFootnote = currentContent.taskFootnotes?.[index];
+                                  if (currentFootnote === undefined || currentFootnote === null) {
+                                    handleTaskFootnoteChange(index, '');
+                                  }
+                                }}
+                                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskFootnotes?.[index] !== undefined && currentContent.taskFootnotes?.[index] !== null) ? 'bg-indigo-50 text-indigo-605 border border-indigo-100 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                title="Footnote Option: Add normal text that appears just below the question step."
+                              >
+                                {(currentContent.taskFootnotes?.[index] !== undefined && currentContent.taskFootnotes?.[index] !== null) ? (
+                                  <>
+                                    <span className="text-[10px] text-indigo-550 mr-0.5">●</span>
+                                    <span>Footnote</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus size={14} />
+                                    <span>Footnote</span>
+                                  </>
+                                )}
+                              </button>
                             </div>
-                            <textarea
-                              value={currentContent.taskNotes?.[index] || ''}
-                              onChange={e => handleTaskNoteChange(index, e.target.value)}
-                              rows={2}
-                              className="w-full px-3 py-2 bg-white border border-gray-200 hover:border-emerald-200 focus:border-emerald-400 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-emerald-50 outline-none transition-all resize-none text-gray-750"
-                              placeholder="Provide context, links, or instructions that show before the step..."
-                            />
                           </div>
 
-                          {/* Prompt Question Input */}
-                          <div className={`space-y-1.5 transition-all duration-300 ${isLastAssignedPrompt ? 'ring-2 ring-primary ring-offset-2 p-1 rounded-xl animate-pulse bg-primary/5 text-primary border-primary/30' : ''}`}>
-                            <div className="flex justify-between items-center px-1">
-                              <label className="text-[10px] font-black text-primary uppercase tracking-widest">Action Step Prompt (Question)</label>
-                              {!prompt && (
-                                <span className="text-[9px] italic text-red-400 font-bold uppercase tracking-wider">Required Field</span>
-                              )}
-                            </div>
-                            <textarea
-                              value={prompt}
-                              onChange={e => handleTaskPromptChange(index, e.target.value)}
-                              rows={2}
-                              className="w-full px-3 py-2 bg-white border border-gray-200 hover:border-primary/20 focus:border-primary rounded-xl text-xs font-semibold focus:ring-4 focus:ring-primary/5 outline-none transition-all resize-none text-gray-750"
-                              placeholder="Enter clear, concise question prompt..."
-                            />
-                          </div>
+                          {/* Multi-Link selector interface */}
+                          {(() => {
+                            const precedingTagSteps = (currentContent.taskInputTypes || [])
+                              .map((type, idx) => ({ type, idx }))
+                              .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll'));
+                            
+                            const precedingDaysSteps = getPrecedingDaysTagSteps();
+                            const showSelector = activeLinkSelectorIndex === index && (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0);
+                            
+                            if (showSelector) {
+                              const yesterdayNum = selectedDay - 1;
+                              const yesterdaySteps = precedingDaysSteps.filter(s => s.day === yesterdayNum);
+                              const earlierSteps = precedingDaysSteps.filter(s => s.day < yesterdayNum);
+                              const hasEarlier = earlierSteps.length > 0;
+                              const isEarlierExpanded = !expandedStepEarlierDays || !expandedStepEarlierDays[index] ? false : expandedStepEarlierDays[index];
 
-                          {/* Hint Input */}
-                          <div className={`space-y-1.5 transition-all duration-300 ${isLastAssignedHint ? 'ring-2 ring-amber-500 ring-offset-2 p-1 rounded-xl animate-pulse bg-amber-50 text-amber-900 border-amber-300' : ''}`}>
-                            <div className="flex justify-between items-center px-1">
-                              <label className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Optional Helper Hint</label>
-                              {currentContent.taskHints?.[index] ? (
-                                <button
-                                  type="button"
+                              return (
+                                <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-xl animate-fade-in relative z-30 space-y-3 text-left">
+                                  <div className="text-[10px] font-black text-gray-505 uppercase tracking-wider flex items-center justify-between">
+                                    <span>Link this question to receive tags/options from preceding steps:</span>
+                                    {((currentContent.taskLinkedSources?.[index]?.length || 0) > 0) && (
+                                      <button 
+                                        type="button" 
+                                        onClick={() => handleClearSourceLinks(index)}
+                                        className="p-1 px-2.5 bg-red-50 hover:bg-red-105 text-red-500 hover:text-red-700 rounded-lg border border-red-100 transition-colors cursor-pointer text-[9px] font-black uppercase tracking-widest flex items-center gap-1 ml-auto mr-4"
+                                        title="Delete all links: Disconnect all linked dynamic source steps from this question."
+                                      >
+                                        <Trash2 size={10} />
+                                        <span>Delete Links</span>
+                                      </button>
+                                    )}
+                                    <button 
+                                      type="button" 
+                                      onClick={() => setActiveLinkSelectorIndex(null)}
+                                      className="text-gray-400 hover:text-gray-650 text-xs font-bold"
+                                    >
+                                      ✕ Close
+                                    </button>
+                                  </div>
+
+                                  {/* Same day steps */}
+                                  {precedingTagSteps.length > 0 && (
+                                    <div className="space-y-1.5">
+                                      <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Today's Preceding Steps:</div>
+                                      <div className="flex flex-wrap gap-2">
+                                        {precedingTagSteps.map(step => {
+                                          const isLinked = currentContent.taskLinkedSources?.[index]?.includes(step.idx);
+                                          return (
+                                            <button
+                                              key={step.idx}
+                                              type="button"
+                                              onClick={() => handleToggleSourceLink(index, step.idx)}
+                                              className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all border flex items-center gap-1.5 ${
+                                                isLinked 
+                                                  ? 'bg-primary text-white border-primary shadow-sm' 
+                                                  : 'bg-white text-gray-600 border-gray-210 hover:border-gray-400 hover:bg-gray-50'
+                                              }`}
+                                            >
+                                              <span>Step {step.idx + 1}</span>
+                                              {isLinked ? (
+                                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                                              ) : (
+                                                <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                              )}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Yesterday's steps */}
+                                  {yesterdaySteps.length > 0 && (
+                                    <div className="space-y-1.5 pt-1.5 border-t border-gray-200/50">
+                                      <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Yesterday (Day {yesterdayNum}):</div>
+                                      <div className="flex flex-wrap gap-2">
+                                        {yesterdaySteps.map(step => {
+                                          const encodedVal = -(step.day * 100 + step.stepIdx);
+                                          const isLinked = currentContent.taskLinkedSources?.[index]?.includes(encodedVal);
+                                          return (
+                                            <button
+                                              key={`prev-${step.day}-${step.stepIdx}`}
+                                              type="button"
+                                              onClick={() => handleToggleSourceLink(index, encodedVal)}
+                                              className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all border flex items-center gap-1.5 ${
+                                                isLinked 
+                                                  ? 'bg-primary text-white border-primary shadow-sm' 
+                                                  : 'bg-white text-gray-605 border-gray-205 hover:border-gray-400 hover:bg-gray-50'
+                                              }`}
+                                            >
+                                              <span>Day {step.day} - Step {step.stepIdx + 1}</span>
+                                              {isLinked ? (
+                                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                                              ) : (
+                                                <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                              )}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Earlier steps */}
+                                  {hasEarlier && (
+                                    <div className="pt-1.5 border-t border-gray-200/50">
+                                      {!isEarlierExpanded ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => setExpandedStepEarlierDays(prev => ({ ...prev, [index]: true }))}
+                                          className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
+                                        >
+                                          ... show more previous days
+                                        </button>
+                                      ) : (
+                                        <div className="space-y-3">
+                                          {Array.from(new Set(earlierSteps.map(s => s.day))).sort((a, b) => b - a).map(dayNum => {
+                                            const daySteps = earlierSteps.filter(s => s.day === dayNum);
+                                            return (
+                                              <div key={dayNum} className="space-y-1.5">
+                                                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Day {dayNum}:</div>
+                                                <div className="flex flex-wrap gap-2">
+                                                  {daySteps.map(step => {
+                                                    const encodedVal = -(step.day * 100 + step.stepIdx);
+                                                    const isLinked = currentContent.taskLinkedSources?.[index]?.includes(encodedVal);
+                                                    return (
+                                                      <button
+                                                        key={`prev-${step.day}-${step.stepIdx}`}
+                                                        type="button"
+                                                        onClick={() => handleToggleSourceLink(index, encodedVal)}
+                                                        className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all border flex items-center gap-1.5 ${
+                                                          isLinked 
+                                                            ? 'bg-primary text-white border-primary shadow-sm' 
+                                                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+                                                        }`}
+                                                      >
+                                                        <span>Day {step.day} - Step {step.stepIdx + 1}</span>
+                                                        {isLinked ? (
+                                                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                                                        ) : (
+                                                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                                        )}
+                                                      </button>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  <p className="text-[9px] font-bold text-gray-405 mt-2 italic">
+                                    Click preceding step numbers to toggle. Any tags/options defined in those steps will feed into this step.
+                                  </p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+
+                          {/* Side hints */}
+                          {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) && (
+                            <div className="mt-2 animate-fade-in text-left">
+                              <div className="flex justify-between items-center mb-1">
+                                <label className="text-[9px] font-black text-amber-500 uppercase tracking-widest px-1">Task Hint</label>
+                                <button 
+                                  type="button" 
                                   onClick={() => {
                                     const newHints = [...(currentContent.taskHints || [])];
                                     newHints[index] = null as any;
                                     handleContentChange('taskHints', newHints);
                                   }}
-                                  className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-500 transition-colors cursor-pointer"
-                                  title="Delete hint"
+                                  className="text-gray-300 hover:text-red-500 transition-colors"
                                 >
-                                  <Trash2 size={10} />
+                                  <X size={12} />
                                 </button>
-                              ) : (
-                                <span className="text-[9px] italic text-gray-400 font-medium">Empty (assign from general hub)</span>
-                              )}
+                              </div>
+                              <textarea 
+                                value={currentContent.taskHints[index] || ''} 
+                                onChange={e => handleTaskHintChange(index, e.target.value)} 
+                                rows={2} 
+                                className={editorInputClasses + " p-4 !py-3 w-full border-amber-100 bg-amber-50/20 text-gray-750 font-semibold"} 
+                                placeholder="Add a hint to help the participant..." 
+                              />
                             </div>
-                            <textarea
-                              value={currentContent.taskHints?.[index] || ''}
-                              onChange={e => handleTaskHintChange(index, e.target.value)}
-                              rows={2}
-                              className="w-full px-3 py-2 bg-white border border-gray-200 hover:border-amber-200 focus:border-amber-400 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-amber-50 outline-none transition-all resize-none text-gray-750"
-                              placeholder="Provide sample responses or guidance to prevent coaches block..."
-                            />
-                          </div>
+                          )}
 
-                          {/* Footnote Input */}
-                          <div className={`space-y-1.5 transition-all duration-300 ${isLastAssignedFootnote ? 'ring-2 ring-indigo-500 ring-offset-2 p-1 rounded-xl animate-pulse bg-indigo-50 text-indigo-900 border-indigo-300' : ''}`}>
-                            <div className="flex justify-between items-center px-1">
-                              <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Optional Footnote</label>
-                              {currentContent.taskFootnotes?.[index] ? (
-                                <button
-                                  type="button"
+                          {/* Footnotes */}
+                          {(currentContent.taskFootnotes?.[index] !== undefined && currentContent.taskFootnotes?.[index] !== null) && (
+                            <div className="mt-2 animate-fade-in text-left">
+                              <div className="flex justify-between items-center mb-1">
+                                <label className="text-[9px] font-black text-indigo-500 uppercase tracking-widest px-1">Task Footnote</label>
+                                <button 
+                                  type="button" 
                                   onClick={() => {
                                     const newFootnotes = [...(currentContent.taskFootnotes || [])];
                                     newFootnotes[index] = null as any;
                                     handleContentChange('taskFootnotes', newFootnotes);
                                   }}
-                                  className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-500 transition-colors cursor-pointer"
-                                  title="Delete footnote"
+                                  className="text-gray-300 hover:text-red-500 transition-colors"
                                 >
-                                  <Trash2 size={10} />
+                                  <X size={12} />
                                 </button>
-                              ) : (
-                                <span className="text-[9px] italic text-gray-400 font-medium">Empty (assign from general hub)</span>
-                              )}
+                              </div>
+                              <textarea 
+                                value={currentContent.taskFootnotes[index] || ''} 
+                                onChange={e => handleTaskFootnoteChange(index, e.target.value)} 
+                                rows={2} 
+                                className={editorInputClasses + " p-4 !py-3 w-full border-indigo-100 bg-indigo-50/20 text-gray-750 font-semibold"} 
+                                placeholder="Add a footnote to show just below the question..." 
+                              />
                             </div>
-                            <textarea
-                              value={currentContent.taskFootnotes?.[index] || ''}
-                              onChange={e => handleTaskFootnoteChange(index, e.target.value)}
-                              rows={1}
-                              className="w-full px-3 py-2 bg-white border border-gray-200 hover:border-indigo-200 focus:border-indigo-400 rounded-xl text-xs font-semibold focus:ring-4 focus:ring-indigo-50 outline-none transition-all resize-none text-gray-750"
-                              placeholder="Add supportive micro-copy, bibliography or source tags..."
-                            />
-                          </div>
+                          )}
+
+                          {/* Multi Text Labels list */}
+                          {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0 && (
+                            <div className="mt-3 pl-2 border-l-2 border-primary/20 space-y-2 animate-fade-in text-left">
+                              <div className="bg-primary/5 rounded-xl p-3 border border-primary/10 mb-2">
+                                <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                                  <Layers size={14} />
+                                  <span>Configure labels for the Multi-Text fields that participants can fill contextually.</span>
+                                </p>
+                              </div>
+                              <div className="space-y-2">
+                                {currentContent.taskMultiTextLabels[index].map((lbl, lblIndex) => (
+                                  <div key={lblIndex} className="flex gap-2 items-center group/lbl">
+                                    <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-100 text-gray-400 text-[10px] font-bold shrink-0">
+                                      {lblIndex + 1}
+                                    </div>
+                                    <input 
+                                      type="text"
+                                      value={lbl}
+                                      onChange={(e) => {
+                                        const updatedLabels = [...(currentContent.taskMultiTextLabels?.[index] || [])];
+                                        updatedLabels[lblIndex] = e.target.value;
+                                        handleTaskMultiTextLabelsChange(index, updatedLabels);
+                                      }}
+                                      className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                                      placeholder={`Label for Field ${lblIndex + 1}...`}
+                                    />
+                                    <button 
+                                      type="button"
+                                      onClick={() => {
+                                        const updatedLabels = (currentContent.taskMultiTextLabels?.[index] || []).filter((_, lIdx) => lIdx !== lblIndex);
+                                        handleTaskMultiTextLabelsChange(index, updatedLabels.length === 0 ? null as any : updatedLabels);
+                                      }}
+                                      className="p-1 px-1.5 text-gray-400 hover:text-red-500 rounded-lg transition-all"
+                                      title="Remove label field"
+                                    >
+                                      <Trash2 size={13} strokeWidth={2} />
+                                    </button>
+                                  </div>
+                                ))}
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    const updatedLabels = [...(currentContent.taskMultiTextLabels?.[index] || [])];
+                                    updatedLabels.push(`Label ${updatedLabels.length + 1}`);
+                                    handleTaskMultiTextLabelsChange(index, updatedLabels);
+                                  }}
+                                  className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-primary bg-primary/5 hover:bg-primary/10 border border-primary/10 hover:border-primary/20 rounded-lg transition-all cursor-pointer mt-1"
+                                >
+                                  <Plus size={12} strokeWidth={2} />
+                                  <span>Add Field Label</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Poll config */}
+                          {currentContent.taskInputTypes?.[index] === 'poll' && (
+                            <div className="mt-3 pl-2 border-l-2 border-primary/20 space-y-2 text-left">
+                              <div className="flex items-center gap-2 mb-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                                <button
+                                  type="button"
+                                  onClick={() => handleTogglePollMultiSelect(index)}
+                                  className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${currentContent.taskPollMultiSelect?.[index] ? 'bg-primary justify-end' : 'bg-gray-200 justify-start'}`}
+                                  title="Multi-Select: Toggle whether the participant can choose multiple options instead of a single choice."
+                                >
+                                  <span className={`w-4 h-4 rounded-full bg-white shadow-sm transform duration-200 ease-in-out ${currentContent.taskPollMultiSelect?.[index] ? 'translate-x-4' : 'translate-x-[2px]'}`} />
+                                </button>
+                                <span className="text-xs font-black text-gray-700 select-none cursor-help" title="Multi-Select: Toggle whether participants can choose multiple options or are constrained to a single response.">Allow multiple options selection (Multi-Select)</span>
+                              </div>
+                              <div className="space-y-4">
+                                {isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? (
+                                  <div className="bg-indigo-50/75 text-indigo-900 border border-indigo-150 rounded-xl p-3 text-xs font-semibold flex flex-col gap-1 text-left animate-fade-in animate-fade-in">
+                                    <div className="flex items-center gap-1.5 text-indigo-800">
+                                      <svg className="w-4 h-4 text-indigo-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 00-5.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                      </svg>
+                                      <span className="font-extrabold uppercase tracking-wide text-[10px]">Dynamic Poll Connected to Tags</span>
+                                    </div>
+                                    <p className="font-medium text-indigo-700/90 text-[11px] leading-relaxed">
+                                      This poll receives dynamic tags from previous steps. Participants will see their active tags as choices, plus any optional custom options defined below.
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="bg-emerald-500/5 rounded-xl p-3 border border-emerald-500/10 text-left">
+                                    <p className="text-xs font-medium text-primary italic flex items-center gap-1.5">
+                                      <svg className="w-3.5 h-3.5 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 00-5.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                      <span>All standard poll options can be added here. When active, participants will see these options.</span>
+                                    </p>
+                                  </div>
+                                )}
+                                <div className="space-y-2">
+                                  {(() => {
+                                    let opts: string[] = [];
+                                    if (currentContent.taskPollOptions?.[index]) {
+                                      try { opts = JSON.parse(currentContent.taskPollOptions[index]); } catch(e) {}
+                                    }
+                                    const isDynamicPoll = isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index];
+                                    if (isDynamicPoll) {
+                                      opts = opts.filter(o => o !== null && o !== undefined && o.trim() !== '');
+                                      if (addingCustomOption[index]) {
+                                        opts.push('');
+                                      }
+                                    } else {
+                                      while (opts.length < 4) {
+                                        opts.push('');
+                                      }
+                                    }
+                                    return opts.map((opt, optIndex) => (
+                                      <div key={optIndex} className="flex gap-2 items-center group/opt">
+                                        <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-50 text-gray-400 text-xs font-bold shrink-0">
+                                          ●
+                                        </div>
+                                        <input 
+                                          type="text"
+                                          value={opt}
+                                          onChange={(e) => {
+                                            if (isDynamicPoll) {
+                                              setAddingCustomOption(prev => ({ ...prev, [index]: e.target.value.trim() === '' }));
+                                            }
+                                            handleTaskPollOptionChange(index, optIndex, e.target.value);
+                                          }}
+                                          className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-750 focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                                          placeholder="Additional custom option..."
+                                        />
+                                        <button 
+                                          type="button"
+                                          onClick={() => {
+                                            if (isDynamicPoll) {
+                                              setAddingCustomOption(prev => ({ ...prev, [index]: false }));
+                                            }
+                                            removeTaskPollOption(index, optIndex);
+                                          }}
+                                          className="p-2 text-red-400 hover:text-red-500 rounded-lg transition-all"
+                                        >
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
+                                      </div>
+                                    ));
+                                  })()}
+                                  <button 
+                                    type="button"
+                                    onClick={() => {
+                                      const isDynamicPoll = isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index];
+                                      if (isDynamicPoll) {
+                                        setAddingCustomOption(prev => ({ ...prev, [index]: true }));
+                                        let curOpts: string[] = [];
+                                        try { curOpts = JSON.parse(currentContent.taskPollOptions?.[index] || '[]'); } catch(e) {}
+                                        curOpts = curOpts.filter(o => o && o.trim() !== '');
+                                        const newLen = curOpts.length;
+                                        handleTaskPollOptionChange(index, newLen, '');
+                                      } else {
+                                        let currentLength = 0;
+                                        try {
+                                          const curOpts = JSON.parse(currentContent.taskPollOptions?.[index] || '[]');
+                                          currentLength = Array.isArray(curOpts) ? curOpts.length : 0;
+                                        } catch(e) {}
+                                        handleTaskPollOptionChange(index, currentLength, '');
+                                      }
+                                    }}
+                                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-primary bg-primary/5 hover:bg-primary/10 border border-primary/10 hover:border-primary/20 rounded-lg transition-all cursor-pointer"
+                                  >
+                                    <Plus size={13} strokeWidth={2.5} />
+                                    <span>Add Poll Option</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
 
                         </div>
                       );
