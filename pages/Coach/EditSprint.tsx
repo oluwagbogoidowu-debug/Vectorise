@@ -1886,68 +1886,7 @@ const EditSprint: React.FC = () => {
             </div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-black text-gray-900 tracking-tight">{sprint.title}</h1>
-              <div className="flex items-center gap-2">
-                {!(isAdmin && !isFoundational) && (
-                  <button 
-                    onClick={handleSaveDraft} 
-                    disabled={saveStatus === 'saving'}
-                    title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : 'Save Draft'}
-                    className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm cursor-pointer ${saveStatus === 'saved' ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100' : 'bg-white text-gray-400 border-gray-100 hover:text-primary hover:border-primary/20'}`}
-                  >
-                    {saveStatus === 'saving' ? (
-                      <svg className="animate-spin h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                    ) : saveStatus === 'saved' ? (
-                      <CheckCircle2 size={18} className="text-green-600 animate-bounce" />
-                    ) : (
-                      <Save size={18} />
-                    )}
-                  </button>
-                )}
-                <button 
-                  onClick={() => setShowSettings(true)} 
-                  title={(isAdmin && !isFoundational) ? 'Audit Registry' : 'Registry Settings'}
-                  className="w-10 h-10 flex items-center justify-center bg-white text-primary rounded-xl border border-primary/10 hover:bg-primary hover:text-white transition-all shadow-sm cursor-pointer"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                </button>
-                <button 
-                  onClick={() => navigate(`/coach/sprint/preview/${sprintId}`)} 
-                  title="Preview"
-                  className="w-10 h-10 flex items-center justify-center bg-white text-gray-400 rounded-xl border border-gray-100 hover:text-primary transition-all shadow-sm cursor-pointer"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                </button>
-              </div>
             </div>
-          </div>
-
-          <div className="flex gap-3">
-            {isAdmin && !isFoundational ? (
-                <>
-                    <button onClick={handleAdminApprove} disabled={approvalStatus === 'processing'} className="bg-green-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl px-6 py-3 shadow-lg hover:bg-green-700 transition-all active:scale-95 disabled:opacity-50">Approve & Push Updates</button>
-                    <button onClick={handleAdminAmend} disabled={approvalStatus === 'processing'} className="bg-orange-50 text-white font-black uppercase tracking-widest text-[10px] rounded-xl px-6 py-3 shadow-lg hover:bg-orange-600 transition-all active:scale-95 disabled:opacity-50">Request Fixes</button>
-                </>
-            ) : (
-                <>
-                    {!isAdmin && (
-                        <Button 
-                            onClick={handleSubmitForReview} 
-                            isLoading={isSubmittingReview}
-                            disabled={isSubmittingReview || curriculumIncomplete} 
-                            className="font-black uppercase tracking-widest text-[10px] rounded-xl px-6 animate-fade-in"
-                            title={curriculumIncomplete 
-                              ? `Cannot submit yet. Every day in the curriculum must have a completed lesson text and action step (all green dots must be showing). (Registry is currently ${registryIncomplete ? 'Incomplete' : 'Complete'})`
-                              : `Submit Review: Submit the fully completed curriculum to the Admin workspace for review and approval. (Registry: ${registryIncomplete ? 'Incomplete' : 'Complete'})`
-                            }
-                        >
-                        {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
-                        </Button>
-                    )}
-                </>
-            )}
           </div>
         </header>
 
@@ -3278,6 +3217,112 @@ const EditSprint: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* BOTTOM ACTION BAR containing Save, Settings, Preview, and Submit buttons */}
+        <div className="mt-12 bg-white border border-gray-150 rounded-[2rem] p-6 shadow-md flex flex-col sm:flex-row justify-between items-center gap-4 animate-fade-in">
+          <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">
+            {saveStatus === 'saving' ? (
+              <span className="flex items-center gap-1.5 text-primary">
+                <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Syncing draft changes...
+              </span>
+            ) : saveStatus === 'saved' ? (
+              <span className="flex items-center gap-1.5 text-emerald-600">
+                <CheckCircle2 size={12} className="text-emerald-500" />
+                Draft Saved Successfully
+              </span>
+            ) : (
+              <span>Edit session active</span>
+            )}
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-2.5">
+            {!(isAdmin && !isFoundational) && (
+              <button 
+                onClick={handleSaveDraft} 
+                disabled={saveStatus === 'saving'}
+                title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : 'Save Draft'}
+                className={`h-11 px-5 flex items-center justify-center gap-2 rounded-xl border transition-all text-xs font-black uppercase tracking-wider cursor-pointer ${saveStatus === 'saved' ? 'bg-green-50 border-green-255 text-emerald-600 hover:bg-green-100' : 'bg-white text-gray-650 border-gray-200 hover:text-primary hover:border-primary/20'}`}
+              >
+                {saveStatus === 'saving' ? (
+                  <svg className="animate-spin h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                ) : saveStatus === 'saved' ? (
+                  <CheckCircle2 size={14} className="text-emerald-650" />
+                ) : (
+                  <Save size={14} />
+                )}
+                <span>Save Draft</span>
+              </button>
+            )}
+
+            <button 
+              onClick={() => setShowSettings(true)} 
+              title={(isAdmin && !isFoundational) ? 'Audit Registry' : 'Registry Settings'}
+              className="h-11 px-5 flex items-center justify-center gap-2 bg-white text-gray-650 rounded-xl border border-gray-200 hover:text-primary hover:border-primary/20 transition-all text-xs font-black uppercase tracking-wider cursor-pointer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>{(isAdmin && !isFoundational) ? 'Audit Registry' : 'Registry Settings'}</span>
+            </button>
+
+            <button 
+              onClick={() => navigate(`/coach/sprint/preview/${sprintId}`)} 
+              title="Preview"
+              className="h-11 px-5 flex items-center justify-center gap-2 bg-white text-gray-500 rounded-xl border border-gray-200 hover:text-primary hover:border-primary/20 transition-all text-xs font-black uppercase tracking-wider cursor-pointer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <span>Preview</span>
+            </button>
+
+            {isAdmin && !isFoundational ? (
+              <div className="flex items-center gap-2.5">
+                <button 
+                  onClick={handleAdminApprove} 
+                  disabled={approvalStatus === 'processing'} 
+                  className="h-11 px-6 bg-green-600 hover:bg-green-700 text-white font-black uppercase tracking-widest text-[10px] rounded-xl transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer shadow-md"
+                >
+                  Approve & Push Updates
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleAdminAmend} 
+                  disabled={approvalStatus === 'processing'} 
+                  className="h-11 px-6 bg-orange-500 hover:bg-orange-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer shadow-md"
+                >
+                  Request Fixes
+                </button>
+              </div>
+            ) : (
+              <>
+                {!isAdmin && (
+                  <Button 
+                    onClick={handleSubmitForReview} 
+                    isLoading={isSubmittingReview}
+                    disabled={isSubmittingReview || curriculumIncomplete} 
+                    className="h-11 font-black uppercase tracking-widest text-[10px] rounded-xl px-6 animate-fade-in"
+                    title={curriculumIncomplete 
+                      ? `Cannot submit yet. Every day in the curriculum must have a completed lesson text and action step (all green dots must be showing). (Registry is currently ${registryIncomplete ? 'Incomplete' : 'Complete'})`
+                      : `Submit Review: Submit the fully completed curriculum to the Admin workspace for review and approval. (Registry: ${registryIncomplete ? 'Incomplete' : 'Complete'})`
+                    }
+                  >
+                    {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Clear Action Steps Confirmation Modal */}
@@ -3363,8 +3408,8 @@ const EditSprint: React.FC = () => {
           </div>
 
           {/* Body */}
-          <div className="flex-grow p-4 sm:p-8 overflow-visible">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto items-start">
+          <div className="flex-grow p-4 sm:p-6 overflow-visible w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full items-start">
               
               {/* Left side: Large General Input area without outer card container */}
               <div className="lg:col-span-4 flex flex-col relative space-y-4">
@@ -3541,7 +3586,7 @@ const EditSprint: React.FC = () => {
                       const isLinkedFromPrevious = (index > 0 && currentContent.taskLinkedToNext?.[index - 1]) || (Array.isArray(currentContent.taskLinkedSources?.[index]) && currentContent.taskLinkedSources[index].length > 0);
 
                       return (
-                        <div key={index} className="bg-white p-6 rounded-[2rem] border border-gray-150 space-y-4 animate-fade-in text-left">
+                        <div key={index} className="space-y-4 animate-fade-in text-left w-full">
                           
                           {/* Step Header */}
                           <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -3605,7 +3650,7 @@ const EditSprint: React.FC = () => {
                                   value={currentContent.taskNotes[index] || ''} 
                                   onChange={e => handleTaskNoteChange(index, e.target.value)} 
                                   rows={2} 
-                                  className={editorInputClasses + " p-4 !py-3 w-full border-emerald-105 bg-emerald-50/10 text-gray-700 font-semibold"} 
+                                  className="w-full px-3 py-2 bg-white border border-emerald-105 bg-emerald-50/10 rounded-xl outline-none text-xs font-semibold text-gray-700 placeholder-gray-300 transition-all resize-none shadow-2xs" 
                                   placeholder="Add a context note. This note will appear just before the question in the participant view." 
                                 />
                               </div>
@@ -3659,7 +3704,7 @@ const EditSprint: React.FC = () => {
                                       onChange={(e) => handleTaskSingleTagNoteChange(index, e.target.value)}
                                       rows={2}
                                       placeholder="Add Tag Note feedback that participants see when they select these tags."
-                                      className={editorInputClasses + " p-4 !py-4 w-full border-teal-100 bg-teal-50/10 text-gray-700 font-semibold"}
+                                      className="w-full px-3 py-2 bg-white border border-teal-100 bg-teal-50/10 rounded-xl outline-none text-xs font-semibold text-gray-700 placeholder-gray-300 transition-all resize-none shadow-2xs"
                                     />
                                   </div>
                                 )}
@@ -3667,12 +3712,12 @@ const EditSprint: React.FC = () => {
                             )}
                           </div>
 
-                          <div className={`space-y-1 ${isLastAssignedPrompt ? 'ring-2 ring-primary ring-offset-2 p-1 rounded-2xl' : ''}`}>
+                          <div className={`space-y-1 ${isLastAssignedPrompt ? 'ring-2 ring-purple-500 ring-offset-2 p-0.5 rounded-xl' : ''}`}>
                             <textarea 
                               value={prompt} 
                               onChange={e => handleTaskPromptChange(index, e.target.value)} 
-                              rows={2} 
-                              className={editorInputClasses + " p-4 !py-4 w-full font-semibold"} 
+                              rows={2.5} 
+                              className="w-full px-3.5 py-2.5 bg-white border border-purple-200 rounded-xl shadow-xs focus:ring-4 focus:ring-purple-100/50 focus:border-purple-400 outline-none text-xs font-black text-gray-850 placeholder-purple-300/70 transition-all resize-none" 
                               placeholder={`Action Step ${index + 1}...`} 
                             />
                           </div>
@@ -4020,7 +4065,7 @@ const EditSprint: React.FC = () => {
                                 value={currentContent.taskHints[index] || ''} 
                                 onChange={e => handleTaskHintChange(index, e.target.value)} 
                                 rows={2} 
-                                className={editorInputClasses + " p-4 !py-3 w-full border-amber-100 bg-amber-50/20 text-gray-750 font-semibold"} 
+                                className="w-full px-3 py-2 bg-white border border-amber-100 bg-amber-50/20 rounded-xl outline-none text-xs font-semibold text-gray-700 placeholder-amber-300/70 transition-all resize-none shadow-2xs" 
                                 placeholder="Add a hint to help the participant..." 
                               />
                             </div>
@@ -4047,7 +4092,7 @@ const EditSprint: React.FC = () => {
                                 value={currentContent.taskFootnotes[index] || ''} 
                                 onChange={e => handleTaskFootnoteChange(index, e.target.value)} 
                                 rows={2} 
-                                className={editorInputClasses + " p-4 !py-3 w-full border-indigo-100 bg-indigo-50/20 text-gray-750 font-semibold"} 
+                                className="w-full px-3 py-2 bg-white border border-indigo-100 bg-indigo-50/20 rounded-xl outline-none text-xs font-semibold text-gray-700 placeholder-indigo-300/70 transition-all resize-none shadow-2xs" 
                                 placeholder="Add a footnote to show just below the question..." 
                               />
                             </div>
@@ -4076,7 +4121,7 @@ const EditSprint: React.FC = () => {
                                         updatedLabels[lblIndex] = e.target.value;
                                         handleTaskMultiTextLabelsChange(index, updatedLabels);
                                       }}
-                                      className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                                      className="flex-1 px-3 py-1.5 bg-white border border-gray-150 rounded-lg text-xs font-bold text-gray-750 focus:ring-2 focus:ring-purple-100 focus:border-purple-400 outline-none transition-all"
                                       placeholder={`Label for Field ${lblIndex + 1}...`}
                                     />
                                     <button 
@@ -4174,7 +4219,7 @@ const EditSprint: React.FC = () => {
                                             }
                                             handleTaskPollOptionChange(index, optIndex, e.target.value);
                                           }}
-                                          className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-750 focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                                          className="flex-1 px-3 py-1.5 bg-white border border-gray-150 rounded-lg text-xs font-bold text-gray-750 focus:ring-2 focus:ring-purple-100 focus:border-purple-400 outline-none transition-all"
                                           placeholder="Additional custom option..."
                                         />
                                         <button 
