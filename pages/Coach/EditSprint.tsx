@@ -224,7 +224,6 @@ const EditSprint: React.FC = () => {
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number, y: number } | null>(null);
   const [lastAssignedField, setLastAssignedField] = useState<string | null>(null);
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
-  const [activeSlideIndexes, setActiveSlideIndexes] = useState<Record<number, number>>({});
   const [showAddVersionFullBleed, setShowAddVersionFullBleed] = useState(false);
   const [isCreatingVersion, setIsCreatingVersion] = useState(false);
   const [showCreatedPopup, setShowCreatedPopup] = useState(false);
@@ -812,586 +811,6 @@ const EditSprint: React.FC = () => {
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const getSlideIndexForDay = (dayNum: number) => activeSlideIndexes[dayNum] ?? 0;
-  const setSlideIndexForDay = (dayNum: number, index: number) => {
-    setActiveSlideIndexes(prev => ({ ...prev, [dayNum]: index }));
-  };
-
-  // Day-parameterized handlers for multiday editing in the Daily Action Workspace
-  const handleTaskPromptChangeForDay = (dayNum: number, index: number, value: string) => {
-    setSprint(prev => {
-        if (!prev) return null;
-        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
-        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
-        
-        const currentPrompts = existingContentIndex >= 0 
-            ? [...(updatedDailyContent[existingContentIndex].taskPrompts || [updatedDailyContent[existingContentIndex].taskPrompt || '', '', ''])]
-            : ['', '', ''];
-        
-        while (currentPrompts.length <= index) currentPrompts.push('');
-        currentPrompts[index] = value;
-        
-        const filtered = currentPrompts.filter(p => p.trim());
-        const legacyValue = filtered.join('\n\n');
-        
-        if (existingContentIndex >= 0) {
-          updatedDailyContent[existingContentIndex] = { 
-              ...updatedDailyContent[existingContentIndex], 
-              taskPrompts: currentPrompts,
-              taskPrompt: legacyValue
-          };
-        } else {
-          updatedDailyContent.push({
-            day: dayNum,
-            lessonText: '',
-            taskPrompt: legacyValue,
-            taskPrompts: currentPrompts,
-            taskInputTypes: currentPrompts.map(() => 'text')
-          });
-        }
-        return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const handleTaskHintChangeForDay = (dayNum: number, index: number, value: string) => {
-    setSprint(prev => {
-        if (!prev) return null;
-        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
-        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
-        
-        const currentHints = existingContentIndex >= 0 
-            ? [...(updatedDailyContent[existingContentIndex].taskHints || [])]
-            : [];
-        
-        while (currentHints.length <= index) {
-            currentHints.push(null as any);
-        }
-        currentHints[index] = value;
-        
-        if (existingContentIndex >= 0) {
-          updatedDailyContent[existingContentIndex] = { 
-              ...updatedDailyContent[existingContentIndex], 
-              taskHints: currentHints,
-          };
-        } else {
-          updatedDailyContent.push({
-            day: dayNum,
-            lessonText: '',
-            taskPrompt: '',
-            taskPrompts: ['', '', ''],
-            taskHints: currentHints,
-          });
-        }
-        return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const handleTaskNoteChangeForDay = (dayNum: number, index: number, value: string) => {
-    setSprint(prev => {
-        if (!prev) return null;
-        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
-        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
-        
-        const currentNotes = existingContentIndex >= 0 
-            ? [...(updatedDailyContent[existingContentIndex].taskNotes || [])]
-            : [];
-        
-        while (currentNotes.length <= index) {
-            currentNotes.push(null as any);
-        }
-        currentNotes[index] = value;
-        
-        if (existingContentIndex >= 0) {
-          updatedDailyContent[existingContentIndex] = { 
-              ...updatedDailyContent[existingContentIndex], 
-              taskNotes: currentNotes,
-          };
-        } else {
-          updatedDailyContent.push({
-            day: dayNum,
-            lessonText: '',
-            taskPrompt: '',
-            taskPrompts: ['', '', ''],
-            taskNotes: currentNotes,
-          });
-        }
-        return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const handleTaskFootnoteChangeForDay = (dayNum: number, index: number, value: string) => {
-    setSprint(prev => {
-        if (!prev) return null;
-        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
-        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
-        
-        const currentFootnotes = existingContentIndex >= 0 
-            ? [...(updatedDailyContent[existingContentIndex].taskFootnotes || [])]
-            : [];
-        
-        while (currentFootnotes.length <= index) {
-            currentFootnotes.push(null as any);
-        }
-        currentFootnotes[index] = value;
-        
-        if (existingContentIndex >= 0) {
-          updatedDailyContent[existingContentIndex] = { 
-              ...updatedDailyContent[existingContentIndex], 
-              taskFootnotes: currentFootnotes,
-          };
-        } else {
-          updatedDailyContent.push({
-            day: dayNum,
-            lessonText: '',
-            taskPrompt: '',
-            taskPrompts: ['', '', ''],
-            taskFootnotes: currentFootnotes,
-          });
-        }
-        return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const handleTaskMultiTextLabelsChangeForDay = (dayNum: number, index: number, values: string[]) => {
-    setSprint(prev => {
-        if (!prev) return null;
-        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
-        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
-        
-        const currentLabels = existingContentIndex >= 0 
-            ? [...(updatedDailyContent[existingContentIndex].taskMultiTextLabels || [])]
-            : [];
-        
-        while (currentLabels.length <= index) {
-            currentLabels.push(null as any);
-        }
-        currentLabels[index] = values;
-        
-        if (existingContentIndex >= 0) {
-          updatedDailyContent[existingContentIndex] = { 
-              ...updatedDailyContent[existingContentIndex], 
-              taskMultiTextLabels: currentLabels,
-          };
-        } else {
-          updatedDailyContent.push({
-            day: dayNum,
-            lessonText: '',
-            taskPrompt: '',
-            taskPrompts: ['', '', ''],
-            taskMultiTextLabels: currentLabels,
-          });
-        }
-        return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const handleToggleTaskTagNoteActiveForDay = (dayNum: number, index: number, active: boolean) => {
-    setSprint(prev => {
-        if (!prev) return null;
-        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
-        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
-        
-        const currentActive = existingContentIndex >= 0 
-            ? [...(updatedDailyContent[existingContentIndex].taskTagNoteActive || [])]
-            : [];
-        
-        while (currentActive.length <= index) {
-            currentActive.push(false);
-        }
-        currentActive[index] = active;
-        
-        let currentOptions = existingContentIndex >= 0
-            ? [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])]
-            : [];
-        const currentTypes = existingContentIndex >= 0
-            ? [...(updatedDailyContent[existingContentIndex].taskInputTypes || [])]
-            : [];
-
-        if (currentTypes[index] === 'poll') {
-            let optsArr: string[] = [];
-            if (currentOptions[index]) {
-                try { optsArr = JSON.parse(currentOptions[index]); } catch (e) {}
-            }
-            if (!Array.isArray(optsArr)) optsArr = [];
-            if (active) {
-                while (optsArr.length < 4) {
-                    optsArr.push('');
-                }
-            } else {
-                optsArr = optsArr.filter(opt => opt && opt.trim() !== '');
-            }
-            while (currentOptions.length <= index) currentOptions.push('[]');
-            currentOptions[index] = JSON.stringify(optsArr);
-        }
-        
-        if (existingContentIndex >= 0) {
-          updatedDailyContent[existingContentIndex] = { 
-              ...updatedDailyContent[existingContentIndex], 
-              taskTagNoteActive: currentActive,
-              taskPollOptions: currentOptions,
-          };
-        } else {
-          updatedDailyContent.push({
-            day: dayNum,
-            lessonText: '',
-            taskPrompt: '',
-            taskPrompts: ['', '', ''],
-            taskTagNoteActive: currentActive,
-            taskPollOptions: currentOptions,
-          } as any);
-        }
-        return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const handleTaskSingleTagNoteChangeForDay = (dayNum: number, index: number, noteText: string) => {
-    setSprint(prev => {
-        if (!prev) return null;
-        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
-        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
-        
-        const currentTagNotes = existingContentIndex >= 0 
-            ? [...(updatedDailyContent[existingContentIndex].taskTagNotes || [])]
-            : [];
-        
-        while (currentTagNotes.length <= index) {
-            currentTagNotes.push('');
-        }
-        
-        currentTagNotes[index] = noteText;
-        
-        if (existingContentIndex >= 0) {
-          updatedDailyContent[existingContentIndex] = { 
-              ...updatedDailyContent[existingContentIndex], 
-              taskTagNotes: currentTagNotes,
-          };
-        } else {
-          updatedDailyContent.push({
-            day: dayNum,
-            lessonText: '',
-            taskPrompt: '',
-            taskPrompts: ['', '', ''],
-            taskTagNotes: currentTagNotes,
-          } as any);
-        }
-        return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const handleTaskPromptTypeChangeForDay = (dayNum: number, index: number, type: 'text' | 'tags' | 'poll' | 'note' | 'mark') => {
-    setSprint(prev => {
-        if (!prev) return null;
-        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
-        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
-        
-        const currentTypes = existingContentIndex >= 0 
-            ? [...(updatedDailyContent[existingContentIndex].taskInputTypes || Array((updatedDailyContent[existingContentIndex].taskPrompts?.length || 3)).fill('text'))]
-            : ['text', 'text', 'text'];
-        
-        while (currentTypes.length <= index) currentTypes.push('text');
-        currentTypes[index] = type;
-        
-        let currentOptions = existingContentIndex >= 0 
-            ? [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])]
-            : [];
-        
-        if (type === 'poll') {
-          while (currentOptions.length <= index) currentOptions.push('[]');
-          let optsArr: string[] = [];
-          try { optsArr = JSON.parse(currentOptions[index]); } catch (e) {}
-          if (!Array.isArray(optsArr) || optsArr.length === 0) {
-            optsArr = ['', ''];
-          }
-          currentOptions[index] = JSON.stringify(optsArr);
-        }
-        
-        if (existingContentIndex >= 0) {
-          updatedDailyContent[existingContentIndex] = { 
-              ...updatedDailyContent[existingContentIndex], 
-              taskInputTypes: currentTypes,
-              taskPollOptions: currentOptions,
-          };
-        } else {
-          updatedDailyContent.push({
-            day: dayNum,
-            lessonText: '',
-            taskPrompt: '',
-            taskPrompts: ['', '', ''],
-            taskInputTypes: currentTypes,
-            taskPollOptions: currentOptions,
-          });
-        }
-        return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const handleTaskPollOptionChangeForDay = (dayNum: number, promptIndex: number, optionIndex: number, value: string) => {
-    setSprint(prev => {
-        if (!prev) return null;
-        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
-        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
-        
-        const currentOptions = existingContentIndex >= 0 
-            ? [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])]
-            : [];
-        
-        while (currentOptions.length <= promptIndex) {
-            currentOptions.push('[]');
-        }
-        
-        let optsArr: string[] = [];
-        try {
-            optsArr = JSON.parse(currentOptions[promptIndex]);
-        } catch (e) {}
-        if (!Array.isArray(optsArr)) optsArr = [];
-        
-        while (optsArr.length <= optionIndex) {
-            optsArr.push('');
-        }
-        optsArr[optionIndex] = value;
-        
-        currentOptions[promptIndex] = JSON.stringify(optsArr);
-        
-        if (existingContentIndex >= 0) {
-          updatedDailyContent[existingContentIndex] = { 
-              ...updatedDailyContent[existingContentIndex], 
-              taskPollOptions: currentOptions,
-          };
-        } else {
-          updatedDailyContent.push({
-            day: dayNum,
-            lessonText: '',
-            taskPrompt: '',
-            taskPrompts: ['', '', ''],
-            taskPollOptions: currentOptions,
-          });
-        }
-        return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const handleContentChangeForDay = (dayNum: number, field: string, value: any) => {
-    setSprint(prev => {
-      if (!prev) return null;
-      const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
-      let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
-      if (existingContentIndex >= 0) {
-        updatedDailyContent[existingContentIndex] = {
-          ...updatedDailyContent[existingContentIndex],
-          [field]: value
-        };
-      } else {
-        updatedDailyContent.push({
-          day: dayNum,
-          lessonText: '',
-          taskPrompt: '',
-          taskPrompts: ['', '', ''],
-          [field]: value
-        });
-      }
-      return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const handleTogglePollMultiSelectForDay = (dayNum: number, index: number) => {
-    setSprint(prev => {
-      if (!prev) return null;
-      const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
-      let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
-      if (existingContentIndex >= 0) {
-        let currentMultiSelect = Array.isArray(updatedDailyContent[existingContentIndex].taskPollMultiSelect)
-          ? [...(updatedDailyContent[existingContentIndex].taskPollMultiSelect || [])]
-          : [];
-        while (currentMultiSelect.length <= index) {
-          currentMultiSelect.push(false);
-        }
-        currentMultiSelect[index] = !currentMultiSelect[index];
-        updatedDailyContent[existingContentIndex] = {
-          ...updatedDailyContent[existingContentIndex],
-          taskPollMultiSelect: currentMultiSelect
-        };
-      }
-      return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const removeTaskPollOptionForDay = (dayNum: number, promptIndex: number, optionIndex: number) => {
-    setSprint(prev => {
-      if (!prev) return null;
-      const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
-      if (existingContentIndex < 0) return prev;
-      let updatedDailyContent = [...prev.dailyContent];
-      let currentOptions = [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])];
-      if (!currentOptions[promptIndex]) return prev;
-      let optionsForPrompt: string[] = [];
-      try { optionsForPrompt = JSON.parse(currentOptions[promptIndex]); } catch (e) {}
-      optionsForPrompt.splice(optionIndex, 1);
-      currentOptions[promptIndex] = JSON.stringify(optionsForPrompt);
-      updatedDailyContent[existingContentIndex] = {
-        ...updatedDailyContent[existingContentIndex],
-        taskPollOptions: currentOptions
-      };
-      return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const handleToggleTaskLinkedToNextForDay = (dayNum: number, index: number) => {
-    setSprint(prev => {
-      if (!prev) return null;
-      const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
-      if (existingContentIndex < 0) return prev;
-      let updatedDailyContent = [...prev.dailyContent];
-      let currentLinked = Array.isArray(updatedDailyContent[existingContentIndex].taskLinkedToNext)
-        ? [...(updatedDailyContent[existingContentIndex].taskLinkedToNext || [])]
-        : [];
-      while (currentLinked.length <= index) {
-        currentLinked.push(false);
-      }
-      currentLinked[index] = !currentLinked[index];
-      updatedDailyContent[existingContentIndex] = {
-        ...updatedDailyContent[existingContentIndex],
-        taskLinkedToNext: currentLinked
-      };
-      return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const assignSelectedTextForDay = (dayNum: number, field: 'prompt' | 'note' | 'hint' | 'footnote', index: number) => {
-    if (!selectedText) return;
-    
-    if (field === 'prompt') {
-      handleTaskPromptChangeForDay(dayNum, index, selectedText);
-    } else if (field === 'note') {
-      handleTaskNoteChangeForDay(dayNum, index, selectedText);
-    } else if (field === 'hint') {
-      handleTaskHintChangeForDay(dayNum, index, selectedText);
-    } else if (field === 'footnote') {
-      handleTaskFootnoteChangeForDay(dayNum, index, selectedText);
-    }
-    
-    setLastAssignedField(`${field}-${dayNum}-${index}`);
-    setTimeout(() => {
-      setLastAssignedField(null);
-    }, 1500);
-
-    setSelectedText('');
-    setTooltipPosition(null);
-  };
-
-  const addNewStepForDay = (dayNum: number) => {
-    setSprint(prev => {
-      if (!prev) return null;
-      const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
-      let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
-      
-      if (existingContentIndex >= 0) {
-        const currentData = updatedDailyContent[existingContentIndex];
-        const taskPrompts = [...(currentData.taskPrompts || [currentData.taskPrompt || '', '', ''])];
-        const taskInputTypes = [...(currentData.taskInputTypes || taskPrompts.map(() => 'text'))];
-        const taskNotes = [...(currentData.taskNotes || [])];
-        const taskHints = [...(currentData.taskHints || [])];
-        const taskFootnotes = [...(currentData.taskFootnotes || [])];
-        const taskLinkedNext = [...(currentData.taskLinkedToNext || [])];
-        
-        taskPrompts.push('');
-        taskInputTypes.push('text');
-        taskNotes.push('');
-        taskHints.push('');
-        taskFootnotes.push('');
-        taskLinkedNext.push(false);
-        
-        updatedDailyContent[existingContentIndex] = {
-          ...currentData,
-          taskPrompts,
-          taskInputTypes,
-          taskNotes,
-          taskHints,
-          taskFootnotes,
-          taskLinkedToNext: taskLinkedNext
-        };
-        
-        setTimeout(() => {
-          setSlideIndexForDay(dayNum, taskPrompts.length - 1);
-        }, 50);
-      } else {
-        const taskPrompts = ['', '', '', ''];
-        updatedDailyContent.push({
-          day: dayNum,
-          lessonText: '',
-          taskPrompt: '',
-          taskPrompts,
-          taskInputTypes: ['text', 'text', 'text', 'text'],
-          taskNotes: ['', '', '', ''],
-          taskHints: ['', '', '', ''],
-          taskFootnotes: ['', '', '', ''],
-          taskLinkedToNext: [false, false, false, false]
-        });
-        
-        setTimeout(() => {
-          setSlideIndexForDay(dayNum, 3);
-        }, 50);
-      }
-      return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const removeStepForDay = (dayNum: number, indexToDelete: number) => {
-    setSprint(prev => {
-      if (!prev) return null;
-      const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
-      if (existingContentIndex === -1) return prev;
-      
-      let updatedDailyContent = [...prev.dailyContent];
-      const currentData = updatedDailyContent[existingContentIndex];
-      const taskPrompts = [...(currentData.taskPrompts || ['', '', ''])];
-      if (taskPrompts.length <= 1) return prev;
-      
-      const taskInputTypes = [...(currentData.taskInputTypes || taskPrompts.map(() => 'text'))];
-      const taskNotes = [...(currentData.taskNotes || [])];
-      const taskHints = [...(currentData.taskHints || [])];
-      const taskFootnotes = [...(currentData.taskFootnotes || [])];
-      const taskLinkedNext = [...(currentData.taskLinkedToNext || [])];
-      
-      taskPrompts.splice(indexToDelete, 1);
-      if (taskInputTypes.length > indexToDelete) taskInputTypes.splice(indexToDelete, 1);
-      if (taskNotes.length > indexToDelete) taskNotes.splice(indexToDelete, 1);
-      if (taskHints.length > indexToDelete) taskHints.splice(indexToDelete, 1);
-      if (taskFootnotes.length > indexToDelete) taskFootnotes.splice(indexToDelete, 1);
-      if (taskLinkedNext.length > indexToDelete) taskLinkedNext.splice(indexToDelete, 1);
-      
-      updatedDailyContent[existingContentIndex] = {
-        ...currentData,
-        taskPrompts,
-        taskInputTypes,
-        taskNotes,
-        taskHints,
-        taskFootnotes,
-        taskLinkedToNext: taskLinkedNext
-      };
-      
-      setTimeout(() => {
-        setSlideIndexForDay(dayNum, Math.max(0, indexToDelete - 1));
-      }, 50);
-      
-      return { ...prev, dailyContent: updatedDailyContent };
     });
     setSaveStatus('idle');
   };
@@ -2411,6 +1830,7 @@ const EditSprint: React.FC = () => {
   }
 
   const editorInputClasses = "w-full p-6 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all placeholder-gray-300 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
+  const smallEditorInputClasses = "w-full p-3 bg-white border border-gray-100 rounded-xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-xs font-semibold transition-all placeholder-gray-300 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
   const registryInputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
   const labelClasses = "text-[11px] font-black text-gray-400 uppercase tracking-widest";
 
@@ -2425,7 +1845,7 @@ const EditSprint: React.FC = () => {
       <div className="min-h-screen bg-gray-50 px-4 py-8 pb-32">
 
       
-      <div className="max-w-5xl mx-auto">
+      <div className="w-full">
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div className="w-full">
             <div className="flex justify-between items-center mb-4">
@@ -2468,6 +1888,66 @@ const EditSprint: React.FC = () => {
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-black text-gray-900 tracking-tight">{sprint.title}</h1>
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            {!(isAdmin && !isFoundational) && (
+              <button 
+                onClick={handleSaveDraft} 
+                disabled={saveStatus === 'saving'}
+                title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : 'Save Draft'}
+                className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm cursor-pointer shrink-0 ${saveStatus === 'saved' ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100' : 'bg-white text-gray-400 border-gray-100 hover:text-primary hover:border-primary/20'}`}
+              >
+                {saveStatus === 'saving' ? (
+                  <svg className="animate-spin h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                ) : saveStatus === 'saved' ? (
+                  <CheckCircle2 size={18} className="text-green-600 animate-bounce" />
+                ) : (
+                  <Save size={18} />
+                )}
+              </button>
+            )}
+            <button 
+              onClick={() => navigate(`/coach/sprint/preview/${sprintId}`)} 
+              title="Preview"
+              className="w-10 h-10 flex items-center justify-center bg-white text-gray-400 rounded-xl border border-gray-100 hover:text-primary transition-all shadow-sm cursor-pointer shrink-0"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+            </button>
+            <button 
+              onClick={() => setShowSettings(true)} 
+              title={(isAdmin && !isFoundational) ? 'Audit Registry' : 'Registry Settings'}
+              className="w-10 h-10 flex items-center justify-center bg-white text-primary rounded-xl border border-primary/10 hover:bg-primary hover:text-white transition-all shadow-sm cursor-pointer shrink-0"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+
+            {isAdmin && !isFoundational ? (
+                <>
+                    <button onClick={handleAdminApprove} disabled={approvalStatus === 'processing'} className="bg-green-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl px-6 py-3 shadow-lg hover:bg-green-700 transition-all active:scale-95 disabled:opacity-50">Approve & Push Updates</button>
+                    <button onClick={handleAdminAmend} disabled={approvalStatus === 'processing'} className="bg-orange-50 text-white font-black uppercase tracking-widest text-[10px] rounded-xl px-6 py-3 shadow-lg hover:bg-orange-600 transition-all active:scale-95 disabled:opacity-50">Request Fixes</button>
+                </>
+            ) : (
+                <>
+                    {!isAdmin && (
+                        <Button 
+                            onClick={handleSubmitForReview} 
+                            isLoading={isSubmittingReview}
+                            disabled={isSubmittingReview || curriculumIncomplete} 
+                            className="font-black uppercase tracking-widest text-[10px] rounded-xl px-6 py-3.5 animate-fade-in"
+                            title={curriculumIncomplete 
+                              ? `Cannot submit yet. Every day in the curriculum must have a completed lesson text and action step (all green dots must be showing). (Registry is currently ${registryIncomplete ? 'Incomplete' : 'Complete'})`
+                              : `Submit Review: Submit the fully completed curriculum to the Admin workspace for review and approval. (Registry: ${registryIncomplete ? 'Incomplete' : 'Complete'})`
+                            }
+                        >
+                        {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
+                        </Button>
+                    )}
+                </>
+            )}
           </div>
         </header>
 
@@ -3798,112 +3278,6 @@ const EditSprint: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* BOTTOM ACTION BAR containing Save, Settings, Preview, and Submit buttons */}
-        <div className="mt-12 bg-white border border-gray-150 rounded-[2rem] p-6 shadow-md flex flex-col sm:flex-row justify-between items-center gap-4 animate-fade-in">
-          <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">
-            {saveStatus === 'saving' ? (
-              <span className="flex items-center gap-1.5 text-primary">
-                <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Syncing draft changes...
-              </span>
-            ) : saveStatus === 'saved' ? (
-              <span className="flex items-center gap-1.5 text-emerald-600">
-                <CheckCircle2 size={12} className="text-emerald-500" />
-                Draft Saved Successfully
-              </span>
-            ) : (
-              <span>Edit session active</span>
-            )}
-          </div>
-          
-          <div className="flex flex-wrap items-center gap-2.5">
-            {!(isAdmin && !isFoundational) && (
-              <button 
-                onClick={handleSaveDraft} 
-                disabled={saveStatus === 'saving'}
-                title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : 'Save Draft'}
-                className={`h-11 px-5 flex items-center justify-center gap-2 rounded-xl border transition-all text-xs font-black uppercase tracking-wider cursor-pointer ${saveStatus === 'saved' ? 'bg-green-50 border-green-255 text-emerald-600 hover:bg-green-100' : 'bg-white text-gray-655 border-gray-200 hover:text-primary hover:border-primary/20'}`}
-              >
-                {saveStatus === 'saving' ? (
-                  <svg className="animate-spin h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                ) : saveStatus === 'saved' ? (
-                  <CheckCircle2 size={14} className="text-emerald-650" />
-                ) : (
-                  <Save size={14} />
-                )}
-                <span>Save Draft</span>
-              </button>
-            )}
-
-            <button 
-              onClick={() => navigate(`/coach/sprint/preview/${sprintId}`)} 
-              title="Preview"
-              className="h-11 px-5 flex items-center justify-center gap-2 bg-white text-gray-500 rounded-xl border border-gray-200 hover:text-primary hover:border-primary/20 transition-all text-xs font-black uppercase tracking-wider cursor-pointer"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              <span>Preview</span>
-            </button>
-
-            <button 
-              onClick={() => setShowSettings(true)} 
-              title={(isAdmin && !isFoundational) ? 'Audit Registry' : 'Registry Settings'}
-              className="h-11 px-5 flex items-center justify-center gap-2 bg-white text-gray-651 rounded-xl border border-gray-205 hover:text-primary hover:border-primary/20 transition-all text-xs font-black uppercase tracking-wider cursor-pointer"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.545-.94 3.31.826 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span>{(isAdmin && !isFoundational) ? 'Audit Registry' : 'Registry Settings'}</span>
-            </button>
-
-            {isAdmin && !isFoundational ? (
-              <div className="flex items-center gap-2.5">
-                <button 
-                  onClick={handleAdminApprove} 
-                  disabled={approvalStatus === 'processing'} 
-                  className="h-11 px-6 bg-green-600 hover:bg-green-700 text-white font-black uppercase tracking-widest text-[10px] rounded-xl transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer shadow-md"
-                >
-                  Approve & Push Updates
-                </button>
-                <button 
-                  type="button"
-                  onClick={handleAdminAmend} 
-                  disabled={approvalStatus === 'processing'} 
-                  className="h-11 px-6 bg-orange-500 hover:bg-orange-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer shadow-md"
-                >
-                  Request Fixes
-                </button>
-              </div>
-            ) : (
-              <>
-                {!isAdmin && (
-                  <Button 
-                    onClick={handleSubmitForReview} 
-                    isLoading={isSubmittingReview}
-                    disabled={isSubmittingReview || curriculumIncomplete} 
-                    className="h-11 font-black uppercase tracking-widest text-[10px] rounded-xl px-6 animate-fade-in"
-                    title={curriculumIncomplete 
-                      ? `Cannot submit yet. Every day in the curriculum must have a completed lesson text and action step (all green dots must be showing). (Registry is currently ${registryIncomplete ? 'Incomplete' : 'Complete'})`
-                      : `Submit Review: Submit the fully completed curriculum to the Admin workspace for review and approval. (Registry: ${registryIncomplete ? 'Incomplete' : 'Complete'})`
-                    }
-                  >
-                    {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Clear Action Steps Confirmation Modal */}
@@ -3989,8 +3363,8 @@ const EditSprint: React.FC = () => {
           </div>
 
           {/* Body */}
-          <div className="flex-grow p-4 sm:p-6 overflow-visible w-full">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full items-start">
+          <div className="flex-grow p-4 sm:p-8 overflow-visible">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto items-start">
               
               {/* Left side: Large General Input area without outer card container */}
               <div className="lg:col-span-4 flex flex-col relative space-y-4">
@@ -4108,465 +3482,8 @@ const EditSprint: React.FC = () => {
                 />
               </div>
 
-              {/* Right side: Multi-Day horizontal cards scrolling view! */}
-              <div className="lg:col-span-8 overflow-x-auto flex gap-6 pb-6 pt-1 px-1 scrollbar-thin w-full items-start">
-                {Array.from({ length: sprint.duration }, (_, idx) => {
-                  const dayNum = idx + 1;
-                  const dayContent = (Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(c => c.day === dayNum) : undefined) || {
-                    day: dayNum,
-                    lessonText: '',
-                    taskPrompt: '',
-                    taskPrompts: ['', '', ''],
-                    taskInputTypes: ['text', 'text', 'text']
-                  };
-                  const activeSlideIdx = getSlideIndexForDay(dayNum);
-                  const prompts = dayContent.taskPrompts || ['', '', ''];
-                  
-                  return (
-                    <div 
-                      key={dayNum} 
-                      className="w-[440px] shrink-0 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm font-sans flex flex-col gap-3 animate-fade-in"
-                    >
-                      {/* Day card header */}
-                      <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-black text-gray-800 uppercase tracking-widest font-sans">Day {dayNum} Setup</span>
-                        </div>
-                        {/* Step Pagination inside Day card with a "+" button */}
-                        <div className="flex items-center gap-1 bg-gray-55 p-0.5 border border-gray-150 rounded-lg">
-                          {prompts.map((_, pIdx) => (
-                            <button
-                              key={pIdx}
-                              type="button"
-                              onClick={() => setSlideIndexForDay(dayNum, pIdx)}
-                              className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold transition-all cursor-pointer ${activeSlideIdx === pIdx ? 'bg-purple-600 text-white shadow-3xs' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                            >
-                              {pIdx + 1}
-                            </button>
-                          ))}
-                          <button
-                            type="button"
-                            onClick={() => addNewStepForDay(dayNum)}
-                            className="w-5 h-5 rounded bg-emerald-55 text-emerald-600 hover:bg-emerald-105 hover:text-emerald-700 transition-all border border-emerald-100 flex items-center justify-center cursor-pointer font-black"
-                            title="Add a new Action Step"
-                          >
-                            <Plus size={10} strokeWidth={2.5} />
-                          </button>
-                        </div>
-                      </div>
-                      
-                      {/* Active Step Content inside Day card */}
-                      {(() => {
-                        const index = activeSlideIdx;
-                        const prompt = prompts[index] || '';
-                        
-                        return (
-                          <div className="space-y-3.5 text-left w-full">
-                            {/* Step Header with controls */}
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-extrabold bg-primary/15 text-primary px-2 py-0.5 rounded uppercase tracking-wider">
-                                Action Step {index + 1}
-                              </span>
-                              
-                              <div className="flex items-center gap-1.5">
-                                {/* Coach Note Toggle */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const currentNote = dayContent.taskNotes?.[index];
-                                    if (typeof currentNote !== 'string') {
-                                      handleTaskNoteChangeForDay(dayNum, index, '');
-                                    } else {
-                                      const newNotes = [...(dayContent.taskNotes || [])];
-                                      newNotes[index] = null as any;
-                                      handleContentChangeForDay(dayNum, 'taskNotes', newNotes);
-                                    }
-                                  }}
-                                  className={`px-2 py-0.5 text-[9px] font-bold rounded border transition-all cursor-pointer ${
-                                    typeof dayContent.taskNotes?.[index] === 'string'
-                                      ? 'bg-emerald-55 text-emerald-600 border-emerald-150'
-                                      : 'bg-white text-gray-400 border-gray-150 hover:bg-gray-50'
-                                  }`}
-                                  title="Add/Remove Coach Note"
-                                >
-                                  + Note
-                                </button>
-                                
-                                {/* Trash button (Remove Step) for Steps > 1 */}
-                                {prompts.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => removeStepForDay(dayNum, index)}
-                                    className="p-1 rounded bg-red-50 text-red-500 hover:bg-red-105 transition-all cursor-pointer"
-                                    title={`Delete Step ${index + 1}`}
-                                  >
-                                    <Trash2 size={11} />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                            
-                            {/* Coach Note Field inside Day card */}
-                            {typeof dayContent.taskNotes?.[index] === 'string' && (
-                              <div className="space-y-1 animate-fade-in bg-emerald-50/10 border border-emerald-100 rounded-xl p-2.5">
-                                <div className="flex justify-between items-center text-[9px] font-black tracking-wider text-emerald-600 uppercase">
-                                  <span>Coach Note</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const newNotes = [...(dayContent.taskNotes || [])];
-                                      newNotes[index] = null as any;
-                                      handleContentChangeForDay(dayNum, 'taskNotes', newNotes);
-                                    }}
-                                    className="text-gray-300 hover:text-red-500"
-                                  >
-                                    <X size={10} />
-                                  </button>
-                                </div>
-                                <textarea
-                                  value={dayContent.taskNotes[index] || ''}
-                                  onChange={e => handleTaskNoteChangeForDay(dayNum, index, e.target.value)}
-                                  rows={2}
-                                  className="w-full px-2 py-1.5 bg-white border border-emerald-100 text-[11px] rounded-lg outline-none font-semibold text-gray-750 transition-all resize-none shadow-3xs"
-                                  placeholder="Guidance above prompt..."
-                                />
-                              </div>
-                            )}
-                            
-                            {/* Question prompt textbox */}
-                            <div className="space-y-1">
-                              <div className="flex justify-between items-center text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">
-                                <span>Prompt Question</span>
-                                
-                                {selectedText && (
-                                  <button
-                                    type="button"
-                                    onClick={() => assignSelectedTextForDay(dayNum, 'prompt', index)}
-                                    className="flex items-center gap-1 px-1.5 py-0.5 select-none text-[8px] bg-purple-500/10 hover:bg-purple-505 text-purple-600 hover:text-white rounded border border-purple-200 transition-all cursor-pointer animate-pulse shrink-0 font-extrabold uppercase tracking-wider"
-                                  >
-                                    <Sparkles size={8} />
-                                    <span>Assign Highlighted</span>
-                                  </button>
-                                )}
-                              </div>
-                              <textarea
-                                value={prompt}
-                                onChange={e => handleTaskPromptChangeForDay(dayNum, index, e.target.value)}
-                                rows={2}
-                                className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-xl outline-none text-[11px] font-black text-gray-755 focus:ring-2 focus:ring-purple-100 focus:border-purple-300 placeholder-gray-300/80 transition-all shadow-3xs leading-relaxed"
-                                placeholder={`Participant prompt ${index + 1}...`}
-                              />
-                            </div>
-                            
-                            {/* Input Type selection (text, tags, poll, mark) */}
-                            <div className="space-y-1">
-                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">Response format</label>
-                              <div className="grid grid-cols-4 gap-1 p-0.5 bg-gray-50 rounded-lg border border-gray-150">
-                                {['text', 'tags', 'poll', 'mark'].map(tType => {
-                                  let label = tType;
-                                  if (tType === 'text') label = 'TEXT / LABEL';
-                                  if (tType === 'tags') label = 'TAG BOX';
-                                  if (tType === 'poll') label = 'POLL';
-                                  if (tType === 'mark') label = 'MARK DONE';
-                                  
-                                  const isActive = (dayContent.taskInputTypes?.[index] || 'text') === tType;
-                                  return (
-                                    <button
-                                      key={tType}
-                                      type="button"
-                                      onClick={() => handleTaskPromptTypeChangeForDay(dayNum, index, tType as any)}
-                                      className={`py-1 text-[8px] font-extrabold uppercase rounded transition-all cursor-pointer text-center ${
-                                        isActive 
-                                          ? 'bg-purple-600 text-white shadow-3xs' 
-                                          : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
-                                      }`}
-                                    >
-                                      {label}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                            
-                            {/* Dynamic Linking button */}
-                            {index > 0 && (
-                              <div className="p-2 bg-gray-55 border border-gray-150 rounded-xl flex items-center justify-between gap-2.5">
-                                <span className="text-[9px] font-black text-gray-505 uppercase tracking-wider leading-none">Dynamic Follow-Up Linking</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleToggleTaskLinkedToNextForDay(dayNum, index - 1);
-                                  }}
-                                  className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded border transition-all cursor-pointer flex items-center gap-1 ${
-                                    dayContent.taskLinkedToNext?.[index - 1]
-                                      ? 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/15'
-                                      : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                  }`}
-                                >
-                                  {dayContent.taskLinkedToNext?.[index - 1] ? (
-                                    <>
-                                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
-                                      <span>LINKED</span>
-                                    </>
-                                  ) : (
-                                    <span>LINK STEP</span>
-                                  )}
-                                </button>
-                              </div>
-                            )}
-
-                            {/* Additional Settings triggers (Hint / Footnote) */}
-                            <div className="flex gap-2">
-                              {/* Task Hint Toggle */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const currentHint = dayContent.taskHints?.[index];
-                                  if (typeof currentHint !== 'string') {
-                                    handleTaskHintChangeForDay(dayNum, index, '');
-                                  } else {
-                                    const newHints = [...(dayContent.taskHints || [])];
-                                    newHints[index] = null as any;
-                                    handleContentChangeForDay(dayNum, 'taskHints', newHints);
-                                  }
-                                }}
-                                className={`flex-1 py-1 rounded border text-[9px] font-bold uppercase cursor-pointer text-center ${
-                                  typeof dayContent.taskHints?.[index] === 'string'
-                                    ? 'bg-amber-50 text-amber-605 border-amber-200'
-                                    : 'bg-white text-gray-400 border-gray-150 hover:bg-gray-50'
-                                }`}
-                              >
-                                Hint
-                              </button>
-
-                              {/* Task Footnote Toggle */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const currentFoot = dayContent.taskFootnotes?.[index];
-                                  if (typeof currentFoot !== 'string') {
-                                    handleTaskFootnoteChangeForDay(dayNum, index, '');
-                                  } else {
-                                    const newFoots = [...(dayContent.taskFootnotes || [])];
-                                    newFoots[index] = null as any;
-                                    handleContentChangeForDay(dayNum, 'taskFootnotes', newFoots);
-                                  }
-                                }}
-                                className={`flex-1 py-1 rounded border text-[9px] font-bold uppercase cursor-pointer text-center ${
-                                  typeof dayContent.taskFootnotes?.[index] === 'string'
-                                    ? 'bg-indigo-50 text-indigo-605 border-indigo-200'
-                                    : 'bg-white text-gray-400 border-gray-150 hover:bg-gray-50'
-                                }`}
-                              >
-                                Footnote
-                              </button>
-                            </div>
-
-                            {/* Render Hint textarea if active */}
-                            {typeof dayContent.taskHints?.[index] === 'string' && (
-                              <div className="space-y-1 animate-fade-in bg-amber-50/10 border border-amber-100 rounded-xl p-2.5">
-                                <div className="flex justify-between items-center text-[9px] font-black text-amber-600 uppercase tracking-widest px-1">
-                                  <span>Task Hint</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const newHints = [...(dayContent.taskHints || [])];
-                                      newHints[index] = null as any;
-                                      handleContentChangeForDay(dayNum, 'taskHints', newHints);
-                                    }}
-                                    className="text-gray-305 hover:text-red-500"
-                                  >
-                                    <X size={10} />
-                                  </button>
-                                </div>
-                                <textarea
-                                  value={dayContent.taskHints[index] || ''}
-                                  onChange={e => handleTaskHintChangeForDay(dayNum, index, e.target.value)}
-                                  rows={2}
-                                  className="w-full px-2 py-1.5 bg-white border border-amber-100 text-[11px] rounded-lg outline-none font-semibold text-gray-700 transition-all resize-none shadow-3xs"
-                                  placeholder="Participant hints..."
-                                />
-                              </div>
-                            )}
-
-                            {/* Render Footnote textarea if active */}
-                            {typeof dayContent.taskFootnotes?.[index] === 'string' && (
-                              <div className="space-y-1 animate-fade-in bg-indigo-50/10 border border-indigo-100 rounded-xl p-2.5">
-                                <div className="flex justify-between items-center text-[9px] font-black text-indigo-600 uppercase tracking-widest px-1">
-                                  <span>Task Footnote</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const newFoots = [...(dayContent.taskFootnotes || [])];
-                                      newFoots[index] = null as any;
-                                      handleContentChangeForDay(dayNum, 'taskFootnotes', newFoots);
-                                    }}
-                                    className="text-gray-305 hover:text-red-500"
-                                  >
-                                    <X size={10} />
-                                  </button>
-                                </div>
-                                <textarea
-                                  value={dayContent.taskFootnotes[index] || ''}
-                                  onChange={e => handleTaskFootnoteChangeForDay(dayNum, index, e.target.value)}
-                                  rows={2}
-                                  className="w-full px-2 py-1.5 bg-white border border-indigo-100 text-[11px] rounded-lg outline-none font-semibold text-gray-700 transition-all resize-none shadow-3xs"
-                                  placeholder="Footnote under prompt..."
-                                />
-                              </div>
-                            )}
-
-                            {/* Multi-Text labels configuration inside day card */}
-                            {(!dayContent.taskInputTypes?.[index] || dayContent.taskInputTypes[index] === 'text') && dayContent.taskMultiTextLabels?.[index] && dayContent.taskMultiTextLabels[index].length > 0 && (
-                              <div className="mt-2 text-left bg-gray-50/40 p-2 border border-gray-100 rounded-xl">
-                                <div className="space-y-1.5">
-                                  {dayContent.taskMultiTextLabels[index].map((lbl, lblIndex) => (
-                                    <div key={lblIndex} className="flex gap-1.5 items-center">
-                                      <div className="w-4 h-4 rounded bg-gray-150 text-gray-450 text-[9px] font-bold shrink-0 flex items-center justify-center">
-                                        {lblIndex + 1}
-                                      </div>
-                                      <input
-                                        type="text"
-                                        value={lbl}
-                                        onChange={(e) => {
-                                          const updatedLabels = [...(dayContent.taskMultiTextLabels?.[index] || [])];
-                                          updatedLabels[lblIndex] = e.target.value;
-                                          handleTaskMultiTextLabelsChangeForDay(dayNum, index, updatedLabels);
-                                        }}
-                                        className="flex-1 px-2 py-1 bg-white border border-gray-150 rounded text-[10px] font-bold text-gray-750 outline-none"
-                                        placeholder={`Field Label ${lblIndex + 1}...`}
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const updatedLabels = (dayContent.taskMultiTextLabels?.[index] || []).filter((_, lIdx) => lIdx !== lblIndex);
-                                          handleTaskMultiTextLabelsChangeForDay(dayNum, index, updatedLabels.length === 0 ? null as any : updatedLabels);
-                                        }}
-                                        className="text-gray-400 hover:text-red-500 cursor-pointer"
-                                      >
-                                        <Trash2 size={11} />
-                                      </button>
-                                    </div>
-                                  ))}
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const updatedLabels = [...(dayContent.taskMultiTextLabels?.[index] || [])];
-                                      updatedLabels.push(`Label ${updatedLabels.length + 1}`);
-                                      handleTaskMultiTextLabelsChangeForDay(dayNum, index, updatedLabels);
-                                    }}
-                                    className="flex items-center gap-1 px-2 py-1 text-[9px] font-black text-primary bg-primary/5 hover:bg-primary/10 border border-primary/10 rounded transition-all cursor-pointer"
-                                  >
-                                    <Plus size={10} />
-                                    <span>Add Field Label</span>
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Tag Note Config inside day card */}
-                            {dayContent.taskInputTypes?.[index] === 'tags' && (
-                              <div className="mt-2 pl-2 border-l-2 border-emerald-500/20 text-left bg-gray-55 p-2 rounded border border-gray-150">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const isActive = dayContent.taskTagNoteActive?.[index] === true;
-                                      handleToggleTaskTagNoteActiveForDay(dayNum, index, !isActive);
-                                    }}
-                                    className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer ${dayContent.taskTagNoteActive?.[index] ? 'bg-primary justify-end' : 'bg-gray-200 justify-start'}`}
-                                  >
-                                    <span className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                                  </button>
-                                  <span className="text-[10px] font-extrabold text-gray-70 w-full">Add custom tag notes</span>
-                                </div>
-                                {dayContent.taskTagNoteActive?.[index] && (
-                                  <textarea
-                                    value={dayContent.taskTagNotes?.[index] || ''}
-                                    onChange={(e) => handleTaskSingleTagNoteChangeForDay(dayNum, index, e.target.value)}
-                                    rows={2}
-                                    className="w-full px-2.5 py-2 bg-white border border-gray-150 rounded-xl outline-none text-[11px] font-semibold text-gray-700 transition-all resize-none shadow-3xs"
-                                    placeholder="Enter tags comma-separated (e.g. Action, Goal, Question)..."
-                                  />
-                                )}
-                              </div>
-                            )}
-
-                            {/* Poll Options Config inside day card */}
-                            {dayContent.taskInputTypes?.[index] === 'poll' && (
-                              <div className="mt-2 pl-2 border-l-2 border-purple-500/20 space-y-2 text-left bg-gray-50 p-2 rounded-xl border border-gray-150">
-                                <div className="flex items-center gap-2 bg-white p-1.5 rounded-lg border border-gray-100 shadow-3xs">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleTogglePollMultiSelectForDay(dayNum, index)}
-                                    className={`w-[32px] h-4.5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer ${dayContent.taskPollMultiSelect?.[index] ? 'bg-primary justify-end' : 'bg-gray-200 justify-start'}`}
-                                  >
-                                    <span className="w-3.5 h-3.5 rounded-full bg-white shadow-3xs" />
-                                  </button>
-                                  <span className="text-[10px] font-bold text-gray-705 select-none">Multi-Select</span>
-                                </div>
-                                <div className="space-y-1.5">
-                                  {(() => {
-                                    let opts: string[] = [];
-                                    if (dayContent.taskPollOptions?.[index]) {
-                                      try { opts = JSON.parse(dayContent.taskPollOptions[index]); } catch(e) {}
-                                    }
-                                    while (opts.length < 2) {
-                                      opts.push('');
-                                    }
-                                    return opts.map((opt, optIndex) => (
-                                      <div key={optIndex} className="flex gap-1.5 items-center">
-                                        <div className="w-4 h-4 rounded-full flex items-center justify-center bg-gray-55 text-gray-450 text-[10px] shrink-0 font-sans">
-                                          ●
-                                        </div>
-                                        <input
-                                          type="text"
-                                          value={opt || ''}
-                                          onChange={(e) => handleTaskPollOptionChangeForDay(dayNum, index, optIndex, e.target.value)}
-                                          className="flex-1 px-2 py-1 bg-white border border-gray-155 rounded text-[10px] font-bold text-gray-750 focus:ring-2 focus:ring-purple-100 outline-none transition-all"
-                                          placeholder={`Option ${optIndex + 1}...`}
-                                        />
-                                        {opts.length > 2 && (
-                                          <button
-                                            type="button"
-                                            onClick={() => removeTaskPollOptionForDay(dayNum, index, optIndex)}
-                                            className="text-red-400 hover:text-red-500 cursor-pointer animate-fade-in"
-                                          >
-                                            <X size={12} />
-                                          </button>
-                                        )}
-                                      </div>
-                                    ));
-                                  })()}
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      let currentLength = 0;
-                                      try {
-                                        const curOpts = JSON.parse(dayContent.taskPollOptions?.[index] || '[]');
-                                        currentLength = Array.isArray(curOpts) ? curOpts.length : 0;
-                                      } catch(e) {}
-                                      handleTaskPollOptionChangeForDay(dayNum, index, currentLength, '');
-                                    }}
-                                    className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-primary bg-primary/5 hover:bg-primary/10 border border-primary/10 rounded transition-all cursor-pointer"
-                                  >
-                                    <Plus size={11} strokeWidth={2.5} />
-                                    <span>Add Option</span>
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Original sliding setup remains hidden, ensuring flawless styling compilation */}
-              <div className="hidden lg:col-span-8 flex flex-col bg-white rounded-3xl border border-gray-150 p-6 shadow-sm font-sans">
+              {/* Right side: Action Steps editable list with sideways sliding workspace */}
+              <div className="lg:col-span-8 flex flex-col bg-white rounded-3xl border border-gray-150 p-6 shadow-sm font-sans">
                 <div className="flex items-center justify-between mb-4 shrink-0 border-b border-gray-100 pb-3">
                   <div className="flex items-center gap-1.5">
                     <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Daily action</h3>
@@ -4624,7 +3541,7 @@ const EditSprint: React.FC = () => {
                       const isLinkedFromPrevious = (index > 0 && currentContent.taskLinkedToNext?.[index - 1]) || (Array.isArray(currentContent.taskLinkedSources?.[index]) && currentContent.taskLinkedSources[index].length > 0);
 
                       return (
-                        <div key={index} className="space-y-4 animate-fade-in text-left w-full">
+                        <div key={index} className="space-y-4 animate-fade-in text-left">
                           
                           {/* Step Header */}
                           <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -4688,7 +3605,7 @@ const EditSprint: React.FC = () => {
                                   value={currentContent.taskNotes[index] || ''} 
                                   onChange={e => handleTaskNoteChange(index, e.target.value)} 
                                   rows={2} 
-                                  className="w-full px-3 py-2 bg-white border border-emerald-105 bg-emerald-50/10 rounded-xl outline-none text-xs font-semibold text-gray-700 placeholder-gray-300 transition-all resize-none shadow-2xs" 
+                                  className={smallEditorInputClasses + " p-4 !py-3 w-full border-emerald-105 bg-emerald-50/10 text-gray-700 font-semibold text-xs"} 
                                   placeholder="Add a context note. This note will appear just before the question in the participant view." 
                                 />
                               </div>
@@ -4698,7 +3615,7 @@ const EditSprint: React.FC = () => {
                               <div className="pl-3 border-l-2 border-emerald-500/20 space-y-3 text-left animate-fade-in w-full">
                                 <div className="flex items-center justify-between bg-gray-50 p-2.5 rounded-xl border border-gray-150">
                                   <div className="flex flex-col">
-                                    <span className="text-xs font-black text-gray-700 uppercase tracking-wide">
+                                    <span className="text-xs font-black text-gray-700 uppercase tracking-wide text-xs">
                                       Tag Note
                                     </span>
                                   </div>
@@ -4742,7 +3659,7 @@ const EditSprint: React.FC = () => {
                                       onChange={(e) => handleTaskSingleTagNoteChange(index, e.target.value)}
                                       rows={2}
                                       placeholder="Add Tag Note feedback that participants see when they select these tags."
-                                      className="w-full px-3 py-2 bg-white border border-teal-100 bg-teal-50/10 rounded-xl outline-none text-xs font-semibold text-gray-700 placeholder-gray-300 transition-all resize-none shadow-2xs"
+                                      className={smallEditorInputClasses + " p-4 !py-4 w-full border-teal-100 bg-teal-50/10 text-gray-700 font-semibold text-xs"}
                                     />
                                   </div>
                                 )}
@@ -4750,12 +3667,12 @@ const EditSprint: React.FC = () => {
                             )}
                           </div>
 
-                          <div className={`space-y-1 ${isLastAssignedPrompt ? 'ring-2 ring-purple-500 ring-offset-2 p-0.5 rounded-xl' : ''}`}>
+                          <div className={`space-y-1 ${isLastAssignedPrompt ? 'ring-2 ring-primary ring-offset-2 p-1 rounded-2xl' : ''}`}>
                             <textarea 
                               value={prompt} 
                               onChange={e => handleTaskPromptChange(index, e.target.value)} 
-                              rows={2.5} 
-                              className="w-full px-3.5 py-2.5 bg-white border border-purple-200 rounded-xl shadow-xs focus:ring-4 focus:ring-purple-100/50 focus:border-purple-400 outline-none text-xs font-black text-gray-850 placeholder-purple-300/70 transition-all resize-none" 
+                              rows={2} 
+                              className={smallEditorInputClasses + " p-4 !py-4 w-full font-semibold text-xs"} 
                               placeholder={`Action Step ${index + 1}...`} 
                             />
                           </div>
@@ -5103,7 +4020,7 @@ const EditSprint: React.FC = () => {
                                 value={currentContent.taskHints[index] || ''} 
                                 onChange={e => handleTaskHintChange(index, e.target.value)} 
                                 rows={2} 
-                                className="w-full px-3 py-2 bg-white border border-amber-100 bg-amber-50/20 rounded-xl outline-none text-xs font-semibold text-gray-700 placeholder-amber-300/70 transition-all resize-none shadow-2xs" 
+                                className={editorInputClasses + " p-4 !py-3 w-full border-amber-100 bg-amber-50/20 text-gray-750 font-semibold"} 
                                 placeholder="Add a hint to help the participant..." 
                               />
                             </div>
@@ -5130,7 +4047,7 @@ const EditSprint: React.FC = () => {
                                 value={currentContent.taskFootnotes[index] || ''} 
                                 onChange={e => handleTaskFootnoteChange(index, e.target.value)} 
                                 rows={2} 
-                                className="w-full px-3 py-2 bg-white border border-indigo-100 bg-indigo-50/20 rounded-xl outline-none text-xs font-semibold text-gray-700 placeholder-indigo-300/70 transition-all resize-none shadow-2xs" 
+                                className={editorInputClasses + " p-4 !py-3 w-full border-indigo-100 bg-indigo-50/20 text-gray-750 font-semibold"} 
                                 placeholder="Add a footnote to show just below the question..." 
                               />
                             </div>
@@ -5159,7 +4076,7 @@ const EditSprint: React.FC = () => {
                                         updatedLabels[lblIndex] = e.target.value;
                                         handleTaskMultiTextLabelsChange(index, updatedLabels);
                                       }}
-                                      className="flex-1 px-3 py-1.5 bg-white border border-gray-150 rounded-lg text-xs font-bold text-gray-750 focus:ring-2 focus:ring-purple-100 focus:border-purple-400 outline-none transition-all"
+                                      className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
                                       placeholder={`Label for Field ${lblIndex + 1}...`}
                                     />
                                     <button 
@@ -5257,7 +4174,7 @@ const EditSprint: React.FC = () => {
                                             }
                                             handleTaskPollOptionChange(index, optIndex, e.target.value);
                                           }}
-                                          className="flex-1 px-3 py-1.5 bg-white border border-gray-150 rounded-lg text-xs font-bold text-gray-750 focus:ring-2 focus:ring-purple-100 focus:border-purple-400 outline-none transition-all"
+                                          className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-gray-750 focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
                                           placeholder="Additional custom option..."
                                         />
                                         <button 
