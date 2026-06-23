@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Sprint, DailyContent, SprintDifficulty, UserRole, Coach, DynamicSection } from '../../types';
 import { sprintService } from '../../services/sprintService';
@@ -201,6 +201,8 @@ const EditSprint: React.FC = () => {
   const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
   const [addingCustomOption, setAddingCustomOption] = useState<Record<number, boolean>>({});
   const [expandedStepEarlierDays, setExpandedStepEarlierDays] = useState<Record<number, boolean>>({});
+  const [activeStepByDay, setActiveStepByDay] = useState<Record<number, number>>({});
+  const [setupViewByDay, setSetupViewByDay] = useState<Record<number, 'action' | 'mirror'>>({});
 
   useEffect(() => {
     setPreviewTaskIndex(0);
@@ -654,6 +656,270 @@ const EditSprint: React.FC = () => {
         taskMultiTextLabels: safeMultiTextLabels
     };
   }, [sprint, selectedDay]);
+
+  const getCurrentContentForDay = useCallback((dayNum: number): DailyContent => {
+    if (!sprint) return {
+      day: dayNum, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], taskHints: []
+    };
+    const content = (Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(c => c.day === dayNum) : undefined) || {
+      day: dayNum, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], taskHints: []
+    };
+    
+    // Return a safe copy with initialized taskPrompts if needed
+    const safePrompts = Array.isArray((content as any).taskPrompts) && (content as any).taskPrompts.length > 0
+      ? (content as any).taskPrompts
+      : [content.taskPrompt || '', '', ''];
+      
+    // Ensure at least 3 elements for the default display if needed
+    const paddedPrompts = [...safePrompts];
+    while (paddedPrompts.length < 3) paddedPrompts.push('');
+
+    const safeHints = Array.isArray((content as any).taskHints)
+      ? (content as any).taskHints
+      : [];
+
+    const safeNotes = Array.isArray((content as any).taskNotes)
+      ? (content as any).taskNotes
+      : [];
+
+    const safeTagNotes = Array.isArray((content as any).taskTagNotes)
+      ? (content as any).taskTagNotes
+      : [];
+
+    const safeFootnotes = Array.isArray((content as any).taskFootnotes)
+      ? (content as any).taskFootnotes
+      : [];
+
+    const safePollMultiSelect = Array.isArray((content as any).taskPollMultiSelect)
+      ? (content as any).taskPollMultiSelect
+      : [];
+
+    const safeMultiTextLabels = Array.isArray((content as any).taskMultiTextLabels)
+      ? (content as any).taskMultiTextLabels
+      : [];
+
+    return {
+        ...content,
+        taskPrompts: paddedPrompts,
+        taskHints: safeHints,
+        taskNotes: safeNotes,
+        taskTagNotes: safeTagNotes,
+        taskFootnotes: safeFootnotes,
+        taskPollMultiSelect: safePollMultiSelect,
+        taskMultiTextLabels: safeMultiTextLabels
+    };
+  }, [sprint]);
+
+  const updateContentForDay = useCallback((day: number, updater: (d: DailyContent) => Partial<DailyContent>) => {
+    if (!sprint || !canEditDirectly) return;
+    setSprint(prev => {
+      if (!prev) return null;
+      const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === day) : -1;
+      let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+      const current = getCurrentContentForDay(day);
+      const updatedBlock = { ...current, ...updater(current) };
+      if (existingContentIndex >= 0) {
+        updatedDailyContent[existingContentIndex] = updatedBlock;
+      } else {
+        updatedDailyContent.push(updatedBlock);
+      }
+      return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  }, [sprint, canEditDirectly, getCurrentContentForDay]);
+
+  const handleTaskPromptChangeForDay = (day: number, index: number, value: string) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === day) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        
+        const currentPrompts = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskPrompts || [updatedDailyContent[existingContentIndex].taskPrompt || '', '', ''])]
+            : ['', '', ''];
+        
+        while (currentPrompts.length <= index) currentPrompts.push('');
+        currentPrompts[index] = value;
+        
+        const filtered = currentPrompts.filter(p => p.trim());
+        const legacyValue = filtered.join('\n\n');
+        
+        if (existingContentIndex >= 0) {
+          updatedDailyContent[existingContentIndex] = { 
+              ...updatedDailyContent[existingContentIndex], 
+              taskPrompts: currentPrompts,
+              taskPrompt: legacyValue
+          };
+        } else {
+          updatedDailyContent.push({
+            day,
+            lessonText: '',
+            taskPrompt: legacyValue,
+            taskPrompts: currentPrompts,
+            taskInputTypes: currentPrompts.map(() => 'text')
+          });
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTaskNoteChangeForDay = (day: number, index: number, value: string | null) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === day) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        
+        const currentNotes = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskNotes || [])]
+            : [];
+        
+        while (currentNotes.length <= index) {
+            currentNotes.push(null as any);
+        }
+        currentNotes[index] = value!;
+        
+        if (existingContentIndex >= 0) {
+          updatedDailyContent[existingContentIndex] = { 
+              ...updatedDailyContent[existingContentIndex], 
+              taskNotes: currentNotes,
+          };
+        } else {
+          updatedDailyContent.push({
+            day,
+            lessonText: '',
+            taskPrompt: '',
+            taskPrompts: ['', '', ''],
+            taskNotes: currentNotes,
+          });
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTaskPromptTypeChangeForDay = (day: number, index: number, type: 'text' | 'tags' | 'poll' | 'note' | 'mark') => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === day) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        
+        const currentTypes = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskInputTypes || Array((updatedDailyContent[existingContentIndex].taskPrompts?.length || 3)).fill('text'))]
+            : ['text', 'text', 'text'];
+        
+        while (currentTypes.length <= index) currentTypes.push('text');
+        currentTypes[index] = type;
+        
+        let currentOptions = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])] 
+            : [];
+            
+        if (type === 'poll') {
+            const currentOptsStr = currentOptions[index];
+            let currentOptsArr: string[] = [];
+            if (currentOptsStr) {
+                try { currentOptsArr = JSON.parse(currentOptsStr); } catch (e) {}
+            }
+            if (!Array.isArray(currentOptsArr)) currentOptsArr = [];
+            if (currentOptsArr.length === 0) {
+                currentOptsArr = ['', ''];
+            }
+            currentOptions[index] = JSON.stringify(currentOptsArr);
+        }
+        
+        if (existingContentIndex >= 0) {
+          updatedDailyContent[existingContentIndex] = { 
+              ...updatedDailyContent[existingContentIndex], 
+              taskInputTypes: currentTypes,
+              taskPollOptions: currentOptions,
+          };
+        } else {
+          updatedDailyContent.push({
+            day,
+            lessonText: '',
+            taskPrompt: '',
+            taskPrompts: ['', '', ''],
+            taskInputTypes: currentTypes,
+            taskPollOptions: currentOptions,
+          });
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const addTaskPromptForDay = (day: number) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === day) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        
+        const currentPrompts = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskPrompts || [updatedDailyContent[existingContentIndex].taskPrompt || '', '', ''])]
+            : ['', '', ''];
+            
+        const currentTypes = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskInputTypes || Array(currentPrompts.length).fill('text'))]
+            : ['text', 'text', 'text'];
+
+        let currentOptions = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])]
+            : [];
+
+        let currentNotes = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskNotes || [])]
+            : [];
+
+        let currentTagNotes = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskTagNotes || [])]
+            : [];
+
+        let currentFootnotes = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskFootnotes || [])]
+            : [];
+
+        let currentMultiTextLabels = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskMultiTextLabels || [])]
+            : [];
+            
+        currentPrompts.push('');
+        currentTypes.push('text');
+        currentOptions.push('[]');
+        currentNotes.push(null as any);
+        currentTagNotes.push('{}');
+        currentFootnotes.push(null as any);
+        currentMultiTextLabels.push(null as any);
+        
+        if (existingContentIndex >= 0) {
+          updatedDailyContent[existingContentIndex] = { 
+              ...updatedDailyContent[existingContentIndex], 
+              taskPrompts: currentPrompts,
+              taskInputTypes: currentTypes,
+              taskPollOptions: currentOptions,
+              taskNotes: currentNotes,
+              taskTagNotes: currentTagNotes,
+              taskFootnotes: currentFootnotes,
+              taskMultiTextLabels: currentMultiTextLabels
+          };
+        } else {
+          updatedDailyContent.push({
+            day,
+            lessonText: '',
+            taskPrompt: '',
+            taskPrompts: currentPrompts,
+            taskInputTypes: currentTypes,
+            taskPollOptions: currentOptions,
+            taskNotes: currentNotes,
+            taskTagNotes: currentTagNotes,
+            taskFootnotes: currentFootnotes,
+            taskMultiTextLabels: currentMultiTextLabels
+          });
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
 
   const handleContentChange = (field: keyof DailyContent, value: any) => {
     if (!sprint || !canEditDirectly) return;
@@ -2030,8 +2296,8 @@ const EditSprint: React.FC = () => {
                     />
                 </div>
 
-                {/* Today's Action Steps Section */}
-                <div className="space-y-4">
+                {/* Today's Action Steps Section - Removed from col/down-container */}
+                <div className="hidden space-y-4">
                     {setupView === 'mirror' ? (
                         <div className="space-y-6 bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm animate-fade-in">
                             {/* Mirror Report Header with Left Arrow and On/Off Toggle */}
@@ -3276,6 +3542,411 @@ const EditSprint: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* SPRINT ACTIONS DASHBOARD (FULL BLEED) */}
+          <div className="w-full mt-12 space-y-4">
+              <div className="flex items-center justify-between px-1">
+                  <div>
+                      <h2 className="text-sm font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
+                          📂 Sprint Actions Dashboard
+                      </h2>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                          Set up and configure all action steps across the entire sprint duration
+                      </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest animate-pulse">
+                      Swipe Sideways to view all days ➔
+                  </div>
+              </div>
+
+              {/* The horizontal sliding containers deck */}
+              <div className="flex gap-6 overflow-x-auto pb-6 pt-2 px-1 snap-x snap-mandatory scrollbar-hidden">
+                  {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((dayNum) => {
+                      const dayContent = getCurrentContentForDay(dayNum);
+                      const prompts = dayContent.taskPrompts || ['', '', ''];
+                      const activeStepIndex = activeStepByDay[dayNum] || 0;
+                      const currentDaySetupView = setupViewByDay[dayNum] || 'action';
+
+                      return (
+                          <div key={dayNum} className="flex-shrink-0 w-[420px] bg-white border border-gray-150 rounded-[2.5rem] p-6 shadow-sm snap-start flex flex-col relative space-y-4 hover:border-primary/10 transition-all duration-300">
+                              {/* Card Header: Day X title & active index selectors */}
+                              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                                  <div className="flex items-center gap-2">
+                                      <span className="text-xs font-black bg-primary/10 text-primary px-3 py-1.5 rounded-xl uppercase">
+                                          Day {dayNum}
+                                      </span>
+                                  </div>
+                                  
+                                  {/* Step Paginator for this Day */}
+                                  <div className="flex items-center gap-1 bg-gray-50 p-1 border border-gray-150 rounded-xl">
+                                      {prompts.map((_: string, idx: number) => (
+                                          <button
+                                              key={idx}
+                                              type="button"
+                                              onClick={() => setActiveStepByDay(prev => ({ ...prev, [dayNum]: idx }))}
+                                              className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-black transition-all cursor-pointer ${activeStepIndex === idx ? 'bg-primary text-white shadow-xs scale-105' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                                          >
+                                              {idx + 1}
+                                          </button>
+                                      ))}
+                                      <button
+                                          type="button"
+                                          onClick={() => {
+                                              addTaskPromptForDay(dayNum);
+                                              setActiveStepByDay(prev => ({ ...prev, [dayNum]: prompts.length }));
+                                          }}
+                                          className="w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-black bg-gray-100 hover:bg-primary/10 hover:text-primary text-gray-400 border border-dashed border-gray-300 transition-all cursor-pointer"
+                                          title="Add a new action step to this day's workspace"
+                                      >
+                                          <Plus size={10} />
+                                      </button>
+                                  </div>
+                              </div>
+
+                              {/* Card Body: Active Step Fields */}
+                              {currentDaySetupView === 'mirror' ? (
+                                  <div className="space-y-4 text-left">
+                                      {/* Rise Report Setup Header */}
+                                      <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-150">
+                                          <span className="text-[10px] font-black text-gray-700 uppercase tracking-wide">
+                                              Rise Report Setup
+                                          </span>
+                                          <button
+                                              type="button"
+                                              onClick={() => setSetupViewByDay(prev => ({ ...prev, [dayNum]: 'action' }))}
+                                              className="text-[10px] font-black text-primary hover:text-primary/80 uppercase tracking-wider"
+                                          >
+                                              ➔ Back to Steps
+                                          </button>
+                                      </div>
+
+                                      {/* Global On/Off Mirror Switch */}
+                                      <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">
+                                              Include Mirror Report:
+                                          </span>
+                                          <div className="flex items-center gap-2">
+                                              <span className={`text-[9px] font-black uppercase tracking-widest ${dayContent.mirrorActive ? 'text-emerald-500' : 'text-gray-400'}`}>
+                                                  {dayContent.mirrorActive ? 'ACTIVE' : 'INACTIVE'}
+                                              </span>
+                                              <button
+                                                  type="button"
+                                                  onClick={() => updateContentForDay(dayNum, (current: DailyContent) => ({ mirrorActive: !current.mirrorActive }))}
+                                                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                                      dayContent.mirrorActive ? 'bg-emerald-500' : 'bg-gray-200'
+                                                  }`}
+                                              >
+                                                  <span
+                                                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                                          dayContent.mirrorActive ? 'translate-x-4' : 'translate-x-0'
+                                                      }`}
+                                                  />
+                                              </button>
+                                          </div>
+                                      </div>
+
+                                      {/* Introduction note config */}
+                                      {dayContent.mirrorActive && (
+                                          <div className="space-y-1.5 transition-all duration-300 animate-fade-in">
+                                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">
+                                                  Introduction Note
+                                              </label>
+                                              <textarea
+                                                  value={dayContent.mirrorIntro || ''}
+                                                  onChange={e => updateContentForDay(dayNum, () => ({ mirrorIntro: e.target.value }))}
+                                                  rows={2}
+                                                  className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-primary/10 outline-none transition-all resize-none text-gray-700 font-sans"
+                                                  placeholder="e.g., Here is a mirror reflection of your insights today:"
+                                              />
+                                          </div>
+                                      )}
+
+                                      {/* List questions for Framing inputs of active step */}
+                                      {dayContent.mirrorActive && (
+                                          <div className="space-y-2 animate-fade-in">
+                                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1 block">
+                                                  Frame Actions & Paraphrases
+                                              </span>
+                                              <div className="bg-gray-50/50 rounded-2xl p-3 border border-gray-100 space-y-3">
+                                                  <div className="flex justify-between items-center">
+                                                      <span className="text-[9px] font-black text-emerald-800 uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded">
+                                                          Step {activeStepIndex + 1} Question
+                                                      </span>
+                                                      
+                                                      {/* Individual step Mirror ON/OFF Switch */}
+                                                      <div className="flex items-center gap-1.5">
+                                                          <span className={`text-[8px] font-black uppercase tracking-widest ${!dayContent.mirrorDisabledSteps?.[activeStepIndex] ? 'text-emerald-500' : 'text-gray-400'}`}>
+                                                              {!dayContent.mirrorDisabledSteps?.[activeStepIndex] ? 'ON' : 'OFF'}
+                                                          </span>
+                                                          <button
+                                                              type="button"
+                                                              onClick={() => {
+                                                                  const updatedDisabled = [...(dayContent.mirrorDisabledSteps || [])];
+                                                                  while (updatedDisabled.length <= activeStepIndex) updatedDisabled.push(false);
+                                                                  updatedDisabled[activeStepIndex] = !updatedDisabled[activeStepIndex];
+                                                                  updateContentForDay(dayNum, () => ({ mirrorDisabledSteps: updatedDisabled }));
+                                                              }}
+                                                              className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                                                  !dayContent.mirrorDisabledSteps?.[activeStepIndex] ? 'bg-emerald-500' : 'bg-gray-200'
+                                                              }`}
+                                                          >
+                                                              <span
+                                                                  className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                                                      !dayContent.mirrorDisabledSteps?.[activeStepIndex] ? 'translate-x-3' : 'translate-x-0'
+                                                                  }`}
+                                                              />
+                                                          </button>
+                                                      </div>
+                                                  </div>
+
+                                                  <div className="text-gray-700 bg-white border border-gray-100 p-2.5 rounded-xl text-[11px] font-semibold leading-relaxed shadow-xs">
+                                                      {prompts[activeStepIndex] || <span className="text-gray-300 italic">No prompt configuration yet</span>}
+                                                  </div>
+
+                                                  {/* Framing Input */}
+                                                  {!dayContent.mirrorDisabledSteps?.[activeStepIndex] && (
+                                                      <div className="space-y-1 animate-fade-in">
+                                                          <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1 pl-1">
+                                                              <span>Framing Statement</span>
+                                                          </label>
+                                                          <input
+                                                              type="text"
+                                                              value={dayContent.mirrorFraming?.[activeStepIndex] || ''}
+                                                              onChange={e => {
+                                                                  const updatedFraming = [...(dayContent.mirrorFraming || [])];
+                                                                  while (updatedFraming.length <= activeStepIndex) updatedFraming.push('');
+                                                                  updatedFraming[activeStepIndex] = e.target.value;
+                                                                  updateContentForDay(dayNum, () => ({ mirrorFraming: updatedFraming }));
+                                                              }}
+                                                              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-primary/10 outline-none"
+                                                              placeholder="e.g., You noted that..."
+                                                          />
+                                                      </div>
+                                                  )}
+                                              </div>
+                                          </div>
+                                      )}
+                                  </div>
+                              ) : (
+                                  <div className="space-y-4 text-left">
+                                      {/* Prompt label and selection helper or Coach Note toggle */}
+                                      <div className="flex items-center justify-between">
+                                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-100 px-2.5 py-1 rounded-md">
+                                              Step {activeStepIndex + 1} Prompt
+                                          </span>
+
+                                          {/* Toggle to Rise Report Config */}
+                                          <button
+                                              type="button"
+                                              onClick={() => setSetupViewByDay(prev => ({ ...prev, [dayNum]: 'mirror' }))}
+                                              className="text-[9px] font-bold text-primary hover:text-primary/15 uppercase tracking-wider border border-primary/20 px-2.5 py-1 rounded-lg transition-all cursor-pointer"
+                                          >
+                                              ⚙️ Rise Report Config
+                                          </button>
+                                      </div>
+
+                                      {/* Coach Note Toggle Button wrapper */}
+                                      <div className="flex justify-between items-center bg-gray-50/50 p-2 border border-gray-100 rounded-xl">
+                                          <span className="text-[9.5px] font-black text-gray-400 uppercase tracking-wider pl-1 font-sans">Coach Context Notes:</span>
+                                          <button
+                                              type="button"
+                                              onClick={() => {
+                                                  const currentNote = dayContent.taskNotes?.[activeStepIndex];
+                                                  if (typeof currentNote !== 'string') {
+                                                      handleTaskNoteChangeForDay(dayNum, activeStepIndex, '');
+                                                  } else {
+                                                      handleTaskNoteChangeForDay(dayNum, activeStepIndex, null);
+                                                  }
+                                              }}
+                                              className={`flex items-center gap-1 px-2.5 py-1 text-[9px] font-bold rounded-lg border transition-all cursor-pointer ${
+                                                  typeof dayContent.taskNotes?.[activeStepIndex] === 'string'
+                                                      ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
+                                                      : 'bg-white text-gray-500 hover:bg-gray-50 border-gray-200'
+                                              }`}
+                                          >
+                                              <span>{typeof dayContent.taskNotes?.[activeStepIndex] === 'string' ? "ON" : "OFF"}</span>
+                                          </button>
+                                      </div>
+
+                                      {/* Coach Note Content if Enabled */}
+                                      {typeof dayContent.taskNotes?.[activeStepIndex] === 'string' && (
+                                          <div className="space-y-1.5 p-3 bg-emerald-50/5 border border-emerald-100 rounded-2xl animate-fade-in">
+                                              <div className="flex justify-between items-center">
+                                                  <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest pl-1">Coach Note Context</span>
+                                                  <button 
+                                                      type="button"
+                                                      onClick={() => handleTaskNoteChangeForDay(dayNum, activeStepIndex, null)}
+                                                      className="text-gray-400 hover:text-red-500"
+                                                  >
+                                                      <X size={10} />
+                                                  </button>
+                                              </div>
+                                              <textarea
+                                                  value={dayContent.taskNotes?.[activeStepIndex] || ''}
+                                                  onChange={e => handleTaskNoteChangeForDay(dayNum, activeStepIndex, e.target.value)}
+                                                  rows={2}
+                                                  className="w-full p-2 bg-white border border-emerald-100 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-emerald-250 outline-none resize-none text-gray-705 font-sans"
+                                                  placeholder="Context note displayed before question..."
+                                              />
+                                          </div>
+                                      )}
+
+                                      {/* Step Prompt Question Textarea */}
+                                      <textarea
+                                          value={prompts[activeStepIndex] || ''}
+                                          onChange={e => handleTaskPromptChangeForDay(dayNum, activeStepIndex, e.target.value)}
+                                          rows={2}
+                                          className="w-full p-3 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all resize-none text-gray-750 font-sans"
+                                          placeholder={`Action Step ${activeStepIndex + 1} Prompt...`}
+                                      />
+
+                                      {/* Input Type selection bar */}
+                                      <div className="space-y-1.5">
+                                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Input Type:</span>
+                                          <div className="grid grid-cols-4 gap-1 p-0.5 bg-gray-50 border border-gray-150 rounded-xl">
+                                              {(['text', 'tags', 'poll', 'mark'] as const).map(t => {
+                                                  const isActive = dayContent.taskInputTypes?.[activeStepIndex] === t || (t === 'text' && !dayContent.taskInputTypes?.[activeStepIndex]);
+                                                  return (
+                                                      <button
+                                                          key={t}
+                                                          type="button"
+                                                          onClick={() => handleTaskPromptTypeChangeForDay(dayNum, activeStepIndex, t)}
+                                                          className={`py-1 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer text-center ${isActive ? 'bg-primary text-white shadow-xs font-sans' : 'text-gray-400 hover:text-gray-600 bg-transparent font-sans'}`}
+                                                      >
+                                                          {t}
+                                                      </button>
+                                                  );
+                                              })}
+                                          </div>
+                                      </div>
+
+                                      {/* Poll Options Setup if chosen */}
+                                      {dayContent.taskInputTypes?.[activeStepIndex] === 'poll' && (
+                                          <div className="space-y-2 p-3 bg-gray-50 rounded-2xl border border-gray-150 animate-fade-in">
+                                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Poll Choices:</span>
+                                              {(() => {
+                                                  let opts: string[] = [];
+                                                  try {
+                                                      opts = JSON.parse(dayContent.taskPollOptions?.[activeStepIndex] || '[]');
+                                                  } catch(e) {}
+                                                  if (opts.length === 0) opts = ['', ''];
+                                                  
+                                                  return (
+                                                      <div className="space-y-2">
+                                                          {opts.map((opt, optIdx) => (
+                                                              <div key={optIdx} className="flex gap-1.5 items-center">
+                                                                  <input
+                                                                      type="text"
+                                                                      value={opt}
+                                                                      onChange={e => {
+                                                                          const updatedOpts = [...opts];
+                                                                          updatedOpts[optIdx] = e.target.value;
+                                                                          updateContentForDay(dayNum, () => {
+                                                                              const finalOpts = [...(dayContent.taskPollOptions || [])];
+                                                                              finalOpts[activeStepIndex] = JSON.stringify(updatedOpts);
+                                                                              return { taskPollOptions: finalOpts };
+                                                                          });
+                                                                      }}
+                                                                      className="flex-1 px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-primary/10 outline-none text-gray-700 font-sans"
+                                                                      placeholder={`Choice ${optIdx + 1}`}
+                                                                  />
+                                                                  {opts.length > 1 && (
+                                                                      <button
+                                                                          type="button"
+                                                                          onClick={() => {
+                                                                              const updatedOpts = opts.filter((_, oIdx) => oIdx !== optIdx);
+                                                                              updateContentForDay(dayNum, () => {
+                                                                                  const finalOpts = [...(dayContent.taskPollOptions || [])];
+                                                                                  finalOpts[activeStepIndex] = JSON.stringify(updatedOpts);
+                                                                                  return { taskPollOptions: finalOpts };
+                                                                              });
+                                                                          }}
+                                                                          className="p-1 text-red-400 hover:text-red-500 cursor-pointer"
+                                                                      >
+                                                                          <Trash2 size={12} />
+                                                                      </button>
+                                                                  )}
+                                                              </div>
+                                                          ))}
+                                                          <button
+                                                              type="button"
+                                                              onClick={() => {
+                                                                  const updatedOpts = [...opts, ''];
+                                                                  updateContentForDay(dayNum, () => {
+                                                                      const finalOpts = [...(dayContent.taskPollOptions || [])];
+                                                                      finalOpts[activeStepIndex] = JSON.stringify(updatedOpts);
+                                                                      return { taskPollOptions: finalOpts };
+                                                                  });
+                                                              }}
+                                                              className="text-[10px] font-bold text-primary hover:text-primary/95 border border-dashed border-primary/20 bg-white/70 rounded-lg py-1.5 w-full text-center cursor-pointer font-sans"
+                                                          >
+                                                              + Add Choice
+                                                          </button>
+                                                      </div>
+                                                  );
+                                              })()}
+                                          </div>
+                                      )}
+
+                                      {/* Tags Input helper if Chosen */}
+                                      {dayContent.taskInputTypes?.[activeStepIndex] === 'tags' && (
+                                          <div className="p-3 bg-emerald-50/5 border border-emerald-100 rounded-2xl space-y-1 animate-fade-in">
+                                              <span className="text-[9px] font-black text-emerald-800 uppercase tracking-widest pl-1 block">🏷️ Active Tags Input Category</span>
+                                              <p className="text-[8px] text-gray-400 uppercase font-bold leading-relaxed">Participant will categorize their choice using dynamic labels/tags.</p>
+                                          </div>
+                                      )}
+
+                                      {/* Delete Step Button inside Card */}
+                                      {prompts.length > 1 && (
+                                          <button
+                                              type="button"
+                                              onClick={() => {
+                                                  if (window.confirm(`Are you sure you want to delete Step ${activeStepIndex + 1} for Day ${dayNum}?`)) {
+                                                      setSprint(prev => {
+                                                          if (!prev) return null;
+                                                          const existingIdx = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
+                                                          if (existingIdx === -1) return prev;
+                                                          const updatedContent = [...prev.dailyContent];
+                                                          const current = { ...updatedContent[existingIdx] };
+                                                          
+                                                          const newPrompts = [...(current.taskPrompts || [])].filter((_, pIdx) => pIdx !== activeStepIndex);
+                                                          const newTypes = [...(current.taskInputTypes || [])].filter((_, pIdx) => pIdx !== activeStepIndex);
+                                                          const newNotes = [...(current.taskNotes || [])].filter((_, pIdx) => pIdx !== activeStepIndex);
+                                                          const newFootnotes = [...(current.taskFootnotes || [])].filter((_, pIdx) => pIdx !== activeStepIndex);
+                                                          const newPollOptions = [...(current.taskPollOptions || [])].filter((_, pIdx) => pIdx !== activeStepIndex);
+                                                          
+                                                          updatedContent[existingIdx] = {
+                                                              ...current,
+                                                              taskPrompts: newPrompts,
+                                                              taskPrompt: newPrompts.join('\n\n'),
+                                                              taskInputTypes: newTypes,
+                                                              taskNotes: newNotes,
+                                                              taskFootnotes: newFootnotes,
+                                                              taskPollOptions: newPollOptions
+                                                          };
+                                                          return { ...prev, dailyContent: updatedContent };
+                                                      });
+                                                      setActiveStepByDay(prev => ({
+                                                          ...prev,
+                                                          [dayNum]: Math.max(0, activeStepIndex - 1)
+                                                      }));
+                                                      setSaveStatus('idle');
+                                                  }
+                                              }}
+                                              className="w-full py-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                                              title="Delete this step"
+                                          >
+                                              <Trash2 size={11} />
+                                              <span>Delete Active Step</span>
+                                          </button>
+                                      )}
+                                  </div>
+                              )}
+                          </div>
+                      );
+                  })}
+              </div>
           </div>
         </div>
       </div>
