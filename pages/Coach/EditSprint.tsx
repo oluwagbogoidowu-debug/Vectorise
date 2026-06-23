@@ -3315,7 +3315,7 @@ const EditSprint: React.FC = () => {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-widest leading-none">Advanced Actions Workspace</h2>
+                  <h2 className="text-[7.5px] font-black text-gray-900 uppercase tracking-widest leading-none">Advanced Actions Workspace</h2>
                   
                   {/* Tooltip for Advanced Actions header */}
                   <div className="relative group inline-block">
@@ -3346,16 +3346,16 @@ const EditSprint: React.FC = () => {
           <div className="flex-1 overflow-hidden p-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full max-w-7xl mx-auto items-stretch">
               
-              {/* Left side: Large General Input area */}
-              <div className="lg:col-span-5 flex flex-col h-full bg-white rounded-3xl border border-gray-150 p-6 shadow-sm relative">
-                <div className="mb-4">
+              {/* Left side: Large General Input area without outer card container */}
+              <div className="lg:col-span-4 flex flex-col h-full relative">
+                <div className="mb-3">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5">
                       <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">General Content Hub</label>
                       
                       {/* Tooltip for General Content Hub explanation */}
                       <div className="relative group inline-block">
-                        <button type="button" className="text-gray-400 hover:text-gray-650 transition-colors p-0.5 rounded flex items-center justify-center cursor-pointer">
+                        <button type="button" className="text-gray-400 hover:text-gray-655 transition-colors p-0.5 rounded flex items-center justify-center cursor-pointer">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                           </svg>
@@ -3413,7 +3413,7 @@ const EditSprint: React.FC = () => {
                       <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">TAP FIELD BELOW TO ASSIGN SELECTION:</p>
                       <div className="space-y-3">
                         {(currentContent.taskPrompts || ['', '', '']).map((_, index) => (
-                          <div key={index} className="bg-white p-2 border border-gray-150 rounded-xl space-y-1.5">
+                           <div key={index} className="bg-white p-2 border border-gray-150 rounded-xl space-y-1.5">
                             <p className="text-[9px] font-black text-gray-500 uppercase tracking-wider">Step {index + 1}</p>
                             <div className="grid grid-cols-4 gap-1">
                               <button
@@ -3440,7 +3440,7 @@ const EditSprint: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => assignSelectedText('footnote', index)}
-                                className="py-1 px-1.5 bg-indigo-50 hover:bg-indigo-500 hover:text-white text-indigo-600 rounded-md text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer text-center"
+                                className="py-1 px-1.5 bg-indigo-50 hover:bg-indigo-500 hover:text-white text-indigo-600 rounded-md text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer, text-center"
                               >
                                 Foot
                               </button>
@@ -3457,13 +3457,13 @@ const EditSprint: React.FC = () => {
                   onChange={e => setAdvancedGeneralInput(e.target.value)}
                   onMouseUp={handleTextareaMouseUp}
                   onSelect={handleTextareaSelect}
-                  className="w-full flex-1 p-6 bg-white border border-gray-150 rounded-2xl shadow-sm focus:ring-4 focus:ring-purple-100/50 focus:border-purple-400 outline-none text-sm font-medium transition-all placeholder-gray-300 resize-none min-h-[460px] h-full"
+                  className="w-full flex-1 p-4 bg-white border border-gray-150 rounded-2xl shadow-sm focus:ring-4 focus:ring-purple-100/50 focus:border-purple-400 outline-none text-xs font-semibold transition-all placeholder-gray-300 resize-none min-h-[380px] h-full"
                   placeholder="Paste or type curriculum source materials here..."
                 />
               </div>
 
               {/* Right side: Action Steps editable list with sideways sliding workspace */}
-              <div className="lg:col-span-7 flex flex-col h-full bg-white rounded-3xl border border-gray-150 p-6 shadow-sm overflow-hidden font-sans">
+              <div className="lg:col-span-8 flex flex-col h-full bg-white rounded-3xl border border-gray-150 p-6 shadow-sm overflow-hidden font-sans">
                 <div className="flex items-center justify-between mb-4 shrink-0 border-b border-gray-100 pb-3">
                   <div className="flex items-center gap-1.5">
                     <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">Active Setup Workspace</h3>
