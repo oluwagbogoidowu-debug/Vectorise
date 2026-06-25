@@ -27,6 +27,13 @@ const processListText = (inputText: string): string => {
       continue;
     }
 
+    // Check if the line is a thematic break (horizontal rule/divider) like --- or *** or ___
+    if (/^(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+      processedLines.push(line);
+      insideList = false;
+      continue;
+    }
+
     const bulletMatch = line.match(bulletRegex);
     const numMatch = line.match(numRegex);
 
@@ -156,9 +163,7 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
                 );
               } else if (bulletChar === '•' || bulletChar === '*' || bulletChar === '-') {
                 bulletElement = (
-                  <span className="text-[#0E7850] font-black text-xs select-none flex-shrink-0 mt-1">
-                    •
-                  </span>
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#0E7850] flex-shrink-0" />
                 );
               } else {
                 bulletElement = (
@@ -169,7 +174,7 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
               }
             } else {
               bulletElement = (
-                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500/30 flex-shrink-0" />
+                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#0E7850] flex-shrink-0" />
               );
             }
 
@@ -181,6 +186,9 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
             );
           },
           p: ({ node, ...props }) => <p className="mb-4 last:mb-0 leading-[1.6]" {...props} />,
+          hr: ({ node, ...props }) => (
+            <hr className="my-8 border-t border-gray-200 w-full" {...props} />
+          ),
           h1: ({ node, ...props }) => <h1 className="text-3xl font-black text-gray-900 mb-6 mt-8 tracking-tight" {...props} />,
           h2: ({ node, ...props }) => <h2 className="text-2xl font-black text-gray-900 mb-4 mt-6 tracking-tight" {...props} />,
           h3: ({ node, ...props }) => <h3 className="text-xl font-black text-gray-900 mb-3 mt-5 tracking-tight" {...props} />,
