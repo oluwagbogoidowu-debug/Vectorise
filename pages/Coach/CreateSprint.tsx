@@ -8,6 +8,7 @@ import { Sprint, SprintDifficulty, DailyContent, Coach, DynamicSection } from '.
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import FormattedText from '../../components/FormattedText';
+import CustomSelect from '../../components/CustomSelect';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import { ALL_CATEGORIES } from '../../services/mockData';
@@ -604,15 +605,21 @@ const CreateSprint: React.FC = () => {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                         <div>
                                             <label className={labelClasses}>Duration (Days)</label>
-                                            <select name="duration" value={formData.duration} onChange={handleChange} className={inputClasses + " mt-2"}>
-                                                {[3, 5, 7, 10, 14, 21, 30].map(d => <option key={d} value={d}>{d} Continuous Days</option>)}
-                                            </select>
+                                            <CustomSelect
+                                                options={[3, 5, 7, 10, 14, 21, 30].map(d => ({ value: d, label: `${d} Continuous Days` }))}
+                                                value={formData.duration}
+                                                onChange={(val) => setFormData(prev => ({ ...prev, duration: Number(val) }))}
+                                                className="mt-2"
+                                            />
                                         </div>
                                         <div>
                                             <label className={labelClasses}>Discovery Category</label>
-                                            <select name="category" value={formData.category} onChange={handleChange} className={inputClasses + " mt-2"}>
-                                                {ALL_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                                            </select>
+                                            <CustomSelect
+                                                options={ALL_CATEGORIES}
+                                                value={formData.category}
+                                                onChange={(val) => setFormData(prev => ({ ...prev, category: String(val) }))}
+                                                className="mt-2"
+                                            />
                                         </div>
                                         <div className="relative">
                                             <label className={labelClasses}>Audience</label>
@@ -666,11 +673,12 @@ const CreateSprint: React.FC = () => {
                                         </div>
                                         <div>
                                             <label className={labelClasses}>Sprint Type</label>
-                                            <select name="sprintType" value={formData.sprintType} onChange={handleChange} className={inputClasses + " mt-2"}>
-                                                <option value="Fundamentals">Fundamentals</option>
-                                                <option value="Core">Core</option>
-                                                <option value="Expert">Expert</option>
-                                            </select>
+                                            <CustomSelect
+                                                options={["Fundamentals", "Core", "Expert"]}
+                                                value={formData.sprintType}
+                                                onChange={(val) => setFormData(prev => ({ ...prev, sprintType: val }))}
+                                                className="mt-2"
+                                            />
                                         </div>
                                         <div className="md:col-span-2 flex items-center gap-3 bg-[#F4F9F6] border border-emerald-500/10 rounded-2xl p-4 mt-2">
                                             <input
@@ -705,10 +713,15 @@ const CreateSprint: React.FC = () => {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                         <div>
                                             <label className={labelClasses}>Pricing Type</label>
-                                            <select name="pricingType" value={formData.pricingType} onChange={handleChange} className={inputClasses + " mt-2"}>
-                                                <option value="cash">Cash (NGN/USD)</option>
-                                                <option value="credits">Credits (Points)</option>
-                                            </select>
+                                            <CustomSelect
+                                                options={[
+                                                    { value: "cash", label: "Cash (NGN/USD)" },
+                                                    { value: "credits", label: "Credits (Points)" }
+                                                ]}
+                                                value={formData.pricingType}
+                                                onChange={(val) => setFormData(prev => ({ ...prev, pricingType: val }))}
+                                                className="mt-2"
+                                            />
                                         </div>
                                         {formData.pricingType === 'credits' ? (
                                             <div>
@@ -734,16 +747,12 @@ const CreateSprint: React.FC = () => {
                                     <div className="space-y-6">
                                         <div>
                                             <label className={labelClasses}>Archive Outcome Tag</label>
-                                            <select 
-                                                name="outcomeTag" 
-                                                value={formData.outcomeTag} 
-                                                onChange={handleChange} 
-                                                className={inputClasses + " mt-2"}
-                                            >
-                                                {OUTCOME_TAGS.map((tag: string) => (
-                                                    <option key={tag} value={tag}>{tag}</option>
-                                                ))}
-                                            </select>
+                                            <CustomSelect
+                                                options={OUTCOME_TAGS}
+                                                value={formData.outcomeTag}
+                                                onChange={(val) => setFormData(prev => ({ ...prev, outcomeTag: val }))}
+                                                className="mt-2"
+                                            />
                                             <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">This appears as the badge on completed sprint cards.</p>
                                         </div>
                                     </div>

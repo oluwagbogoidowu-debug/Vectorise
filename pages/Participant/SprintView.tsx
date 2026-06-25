@@ -20,6 +20,7 @@ import { doc, updateDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
+import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
 import PushPermissionModal from "../../components/PushPermissionModal";
@@ -408,15 +409,12 @@ const SprintSettingsModal: React.FC<{
                         <span className="text-[9px] font-black text-gray-450 uppercase tracking-widest block mb-1">Set Custom Time Per Day</span>
                         
                         <div className="flex items-center gap-2">
-                          <select
+                          <CustomSelect
                             value={selectedOverrideDay}
-                            onChange={(e) => setSelectedOverrideDay(Number(e.target.value))}
-                            className="flex-1 bg-white border border-gray-200 rounded-xl px-2 py-1.5 text-[10px] font-black text-gray-700 outline-none cursor-pointer"
-                          >
-                            {Array.from({ length: durationDays }).map((_, i) => (
-                              <option key={i} value={i + 1}>Day {i + 1}</option>
-                            ))}
-                          </select>
+                            onChange={(val) => setSelectedOverrideDay(Number(val))}
+                            options={Array.from({ length: durationDays }).map((_, i) => ({ value: i + 1, label: `Day ${i + 1}` }))}
+                            className="flex-1 min-w-[90px]"
+                          />
 
                           <input
                             type="time"

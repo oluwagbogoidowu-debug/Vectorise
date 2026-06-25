@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { MOCK_USERS } from '../../services/mockData';
 import { Participant, Sprint, ParticipantSprint, CoachingComment, UserRole } from '../../types';
 import Button from '../../components/Button';
+import CustomSelect from '../../components/CustomSelect';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { chatService } from '../../services/chatService';
@@ -285,33 +286,34 @@ const CoachParticipants: React.FC = () => {
                                 />
                                 <svg className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                             </div>
-                            <select 
+                            <CustomSelect 
                                 value={selectedSprintId}
-                                onChange={(e) => setSelectedSprintId(e.target.value)}
-                                className="bg-white border border-gray-200 rounded-2xl px-4 py-2.5 text-xs font-black text-gray-700 focus:ring-4 focus:ring-primary/10 outline-none shadow-sm cursor-pointer h-11 min-w-[160px]"
-                            >
-                                <option value="all">All Sprints</option>
-                                {mySprints.map(s => (
-                                    <option key={s.id} value={s.id}>{s.title}</option>
-                                ))}
-                            </select>
-                            <select 
+                                onChange={(val) => setSelectedSprintId(String(val))}
+                                options={[
+                                    { value: 'all', label: 'All Sprints' },
+                                    ...mySprints.map(s => ({ value: s.id, label: s.title }))
+                                ]}
+                                className="min-w-[160px]"
+                            />
+                            <CustomSelect 
                                 value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value as any)}
-                                className="bg-white border border-gray-200 rounded-2xl px-4 py-2.5 text-xs font-black text-gray-700 focus:ring-4 focus:ring-primary/10 outline-none shadow-sm cursor-pointer h-11 min-w-[140px]"
-                            >
-                                <option value="all">All Statuses</option>
-                                <option value="active">Active</option>
-                                <option value="inactive">Completed</option>
-                            </select>
-                            <select 
+                                onChange={(val) => setStatusFilter(val as any)}
+                                options={[
+                                    { value: 'all', label: 'All Statuses' },
+                                    { value: 'active', label: 'Active' },
+                                    { value: 'inactive', label: 'Completed' }
+                                ]}
+                                className="min-w-[140px]"
+                            />
+                            <CustomSelect 
                                 value={sortBy}
-                                onChange={(e) => setSortBy(e.target.value as any)}
-                                className="bg-white border border-gray-200 rounded-2xl px-4 py-2.5 text-xs font-black text-gray-700 focus:ring-4 focus:ring-primary/10 outline-none shadow-sm cursor-pointer h-11 min-w-[160px]"
-                            >
-                                <option value="recent">Most Recent First</option>
-                                <option value="progress">Highest Progress</option>
-                            </select>
+                                onChange={(val) => setSortBy(val as any)}
+                                options={[
+                                    { value: 'recent', label: 'Most Recent First' },
+                                    { value: 'progress', label: 'Highest Progress' }
+                                ]}
+                                className="min-w-[160px]"
+                            />
                         </div>
                     </div>
 

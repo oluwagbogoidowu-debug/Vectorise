@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import CustomSelect from '../../components/CustomSelect';
 import { useAuth } from '../../contexts/AuthContext';
 import { userService } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
@@ -177,15 +178,12 @@ const PublicProfile: React.FC = () => {
                 <div className="flex justify-between items-center mb-8">
                     <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Learning Journal</h2>
                     {sprintOptions.length > 2 && (
-                        <select 
+                        <CustomSelect 
                             value={selectedSprintFilter} 
-                            onChange={(e) => setSelectedSprintFilter(e.target.value)}
-                            className="bg-transparent text-[10px] font-bold uppercase text-gray-400 outline-none border-none cursor-pointer hover:text-primary transition-colors"
-                        >
-                            {sprintOptions.map(opt => (
-                                <option key={opt} value={opt}>{opt === 'all' ? 'Filter' : opt}</option>
-                            ))}
-                        </select>
+                            onChange={(val) => setSelectedSprintFilter(String(val))}
+                            options={sprintOptions.map(opt => ({ value: opt, label: opt === 'all' ? 'Filter' : opt }))}
+                            className="w-48"
+                        />
                     )}
                 </div>
 

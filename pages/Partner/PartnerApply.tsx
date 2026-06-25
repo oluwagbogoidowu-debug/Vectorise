@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
+import CustomSelect from '../../components/CustomSelect';
 import Button from '../../components/Button';
 import { partnerService } from '../../services/partnerService';
 
@@ -185,12 +186,13 @@ const PartnerApply: React.FC = () => {
               <div className="space-y-6">
                 <div>
                   <label className={labelClasses}>Primary Platform</label>
-                  <select value={formData.primaryPlatform} onChange={e => updateForm('primaryPlatform', e.target.value)} className={inputClasses}>
-                    <option value="">Select Voice</option>
-                    {["Instagram", "X (Twitter)", "LinkedIn", "WhatsApp Community", "Email List", "Offline / Community", "Other"].map(p => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
+                  <CustomSelect
+                    value={formData.primaryPlatform}
+                    onChange={(val) => updateForm('primaryPlatform', String(val))}
+                    options={["Instagram", "X (Twitter)", "LinkedIn", "WhatsApp Community", "Email List", "Offline / Community", "Other"]}
+                    placeholder="Select Voice"
+                    className="mt-2"
+                  />
                 </div>
                 <div>
                   <label className={labelClasses}>Link to Your Main Platform</label>
@@ -206,12 +208,13 @@ const PartnerApply: React.FC = () => {
               <div className="space-y-6">
                 <div>
                   <label className={labelClasses}>Who do you primarily influence?</label>
-                  <select value={formData.influenceTarget} onChange={e => updateForm('influenceTarget', e.target.value)} className={inputClasses}>
-                    <option value="">Select Audience</option>
-                    {["Students", "Young professionals", "Founders / Entrepreneurs", "Creatives", "Faith-based audience", "Corporate professionals", "Mixed audience"].map(p => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
+                  <CustomSelect
+                    value={formData.influenceTarget}
+                    onChange={(val) => updateForm('influenceTarget', String(val))}
+                    options={["Students", "Young professionals", "Founders / Entrepreneurs", "Creatives", "Faith-based audience", "Corporate professionals", "Mixed audience"]}
+                    placeholder="Select Audience"
+                    className="mt-2"
+                  />
                 </div>
                 <div>
                   <label className={labelClasses}>What do people usually come to you for?</label>
@@ -253,12 +256,13 @@ const PartnerApply: React.FC = () => {
               <div className="space-y-6">
                 <div>
                   <label className={labelClasses}>Which best describes you right now?</label>
-                  <select value={formData.identityType} onChange={e => updateForm('identityType', e.target.value)} className={inputClasses}>
-                    <option value="">Select Identity</option>
-                    {["Influencer / Content creator", "Coach / Facilitator", "Mentor / Teacher", "Community leader", "Just starting out"].map(p => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
+                  <CustomSelect
+                    value={formData.identityType}
+                    onChange={(val) => updateForm('identityType', String(val))}
+                    options={["Influencer / Content creator", "Coach / Facilitator", "Mentor / Teacher", "Community leader", "Just starting out"]}
+                    placeholder="Select Identity"
+                    className="mt-2"
+                  />
                 </div>
                 <div>
                   <label className={labelClasses}>Do you see yourself becoming a coach later?</label>

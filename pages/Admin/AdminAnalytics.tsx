@@ -34,6 +34,7 @@ import {
   Legend
 } from 'recharts';
 import { adminCache } from './adminCache';
+import CustomSelect from '../../components/CustomSelect';
 
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
@@ -586,31 +587,31 @@ const AdminAnalytics: React.FC = () => {
           </div>
 
           {activeTab === 'core_table' ? (
-            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-xl px-2.5 py-1.5">
-              <ListFilter className="w-3 h-3 text-gray-400" />
-              <select 
+            <div className="flex items-center gap-1.5">
+              <CustomSelect 
                 value={statusFilter}
-                onChange={(e: any) => setStatusFilter(e.target.value)}
-                className="bg-transparent text-[10px] uppercase font-black tracking-wider text-gray-600 outline-none cursor-pointer"
-              >
-                <option value="all">All States</option>
-                <option value="active">Active Sprints</option>
-                <option value="inactive">Inactive</option>
-                <option value="completed">Completed</option>
-              </select>
+                onChange={(val) => setStatusFilter(val as any)}
+                options={[
+                  { value: 'all', label: 'All States' },
+                  { value: 'active', label: 'Active Sprints' },
+                  { value: 'inactive', label: 'Inactive' },
+                  { value: 'completed', label: 'Completed' }
+                ]}
+                className="w-40"
+              />
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-xl px-2.5 py-1.5">
-              <ListFilter className="w-3 h-3 text-gray-400" />
-              <select 
+            <div className="flex items-center gap-1.5">
+              <CustomSelect 
                 value={actionTypeFilter}
-                onChange={(e: any) => setActionTypeFilter(e.target.value)}
-                className="bg-transparent text-[10px] uppercase font-black tracking-wider text-gray-600 outline-none cursor-pointer"
-              >
-                <option value="all">All Actions</option>
-                <option value="task_submission">Task Submissions</option>
-                <option value="check_in">Daily Checkins</option>
-              </select>
+                onChange={(val) => setActionTypeFilter(val as any)}
+                options={[
+                  { value: 'all', label: 'All Actions' },
+                  { value: 'task_submission', label: 'Task Submissions' },
+                  { value: 'check_in', label: 'Daily Checkins' }
+                ]}
+                className="w-40"
+              />
             </div>
           )}
         </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PaymentRecord, FinancialStats } from '../../types';
 import { paymentService } from '../../services/paymentService';
+import CustomSelect from '../../components/CustomSelect';
 import { adminCache } from './adminCache';
 
 const AdminEarnings: React.FC = () => {
@@ -208,24 +209,39 @@ const AdminEarnings: React.FC = () => {
                         <svg className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                        <select value={filters.dateRange} onChange={e => setFilters({...filters, dateRange: e.target.value})} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-[10px] font-black uppercase tracking-widest outline-none">
-                            <option value="all">Date: All Time</option>
-                            <option value="today">Today</option>
-                            <option value="month">This Month</option>
-                        </select>
-                        <select value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-[10px] font-black uppercase tracking-widest outline-none">
-                            <option value="all">Status: All</option>
-                            <option value="success">Successful</option>
-                            <option value="failed">Failed</option>
-                            <option value="pending">Pending</option>
-                            <option value="refunded">Refunded</option>
-                        </select>
-                        <select value={filters.method} onChange={e => setFilters({...filters, method: e.target.value})} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-[10px] font-black uppercase tracking-widest outline-none">
-                            <option value="all">Method: All</option>
-                            <option value="card">Card</option>
-                            <option value="transfer">Bank Transfer</option>
-                            <option value="ussd">USSD</option>
-                        </select>
+                        <CustomSelect
+                            value={filters.dateRange}
+                            onChange={(val) => setFilters({...filters, dateRange: String(val)})}
+                            options={[
+                                { value: "all", label: "Date: All Time" },
+                                { value: "today", label: "Today" },
+                                { value: "month", label: "This Month" }
+                            ]}
+                            className="w-44"
+                        />
+                        <CustomSelect
+                            value={filters.status}
+                            onChange={(val) => setFilters({...filters, status: String(val)})}
+                            options={[
+                                { value: "all", label: "Status: All" },
+                                { value: "success", label: "Successful" },
+                                { value: "failed", label: "Failed" },
+                                { value: "pending", label: "Pending" },
+                                { value: "refunded", label: "Refunded" }
+                            ]}
+                            className="w-40"
+                        />
+                        <CustomSelect
+                            value={filters.method}
+                            onChange={(val) => setFilters({...filters, method: String(val)})}
+                            options={[
+                                { value: "all", label: "Method: All" },
+                                { value: "card", label: "Card" },
+                                { value: "transfer", label: "Bank Transfer" },
+                                { value: "ussd", label: "USSD" }
+                            ]}
+                            className="w-40"
+                        />
                     </div>
                 </div>
             </div>

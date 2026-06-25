@@ -5,8 +5,9 @@ import { Sprint, Coach } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { assetService } from '../../services/assetService';
 import Button from '../../components/Button';
-import { Eye, Flame, BookOpen, Sparkles } from 'lucide-react';
+import { Eye, Flame, BookOpen, Sparkles, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
+import SprintShareModal from '../../components/SprintShareModal';
 
 const IGNITE_COLORS = [
   { hex: '#111827', name: 'Charcoal' },
@@ -435,6 +436,7 @@ const CoachSprints: React.FC = () => {
   // Preview states
   const [previewingBlog, setPreviewingBlog] = useState<Sprint | null>(null);
   const [previewingIgnite, setPreviewingIgnite] = useState<Sprint | null>(null);
+  const [selectedShareSprint, setSelectedShareSprint] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -589,6 +591,12 @@ const CoachSprints: React.FC = () => {
             onClose={() => setPreviewingIgnite(null)}
           />
       )}
+
+      <SprintShareModal
+        isOpen={!!selectedShareSprint}
+        onClose={() => setSelectedShareSprint(null)}
+        sprintTitle={selectedShareSprint || ""}
+      />
 
       <div className="flex items-center justify-between gap-3 mb-8 w-full">
         <div className="inline-flex bg-gray-100 p-0.5 rounded-xl">
@@ -766,15 +774,24 @@ const CoachSprints: React.FC = () => {
                                     </button>
                                 </div>
                             ) : (
-                                <Link to={`/coach/sprint/edit/${sprint.id}`} className="flex-1 sm:flex-none">
-                                    <button className={`w-full sm:w-auto px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer ${
-                                        sprint.approvalStatus === 'rejected' 
-                                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-100 hover:bg-orange-600' 
-                                        : 'bg-white border border-gray-100 text-gray-500 hover:bg-gray-50 hover:text-primary'
-                                    }`}>
-                                        {sprint.approvalStatus === 'rejected' ? 'Fix Errors' : 'Edit Sprint'}
+                                <div className="flex items-center gap-2 flex-1 sm:flex-none">
+                                    <Link to={`/coach/sprint/edit/${sprint.id}`} className="flex-1 sm:flex-none">
+                                        <button className={`w-full sm:w-auto px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer ${
+                                            sprint.approvalStatus === 'rejected' 
+                                            ? 'bg-orange-500 text-white shadow-lg shadow-orange-100 hover:bg-orange-600' 
+                                            : 'bg-white border border-gray-100 text-gray-500 hover:bg-gray-50 hover:text-primary'
+                                        }`}>
+                                            {sprint.approvalStatus === 'rejected' ? 'Fix Errors' : 'Edit Sprint'}
+                                        </button>
+                                    </Link>
+                                    <button 
+                                        onClick={() => setSelectedShareSprint(sprint.title)}
+                                        className="p-3 bg-white border border-gray-100 text-gray-400 hover:text-primary hover:bg-gray-50 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                        title="Share Sprint"
+                                    >
+                                        <Share2 className="h-4 w-4" />
                                     </button>
-                                </Link>
+                                </div>
                             )}
                             <button 
                                 onClick={() => setSprintToDelete(sprint)}
