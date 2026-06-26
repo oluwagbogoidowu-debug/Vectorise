@@ -47,12 +47,12 @@ async function startServer() {
   app.post('/api/send', sendHandler);
 
   // Puppeteer image card generation endpoint
-  app.post(['/generate', '/api/generate'], async (req: any, res: any) => {
-    const data = req.body;
+  app.all(['/generate', '/api/generate'], async (req: any, res: any) => {
+    const data = req.method === 'POST' ? req.body : req.query;
 
-    if (!data || !data.name || !data.sprint_name || !data.outcome) {
-      return res.status(400).json({ error: 'Missing name, sprint_name, or outcome in request body.' });
-    }
+    const name = data?.name || "Emmanuel";
+    const sprint_name = data?.sprint_name || "Gain Clarity First";
+    const outcome = data?.outcome || "I realized I’ve been forcing a path that doesn’t align with how I naturally think and work.";
 
     try {
       const browser = await puppeteer.launch({
@@ -63,15 +63,15 @@ async function startServer() {
 
       let html = fs.readFileSync('template.html', 'utf8');
 
-      const bgGradient = data.bg_gradient || "linear-gradient(135deg, #040d0a 0%, #081711 50%, #0e261d 100%)";
-      const customFont = data.custom_font || "'Inter', sans-serif";
-      const textFont = data.text_font || "'Playfair Display', serif";
-      const fontLink = data.font_link || "";
+      const bgGradient = data?.bg_gradient || "linear-gradient(135deg, #040d0a 0%, #081711 50%, #0e261d 100%)";
+      const customFont = data?.custom_font || "'Inter', sans-serif";
+      const textFont = data?.text_font || "'Playfair Display', serif";
+      const fontLink = data?.font_link || "";
 
       html = html
-        .replace('{{name}}', data.name)
-        .replace('{{sprint_name}}', data.sprint_name)
-        .replace('{{outcome}}', data.outcome)
+        .replace('{{name}}', name)
+        .replace('{{sprint_name}}', sprint_name)
+        .replace('{{outcome}}', outcome)
         .replace('{{{font_link}}}', fontLink)
         .replace('{{{bg_gradient}}}', bgGradient)
         .replace('{{{custom_font}}}', customFont)
@@ -80,19 +80,16 @@ async function startServer() {
       await page.setContent(html);
       await page.setViewport({ width: 600, height: 800 });
 
-      const fileName = `output-${Date.now()}.png`;
-
-      await page.screenshot({ path: fileName });
+      const buffer = await page.screenshot({ type: 'png' });
 
       await browser.close();
 
-      res.json({
-        message: "Image generated",
-        file: fileName
-      });
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Disposition', 'inline');
+      res.send(buffer);
     } catch (error: any) {
       console.error('Error generating image card with Puppeteer:', error);
-      res.status(500).json({ error: error?.message || 'Failed to generate image' });
+      res.status(500).setHeader('Content-Type', 'text/plain').send('Failed to generate image: ' + (error?.message || error));
     }
   });
 

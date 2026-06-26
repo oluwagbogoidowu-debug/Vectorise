@@ -190,10 +190,9 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                 })
             });
             if (response.ok) {
-                const res = await response.json();
-                if (res.file) {
-                    setVisualImageFile(res.file);
-                }
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                setVisualImageFile(objectUrl);
             }
         } catch (e) {
             console.error('Failed to trigger Puppeteer rendering:', e);
@@ -369,14 +368,14 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                             ) : visualImageFile ? (
                                 <div className="w-full flex flex-col items-center p-1">
                                     <img 
-                                        src={`/api/output/${visualImageFile}`} 
+                                        src={visualImageFile.startsWith('blob:') || visualImageFile.startsWith('data:') ? visualImageFile : `/api/output/${visualImageFile}`} 
                                         referrerPolicy="no-referrer"
                                         alt="Puppeteer Share Card" 
                                         className="w-full max-h-44 object-contain rounded-xl shadow-md border border-gray-100"
                                     />
                                     <a
-                                        href={`/api/output/${visualImageFile}`}
-                                        download={`vectorise_sprint_card_${visualImageFile}`}
+                                        href={visualImageFile.startsWith('blob:') || visualImageFile.startsWith('data:') ? visualImageFile : `/api/output/${visualImageFile}`}
+                                        download={visualImageFile.startsWith('blob:') || visualImageFile.startsWith('data:') ? "vectorise_sprint_card.png" : `vectorise_sprint_card_${visualImageFile}`}
                                         className="mt-2 text-[9px] font-black text-[#0E7850] hover:text-[#0b5c3e] transition-colors uppercase tracking-widest flex items-center gap-1.5"
                                     >
                                         <Download className="w-3.5 h-3.5" /> Save Shareable PNG
