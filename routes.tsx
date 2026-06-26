@@ -70,6 +70,7 @@ import RiseArchive from './pages/Participant/Profile/RiseArchive';
 import BuyCoins from './pages/Participant/BuyCoins';
 
 import SprintPreview from './pages/Participant/SprintPreview';
+import RiseBlog from './pages/Participant/RiseBlog';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -188,6 +189,8 @@ export const AppRoutes: React.FC = () => {
          <Route path="/impact/rewards" element={<GrowthRewards />} />
          <Route path="/impact/badges" element={<Badges />} />
          <Route path="/buy-coins" element={<BuyCoins />} />
+         <Route path="/blog" element={<RiseBlog />} />
+         <Route path="/blog/:postId" element={<RiseBlog />} />
       </Route>
       
       <Route path="/participant/sprint/:enrollmentId" element={

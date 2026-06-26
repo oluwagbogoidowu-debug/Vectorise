@@ -18,6 +18,7 @@ import { ARCHETYPES } from '../../constants';
 import NextSprintModal from '../../components/NextSprintModal';
 import ConfirmModal from '../../components/ConfirmModal';
 import { streakService } from '../../services/streakService';
+import { blogService } from '../../services/blogService';
 
 /**
  * Calculates if a day is locked based on the "Next Midnight" logic.
@@ -821,6 +822,22 @@ const ParticipantDashboard: React.FC = () => {
                                 <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-none group-hover:text-[#0E7850] transition-colors">Become a Catalyst</h4>
                             </div>
                         </Link>
+
+                        {/* 4. Read RiseBlog */}
+                        <Link 
+                            to="/blog" 
+                            className={`flex-shrink-0 w-52 h-20 bg-white border border-gray-100 rounded-[1.2rem] px-4 shadow-sm transition-all duration-300 flex items-center gap-3 group snap-start animate-fade-in hover:shadow-md hover:border-[#0E7850]/20 cursor-pointer`}
+                        >
+                            <div className="w-8.5 h-8.5 bg-primary/10 rounded-lg flex items-center justify-center text-primary flex-shrink-0 shadow-sm border border-primary/10 group-hover:scale-105 transition-transform duration-300">
+                                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                </svg>
+                            </div>
+                            <div className="min-w-0 text-left">
+                                <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-none group-hover:text-primary transition-colors">Read RiseBlog</h4>
+                                <span className="text-[9px] font-bold text-gray-400 block mt-1">New releases</span>
+                            </div>
+                        </Link>
                     </div>
                     {isStepUpLocked && (
                         <div className="flex justify-center mt-2 animate-fade-in select-none">
@@ -880,9 +897,48 @@ const ParticipantDashboard: React.FC = () => {
                     ))}
                 </div>
             )}
-
-
-
+            {/* JUST PUBLISHED ON RISEBLOG */}
+            <div className="mt-8 mb-6 animate-fade-in">
+                <div className="flex justify-between items-center mb-4 px-1">
+                    <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none">Just Published on RiseBlog</h3>
+                    <Link to="/blog" className="text-[9px] font-black text-[#0E7850] hover:underline uppercase tracking-widest leading-none">
+                        View All &rarr;
+                    </Link>
+                </div>
+                
+                <div className="space-y-4">
+                    {blogService.getPosts().slice(0, 2).map((post) => (
+                        <Link 
+                            key={post.id} 
+                            to={`/blog/${post.id}`}
+                            className="bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm flex gap-4 hover:shadow-md hover:border-[#0E7850]/20 transition-all group block text-left"
+                        >
+                            <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 relative">
+                                <img 
+                                    src={post.coverImage} 
+                                    alt={post.title} 
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                />
+                            </div>
+                            <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-[8px] font-black text-primary uppercase tracking-widest">{post.category}</span>
+                                        <span className="text-gray-300">•</span>
+                                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{post.readTime}</span>
+                                    </div>
+                                    <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                                        {post.title}
+                                    </h4>
+                                </div>
+                                <p className="text-[10px] text-gray-400 font-semibold truncate mt-1">
+                                    By {post.author.name}
+                                </p>
+                            </div>
+                        </Link>
+                    ))}
+                </div>
+            </div>
 
           </div>
       </div>
