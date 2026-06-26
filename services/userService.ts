@@ -397,8 +397,12 @@ export const userService = {
             case 'cm2': return stats.daysActive;
             case 'r1': return stats.meaningfulReflections;
             case 'r2': return stats.meaningfulReflections;
-            case 'i1': return stats.peopleHelped;
-            case 'i10': return stats.peopleHelped;
+            case 'i1':
+            case 'i3':
+            case 'i5':
+            case 'i10':
+            case 'i20':
+            case 'i30': return stats.peopleHelped;
             default: return 0;
         }
     };

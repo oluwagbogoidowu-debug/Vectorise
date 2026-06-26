@@ -213,13 +213,22 @@ const ParticipantDashboard: React.FC = () => {
       const completedSprints = mySprints.filter(e => e.enrollment.progress.every(day => day.completed)).length;
       const daysSinceJoin = Math.max(1, Math.ceil((Date.now() - new Date(p.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));
       
+      let peopleHelpedCount = p.impactStats?.peopleHelped || 0;
+      try {
+        const { getDocs, collection, query } = await import('firebase/firestore');
+        const snap = await getDocs(query(collection(db, 'users', user.id, 'referrals')));
+        peopleHelpedCount = snap.docs.length;
+      } catch (err) {
+        console.error("Error fetching referrals count on dashboard:", err);
+      }
+
       const stats = {
         completed: completedSprints,
         reflectionsCount: p.shinePostIds?.length || 0,
         streak: p.impactStats?.streak || 0,
         daysActive: daysSinceJoin,
         meaningfulReflections: 0, // Simplified for now
-        peopleHelped: p.impactStats?.peopleHelped || 0
+        peopleHelped: peopleHelpedCount
       };
 
       await userService.checkAndNotifyMilestones(user.id, stats, p.claimedMilestoneIds || []);

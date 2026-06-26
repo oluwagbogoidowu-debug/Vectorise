@@ -56,7 +56,14 @@ async function startServer() {
 
     try {
       const browser = await puppeteer.launch({
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--single-process',
+          '--no-zygote'
+        ]
       });
 
       const page = await browser.newPage();
@@ -79,8 +86,15 @@ async function startServer() {
         .replace('{{{custom_font}}}', customFont)
         .replace('{{{text_font}}}', textFont);
 
-      await page.setContent(html);
+      await page.setContent(html, { waitUntil: 'domcontentloaded' });
       await page.setViewport({ width: 600, height: 800 });
+
+      // Ensure fonts are fully loaded before rendering screenshot
+      try {
+        await page.evaluateHandle(() => document.fonts.ready);
+      } catch (fontErr) {
+        console.warn('Font loading wait warning (continuing):', fontErr);
+      }
 
       const buffer = await page.screenshot({ type: 'png' });
 

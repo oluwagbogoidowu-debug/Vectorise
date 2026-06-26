@@ -6,6 +6,8 @@ import { Participant, ParticipantSprint, Sprint, Coach, UserRole } from '../../t
 import { sprintService } from '../../services/sprintService';
 import { userService, sanitizeData } from '../../services/userService';
 import { shineService } from '../../services/shineService';
+import { db } from '../../services/firebase';
+import { collection, query, onSnapshot } from 'firebase/firestore';
 import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS, PERSONA_QUIZZES, INITIAL_OPTIONS } from '../../constants';
@@ -18,6 +20,7 @@ const Profile: React.FC = () => {
   
   const [enrollments, setEnrollments] = useState<{ enrollment: ParticipantSprint; sprint: Sprint; coach: Coach | null }[]>([]);
   const [reflections, setReflections] = useState<ShinePost[]>([]);
+  const [referrals, setReferrals] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Identity Task States
@@ -79,6 +82,15 @@ const Profile: React.FC = () => {
         setReflections(userReflections);
     });
     unsubscribes.push(sub2);
+
+    // Subscribe to referrals subcollection
+    const qRef = query(collection(db, 'users', user.id, 'referrals'));
+    const sub3 = onSnapshot(qRef, (snap) => {
+        setReferrals(snap.docs.map(d => sanitizeData({ id: d.id, ...d.data() })));
+    }, (error) => {
+        console.error("Error subscribing to referrals in Profile: ", error);
+    });
+    unsubscribes.push(sub3);
 
     // 3. Initialize temp states from user
     const p = user as Participant;
@@ -387,7 +399,7 @@ const Profile: React.FC = () => {
 
             <Link to="/impact" className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col justify-center active:scale-[0.98] transition-all">
               <p className="text-[7px] font-black uppercase tracking-[0.3em] text-gray-400 mb-1">Lives Impacted</p>
-              <h3 className="text-2xl font-black text-gray-900 tracking-tighter">{p.impactStats?.peopleHelped || 0}</h3>
+              <h3 className="text-2xl font-black text-gray-900 tracking-tighter">{referrals.length}</h3>
             </Link>
           </div>
         )}

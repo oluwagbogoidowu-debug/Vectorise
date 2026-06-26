@@ -26,8 +26,10 @@ export const MILESTONES: MilestoneDefinition[] = [
     { id: 'r2', title: 'Self-Aware', description: 'You turned reflection into clarity.', icon: '💎', targetValue: 5, points: 30, category: 'innerWork', color: 'yellow' },
     
     // Influence
-    { id: 'i1', title: 'Impact 1 Degree', description: 'You helped someone start their rise.', icon: '🌱', targetValue: 1, points: 5, category: 'influence', color: 'teal' },
-    { id: 'i3', title: 'Impact 3 Degree', description: 'You helped 3 people start their rise.', icon: '🌱', targetValue: 3, points: 15, category: 'influence', color: 'teal' },
-    { id: 'i5', title: 'Impact 5 Degree', description: 'You helped 5 people start their rise.', icon: '🌱', targetValue: 5, points: 25, category: 'influence', color: 'teal' },
-    { id: 'i10', title: 'Multiplier', description: 'You ignited growth in 10 people.', icon: '🌳', targetValue: 10, points: 50, category: 'influence', color: 'teal' }
+    { id: 'i1', title: 'Starter', description: 'You helped someone start their rise.', icon: '🌱', targetValue: 1, points: 5, category: 'influence', color: 'teal' },
+    { id: 'i3', title: 'Builder', description: 'You helped 3 people start their rise.', icon: '🔧', targetValue: 3, points: 15, category: 'influence', color: 'teal' },
+    { id: 'i5', title: 'Catalyst', description: 'You helped 5 people start their rise.', icon: '⚡', targetValue: 5, points: 30, category: 'influence', color: 'teal' },
+    { id: 'i10', title: 'Accelerator', description: 'You ignited growth in 10 people.', icon: '🚀', targetValue: 10, points: 70, category: 'influence', color: 'teal' },
+    { id: 'i20', title: 'Architect', description: 'You became an architect of opportunity.', icon: '🧠', targetValue: 20, points: 150, category: 'influence', color: 'teal' },
+    { id: 'i30', title: 'Inner Circle', description: 'You joined the inner circle of legacy.', icon: '👑', targetValue: 30, points: 250, category: 'influence', color: 'teal' }
 ];

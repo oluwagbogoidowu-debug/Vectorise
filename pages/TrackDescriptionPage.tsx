@@ -109,7 +109,7 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
                     <div className="flex flex-wrap gap-6 pt-6 border-t border-gray-50">
                         <div className="flex items-center gap-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">
                             <Zap className="w-3.5 h-3.5 text-primary/40" />
-                            Daily Execution
+                            Daily Action Steps
                         </div>
                         <div className="flex items-center gap-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">
                             <Calendar className="w-3.5 h-3.5 text-primary/40" />

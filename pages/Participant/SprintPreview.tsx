@@ -1130,7 +1130,7 @@ const SprintPreview: React.FC = () => {
                             </svg>
                         </div>
                         <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Unlock Full Sprint</h3>
-                        <p className="text-gray-500 font-medium mb-8 text-sm">Sign up to save your progress and continue with the next execution steps.</p>
+                        <p className="text-gray-500 font-medium mb-8 text-sm">Sign up to save your progress and continue with the next daily action steps.</p>
                         
                         <div className="space-y-3">
                             <button 

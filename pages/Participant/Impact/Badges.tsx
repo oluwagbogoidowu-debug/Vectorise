@@ -6,6 +6,8 @@ import { Participant, ParticipantSprint, ShinePost, Sprint } from '../../../type
 import { sprintService } from '../../../services/sprintService';
 import { shineService } from '../../../services/shineService';
 import { userService, sanitizeData } from '../../../services/userService';
+import { db } from '../../../services/firebase';
+import { collection, query, onSnapshot } from 'firebase/firestore';
 import { Share2 } from 'lucide-react';
 import AchievementShareModal from '../../../components/AchievementShareModal';
 import { motion } from 'motion/react';
@@ -123,6 +125,7 @@ const Badges: React.FC = () => {
     const [enrollments, setEnrollments] = useState<ParticipantSprint[]>([]);
     const [allSprintData, setAllSprintData] = useState<Sprint[]>([]);
     const [reflections, setReflections] = useState<ShinePost[]>([]);
+    const [referrals, setReferrals] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Achievement Share Modal Integration
@@ -166,9 +169,10 @@ const Badges: React.FC = () => {
 
         let enrollmentsSubscribed = false;
         let reflectionsSubscribed = false;
+        let referralsSubscribed = false;
 
         const checkLoading = () => {
-            if (enrollmentsSubscribed && reflectionsSubscribed) {
+            if (enrollmentsSubscribed && reflectionsSubscribed && referralsSubscribed) {
                 setIsLoading(false);
             }
         };
@@ -195,6 +199,19 @@ const Badges: React.FC = () => {
         });
         unsubscribes.push(sub2);
 
+        // Subscribe to referrals subcollection
+        const qRef = query(collection(db, 'users', user.id, 'referrals'));
+        const sub3 = onSnapshot(qRef, (snap) => {
+            setReferrals(snap.docs.map(d => sanitizeData({ id: d.id, ...d.data() })));
+            referralsSubscribed = true;
+            checkLoading();
+        }, (error) => {
+            console.error("Error subscribing to referrals: ", error);
+            referralsSubscribed = true;
+            checkLoading();
+        });
+        unsubscribes.push(sub3);
+
 
         return () => {
             unsubscribes.forEach(unsub => unsub());
@@ -217,7 +234,7 @@ const Badges: React.FC = () => {
         }).length;
         const daysSinceJoin = Math.max(1, Math.ceil((Date.now() - new Date(p.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));
         const streak = p.impactStats?.streak || 0;
-        const peopleHelped = p.impactStats?.peopleHelped || 0;
+        const peopleHelped = referrals.length;
 
         // Calculate unique days with task completion
         const allCompletedDates = enrollments.flatMap(e => 

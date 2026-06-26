@@ -332,8 +332,8 @@ const SprintLandingPage: React.FC = () => {
                                         <Zap className="w-6 h-6" />
                                     </div>
                                     <div>
-                                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Execution</p>
-                                        <p className="text-sm font-black text-gray-900 leading-none">One action per day</p>
+                                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Daily Action</p>
+                                        <p className="text-sm font-black text-gray-900 leading-none">Daily action steps</p>
                                     </div>
                                 </div>
                             </div>
