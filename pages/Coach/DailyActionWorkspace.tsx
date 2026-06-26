@@ -448,12 +448,50 @@ export default function DailyActionWorkspace({
             className="flex-grow w-full p-4 bg-white border border-gray-150 rounded-2xl shadow-inner focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-xs font-semibold transition-all placeholder-gray-300 resize-none overflow-y-auto"
             placeholder="paste or type all your sprint actions steps and other details here...."
           />
+
+          {/* Compact Curriculum Timeline Selector */}
+          <div className="shrink-0 bg-purple-50/30 p-3 rounded-2xl border border-purple-100/40 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-purple-700/80 uppercase tracking-wider">
+                Curriculum Timeline
+              </span>
+              <span className="text-[9px] font-bold text-purple-600 uppercase tracking-widest bg-white px-2 py-0.5 rounded-md border border-purple-100 shadow-3xs">
+                Day {selectedDay} Active
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-thin scroll-smooth">
+              {Array.from({ length: sprint?.duration || 7 }, (_, i) => i + 1).map((dayNum) => {
+                const dayContent = getDailyContentForDay(dayNum);
+                const stepCount = dayContent.taskPrompts?.filter(p => p && p.trim()).length || 0;
+                const isSelected = selectedDay === dayNum;
+                return (
+                  <button
+                    key={dayNum}
+                    type="button"
+                    onClick={() => setSelectedDay(dayNum)}
+                    className={`flex-shrink-0 min-w-[54px] h-10 px-2 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer relative ${
+                      isSelected
+                        ? 'bg-purple-600 border-purple-600 text-white shadow-md shadow-purple-600/25 scale-102 font-black animate-none'
+                        : 'bg-white border-gray-200 text-gray-500 hover:border-purple-300 hover:text-purple-600 font-semibold'
+                    }`}
+                  >
+                    <span className="text-[7px] uppercase tracking-tight leading-none opacity-80">Day</span>
+                    <span className="text-xs leading-none mt-0.5">{dayNum}</span>
+                    {stepCount > 0 && (
+                      <span className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-purple-500 animate-pulse'}`} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
-        {/* Right Column: Horizontally scrollable day cards */}
-        <div className="flex-1 flex flex-col overflow-visible lg:overflow-hidden p-4 lg:p-6 bg-gray-50/50">
-          <div className="flex-grow flex flex-row overflow-x-auto gap-6 pb-6 items-stretch scroll-smooth">
-            {Array.from({ length: sprint?.duration || 7 }, (_, i) => i + 1).map((dayNum) => {
+        {/* Right Column: Day Card for currently selected day */}
+        <div className="flex-1 flex flex-col overflow-y-auto lg:overflow-hidden p-4 lg:p-6 bg-gray-50/50">
+          <div className="flex-grow flex flex-col items-center justify-start w-full">
+            {(() => {
+              const dayNum = selectedDay;
               const dayContent = getDailyContentForDay(dayNum);
               const activeStepIdx = activeStepIndices[dayNum] !== undefined ? activeStepIndices[dayNum] : 0;
               const totalSteps = dayContent.taskPrompts?.length || 0;
@@ -466,19 +504,12 @@ export default function DailyActionWorkspace({
               const isLastAssignedFootnote = lastAssignedField === `footnote-${activeIdx}` && selectedDay === dayNum;
               const isLinkedFromPrevious = (activeIdx > 0 && dayContent.taskLinkedToNext?.[activeIdx - 1]) || (Array.isArray(dayContent.taskLinkedSources?.[activeIdx]) && dayContent.taskLinkedSources[activeIdx].length > 0);
 
-              const isActiveCard = selectedDay === dayNum;
+              const isActiveCard = true;
 
               return (
                 <div 
                   key={dayNum}
-                  onClickCapture={() => {
-                    if (selectedDay !== dayNum) setSelectedDay(dayNum);
-                  }}
-                  className={`w-[88vw] sm:w-[480px] shrink-0 bg-white rounded-3xl border flex flex-col p-4 sm:p-5 shadow-sm hover:shadow-md transition-all duration-300 h-auto min-h-[440px] lg:h-full overflow-y-visible lg:overflow-y-auto relative text-left select-none ${
-                    isActiveCard 
-                      ? 'border-purple-400 ring-2 ring-purple-100 bg-white/100' 
-                      : 'border-gray-200 opacity-90'
-                  }`}
+                  className="w-full max-w-[560px] bg-white rounded-3xl border border-purple-400 ring-4 ring-purple-100/50 flex flex-col p-5 sm:p-6 shadow-sm hover:shadow-md transition-all duration-300 h-auto min-h-[440px] lg:h-full overflow-y-visible lg:overflow-y-auto relative text-left select-none"
                 >
                   {/* Day Header inside Card */}
                   <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100 shrink-0">
@@ -1112,7 +1143,7 @@ export default function DailyActionWorkspace({
                   </div>
                 </div>
               );
-            })}
+            })()}
           </div>
         </div>
       </div>
