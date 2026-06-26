@@ -377,9 +377,9 @@ export default function DailyActionWorkspace({
       </div>
 
       {/* Full Bleed Body with two columns */}
-      <div className="flex-grow flex overflow-hidden w-full h-[calc(100vh-64px)]">
+      <div className="flex-grow flex flex-col lg:flex-row overflow-hidden w-full h-[calc(100vh-64px)]">
         {/* Left Column: General Content Hub */}
-        <div className="w-[360px] lg:w-[420px] shrink-0 border-r border-gray-200 bg-white flex flex-col h-full p-5 space-y-4 shadow-xs">
+        <div className="w-full lg:w-[420px] h-[35vh] lg:h-full shrink-0 border-b lg:border-b-0 lg:border-r border-gray-200 bg-white flex flex-col p-4 lg:p-5 space-y-3 lg:space-y-4 shadow-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">General Content Hub</label>
@@ -451,7 +451,7 @@ export default function DailyActionWorkspace({
         </div>
 
         {/* Right Column: Horizontally scrollable day cards */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden p-6 bg-gray-50/50">
+        <div className="flex-1 flex flex-col overflow-hidden p-4 lg:p-6 bg-gray-50/50">
           <div className="flex-grow flex flex-row overflow-x-auto gap-6 pb-6 items-stretch scroll-smooth">
             {Array.from({ length: sprint?.duration || 7 }, (_, i) => i + 1).map((dayNum) => {
               const dayContent = getDailyContentForDay(dayNum);
@@ -474,7 +474,7 @@ export default function DailyActionWorkspace({
                   onClickCapture={() => {
                     if (selectedDay !== dayNum) setSelectedDay(dayNum);
                   }}
-                  className={`w-[480px] shrink-0 bg-white rounded-3xl border flex flex-col p-5 shadow-sm hover:shadow-md transition-all duration-300 h-full overflow-y-auto relative text-left select-none ${
+                  className={`w-[88vw] sm:w-[480px] shrink-0 bg-white rounded-3xl border flex flex-col p-4 sm:p-5 shadow-sm hover:shadow-md transition-all duration-300 h-full overflow-y-auto relative text-left select-none ${
                     isActiveCard 
                       ? 'border-purple-400 ring-2 ring-purple-100 bg-white/100' 
                       : 'border-gray-200 opacity-90'

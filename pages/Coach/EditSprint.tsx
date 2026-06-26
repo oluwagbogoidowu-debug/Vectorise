@@ -2668,10 +2668,10 @@ const EditSprint: React.FC = () => {
                                         type="button"
                                         onClick={() => setShowAdvancedActionModal(true)}
                                         className="h-8 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-650 hover:text-purple-750 border border-purple-150 px-2.5 transition-all flex items-center gap-1 shadow-xs shrink-0 cursor-pointer text-[10px] font-black uppercase tracking-wider"
-                                        title="Daily action setup: Paste bulk text and select strings to assign"
+                                        title="Smart setup: Paste bulk text and select strings to assign"
                                     >
                                         <Sparkles size={11} className="text-purple-500" />
-                                        <span>Daily action</span>
+                                        <span>Smart setup</span>
                                     </button>
                                 </div>
                                 <div className="flex items-center gap-2">
