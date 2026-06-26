@@ -350,7 +350,7 @@ export default function DailyActionWorkspace({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-[11px] font-black text-gray-900 uppercase tracking-widest leading-none">Daily Action</h2>
+              <h2 className="text-[11px] font-black text-gray-900 uppercase tracking-widest leading-none">Smart Setup</h2>
               
               <div className="relative group inline-block">
                 <button type="button" className="text-purple-400 hover:text-purple-600 transition-all p-1 rounded-lg bg-purple-50 flex items-center justify-center cursor-pointer">
@@ -363,7 +363,7 @@ export default function DailyActionWorkspace({
                 </div>
               </div>
             </div>
-            <p className="text-[10px] text-gray-400 font-extrabold uppercase mt-0.5">Sprint Action Workspace (All Days Setup)</p>
+            <p className="text-[10px] text-gray-400 font-extrabold uppercase mt-0.5">Smart Setup for daily action</p>
           </div>
         </div>
         <button 
@@ -446,7 +446,7 @@ export default function DailyActionWorkspace({
             onChange={e => setAdvancedGeneralInput(e.target.value)}
             onSelect={handleTextareaSelect}
             className="flex-grow w-full p-4 bg-white border border-gray-150 rounded-2xl shadow-inner focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-xs font-semibold transition-all placeholder-gray-300 resize-none overflow-y-auto"
-            placeholder="Paste or type curriculum source materials here..."
+            placeholder="paste or type all your sprint actions steps and other details here...."
           />
         </div>
 
@@ -486,12 +486,9 @@ export default function DailyActionWorkspace({
                       <div className="flex items-center gap-2">
                         <span className={`w-2 h-2 rounded-full ${isActiveCard ? 'bg-purple-600 animate-pulse' : 'bg-gray-300'}`} />
                         <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">
-                          Day {dayNum} Setup
+                          Day {dayNum}
                         </h3>
                       </div>
-                      <span className="text-[10px] text-gray-405 font-extrabold uppercase mt-0.5">
-                        {totalSteps} Action step{totalSteps !== 1 ? 's' : ''}
-                      </span>
                     </div>
 
                     {/* Pagination with "+" button next to it */}
