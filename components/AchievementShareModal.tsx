@@ -90,10 +90,7 @@ const AchievementShareModal: React.FC<AchievementShareModalProps> = ({
         return lines.length;
     };
 
-    const handleGenerateShareCard = () => {
-        setViewMode('share');
-        setCanvasLoading(true);
-
+    const generateCanvasFallback = () => {
         const canvas = document.createElement('canvas');
         canvas.width = 1080;
         canvas.height = 1080;
@@ -169,6 +166,43 @@ const AchievementShareModal: React.FC<AchievementShareModalProps> = ({
             setShareImage(imgData);
             setCanvasLoading(false);
         };
+    };
+
+    const handleGenerateShareCard = async () => {
+        setViewMode('share');
+        setCanvasLoading(true);
+        setShareImage(null);
+
+        try {
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: userName,
+                    sprint_name: milestoneTitle,
+                    outcome: achievementText,
+                    badge_text: "Milestone Unlocked",
+                    bg_gradient: "linear-gradient(135deg, #020617 0%, #0f172a 50%, #1e1b4b 100%)", // High-fashion deep indigo/slate dark gradient
+                    custom_font: "'Inter', sans-serif",
+                    text_font: "'Playfair Display', serif"
+                })
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                setShareImage(objectUrl);
+                setCanvasLoading(false);
+            } else {
+                console.warn('Backend Puppeteer generation failed, falling back to client-side Canvas...');
+                generateCanvasFallback();
+            }
+        } catch (e) {
+            console.error('Error generating card via Puppeteer, falling back...', e);
+            generateCanvasFallback();
+        }
     };
 
     const handleCopyCaption = () => {

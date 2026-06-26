@@ -67,11 +67,13 @@ async function startServer() {
       const customFont = data?.custom_font || "'Inter', sans-serif";
       const textFont = data?.text_font || "'Playfair Display', serif";
       const fontLink = data?.font_link || "";
+      const badgeText = data?.badge_text || "Sprint Accomplished";
 
       html = html
         .replace('{{name}}', name)
         .replace('{{sprint_name}}', sprint_name)
         .replace('{{outcome}}', outcome)
+        .replace('{{badge_text}}', badgeText)
         .replace('{{{font_link}}}', fontLink)
         .replace('{{{bg_gradient}}}', bgGradient)
         .replace('{{{custom_font}}}', customFont)
