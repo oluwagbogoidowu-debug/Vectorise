@@ -161,7 +161,7 @@ const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> =
         'title', 'subtitle', 'coverImageUrl', 'transformation', 'description', 
         'category', 'difficulty', 'audience', 'overrideOrchestrator', 'price', 'currency', 'pointCost', 
         'pricingType', 'duration', 'protocol', 'outcomeTag', 'checkInReminder', 'checkInReminderDays',
-        'blogBody', 'blogImage', 'igniteBody', 'igniteBgColor', 'igniteDate'
+        'blogBody', 'blogImage', 'igniteBody', 'igniteBgColor', 'igniteDate', 'curriculumSource'
     ];
 
     fields.forEach(f => {

@@ -28,19 +28,29 @@ export default function DailyActionWorkspace({
   const [addingCustomOption, setAddingCustomOption] = useState<Record<number, boolean>>({});
   const [lastAssignedField, setLastAssignedField] = useState<string | null>(null);
 
-  // Load from local storage or initialize empty for curriculum pasting
+  // Load from database/sprint or fallback to local storage
   useEffect(() => {
-    const saved = localStorage.getItem(`curriculum_source_${sprint?.id || 'temp'}`);
-    if (saved) {
-      setAdvancedGeneralInput(saved);
+    if (sprint) {
+      if (sprint.curriculumSource !== undefined) {
+        setAdvancedGeneralInput(sprint.curriculumSource || '');
+      } else {
+        const saved = localStorage.getItem(`curriculum_source_${sprint.id || 'temp'}`);
+        if (saved) {
+          setAdvancedGeneralInput(saved);
+          setSprint(prev => prev ? { ...prev, curriculumSource: saved } : null);
+        }
+      }
     }
   }, [sprint?.id]);
 
-  useEffect(() => {
-    if (advancedGeneralInput) {
-      localStorage.setItem(`curriculum_source_${sprint?.id || 'temp'}`, advancedGeneralInput);
-    }
-  }, [advancedGeneralInput, sprint?.id]);
+  const handleGeneralInputChange = (val: string) => {
+    setAdvancedGeneralInput(val);
+    setSprint(prev => {
+      if (!prev) return null;
+      return { ...prev, curriculumSource: val };
+    });
+    localStorage.setItem(`curriculum_source_${sprint?.id || 'temp'}`, val);
+  };
 
   const handleTextareaSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
     const target = e.currentTarget;
@@ -342,48 +352,14 @@ export default function DailyActionWorkspace({
     return result;
   };
 
-  const smallEditorInputClasses = "w-full p-3 bg-white border border-gray-150 rounded-xl shadow-xs focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-xs font-semibold transition-all placeholder-gray-350 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
+  const smallEditorInputClasses = "w-full p-3 bg-white border border-gray-150 rounded-xl shadow-xs focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-sm font-medium transition-all placeholder-gray-350 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
 
   return (
-    <div className="fixed inset-0 z-[120] bg-gray-50 flex flex-col h-screen w-screen overflow-hidden animate-fade-in font-sans">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-150 px-6 py-3 flex items-center justify-between shrink-0 sticky top-0 z-50 shadow-sm h-16">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 shadow-xs">
-            <Sparkles size={16} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-[11px] font-black text-gray-900 uppercase tracking-widest leading-none">Smart Setup</h2>
-              
-              <div className="relative group inline-block">
-                <button type="button" className="text-purple-400 hover:text-purple-600 transition-all p-1 rounded-lg bg-purple-50 flex items-center justify-center cursor-pointer">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                </button>
-                <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 hidden group-hover:flex flex-col bg-gray-950 border border-gray-800 text-white text-[10px] leading-relaxed p-3.5 rounded-2xl shadow-xl z-[200] pointer-events-none uppercase tracking-wider font-sans font-bold">
-                  💡 Select text on the left pane and instantly assign it to any input field in the workspace card on the right.
-                </div>
-              </div>
-            </div>
-            <p className="text-[10px] text-gray-400 font-extrabold uppercase mt-0.5">Smart Setup for daily action</p>
-          </div>
-        </div>
-        <button 
-          type="button"
-          onClick={onClose}
-          className="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-gray-600 border border-gray-200 transition-all cursor-pointer flex items-center justify-center font-bold"
-          title="Return to regular view"
-        >
-          <X size={16} />
-        </button>
-      </div>
-
-      {/* Full Bleed Body with two columns */}
-      <div className="flex-grow flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden w-full h-auto lg:h-[calc(100vh-64px)]">
+    <div className="fixed inset-0 z-[120] bg-gray-50 w-screen h-screen overflow-y-auto animate-fade-in font-sans">
+      {/* Full Bleed Body with two columns that flows together */}
+      <div className="flex flex-col lg:flex-row w-full min-h-full p-4 sm:p-6 gap-6 justify-center items-start">
         {/* Left Column: General Content Hub */}
-        <div className="w-full lg:w-[420px] h-[60vh] lg:h-full shrink-0 border-b lg:border-b-0 lg:border-r border-gray-200 bg-white flex flex-col p-4 lg:p-5 space-y-3 lg:space-y-4 shadow-xs relative">
+        <div className="w-full lg:w-[420px] bg-white border border-gray-200 rounded-3xl flex flex-col p-5 space-y-4 shadow-sm relative shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">General Content Hub</label>
@@ -400,28 +376,39 @@ export default function DailyActionWorkspace({
               </div>
             </div>
 
-            {advancedGeneralInput && (
+            <div className="flex items-center gap-2">
+              {advancedGeneralInput && (
+                <button 
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm("Are you sure you want to clear the general text area?")) {
+                      handleGeneralInputChange('');
+                      setSelectedText('');
+                    }
+                  }}
+                  className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-755 transition-colors flex items-center justify-center cursor-pointer border border-red-100"
+                  title="Delete Entire Content"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+
               <button 
                 type="button"
-                onClick={() => {
-                  if (window.confirm("Are you sure you want to clear the general text area?")) {
-                    setAdvancedGeneralInput('');
-                    setSelectedText('');
-                  }
-                }}
-                className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-755 transition-colors flex items-center justify-center cursor-pointer border border-red-100"
-                title="Delete Entire Content"
+                onClick={onClose}
+                className="p-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors flex items-center justify-center cursor-pointer border border-gray-200"
+                title="Exit"
               >
-                <Trash2 size={12} />
+                <X size={12} />
               </button>
-            )}
+            </div>
           </div>
 
           <textarea 
             value={advancedGeneralInput}
-            onChange={e => setAdvancedGeneralInput(e.target.value)}
+            onChange={e => handleGeneralInputChange(e.target.value)}
             onSelect={handleTextareaSelect}
-            className="flex-grow w-full min-h-[280px] lg:min-h-[500px] p-4 bg-white border border-gray-150 rounded-2xl shadow-inner focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-xs font-semibold transition-all placeholder-gray-300 resize-none overflow-y-auto"
+            className="w-full h-[500px] p-4 bg-white border border-gray-150 rounded-2xl shadow-inner focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-sm font-medium transition-all placeholder-gray-300 resize-none overflow-y-auto"
             placeholder="paste or type all your sprint actions steps and other details here...."
           />
 
@@ -447,7 +434,7 @@ export default function DailyActionWorkspace({
                     onClick={() => setSelectedDay(dayNum)}
                     className={`flex-shrink-0 min-w-[54px] h-10 px-2 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer relative ${
                       isSelected
-                        ? 'bg-purple-600 border-purple-600 text-white shadow-md shadow-purple-600/25 scale-102 font-black animate-none'
+                        ? 'bg-purple-600 border-purple-600 text-white shadow-md shadow-purple-600/25 scale-102 font-black'
                         : 'bg-white border-gray-200 text-gray-500 hover:border-purple-300 hover:text-purple-600 font-semibold'
                     }`}
                   >
@@ -463,77 +450,72 @@ export default function DailyActionWorkspace({
           </div>
         </div>
 
-        {/* Right Column: Day Card for currently selected day */}
-        <div className="flex-1 flex flex-col overflow-y-auto lg:overflow-hidden p-4 lg:p-6 bg-gray-50/50">
-          <div className="flex-grow flex flex-col items-center justify-start w-full">
-            {(() => {
-              const dayNum = selectedDay;
-              const dayContent = getDailyContentForDay(dayNum);
-              const activeStepIdx = activeStepIndices[dayNum] !== undefined ? activeStepIndices[dayNum] : 0;
-              const totalSteps = dayContent.taskPrompts?.length || 0;
-              const activeIdx = activeStepIdx < totalSteps ? activeStepIdx : 0;
+        {/* Right Column: Day Card for currently selected day, flows naturally */}
+        <div className="flex-1 w-full max-w-[560px]">
+          {(() => {
+            const dayNum = selectedDay;
+            const dayContent = getDailyContentForDay(dayNum);
+            const activeStepIdx = activeStepIndices[dayNum] !== undefined ? activeStepIndices[dayNum] : 0;
+            const totalSteps = dayContent.taskPrompts?.length || 0;
+            const activeIdx = activeStepIdx < totalSteps ? activeStepIdx : 0;
 
-              const prompt = dayContent.taskPrompts?.[activeIdx] || '';
-              const isLastAssignedPrompt = lastAssignedField === `prompt-${activeIdx}` && selectedDay === dayNum;
-              const isLastAssignedNote = lastAssignedField === `note-${activeIdx}` && selectedDay === dayNum;
-              const isLastAssignedHint = lastAssignedField === `hint-${activeIdx}` && selectedDay === dayNum;
-              const isLastAssignedFootnote = lastAssignedField === `footnote-${activeIdx}` && selectedDay === dayNum;
-              const isLinkedFromPrevious = (activeIdx > 0 && dayContent.taskLinkedToNext?.[activeIdx - 1]) || (Array.isArray(dayContent.taskLinkedSources?.[activeIdx]) && dayContent.taskLinkedSources[activeIdx].length > 0);
+            const prompt = dayContent.taskPrompts?.[activeIdx] || '';
+            const isLastAssignedPrompt = lastAssignedField === `prompt-${activeIdx}` && selectedDay === dayNum;
+            const isLastAssignedNote = lastAssignedField === `note-${activeIdx}` && selectedDay === dayNum;
+            const isLastAssignedHint = lastAssignedField === `hint-${activeIdx}` && selectedDay === dayNum;
+            const isLastAssignedFootnote = lastAssignedField === `footnote-${activeIdx}` && selectedDay === dayNum;
+            const isLinkedFromPrevious = (activeIdx > 0 && dayContent.taskLinkedToNext?.[activeIdx - 1]) || (Array.isArray(dayContent.taskLinkedSources?.[activeIdx]) && dayContent.taskLinkedSources[activeIdx].length > 0);
 
-              const isActiveCard = true;
+            const isActiveCard = true;
 
-              return (
-                <div 
-                  key={dayNum}
-                  className="w-full max-w-[560px] bg-white rounded-3xl border border-purple-400 ring-4 ring-purple-100/50 flex flex-col p-5 sm:p-6 shadow-sm hover:shadow-md transition-all duration-300 h-auto min-h-[440px] lg:h-full overflow-y-visible lg:overflow-y-auto relative text-left select-none"
-                >
-                  {/* Day Header inside Card */}
-                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100 shrink-0">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${isActiveCard ? 'bg-purple-600 animate-pulse' : 'bg-gray-300'}`} />
-                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">
-                          Day {dayNum}
-                        </h3>
-                      </div>
-                    </div>
+            return (
+              <div 
+                key={dayNum}
+                className="w-full bg-white rounded-3xl border border-purple-400 ring-4 ring-purple-100/50 flex flex-col p-5 sm:p-6 shadow-sm hover:shadow-md transition-all duration-300 h-auto relative text-left"
+              >
+                {/* Day Header inside Card - Removed Day 1 Day 2 indicators */}
+                <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${isActiveCard ? 'bg-purple-600' : 'bg-gray-300'}`} />
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Action Steps</span>
+                  </div>
 
-                    {/* Pagination with "+" button next to it */}
-                    <div className="flex items-center gap-1.5 bg-gray-50 p-1 border border-gray-150 rounded-xl">
-                      {Array.from({ length: totalSteps }, (_, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedDay(dayNum);
-                            setActiveStepIndices(prev => ({ ...prev, [dayNum]: idx }));
-                          }}
-                          className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-black transition-all cursor-pointer ${
-                            activeIdx === idx 
-                              ? 'bg-purple-600 text-white shadow-xs scale-105' 
-                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                          }`}
-                        >
-                          {idx + 1}
-                        </button>
-                      ))}
-                      
-                      {/* "+" Button to add step to this card */}
+                  {/* Pagination with "+" button next to it */}
+                  <div className="flex items-center gap-1.5 bg-gray-50 p-1 border border-gray-150 rounded-xl">
+                    {Array.from({ length: totalSteps }, (_, idx) => (
                       <button
+                        key={idx}
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedDay(dayNum);
-                          handleAddStepForDay(dayNum);
+                          setActiveStepIndices(prev => ({ ...prev, [dayNum]: idx }));
                         }}
-                        className="w-5 h-5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200/50 flex items-center justify-center text-xs font-bold transition-all cursor-pointer"
-                        title="Add Action Step"
+                        className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-black transition-all cursor-pointer ${
+                          activeIdx === idx 
+                            ? 'bg-purple-600 text-white shadow-xs scale-105' 
+                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}
                       >
-                        <Plus size={10} strokeWidth={3} />
+                        {idx + 1}
                       </button>
-                    </div>
+                    ))}
+                    
+                    {/* "+" Button to add step to this card */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedDay(dayNum);
+                        handleAddStepForDay(dayNum);
+                      }}
+                      className="w-5 h-5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200/50 flex items-center justify-center text-xs font-bold transition-all cursor-pointer"
+                      title="Add Action Step"
+                    >
+                      <Plus size={10} strokeWidth={3} />
+                    </button>
                   </div>
+                </div>
 
                   {/* Day Action Step edit Workspace inside card */}
                   <div className="flex-grow flex flex-col space-y-4">
@@ -627,7 +609,7 @@ export default function DailyActionWorkspace({
                             handleTaskNoteChange(dayNum, activeIdx, e.target.value);
                           }} 
                           rows={2} 
-                          className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-emerald-105 bg-emerald-50/10 text-gray-700 font-semibold text-xs"} 
+                          className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-emerald-105 bg-emerald-50/10 text-gray-700 font-medium text-sm"} 
                           placeholder="Add a context note..." 
                         />
                       </div>
@@ -660,7 +642,7 @@ export default function DailyActionWorkspace({
                           handleTaskPromptChange(dayNum, activeIdx, e.target.value);
                         }} 
                         rows={2} 
-                        className={smallEditorInputClasses + " p-3 !py-3 w-full font-semibold text-xs"} 
+                        className={smallEditorInputClasses + " p-3 !py-3 w-full font-medium text-sm"} 
                         placeholder={`Describe Action Step ${activeIdx + 1}...`} 
                       />
                     </div>
@@ -920,7 +902,7 @@ export default function DailyActionWorkspace({
                             handleTaskHintChange(dayNum, activeIdx, e.target.value);
                           }} 
                           rows={2} 
-                          className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-amber-100 bg-amber-50/20 text-gray-750 font-semibold"} 
+                          className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-amber-100 bg-amber-50/20 text-gray-750 font-medium text-sm"} 
                           placeholder="Add a hint..." 
                         />
                       </div>
@@ -966,7 +948,7 @@ export default function DailyActionWorkspace({
                             handleTaskFootnoteChange(dayNum, activeIdx, e.target.value);
                           }} 
                           rows={2} 
-                          className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-indigo-100 bg-indigo-50/20 text-gray-750 font-semibold"} 
+                          className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-indigo-100 bg-indigo-50/20 text-gray-750 font-medium text-sm"} 
                           placeholder="Add a footnote..." 
                         />
                       </div>
@@ -1122,7 +1104,6 @@ export default function DailyActionWorkspace({
             })()}
           </div>
         </div>
-      </div>
 
       {onSaveDraft && (
         <button 

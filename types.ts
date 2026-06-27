@@ -243,6 +243,7 @@ export interface Sprint {
   coverImageUrl: string;
   published: boolean;
   deleted?: boolean; 
+  curriculumSource?: string; 
   approvalStatus: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'archived';
   dailyContent: DailyContent[];
   updatedAt?: string;

@@ -746,7 +746,7 @@ const ParticipantDashboard: React.FC = () => {
                         <p className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] leading-none">Step up your Rise</p>
                     </div>
                     <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory no-scrollbar relative">
-                        {/* 1. Read Ignite - Circular card with background image */}
+                        {/* 1. Reignite old flame - Consistent wide card style */}
                         <div 
                             onClick={() => {
                                 if (isStepUpLocked) return;
@@ -766,40 +766,43 @@ const ParticipantDashboard: React.FC = () => {
                                     } as any);
                                 }
                             }}
-                            className={`flex-shrink-0 w-20 h-20 rounded-full shadow-sm select-none text-center snap-start transition-all duration-300 relative overflow-hidden flex items-center justify-center p-2.5 border border-violet-500/10 ${
+                            className={`flex-shrink-0 w-52 h-20 bg-white border border-gray-100 rounded-[1.2rem] px-4 shadow-sm transition-all duration-300 flex items-center gap-3 group snap-start animate-fade-in relative ${
                                 isStepUpLocked 
                                 ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                : 'hover:scale-[1.02] cursor-pointer'
+                                : 'hover:shadow-md hover:border-violet-500/20 cursor-pointer'
                             } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                         >
-                            {/* Backdrop Image & Overlay */}
-                            <img 
-                                src={activeIgnite?.coverImageUrl || "https://images.unsplash.com/photo-1518495973542-4542c06a5843?auto=format&fit=crop&w=300&q=80"} 
-                                className="absolute inset-0 w-full h-full object-cover" 
-                                alt="" 
-                            />
-                            <div className="absolute inset-0 bg-black/50" />
+                            <div className="w-8.5 h-8.5 bg-violet-50 text-violet-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-violet-100/50 group-hover:scale-105 transition-transform duration-300">
+                                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0L5 12V9a1 1 0 011-1h2a1 1 0 011 1v3l4-4h2a1 1 0 011 1v7" />
+                                </svg>
+                            </div>
+                            <div className="min-w-0 text-left">
+                                <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-none group-hover:text-violet-600 transition-colors">Reignite old flame</h4>
+                            </div>
 
                             {!isIgniteChecked && !isStepUpLocked && (
-                                <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-rose-500 rounded-full border border-white ring-2 ring-rose-500/35 animate-pulse z-10" />
+                                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border border-white ring-2 ring-rose-500/35 animate-pulse z-10" />
                             )}
-                            <span className="text-[9px] font-black text-white tracking-wider uppercase leading-tight select-none z-10 relative">
-                                Read Ignite
-                            </span>
                         </div>
 
                         {/* 2. Revisit your Rise */}
                         <Link 
                             to={isStepUpLocked ? "#" : "/profile/archive"} 
                             onClick={(e) => isStepUpLocked && e.preventDefault()}
-                            className={`flex-shrink-0 w-52 h-20 bg-white border border-gray-100 rounded-[1.2rem] px-4 shadow-sm transition-all duration-300 flex items-center justify-center text-center group snap-start animate-fade-in ${
+                            className={`flex-shrink-0 w-52 h-20 bg-white border border-gray-100 rounded-[1.2rem] px-4 shadow-sm transition-all duration-300 flex items-center gap-3 group snap-start animate-fade-in ${
                                 isStepUpLocked 
                                 ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                : 'hover:shadow-md hover:border-[#0E7850]/20 cursor-pointer'
+                                : 'hover:shadow-md hover:border-indigo-500/20 cursor-pointer'
                             } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                         >
-                            <div className="min-w-0">
-                                <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-none group-hover:text-[#0E7850] transition-colors">Revisit your Rise</h4>
+                            <div className="w-8.5 h-8.5 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-indigo-100/50 group-hover:scale-105 transition-transform duration-300">
+                                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div className="min-w-0 text-left">
+                                <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-none group-hover:text-indigo-600 transition-colors">Revisit your Rise</h4>
                             </div>
                         </Link>
 
@@ -807,19 +810,20 @@ const ParticipantDashboard: React.FC = () => {
                         <Link 
                             to={isStepUpLocked ? "#" : "/impact"} 
                             onClick={(e) => isStepUpLocked && e.preventDefault()}
-                            className={`flex-shrink-0 w-52 h-20 bg-emerald-50/40 border border-emerald-100/75 px-4 rounded-[1.2rem] shadow-sm transition-all duration-100 flex items-center gap-3 group snap-start animate-fade-in ${
+                            className={`flex-shrink-0 w-52 h-20 bg-white border border-gray-100 rounded-[1.2rem] px-4 shadow-sm transition-all duration-300 flex items-center gap-3 group snap-start animate-fade-in ${
                                 isStepUpLocked 
                                 ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                : 'hover:shadow-md hover:border-emerald-200/95 cursor-pointer'
+                                : 'hover:shadow-md hover:border-emerald-500/20 cursor-pointer'
                             } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                         >
-                            <div className="w-8.5 h-8.5 bg-[#0E7850]/10 rounded-lg flex items-center justify-center text-[#0E7850] flex-shrink-0 shadow-sm border border-[#0E7850]/10 group-hover:scale-105 transition-transform duration-300">
+                            <div className="w-8.5 h-8.5 bg-emerald-50 text-[#0E7850] rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-emerald-100/50 group-hover:scale-105 transition-transform duration-300">
                                 <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 text-left">
                                 <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-none group-hover:text-[#0E7850] transition-colors">Become a Catalyst</h4>
+                                <span className="text-[9px] font-bold text-gray-400 block mt-1">Help a person rise</span>
                             </div>
                         </Link>
 
