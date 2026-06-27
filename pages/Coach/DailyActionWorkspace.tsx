@@ -1126,8 +1126,13 @@ export default function DailyActionWorkspace({
 
       {onSaveDraft && (
         <button 
+          type="button"
           id="fixed-workspace-save-draft-btn"
-          onClick={onSaveDraft}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onSaveDraft();
+          }}
           disabled={saveStatus === 'saving'}
           className="fixed bottom-6 right-6 z-[250] w-12 h-12 bg-primary text-white rounded-full shadow-2xl hover:bg-primary/95 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer border border-primary/20"
           title="Save Draft"

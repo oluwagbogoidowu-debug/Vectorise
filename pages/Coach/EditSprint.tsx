@@ -1957,7 +1957,12 @@ const EditSprint: React.FC = () => {
               <div className="flex items-center gap-2 sm:gap-3">
                 {!(isAdmin && !isFoundational) && (
                   <button 
-                    onClick={handleSaveDraft} 
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSaveDraft();
+                    }} 
                     disabled={saveStatus === 'saving'}
                     title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : 'Save Draft'}
                     className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm cursor-pointer shrink-0 ${saveStatus === 'saved' ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100' : 'bg-white text-gray-400 border-gray-100 hover:text-primary hover:border-primary/20'}`}
@@ -2147,7 +2152,12 @@ const EditSprint: React.FC = () => {
               <div className="flex items-center gap-2 sm:gap-3">
                 {!(isAdmin && !isFoundational) && (
                   <button 
-                    onClick={handleSaveDraft} 
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSaveDraft();
+                    }} 
                     disabled={saveStatus === 'saving'}
                     title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : 'Save Draft'}
                     className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm cursor-pointer shrink-0 ${saveStatus === 'saved' ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100' : 'bg-white text-gray-400 border-gray-100 hover:text-primary hover:border-primary/20'}`}
@@ -2356,7 +2366,12 @@ const EditSprint: React.FC = () => {
           <div className="flex items-center gap-2 sm:gap-3">
             {!(isAdmin && !isFoundational) && (
               <button 
-                onClick={handleSaveDraft} 
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSaveDraft();
+                }} 
                 disabled={saveStatus === 'saving'}
                 title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : 'Save Draft'}
                 className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm cursor-pointer shrink-0 ${saveStatus === 'saved' ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100' : 'bg-white text-gray-400 border-gray-100 hover:text-primary hover:border-primary/20'}`}
@@ -4683,10 +4698,15 @@ const EditSprint: React.FC = () => {
         totalDays={sprint?.duration}
       />
 
-      {scrolledDown && !(isAdmin && !isFoundational) && (
+      {scrolledDown && !(isAdmin && !isFoundational) && !showAdvancedActionModal && (
         <button 
+          type="button"
           id="fixed-save-draft-btn"
-          onClick={handleSaveDraft}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleSaveDraft();
+          }}
           disabled={saveStatus === 'saving'}
           className="fixed bottom-6 right-6 z-50 w-10 h-10 bg-primary text-white rounded-full shadow-lg hover:bg-primary/95 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer border border-primary/20"
           title="Save Draft"
