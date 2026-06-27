@@ -17,20 +17,16 @@ const processListText = (inputText: string): string => {
   const bulletRegex = /^([↠•→\-\*\+]|->|=>)\s*(.*)$/;
   const numRegex = /^(\d+[\.\)])\s*(.*)$/;
 
-  let insideList = false;
-
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) {
       processedLines.push("");
-      insideList = false;
       continue;
     }
 
     // Check if the line is a thematic break (horizontal rule/divider) like --- or *** or ___
     if (/^(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
       processedLines.push(line);
-      insideList = false;
       continue;
     }
 
@@ -45,14 +41,11 @@ const processListText = (inputText: string): string => {
       if (marker === "=>") displayMarker = "↠";
       
       processedLines.push(`- [bullet:${displayMarker}] ${remaining}`);
-      insideList = true;
     } else if (numMatch) {
       const marker = numMatch[1];
       const remaining = numMatch[2];
       processedLines.push(`- [bullet:${marker}] ${remaining}`);
-      insideList = true;
     } else {
-      insideList = false;
       processedLines.push(line);
     }
   }
@@ -60,23 +53,26 @@ const processListText = (inputText: string): string => {
   let output = "";
   for (let i = 0; i < processedLines.length; i++) {
     const current = processedLines[i];
-    if (current === "") {
-      output += "\n";
+    if (i === 0) {
+      output = current;
       continue;
     }
 
-    if (i > 0) {
-      const prev = processedLines[i - 1];
+    const prev = processedLines[i - 1];
+
+    if (current === "" || prev === "") {
+      output += "\n" + current;
+    } else {
       const isCurrentListItem = current.startsWith("- [bullet:");
-      const isPrevListItem = prev && prev.startsWith("- [bullet:");
+      const isPrevListItem = prev.startsWith("- [bullet:");
 
       if (isCurrentListItem && isPrevListItem) {
         output += "\n" + current;
-      } else {
+      } else if (isCurrentListItem !== isPrevListItem) {
         output += "\n\n" + current;
+      } else {
+        output += "\n" + current;
       }
-    } else {
-      output += current;
     }
   }
 
@@ -185,7 +181,7 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
               </li>
             );
           },
-          p: ({ node, ...props }) => <p className="mb-4 last:mb-0 leading-[1.6]" {...props} />,
+          p: ({ node, ...props }) => <p className="mb-4 last:mb-0 leading-[1.6] whitespace-pre-line" {...props} />,
           hr: ({ node, ...props }) => (
             <hr className="my-8 border-t border-gray-200 w-full" {...props} />
           ),
