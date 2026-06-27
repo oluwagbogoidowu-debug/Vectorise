@@ -379,7 +379,7 @@ export default function DailyActionWorkspace({
       {/* Full Bleed Body with two columns */}
       <div className="flex-grow flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden w-full h-auto lg:h-[calc(100vh-64px)]">
         {/* Left Column: General Content Hub */}
-        <div className="w-full lg:w-[420px] h-[48vh] lg:h-full shrink-0 border-b lg:border-b-0 lg:border-r border-gray-200 bg-white flex flex-col p-4 lg:p-5 space-y-3 lg:space-y-4 shadow-xs">
+        <div className="w-full lg:w-[420px] h-[60vh] lg:h-full shrink-0 border-b lg:border-b-0 lg:border-r border-gray-200 bg-white flex flex-col p-4 lg:p-5 space-y-3 lg:space-y-4 shadow-xs relative">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">General Content Hub</label>
@@ -415,7 +415,7 @@ export default function DailyActionWorkspace({
 
           {/* Selection helper floating widget */}
           {selectedText && (
-            <div className="p-3.5 bg-purple-50 border border-purple-100 rounded-2xl animate-fade-in font-sans">
+            <div className="absolute top-12 lg:top-14 left-4 right-4 lg:left-5 lg:right-5 p-3.5 bg-white/95 backdrop-blur-md border border-purple-200 rounded-2xl animate-fade-in font-sans shadow-lg z-50">
               <div className="flex justify-between items-start gap-3 mb-2">
                 <div className="flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-ping"></span>
@@ -426,13 +426,13 @@ export default function DailyActionWorkspace({
                   onClick={() => {
                     setSelectedText('');
                   }}
-                  className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-550 transition-colors"
+                  className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-550 transition-colors cursor-pointer"
                   title="Dismiss selection"
                 >
                   <X size={10} />
                 </button>
               </div>
-              <blockquote className="text-[11px] text-gray-700 italic bg-white/80 p-2.5 rounded-xl border border-purple-100/50 max-h-20 overflow-y-auto mb-2 pr-2 select-text font-medium leading-relaxed">
+              <blockquote className="text-[11px] text-gray-700 italic bg-purple-50/50 p-2.5 rounded-xl border border-purple-100/30 max-h-20 overflow-y-auto mb-2 pr-2 select-text font-medium leading-relaxed">
                 "{selectedText}"
               </blockquote>
               <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
@@ -445,7 +445,7 @@ export default function DailyActionWorkspace({
             value={advancedGeneralInput}
             onChange={e => setAdvancedGeneralInput(e.target.value)}
             onSelect={handleTextareaSelect}
-            className="flex-grow w-full p-4 bg-white border border-gray-150 rounded-2xl shadow-inner focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-xs font-semibold transition-all placeholder-gray-300 resize-none overflow-y-auto"
+            className="flex-grow w-full min-h-[280px] lg:min-h-[500px] p-4 bg-white border border-gray-150 rounded-2xl shadow-inner focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-xs font-semibold transition-all placeholder-gray-300 resize-none overflow-y-auto"
             placeholder="paste or type all your sprint actions steps and other details here...."
           />
 
