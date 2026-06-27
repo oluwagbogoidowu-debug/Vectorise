@@ -3796,6 +3796,8 @@ const EditSprint: React.FC = () => {
           selectedDay={selectedDay}
           setSelectedDay={setSelectedDay}
           onClose={() => setShowAdvancedActionModal(false)}
+          onSaveDraft={handleSaveDraft}
+          saveStatus={saveStatus}
         />
       )}
 
