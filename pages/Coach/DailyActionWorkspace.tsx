@@ -262,6 +262,14 @@ export default function DailyActionWorkspace({
     updateFieldForDay(dayNum, 'taskPollMultiSelect', multi);
   };
 
+  const handleToggleSpread = (dayNum: number, index: number) => {
+    const dayContent = getDailyContentForDay(dayNum);
+    const spread = [...(dayContent.taskSpread || [])];
+    while (spread.length <= index) spread.push(false);
+    spread[index] = !spread[index];
+    updateFieldForDay(dayNum, 'taskSpread', spread);
+  };
+
   const handleTaskPollOptionChange = (dayNum: number, index: number, optIndex: number, value: string) => {
     const dayContent = getDailyContentForDay(dayNum);
     const options = [...(dayContent.taskPollOptions || [])];
@@ -741,6 +749,27 @@ export default function DailyActionWorkspace({
                             title="Multi Text fields configuration"
                           >
                             <span>Multi Text</span>
+                          </button>
+                        )}
+
+                        {(!dayContent.taskInputTypes?.[activeIdx] || dayContent.taskInputTypes[activeIdx] === 'text') && isLinkedFromPrevious && (
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setSelectedDay(dayNum);
+                              handleToggleSpread(dayNum, activeIdx);
+                            }}
+                            className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskSpread?.[activeIdx]) ? 'bg-purple-100 text-purple-705 border border-purple-200 shadow-xs' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
+                            title="Spread Option: Receive input from previous linked step to edit/revise."
+                          >
+                            {dayContent.taskSpread?.[activeIdx] ? (
+                              <>
+                                <span className="text-[10px] text-purple-600 mr-0.5">●</span>
+                                <span>Spread</span>
+                              </>
+                            ) : (
+                              <span>Spread</span>
+                            )}
                           </button>
                         )}
 

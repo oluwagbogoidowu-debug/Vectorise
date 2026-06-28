@@ -736,6 +736,10 @@ const EditSprint: React.FC = () => {
       ? (content as any).taskPollMultiSelect
       : [];
 
+    const safeSpread = Array.isArray((content as any).taskSpread)
+      ? (content as any).taskSpread
+      : [];
+
     const safeMultiTextLabels = Array.isArray((content as any).taskMultiTextLabels)
       ? (content as any).taskMultiTextLabels
       : [];
@@ -748,6 +752,7 @@ const EditSprint: React.FC = () => {
         taskTagNotes: safeTagNotes,
         taskFootnotes: safeFootnotes,
         taskPollMultiSelect: safePollMultiSelect,
+        taskSpread: safeSpread,
         taskMultiTextLabels: safeMultiTextLabels
     };
   }, [sprint, selectedDay]);
@@ -1395,6 +1400,31 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
+  const handleToggleSpread = (index: number) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        if (existingContentIndex < 0) return prev;
+        
+        let updatedDailyContent = [...prev.dailyContent];
+        let currentSpread = Array.isArray(updatedDailyContent[existingContentIndex].taskSpread)
+            ? [...(updatedDailyContent[existingContentIndex].taskSpread || [])]
+            : [];
+        
+        while (currentSpread.length <= index) {
+            currentSpread.push(false);
+        }
+        currentSpread[index] = !currentSpread[index];
+        
+        updatedDailyContent[existingContentIndex] = {
+            ...updatedDailyContent[existingContentIndex],
+            taskSpread: currentSpread
+        };
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
   const addTaskPrompt = () => {
     setSprint(prev => {
         if (!prev) return null;
@@ -1429,6 +1459,10 @@ const EditSprint: React.FC = () => {
             ? [...(updatedDailyContent[existingContentIndex].taskMultiTextLabels || [])]
             : [];
             
+        let currentSpread = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskSpread || [])]
+            : [];
+            
         currentPrompts.push('');
         currentTypes.push('text');
         currentOptions.push('[]');
@@ -1436,6 +1470,7 @@ const EditSprint: React.FC = () => {
         currentTagNotes.push('{}');
         currentFootnotes.push(null as any);
         currentMultiTextLabels.push(null as any);
+        currentSpread.push(false);
         
         if (existingContentIndex >= 0) {
           updatedDailyContent[existingContentIndex] = { 
@@ -1446,7 +1481,8 @@ const EditSprint: React.FC = () => {
               taskNotes: currentNotes,
               taskTagNotes: currentTagNotes,
               taskFootnotes: currentFootnotes,
-              taskMultiTextLabels: currentMultiTextLabels
+              taskMultiTextLabels: currentMultiTextLabels,
+              taskSpread: currentSpread
           };
         } else {
           updatedDailyContent.push({
@@ -1459,7 +1495,8 @@ const EditSprint: React.FC = () => {
             taskNotes: currentNotes,
             taskTagNotes: currentTagNotes,
             taskFootnotes: currentFootnotes,
-            taskMultiTextLabels: currentMultiTextLabels
+            taskMultiTextLabels: currentMultiTextLabels,
+            taskSpread: currentSpread
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -1510,6 +1547,10 @@ const EditSprint: React.FC = () => {
         let currentMultiTextLabels = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskMultiTextLabels || [])]
             : [];
+
+        let currentSpread = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskSpread || [])]
+            : [];
             
         let deleteCount = 1;
         if (currentLinked[index]) {
@@ -1525,6 +1566,7 @@ const EditSprint: React.FC = () => {
         while (currentTagNotes.length < maxNeeded) currentTagNotes.push('{}');
         while (currentFootnotes.length < maxNeeded) currentFootnotes.push(null as any);
         while (currentMultiTextLabels.length < maxNeeded) currentMultiTextLabels.push(null as any);
+        while (currentSpread.length < maxNeeded) currentSpread.push(false);
 
         let currentLinkedSources = existingContentIndex >= 0 && Array.isArray(updatedDailyContent[existingContentIndex].taskLinkedSources)
             ? updatedDailyContent[existingContentIndex].taskLinkedSources.map(sources => Array.isArray(sources) ? [...sources] : [])
@@ -1547,6 +1589,7 @@ const EditSprint: React.FC = () => {
         currentTagNotes.splice(index, deleteCount);
         currentFootnotes.splice(index, deleteCount);
         currentMultiTextLabels.splice(index, deleteCount);
+        currentSpread.splice(index, deleteCount);
         
         if (index > 0 && currentLinked.length >= index && currentLinked[index - 1]) {
             currentLinked[index - 1] = false;
@@ -1564,6 +1607,7 @@ const EditSprint: React.FC = () => {
             currentTagNotes.push('{}');
             currentFootnotes.push(null as any);
             currentMultiTextLabels.push(null as any);
+            currentSpread.push(false);
             currentLinkedSources.push([]);
         }
         
@@ -1583,6 +1627,7 @@ const EditSprint: React.FC = () => {
               taskTagNotes: currentTagNotes,
               taskFootnotes: currentFootnotes,
               taskMultiTextLabels: currentMultiTextLabels,
+              taskSpread: currentSpread,
               taskLinkedSources: currentLinkedSources
           };
         } else {
@@ -1599,6 +1644,7 @@ const EditSprint: React.FC = () => {
             taskTagNotes: currentTagNotes,
             taskFootnotes: currentFootnotes,
             taskMultiTextLabels: currentMultiTextLabels,
+            taskSpread: currentSpread,
             taskLinkedSources: currentLinkedSources
           });
         }
@@ -2988,6 +3034,26 @@ const EditSprint: React.FC = () => {
                                                                 <>
                                                                     <Plus size={14} />
                                                                     <span>Multi Text</span>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                    {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && isLinkedFromPrevious && (
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => handleToggleSpread(index)}
+                                                            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskSpread?.[index]) ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5 border border-transparent'}`}
+                                                            title="Spread Option: Receive input from previous linked step to edit/revise."
+                                                        >
+                                                            {currentContent.taskSpread?.[index] ? (
+                                                                <>
+                                                                    <span className="text-[10px] text-primary mr-0.5">●</span>
+                                                                    <span>Spread</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Sparkles size={14} />
+                                                                    <span>Spread</span>
                                                                 </>
                                                             )}
                                                         </button>
