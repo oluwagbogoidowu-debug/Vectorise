@@ -893,9 +893,15 @@ const TagInput: React.FC<{
   );
 };
 
-const SprintView: React.FC = () => {
+interface SprintViewProps {
+  isPreview?: boolean;
+  previewSprintId?: string;
+}
+
+const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprintId }) => {
   const { user } = useAuth();
-  const { enrollmentId } = useParams();
+  const { enrollmentId: routeEnrollmentId } = useParams();
+  const enrollmentId = isPreview ? undefined : routeEnrollmentId;
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -933,9 +939,33 @@ const SprintView: React.FC = () => {
   const lastSavedInputsRef = useRef<string>("");
 
   const saveParticipantInputImmediately = async (inputsToSave: string[]) => {
-    if (!enrollment || !user || !inputsToSave || dayProgress?.completed) return;
+    if (!enrollment || !inputsToSave || dayProgress?.completed) return;
     const currentInputsStr = JSON.stringify(inputsToSave);
     if (currentInputsStr === lastSavedInputsRef.current) return;
+
+    if (isPreview) {
+      setEnrollment((prev) => {
+        if (!prev) return null;
+        const updatedProgress = prev.progress.map((p) => {
+          if (p.day === viewingDay) {
+            return {
+              ...p,
+              answers: inputsToSave,
+              submission: inputsToSave.filter((ti) => ti && ti.trim()).join(" | "),
+            };
+          }
+          return p;
+        });
+        return {
+          ...prev,
+          progress: updatedProgress,
+        };
+      });
+      lastSavedInputsRef.current = currentInputsStr;
+      return;
+    }
+
+    if (!user) return;
 
     try {
       const timestamp = new Date().toISOString();
@@ -1265,6 +1295,41 @@ const SprintView: React.FC = () => {
   const dayProgress = enrollment?.progress?.find((p) => p.day === viewingDay);
 
   useEffect(() => {
+    if (isPreview && previewSprintId) {
+      let unsubSprint: (() => void) | undefined;
+      unsubSprint = sprintService.subscribeToSprint(previewSprintId, (found) => {
+        if (found) {
+          const processed = {
+            ...found,
+            dailyContent: (Array.isArray(found.dailyContent) ? found.dailyContent : []).map(c => ({
+              ...c,
+              taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
+            }))
+          };
+          setSprint(processed);
+          setEnrollment((prevMock) => {
+            if (prevMock && prevMock.sprint_id === previewSprintId && prevMock.progress.length === processed.duration) return prevMock;
+            const progress = Array.from({ length: processed.duration || 5 }, (_, i) => ({
+              day: i + 1,
+              completed: false,
+              answers: [],
+              submission: "",
+            }));
+            return {
+              id: "preview-enrollment",
+              sprint_id: previewSprintId,
+              user_id: user?.id || "preview-user",
+              status: "active",
+              progress,
+            } as any;
+          });
+        }
+      });
+      return () => {
+        if (unsubSprint) unsubSprint();
+      };
+    }
+
     if (!enrollmentId) return;
     let unsubSprint: (() => void) | undefined;
     const unsubscribe = sprintService.subscribeToEnrollment(
@@ -1311,7 +1376,7 @@ const SprintView: React.FC = () => {
       unsubscribe();
       if (unsubSprint) unsubSprint();
     };
-  }, [enrollmentId, location.search]);
+  }, [enrollmentId, location.search, isPreview, previewSprintId, user?.id]);
 
   // Clean viewport body scroll locking for full-bleed focus mode
   useEffect(() => {
@@ -1393,7 +1458,7 @@ const SprintView: React.FC = () => {
 
   // Debounced autosave hook for participant inputs
   useEffect(() => {
-    if (!enrollment || !user || !taskInputs || dayProgress?.completed) return;
+    if (!enrollment || !taskInputs || dayProgress?.completed) return;
 
     const currentInputsStr = JSON.stringify(taskInputs);
     // If the inputs haven't actually changed from what is in the database or what we last saved, don't trigger save
@@ -1405,6 +1470,32 @@ const SprintView: React.FC = () => {
       lastSavedInputsRef.current = currentInputsStr;
       return;
     }
+
+    if (isPreview) {
+      const timer = setTimeout(() => {
+        setEnrollment((prev) => {
+          if (!prev) return null;
+          const updatedProgress = prev.progress.map((p) => {
+            if (p.day === viewingDay) {
+              return {
+                ...p,
+                answers: taskInputs,
+                submission: taskInputs.filter((ti) => ti && ti.trim()).join(" | "),
+              };
+            }
+            return p;
+          });
+          return {
+            ...prev,
+            progress: updatedProgress,
+          };
+        });
+        lastSavedInputsRef.current = currentInputsStr;
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+
+    if (!user) return;
 
     const timer = setTimeout(async () => {
       try {
@@ -1529,6 +1620,7 @@ const SprintView: React.FC = () => {
   }, [now, notificationsEnabled, enrollment, sprint]);
 
   const dayLockDetails = useMemo(() => {
+    if (isPreview) return { isLocked: false, unlockTime: 0 };
     if (!enrollment || !sprint || !enrollment.progress)
       return { isLocked: false, unlockTime: 0 };
 
@@ -1680,10 +1772,67 @@ const SprintView: React.FC = () => {
   };
 
   const handleFinishDay = async () => {
-    if (!enrollment || !user || isSubmitting || !enrollment.progress) return;
+    if (!enrollment || isSubmitting || !enrollment.progress) return;
     setIsSubmitting(true);
     try {
       const timestamp = new Date().toISOString();
+
+      if (isPreview) {
+        const isLastDay = viewingDay === enrollment.progress.length;
+        const updatedProgress = enrollment.progress.map((p) =>
+          p.day === viewingDay
+            ? {
+                ...p,
+                completed: true,
+                completedAt: timestamp,
+                submission: taskInputs.filter((ti) => ti.trim()).join(" | "),
+                answers: taskInputs,
+              }
+            : p,
+        );
+
+        setEnrollment((prevMock) => prevMock ? {
+          ...prevMock,
+          progress: updatedProgress,
+          ...(isLastDay && updatedProgress.every((p) => p.completed) ? { completed_at: timestamp, status: 'completed' } : {})
+        } as any : null);
+
+        if (soundEnabled) {
+          try {
+            const audio = new Audio(
+              "https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3",
+            );
+            audio.play().catch((e) => console.error("Sound playback failed:", e));
+          } catch (e) {
+            console.error("Audio initialization failed:", e);
+          }
+        }
+
+        triggerHaptic(hapticPatterns.success);
+
+        if (isLastDay && updatedProgress.every((p) => p.completed)) {
+          setIsCompletionModalOpen(true);
+        } else {
+          setIsDayCompletionModalOpen(true);
+        }
+
+        if (dayContent?.mirrorActive) {
+          if (mirrorTimerRef.current) clearTimeout(mirrorTimerRef.current);
+          mirrorTimerRef.current = setTimeout(() => {
+            setIsDayCompletionModalOpen(false);
+            setIsMirrorReportModalOpen(true);
+          }, 7000);
+        }
+
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!user) {
+        setIsSubmitting(false);
+        return;
+      }
+
       const isLastDay = viewingDay === enrollment.progress.length;
       const updatedProgress = enrollment.progress.map((p) =>
         p.day === viewingDay
@@ -1972,7 +2121,7 @@ const SprintView: React.FC = () => {
         <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => navigate("/dashboard")}
+              onClick={() => isPreview ? navigate(-1) : navigate("/dashboard")}
               className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
             >
               <svg
@@ -1994,80 +2143,88 @@ const SprintView: React.FC = () => {
                 {sprint.title}
               </h1>
             </div>
-            <div className="flex gap-2">
-              <Link
-                to={`/sprint/${sprint.id}`}
-                className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
+            {isPreview ? (
+              <div className="flex items-center shrink-0">
+                <span className="text-[10px] font-black text-[#0E7850] bg-[#0E7850]/10 border border-[#0E7850]/20 px-3 py-1.5 rounded-xl uppercase tracking-wider">
+                  Sprint Preview
+                </span>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Link
+                  to={`/sprint/${sprint.id}`}
+                  className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </Link>
-              <button
-                onClick={() => setIsChatModalOpen(true)}
-                disabled={dayLockDetails.isLocked}
-                className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm transition-all relative ${dayLockDetails.isLocked ? "opacity-40 cursor-not-allowed" : "text-gray-400 active:scale-95"}`}
-                title={
-                  dayLockDetails.isLocked
-                    ? "Complete previous day first"
-                    : "Coaching Chat"
-                }
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </Link>
+                <button
+                  onClick={() => setIsChatModalOpen(true)}
+                  disabled={dayLockDetails.isLocked}
+                  className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm transition-all relative ${dayLockDetails.isLocked ? "opacity-40 cursor-not-allowed" : "text-gray-400 active:scale-95"}`}
+                  title={
+                    dayLockDetails.isLocked
+                      ? "Complete previous day first"
+                      : "Coaching Chat"
+                  }
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  />
-                </svg>
-                {!dayLockDetails.isLocked && hasUnreadMessages && (
-                  <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse"></span>
-                )}
-              </button>
-              <button
-                onClick={() => setIsSettingsModalOpen(true)}
-                className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
-                title="Sprint Settings"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.5}
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    />
+                  </svg>
+                  {!dayLockDetails.isLocked && hasUnreadMessages && (
+                    <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse"></span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setIsSettingsModalOpen(true)}
+                  className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
+                  title="Sprint Settings"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-              </button>
-            </div>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.5}
+                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.5}
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
