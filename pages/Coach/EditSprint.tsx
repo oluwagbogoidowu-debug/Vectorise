@@ -2974,7 +2974,7 @@ const EditSprint: React.FC = () => {
                                                                 .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll'));
                                                             
                                                             const precedingDaysSteps = getPrecedingDaysTagSteps();
-                                                            const showSingleLink = currentContent.taskInputTypes?.[index] === 'tags';
+                                                            const showSingleLink = currentContent.taskInputTypes?.[index] === 'tags' || currentContent.taskInputTypes?.[index] === 'text' || !currentContent.taskInputTypes?.[index];
                                                             const showMultiLink = (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0) && (currentContent.taskInputTypes?.[index] === 'text' || currentContent.taskInputTypes?.[index] === 'poll' || !currentContent.taskInputTypes?.[index]);
                                                             const hasSelectedSources = (currentContent.taskLinkedSources?.[index]?.length || 0) > 0;
 

@@ -689,7 +689,7 @@ export default function DailyActionWorkspace({
                             .filter(item => item.idx < activeIdx && (item.type === 'tags' || item.type === 'poll'));
                           
                           const precedingDaysSteps = getPrecedingDaysTagStepsForDay(dayNum);
-                          const showSingleLink = dayContent.taskInputTypes?.[activeIdx] === 'tags';
+                          const showSingleLink = dayContent.taskInputTypes?.[activeIdx] === 'tags' || dayContent.taskInputTypes?.[activeIdx] === 'text' || !dayContent.taskInputTypes?.[activeIdx];
                           const showMultiLink = (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0) && (dayContent.taskInputTypes?.[activeIdx] === 'text' || dayContent.taskInputTypes?.[activeIdx] === 'poll' || !dayContent.taskInputTypes?.[activeIdx]);
                           const hasSelectedSources = (dayContent.taskLinkedSources?.[activeIdx]?.length || 0) > 0;
 
