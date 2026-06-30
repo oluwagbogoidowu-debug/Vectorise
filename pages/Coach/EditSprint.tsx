@@ -481,12 +481,12 @@ const EditSprint: React.FC = () => {
     sortedContent.forEach(dc => {
         if (dc.day < selectedDay) {
             dc.taskInputTypes?.forEach((type, idx) => {
-                if (type === 'tags' || type === 'poll') {
+                if (type === 'tags' || type === 'poll' || type === 'text' || !type) {
                     const prompt = dc.taskPrompts?.[idx] || dc.taskPrompt || `Step ${idx + 1}`;
                     result.push({
                         day: dc.day,
                         stepIdx: idx,
-                        type,
+                        type: type || 'text',
                         label: `D${dc.day} - Step ${idx + 1}`,
                         prompt
                     });
@@ -2971,7 +2971,7 @@ const EditSprint: React.FC = () => {
                                                         {(() => {
                                                             const precedingTagSteps = (currentContent.taskInputTypes || [])
                                                                 .map((type, idx) => ({ type, idx }))
-                                                                .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll'));
+                                                                .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll' || item.type === 'text' || !item.type));
                                                             
                                                             const precedingDaysSteps = getPrecedingDaysTagSteps();
                                                             const showSingleLink = currentContent.taskInputTypes?.[index] === 'tags' || currentContent.taskInputTypes?.[index] === 'text' || !currentContent.taskInputTypes?.[index];
@@ -3133,7 +3133,7 @@ const EditSprint: React.FC = () => {
                                             {(() => {
                                                 const precedingTagSteps = (currentContent.taskInputTypes || [])
                                                     .map((type, idx) => ({ type, idx }))
-                                                    .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll'));
+                                                    .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll' || item.type === 'text' || !item.type));
                                                 
                                                 const precedingDaysSteps = getPrecedingDaysTagSteps();
                                                 const showSelector = activeLinkSelectorIndex === index && (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0);

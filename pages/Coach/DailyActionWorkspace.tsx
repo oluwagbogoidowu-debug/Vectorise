@@ -343,12 +343,12 @@ export default function DailyActionWorkspace({
     sortedContent.forEach(dc => {
       if (dc.day < day) {
         dc.taskInputTypes?.forEach((type, idx) => {
-          if (type === 'tags' || type === 'poll') {
+          if (type === 'tags' || type === 'poll' || type === 'text' || !type) {
             const prompt = dc.taskPrompts?.[idx] || dc.taskPrompt || `Step ${idx + 1}`;
             result.push({
               day: dc.day,
               stepIdx: idx,
-              type,
+              type: type || 'text',
               label: `D${dc.day} - Step ${idx + 1}`,
               prompt
             });
@@ -686,7 +686,7 @@ export default function DailyActionWorkspace({
                         {(() => {
                           const precedingTagSteps = (dayContent.taskInputTypes || [])
                             .map((type, idx) => ({ type, idx }))
-                            .filter(item => item.idx < activeIdx && (item.type === 'tags' || item.type === 'poll'));
+                            .filter(item => item.idx < activeIdx && (item.type === 'tags' || item.type === 'poll' || item.type === 'text' || !item.type));
                           
                           const precedingDaysSteps = getPrecedingDaysTagStepsForDay(dayNum);
                           const showSingleLink = dayContent.taskInputTypes?.[activeIdx] === 'tags' || dayContent.taskInputTypes?.[activeIdx] === 'text' || !dayContent.taskInputTypes?.[activeIdx];
@@ -807,7 +807,7 @@ export default function DailyActionWorkspace({
                     {(() => {
                       const precedingTagSteps = (dayContent.taskInputTypes || [])
                         .map((type, idx) => ({ type, idx }))
-                        .filter(item => item.idx < activeIdx && (item.type === 'tags' || item.type === 'poll'));
+                        .filter(item => item.idx < activeIdx && (item.type === 'tags' || item.type === 'poll' || item.type === 'text' || !item.type));
                       
                       const precedingDaysSteps = getPrecedingDaysTagStepsForDay(dayNum);
                       const showSelector = activeLinkSelectorIndex === activeIdx && isActiveCard && (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0);
