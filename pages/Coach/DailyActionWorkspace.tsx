@@ -25,6 +25,7 @@ export default function DailyActionWorkspace({
   const [selectedText, setSelectedText] = useState('');
   const [activeStepIndices, setActiveStepIndices] = useState<Record<number, number>>({});
   const [activeLinkSelectorIndex, setActiveLinkSelectorIndex] = useState<number | null>(null);
+  const [activeLinkSelectorType, setActiveLinkSelectorType] = useState<'tag' | 'text' | null>(null);
   const [addingCustomOption, setAddingCustomOption] = useState<Record<number, boolean>>({});
   const [lastAssignedField, setLastAssignedField] = useState<string | null>(null);
 
@@ -689,8 +690,19 @@ export default function DailyActionWorkspace({
                             .filter(item => item.idx < activeIdx && (item.type === 'tags' || item.type === 'poll' || item.type === 'text' || !item.type));
                           
                           const precedingDaysSteps = getPrecedingDaysTagStepsForDay(dayNum);
-                          const showSingleLink = dayContent.taskInputTypes?.[activeIdx] === 'tags' || dayContent.taskInputTypes?.[activeIdx] === 'text' || !dayContent.taskInputTypes?.[activeIdx];
-                          const showMultiLink = (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0) && (dayContent.taskInputTypes?.[activeIdx] === 'text' || dayContent.taskInputTypes?.[activeIdx] === 'poll' || !dayContent.taskInputTypes?.[activeIdx]);
+                          const showSingleLink = dayContent.taskInputTypes?.[activeIdx] === 'tags';
+                          
+                          const precedingTagOnlySteps = precedingTagSteps.filter(item => item.type === 'tags' || item.type === 'poll');
+                          const precedingTextOnlySteps = precedingTagSteps.filter(item => item.type === 'text' || !item.type);
+
+                          const precedingDaysTagOnlySteps = precedingDaysSteps.filter(item => item.type === 'tags' || item.type === 'poll');
+                          const precedingDaysTextOnlySteps = precedingDaysSteps.filter(item => item.type === 'text' || !item.type);
+
+                          const hasPrecedingTags = precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0;
+                          const hasPrecedingTexts = precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
+
+                          const showTagLink = hasPrecedingTags && (dayContent.taskInputTypes?.[activeIdx] === 'text' || dayContent.taskInputTypes?.[activeIdx] === 'poll' || !dayContent.taskInputTypes?.[activeIdx]);
+                          const showTextLink = hasPrecedingTexts && (dayContent.taskInputTypes?.[activeIdx] === 'text' || !dayContent.taskInputTypes?.[activeIdx]);
                           const hasSelectedSources = (dayContent.taskLinkedSources?.[activeIdx]?.length || 0) > 0;
 
                           return (
@@ -702,25 +714,59 @@ export default function DailyActionWorkspace({
                                     setSelectedDay(dayNum);
                                     handleToggleLinkToNext(dayNum, activeIdx);
                                   }}
-                                  title={dayContent.taskLinkedToNext?.[activeIdx] ? "Link Active: Connected to the exact next step." : "Link Step: Link this to feed its tags as active choices for next step."}
+                                  title={dayContent.taskLinkedToNext?.[activeIdx] ? "Link Active: This step is linked to dynamically populate choices or follow-ups for the exact next step. Click to disconnect." : "Link Step: Link this step to feed its selected tags/options as active choices or follow-ups for the exact next question."}
                                   className={`p-1 rounded-md transition-all flex items-center justify-center ${dayContent.taskLinkedToNext?.[activeIdx] ? 'bg-purple-600 text-white shadow-sm' : 'bg-gray-150 text-gray-400 hover:text-gray-650'}`}
                                 >
                                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
                                 </button>
                               )}
-                              {showMultiLink && (
+                              {showTagLink && (
                                 <button 
                                   type="button"
                                   onClick={() => {
                                     setSelectedDay(dayNum);
-                                    setActiveLinkSelectorIndex(activeLinkSelectorIndex === activeIdx ? null : activeIdx);
+                                    if (activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'tag') {
+                                      setActiveLinkSelectorIndex(null);
+                                    } else {
+                                      setActiveLinkSelectorIndex(activeIdx);
+                                      setActiveLinkSelectorType('tag');
+                                    }
                                   }}
-                                  title={hasSelectedSources ? `Connected to ${dayContent.taskLinkedSources?.[activeIdx]?.length} preceding step(s).` : "Link Sources: Pull selected options from previous steps."}
-                                  className={`p-1 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === activeIdx ? 'bg-purple-650 text-white shadow-sm ring-2 ring-purple-100' : hasSelectedSources ? 'bg-purple-100 text-purple-700 border border-purple-200 font-bold' : 'bg-gray-150 text-gray-400 hover:text-gray-650'}`}
+                                  title={hasSelectedSources ? `Connected to ${dayContent.taskLinkedSources?.[activeIdx]?.length} preceding step(s). Click to configure or link more dynamic tag/poll source questions.` : "Link Tag Sources: Pull selected labels/options from previous tag/poll steps to populate this question dynamically."}
+                                  className={`p-1 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'tag' ? 'bg-purple-650 text-white shadow-sm ring-2 ring-purple-100' : hasSelectedSources ? 'bg-purple-100 text-purple-700 border border-purple-200 font-bold' : 'bg-gray-150 text-gray-400 hover:text-gray-650'}`}
                                 >
-                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M6 20h.01M21 12.1a1 1 0 01-.29.7l-7 7a1 1 0 01-1.4 0l-7-7A1 1 0 015 12.1V5a2 2 0 012-2h7.1a1 1 0 01.7.3l7 7a1 1 0 01.29.7z" />
+                                  </svg>
                                   {hasSelectedSources && (
                                     <span className="ml-0.5 text-[9px] font-black bg-purple-600 text-white rounded-full px-1 min-w-[12px]">
+                                      {dayContent.taskLinkedSources?.[activeIdx]?.length}
+                                    </span>
+                                  )}
+                                </button>
+                              )}
+                              {showTextLink && (
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDay(dayNum);
+                                    if (activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'text') {
+                                      setActiveLinkSelectorIndex(null);
+                                    } else {
+                                      setActiveLinkSelectorIndex(activeIdx);
+                                      setActiveLinkSelectorType('text');
+                                    }
+                                  }}
+                                  title={hasSelectedSources ? `Connected to ${dayContent.taskLinkedSources?.[activeIdx]?.length} preceding step(s). Click to configure or link more text source questions.` : "Text to Text Link: Pull responses from previous text steps to auto-spread/fill this question."}
+                                  className={`p-1 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'text' ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/20' : hasSelectedSources ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 font-bold' : 'bg-emerald-50/50 text-emerald-500 border border-emerald-100 hover:bg-emerald-100/80 hover:text-emerald-600'}`}
+                                >
+                                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="4 7 4 4 20 4 20 7" />
+                                    <line x1="9" y1="20" x2="15" y2="20" />
+                                    <line x1="12" y1="4" x2="12" y2="20" />
+                                  </svg>
+                                  {hasSelectedSources && (
+                                    <span className="ml-0.5 text-[9px] font-black bg-emerald-600 text-white rounded-full px-1 min-w-[12px]">
                                       {dayContent.taskLinkedSources?.[activeIdx]?.length}
                                     </span>
                                   )}
@@ -805,11 +851,28 @@ export default function DailyActionWorkspace({
 
                     {/* Multi-Link selector inside card */}
                     {(() => {
-                      const precedingTagSteps = (dayContent.taskInputTypes || [])
+                      const rawPrecedingSteps = (dayContent.taskInputTypes || [])
                         .map((type, idx) => ({ type, idx }))
                         .filter(item => item.idx < activeIdx && (item.type === 'tags' || item.type === 'poll' || item.type === 'text' || !item.type));
                       
-                      const precedingDaysSteps = getPrecedingDaysTagStepsForDay(dayNum);
+                      const rawPrecedingDaysSteps = getPrecedingDaysTagStepsForDay(dayNum);
+
+                      const precedingTagSteps = rawPrecedingSteps.filter(item => {
+                        if (activeLinkSelectorType === 'tag') {
+                          return item.type === 'tags' || item.type === 'poll';
+                        } else {
+                          return item.type === 'text' || !item.type;
+                        }
+                      });
+
+                      const precedingDaysSteps = rawPrecedingDaysSteps.filter(item => {
+                        if (activeLinkSelectorType === 'tag') {
+                          return item.type === 'tags' || item.type === 'poll';
+                        } else {
+                          return item.type === 'text' || !item.type;
+                        }
+                      });
+
                       const showSelector = activeLinkSelectorIndex === activeIdx && isActiveCard && (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0);
                       
                       if (showSelector) {
@@ -819,7 +882,7 @@ export default function DailyActionWorkspace({
                         return (
                           <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-xl animate-fade-in relative z-30 space-y-2 text-left text-[11px]">
                             <div className="text-[9px] font-black text-gray-550 uppercase tracking-wider flex items-center justify-between">
-                              <span>Link Source Steps:</span>
+                              <span>{activeLinkSelectorType === 'tag' ? "Link choices/options from preceding tag/poll steps:" : "Link dynamic responses from preceding text steps:"}</span>
                               {((dayContent.taskLinkedSources?.[activeIdx]?.length || 0) > 0) && (
                                 <button 
                                   type="button" 

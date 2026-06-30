@@ -294,6 +294,7 @@ const EditSprint: React.FC = () => {
   const [previewTaskIndex, setPreviewTaskIndex] = useState(0);
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
   const [activeLinkSelectorIndex, setActiveLinkSelectorIndex] = useState<number | null>(null);
+  const [activeLinkSelectorType, setActiveLinkSelectorType] = useState<'tag' | 'text' | null>(null);
   const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
   const [addingCustomOption, setAddingCustomOption] = useState<Record<number, boolean>>({});
   const [expandedStepEarlierDays, setExpandedStepEarlierDays] = useState<Record<number, boolean>>({});
@@ -2974,8 +2975,20 @@ const EditSprint: React.FC = () => {
                                                                 .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll' || item.type === 'text' || !item.type));
                                                             
                                                             const precedingDaysSteps = getPrecedingDaysTagSteps();
-                                                            const showSingleLink = currentContent.taskInputTypes?.[index] === 'tags' || currentContent.taskInputTypes?.[index] === 'text' || !currentContent.taskInputTypes?.[index];
-                                                            const showMultiLink = (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0) && (currentContent.taskInputTypes?.[index] === 'text' || currentContent.taskInputTypes?.[index] === 'poll' || !currentContent.taskInputTypes?.[index]);
+                                                            const showSingleLink = currentContent.taskInputTypes?.[index] === 'tags';
+                                                            
+                                                            const precedingTagOnlySteps = precedingTagSteps.filter(item => item.type === 'tags' || item.type === 'poll');
+                                                            const precedingTextOnlySteps = precedingTagSteps.filter(item => item.type === 'text' || !item.type);
+
+                                                            const precedingDaysTagOnlySteps = precedingDaysSteps.filter(item => item.type === 'tags' || item.type === 'poll');
+                                                            const precedingDaysTextOnlySteps = precedingDaysSteps.filter(item => item.type === 'text' || !item.type);
+
+                                                            const hasPrecedingTags = precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0;
+                                                            const hasPrecedingTexts = precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
+
+                                                            const showTagLink = hasPrecedingTags && (currentContent.taskInputTypes?.[index] === 'text' || currentContent.taskInputTypes?.[index] === 'poll' || !currentContent.taskInputTypes?.[index]);
+                                                            const showTextLink = hasPrecedingTexts && (currentContent.taskInputTypes?.[index] === 'text' || !currentContent.taskInputTypes?.[index]);
+                                                            
                                                             const hasSelectedSources = (currentContent.taskLinkedSources?.[index]?.length || 0) > 0;
 
                                                             return (
@@ -2990,16 +3003,47 @@ const EditSprint: React.FC = () => {
                                                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
                                                                         </button>
                                                                     )}
-                                                                    {showMultiLink && (
+                                                                    {showTagLink && (
                                                                         <button 
                                                                             type="button"
-                                                                            onClick={() => setActiveLinkSelectorIndex(activeLinkSelectorIndex === index ? null : index)}
-                                                                            title={hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding step(s). Click to configure or link more dynamic source questions.` : "Link Sources: Pull selected labels/options from previous steps to populate this question dynamically."}
-                                                                            className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20' : hasSelectedSources ? 'bg-primary/20 text-primary border border-primary/30 font-bold' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                                                            onClick={() => {
+                                                                                if (activeLinkSelectorIndex === index && activeLinkSelectorType === 'tag') {
+                                                                                    setActiveLinkSelectorIndex(null);
+                                                                                } else {
+                                                                                    setActiveLinkSelectorIndex(index);
+                                                                                    setActiveLinkSelectorType('tag');
+                                                                                }
+                                                                            }}
+                                                                            title={hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding step(s). Click to configure or link more dynamic tag/poll source questions.` : "Link Tag Sources: Pull selected labels/options from previous tag/poll steps to populate this question dynamically."}
+                                                                            className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index && activeLinkSelectorType === 'tag' ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20' : hasSelectedSources ? 'bg-primary/20 text-primary border border-primary/30 font-bold' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
                                                                         >
-                                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M6 20h.01M21 12.1a1 1 0 01-.29.7l-7 7a1 1 0 01-1.4 0l-7-7A1 1 0 015 12.1V5a2 2 0 012-2h7.1a1 1 0 01.7.3l7 7a1 1 0 01.29.7z" />
+                                                                            </svg>
                                                                             {hasSelectedSources && (
                                                                                 <span className="ml-1 text-[10px] font-black bg-primary text-white rounded-full px-1 min-w-[14px]">
+                                                                                    {currentContent.taskLinkedSources?.[index]?.length}
+                                                                                </span>
+                                                                            )}
+                                                                        </button>
+                                                                    )}
+                                                                    {showTextLink && (
+                                                                        <button 
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                if (activeLinkSelectorIndex === index && activeLinkSelectorType === 'text') {
+                                                                                    setActiveLinkSelectorIndex(null);
+                                                                                } else {
+                                                                                    setActiveLinkSelectorIndex(index);
+                                                                                    setActiveLinkSelectorType('text');
+                                                                                }
+                                                                            }}
+                                                                            title={hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding step(s). Click to configure or link more text source questions.` : "Text to Text Link: Pull responses from previous text steps to auto-spread/fill this question."}
+                                                                            className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index && activeLinkSelectorType === 'text' ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/20' : hasSelectedSources ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 font-bold' : 'bg-emerald-50/50 text-emerald-500 border border-emerald-100 hover:bg-emerald-100/80 hover:text-emerald-600'}`}
+                                                                        >
+                                                                            <TypeIcon className="w-4 h-4" />
+                                                                            {hasSelectedSources && (
+                                                                                <span className="ml-1 text-[10px] font-black bg-emerald-600 text-white rounded-full px-1 min-w-[14px]">
                                                                                     {currentContent.taskLinkedSources?.[index]?.length}
                                                                                 </span>
                                                                             )}
@@ -3131,11 +3175,28 @@ const EditSprint: React.FC = () => {
                                             </div>
                                             {/* Multi-Link selector interface */}
                                             {(() => {
-                                                const precedingTagSteps = (currentContent.taskInputTypes || [])
+                                                const rawPrecedingSteps = (currentContent.taskInputTypes || [])
                                                     .map((type, idx) => ({ type, idx }))
                                                     .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll' || item.type === 'text' || !item.type));
                                                 
-                                                const precedingDaysSteps = getPrecedingDaysTagSteps();
+                                                const rawPrecedingDaysSteps = getPrecedingDaysTagSteps();
+
+                                                const precedingTagSteps = rawPrecedingSteps.filter(item => {
+                                                    if (activeLinkSelectorType === 'tag') {
+                                                        return item.type === 'tags' || item.type === 'poll';
+                                                     } else {
+                                                         return item.type === 'text' || !item.type;
+                                                     }
+                                                 });
+
+                                                const precedingDaysSteps = rawPrecedingDaysSteps.filter(item => {
+                                                    if (activeLinkSelectorType === 'tag') {
+                                                        return item.type === 'tags' || item.type === 'poll';
+                                                     } else {
+                                                         return item.type === 'text' || !item.type;
+                                                     }
+                                                 });
+
                                                 const showSelector = activeLinkSelectorIndex === index && (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0);
                                                 
                                                 if (showSelector) {
@@ -3148,7 +3209,7 @@ const EditSprint: React.FC = () => {
                                                     return (
                                                         <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-xl animate-fade-in relative z-30 space-y-3 text-left">
                                                             <div className="text-[10px] font-black text-gray-500 uppercase tracking-wider flex items-center justify-between">
-                                                                <span>Link this question to receive tags/options from preceding steps:</span>
+                                                                <span>{activeLinkSelectorType === 'tag' ? "Link this question to receive choices/options from preceding tag/poll steps:" : "Link this question to pull dynamic content/responses from preceding text steps:"}</span>
                                                                 {((currentContent.taskLinkedSources?.[index]?.length || 0) > 0) && (
                                                                     <button 
                                                                         type="button" 
