@@ -355,11 +355,7 @@ const SprintPreview: React.FC = () => {
     };
 
     const isLinkedTextStep = (stepIndex: number): boolean => {
-        if (!day1Content) return false;
-        if (day1Content.taskTagNoteActive?.[stepIndex]) return false;
-        const type = String(day1Content.taskInputTypes?.[stepIndex] || "").trim().toLowerCase();
-        const isText = type === "text" || type === "" || type === "undefined";
-        return isText && getLinkedTagsForStep(stepIndex).length > 0;
+        return false;
     };
 
     const isMultiTextStep = (stepIndex: number): boolean => {
