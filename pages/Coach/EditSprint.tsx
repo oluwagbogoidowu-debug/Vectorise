@@ -2983,10 +2983,10 @@ const EditSprint: React.FC = () => {
                                                             const precedingDaysTagOnlySteps = precedingDaysSteps.filter(item => item.type === 'tags' || item.type === 'poll');
                                                             const precedingDaysTextOnlySteps = precedingDaysSteps.filter(item => item.type === 'text' || !item.type);
 
-                                                            const hasPrecedingTags = precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0;
+                                                            const hasPrecedingForTagLink = precedingTagSteps.length > 0 || precedingDaysSteps.length > 0;
                                                             const hasPrecedingTexts = precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
 
-                                                            const showTagLink = hasPrecedingTags && (currentContent.taskInputTypes?.[index] === 'text' || currentContent.taskInputTypes?.[index] === 'poll' || !currentContent.taskInputTypes?.[index]);
+                                                            const showTagLink = hasPrecedingForTagLink && (currentContent.taskInputTypes?.[index] === 'tags' || currentContent.taskInputTypes?.[index] === 'poll');
                                                             const showTextLink = hasPrecedingTexts && (currentContent.taskInputTypes?.[index] === 'text' || !currentContent.taskInputTypes?.[index]);
                                                             
                                                             const hasSelectedSources = (currentContent.taskLinkedSources?.[index]?.length || 0) > 0;
@@ -3183,7 +3183,7 @@ const EditSprint: React.FC = () => {
 
                                                 const precedingTagSteps = rawPrecedingSteps.filter(item => {
                                                     if (activeLinkSelectorType === 'tag') {
-                                                        return item.type === 'tags' || item.type === 'poll';
+                                                        return true;
                                                      } else {
                                                          return item.type === 'text' || !item.type;
                                                      }
@@ -3191,7 +3191,7 @@ const EditSprint: React.FC = () => {
 
                                                 const precedingDaysSteps = rawPrecedingDaysSteps.filter(item => {
                                                     if (activeLinkSelectorType === 'tag') {
-                                                        return item.type === 'tags' || item.type === 'poll';
+                                                        return true;
                                                      } else {
                                                          return item.type === 'text' || !item.type;
                                                      }

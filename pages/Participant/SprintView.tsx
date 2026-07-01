@@ -8,6 +8,7 @@ import {
   MicroSelector,
   MicroSelectorStep,
   CoachingComment,
+  Coach,
 } from "../../types";
 import { useAuth } from "../../contexts/AuthContext";
 import { sprintService } from "../../services/sprintService";
@@ -28,8 +29,9 @@ import ConfirmModal from "../../components/ConfirmModal";
 import { Participant } from "../../types";
 import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings } from "../../utils/haptics";
 
+import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
-import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell } from "lucide-react";
+import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X } from "lucide-react";
 import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
 import { offlineSyncService } from "../../services/offlineSyncService";
 import { motion, AnimatePresence } from "motion/react";
@@ -893,6 +895,39 @@ const TagInput: React.FC<{
   );
 };
 
+const SprintCardModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  sprint: Sprint | null;
+  coach: Coach | null;
+}> = ({ isOpen, onClose, sprint, coach }) => {
+  if (!isOpen || !sprint) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white rounded-[2rem] max-w-sm w-full p-6 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] animate-slide-up">
+        {/* Header */}
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+          <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest">
+            Sprint Card Preview
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="overflow-y-auto flex-1 py-2 custom-scrollbar">
+          <SprintCard sprint={sprint} coach={coach || ({} as Coach)} isStatic={true} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface SprintViewProps {
   isPreview?: boolean;
   previewSprintId?: string;
@@ -915,6 +950,21 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [isMirrorReportModalOpen, setIsMirrorReportModalOpen] = useState(false);
   const mirrorTimerRef = useRef<any>(null);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [coach, setCoach] = useState<Coach | null>(null);
+  const [isSprintCardModalOpen, setIsSprintCardModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (sprint?.coachId) {
+      userService.getCoaches().then((allCoaches) => {
+        const foundCoach = allCoaches.find(c => c.id === sprint.coachId);
+        if (foundCoach) {
+          setCoach(foundCoach);
+        }
+      }).catch(err => {
+        console.error("Error fetching coaches:", err);
+      });
+    }
+  }, [sprint?.coachId]);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
   const [isPushPermissionModalOpen, setIsPushPermissionModalOpen] =
@@ -1178,11 +1228,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   };
 
   const isLinkedTextStep = (stepIndex: number): boolean => {
-    if (!dayContent) return false;
-    if (dayContent.taskTagNoteActive?.[stepIndex]) return false;
-    const type = String(dayContent.taskInputTypes?.[stepIndex] || "").trim().toLowerCase();
-    const isText = type === "text" || type === "" || type === "undefined";
-    return isText && getLinkedTagsForStep(stepIndex).length > 0;
+    return false;
   };
 
   const isMultiTextStep = (stepIndex: number): boolean => {
@@ -1276,21 +1322,26 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   };
 
   useEffect(() => {
-    if (!dayContent || !dayContent.taskSpread?.[activeTaskIndex]) return;
+    if (!dayContent || !taskInputs) return;
     
-    const currentValue = taskInputs[activeTaskIndex];
-    if (!currentValue || currentValue.trim() === "") {
-      const spreadValue = getSpreadTextForLoadedInputs(activeTaskIndex, taskInputs);
-      if (spreadValue && spreadValue.trim() !== "") {
-        setTaskInputs(prev => {
-          if (prev[activeTaskIndex] === spreadValue) return prev;
-          const updated = [...prev];
-          updated[activeTaskIndex] = spreadValue;
-          return updated;
-        });
+    const type = String(dayContent.taskInputTypes?.[activeTaskIndex] || "").trim().toLowerCase();
+    const isText = type === "text" || type === "" || type === "undefined";
+    
+    if (isText && !isMultiTextStep(activeTaskIndex)) {
+      const currentValue = taskInputs[activeTaskIndex];
+      if (!currentValue || currentValue.trim() === "") {
+        const spreadValue = getSpreadTextForLoadedInputs(activeTaskIndex, taskInputs);
+        if (spreadValue && spreadValue.trim() !== "") {
+          setTaskInputs(prev => {
+            if (prev[activeTaskIndex] === spreadValue) return prev;
+            const updated = [...prev];
+            updated[activeTaskIndex] = spreadValue;
+            return updated;
+          });
+        }
       }
     }
-  }, [activeTaskIndex, dayContent?.taskSpread, taskInputs]);
+  }, [activeTaskIndex, dayContent, taskInputs]);
 
   const dayProgress = enrollment?.progress?.find((p) => p.day === viewingDay);
 
@@ -2144,10 +2195,50 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               </h1>
             </div>
             {isPreview ? (
-              <div className="flex items-center shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
                 <span className="text-[10px] font-black text-[#0E7850] bg-[#0E7850]/10 border border-[#0E7850]/20 px-3 py-1.5 rounded-xl uppercase tracking-wider">
                   Sprint Preview
                 </span>
+                <Link
+                  to={`/sprint/${sprint.id}`}
+                  className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all flex items-center justify-center"
+                  title="Sprint Description"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setIsSprintCardModalOpen(true)}
+                  className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                  title="Sprint Card"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" fill="none" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M7 8h10M7 12h10M7 16h6"
+                    />
+                  </svg>
+                </button>
               </div>
             ) : (
               <div className="flex gap-2">
@@ -2526,27 +2617,79 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               )}
                               {!dayProgress?.completed &&
                                 (dayContent.taskInputTypes?.[i] === "tags" ? (
-                                  <TagInput
-                                    value={taskInputs[i]}
-                                    onChange={(newVal) => {
-                                      const newInputs = [...taskInputs];
-                                      newInputs[i] = newVal;
-                                      setTaskInputs(newInputs);
-                                    }}
-                                    onNext={() => {
-                                      const tagsVal = taskInputs[i];
-                                      const isValid = !!tagsVal && tagsVal !== "[]" && tagsVal !== "";
-                                      if (isValid) {
-                                        if (i < (dayContent.taskPrompts?.length || 0) - 1) {
-                                          saveParticipantInputImmediately(taskInputs);
-                                          setActiveTaskIndex(i + 1);
-                                        } else if (isProofMet) {
-                                          handleFinishDay();
+                                  <div className="space-y-3">
+                                    <TagInput
+                                      value={taskInputs[i]}
+                                      onChange={(newVal) => {
+                                        const newInputs = [...taskInputs];
+                                        newInputs[i] = newVal;
+                                        setTaskInputs(newInputs);
+                                      }}
+                                      onNext={() => {
+                                        const tagsVal = taskInputs[i];
+                                        const isValid = !!tagsVal && tagsVal !== "[]" && tagsVal !== "";
+                                        if (isValid) {
+                                          if (i < (dayContent.taskPrompts?.length || 0) - 1) {
+                                            saveParticipantInputImmediately(taskInputs);
+                                            setActiveTaskIndex(i + 1);
+                                          } else if (isProofMet) {
+                                            handleFinishDay();
+                                          }
                                         }
-                                      }
-                                    }}
-                                    placeholder="Type and press Enter to add tags..."
-                                  />
+                                      }}
+                                      placeholder="Type and press Enter to add tags..."
+                                    />
+                                    {(() => {
+                                      const linkedTags = getLinkedTagsForStep(i);
+                                      if (linkedTags.length === 0) return null;
+                                      
+                                      let selectedTags: string[] = [];
+                                      try {
+                                        if (taskInputs[i] && taskInputs[i].startsWith("[")) {
+                                          selectedTags = JSON.parse(taskInputs[i]);
+                                        } else if (taskInputs[i]) {
+                                          selectedTags = taskInputs[i].split(",").map(t => t.trim()).filter(Boolean);
+                                        }
+                                      } catch (e) {}
+
+                                      return (
+                                        <div className="pt-2 animate-fade-in text-left">
+                                          <p className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest mb-2">
+                                            🏷️ Connected Choices (Click to Toggle):
+                                          </p>
+                                          <div className="flex flex-wrap gap-1.5">
+                                            {linkedTags.map((tag, tagIndex) => {
+                                              const isSel = selectedTags.some(t => t.toLowerCase() === tag.toLowerCase());
+                                              return (
+                                                <button
+                                                  key={tagIndex}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    let newTags: string[];
+                                                    if (isSel) {
+                                                      newTags = selectedTags.filter(t => t.toLowerCase() !== tag.toLowerCase());
+                                                    } else {
+                                                      newTags = [...selectedTags, tag];
+                                                    }
+                                                    const newInputs = [...taskInputs];
+                                                    newInputs[i] = JSON.stringify(newTags);
+                                                    setTaskInputs(newInputs);
+                                                  }}
+                                                  className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border cursor-pointer ${
+                                                    isSel 
+                                                      ? "bg-[#0E7850] text-white border-[#0E7850] shadow-md" 
+                                                      : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-750"
+                                                  }`}
+                                                >
+                                                  {tag}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
                                 ) : dayContent.taskInputTypes?.[i] === "note" ? (
                                   <div className="space-y-4 animate-fade-in text-left">
                                     <div className="p-4 bg-emerald-500/10 border border-emerald-500/15 rounded-2xl flex items-center gap-3">
@@ -3780,6 +3923,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         confirmText="Confirm Check-in"
         cancelText="Wait, not yet"
         variant="success"
+      />
+      <SprintCardModal
+        isOpen={isSprintCardModalOpen}
+        onClose={() => setIsSprintCardModalOpen(false)}
+        sprint={sprint}
+        coach={coach}
       />
     </>
   );

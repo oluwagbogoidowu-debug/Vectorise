@@ -698,10 +698,10 @@ export default function DailyActionWorkspace({
                           const precedingDaysTagOnlySteps = precedingDaysSteps.filter(item => item.type === 'tags' || item.type === 'poll');
                           const precedingDaysTextOnlySteps = precedingDaysSteps.filter(item => item.type === 'text' || !item.type);
 
-                          const hasPrecedingTags = precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0;
+                          const hasPrecedingForTagLink = precedingTagSteps.length > 0 || precedingDaysSteps.length > 0;
                           const hasPrecedingTexts = precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
 
-                          const showTagLink = hasPrecedingTags && (dayContent.taskInputTypes?.[activeIdx] === 'text' || dayContent.taskInputTypes?.[activeIdx] === 'poll' || !dayContent.taskInputTypes?.[activeIdx]);
+                          const showTagLink = hasPrecedingForTagLink && (dayContent.taskInputTypes?.[activeIdx] === 'tags' || dayContent.taskInputTypes?.[activeIdx] === 'poll');
                           const showTextLink = hasPrecedingTexts && (dayContent.taskInputTypes?.[activeIdx] === 'text' || !dayContent.taskInputTypes?.[activeIdx]);
                           const hasSelectedSources = (dayContent.taskLinkedSources?.[activeIdx]?.length || 0) > 0;
 
@@ -859,7 +859,7 @@ export default function DailyActionWorkspace({
 
                       const precedingTagSteps = rawPrecedingSteps.filter(item => {
                         if (activeLinkSelectorType === 'tag') {
-                          return item.type === 'tags' || item.type === 'poll';
+                          return true;
                         } else {
                           return item.type === 'text' || !item.type;
                         }
@@ -867,7 +867,7 @@ export default function DailyActionWorkspace({
 
                       const precedingDaysSteps = rawPrecedingDaysSteps.filter(item => {
                         if (activeLinkSelectorType === 'tag') {
-                          return item.type === 'tags' || item.type === 'poll';
+                          return true;
                         } else {
                           return item.type === 'text' || !item.type;
                         }
