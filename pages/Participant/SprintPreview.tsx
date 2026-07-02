@@ -225,19 +225,15 @@ const SprintPreview: React.FC = () => {
     }, [isLoading]);
 
     useEffect(() => {
-        const fetchSprint = async () => {
-            if (!sprintId) return;
-            setIsLoading(true);
-            try {
-                const data = await sprintService.getSprintById(sprintId);
-                setSprint(data);
-            } catch (err) {
-                console.error("Error fetching sprint for preview:", err);
-            } finally {
-                setIsLoading(false);
-            }
+        if (!sprintId) return;
+        setIsLoading(true);
+        const unsubscribe = sprintService.subscribeToSprint(sprintId, (data) => {
+            setSprint(data);
+            setIsLoading(false);
+        });
+        return () => {
+            unsubscribe();
         };
-        fetchSprint();
     }, [sprintId]);
 
     // Sync Horizontal Scroll Container offset on activeTaskIndex changes

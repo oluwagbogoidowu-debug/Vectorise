@@ -193,22 +193,79 @@ export const sprintService = {
 
     subscribeToSprint: (sprintId: string, callback: (sprint: Sprint | null) => void) => {
         const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
-        return onSnapshot(detailsRef, async (detailsSnap) => {
-            if (!detailsSnap.exists()) {
+        const daysCollectionRef = collection(db, SPRINTS_COLLECTION, sprintId, 'days');
+        
+        let latestDetails: any = null;
+        let latestDays: Record<number, any> = {};
+        let isParentFallback = false;
+
+        const emitMerged = () => {
+            if (!latestDetails) return;
+            
+            const dailyContent: any[] = [];
+            const dayNums = Object.keys(latestDays).map(Number).sort((a, b) => a - b);
+            
+            dayNums.forEach(d => {
+                dailyContent.push({ day: d, ...latestDays[d] });
+            });
+
+            const mergedSprint = {
+                ...latestDetails,
+                dailyContent
+            };
+            
+            callback(deserializeSprint(mergedSprint));
+        };
+
+        // Listen to sprint details
+        const unsubDetails = onSnapshot(detailsRef, async (detailsSnap) => {
+            if (detailsSnap.exists()) {
+                latestDetails = { id: sprintId, ...cleanDetailsData(detailsSnap.data()) };
+                emitMerged();
+            } else {
                 // Try parent fallback if it is not migrated yet
-                const parentSnap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId));
-                if (!parentSnap.exists()) {
+                const parentRef = doc(db, SPRINTS_COLLECTION, sprintId);
+                const parentSnap = await getDoc(parentRef);
+                if (parentSnap.exists()) {
+                    isParentFallback = true;
+                    latestDetails = { id: sprintId, ...cleanDetailsData(parentSnap.data()) };
+                    if (Array.isArray(latestDetails.dailyContent)) {
+                        latestDetails.dailyContent.forEach((day: any) => {
+                            if (day && typeof day.day !== 'undefined') {
+                                latestDays[day.day] = day;
+                            }
+                        });
+                    }
+                    emitMerged();
+                } else {
                     callback(null);
-                    return;
                 }
-                const parentData = sanitizeData(parentSnap.data()) as Sprint;
-                callback(await sprintService.resolveSprintDays(parentData));
+            }
+        });
+
+        // Listen to the days subcollection
+        const unsubDays = onSnapshot(daysCollectionRef, (daysSnap) => {
+            if (isParentFallback && daysSnap.empty) {
                 return;
             }
-            let sprintData = { id: sprintId, ...cleanDetailsData(detailsSnap.data()) } as Sprint;
-            const fullSprint = await sprintService.resolveSprintDays(sprintData);
-            callback(fullSprint);
+            const newDays: Record<number, any> = {};
+            daysSnap.forEach(dDoc => {
+                const data = dDoc.data();
+                const dayNum = parseInt(dDoc.id.replace('day ', ''));
+                if (!isNaN(dayNum)) {
+                    newDays[dayNum] = data;
+                }
+            });
+            latestDays = newDays;
+            emitMerged();
+        }, (error) => {
+            console.error("Error listening to days subcollection:", error);
         });
+
+        return () => {
+            unsubDetails();
+            unsubDays();
+        };
     },
 
     getCoachSprints: async (coachId: string) => {
