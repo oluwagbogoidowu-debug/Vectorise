@@ -65,34 +65,33 @@ const getDayStatus = (enrollment: ParticipantSprint, sprint: Sprint, now: number
     return { day: currentDay, isCompleted: false, isLocked, unlockTime, content };
 };
 
-const DAY_TEXTS: Record<number, { title: string; subtitle: string }> = {
+const DAY_TEXTS: Record<number, { firstCard: { title: string; subtitle?: string }; secondCard?: { title: string; subtitle?: string } }> = {
   1: {
-    title: "Day 1 is ready",
-    subtitle: "Start your Rise."
+    firstCard: { title: "Day 1 is ready", subtitle: "Start your Rise." }
   },
   2: {
-    title: "Day 2 is ready",
-    subtitle: "You came back.\nKeep rising."
+    firstCard: { title: "Day 2 is ready" },
+    secondCard: { title: "You came back.", subtitle: "Keep rising." }
   },
   3: {
-    title: "Day 3 is ready",
-    subtitle: "Don't stop now."
+    firstCard: { title: "Day 3 is ready" },
+    secondCard: { title: "Don't stop now." }
   },
   4: {
-    title: "Day 4 is ready",
-    subtitle: "You're building momentum."
+    firstCard: { title: "Day 4 is ready" },
+    secondCard: { title: "You're building momentum." }
   },
   5: {
-    title: "Day 5 is ready",
-    subtitle: "Stay locked in."
+    firstCard: { title: "Day 5 is ready" },
+    secondCard: { title: "Stay locked in." }
   },
   6: {
-    title: "Day 6 is ready",
-    subtitle: "You're almost there."
+    firstCard: { title: "Day 6 is ready" },
+    secondCard: { title: "You're almost there." }
   },
   7: {
-    title: "Day 7 is ready",
-    subtitle: "Finish what you started."
+    firstCard: { title: "Day 7 is ready" },
+    secondCard: { title: "Finish what you started." }
   }
 };
 
@@ -434,7 +433,12 @@ const ParticipantDashboard: React.FC = () => {
 
   const firstCardText = useMemo(() => {
       const day = mainTask?.status?.day || 1;
-      return DAY_TEXTS[day] || { title: `Day ${day} is ready`, subtitle: "Start your Rise." };
+      return DAY_TEXTS[day]?.firstCard || { title: `Day ${day} is ready`, subtitle: "Start your Rise." };
+  }, [mainTask]);
+
+  const secondCardText = useMemo(() => {
+      const day = mainTask?.status?.day || 1;
+      return DAY_TEXTS[day]?.secondCard || null;
   }, [mainTask]);
 
   if (!user) return null;
@@ -542,14 +546,36 @@ const ParticipantDashboard: React.FC = () => {
             )}
             
             {cardState === 'task_ready' ? (
-                <div className="mb-8 px-1">
-                    <p className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-none">
-                        {firstCardText.title}
-                    </p>
-                    {firstCardText.subtitle && (
-                        <p className="whitespace-pre-line text-base md:text-lg font-black text-gray-900 mt-2 leading-snug">
-                            {firstCardText.subtitle}
-                        </p>
+                <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
+                    <div className={`py-4 px-4 md:py-5 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#159E6A] text-white shadow-lg ${
+                        secondCardText ? 'col-span-1' : 'col-span-2'
+                    }`}>
+                        <div className="relative z-10 min-w-0 text-left">
+                            <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
+                                {firstCardText.title}
+                            </p>
+                            {firstCardText.subtitle && (
+                                <p className="text-[9px] md:text-[10px] font-bold text-white/90 mt-1 leading-tight">
+                                    {firstCardText.subtitle}
+                                </p>
+                            )}
+                        </div>
+                        <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
+                    </div>
+                    
+                    {secondCardText && (
+                        <div className="bg-white border border-gray-100 py-4 px-4 md:py-5 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
+                            <div className="relative z-10 min-w-0 text-left">
+                                <p className="text-[11px] md:text-xs font-black text-gray-900 uppercase tracking-[0.1em] leading-tight">
+                                    {secondCardText.title}
+                                </p>
+                                {secondCardText.subtitle && (
+                                    <p className="text-[9px] md:text-[10px] font-black text-gray-400 mt-1 leading-tight uppercase tracking-wider">
+                                        {secondCardText.subtitle}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
                     )}
                 </div>
             ) : (
