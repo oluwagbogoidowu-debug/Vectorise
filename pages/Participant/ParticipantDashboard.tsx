@@ -65,6 +65,36 @@ const getDayStatus = (enrollment: ParticipantSprint, sprint: Sprint, now: number
     return { day: currentDay, isCompleted: false, isLocked, unlockTime, content };
 };
 
+const DAY_TEXTS: Record<number, { firstCard: { title: string; subtitle?: string }; secondCard?: { title: string; subtitle?: string } }> = {
+  1: {
+    firstCard: { title: "Day 1 is ready", subtitle: "Start your Rise." }
+  },
+  2: {
+    firstCard: { title: "Day 2 is ready" },
+    secondCard: { title: "You came back.", subtitle: "Keep rising." }
+  },
+  3: {
+    firstCard: { title: "Day 3 is ready" },
+    secondCard: { title: "Don't stop now." }
+  },
+  4: {
+    firstCard: { title: "Day 4 is ready" },
+    secondCard: { title: "You're building momentum." }
+  },
+  5: {
+    firstCard: { title: "Day 5 is ready" },
+    secondCard: { title: "Stay locked in." }
+  },
+  6: {
+    firstCard: { title: "Day 6 is ready" },
+    secondCard: { title: "You're almost there." }
+  },
+  7: {
+    firstCard: { title: "Day 7 is ready" },
+    secondCard: { title: "Finish what you started." }
+  }
+};
+
 const ParticipantDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -401,6 +431,16 @@ const ParticipantDashboard: React.FC = () => {
       );
   }, [mySprints]);
 
+  const firstCardText = useMemo(() => {
+      const day = mainTask?.status?.day || 1;
+      return DAY_TEXTS[day]?.firstCard || { title: `Day ${day} is ready`, subtitle: "Start your Rise." };
+  }, [mainTask]);
+
+  const secondCardText = useMemo(() => {
+      const day = mainTask?.status?.day || 1;
+      return DAY_TEXTS[day]?.secondCard || null;
+  }, [mainTask]);
+
   if (!user) return null;
 
   const isMainTaskLocked = mainTask?.status?.isLocked;
@@ -506,11 +546,11 @@ const ParticipantDashboard: React.FC = () => {
             )}
             
             <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                <div className={`py-3 px-3 md:py-4 md:px-4 rounded-[1.3rem] flex flex-row items-center justify-center gap-2.5 relative overflow-hidden transition-transform active:scale-[0.98] ${
+                <div className={`py-3 px-3 md:py-4 md:px-4 rounded-[1.3rem] flex flex-row items-center justify-start gap-2.5 relative overflow-hidden transition-transform active:scale-[0.98] ${
                     cardState === 'well_done' || cardState === 'task_ready'
                     ? 'bg-[#0E7850] text-white shadow-lg'
                     : 'bg-[#159E6A] text-white shadow-lg'
-                }`}>
+                } ${isAfterDay1OfFirstSprint ? 'col-span-1' : 'col-span-2'}`}>
                     {cardState === 'well_done' && (
                         <>
                             <div className="w-7 h-7 md:w-8 md:h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 text-white shadow-sm border border-white/10">
@@ -518,7 +558,7 @@ const ParticipantDashboard: React.FC = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in">
+                            <div className="relative z-10 min-w-0 animate-fade-in text-left">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
                                     Well<br/>Done
                                 </p>
@@ -532,7 +572,7 @@ const ParticipantDashboard: React.FC = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in">
+                            <div className="relative z-10 min-w-0 animate-fade-in text-left">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
                                     Start<br/>Rising
                                 </p>
@@ -546,7 +586,7 @@ const ParticipantDashboard: React.FC = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in">
+                            <div className="relative z-10 min-w-0 animate-fade-in text-left">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
                                     Keep<br/>Rising
                                 </p>
@@ -560,32 +600,48 @@ const ParticipantDashboard: React.FC = () => {
                                     <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                                 </svg>
                             </div>
-                            <div className="relative z-10 min-w-0 animate-fade-in">
+                            <div className="relative z-10 min-w-0 animate-fade-in text-left">
                                 <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                    Task<br/>Ready
+                                    {firstCardText.title}
                                 </p>
+                                {firstCardText.subtitle && (
+                                    <p className="text-[9px] md:text-[10px] font-bold text-white/90 mt-0.5 leading-tight">
+                                        {firstCardText.subtitle}
+                                    </p>
+                                )}
                             </div>
                         </>
                     )}
                     <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                 </div>
-
-                <Link to="/growth" className="bg-white border border-gray-100 py-3 px-3 md:py-4 md:px-4 rounded-[1.3rem] shadow-sm flex items-center justify-center gap-3 hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
-                    <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100 group-hover:bg-primary/5 transition-colors flex-shrink-0">
-                        <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-[#0E7850]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                        </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-center mb-1">
-                            <p className="text-[7.5px] md:text-[8px] font-black text-gray-400 uppercase tracking-[0.1em] group-hover:text-primary transition-colors leading-[1.1]">Growth<br/>Analysis</p>
-                            <p className="text-[9px] md:text-xs font-black text-gray-900 leading-none">{overallCompletedDays} of {overallTotalDays} days complete</p>
+                
+                {isAfterDay1OfFirstSprint && (
+                    <Link to="/growth" className="bg-white border border-gray-100 py-3 px-3 md:py-4 md:px-4 rounded-[1.3rem] shadow-sm flex items-center justify-center gap-3 hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden col-span-1">
+                        <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100 group-hover:bg-primary/5 transition-colors flex-shrink-0">
+                            <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-[#0E7850]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
                         </div>
-                        <div className="h-1 w-full bg-gray-50 rounded-full overflow-hidden">
-                            <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-center mb-1">
+                                <div className="flex flex-col min-w-0 text-left">
+                                    <p className="text-[9px] md:text-[10px] font-black text-gray-900 leading-tight">
+                                        {secondCardText?.title || "Growth Analysis"}
+                                    </p>
+                                    {secondCardText?.subtitle && (
+                                        <p className="text-[8px] md:text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-0.5 leading-tight">
+                                            {secondCardText.subtitle}
+                                        </p>
+                                    )}
+                                </div>
+                                <p className="text-xs md:text-sm font-black text-gray-900 leading-none ml-2 flex-shrink-0">{overallProgress}%</p>
+                            </div>
+                            <div className="h-1 w-full bg-gray-50 rounded-full overflow-hidden">
+                                <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
+                            </div>
                         </div>
-                    </div>
-                </Link>
+                    </Link>
+                )}
             </div>
 
             <div className="mb-8">
