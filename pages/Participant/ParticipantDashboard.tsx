@@ -65,6 +65,27 @@ const getDayStatus = (enrollment: ParticipantSprint, sprint: Sprint, now: number
     return { day: currentDay, isCompleted: false, isLocked, unlockTime, content };
 };
 
+const getReadyDayText = (day: number): string[] => {
+    switch (day) {
+        case 1:
+            return ["Day 1 is ready", "Start your Rise."];
+        case 2:
+            return ["Day 2 is ready", "You came back.", "Keep rising."];
+        case 3:
+            return ["Day 3 is ready", "Don’t stop now."];
+        case 4:
+            return ["Day 4 is ready", "You’re building momentum."];
+        case 5:
+            return ["Day 5 is ready", "Stay locked in."];
+        case 6:
+            return ["Day 6 is ready", "You’re almost there."];
+        case 7:
+            return ["Day 7 is ready", "Finish what you started."];
+        default:
+            return [`Day ${day} is ready`, "Keep rising."];
+    }
+};
+
 const ParticipantDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -552,145 +573,143 @@ const ParticipantDashboard: React.FC = () => {
                     <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                 </div>
 
-                <Link to="/growth" className="bg-white border border-gray-100 py-3 px-3 md:py-4 md:px-4 rounded-[1.3rem] shadow-sm flex items-center justify-center gap-3 hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden">
-                    <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100 group-hover:bg-primary/5 transition-colors flex-shrink-0">
-                        <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-[#0E7850]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                <div 
+                    onClick={() => {
+                        const refCode = (user as Participant)?.referralCode || '';
+                        const shareUrl = `${window.location.origin}/?ref=${refCode}`;
+                        navigator.clipboard.writeText(shareUrl);
+                        toast.success("Invite link copied to clipboard!", {
+                            description: "Share this link with someone to start their growth journey."
+                        });
+                    }}
+                    className="bg-white border border-gray-100 py-3 px-3 md:py-4 md:px-4 rounded-[1.3rem] shadow-sm flex items-center justify-center gap-3 hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden cursor-pointer text-left"
+                >
+                    <div className="w-7 h-7 md:w-8.5 md:h-8.5 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100 group-hover:bg-primary/5 transition-colors flex-shrink-0">
+                        <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6 6 0 0 1 6-6h.75a6 6 0 0 1 6 6v.11m-18 0A2.384 2.384 0 0 0 3 21h13.5c.312 0 .614-.075.882-.21" />
                         </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-center mb-1">
-                            <p className="text-[7.5px] md:text-[8px] font-black text-gray-400 uppercase tracking-[0.1em] group-hover:text-primary transition-colors leading-[1.1]">Growth<br/>Analysis</p>
-                            <p className="text-xs md:text-sm font-black text-gray-900 leading-none">{overallProgress}%</p>
-                        </div>
-                        <div className="h-1 w-full bg-gray-50 rounded-full overflow-hidden">
-                            <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
-                        </div>
+                        <h4 className="text-[9px] md:text-[10px] font-black text-gray-900 tracking-tight leading-tight">Invite someone to start their growth journey today</h4>
+                        <p className="text-[7.5px] md:text-[8px] font-bold text-gray-400 mt-0.5 leading-tight">Don't grow alone, bring others along.</p>
                     </div>
-                </Link>
-            </div>
-
-            <div className="flex justify-between items-end mb-6 px-1">
-                <h2 className="text-lg md:text-xl font-black text-gray-900 tracking-tight">
-                    {headingText}
-                </h2>
-                <Link to="/my-sprints" className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] hover:opacity-80 transition-opacity mb-1">
-                    View Journey
-                </Link>
+                </div>
             </div>
 
             <div className="mb-8">
                 {isLoading ? (
                     <div className="bg-white rounded-[2.5rem] h-64 animate-pulse border border-gray-100 shadow-sm"></div>
                 ) : mainTask && mainTask.sprint ? (
-                    <Link to={`/participant/sprint/${mainTask.enrollment.id}`} className="block group">
-                        <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-100 relative overflow-hidden flex animate-fade-in group-hover:shadow-xl transition-all duration-500">
-                            <div className={`w-2 md:w-3 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-amber-400' : 'bg-[#0E7850]'}`}></div>
+                    !isMainTaskLocked ? (
+                        <div className="bg-white rounded-[2rem] border border-gray-100 p-8 md:p-12 shadow-sm animate-fade-in flex flex-col items-start w-full relative overflow-hidden">
+                            {(() => {
+                                const texts = getReadyDayText(mainTask.status.day);
+                                return (
+                                    <div className="space-y-2 mb-8 text-left">
+                                        <h3 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-tight">
+                                            {texts[0]}
+                                        </h3>
+                                        {texts.slice(1).map((line, idx) => (
+                                            <p key={idx} className="text-base md:text-lg text-gray-500 font-bold leading-relaxed">
+                                                {line}
+                                            </p>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
                             
-                            <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col">
-                                <div className={isMainTaskLocked ? "mb-3 md:mb-4" : "mb-6 md:mb-8"}>
-                                    <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">{mainTask.sprint.category}</p>
-                                    <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight mt-1">{mainTask.sprint.title}</h3>
-                                    <p className="text-[9px] md:text-[10px] font-black text-gray-500 uppercase tracking-widest mt-2">Day {mainTask.status.day} of {mainTask.sprint.duration}</p>
-                                </div>
+                            <Link 
+                                to={`/participant/sprint/${mainTask.enrollment.id}`}
+                                className="inline-flex items-center justify-center px-8 py-4 bg-[#0E7850] hover:bg-[#0c6b47] text-white rounded-full font-black uppercase tracking-widest text-xs shadow-md transition-all active:scale-[0.98] gap-3"
+                            >
+                                Start Day {mainTask.status.day}
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                                </svg>
+                            </Link>
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 md:p-10 flex flex-col animate-fade-in">
+                            <div className="mb-4">
+                                <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">{mainTask.sprint.category}</p>
+                                <h3 className="text-xl md:text-2xl font-black text-gray-900 leading-tight tracking-tight mt-1">{mainTask.sprint.title}</h3>
+                                <p className="text-[9px] md:text-[10px] font-black text-gray-500 uppercase tracking-widest mt-2">Day {mainTask.status.day} of {mainTask.sprint.duration}</p>
+                            </div>
 
-                                <div className={`mt-auto ${isMainTaskLocked ? 'pt-3 md:pt-4' : 'pt-8'}`}>
-                                    {isMainTaskLocked && (
-                                        <div className="relative py-6 my-1 overflow-hidden flex items-center min-h-[58px]">
-                                            <AnimatePresence mode="wait">
-                                                {activeSlide === 'timer' ? (
-                                                    <motion.div
-                                                        key="timer"
-                                                        initial={{ opacity: 0, x: 20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        exit={{ opacity: 0, x: -20 }}
-                                                        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                                                        className="w-full flex items-center justify-start"
-                                                    >
-                                                        <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-100/60 text-amber-800 px-3 py-1.5 rounded-xl">
-                                                            <svg className="w-3.5 h-3.5 animate-pulse text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                                            </svg>
-                                                            <span className="text-[10px] sm:text-xs font-black uppercase tracking-wide">
-                                                                Next step unlocks in <span className="font-mono text-[11px] sm:text-[13px]">{timeToMidnight}</span>
-                                                            </span>
-                                                        </div>
-                                                    </motion.div>
-                                                ) : (
-                                                    <motion.div
-                                                        key="days"
-                                                        initial={{ opacity: 0, x: 20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        exit={{ opacity: 0, x: -20 }}
-                                                        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                                                        className="w-full"
-                                                    >
-                                                        <div className="flex flex-row flex-nowrap gap-2 items-center overflow-x-auto whitespace-nowrap scrollbar-none">
-                                                            {(() => {
-                                                                const total = mainTask.sprint.duration || 3;
-                                                                const current = mainTask.status.day || 1;
-                                                                let visibleDays: number[] = [];
-                                                                if (total <= 3) {
-                                                                    visibleDays = Array.from({ length: total }, (_, idx) => idx + 1);
-                                                                } else {
-                                                                    if (current === 1) {
-                                                                        visibleDays = [1, 2, 3];
-                                                                    } else if (current === total) {
-                                                                        visibleDays = [total - 2, total - 1, total];
-                                                                    } else {
-                                                                        visibleDays = [current - 1, current, current + 1];
-                                                                    }
-                                                                }
-                                                                return visibleDays.map((dayNum) => {
-                                                                    if (dayNum < current) {
-                                                                        return (
-                                                                            <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 border border-emerald-100 text-[#0E7850] rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider flex-shrink-0">
-                                                                                Day {dayNum} ✅
-                                                                            </span>
-                                                                        );
-                                                                    } else if (dayNum === current) {
-                                                                        return (
-                                                                            <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider animate-pulse flex-shrink-0">
-                                                                                Day {dayNum} 🔒
-                                                                            </span>
-                                                                        );
-                                                                    } else {
-                                                                        return (
-                                                                            <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-50 border border-gray-100 text-gray-400 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider flex-shrink-0">
-                                                                                Day {dayNum} 🔒
-                                                                            </span>
-                                                                        );
-                                                                    }
-                                                                });
-                                                            })()}
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                        </div>
+                            <div className="relative py-4 my-1 overflow-hidden flex items-center min-h-[58px]">
+                                <AnimatePresence mode="wait">
+                                    {activeSlide === 'timer' ? (
+                                        <motion.div
+                                            key="timer"
+                                            initial={{ opacity: 0, x: 20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: -20 }}
+                                            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                                            className="w-full flex items-center justify-start"
+                                        >
+                                            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-100/60 text-amber-800 px-3 py-1.5 rounded-xl">
+                                                <svg className="w-3.5 h-3.5 animate-pulse text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                </svg>
+                                                <span className="text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                                                    Next step unlocks in <span className="font-mono text-[11px] sm:text-[13px]">{timeToMidnight}</span>
+                                                </span>
+                                            </div>
+                                        </motion.div>
+                                    ) : (
+                                        <motion.div
+                                            key="days"
+                                            initial={{ opacity: 0, x: 20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: -20 }}
+                                            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                                            className="w-full"
+                                        >
+                                            <div className="flex flex-row flex-nowrap gap-2 items-center overflow-x-auto whitespace-nowrap scrollbar-none">
+                                                {(() => {
+                                                    const total = mainTask.sprint.duration || 3;
+                                                    const current = mainTask.status.day || 1;
+                                                    let visibleDays: number[] = [];
+                                                    if (total <= 3) {
+                                                        visibleDays = Array.from({ length: total }, (_, idx) => idx + 1);
+                                                    } else {
+                                                        if (current === 1) {
+                                                            visibleDays = [1, 2, 3];
+                                                        } else if (current === total) {
+                                                            visibleDays = [total - 2, total - 1, total];
+                                                        } else {
+                                                            visibleDays = [current - 1, current, current + 1];
+                                                        }
+                                                    }
+                                                    return visibleDays.map((dayNum) => {
+                                                        if (dayNum < current) {
+                                                            return (
+                                                                <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 border border-emerald-100 text-[#0E7850] rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider flex-shrink-0">
+                                                                    Day {dayNum} ✅
+                                                                </span>
+                                                            );
+                                                        } else if (dayNum === current) {
+                                                            return (
+                                                                <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider animate-pulse flex-shrink-0">
+                                                                    Day {dayNum} 🔒
+                                                                </span>
+                                                            );
+                                                        } else {
+                                                            return (
+                                                                <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-50 border border-gray-100 text-gray-400 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider flex-shrink-0">
+                                                                    Day {dayNum} 🔒
+                                                                </span>
+                                                            );
+                                                        }
+                                                    });
+                                                })()}
+                                            </div>
+                                        </motion.div>
                                     )}
-
-                                    <div className="flex justify-between items-center mb-1">
-                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Progress</p>
-                                        <p className="text-xs font-black text-gray-900">{mainTaskProgress}%</p>
-                                    </div>
-                                    <div className={`h-2 w-full bg-gray-100 rounded-full overflow-hidden ${isMainTaskLocked ? 'mb-2 md:mb-3' : 'mb-6'}`}>
-                                        <div className="h-full bg-[#0E7850] rounded-full" style={{ width: `${mainTaskProgress}%` }}></div>
-                                    </div>
-                                    {!isMainTaskLocked && (
-                                        <div className="w-full py-4 md:py-5 bg-[#0E7850] text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.3em] text-[10px] md:text-[12px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-3 md:gap-4 group-hover:scale-[1.02] transition-transform active:scale-[0.98]">
-                                            Open Task 
-                                            <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                            </svg>
-                                        </div>
-                                    )}
-                                </div>
-
-
+                                </AnimatePresence>
                             </div>
                         </div>
-                    </Link>
+                    )
                 ) : (
                     <div className="space-y-4">
                         <Link to="/explore" onClick={handleExploreClick} className="block group animate-fade-in">
@@ -717,6 +736,29 @@ const ParticipantDashboard: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {allTasksDoneToday && (
+                <div className="mb-8 animate-fade-in">
+                    <Link to="/growth" className="bg-white border border-gray-100 py-4 px-5 rounded-[1.8rem] shadow-sm flex items-center gap-4 hover:border-primary/30 transition-all active:scale-[0.98] group relative overflow-hidden block">
+                        <div className="w-10 h-10 bg-emerald-50 rounded-2xl flex items-center justify-center border border-emerald-100 group-hover:bg-primary/5 transition-colors flex-shrink-0">
+                            <svg className="w-5 h-5 text-[#0E7850]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-center mb-1.5">
+                                <p className="text-[10px] md:text-xs font-black text-gray-400 uppercase tracking-[0.1em] group-hover:text-primary transition-colors leading-tight">
+                                    See how you’re growing
+                                </p>
+                                <p className="text-sm md:text-base font-black text-gray-900 leading-none">{overallProgress}%</p>
+                            </div>
+                            <div className="h-1.5 w-full bg-gray-50 rounded-full overflow-hidden">
+                                <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
+                            </div>
+                        </div>
+                    </Link>
+                </div>
+            )}
 
             {isAfterDay1OfFirstSprint && (
                 <div className="mb-8">
