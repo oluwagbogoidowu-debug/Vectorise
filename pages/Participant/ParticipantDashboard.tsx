@@ -977,48 +977,6 @@ const ParticipantDashboard: React.FC = () => {
                     ))}
                 </div>
             )}
-            {/* JUST PUBLISHED ON RISEBLOG */}
-            <div className="mt-8 mb-6 animate-fade-in">
-                <div className="flex justify-between items-center mb-4 px-1">
-                    <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none">Just Published on RiseBlog</h3>
-                    <Link to="/blog" className="text-[9px] font-black text-[#0E7850] hover:underline uppercase tracking-widest leading-none">
-                        View All &rarr;
-                    </Link>
-                </div>
-                
-                <div className="space-y-4">
-                    {blogService.getPosts().slice(0, 2).map((post) => (
-                        <Link 
-                            key={post.id} 
-                            to={`/blog/${post.id}`}
-                            className="bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm flex gap-4 hover:shadow-md hover:border-[#0E7850]/20 transition-all group block text-left"
-                        >
-                            <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 relative">
-                                <img 
-                                    src={post.coverImage} 
-                                    alt={post.title} 
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                />
-                            </div>
-                            <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-[8px] font-black text-primary uppercase tracking-widest">{post.category}</span>
-                                        <span className="text-gray-300">•</span>
-                                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{post.readTime}</span>
-                                    </div>
-                                    <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-snug group-hover:text-primary transition-colors line-clamp-2">
-                                        {post.title}
-                                    </h4>
-                                </div>
-                                <p className="text-[10px] text-gray-400 font-semibold truncate mt-1">
-                                    By {post.author.name}
-                                </p>
-                            </div>
-                        </Link>
-                    ))}
-                </div>
-            </div>
 
           </div>
       </div>
