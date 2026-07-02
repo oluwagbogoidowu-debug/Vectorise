@@ -449,21 +449,26 @@ const SprintPreview: React.FC = () => {
     };
 
     useEffect(() => {
-        if (!day1Content || !day1Content.taskSpread?.[activeTaskIndex]) return;
+        if (!day1Content || !taskInputs) return;
         
-        const currentValue = taskInputs[activeTaskIndex];
-        if (!currentValue || currentValue.trim() === "") {
-            const spreadValue = getSpreadTextForLoadedInputs(activeTaskIndex, taskInputs);
-            if (spreadValue && spreadValue.trim() !== "") {
-                setTaskInputs(prev => {
-                    if (prev[activeTaskIndex] === spreadValue) return prev;
-                    const updated = [...prev];
-                    updated[activeTaskIndex] = spreadValue;
-                    return updated;
-                });
+        const type = String(day1Content.taskInputTypes?.[activeTaskIndex] || "").trim().toLowerCase();
+        const isText = type === "text" || type === "" || type === "undefined";
+        
+        if (isText && !isMultiTextStep(activeTaskIndex)) {
+            const currentValue = taskInputs[activeTaskIndex];
+            if (!currentValue || currentValue.trim() === "") {
+                const spreadValue = getSpreadTextForLoadedInputs(activeTaskIndex, taskInputs);
+                if (spreadValue && spreadValue.trim() !== "") {
+                    setTaskInputs(prev => {
+                        if (prev[activeTaskIndex] === spreadValue) return prev;
+                        const updated = [...prev];
+                        updated[activeTaskIndex] = spreadValue;
+                        return updated;
+                    });
+                }
             }
         }
-    }, [activeTaskIndex, day1Content?.taskSpread, taskInputs]);
+    }, [activeTaskIndex, day1Content, taskInputs]);
 
     return (
         <div className="w-full bg-[#FAFAFA] min-h-screen flex flex-col font-sans text-dark animate-fade-in pb-24">

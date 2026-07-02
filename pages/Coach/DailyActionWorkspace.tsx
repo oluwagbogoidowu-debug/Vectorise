@@ -859,7 +859,7 @@ export default function DailyActionWorkspace({
 
                       const precedingTagSteps = rawPrecedingSteps.filter(item => {
                         if (activeLinkSelectorType === 'tag') {
-                          return true;
+                          return item.type === 'tags' || item.type === 'poll';
                         } else {
                           return item.type === 'text' || !item.type;
                         }
@@ -867,7 +867,7 @@ export default function DailyActionWorkspace({
 
                       const precedingDaysSteps = rawPrecedingDaysSteps.filter(item => {
                         if (activeLinkSelectorType === 'tag') {
-                          return true;
+                          return item.type === 'tags' || item.type === 'poll';
                         } else {
                           return item.type === 'text' || !item.type;
                         }

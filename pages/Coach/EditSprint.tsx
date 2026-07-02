@@ -3183,7 +3183,7 @@ const EditSprint: React.FC = () => {
 
                                                 const precedingTagSteps = rawPrecedingSteps.filter(item => {
                                                     if (activeLinkSelectorType === 'tag') {
-                                                        return true;
+                                                        return item.type === 'tags' || item.type === 'poll';
                                                      } else {
                                                          return item.type === 'text' || !item.type;
                                                      }
@@ -3191,7 +3191,7 @@ const EditSprint: React.FC = () => {
 
                                                 const precedingDaysSteps = rawPrecedingDaysSteps.filter(item => {
                                                     if (activeLinkSelectorType === 'tag') {
-                                                        return true;
+                                                        return item.type === 'tags' || item.type === 'poll';
                                                      } else {
                                                          return item.type === 'text' || !item.type;
                                                      }
