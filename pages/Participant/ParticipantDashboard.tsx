@@ -862,10 +862,10 @@ const ParticipantDashboard: React.FC = () => {
                         }
                     `}</style>
                     <div className="mb-2 px-1 flex justify-between items-center">
-                        <p className="text-[8px] md:text-[9px] font-black text-[#0E7850] uppercase tracking-[0.15em] leading-none">Step up your Rise</p>
+                        <p className="text-[11px] md:text-[13px] font-black text-[#0E7850] uppercase tracking-[0.2em] leading-none">Step up your Rise</p>
                     </div>
                     <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory no-scrollbar relative">
-                        {/* 1. Reignite old flame - Consistent wide card style */}
+                        {/* 1. Reignite old flame - Circle layout with Ignite post image as background */}
                         <div 
                             onClick={() => {
                                 if (isStepUpLocked) return;
@@ -885,23 +885,29 @@ const ParticipantDashboard: React.FC = () => {
                                     } as any);
                                 }
                             }}
-                            className={`flex-shrink-0 w-52 h-20 bg-white border border-gray-100 rounded-[1.2rem] px-4 shadow-sm transition-all duration-300 flex items-center gap-3 group snap-start animate-fade-in relative ${
+                            className={`flex-shrink-0 w-20 h-20 rounded-full shadow-md transition-all duration-300 flex items-center justify-center group snap-start animate-fade-in relative overflow-hidden ${
                                 isStepUpLocked 
                                 ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                : 'hover:shadow-md hover:border-violet-500/20 cursor-pointer'
+                                : 'hover:shadow-lg hover:scale-105 cursor-pointer'
                             } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                         >
-                            <div className="w-8.5 h-8.5 bg-violet-50 text-violet-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-violet-100/50 group-hover:scale-105 transition-transform duration-300">
-                                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0L5 12V9a1 1 0 011-1h2a1 1 0 011 1v3l4-4h2a1 1 0 011 1v7" />
-                                </svg>
-                            </div>
-                            <div className="min-w-0 text-left">
-                                <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-none group-hover:text-violet-600 transition-colors">Reignite old flame</h4>
+                            {/* Background Image of the Ignite Post */}
+                            <img 
+                                src={processedIgnitePosts[0]?.coverImageUrl || processedIgnitePosts[0]?.blogImage || 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80'}
+                                alt="Ignite Background" 
+                                className="absolute inset-0 w-full h-full object-cover brightness-[0.45] group-hover:scale-110 transition-transform duration-500"
+                                referrerPolicy="no-referrer"
+                            />
+                            
+                            {/* Content overlay */}
+                            <div className="relative z-10 flex items-center justify-center">
+                                <span className="text-[12px] font-black uppercase tracking-[0.15em] text-white text-center leading-none drop-shadow-sm select-none">
+                                    Ignite
+                                </span>
                             </div>
 
                             {!isIgniteChecked && !isStepUpLocked && (
-                                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border border-white ring-2 ring-rose-500/35 animate-pulse z-10" />
+                                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-white ring-2 ring-rose-500/35 animate-pulse z-20" />
                             )}
                         </div>
 
