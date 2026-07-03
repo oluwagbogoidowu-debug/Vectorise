@@ -679,25 +679,25 @@ const ParticipantDashboard: React.FC = () => {
                     )}
                 </div>
             ) : cardState === 'well_done' ? (
-                <div className="grid grid-cols-3 gap-3 md:gap-4 mb-8">
-                    <div className="py-6 px-5 md:py-8 md:px-6 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1">
+                <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
+                    <div className="py-3 px-5 md:py-4 md:px-6 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1">
                         <div className="relative z-10 min-w-0 text-left animate-fade-in">
-                            <p className="text-lg md:text-xl lg:text-2xl font-black uppercase tracking-tight text-white leading-tight">
+                            <p className="text-base md:text-lg lg:text-xl font-black uppercase tracking-tight text-white leading-tight">
                                 Day {completedDaysCount}
                             </p>
-                            <p className="text-xs md:text-sm font-bold text-white/95 mt-1.5 leading-snug">
+                            <p className="text-xs md:text-sm font-bold text-white/95 mt-1 leading-snug">
                                 Done
                             </p>
                         </div>
                         <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                     </div>
                     
-                    <div className="bg-white border border-gray-100 py-6 px-5 md:py-8 md:px-6 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-2">
+                    <div className="bg-white border border-gray-100 py-3 px-5 md:py-4 md:px-6 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
                         <div className="relative z-10 min-w-0 text-left animate-fade-in">
-                            <p className="text-lg md:text-xl lg:text-2xl font-black text-gray-950 uppercase tracking-tight leading-tight">
+                            <p className="text-sm md:text-base lg:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
                                 Come back tomorrow.
                             </p>
-                            <p className="text-xs md:text-sm font-bold text-[#0E7850] mt-1.5 leading-snug uppercase tracking-wider">
+                            <p className="text-[10px] md:text-xs font-bold text-[#0E7850] mt-1 leading-snug uppercase tracking-wider">
                                 Don’t break the streak.
                             </p>
                         </div>
@@ -902,54 +902,57 @@ const ParticipantDashboard: React.FC = () => {
                             animation: unlockPulse 1.8s ease-in-out infinite;
                         }
                     `}</style>
-                    <div className="mb-2 px-1 flex justify-between items-center">
-                        <p className="text-[14px] md:text-[16px] font-black text-[#0E7850] uppercase tracking-[0.2em] leading-none">Step up your Rise</p>
-                    </div>
                     <div className="flex gap-6 overflow-x-auto pb-4 pt-4 px-1.5 snap-x snap-mandatory no-scrollbar relative items-center">
-                        {/* 1. Reignite old flame - Circle layout with Ignite post image as background */}
-                        <div 
-                            onClick={() => {
-                                if (isStepUpLocked) return;
-                                // Play recent ignite post or fallback preset
-                                if (processedIgnitePosts && processedIgnitePosts.length > 0) {
-                                    setActivePlayIgnite(processedIgnitePosts[0]);
-                                } else {
-                                    setActivePlayIgnite({
-                                        id: 'default_ignite',
-                                        title: 'Ignite Post',
-                                        description: 'Daily Spark.',
-                                        igniteBgColor: '#6D28D9',
-                                        igniteBody: "Consistency is not about perfection. It’s about returning to the practice day after day.\n\n" +
-                                                    "Step up your Rise. Unlocking your potential starts with microscopic daily decisions.\n\n" +
-                                                    "Be the Catalyst. Your momentum is contagious, inspire your circle to act.\n\n" +
-                                                    "The secret to growing is to never grow alone. Bring others along and lift everyone together."
-                                    } as any);
-                                }
-                            }}
-                            className={`flex-shrink-0 w-20 h-20 rounded-full shadow-md transition-all duration-300 flex items-center justify-center group snap-start animate-fade-in relative overflow-hidden ${
-                                isStepUpLocked 
-                                ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                : 'hover:shadow-lg hover:scale-105 cursor-pointer'
-                            } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
-                        >
-                            {/* Background Image of the Ignite Post */}
-                            <img 
-                                src={processedIgnitePosts[0]?.coverImageUrl || processedIgnitePosts[0]?.blogImage || 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80'}
-                                alt="Ignite Background" 
-                                className="absolute inset-0 w-full h-full object-cover brightness-[0.45] group-hover:scale-110 transition-transform duration-500"
-                                referrerPolicy="no-referrer"
-                            />
+                        {/* 1. Reignite old flame - Stacked label on top of Ignite circular card */}
+                        <div className="flex-shrink-0 h-60 flex flex-col justify-center items-center gap-2.5 snap-start animate-fade-in">
+                            <p className="text-[9px] md:text-[10px] font-black text-[#0E7850] uppercase tracking-[0.2em] leading-tight text-center select-none">
+                                STEP UP<br />YOUR RISE
+                            </p>
                             
-                            {/* Content overlay */}
-                            <div className="relative z-10 flex items-center justify-center">
-                                <span className="text-[12px] font-black uppercase tracking-[0.15em] text-white text-center leading-none drop-shadow-sm select-none">
-                                    Ignite
-                                </span>
-                            </div>
+                            <div 
+                                onClick={() => {
+                                    if (isStepUpLocked) return;
+                                    // Play recent ignite post or fallback preset
+                                    if (processedIgnitePosts && processedIgnitePosts.length > 0) {
+                                        setActivePlayIgnite(processedIgnitePosts[0]);
+                                    } else {
+                                        setActivePlayIgnite({
+                                            id: 'default_ignite',
+                                            title: 'Ignite Post',
+                                            description: 'Daily Spark.',
+                                            igniteBgColor: '#6D28D9',
+                                            igniteBody: "Consistency is not about perfection. It’s about returning to the practice day after day.\n\n" +
+                                                        "Step up your Rise. Unlocking your potential starts with microscopic daily decisions.\n\n" +
+                                                        "Be the Catalyst. Your momentum is contagious, inspire your circle to act.\n\n" +
+                                                        "The secret to growing is to never grow alone. Bring others along and lift everyone together."
+                                        } as any);
+                                    }
+                                }}
+                                className={`w-20 h-20 rounded-full shadow-md transition-all duration-300 flex items-center justify-center group relative overflow-hidden ${
+                                    isStepUpLocked 
+                                    ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
+                                    : 'hover:shadow-lg hover:scale-105 cursor-pointer'
+                                } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
+                            >
+                                {/* Background Image of the Ignite Post */}
+                                <img 
+                                    src={processedIgnitePosts[0]?.coverImageUrl || processedIgnitePosts[0]?.blogImage || 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80'}
+                                    alt="Ignite Background" 
+                                    className="absolute inset-0 w-full h-full object-cover brightness-[0.45] group-hover:scale-110 transition-transform duration-500"
+                                    referrerPolicy="no-referrer"
+                                />
+                                
+                                {/* Content overlay */}
+                                <div className="relative z-10 flex items-center justify-center">
+                                    <span className="text-[12px] font-black uppercase tracking-[0.15em] text-white text-center leading-none drop-shadow-sm select-none">
+                                        Ignite
+                                    </span>
+                                </div>
 
-                            {!isIgniteChecked && !isStepUpLocked && (
-                                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-white ring-2 ring-rose-500/35 animate-pulse z-20" />
-                            )}
+                                {!isIgniteChecked && !isStepUpLocked && (
+                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-white ring-2 ring-rose-500/35 animate-pulse z-20" />
+                                )}
+                            </div>
                         </div>
 
                         {/* 2. Revisit your Rise */}
@@ -1093,17 +1096,17 @@ const ParticipantDashboard: React.FC = () => {
                         {/* 5. Read RiseBlog */}
                         <Link 
                             to="/blog" 
-                            className="flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative overflow-hidden hover:shadow-md hover:border-emerald-500/20 cursor-pointer"
+                            className="flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative hover:shadow-md hover:border-emerald-500/20 cursor-pointer"
                         >
                             {/* Tag positioned nicely like the impact page milestone cards */}
-                            <div className="absolute top-3 left-4 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-emerald-700 border border-emerald-100/40 z-20">
+                            <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-emerald-700 border border-emerald-100/40 z-20">
                                 Read RiseBlog
                             </div>
 
                             {latestBlogPost ? (
                                 <div className="flex-1 flex flex-col justify-between h-full">
                                     {/* Top part has the cover image */}
-                                    <div className="h-28 w-full relative overflow-hidden">
+                                    <div className="h-28 w-full relative overflow-hidden rounded-t-[1.95rem]">
                                         <img 
                                             src={latestBlogPost.coverImage} 
                                             alt={latestBlogPost.title} 
