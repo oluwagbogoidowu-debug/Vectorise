@@ -680,24 +680,21 @@ const ParticipantDashboard: React.FC = () => {
                 </div>
             ) : cardState === 'well_done' ? (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                    <div className="py-3 px-5 md:py-4 md:px-6 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1">
+                    <div className="py-2 px-4 md:py-2.5 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1">
                         <div className="relative z-10 min-w-0 text-left animate-fade-in">
-                            <p className="text-base md:text-lg lg:text-xl font-black uppercase tracking-tight text-white leading-tight">
-                                Day {completedDaysCount}
-                            </p>
-                            <p className="text-xs md:text-sm font-bold text-white/95 mt-1 leading-snug">
-                                Done
+                            <p className="text-sm md:text-base lg:text-lg font-black uppercase tracking-tight text-white leading-tight">
+                                Day {completedDaysCount} Done
                             </p>
                         </div>
                         <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                     </div>
                     
-                    <div className="bg-white border border-gray-100 py-3 px-5 md:py-4 md:px-6 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
+                    <div className="bg-white border border-gray-100 py-2 px-4 md:py-2.5 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
                         <div className="relative z-10 min-w-0 text-left animate-fade-in">
                             <p className="text-sm md:text-base lg:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
                                 Come back tomorrow.
                             </p>
-                            <p className="text-[10px] md:text-xs font-bold text-[#0E7850] mt-1 leading-snug uppercase tracking-wider">
+                            <p className="text-[9px] md:text-[10px] font-bold text-[#0E7850] mt-0.5 leading-snug uppercase tracking-wider">
                                 Don’t break the streak.
                             </p>
                         </div>
@@ -978,10 +975,10 @@ const ParticipantDashboard: React.FC = () => {
                                             <p className="text-[9px] font-black text-indigo-600 uppercase tracking-wider truncate">
                                                 {lastCompletedStep.sprintTitle} • Day {lastCompletedStep.day}
                                             </p>
-                                            <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-2">
+                                            <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1">
                                                 {lastCompletedStep.taskPrompt}
                                             </p>
-                                            <p className="text-xs text-gray-500 italic leading-snug line-clamp-3 bg-gray-50 p-2.5 rounded-xl border border-gray-100/50 mt-2 font-medium">
+                                            <p className="text-[11px] text-gray-500 italic leading-snug line-clamp-2 bg-gray-50 p-2 rounded-xl border border-gray-100/50 mt-1.5 font-medium">
                                                 "{lastCompletedStep.submission}"
                                             </p>
                                         </div>
