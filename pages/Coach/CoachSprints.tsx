@@ -669,9 +669,26 @@ const CoachSprints: React.FC = () => {
       </div>
 
       {isLoading ? (
-          <div className="text-center py-20 flex flex-col items-center">
-              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-              <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Syncing Registry...</p>
+          <div className="grid grid-cols-1 gap-4 animate-pulse">
+              {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center gap-6">
+                      <div className="w-20 h-20 rounded-2xl bg-gray-200 flex-shrink-0"></div>
+                      <div className="flex-1 min-w-0 text-center sm:text-left space-y-3">
+                          <div className="flex items-center gap-2 justify-center sm:justify-start">
+                              <div className="h-5 w-48 bg-gray-200 rounded-lg"></div>
+                          </div>
+                          <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 mt-2">
+                              <div className="h-4 w-12 bg-gray-100 rounded-lg"></div>
+                              <div className="h-4 w-16 bg-gray-100 rounded-lg"></div>
+                              <div className="h-4 w-10 bg-gray-100 rounded-lg"></div>
+                          </div>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                          <div className="h-8 w-16 bg-gray-200 rounded-xl"></div>
+                          <div className="h-8 w-16 bg-gray-200 rounded-xl"></div>
+                      </div>
+                  </div>
+              ))}
           </div>
       ) : filteredSprints.length > 0 ? (
           <div className="grid grid-cols-1 gap-4">

@@ -215,7 +215,70 @@ const TrackDescriptionPage: React.FC = () => {
         navigate('/onboarding/commitment', { state: { trackId: track.id, track: track } });
     };
 
-    if (isLoading) return null;
+    if (isLoading) {
+        return (
+            <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 relative animate-pulse">
+                <div className="max-w-screen-lg mx-auto px-4 pt-4">
+                    {/* Header bar placeholder */}
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="h-4 w-28 bg-gray-200 rounded"></div>
+                        <div className="flex gap-3">
+                            <div className="h-8 w-20 bg-gray-200 rounded-xl"></div>
+                            <div className="h-8 w-32 bg-gray-200 rounded-xl"></div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {/* Main section placeholder */}
+                        <div className="lg:col-span-8 space-y-8">
+                            {/* Hero Image Skeleton */}
+                            <div className="relative h-[280px] sm:h-[340px] lg:h-[440px] rounded-[3rem] bg-gray-200 border-4 border-white shadow-lg overflow-hidden">
+                                <div className="absolute bottom-10 left-10 right-10 space-y-4">
+                                    <div className="h-6 w-32 bg-gray-300 rounded-lg"></div>
+                                    <div className="h-10 w-2/3 bg-gray-300 rounded-xl"></div>
+                                    <div className="h-4 w-40 bg-gray-300 rounded-lg"></div>
+                                </div>
+                            </div>
+
+                            {/* Overview Section Skeleton */}
+                            <div className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm space-y-6">
+                                <div className="h-5 w-40 bg-gray-200 rounded-lg"></div>
+                                <div className="space-y-3">
+                                    <div className="h-3.5 w-full bg-gray-200 rounded"></div>
+                                    <div className="h-3.5 w-5/6 bg-gray-200 rounded"></div>
+                                    <div className="h-3.5 w-4/5 bg-gray-200 rounded"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Aside sidebar placeholder */}
+                        <aside className="lg:col-span-4 space-y-6">
+                            <div className="bg-white rounded-[3rem] p-10 md:p-12 border border-gray-100 shadow-sm space-y-8">
+                                <div className="space-y-4 flex flex-col items-center">
+                                    <div className="h-4 w-24 bg-gray-200 rounded"></div>
+                                    <div className="h-8 w-40 bg-gray-200 rounded-xl"></div>
+                                    <div className="h-4 w-20 bg-gray-100 rounded"></div>
+                                </div>
+
+                                <div className="h-px bg-gray-100 w-full"></div>
+
+                                <div className="space-y-3">
+                                    {[1, 2, 3].map((i) => (
+                                        <div key={i} className="flex justify-between items-center">
+                                            <div className="h-3 w-20 bg-gray-100 rounded"></div>
+                                            <div className="h-3 w-12 bg-gray-200 rounded"></div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="h-12 w-full bg-gray-200 rounded-2xl"></div>
+                            </div>
+                        </aside>
+                    </div>
+                </div>
+            </div>
+        );
+    }
     if (!track) return <div className="min-h-screen flex flex-col items-center justify-center bg-light text-center px-4"><h2 className="text-base font-black mb-2">Track not found.</h2><Button onClick={() => navigate('/discover')}>Discover Paths</Button></div>;
 
     return (

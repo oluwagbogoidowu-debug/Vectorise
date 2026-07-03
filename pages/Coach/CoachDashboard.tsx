@@ -192,6 +192,67 @@ const CoachDashboard: React.FC = () => {
       );
   };
 
+  if (isLoading) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-6 pb-32 bg-white animate-pulse">
+        {/* Header skeleton */}
+        <div className="flex justify-between items-center mb-8">
+           <div>
+              <div className="h-8 w-40 bg-gray-200 rounded-xl mb-2"></div>
+              <div className="h-4 w-60 bg-gray-100 rounded-lg"></div>
+           </div>
+           <div className="h-10 w-28 bg-gray-200 rounded-2xl"></div>
+        </div>
+
+        {/* Quick Stats skeleton */}
+        <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-6">
+            {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-white p-4 h-24 rounded-2xl border border-gray-100 flex flex-col justify-center">
+                    <div className="h-3 w-12 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-6 w-8 bg-gray-300 rounded"></div>
+                </div>
+            ))}
+        </div>
+
+        {/* Real-time Updates Section skeleton */}
+        <div className="bg-white rounded-[2rem] border border-gray-100 p-6 mb-6 h-[320px] flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-gray-200"></div>
+                    <div className="h-4 w-20 bg-gray-200 rounded-lg"></div>
+                </div>
+                <div className="w-5 h-5 bg-gray-200 rounded-lg"></div>
+            </div>
+
+            <div className="flex-1 space-y-3">
+                {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex gap-3 items-center">
+                        <div className="w-8 h-8 rounded-full bg-gray-200"></div>
+                        <div className="flex-1 space-y-1.5">
+                            <div className="h-3 w-3/4 bg-gray-200 rounded"></div>
+                            <div className="h-2 w-1/2 bg-gray-100 rounded"></div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+
+        {/* Quick Actions skeleton */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-6">
+            {[1, 2].map((i) => (
+                <div key={i} className="bg-white p-6 h-40 rounded-[2rem] border border-gray-100 flex flex-col justify-between">
+                    <div className="w-12 h-12 bg-gray-200 rounded-xl"></div>
+                    <div>
+                        <div className="h-4 w-32 bg-gray-200 rounded mb-2"></div>
+                        <div className="h-3 w-48 bg-gray-100 rounded"></div>
+                    </div>
+                </div>
+            ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 pb-32 bg-white">
       <div className="flex justify-between items-center mb-8">

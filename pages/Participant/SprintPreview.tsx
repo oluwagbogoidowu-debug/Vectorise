@@ -272,7 +272,51 @@ const SprintPreview: React.FC = () => {
         }
     };
 
-    if (isLoading) return <div className="flex items-center justify-center h-screen bg-[#FAFAFA]"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
+    if (isLoading) {
+        return (
+            <div className="max-w-2xl mx-auto px-4 py-8 pb-32 animate-pulse space-y-6">
+                {/* Back Link Placeholder */}
+                <div className="flex justify-between items-center">
+                    <div className="h-4 w-28 bg-gray-200 rounded"></div>
+                    <div className="h-4 w-16 bg-gray-100 rounded"></div>
+                </div>
+
+                {/* Main Heading Block */}
+                <div className="space-y-2">
+                    <div className="h-8 w-2/3 bg-gray-200 rounded-lg"></div>
+                    <div className="h-4 w-1/3 bg-gray-100 rounded"></div>
+                </div>
+
+                {/* Daily Insight Card Placeholder */}
+                <div className="bg-white rounded-[2rem] border border-gray-100 p-6 flex justify-between items-center">
+                    <div className="h-4 w-32 bg-gray-200 rounded"></div>
+                    <div className="w-5 h-5 bg-gray-100 rounded-full"></div>
+                </div>
+
+                {/* Action Step Card Placeholder */}
+                <div className="p-6 bg-[#0E7850]/5 rounded-[2rem] border border-[#0E7850]/10 space-y-4">
+                    <div className="h-3.5 w-40 bg-gray-200 rounded"></div>
+                    <div className="h-5 w-5/6 bg-gray-200 rounded"></div>
+                    <div className="space-y-2 pt-2">
+                        <div className="h-3.5 w-full bg-gray-100 rounded"></div>
+                        <div className="h-3.5 w-full bg-gray-100 rounded"></div>
+                    </div>
+                </div>
+
+                {/* Input Fields Placeholder */}
+                <div className="bg-white rounded-[2rem] border border-gray-100 p-6 space-y-4">
+                    <div className="h-4 w-36 bg-gray-200 rounded"></div>
+                    <div className="h-20 w-full bg-gray-100 rounded-2xl"></div>
+                </div>
+
+                {/* Bottom Navigation controls */}
+                <div className="flex justify-between items-center pt-4">
+                    <div className="h-10 w-24 bg-gray-200 rounded-xl"></div>
+                    <div className="h-10 w-24 bg-gray-200 rounded-xl"></div>
+                </div>
+            </div>
+        );
+    }
     if (!sprint) return <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center"><h2 className="text-base font-black mb-4">Sprint not found.</h2><button onClick={() => navigate('/discover')} className="text-primary font-black uppercase tracking-widest text-xs">Back to Discover</button></div>;
 
     const day1Content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;

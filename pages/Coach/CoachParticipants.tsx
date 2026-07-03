@@ -318,9 +318,31 @@ const CoachParticipants: React.FC = () => {
                     </div>
 
                     {isLoading ? (
-                        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
-                            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-                            <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Syncing Registry Data...</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+                            {[1, 2, 3].map((i) => (
+                                <div key={i} className="bg-white rounded-[2rem] border-2 border-gray-100 p-6 shadow-sm flex flex-col justify-between space-y-5">
+                                    <div>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-11 h-11 rounded-full bg-gray-200"></div>
+                                                <div className="space-y-1.5">
+                                                    <div className="h-4 w-28 bg-gray-200 rounded"></div>
+                                                    <div className="h-2.5 w-16 bg-gray-100 rounded"></div>
+                                                </div>
+                                            </div>
+                                            <div className="w-8 h-8 rounded-xl bg-gray-100"></div>
+                                        </div>
+                                        <div className="space-y-3 pt-2">
+                                            <div className="flex justify-between">
+                                                <div className="h-3 w-16 bg-gray-200 rounded"></div>
+                                                <div className="h-3 w-8 bg-gray-100 rounded"></div>
+                                            </div>
+                                            <div className="h-2 w-full bg-gray-100 rounded-full"></div>
+                                        </div>
+                                    </div>
+                                    <div className="h-9 w-full bg-gray-200 rounded-xl"></div>
+                                </div>
+                            ))}
                         </div>
                     ) : filteredEnrollments.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
