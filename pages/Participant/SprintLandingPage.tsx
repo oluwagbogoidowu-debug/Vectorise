@@ -113,6 +113,10 @@ const SprintLandingPage: React.FC = () => {
     const [isCheckingEmail, setIsCheckingEmail] = useState(false);
     const [emailError, setEmailError] = useState('');
 
+    const [showCommitmentSheet, setShowCommitmentSheet] = useState(false);
+    const [isCommitted, setIsCommitted] = useState(false);
+    const [commitmentContext, setCommitmentContext] = useState<{ isGuest: boolean; emailExists?: boolean; guestEmail?: string } | null>(null);
+
     const handleJoinClick = async () => {
         if (!sprint) return;
         
@@ -130,15 +134,14 @@ const SprintLandingPage: React.FC = () => {
                 
                 // Always proceed directly to day one preview flow to allow preview before logging in (as requested)
                 analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, existing_user: emailExists }, undefined, guestEmail);
-                navigate(`/sprint/preview/${sprint.id}`, { 
-                    state: { 
-                        sprintId: sprint.id, 
-                        sprint: sprint, 
-                        selectedFocus, 
-                        prefilledEmail: guestEmail,
-                        emailExists: emailExists
-                    } 
+                
+                setCommitmentContext({
+                    isGuest: true,
+                    emailExists,
+                    guestEmail
                 });
+                setIsCommitted(false);
+                setShowCommitmentSheet(true);
             } catch (err) {
                 console.error("Error checking email:", err);
                 setEmailError("Something went wrong. Please try again.");
@@ -149,7 +152,36 @@ const SprintLandingPage: React.FC = () => {
         }
 
         analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId }, user?.id);
-        navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus } });
+        setCommitmentContext({
+            isGuest: false
+        });
+        setIsCommitted(false);
+        setShowCommitmentSheet(true);
+    };
+
+    const handleConfirmCommitment = () => {
+        if (!isCommitted || !sprint || !commitmentContext) return;
+        
+        setShowCommitmentSheet(false);
+        if (commitmentContext.isGuest) {
+            navigate(`/sprint/preview/${sprint.id}`, { 
+                state: { 
+                    sprintId: sprint.id, 
+                    sprint: sprint, 
+                    selectedFocus, 
+                    prefilledEmail: commitmentContext.guestEmail,
+                    emailExists: commitmentContext.emailExists
+                } 
+            });
+        } else {
+            navigate('/onboarding/sprint-payment', { 
+                state: { 
+                    sprintId: sprint.id, 
+                    sprint: sprint, 
+                    selectedFocus 
+                } 
+            });
+        }
     };
 
     if (isLoading) {
@@ -477,6 +509,102 @@ const SprintLandingPage: React.FC = () => {
                     </aside>
                 </div>
             </div>
+
+            {/* Commitment Bottom Sheet */}
+            {showCommitmentSheet && (
+                <>
+                    <div 
+                        className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick"
+                        onClick={() => setShowCommitmentSheet(false)}
+                    />
+                    <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-6 sm:p-8 animate-slide-up-quick pb-10">
+                        {/* Drag Handle indicator */}
+                        <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
+                        
+                        {/* Protocol Tag */}
+                        <div className="flex items-center gap-2 mb-4 justify-center">
+                            <LocalLogo type="favicon" className="h-5 w-5" />
+                            <div className="h-[1px] w-8 bg-gray-150"></div>
+                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850]">The Protocol</span>
+                        </div>
+
+                        {/* Heading */}
+                        <h3 className="text-xl sm:text-2xl font-black tracking-tight leading-tight text-center text-gray-900 mb-1">
+                            Before you continue <br/>
+                            <span className="text-gray-300 italic">you have to decide</span>
+                        </h3>
+
+                        {/* List items */}
+                        <div className="space-y-3.5 my-6 max-w-xs mx-auto">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 text-center mb-1">You'll</p>
+                            {[
+                              "Show up daily",
+                              "Pay attention to what works",
+                              "Finish what you start"
+                            ].map((text, i) => (
+                              <div key={i} className="flex items-center gap-3 pl-4">
+                                <span className="text-[#0E7850] text-sm leading-none">•</span>
+                                <span className="text-sm font-bold tracking-tight text-gray-800">{text}</span>
+                              </div>
+                            ))}
+                        </div>
+
+                        {/* Small momentum text */}
+                        <p className="text-[11px] text-gray-400 font-bold text-center mb-6 px-4">
+                            Small actions daily builds real momentum over time.
+                        </p>
+
+                        {/* Commitment Radio Button */}
+                        <button 
+                            onClick={() => setIsCommitted(!isCommitted)}
+                            className={`w-full flex items-center gap-3.5 p-4 rounded-2xl transition-all border-2 mb-6 text-left ${
+                                isCommitted 
+                                ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
+                                : 'bg-gray-50 border-gray-100 hover:border-gray-200 text-gray-400 hover:bg-white'
+                            }`}
+                        >
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                                isCommitted ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
+                            }`}>
+                                {isCommitted && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                            </div>
+                            <span className={`text-[12px] font-bold tracking-tight ${isCommitted ? 'text-gray-950' : 'text-gray-400'}`}>
+                                I commit to showing up and finishing this
+                            </span>
+                        </button>
+
+                        {/* Continue button */}
+                        <Button 
+                            onClick={handleConfirmCommitment}
+                            disabled={!isCommitted}
+                            className={`w-full py-5 rounded-2xl shadow-xl transition-all text-[10px] font-black tracking-[0.2em] uppercase ${
+                                isCommitted 
+                                ? 'bg-gray-900 text-white hover:scale-[1.01] active:scale-95 shadow-gray-900/15 border-none' 
+                                : 'bg-gray-100 text-gray-300 cursor-not-allowed border-none shadow-none'
+                            }`}
+                        >
+                            Start Day 1 Now
+                        </Button>
+                    </div>
+                </>
+            )}
+
+            <style>{`
+                @keyframes fadeInQuick {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                @keyframes slideUpQuick {
+                    from { transform: translateY(100%); }
+                    to { transform: translateY(0); }
+                }
+                .animate-fade-in-quick {
+                    animation: fadeInQuick 0.2s ease-out forwards;
+                }
+                .animate-slide-up-quick {
+                    animation: slideUpQuick 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
+            `}</style>
         </div>
     );
 };
