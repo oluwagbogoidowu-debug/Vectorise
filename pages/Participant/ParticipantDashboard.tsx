@@ -100,6 +100,7 @@ const ParticipantDashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mySprints, setMySprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
+  const [enrichedSprints, setEnrichedSprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
   const [queuedSprints, setQueuedSprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
   const [allEnrollments, setAllEnrollments] = useState<ParticipantSprint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -166,6 +167,44 @@ const ParticipantDashboard: React.FC = () => {
 
   const activeIgnite = processedIgnitePosts[0];
   const isIgniteChecked = activeIgnite ? checkedIgnites[activeIgnite.id] : true;
+
+  const lastCompletedStep = useMemo(() => {
+    const completedSteps: {
+      sprintTitle: string;
+      day: number;
+      taskPrompt: string;
+      submission: string;
+      completedAt: number;
+    }[] = [];
+
+    for (const item of enrichedSprints) {
+      const { enrollment, sprint } = item;
+      if (!enrollment || !enrollment.progress || !sprint) continue;
+      
+      for (const p of enrollment.progress) {
+        if (p.completed) {
+          const dayContent = Array.isArray(sprint.dailyContent) 
+            ? sprint.dailyContent.find(d => d.day === p.day) 
+            : null;
+          const prompt = dayContent?.taskPrompt || sprint.description || "Daily Focus Step";
+          completedSteps.push({
+            sprintTitle: sprint.title,
+            day: p.day,
+            taskPrompt: prompt,
+            submission: p.submission || (p.answers && p.answers[0]) || "",
+            completedAt: p.completedAt ? new Date(p.completedAt).getTime() : 0,
+          });
+        }
+      }
+    }
+
+    completedSteps.sort((a, b) => b.completedAt - a.completedAt);
+    return completedSteps[0] || null;
+  }, [enrichedSprints]);
+
+  const latestBlogPost = useMemo(() => {
+    return blogService.getPosts()[0] || null;
+  }, []);
 
   // Load published ignites in real-time
   useEffect(() => {
@@ -299,6 +338,8 @@ const ParticipantDashboard: React.FC = () => {
                 return item !== null && item.enrollment.checkInReminderEnabled === true;
             });
 
+             const validEnriched = enriched.filter((x): x is { enrollment: ParticipantSprint; sprint: Sprint } => x !== null);
+             setEnrichedSprints(validEnriched);
              setMySprints(activeOnly);
              setQueuedSprints(queuedOnly);
              setCheckInSprints(checkInOnly);
@@ -862,9 +903,9 @@ const ParticipantDashboard: React.FC = () => {
                         }
                     `}</style>
                     <div className="mb-2 px-1 flex justify-between items-center">
-                        <p className="text-[11px] md:text-[13px] font-black text-[#0E7850] uppercase tracking-[0.2em] leading-none">Step up your Rise</p>
+                        <p className="text-[14px] md:text-[16px] font-black text-[#0E7850] uppercase tracking-[0.2em] leading-none">Step up your Rise</p>
                     </div>
-                    <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory no-scrollbar relative">
+                    <div className="flex gap-6 overflow-x-auto pb-4 pt-4 px-1.5 snap-x snap-mandatory no-scrollbar relative items-center">
                         {/* 1. Reignite old flame - Circle layout with Ignite post image as background */}
                         <div 
                             onClick={() => {
@@ -915,19 +956,49 @@ const ParticipantDashboard: React.FC = () => {
                         <Link 
                             to={isStepUpLocked ? "#" : "/profile/archive"} 
                             onClick={(e) => isStepUpLocked && e.preventDefault()}
-                            className={`flex-shrink-0 w-52 h-20 bg-white border border-gray-100 rounded-[1.2rem] px-4 shadow-sm transition-all duration-300 flex items-center gap-3 group snap-start animate-fade-in ${
+                            className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
                                 isStepUpLocked 
                                 ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
                                 : 'hover:shadow-md hover:border-indigo-500/20 cursor-pointer'
                             } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                         >
-                            <div className="w-8.5 h-8.5 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-indigo-100/50 group-hover:scale-105 transition-transform duration-300">
-                                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
+                            {/* Tag positioned nicely like the impact page milestone cards */}
+                            <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-indigo-50 text-indigo-700 border border-indigo-100/40 z-10">
+                                Revisit your Rise
                             </div>
-                            <div className="min-w-0 text-left">
-                                <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-none group-hover:text-indigo-600 transition-colors">Revisit your Rise</h4>
+
+                            {/* Content of the card */}
+                            <div className="flex-1 flex flex-col justify-between pt-2">
+                                {lastCompletedStep ? (
+                                    <div className="flex-1 flex flex-col justify-between">
+                                        <div className="space-y-1.5 min-w-0 text-left">
+                                            <p className="text-[9px] font-black text-indigo-600 uppercase tracking-wider truncate">
+                                                {lastCompletedStep.sprintTitle} • Day {lastCompletedStep.day}
+                                            </p>
+                                            <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-2">
+                                                {lastCompletedStep.taskPrompt}
+                                            </p>
+                                            <p className="text-xs text-gray-500 italic leading-snug line-clamp-3 bg-gray-50 p-2.5 rounded-xl border border-gray-100/50 mt-2 font-medium">
+                                                "{lastCompletedStep.submission}"
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex-1 flex flex-col justify-center items-center text-center py-4">
+                                        <p className="text-xs font-semibold text-gray-400 max-w-[160px]">
+                                            No daily steps completed yet. Complete your focus to start your archive!
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase text-indigo-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                        See More
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </span>
+                                </div>
                             </div>
                         </Link>
 
@@ -935,20 +1006,38 @@ const ParticipantDashboard: React.FC = () => {
                         <Link 
                             to={isStepUpLocked ? "#" : "/impact"} 
                             onClick={(e) => isStepUpLocked && e.preventDefault()}
-                            className={`flex-shrink-0 w-52 h-20 bg-white border border-gray-100 rounded-[1.2rem] px-4 shadow-sm transition-all duration-300 flex items-center gap-3 group snap-start animate-fade-in ${
+                            className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
                                 isStepUpLocked 
                                 ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
                                 : 'hover:shadow-md hover:border-emerald-500/20 cursor-pointer'
                             } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                         >
-                            <div className="w-8.5 h-8.5 bg-emerald-50 text-[#0E7850] rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-emerald-100/50 group-hover:scale-105 transition-transform duration-300">
-                                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
+                            {/* Tag positioned nicely like the impact page milestone cards */}
+                            <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-emerald-700 border border-emerald-100/40 z-10">
+                                Become a Catalyst
                             </div>
-                            <div className="min-w-0 text-left">
-                                <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-none group-hover:text-[#0E7850] transition-colors">Become a Catalyst</h4>
-                                <span className="text-[9px] font-bold text-gray-400 block mt-1">Help a person rise</span>
+
+                            {/* Content of the card */}
+                            <div className="flex-1 flex flex-col justify-between pt-2">
+                                <div className="space-y-2 mt-2 text-left">
+                                    <div className="w-10 h-10 bg-emerald-50 text-[#0E7850] rounded-xl flex items-center justify-center border border-emerald-100/50 shadow-sm">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-sm font-black text-gray-950 leading-tight">
+                                        Help someone to start their growth journey today and be rewarded for it.
+                                    </p>
+                                </div>
+
+                                <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase text-[#0E7850] group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                        Learn More
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </span>
+                                </div>
                             </div>
                         </Link>
 
@@ -956,45 +1045,112 @@ const ParticipantDashboard: React.FC = () => {
                         <Link 
                             to={isStepUpLocked ? "#" : "/growth"} 
                             onClick={(e) => isStepUpLocked && e.preventDefault()}
-                            className={`flex-shrink-0 w-52 h-20 bg-white border border-gray-100 rounded-[1.2rem] px-4 shadow-sm transition-all duration-300 flex flex-col justify-center gap-1.5 group snap-start animate-fade-in relative ${
+                            className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
                                 isStepUpLocked 
                                 ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
                                 : 'hover:shadow-md hover:border-emerald-500/20 cursor-pointer'
                             } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                         >
-                            <div className="flex items-center gap-2.5 w-full">
-                                <div className="w-8.5 h-8.5 bg-emerald-50 text-[#0E7850] rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-emerald-100/50 group-hover:scale-105 transition-transform duration-300">
-                                    <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                                    </svg>
-                                </div>
-                                <div className="min-w-0 text-left flex-1">
-                                    <div className="flex justify-between items-baseline gap-1">
-                                        <h4 className="text-[12px] font-black text-gray-950 tracking-tight leading-none group-hover:text-[#0E7850] transition-colors truncate">See your rise analysis</h4>
-                                        <span className="text-[11px] font-mono font-black text-[#0E7850] flex-shrink-0">{overallProgress}%</span>
-                                    </div>
-                                    <span className="text-[9px] font-bold text-gray-400 block mt-1">Growth & progress</span>
-                                </div>
+                            {/* Tag positioned nicely like the impact page milestone cards */}
+                            <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-[#0E7850] border border-emerald-100/40 z-10">
+                                See your rise analysis
                             </div>
-                            <div className="h-1 w-full bg-gray-50 rounded-full overflow-hidden">
-                                <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
+
+                            {/* Content of the card */}
+                            <div className="flex-1 flex flex-col justify-between pt-2">
+                                <div className="space-y-2 mt-2 text-left">
+                                    <div className="w-10 h-10 bg-emerald-50 text-[#0E7850] rounded-xl flex items-center justify-center border border-emerald-100/50 shadow-sm">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-black text-gray-950 leading-tight group-hover:text-[#0E7850] transition-colors">
+                                            See your rise analysis
+                                        </h4>
+                                        <p className="text-[10px] font-bold text-gray-400 mt-1">
+                                            Track your overall performance and sprint metrics.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5 text-left">
+                                    <div className="flex justify-between items-end">
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                            Overall
+                                        </span>
+                                        <span className="text-[11px] font-mono font-black text-[#0E7850]">
+                                            {overallProgress}%
+                                        </span>
+                                    </div>
+                                    <div className="h-1.5 w-full bg-gray-50 border border-gray-100/50 rounded-full overflow-hidden">
+                                        <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
+                                    </div>
+                                </div>
                             </div>
                         </Link>
 
                         {/* 5. Read RiseBlog */}
                         <Link 
                             to="/blog" 
-                            className={`flex-shrink-0 w-52 h-20 bg-white border border-gray-100 rounded-[1.2rem] px-4 shadow-sm transition-all duration-300 flex items-center gap-3 group snap-start animate-fade-in hover:shadow-md hover:border-[#0E7850]/20 cursor-pointer`}
+                            className="flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative overflow-hidden hover:shadow-md hover:border-emerald-500/20 cursor-pointer"
                         >
-                            <div className="w-8.5 h-8.5 bg-primary/10 rounded-lg flex items-center justify-center text-primary flex-shrink-0 shadow-sm border border-primary/10 group-hover:scale-105 transition-transform duration-300">
-                                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                </svg>
+                            {/* Tag positioned nicely like the impact page milestone cards */}
+                            <div className="absolute top-3 left-4 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-emerald-700 border border-emerald-100/40 z-20">
+                                Read RiseBlog
                             </div>
-                            <div className="min-w-0 text-left">
-                                <h4 className="text-[13px] font-black text-gray-950 tracking-tight leading-none group-hover:text-primary transition-colors">Read RiseBlog</h4>
-                                <span className="text-[9px] font-bold text-gray-400 block mt-1">New releases</span>
-                            </div>
+
+                            {latestBlogPost ? (
+                                <div className="flex-1 flex flex-col justify-between h-full">
+                                    {/* Top part has the cover image */}
+                                    <div className="h-28 w-full relative overflow-hidden">
+                                        <img 
+                                            src={latestBlogPost.coverImage} 
+                                            alt={latestBlogPost.title} 
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent"></div>
+                                        <span className="absolute bottom-2 left-4 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm">
+                                            {latestBlogPost.category}
+                                        </span>
+                                    </div>
+
+                                    {/* Bottom part has details */}
+                                    <div className="p-4 flex-1 flex flex-col justify-between">
+                                        <div className="space-y-1.5 text-left">
+                                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">
+                                                {latestBlogPost.publishedAt} • {latestBlogPost.readTime}
+                                            </p>
+                                            <h4 className="text-[11px] font-black text-gray-950 tracking-tight leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                                                {latestBlogPost.title}
+                                            </h4>
+                                        </div>
+
+                                        <div className="flex items-center justify-between pt-2 border-t border-gray-50 mt-2">
+                                            <div className="flex items-center gap-1.5">
+                                                <img 
+                                                    src={latestBlogPost.author.avatar} 
+                                                    alt={latestBlogPost.author.name} 
+                                                    className="w-4 h-4 rounded-full object-cover"
+                                                />
+                                                <span className="text-[8px] font-black text-gray-600 uppercase tracking-wider truncate max-w-[100px]">
+                                                    {latestBlogPost.author.name}
+                                                </span>
+                                            </div>
+                                            <span className="text-[9px] font-black uppercase text-[#0E7850] inline-flex items-center gap-0.5">
+                                                Read
+                                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex flex-col justify-center items-center p-6 text-center">
+                                    <p className="text-xs font-semibold text-gray-400">No releases found</p>
+                                </div>
+                            )}
                         </Link>
                     </div>
                     {isStepUpLocked && (
