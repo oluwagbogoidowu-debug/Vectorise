@@ -9,7 +9,7 @@ import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtil
 import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers, Sparkles } from 'lucide-react';
+import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers, Sparkles, HelpCircle } from 'lucide-react';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import FormattedText from '../../components/FormattedText';
@@ -17,6 +17,7 @@ import CustomSelect from '../../components/CustomSelect';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import DailyActionWorkspace from './DailyActionWorkspace';
+import LocalLogo from '../../components/LocalLogo';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 
@@ -316,6 +317,8 @@ const EditSprint: React.FC = () => {
   const [showMirrorPreview, setShowMirrorPreview] = useState(false);
   const [showClearActionConfirm, setShowClearActionConfirm] = useState(false);
   const [showAdvancedActionModal, setShowAdvancedActionModal] = useState(false);
+  const [showInsightHelpSheet, setShowInsightHelpSheet] = useState(false);
+  const [showActionHelpSheet, setShowActionHelpSheet] = useState(false);
   const [advancedGeneralInput, setAdvancedGeneralInput] = useState('');
   const [selectedText, setSelectedText] = useState('');
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number, y: number } | null>(null);
@@ -2505,6 +2508,14 @@ const EditSprint: React.FC = () => {
                             <label className={labelClasses}>Today's Insight</label>
                             <button
                                 type="button"
+                                onClick={() => setShowInsightHelpSheet(true)}
+                                className="text-gray-400 hover:text-[#0E7850] transition-colors p-0.5 rounded flex items-center justify-center cursor-pointer"
+                                title="How to use Today's Insight"
+                            >
+                                <HelpCircle size={14} />
+                            </button>
+                            <button
+                                type="button"
                                 onClick={() => {
                                     if (window.confirm("Are you sure you want to delete Today's Insight content?")) {
                                         handleContentChange('lessonText', '');
@@ -2718,6 +2729,14 @@ const EditSprint: React.FC = () => {
                             <div className="flex justify-between items-center sm:items-end">
                                 <div className="flex items-center gap-2">
                                     <label className={labelClasses}>Today's Action Steps</label>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowActionHelpSheet(true)}
+                                        className="text-gray-400 hover:text-[#0E7850] transition-colors p-0.5 rounded flex items-center justify-center cursor-pointer"
+                                        title="How to use Today's Action Steps"
+                                    >
+                                        <HelpCircle size={14} />
+                                    </button>
                                     <button
                                         type="button"
                                         onClick={() => setShowClearActionConfirm(true)}
@@ -3941,6 +3960,120 @@ const EditSprint: React.FC = () => {
           onSaveDraft={handleSaveDraft}
           saveStatus={saveStatus}
         />
+      )}
+
+      {/* Today's Insight Help Bottom Sheet */}
+      {showInsightHelpSheet && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/60 z-[300] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick cursor-pointer"
+            onClick={() => setShowInsightHelpSheet(false)}
+          />
+          <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[301] p-6 sm:p-8 pb-10 flex flex-col animate-slide-up-quick text-left">
+            {/* Drag Handle indicator */}
+            <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
+            
+            {/* Protocol Tag */}
+            <div className="flex items-center gap-2 mb-4 justify-center">
+              <LocalLogo type="favicon" className="h-5 w-5 animate-pulse" />
+              <div className="h-[1px] w-8 bg-gray-150"></div>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850]">The Protocol</span>
+            </div>
+
+            {/* Heading */}
+            <h3 className="text-xl font-black tracking-tight leading-tight text-center text-gray-900 mb-1 uppercase">
+              Today's Insight
+            </h3>
+            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 text-center mb-6">How to write high-impact content</p>
+
+            {/* Content list */}
+            <div className="space-y-4 max-w-xs sm:max-w-sm mx-auto">
+              <div className="flex items-start gap-3">
+                <span className="text-emerald-600 text-sm font-black mt-0.5">•</span>
+                <p className="text-xs font-bold leading-relaxed text-gray-700">
+                  <span className="font-extrabold text-gray-900">Define the Context:</span> This is the core curriculum text the participant reads to start their day. Frame the context and introduce today's focus.
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-emerald-600 text-sm font-black mt-0.5">•</span>
+                <p className="text-xs font-bold leading-relaxed text-gray-700">
+                  <span className="font-extrabold text-gray-950">Explain the Why:</span> Help participants understand why today's specific challenge matters and how it connects to their larger transformation goals.
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-emerald-600 text-sm font-black mt-0.5">•</span>
+                <p className="text-xs font-bold leading-relaxed text-gray-700">
+                  <span className="font-extrabold text-gray-950">Formatting tools:</span> Use the formatting toolbar to highlight text blocks, italicize for emphasis, or structure with bold titles.
+                </p>
+              </div>
+            </div>
+
+            <button 
+              type="button"
+              onClick={() => setShowInsightHelpSheet(false)}
+              className="mt-8 w-full py-3.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-xs font-black tracking-widest uppercase transition-all shadow-md active:scale-95 cursor-pointer text-center"
+            >
+              Understand
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Today's Action Steps Help Bottom Sheet */}
+      {showActionHelpSheet && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/60 z-[300] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick cursor-pointer"
+            onClick={() => setShowActionHelpSheet(false)}
+          />
+          <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[301] p-6 sm:p-8 pb-10 flex flex-col animate-slide-up-quick text-left">
+            {/* Drag Handle indicator */}
+            <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
+            
+            {/* Protocol Tag */}
+            <div className="flex items-center gap-2 mb-4 justify-center">
+              <LocalLogo type="favicon" className="h-5 w-5 animate-pulse" />
+              <div className="h-[1px] w-8 bg-gray-150"></div>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850]">The Protocol</span>
+            </div>
+
+            {/* Heading */}
+            <h3 className="text-xl font-black tracking-tight leading-tight text-center text-gray-900 mb-1 uppercase">
+              Today's Action Steps
+            </h3>
+            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 text-center mb-6">Designing daily exercises</p>
+
+            {/* Content list */}
+            <div className="space-y-4 max-w-xs sm:max-w-sm mx-auto">
+              <div className="flex items-start gap-3">
+                <span className="text-emerald-600 text-sm font-black mt-0.5">•</span>
+                <p className="text-xs font-bold leading-relaxed text-gray-700">
+                  <span className="font-extrabold text-gray-900">Make it Actionable:</span> Break down today's goal into distinct, bitesize actionable micro-exercises. A minimum of 3 steps is highly recommended.
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-emerald-600 text-sm font-black mt-0.5">•</span>
+                <p className="text-xs font-bold leading-relaxed text-gray-700">
+                  <span className="font-extrabold text-gray-950">Custom Input Types:</span> Select text input, multi-line notes, custom tag selectors, or quick polls based on what type of input you expect from the user.
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-emerald-600 text-sm font-black mt-0.5">•</span>
+                <p className="text-xs font-bold leading-relaxed text-gray-700">
+                  <span className="font-extrabold text-gray-950">Set Clear Guides:</span> Utilize footnotes, placeholder hints, and coach-specific tips to make sure participants never feel stuck.
+                </p>
+              </div>
+            </div>
+
+            <button 
+              type="button"
+              onClick={() => setShowActionHelpSheet(false)}
+              className="mt-8 w-full py-3.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-xs font-black tracking-widest uppercase transition-all shadow-md active:scale-95 cursor-pointer text-center"
+            >
+              Understand
+            </button>
+          </div>
+        </>
       )}
 
       {/* Floating Selection Tooltip */}

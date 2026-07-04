@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sprint, DailyContent } from '../../types';
 import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2 } from 'lucide-react';
+import LocalLogo from '../../components/LocalLogo';
 
 interface DailyActionWorkspaceProps {
   sprint: Sprint | null;
@@ -28,6 +29,7 @@ export default function DailyActionWorkspace({
   const [activeLinkSelectorType, setActiveLinkSelectorType] = useState<'tag' | 'text' | null>(null);
   const [addingCustomOption, setAddingCustomOption] = useState<Record<number, boolean>>({});
   const [lastAssignedField, setLastAssignedField] = useState<string | null>(null);
+  const [showHelpSheet, setShowHelpSheet] = useState(false);
 
   // Load from database/sprint or fallback to local storage
   useEffect(() => {
@@ -373,15 +375,17 @@ export default function DailyActionWorkspace({
             <div className="flex items-center gap-1.5">
               <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">General Content Hub</label>
               
-              <div className="relative group inline-block">
-                <button type="button" className="text-gray-400 hover:text-gray-655 transition-colors p-0.5 rounded flex items-center justify-center cursor-pointer">
+              <div className="inline-block">
+                <button 
+                  type="button" 
+                  onClick={() => setShowHelpSheet(true)}
+                  className="text-gray-400 hover:text-[#0E7850] transition-colors p-0.5 rounded flex items-center justify-center cursor-pointer"
+                  title="How to use General Content Hub"
+                >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
                 </button>
-                <div className="absolute left-0 top-full mt-2 w-64 hidden group-hover:flex flex-col bg-gray-950 border border-gray-800 text-white text-[10px] leading-relaxed p-3.5 rounded-2xl shadow-xl z-[200] pointer-events-none uppercase tracking-wider font-sans font-bold">
-                  💡 Paste curriculum guidelines here. Highlight text to assign it to any active step field on the right.
-                </div>
               </div>
             </div>
 
@@ -1221,6 +1225,63 @@ export default function DailyActionWorkspace({
             <Save className="h-5.5 w-5.5" />
           )}
         </button>
+      )}
+
+      {/* General Content Hub bottom sheet */}
+      {showHelpSheet && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/60 z-[300] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick cursor-pointer"
+            onClick={() => setShowHelpSheet(false)}
+          />
+          <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[301] p-6 sm:p-8 pb-10 flex flex-col animate-slide-up-quick text-left">
+            {/* Drag Handle indicator */}
+            <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
+            
+            {/* Protocol Tag */}
+            <div className="flex items-center gap-2 mb-4 justify-center">
+              <LocalLogo type="favicon" className="h-5 w-5 animate-pulse" />
+              <div className="h-[1px] w-8 bg-gray-150"></div>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850]">The Protocol</span>
+            </div>
+
+            {/* Heading */}
+            <h3 className="text-xl font-black tracking-tight leading-tight text-center text-gray-900 mb-1 uppercase">
+              General Content Hub
+            </h3>
+            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 text-center mb-6">How to use this setup</p>
+
+            {/* Content list */}
+            <div className="space-y-4 max-w-xs sm:max-w-sm mx-auto">
+              <div className="flex items-start gap-3">
+                <span className="text-emerald-600 text-sm font-black mt-0.5">•</span>
+                <p className="text-xs font-bold leading-relaxed text-gray-700">
+                  <span className="font-extrabold text-gray-900">Paste or Write Content:</span> Type or paste raw curriculum outlines, source notes, or general text directly into this text area.
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-emerald-600 text-sm font-black mt-0.5">•</span>
+                <p className="text-xs font-bold leading-relaxed text-gray-700">
+                  <span className="font-extrabold text-gray-900">Highlight & Assign:</span> Select or highlight any text block inside this text area to activate instant assignment to active steps on the right.
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-emerald-600 text-sm font-black mt-0.5">•</span>
+                <p className="text-xs font-bold leading-relaxed text-gray-700">
+                  <span className="font-extrabold text-gray-900">Fast Assembly:</span> Use assignments to quickly map guidelines into steps, hints, footnotes, or notes without copy-paste hassle.
+                </p>
+              </div>
+            </div>
+
+            <button 
+              type="button"
+              onClick={() => setShowHelpSheet(false)}
+              className="mt-8 w-full py-3.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-xs font-black tracking-widest uppercase transition-all shadow-md active:scale-95 cursor-pointer text-center"
+            >
+              Understand
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
