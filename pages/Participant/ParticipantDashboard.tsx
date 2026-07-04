@@ -116,6 +116,7 @@ const ParticipantDashboard: React.FC = () => {
   const [dashboardReferrals, setDashboardReferrals] = useState<Referral[]>([]);
   const [showInviteBanner, setShowInviteBanner] = useState(false);
   const [ignitePosts, setIgnitePosts] = useState<Sprint[]>([]);
+  const [publishedSprints, setPublishedSprints] = useState<Sprint[]>([]);
   const [activePlayIgnite, setActivePlayIgnite] = useState<Sprint | null>(null);
   const [showPulse, setShowPulse] = useState(false);
   const [checkedIgnites, setCheckedIgnites] = useState<Record<string, boolean>>({});
@@ -202,17 +203,26 @@ const ParticipantDashboard: React.FC = () => {
     return completedSteps[0] || null;
   }, [enrichedSprints]);
 
+  const recommendedNextSprint = useMemo(() => {
+    if (publishedSprints.length === 0) return null;
+    const enrolledSprintIds = new Set(allEnrollments.map(e => e.sprint_id));
+    const unenrolled = publishedSprints.filter(s => !enrolledSprintIds.has(s.id));
+    return unenrolled[0] || publishedSprints[0] || null;
+  }, [publishedSprints, allEnrollments]);
+
   const latestBlogPost = useMemo(() => {
     return blogService.getPosts()[0] || null;
   }, []);
 
-  // Load published ignites in real-time
+  // Load published sprints and ignites in real-time
   useEffect(() => {
     const unsubscribe = sprintService.subscribeToPublishedSprints((published) => {
       const ignites = published.filter(s => s.contentType === 'ignite');
       setIgnitePosts(ignites);
+      const regular = published.filter(s => s.contentType !== 'ignite');
+      setPublishedSprints(regular);
     }, (err) => {
-      console.error("Failed to load ignites", err);
+      console.error("Failed to load published sprints", err);
     });
     return () => unsubscribe();
   }, []);
@@ -951,6 +961,86 @@ const ParticipantDashboard: React.FC = () => {
                                 )}
                             </div>
                         </div>
+
+                        {/* Recommended Next Sprint Card */}
+                        {recommendedNextSprint ? (
+                            <Link 
+                                to={isStepUpLocked ? "#" : `/sprint/${recommendedNextSprint.id}`}
+                                onClick={(e) => isStepUpLocked && e.preventDefault()}
+                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                    isStepUpLocked 
+                                    ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
+                                    : 'hover:shadow-md hover:border-rose-500/20 cursor-pointer'
+                                } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
+                            >
+                                {/* Tag: See what's next */}
+                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-10">
+                                    See what's next
+                                </div>
+
+                                {/* Content of the card */}
+                                <div className="flex-1 flex flex-col justify-between pt-2">
+                                    <div className="space-y-1.5 text-left">
+                                        <p className="text-[9px] font-black text-rose-600 uppercase tracking-wider">
+                                            Recommended next sprint
+                                        </p>
+                                        <p className="text-[12px] font-black text-gray-950 leading-tight line-clamp-2">
+                                            {recommendedNextSprint.title}
+                                        </p>
+                                        <p className="text-[11px] text-gray-500 leading-snug line-clamp-3 mt-1.5 font-medium">
+                                            {recommendedNextSprint.description || "Take the next step on your personal growth journey."}
+                                        </p>
+                                    </div>
+
+                                    <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
+                                        <span className="text-[10px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                            See More
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </span>
+                                    </div>
+                                </div>
+                            </Link>
+                        ) : (
+                            <Link 
+                                to={isStepUpLocked ? "#" : "/explore"}
+                                onClick={(e) => isStepUpLocked && e.preventDefault()}
+                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                    isStepUpLocked 
+                                    ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
+                                    : 'hover:shadow-md hover:border-rose-500/20 cursor-pointer'
+                                } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
+                            >
+                                {/* Tag: See what's next */}
+                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-10">
+                                    See what's next
+                                </div>
+
+                                <div className="flex-1 flex flex-col justify-between pt-2">
+                                    <div className="space-y-1.5 text-left">
+                                        <p className="text-[9px] font-black text-rose-600 uppercase tracking-wider">
+                                            Recommended next sprint
+                                        </p>
+                                        <p className="text-[12px] font-black text-gray-950 leading-tight line-clamp-2">
+                                            Growth Foundations
+                                        </p>
+                                        <p className="text-[11px] text-gray-500 leading-snug line-clamp-3 mt-1.5 font-medium">
+                                            Unlock the next level of consistency and power up your daily routines.
+                                        </p>
+                                    </div>
+
+                                    <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
+                                        <span className="text-[10px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                            See More
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </span>
+                                    </div>
+                                </div>
+                            </Link>
+                        )}
 
                         {/* 2. Revisit your Rise */}
                         <Link 
