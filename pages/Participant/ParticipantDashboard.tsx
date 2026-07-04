@@ -15,7 +15,8 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { X, History, Sparkles, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
-import { ARCHETYPES } from '../../constants';
+import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
+import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import NextSprintModal from '../../components/NextSprintModal';
 import ConfirmModal from '../../components/ConfirmModal';
 import { streakService } from '../../services/streakService';
@@ -119,23 +120,11 @@ const ParticipantDashboard: React.FC = () => {
   const [ignitePosts, setIgnitePosts] = useState<Sprint[]>([]);
   const [publishedSprints, setPublishedSprints] = useState<Sprint[]>([]);
   const [coaches, setCoaches] = useState<Coach[]>([]);
+  const [orchestration, setOrchestration] = useState<Record<string, any>>({});
   const [activePlayIgnite, setActivePlayIgnite] = useState<Sprint | null>(null);
   const [showPulse, setShowPulse] = useState(false);
   const [checkedIgnites, setCheckedIgnites] = useState<Record<string, boolean>>({});
-  const [showFloatingIgnite, setShowFloatingIgnite] = useState(false);
-
-  // Monitor scroll to show floating Ignite button
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 150) {
-        setShowFloatingIgnite(true);
-      } else {
-        setShowFloatingIgnite(false);
-      }
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  const [showFloatingIgnite, setShowFloatingIgnite] = useState(true);
 
   // Mark active Ignite as checked when opened
   useEffect(() => {
@@ -222,9 +211,75 @@ const ParticipantDashboard: React.FC = () => {
   const recommendedNextSprint = useMemo(() => {
     if (publishedSprints.length === 0) return null;
     const enrolledSprintIds = new Set(allEnrollments.map(e => e.sprint_id));
+    
+    const participant = user as Participant;
+
+    // Priority 1: Selected Growth Areas
+    const growthAreas = participant?.growthAreas || [];
+    if (growthAreas.length > 0) {
+      const matchedGroups = GROWTH_AREAS.filter(g => 
+        g.options.some(opt => growthAreas.includes(opt))
+      );
+      if (matchedGroups.length > 0) {
+        const targetSprintTitles = matchedGroups.flatMap(g => g.sprints);
+        const matchedSprint = publishedSprints.find(s => 
+          targetSprintTitles.includes(s.title) && !enrolledSprintIds.has(s.id)
+        );
+        if (matchedSprint) return matchedSprint;
+      }
+    }
+
+    // Priority 2: Rise Pathway
+    const pathwayId = participant?.risePathway;
+    if (pathwayId) {
+      const pathway = RISE_PATHWAYS.find(p => p.id === pathwayId);
+      if (pathway) {
+        const pathwaySprintMap: Record<string, string[]> = {
+          'student': ['Clarity Sprint', 'Direction Sprint'],
+          'early_career': ['Direction Sprint', 'Skill Sprint', 'Confidence Sprint'],
+          'growth_pro': ['Leadership Sprint', 'Visibility Sprint', 'Execution Sprint'],
+          'builder': ['Execution Sprint', 'Positioning Sprint', 'Focus Sprint'],
+          'transition': ['Clarity Sprint', 'Confidence Sprint', 'Consistency Sprint']
+        };
+        const targetTitles = pathwaySprintMap[pathwayId] || [];
+        const matchedSprint = publishedSprints.find(s => 
+          targetTitles.includes(s.title) && !enrolledSprintIds.has(s.id)
+        );
+        if (matchedSprint) return matchedSprint;
+      }
+    }
+
+    // Priority 3: Onboarding Focus
+    const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
+                     Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
+    if (userFocus) {
+      const prioritySlots = ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
+      for (const slotId of prioritySlots) {
+        const mapping = orchestration[slotId];
+        if (mapping) {
+          const focusMap = mapping.sprintFocusMap || {};
+          const matchedSprintId = Object.keys(focusMap).find(sId => focusMap[sId]?.includes(userFocus));
+          if (matchedSprintId) {
+            const matchedSprint = publishedSprints.find(s => s.id === matchedSprintId && !enrolledSprintIds.has(s.id));
+            if (matchedSprint) return matchedSprint;
+          }
+        }
+      }
+    }
+
+    // Priority 4: Stage mapping
+    const targetStage = participant?.currentStage || 'Direction';
+    const stageSprint = publishedSprints.find(s => 
+      CATEGORY_TO_STAGE_MAP[s.category] === targetStage && 
+      s.pricingType === 'cash' &&
+      !enrolledSprintIds.has(s.id)
+    );
+    if (stageSprint) return stageSprint;
+
+    // Fallback: unenrolled sprint or first available
     const unenrolled = publishedSprints.filter(s => !enrolledSprintIds.has(s.id));
     return unenrolled[0] || publishedSprints[0] || null;
-  }, [publishedSprints, allEnrollments]);
+  }, [publishedSprints, allEnrollments, user, orchestration]);
 
   const latestBlogPost = useMemo(() => {
     return blogService.getPosts()[0] || null;
@@ -243,17 +298,21 @@ const ParticipantDashboard: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Fetch coaches on mount
+  // Fetch coaches and orchestration on mount
   useEffect(() => {
-    const fetchCoaches = async () => {
+    const fetchData = async () => {
       try {
-        const dbCoaches = await userService.getCoaches();
-        setCoaches(dbCoaches);
+        const [dbCoaches, mapping] = await Promise.all([
+          userService.getCoaches(),
+          sprintService.getOrchestration()
+        ]);
+        setCoaches(dbCoaches || []);
+        setOrchestration(mapping || {});
       } catch (err) {
-        console.error("Failed to load coaches", err);
+        console.error("Failed to load coaches/orchestration data", err);
       }
     };
-    fetchCoaches();
+    fetchData();
   }, []);
 
   const recommendedNextSprintCoach = useMemo(() => {
@@ -741,21 +800,21 @@ const ParticipantDashboard: React.FC = () => {
                 </div>
             ) : cardState === 'well_done' ? (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                    <div className="py-2 px-4 md:py-2.5 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1">
+                    <div className="py-6 px-5 md:py-8 md:px-6 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#159E6A] text-white shadow-lg col-span-1">
                         <div className="relative z-10 min-w-0 text-left animate-fade-in">
-                            <p className="text-sm md:text-base lg:text-lg font-black uppercase tracking-tight text-white leading-tight">
+                            <p className="text-lg md:text-xl lg:text-2xl font-black uppercase tracking-tight text-white leading-tight">
                                 Day {completedDaysCount} Done
                             </p>
                         </div>
                         <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                     </div>
                     
-                    <div className="bg-white border border-gray-100 py-2 px-4 md:py-2.5 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
+                    <div className="bg-white border border-gray-100 py-6 px-5 md:py-8 md:px-6 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
                         <div className="relative z-10 min-w-0 text-left animate-fade-in">
-                            <p className="text-sm md:text-base lg:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
+                            <p className="text-lg md:text-xl lg:text-2xl font-black text-gray-950 uppercase tracking-tight leading-tight">
                                 Come back tomorrow.
                             </p>
-                            <p className="text-[9px] md:text-[10px] font-bold text-[#0E7850] mt-0.5 leading-snug uppercase tracking-wider">
+                            <p className="text-xs md:text-sm font-bold text-[#0E7850] mt-1.5 leading-snug uppercase tracking-wider">
                                 Don’t break the streak.
                             </p>
                         </div>
@@ -803,7 +862,7 @@ const ParticipantDashboard: React.FC = () => {
                 ) : mainTask && mainTask.sprint ? (
                     <Link to={`/participant/sprint/${mainTask.enrollment.id}`} className="block group">
                         <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-100 relative overflow-hidden flex animate-fade-in group-hover:shadow-xl transition-all duration-500">
-                            <div className={`w-2 md:w-3 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-amber-400' : 'bg-[#0E7850]'}`}></div>
+                            <div className={`w-2 md:w-3 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-amber-400' : 'bg-[#159E6A]'}`}></div>
                             
                             <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col">
                                 <div className={isMainTaskLocked ? "mb-3 md:mb-4" : "mb-6 md:mb-8"}>
@@ -913,7 +972,7 @@ const ParticipantDashboard: React.FC = () => {
                     <div className="space-y-4">
                         <Link to="/explore" onClick={handleExploreClick} className="block group animate-fade-in">
                             <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-100 relative overflow-hidden flex transition-all duration-300 group-hover:shadow-xl">
-                                <div className="w-2 md:w-3 flex-shrink-0 bg-orange-500"></div>
+                                <div className="w-2 md:w-3 flex-shrink-0 bg-[#0E7850]"></div>
                                 <div className="flex-1 p-5 flex items-center gap-4">
                                     <div className="w-10 h-10 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 flex-shrink-0 shadow-sm border border-orange-100/50 group-hover:scale-110 transition-transform duration-300">
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
@@ -1013,166 +1072,153 @@ const ParticipantDashboard: React.FC = () => {
                         {/* Recommended Next Sprint Card */}
                         {recommendedNextSprint ? (
                             <div 
-                                onClick={(e) => {
-                                    if (isStepUpLocked) return;
-                                    navigate(`/sprint/${recommendedNextSprint.id}`);
-                                }}
-                                className={`flex-shrink-0 w-72 h-[22rem] bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col group snap-start animate-fade-in relative overflow-hidden ${
+                                className={`flex-shrink-0 w-72 h-[22rem] bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
                                     isStepUpLocked 
                                     ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                    : 'hover:shadow-md hover:border-rose-500/20 cursor-pointer hover:-translate-y-1'
+                                    : 'hover:shadow-md hover:border-rose-500/20'
                                 } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                             >
-                                {/* Card Cover Image with Duration & Tag overlays */}
-                                <div className="relative h-32 overflow-hidden bg-gray-100 flex-shrink-0">
-                                    <img 
-                                        src={recommendedNextSprint.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
-                                        alt="" 
-                                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
-                                        onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
-                                        referrerPolicy="no-referrer"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                    <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-md px-2 py-0.5 rounded-full text-[8px] font-black text-primary shadow-lg uppercase tracking-[0.2em]">
-                                        {recommendedNextSprint.duration || 7} Days
-                                    </div>
-                                    {/* Tag: See what's next */}
-                                    <div className="absolute top-3 left-3 text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-10">
-                                        See what's next
+                                {/* Tag: See what's next */}
+                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-10">
+                                    See what's next
+                                </div>
+
+                                <div className="flex-1 flex flex-col pt-2 min-h-0">
+                                    {/* Text written first before the card inside */}
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-left mb-3">
+                                        Recommended next sprint
+                                    </p>
+
+                                    {/* Card inside */}
+                                    <div 
+                                        onClick={(e) => {
+                                            if (isStepUpLocked) return;
+                                            navigate(`/sprint/${recommendedNextSprint.id}`);
+                                        }}
+                                        className="flex-1 bg-gray-50 border border-gray-100 rounded-2xl p-3 flex flex-col justify-between hover:bg-gray-100/60 transition-colors cursor-pointer text-left overflow-hidden group/inner"
+                                    >
+                                        <div className="space-y-2.5 min-h-0">
+                                            {/* Sprint Image */}
+                                            <div className="relative h-20 w-full rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                                                <img 
+                                                    src={recommendedNextSprint.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
+                                                    alt="" 
+                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover/inner:scale-105" 
+                                                    onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
+                                                    referrerPolicy="no-referrer"
+                                                />
+                                                <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-md text-[7px] font-black text-primary shadow-sm uppercase tracking-wider">
+                                                    {recommendedNextSprint.duration || 7} Days
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1 min-h-0">
+                                                {/* Sprint Category */}
+                                                <span className="inline-block px-2 py-0.5 rounded bg-gray-100 border border-gray-200/50 text-gray-500 text-[7px] font-black uppercase tracking-wider">
+                                                    {recommendedNextSprint.category || "Growth"}
+                                                </span>
+                                                {/* Sprint Title */}
+                                                <p className="text-[12px] font-black text-gray-950 leading-tight line-clamp-1 group-hover/inner:text-primary transition-colors">
+                                                    {recommendedNextSprint.title}
+                                                </p>
+                                                {/* Sprint Subtitle */}
+                                                <p className="text-[9px] text-gray-500 leading-snug line-clamp-2 font-medium">
+                                                    {recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise with templates."}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Card Content */}
-                                <div className="p-4 flex flex-col justify-between flex-grow min-h-0 text-left">
-                                    <div className="space-y-1">
-                                        {/* Category & Sprint Type Tags */}
-                                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                                            <span className="px-2 py-0.5 rounded-md bg-gray-50 border border-gray-100 text-gray-400 text-[7px] font-black uppercase tracking-wider truncate max-w-[100px]">
-                                                {recommendedNextSprint.category || "Growth"}
-                                            </span>
-                                            <span className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-primary text-[7px] font-black uppercase tracking-wider truncate max-w-[100px]">
-                                                {recommendedNextSprint.sprintType || "Fundamentals"}
-                                            </span>
-                                        </div>
-
-                                        <p className="text-[13px] font-black text-gray-950 leading-tight line-clamp-1">
-                                            {recommendedNextSprint.title}
-                                        </p>
-                                        <p className="text-[11px] text-gray-500 leading-snug line-clamp-2 font-medium">
-                                            {recommendedNextSprint.description || recommendedNextSprint.subtitle || "Take the next step on your personal growth journey."}
-                                        </p>
-                                    </div>
-
-                                    {/* Coach row & Action Button */}
-                                    <div className="pt-2 border-t border-gray-50 mt-2 flex flex-col gap-2">
-                                        {recommendedNextSprintCoach && (
-                                            <div className="flex items-center gap-2">
-                                                <img 
-                                                    src={recommendedNextSprintCoach.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE} 
-                                                    alt="" 
-                                                    className="w-6 h-6 rounded-lg object-cover border border-white shadow-sm ring-1 ring-gray-100" 
-                                                />
-                                                <div className="min-w-0">
-                                                    <p className="text-[5px] font-black text-gray-300 uppercase tracking-widest leading-none mb-0.5">Guided By</p>
-                                                    <p className="text-[8px] font-black text-gray-900 uppercase tracking-tight truncate leading-none">{recommendedNextSprintCoach.name}</p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Explore sprints Button */}
-                                        <button 
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (isStepUpLocked) return;
-                                                navigate("/explore");
-                                            }}
-                                            className="w-full py-2 rounded-xl bg-primary text-white hover:bg-primary-hover text-[8px] font-black uppercase tracking-[0.2em] text-center shadow-sm flex justify-center items-center gap-1 transition-all border-none cursor-pointer"
-                                        >
-                                            Explore sprints
-                                            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                            </svg>
-                                        </button>
-                                    </div>
+                                {/* Explore sprints as simple text link like other cards */}
+                                <div 
+                                    onClick={() => {
+                                        if (isStepUpLocked) return;
+                                        navigate("/explore");
+                                    }}
+                                    className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between cursor-pointer"
+                                >
+                                    <span className="text-[10px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                        Explore sprints
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </span>
                                 </div>
                             </div>
                         ) : (
                             <div 
-                                onClick={(e) => {
-                                    if (isStepUpLocked) return;
-                                    navigate("/explore");
-                                }}
-                                className={`flex-shrink-0 w-72 h-[22rem] bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col group snap-start animate-fade-in relative overflow-hidden ${
+                                className={`flex-shrink-0 w-72 h-[22rem] bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
                                     isStepUpLocked 
                                     ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                    : 'hover:shadow-md hover:border-rose-500/20 cursor-pointer hover:-translate-y-1'
+                                    : 'hover:shadow-md hover:border-rose-500/20'
                                 } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                             >
-                                {/* Default/Fallback Sprint Card cover */}
-                                <div className="relative h-32 overflow-hidden bg-gray-100 flex-shrink-0">
-                                    <img 
-                                        src={assetService.URLS.DEFAULT_SPRINT_COVER} 
-                                        alt="" 
-                                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
-                                        referrerPolicy="no-referrer"
-                                    />
-                                    <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-md px-2 py-0.5 rounded-full text-[8px] font-black text-primary shadow-lg uppercase tracking-[0.2em]">
-                                        7 Days
-                                    </div>
-                                    {/* Tag: See what's next */}
-                                    <div className="absolute top-3 left-3 text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-10">
-                                        See what's next
+                                {/* Tag: See what's next */}
+                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-10">
+                                    See what's next
+                                </div>
+
+                                <div className="flex-1 flex flex-col pt-2 min-h-0">
+                                    {/* Text written first before the card inside */}
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-left mb-3">
+                                        Recommended next sprint
+                                    </p>
+
+                                    {/* Card inside */}
+                                    <div 
+                                        onClick={(e) => {
+                                            if (isStepUpLocked) return;
+                                            navigate("/explore");
+                                        }}
+                                        className="flex-1 bg-gray-50 border border-gray-100 rounded-2xl p-3 flex flex-col justify-between hover:bg-gray-100/60 transition-colors cursor-pointer text-left overflow-hidden group/inner"
+                                    >
+                                        <div className="space-y-2.5 min-h-0">
+                                            {/* Sprint Image */}
+                                            <div className="relative h-20 w-full rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                                                <img 
+                                                    src={assetService.URLS.DEFAULT_SPRINT_COVER} 
+                                                    alt="" 
+                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover/inner:scale-105" 
+                                                    referrerPolicy="no-referrer"
+                                                />
+                                                <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-md text-[7px] font-black text-primary shadow-sm uppercase tracking-wider">
+                                                    7 Days
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1 min-h-0">
+                                                {/* Sprint Category */}
+                                                <span className="inline-block px-2 py-0.5 rounded bg-gray-100 border border-gray-200/50 text-gray-500 text-[7px] font-black uppercase tracking-wider">
+                                                    GROWTH
+                                                </span>
+                                                {/* Sprint Title */}
+                                                <p className="text-[12px] font-black text-gray-950 leading-tight line-clamp-1 group-hover/inner:text-primary transition-colors">
+                                                    Growth Foundations
+                                                </p>
+                                                {/* Sprint Subtitle */}
+                                                <p className="text-[9px] text-gray-500 leading-snug line-clamp-2 font-medium">
+                                                    Unlock consistency and start your rise with templates.
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Default/Fallback Sprint Card content */}
-                                <div className="p-4 flex flex-col justify-between flex-grow min-h-0 text-left">
-                                    <div className="space-y-1">
-                                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                                            <span className="px-2 py-0.5 rounded-md bg-gray-50 border border-gray-100 text-gray-400 text-[7px] font-black uppercase tracking-wider">
-                                                GROWTH
-                                            </span>
-                                            <span className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-primary text-[7px] font-black uppercase tracking-wider">
-                                                Fundamentals
-                                            </span>
-                                        </div>
-
-                                        <p className="text-[13px] font-black text-gray-950 leading-tight line-clamp-1">
-                                            Growth Foundations
-                                        </p>
-                                        <p className="text-[11px] text-gray-500 leading-snug line-clamp-2 font-medium">
-                                            Unlock the next level of consistency and power up your daily routines with premium growth templates.
-                                        </p>
-                                    </div>
-
-                                    {/* Default/Fallback Coach and See More Button */}
-                                    <div className="pt-2 border-t border-gray-50 mt-2 flex flex-col gap-2">
-                                        <div className="flex items-center gap-2">
-                                            <img 
-                                                src="https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd" 
-                                                alt="" 
-                                                className="w-6 h-6 rounded-lg object-cover border border-white shadow-sm ring-1 ring-gray-100" 
-                                            />
-                                            <div className="min-w-0">
-                                                <p className="text-[5px] font-black text-gray-300 uppercase tracking-widest leading-none mb-0.5">Guided By</p>
-                                                <p className="text-[8px] font-black text-gray-900 uppercase tracking-tight truncate leading-none">Vectorise</p>
-                                            </div>
-                                        </div>
-
-                                        <button 
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (isStepUpLocked) return;
-                                                navigate("/explore");
-                                            }}
-                                            className="w-full py-2 rounded-xl bg-primary text-white hover:bg-primary-hover text-[8px] font-black uppercase tracking-[0.2em] text-center shadow-sm flex justify-center items-center gap-1 transition-all border-none cursor-pointer"
-                                        >
-                                            Explore sprints
-                                            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                            </svg>
-                                        </button>
-                                    </div>
+                                {/* Explore sprints as simple text link like other cards */}
+                                <div 
+                                    onClick={() => {
+                                        if (isStepUpLocked) return;
+                                        navigate("/explore");
+                                    }}
+                                    className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between cursor-pointer"
+                                >
+                                    <span className="text-[10px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                        Explore sprints
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </span>
                                 </div>
                             </div>
                         )}
