@@ -1016,64 +1016,17 @@ const ParticipantDashboard: React.FC = () => {
                         }
                     `}</style>
                     <div className="flex gap-6 overflow-x-auto pb-4 pt-4 px-1.5 snap-x snap-mandatory no-scrollbar relative items-center">
-                        {/* 1. Reignite old flame - Stacked label on top of Ignite circular card */}
-                        <div className="flex-shrink-0 h-60 flex flex-col justify-center items-center gap-2.5 snap-start animate-fade-in">
-                            <div 
-                                onClick={() => {
-                                    if (isStepUpLocked) return;
-                                    // Play recent ignite post or fallback preset
-                                    if (processedIgnitePosts && processedIgnitePosts.length > 0) {
-                                        setActivePlayIgnite(processedIgnitePosts[0]);
-                                    } else {
-                                        setActivePlayIgnite({
-                                            id: 'default_ignite',
-                                            title: 'Ignite Post',
-                                            description: 'Daily Spark.',
-                                            igniteBgColor: '#6D28D9',
-                                            igniteBody: "Consistency is not about perfection. It’s about returning to the practice day after day.\n\n" +
-                                                        "Be the Catalyst. Your momentum is contagious, inspire your circle to act.\n\n" +
-                                                        "The secret to growing is to never grow alone. Bring others along and lift everyone together."
-                                        } as any);
-                                    }
-                                }}
-                                className={`w-20 h-20 rounded-full shadow-md transition-all duration-300 flex items-center justify-center group relative overflow-hidden ${
-                                    isStepUpLocked 
-                                    ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                    : 'hover:shadow-lg hover:scale-105 cursor-pointer'
-                                } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
-                            >
-                                {/* Background Image of the Ignite Post */}
-                                <img 
-                                    src={processedIgnitePosts[0]?.coverImageUrl || processedIgnitePosts[0]?.blogImage || 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80'}
-                                    alt="Ignite Background" 
-                                    className="absolute inset-0 w-full h-full object-cover brightness-[0.45] group-hover:scale-110 transition-transform duration-500"
-                                    referrerPolicy="no-referrer"
-                                />
-                                
-                                {/* Content overlay */}
-                                <div className="relative z-10 flex items-center justify-center">
-                                    <span className="text-[12px] font-black uppercase tracking-[0.15em] text-white text-center leading-none drop-shadow-sm select-none">
-                                        Ignite
-                                    </span>
-                                </div>
-
-                                {!isIgniteChecked && !isStepUpLocked && (
-                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-white ring-2 ring-rose-500/35 animate-pulse z-20" />
-                                )}
-                            </div>
-                        </div>
-
                         {/* Recommended Next Sprint Card */}
                         {recommendedNextSprint ? (
                             <div 
-                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-4 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative overflow-hidden ${
                                     isStepUpLocked 
                                     ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
                                     : 'hover:shadow-md hover:border-rose-500/20'
                                 } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                             >
                                 {/* Tag: See what's next */}
-                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-10">
+                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
                                     See what's next
                                 </div>
 
@@ -1082,69 +1035,69 @@ const ParticipantDashboard: React.FC = () => {
                                         if (isStepUpLocked) return;
                                         navigate(`/sprint/${recommendedNextSprint.id}`);
                                     }}
-                                    className="flex-1 flex flex-col justify-between pt-1 cursor-pointer"
+                                    className="flex-1 flex flex-col justify-between cursor-pointer"
                                 >
-                                    {/* Top row: Image & Category/Duration */}
-                                    <div className="flex gap-3 items-start">
-                                        {/* Sprint Image */}
-                                        <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                                            <img 
-                                                src={recommendedNextSprint.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
-                                                alt="" 
-                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                                                onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
-                                                referrerPolicy="no-referrer"
-                                            />
-                                        </div>
-
-                                        {/* Category & Duration */}
-                                        <div className="flex flex-col gap-1 min-w-0">
-                                            <span className="inline-block px-1.5 py-0.5 rounded bg-gray-50 border border-gray-100 text-gray-400 text-[6.5px] font-black uppercase tracking-wider truncate">
+                                    {/* Top part: Cover Image stretching to fill */}
+                                    <div className="h-28 w-full relative overflow-hidden rounded-t-[1.95rem]">
+                                        <img 
+                                            src={recommendedNextSprint.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
+                                            alt="" 
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                            onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
+                                            referrerPolicy="no-referrer"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                                        
+                                        {/* Category & Duration Overlay on the Image */}
+                                        <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between z-10">
+                                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm truncate max-w-[110px]">
                                                 {recommendedNextSprint.category || "Growth"}
                                             </span>
-                                            <span className="inline-block px-1.5 py-0.5 rounded bg-rose-50/50 border border-rose-100/50 text-rose-600 text-[6.5px] font-black uppercase tracking-wider w-max">
+                                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-rose-500/80 text-white backdrop-blur-sm shrink-0">
                                                 {recommendedNextSprint.duration || 7} Days
                                             </span>
                                         </div>
                                     </div>
 
-                                    {/* Middle: Title & Subtitle */}
-                                    <div className="space-y-1 text-left mt-2 flex-1 flex flex-col justify-center">
-                                        <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
-                                            {recommendedNextSprint.title}
-                                        </p>
-                                        <p className="text-[9px] text-gray-400 leading-snug line-clamp-2 font-medium">
-                                            {recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise with templates."}
-                                        </p>
-                                    </div>
-                                </div>
+                                    {/* Bottom part: Title, Subtitle & Action link inside padding */}
+                                    <div className="p-4 pt-3 flex-1 flex flex-col justify-between min-h-0">
+                                        <div className="space-y-1 text-left">
+                                            <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+                                                {recommendedNextSprint.title}
+                                            </p>
+                                            <p className="text-[9px] text-gray-400 leading-snug line-clamp-2 font-medium">
+                                                {recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise with templates."}
+                                            </p>
+                                        </div>
 
-                                {/* Bottom action link */}
-                                <div 
-                                    onClick={() => {
-                                        if (isStepUpLocked) return;
-                                        navigate("/explore");
-                                    }}
-                                    className="mt-2 pt-2 border-t border-gray-50 flex items-center justify-between cursor-pointer"
-                                >
-                                    <span className="text-[9px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                                        Explore sprints
-                                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                        </svg>
-                                    </span>
+                                        <div 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (isStepUpLocked) return;
+                                                navigate("/explore");
+                                            }}
+                                            className="pt-2 border-t border-gray-50 flex items-center justify-between cursor-pointer mt-2"
+                                        >
+                                            <span className="text-[9px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                                Explore sprints
+                                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ) : (
                             <div 
-                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-4 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative overflow-hidden ${
                                     isStepUpLocked 
                                     ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
                                     : 'hover:shadow-md hover:border-rose-500/20'
                                 } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
                             >
                                 {/* Tag: See what's next */}
-                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-10">
+                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
                                     See what's next
                                 </div>
 
@@ -1153,56 +1106,56 @@ const ParticipantDashboard: React.FC = () => {
                                         if (isStepUpLocked) return;
                                         navigate("/explore");
                                     }}
-                                    className="flex-1 flex flex-col justify-between pt-1 cursor-pointer"
+                                    className="flex-1 flex flex-col justify-between cursor-pointer"
                                 >
-                                    {/* Top row: Image & Category/Duration */}
-                                    <div className="flex gap-3 items-start">
-                                        {/* Sprint Image */}
-                                        <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                                            <img 
-                                                src={assetService.URLS.DEFAULT_SPRINT_COVER} 
-                                                alt="" 
-                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                                                referrerPolicy="no-referrer"
-                                            />
-                                        </div>
-
-                                        {/* Category & Duration */}
-                                        <div className="flex flex-col gap-1 min-w-0">
-                                            <span className="inline-block px-1.5 py-0.5 rounded bg-gray-50 border border-gray-100 text-gray-400 text-[6.5px] font-black uppercase tracking-wider truncate">
+                                    {/* Top part: Cover Image stretching to fill */}
+                                    <div className="h-28 w-full relative overflow-hidden rounded-t-[1.95rem]">
+                                        <img 
+                                            src={assetService.URLS.DEFAULT_SPRINT_COVER} 
+                                            alt="" 
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                            referrerPolicy="no-referrer"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                                        
+                                        {/* Category & Duration Overlay on the Image */}
+                                        <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between z-10">
+                                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm">
                                                 GROWTH
                                             </span>
-                                            <span className="inline-block px-1.5 py-0.5 rounded bg-rose-50/50 border border-rose-100/50 text-rose-600 text-[6.5px] font-black uppercase tracking-wider w-max">
+                                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-rose-500/80 text-white backdrop-blur-sm shrink-0">
                                                 7 Days
                                             </span>
                                         </div>
                                     </div>
 
-                                    {/* Middle: Title & Subtitle */}
-                                    <div className="space-y-1 text-left mt-2 flex-1 flex flex-col justify-center">
-                                        <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
-                                            Growth Foundations
-                                        </p>
-                                        <p className="text-[9px] text-gray-400 leading-snug line-clamp-2 font-medium">
-                                            Unlock consistency and start your rise with templates.
-                                        </p>
-                                    </div>
-                                </div>
+                                    {/* Bottom part: Title, Subtitle & Action link inside padding */}
+                                    <div className="p-4 pt-3 flex-1 flex flex-col justify-between min-h-0">
+                                        <div className="space-y-1 text-left">
+                                            <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+                                                Growth Foundations
+                                            </p>
+                                            <p className="text-[9px] text-gray-400 leading-snug line-clamp-2 font-medium">
+                                                Unlock consistency and start your rise with templates.
+                                            </p>
+                                        </div>
 
-                                {/* Bottom action link */}
-                                <div 
-                                    onClick={() => {
-                                        if (isStepUpLocked) return;
-                                        navigate("/explore");
-                                    }}
-                                    className="mt-2 pt-2 border-t border-gray-50 flex items-center justify-between cursor-pointer"
-                                >
-                                    <span className="text-[9px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                                        Explore sprints
-                                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                        </svg>
-                                    </span>
+                                        <div 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (isStepUpLocked) return;
+                                                navigate("/explore");
+                                            }}
+                                            className="pt-2 border-t border-gray-50 flex items-center justify-between cursor-pointer mt-2"
+                                        >
+                                            <span className="text-[9px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                                Explore sprints
+                                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}
