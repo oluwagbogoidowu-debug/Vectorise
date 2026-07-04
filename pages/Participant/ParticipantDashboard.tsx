@@ -708,7 +708,7 @@ const ParticipantDashboard: React.FC = () => {
             
             {cardState === 'task_ready' ? (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                    <div className={`py-6 px-5 md:py-8 md:px-6 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#159E6A] text-white shadow-lg ${
+                    <div className={`py-6 px-5 md:py-8 md:px-6 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg ${
                         secondCardText ? 'col-span-1' : 'col-span-2'
                     }`}>
                         <div className="relative z-10 min-w-0 text-left">
@@ -763,7 +763,7 @@ const ParticipantDashboard: React.FC = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                    <div className="py-3 px-3 md:py-4 md:px-4 rounded-[1.3rem] flex flex-row items-center justify-start gap-2.5 relative overflow-hidden transition-transform active:scale-[0.98] bg-[#159E6A] text-white shadow-lg col-span-2">
+                    <div className="py-3 px-3 md:py-4 md:px-4 rounded-[1.3rem] flex flex-row items-center justify-start gap-2.5 relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-2">
                         {cardState === 'start_rising' && (
                             <>
                                 <div className="w-7 h-7 md:w-8 md:h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
@@ -912,23 +912,25 @@ const ParticipantDashboard: React.FC = () => {
                 ) : (
                     <div className="space-y-4">
                         <Link to="/explore" onClick={handleExploreClick} className="block group animate-fade-in">
-                            <div className="bg-emerald-50/30 border border-emerald-100/75 p-5 rounded-[1.8rem] flex items-center gap-4 relative overflow-hidden hover:shadow-md hover:border-emerald-200/90 transition-all duration-300">
-                                <div className="w-10 h-10 bg-[#0E7850]/10 rounded-2xl flex items-center justify-center text-[#0E7850] flex-shrink-0 shadow-sm border border-[#0E7850]/10 group-hover:scale-110 transition-transform duration-300">
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707-.707M12 17a5 5 0 100-10 5 5 0 000 10z" />
-                                    </svg>
+                            <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-100 relative overflow-hidden flex transition-all duration-300 group-hover:shadow-xl">
+                                <div className="w-2 md:w-3 flex-shrink-0 bg-orange-500"></div>
+                                <div className="flex-1 p-5 flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 flex-shrink-0 shadow-sm border border-orange-100/50 group-hover:scale-110 transition-transform duration-300">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707-.707M12 17a5 5 0 100-10 5 5 0 000 10z" />
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[13px] md:text-sm font-black text-orange-600">No active focus right now.</p>
+                                        <p className="text-[11px] md:text-xs text-gray-500 font-medium mt-0.5 leading-relaxed">
+                                            Choose from your recommended sprints to get back on track.
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[13px] md:text-sm font-black text-[#0E7850]">No active focus right now.</p>
-                                    <p className="text-[11px] md:text-xs text-gray-500 font-medium mt-0.5 leading-relaxed">
-                                        Choose from your recommended sprints to get back on track.
-                                    </p>
-                                </div>
-                                <div className="absolute -right-8 -bottom-8 w-24 h-24 bg-[#0E7850]/5 rounded-full blur-2xl pointer-events-none"></div>
                             </div>
                         </Link>
                         <div className="flex justify-center pt-2">
-                            <Link to="/explore" onClick={handleExploreClick} className="inline-block text-primary font-black uppercase text-[10px] md:text-[11px] tracking-widest border-b border-primary/25 pb-1 transition-all hover:text-[#0E7850] hover:border-[#0E7850]/25">
+                            <Link to="/explore" onClick={handleExploreClick} className="inline-block text-orange-600 font-black uppercase text-[10px] md:text-[11px] tracking-widest border-b border-orange-500/25 pb-1 transition-all hover:text-orange-700 hover:border-orange-700/25">
                                 Explore recommended
                             </Link>
                         </div>
@@ -976,7 +978,6 @@ const ParticipantDashboard: React.FC = () => {
                                             description: 'Daily Spark.',
                                             igniteBgColor: '#6D28D9',
                                             igniteBody: "Consistency is not about perfection. It’s about returning to the practice day after day.\n\n" +
-                                                        "Step up your Rise. Unlocking your potential starts with microscopic daily decisions.\n\n" +
                                                         "Be the Catalyst. Your momentum is contagious, inspire your circle to act.\n\n" +
                                                         "The secret to growing is to never grow alone. Bring others along and lift everyone together."
                                         } as any);
@@ -1499,13 +1500,12 @@ const ParticipantDashboard: React.FC = () => {
                         description: 'Daily Spark.',
                         igniteBgColor: '#6D28D9',
                         igniteBody: "Consistency is not about perfection. It’s about returning to the practice day after day.\n\n" +
-                                    "Step up your Rise. Unlocking your potential starts with microscopic daily decisions.\n\n" +
                                     "Be the Catalyst. Your momentum is contagious, inspire your circle to act.\n\n" +
                                     "The secret to growing is to never grow alone. Bring others along and lift everyone together."
                     } as any);
                 }
             }}
-            className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer border border-[#0E7850]/20 bg-[#0E7850] overflow-hidden group"
+            className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer border border-[#0E7850]/20 bg-[#0E7850] overflow-hidden group"
             title="Daily Ignite"
           >
             <img 
