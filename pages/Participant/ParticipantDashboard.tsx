@@ -176,6 +176,7 @@ const ParticipantDashboard: React.FC = () => {
 
   const lastCompletedStep = useMemo(() => {
     const completedSteps: {
+      sprintId: string;
       sprintTitle: string;
       day: number;
       taskPrompt: string;
@@ -193,11 +194,36 @@ const ParticipantDashboard: React.FC = () => {
             ? sprint.dailyContent.find(d => d.day === p.day) 
             : null;
           const prompt = dayContent?.taskPrompt || sprint.description || "Daily Focus Step";
+          
+          const rawSubmission = p.submission || (p.answers && p.answers[0]) || "";
+          let cleanedSubmission = rawSubmission;
+          if (rawSubmission) {
+            const parts = rawSubmission.split(" | ").map(x => x.trim()).filter(Boolean);
+            if (parts.length > 0) {
+              let lastPart = parts[parts.length - 1];
+              if (lastPart.startsWith('[') && lastPart.endsWith(']')) {
+                try {
+                  const parsed = JSON.parse(lastPart);
+                  if (Array.isArray(parsed)) {
+                    lastPart = parsed.join(", ");
+                  }
+                } catch (e) {}
+              }
+              cleanedSubmission = lastPart
+                .replace(/^\[|\]$/g, '')
+                .replace(/^["']|["']$/g, '')
+                .replace(/["']/g, '')
+                .replace(/\\/g, '')
+                .trim();
+            }
+          }
+
           completedSteps.push({
+            sprintId: sprint.id,
             sprintTitle: sprint.title,
             day: p.day,
             taskPrompt: prompt,
-            submission: p.submission || (p.answers && p.answers[0]) || "",
+            submission: cleanedSubmission,
             completedAt: p.completedAt ? new Date(p.completedAt).getTime() : 0,
           });
         }
@@ -1019,7 +1045,7 @@ const ParticipantDashboard: React.FC = () => {
                         {/* Recommended Next Sprint Card */}
                         {recommendedNextSprint ? (
                             <div 
-                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative overflow-hidden ${
+                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
                                     isStepUpLocked 
                                     ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
                                     : 'hover:shadow-md hover:border-rose-500/20'
@@ -1065,7 +1091,7 @@ const ParticipantDashboard: React.FC = () => {
                                             <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
                                                 {recommendedNextSprint.title}
                                             </p>
-                                            <p className="text-[9px] text-gray-400 leading-snug line-clamp-2 font-medium">
+                                            <p className="text-[9px] text-gray-400 leading-snug line-clamp-3 font-medium">
                                                 {recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise with templates."}
                                             </p>
                                         </div>
@@ -1090,7 +1116,7 @@ const ParticipantDashboard: React.FC = () => {
                             </div>
                         ) : (
                             <div 
-                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative overflow-hidden ${
+                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
                                     isStepUpLocked 
                                     ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
                                     : 'hover:shadow-md hover:border-rose-500/20'
@@ -1135,7 +1161,7 @@ const ParticipantDashboard: React.FC = () => {
                                             <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
                                                 Growth Foundations
                                             </p>
-                                            <p className="text-[9px] text-gray-400 leading-snug line-clamp-2 font-medium">
+                                            <p className="text-[9px] text-gray-400 leading-snug line-clamp-3 font-medium">
                                                 Unlock consistency and start your rise with templates.
                                             </p>
                                         </div>
@@ -1162,7 +1188,7 @@ const ParticipantDashboard: React.FC = () => {
 
                         {/* 2. Revisit your Rise */}
                         <Link 
-                            to={isStepUpLocked ? "#" : "/profile/archive"} 
+                            to={isStepUpLocked ? "#" : (lastCompletedStep ? `/profile/archive?sprintId=${lastCompletedStep.sprintId}` : "/profile/archive")} 
                             onClick={(e) => isStepUpLocked && e.preventDefault()}
                             className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
                                 isStepUpLocked 
@@ -1201,7 +1227,7 @@ const ParticipantDashboard: React.FC = () => {
 
                                 <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
                                     <span className="text-[10px] font-black uppercase text-indigo-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                                        See More
+                                        Explore your archive
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
                                         </svg>
@@ -1470,7 +1496,7 @@ const ParticipantDashboard: React.FC = () => {
         {showFloatingIgnite && !isStepUpLocked && (
           <div className="fixed bottom-[5.5rem] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-xs z-50 pointer-events-none">
             <div className="relative w-full h-0">
-              <div className="absolute right-[33px] bottom-0 pointer-events-auto">
+              <div className="absolute right-[29px] bottom-0 pointer-events-auto">
                 <motion.button
                   key="floating-ignite-btn"
                   initial={{ scale: 0, opacity: 0, y: 10 }}
@@ -1491,22 +1517,24 @@ const ParticipantDashboard: React.FC = () => {
                           } as any);
                       }
                   }}
-                  className="w-10 h-10 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer border border-[#0E7850]/20 bg-[#0E7850] overflow-hidden group"
+                  className="w-12 h-12 rounded-full shadow-xl hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer border-2 border-white bg-[#0E7850] overflow-hidden group relative"
+                  style={{ borderRadius: '50%' }}
                   title="Daily Ignite"
                 >
                   <img 
                       src={processedIgnitePosts[0]?.coverImageUrl || processedIgnitePosts[0]?.blogImage || 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80'}
                       alt="" 
-                      className="absolute inset-0 w-full h-full object-cover brightness-[0.45] group-hover:scale-110 transition-transform duration-500"
+                      className="absolute inset-0 w-full h-full object-cover rounded-full brightness-[0.45] group-hover:scale-110 transition-transform duration-500"
+                      style={{ borderRadius: '50%' }}
                       referrerPolicy="no-referrer"
                   />
-                  <div className="relative z-10 flex flex-col items-center justify-center">
-                      <span className="text-[8px] font-black uppercase tracking-[0.12em] text-white text-center leading-none select-none drop-shadow-md">
+                  <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
+                      <span className="text-[10px] font-black uppercase tracking-[0.12em] text-white text-center leading-none select-none drop-shadow-md">
                           Ignite
                       </span>
                   </div>
                   {!isIgniteChecked && (
-                      <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full border border-white ring-2 ring-rose-500/35 animate-pulse z-20" />
+                      <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border border-white ring-2 ring-rose-500/35 animate-pulse z-20" />
                   )}
                 </motion.button>
               </div>

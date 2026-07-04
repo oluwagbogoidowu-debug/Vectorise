@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { sprintService } from '../../../services/sprintService';
 import { userService } from '../../../services/userService';
@@ -11,6 +11,7 @@ import FormattedText from '../../../components/FormattedText';
 
 const RiseArchive: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [enrollments, setEnrollments] = useState<{ enrollment: ParticipantSprint; sprint: Sprint; coach: Coach | null }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,6 +26,23 @@ const RiseArchive: React.FC = () => {
   useEffect(() => {
     setIsDailyInsightExpanded(false);
   }, [selectedDay, selectedSprintDetails]);
+
+  useEffect(() => {
+    if (!isLoading && enrollments.length > 0) {
+      const searchParams = new URLSearchParams(location.search);
+      const sprintId = searchParams.get('sprintId');
+      if (sprintId) {
+        const found = enrollments.find(e => e.sprint.id === sprintId || e.enrollment.sprint_id === sprintId);
+        if (found) {
+          setSelectedSprintDetails({ enrollment: found.enrollment, sprint: found.sprint });
+          const completedDayNums = found.enrollment.progress?.filter(p => p.completed).map(p => p.day) || [];
+          const maxCompleted = completedDayNums.length > 0 ? Math.max(...completedDayNums) : 0;
+          const activeDay = maxCompleted > 0 ? maxCompleted : 1;
+          setSelectedDay(activeDay);
+        }
+      }
+    }
+  }, [isLoading, enrollments, location]);
 
   useEffect(() => {
     const fetchData = async () => {

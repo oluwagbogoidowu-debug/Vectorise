@@ -408,9 +408,74 @@ const Profile: React.FC = () => {
       <main className="flex-1 overflow-y-auto custom-scrollbar px-4 py-4 space-y-5">
         
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Syncing Identity...</p>
+          <div className="space-y-5">
+            {/* 1. Stats Grid Skeleton */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-gray-100/70 rounded-3xl p-4 h-20 animate-pulse flex flex-col justify-center">
+                <div className="h-2.5 w-12 bg-gray-200/80 rounded mb-2"></div>
+                <div className="h-5 w-8 bg-gray-200/80 rounded"></div>
+              </div>
+              <div className="bg-gray-100/70 rounded-3xl p-4 h-20 animate-pulse flex flex-col justify-center">
+                <div className="h-2.5 w-16 bg-[#0E7850]/10 rounded mb-2"></div>
+                <div className="h-5 w-6 bg-[#0E7850]/10 rounded"></div>
+              </div>
+            </div>
+
+            {/* 2. Active Path Section Skeleton */}
+            <div className="space-y-2">
+              <div className="h-2.5 w-16 bg-gray-200 rounded animate-pulse"></div>
+              <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm animate-pulse flex items-center gap-4 h-20">
+                <div className="w-12 h-12 rounded-xl bg-gray-100 flex-shrink-0"></div>
+                <div className="flex-1 space-y-2">
+                  <div className="h-2 w-1/4 bg-gray-100 rounded"></div>
+                  <div className="h-3 w-3/4 bg-gray-200 rounded"></div>
+                  <div className="h-1.5 w-full bg-gray-100 rounded"></div>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Hall of Rise Section Skeleton */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="h-2.5 w-20 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-2.5 w-10 bg-gray-100 rounded animate-pulse"></div>
+              </div>
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm animate-pulse flex items-center gap-3 h-14">
+                    <div className="w-10 h-10 rounded-lg bg-gray-100 flex-shrink-0"></div>
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-3 w-1/3 bg-gray-200 rounded"></div>
+                      <div className="h-1.5 w-full bg-gray-100 rounded"></div>
+                    </div>
+                    <div className="w-8 h-2 bg-gray-100 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 4. Growth Focus Skeleton */}
+            <div className="space-y-2">
+              <div className="h-2.5 w-20 bg-gray-200 rounded animate-pulse"></div>
+              <div className="flex flex-wrap gap-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-8 w-24 bg-gray-100/80 border border-gray-50 rounded-full animate-pulse"></div>
+                ))}
+              </div>
+            </div>
+
+            {/* 5. Menu Links Skeleton */}
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white border border-gray-100 rounded-[2rem] p-4 animate-pulse flex items-center justify-between h-14">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-gray-100"></div>
+                    <div className="h-2.5 w-24 bg-gray-200 rounded"></div>
+                  </div>
+                  <div className="w-4 h-4 rounded-full bg-gray-100"></div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <>
