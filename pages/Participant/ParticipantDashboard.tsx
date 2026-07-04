@@ -211,74 +211,68 @@ const ParticipantDashboard: React.FC = () => {
   const recommendedNextSprint = useMemo(() => {
     if (publishedSprints.length === 0) return null;
     const enrolledSprintIds = new Set(allEnrollments.map(e => e.sprint_id));
-    
     const participant = user as Participant;
+    const list: Sprint[] = [];
+    const seenIds = new Set<string>();
 
-    // Priority 1: Selected Growth Areas
-    const growthAreas = participant?.growthAreas || [];
-    if (growthAreas.length > 0) {
-      const matchedGroups = GROWTH_AREAS.filter(g => 
-        g.options.some(opt => growthAreas.includes(opt))
-      );
-      if (matchedGroups.length > 0) {
-        const targetSprintTitles = matchedGroups.flatMap(g => g.sprints);
-        const matchedSprint = publishedSprints.find(s => 
-          targetSprintTitles.includes(s.title) && !enrolledSprintIds.has(s.id)
-        );
-        if (matchedSprint) return matchedSprint;
+    const addSprint = (sprint: Sprint | undefined) => {
+      if (sprint && !enrolledSprintIds.has(sprint.id) && !seenIds.has(sprint.id)) {
+        list.push(sprint);
+        seenIds.add(sprint.id);
       }
-    }
+    };
 
-    // Priority 2: Rise Pathway
-    const pathwayId = participant?.risePathway;
-    if (pathwayId) {
-      const pathway = RISE_PATHWAYS.find(p => p.id === pathwayId);
-      if (pathway) {
-        const pathwaySprintMap: Record<string, string[]> = {
-          'student': ['Clarity Sprint', 'Direction Sprint'],
-          'early_career': ['Direction Sprint', 'Skill Sprint', 'Confidence Sprint'],
-          'growth_pro': ['Leadership Sprint', 'Visibility Sprint', 'Execution Sprint'],
-          'builder': ['Execution Sprint', 'Positioning Sprint', 'Focus Sprint'],
-          'transition': ['Clarity Sprint', 'Confidence Sprint', 'Consistency Sprint']
-        };
-        const targetTitles = pathwaySprintMap[pathwayId] || [];
-        const matchedSprint = publishedSprints.find(s => 
-          targetTitles.includes(s.title) && !enrolledSprintIds.has(s.id)
-        );
-        if (matchedSprint) return matchedSprint;
-      }
-    }
+    // 0. Include sprints that override orchestrator
+    const overrideSprintsActive = publishedSprints
+      .filter(s => s.overrideOrchestrator && !enrolledSprintIds.has(s.id))
+      .sort((a, b) => (a.overrideOrder || 0) - (b.overrideOrder || 0));
+    overrideSprintsActive.forEach(s => {
+      addSprint(s);
+    });
 
-    // Priority 3: Onboarding Focus
     const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
                      Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
-    if (userFocus) {
-      const prioritySlots = ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
-      for (const slotId of prioritySlots) {
-        const mapping = orchestration[slotId];
-        if (mapping) {
-          const focusMap = mapping.sprintFocusMap || {};
-          const matchedSprintId = Object.keys(focusMap).find(sId => focusMap[sId]?.includes(userFocus));
-          if (matchedSprintId) {
-            const matchedSprint = publishedSprints.find(s => s.id === matchedSprintId && !enrolledSprintIds.has(s.id));
-            if (matchedSprint) return matchedSprint;
-          }
+
+    // 1. Prioritization list from the orchestrator in direction session (slot_dir_sprint) first
+    const directionMapping = orchestration['slot_dir_sprint'];
+    if (directionMapping) {
+      const focusMap = directionMapping.sprintFocusMap || {};
+      const prioritiesMap = directionMapping.focusOptionPriorityMap || {};
+      const assignedIds = directionMapping.sprintIds || (directionMapping.sprintId ? [directionMapping.sprintId] : []);
+
+      if (userFocus) {
+        // Sprints mapped to slot_dir_sprint that have the user's active focus tag
+        const matches = assignedIds.filter((id: string) => focusMap[id]?.includes(userFocus));
+        const priorities = prioritiesMap[userFocus] || [];
+        if (matches.length > 0) {
+          matches.sort((a: string, b: string) => {
+            const idxA = priorities.indexOf(a);
+            const idxB = priorities.indexOf(b);
+            if (idxA > -1 && idxB > -1) return idxA - idxB;
+            if (idxA > -1) return -1;
+            if (idxB > -1) return 1;
+            return 0;
+          });
+          
+          matches.forEach((sId: string) => {
+            const s = publishedSprints.find(sp => sp.id === sId);
+            if (s) addSprint(s);
+          });
         }
       }
+
+      // Fallback: If space permits, add any other assigned sprint ids from slot_dir_sprint in original priority order
+      assignedIds.forEach((sId: string) => {
+        const s = publishedSprints.find(sp => sp.id === sId);
+        if (s) addSprint(s);
+      });
     }
 
-    // Priority 4: Stage mapping
-    const targetStage = participant?.currentStage || 'Direction';
-    const stageSprint = publishedSprints.find(s => 
-      CATEGORY_TO_STAGE_MAP[s.category] === targetStage && 
-      s.pricingType === 'cash' &&
-      !enrolledSprintIds.has(s.id)
-    );
-    if (stageSprint) return stageSprint;
-
-    // Fallback: unenrolled sprint or first available
+    // Fallback: any unenrolled sprint or first available
     const unenrolled = publishedSprints.filter(s => !enrolledSprintIds.has(s.id));
-    return unenrolled[0] || publishedSprints[0] || null;
+    unenrolled.forEach(s => addSprint(s));
+
+    return list[0] || publishedSprints[0] || null;
   }, [publishedSprints, allEnrollments, user, orchestration]);
 
   const latestBlogPost = useMemo(() => {
@@ -1072,7 +1066,7 @@ const ParticipantDashboard: React.FC = () => {
                         {/* Recommended Next Sprint Card */}
                         {recommendedNextSprint ? (
                             <div 
-                                className={`flex-shrink-0 w-72 h-60 bg-white border border-gray-150 rounded-[2rem] p-4.5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-4 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
                                     isStepUpLocked 
                                     ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
                                     : 'hover:shadow-md hover:border-rose-500/20'
@@ -1083,58 +1077,55 @@ const ParticipantDashboard: React.FC = () => {
                                     See what's next
                                 </div>
 
-                                <div className="flex-1 flex flex-col pt-1.5 min-h-0">
-                                    {/* Text written first before the card inside */}
-                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-left mb-2">
-                                        Recommended next sprint
-                                    </p>
-
-                                    {/* Card inside */}
-                                    <div 
-                                        onClick={(e) => {
-                                            if (isStepUpLocked) return;
-                                            navigate(`/sprint/${recommendedNextSprint.id}`);
-                                        }}
-                                        className="flex-1 bg-gray-50 border border-gray-100 rounded-2xl p-2.5 flex gap-3 hover:bg-gray-100/60 transition-colors cursor-pointer text-left overflow-hidden group/inner items-center min-h-0"
-                                    >
+                                <div 
+                                    onClick={(e) => {
+                                        if (isStepUpLocked) return;
+                                        navigate(`/sprint/${recommendedNextSprint.id}`);
+                                    }}
+                                    className="flex-1 flex flex-col justify-between pt-1 cursor-pointer"
+                                >
+                                    {/* Top row: Image & Category/Duration */}
+                                    <div className="flex gap-3 items-start">
                                         {/* Sprint Image */}
                                         <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
                                             <img 
                                                 src={recommendedNextSprint.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
                                                 alt="" 
-                                                className="w-full h-full object-cover transition-transform duration-500 group-hover/inner:scale-105" 
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                                                 onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
                                                 referrerPolicy="no-referrer"
                                             />
-                                            <div className="absolute bottom-1 right-1 bg-white/90 backdrop-blur-sm px-1 py-0.5 rounded text-[6px] font-black text-primary shadow-sm uppercase tracking-wider">
-                                                {recommendedNextSprint.duration || 7} Days
-                                            </div>
                                         </div>
 
-                                        <div className="flex-1 min-w-0 space-y-0.5 text-left">
-                                            {/* Sprint Category */}
-                                            <span className="inline-block px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200/50 text-gray-500 text-[6px] font-black uppercase tracking-wider">
+                                        {/* Category & Duration */}
+                                        <div className="flex flex-col gap-1 min-w-0">
+                                            <span className="inline-block px-1.5 py-0.5 rounded bg-gray-50 border border-gray-100 text-gray-400 text-[6.5px] font-black uppercase tracking-wider truncate">
                                                 {recommendedNextSprint.category || "Growth"}
                                             </span>
-                                            {/* Sprint Title */}
-                                            <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover/inner:text-primary transition-colors">
-                                                {recommendedNextSprint.title}
-                                            </p>
-                                            {/* Sprint Subtitle */}
-                                            <p className="text-[9px] text-gray-500 leading-snug line-clamp-2 font-medium">
-                                                {recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise with templates."}
-                                            </p>
+                                            <span className="inline-block px-1.5 py-0.5 rounded bg-rose-50/50 border border-rose-100/50 text-rose-600 text-[6.5px] font-black uppercase tracking-wider w-max">
+                                                {recommendedNextSprint.duration || 7} Days
+                                            </span>
                                         </div>
+                                    </div>
+
+                                    {/* Middle: Title & Subtitle */}
+                                    <div className="space-y-1 text-left mt-2 flex-1 flex flex-col justify-center">
+                                        <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+                                            {recommendedNextSprint.title}
+                                        </p>
+                                        <p className="text-[9px] text-gray-400 leading-snug line-clamp-2 font-medium">
+                                            {recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise with templates."}
+                                        </p>
                                     </div>
                                 </div>
 
-                                {/* Explore sprints as simple text link like other cards */}
+                                {/* Bottom action link */}
                                 <div 
                                     onClick={() => {
                                         if (isStepUpLocked) return;
                                         navigate("/explore");
                                     }}
-                                    className="mt-2.5 pt-2.5 border-t border-gray-50 flex items-center justify-between cursor-pointer"
+                                    className="mt-2 pt-2 border-t border-gray-50 flex items-center justify-between cursor-pointer"
                                 >
                                     <span className="text-[9px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
                                         Explore sprints
@@ -1146,7 +1137,7 @@ const ParticipantDashboard: React.FC = () => {
                             </div>
                         ) : (
                             <div 
-                                className={`flex-shrink-0 w-72 h-60 bg-white border border-gray-150 rounded-[2rem] p-4.5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-4 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
                                     isStepUpLocked 
                                     ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
                                     : 'hover:shadow-md hover:border-rose-500/20'
@@ -1157,57 +1148,54 @@ const ParticipantDashboard: React.FC = () => {
                                     See what's next
                                 </div>
 
-                                <div className="flex-1 flex flex-col pt-1.5 min-h-0">
-                                    {/* Text written first before the card inside */}
-                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-left mb-2">
-                                        Recommended next sprint
-                                    </p>
-
-                                    {/* Card inside */}
-                                    <div 
-                                        onClick={(e) => {
-                                            if (isStepUpLocked) return;
-                                            navigate("/explore");
-                                        }}
-                                        className="flex-1 bg-gray-50 border border-gray-100 rounded-2xl p-2.5 flex gap-3 hover:bg-gray-100/60 transition-colors cursor-pointer text-left overflow-hidden group/inner items-center min-h-0"
-                                    >
+                                <div 
+                                    onClick={(e) => {
+                                        if (isStepUpLocked) return;
+                                        navigate("/explore");
+                                    }}
+                                    className="flex-1 flex flex-col justify-between pt-1 cursor-pointer"
+                                >
+                                    {/* Top row: Image & Category/Duration */}
+                                    <div className="flex gap-3 items-start">
                                         {/* Sprint Image */}
                                         <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
                                             <img 
                                                 src={assetService.URLS.DEFAULT_SPRINT_COVER} 
                                                 alt="" 
-                                                className="w-full h-full object-cover transition-transform duration-500 group-hover/inner:scale-105" 
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                                                 referrerPolicy="no-referrer"
                                             />
-                                            <div className="absolute bottom-1 right-1 bg-white/90 backdrop-blur-sm px-1 py-0.5 rounded text-[6px] font-black text-primary shadow-sm uppercase tracking-wider">
-                                                7 Days
-                                            </div>
                                         </div>
 
-                                        <div className="flex-1 min-w-0 space-y-0.5 text-left">
-                                            {/* Sprint Category */}
-                                            <span className="inline-block px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200/50 text-gray-500 text-[6px] font-black uppercase tracking-wider">
+                                        {/* Category & Duration */}
+                                        <div className="flex flex-col gap-1 min-w-0">
+                                            <span className="inline-block px-1.5 py-0.5 rounded bg-gray-50 border border-gray-100 text-gray-400 text-[6.5px] font-black uppercase tracking-wider truncate">
                                                 GROWTH
                                             </span>
-                                            {/* Sprint Title */}
-                                            <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover/inner:text-primary transition-colors">
-                                                Growth Foundations
-                                            </p>
-                                            {/* Sprint Subtitle */}
-                                            <p className="text-[9px] text-gray-500 leading-snug line-clamp-2 font-medium">
-                                                Unlock consistency and start your rise with templates.
-                                            </p>
+                                            <span className="inline-block px-1.5 py-0.5 rounded bg-rose-50/50 border border-rose-100/50 text-rose-600 text-[6.5px] font-black uppercase tracking-wider w-max">
+                                                7 Days
+                                            </span>
                                         </div>
+                                    </div>
+
+                                    {/* Middle: Title & Subtitle */}
+                                    <div className="space-y-1 text-left mt-2 flex-1 flex flex-col justify-center">
+                                        <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+                                            Growth Foundations
+                                        </p>
+                                        <p className="text-[9px] text-gray-400 leading-snug line-clamp-2 font-medium">
+                                            Unlock consistency and start your rise with templates.
+                                        </p>
                                     </div>
                                 </div>
 
-                                {/* Explore sprints as simple text link like other cards */}
+                                {/* Bottom action link */}
                                 <div 
                                     onClick={() => {
                                         if (isStepUpLocked) return;
                                         navigate("/explore");
                                     }}
-                                    className="mt-2.5 pt-2.5 border-t border-gray-50 flex items-center justify-between cursor-pointer"
+                                    className="mt-2 pt-2 border-t border-gray-50 flex items-center justify-between cursor-pointer"
                                 >
                                     <span className="text-[9px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
                                         Explore sprints
@@ -1357,7 +1345,68 @@ const ParticipantDashboard: React.FC = () => {
                             </div>
                         </Link>
 
+                        {/* 5. Read RiseBlog */}
+                        <Link 
+                            to="/blog" 
+                            className="flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative hover:shadow-md hover:border-emerald-500/20 cursor-pointer"
+                        >
+                            {/* Tag positioned nicely like the impact page milestone cards */}
+                            <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-emerald-700 border border-emerald-100/40 z-20">
+                                Read RiseBlog
+                            </div>
 
+                            {latestBlogPost ? (
+                                <div className="flex-1 flex flex-col justify-between h-full">
+                                    {/* Top part has the cover image */}
+                                    <div className="h-28 w-full relative overflow-hidden rounded-t-[1.95rem]">
+                                        <img 
+                                            src={latestBlogPost.coverImage} 
+                                            alt={latestBlogPost.title} 
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent"></div>
+                                        <span className="absolute bottom-2 left-4 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm">
+                                            {latestBlogPost.category}
+                                        </span>
+                                    </div>
+
+                                    {/* Bottom part has details */}
+                                    <div className="p-4 flex-1 flex flex-col justify-between">
+                                        <div className="space-y-1.5 text-left">
+                                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">
+                                                {latestBlogPost.publishedAt} • {latestBlogPost.readTime}
+                                            </p>
+                                            <h4 className="text-[11px] font-black text-gray-950 tracking-tight leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                                                {latestBlogPost.title}
+                                            </h4>
+                                        </div>
+
+                                        <div className="flex items-center justify-between pt-2 border-t border-gray-50 mt-2">
+                                            <div className="flex items-center gap-1.5">
+                                                <img 
+                                                    src={latestBlogPost.author.avatar} 
+                                                    alt={latestBlogPost.author.name} 
+                                                    className="w-4 h-4 rounded-full object-cover"
+                                                />
+                                                <span className="text-[8px] font-black text-gray-600 uppercase tracking-wider truncate max-w-[100px]">
+                                                    {latestBlogPost.author.name}
+                                                </span>
+                                            </div>
+                                            <span className="text-[9px] font-black uppercase text-[#0E7850] inline-flex items-center gap-0.5">
+                                                Read
+                                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex flex-col justify-center items-center p-6 text-center">
+                                    <p className="text-xs font-semibold text-gray-400">No releases found</p>
+                                </div>
+                            )}
+                        </Link>
                     </div>
                     {isStepUpLocked && (
                         <div className="flex justify-center mt-2 animate-fade-in select-none">
@@ -1466,44 +1515,50 @@ const ParticipantDashboard: React.FC = () => {
       {/* Floating Ignite Button on Scroll */}
       <AnimatePresence>
         {showFloatingIgnite && !isStepUpLocked && (
-          <motion.button
-            key="floating-ignite-btn"
-            initial={{ scale: 0, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0, opacity: 0, y: 20 }}
-            onClick={() => {
-                if (processedIgnitePosts && processedIgnitePosts.length > 0) {
-                    setActivePlayIgnite(processedIgnitePosts[0]);
-                } else {
-                    setActivePlayIgnite({
-                        id: 'default_ignite',
-                        title: 'Ignite Post',
-                        description: 'Daily Spark.',
-                        igniteBgColor: '#6D28D9',
-                        igniteBody: "Consistency is not about perfection. It’s about returning to the practice day after day.\n\n" +
-                                    "Be the Catalyst. Your momentum is contagious, inspire your circle to act.\n\n" +
-                                    "The secret to growing is to never grow alone. Bring others along and lift everyone together."
-                    } as any);
-                }
-            }}
-            className="fixed bottom-6 right-6 z-50 w-10 h-10 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer border border-[#159E6A]/20 bg-[#159E6A] overflow-hidden group"
-            title="Daily Ignite"
-          >
-            <img 
-                src={processedIgnitePosts[0]?.coverImageUrl || processedIgnitePosts[0]?.blogImage || 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80'}
-                alt="" 
-                className="absolute inset-0 w-full h-full object-cover brightness-[0.45] group-hover:scale-110 transition-transform duration-500"
-                referrerPolicy="no-referrer"
-            />
-            <div className="relative z-10 flex flex-col items-center justify-center">
-                <span className="text-[8px] font-black uppercase tracking-[0.1em] text-white text-center leading-none select-none drop-shadow-md">
-                    Ignite
-                </span>
+          <div className="fixed bottom-[5.5rem] left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-xs z-50 pointer-events-none">
+            <div className="relative w-full h-0">
+              <div className="absolute right-[33px] bottom-0 pointer-events-auto">
+                <motion.button
+                  key="floating-ignite-btn"
+                  initial={{ scale: 0, opacity: 0, y: 10 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0, opacity: 0, y: 10 }}
+                  onClick={() => {
+                      if (processedIgnitePosts && processedIgnitePosts.length > 0) {
+                          setActivePlayIgnite(processedIgnitePosts[0]);
+                      } else {
+                          setActivePlayIgnite({
+                              id: 'default_ignite',
+                              title: 'Ignite Post',
+                              description: 'Daily Spark.',
+                              igniteBgColor: '#6D28D9',
+                              igniteBody: "Consistency is not about perfection. It’s about returning to the practice day after day.\n\n" +
+                                          "Be the Catalyst. Your momentum is contagious, inspire your circle to act.\n\n" +
+                                          "The secret to growing is to never grow alone. Bring others along and lift everyone together."
+                          } as any);
+                      }
+                  }}
+                  className="w-10 h-10 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer border border-[#0E7850]/20 bg-[#0E7850] overflow-hidden group"
+                  title="Daily Ignite"
+                >
+                  <img 
+                      src={processedIgnitePosts[0]?.coverImageUrl || processedIgnitePosts[0]?.blogImage || 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80'}
+                      alt="" 
+                      className="absolute inset-0 w-full h-full object-cover brightness-[0.45] group-hover:scale-110 transition-transform duration-500"
+                      referrerPolicy="no-referrer"
+                  />
+                  <div className="relative z-10 flex flex-col items-center justify-center">
+                      <span className="text-[8px] font-black uppercase tracking-[0.12em] text-white text-center leading-none select-none drop-shadow-md">
+                          Ignite
+                      </span>
+                  </div>
+                  {!isIgniteChecked && (
+                      <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full border border-white ring-2 ring-rose-500/35 animate-pulse z-20" />
+                  )}
+                </motion.button>
+              </div>
             </div>
-            {!isIgniteChecked && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full border border-white ring-2 ring-rose-500/35 animate-pulse z-20" />
-            )}
-          </motion.button>
+          </div>
         )}
       </AnimatePresence>
     </div>
