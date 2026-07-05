@@ -132,6 +132,7 @@ const ParticipantDashboard: React.FC = () => {
   const [isCommitted, setIsCommitted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'coins' | 'card'>('coins');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showStreakText, setShowStreakText] = useState(false);
 
   // Mark active Ignite as checked when opened
   useEffect(() => {
@@ -669,6 +670,18 @@ const ParticipantDashboard: React.FC = () => {
     return "Today's Focus";
   }, [cardState, completedDaysCount]);
 
+  // Delay streak text in well_done state
+  useEffect(() => {
+    if (cardState === 'well_done') {
+      const timer = setTimeout(() => {
+        setShowStreakText(true);
+      }, 4000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowStreakText(false);
+    }
+  }, [cardState]);
+
   const p = user as Participant;
   const currentArchetype = ARCHETYPES.find(a => a.id === p.archetype);
 
@@ -901,9 +914,11 @@ const ParticipantDashboard: React.FC = () => {
                             <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
                                 Come back tomorrow.
                             </p>
-                            <p className="text-[10px] sm:text-xs font-bold text-[#0E7850] mt-1 leading-snug uppercase tracking-wider">
-                                Don’t break the streak.
-                            </p>
+                            {showStreakText && (
+                                <p className="text-[10px] sm:text-xs font-bold text-[#0E7850] mt-1 leading-snug uppercase tracking-wider animate-fade-in">
+                                    Don’t break the streak.
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1740,7 +1755,7 @@ const ParticipantDashboard: React.FC = () => {
                                             : 'bg-gray-100 text-gray-300 cursor-not-allowed'
                                         }`}
                                     >
-                                        {isProcessing ? "Processing..." : "Day 1 Done"}
+                                        {isProcessing ? "Processing..." : "Start Day 1 Now"}
                                     </button>
                                 </div>
                             )}
