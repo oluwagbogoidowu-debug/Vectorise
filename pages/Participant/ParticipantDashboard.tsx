@@ -21,6 +21,7 @@ import NextSprintModal from '../../components/NextSprintModal';
 import ConfirmModal from '../../components/ConfirmModal';
 import { streakService } from '../../services/streakService';
 import { blogService } from '../../services/blogService';
+import { paymentService } from '../../services/paymentService';
 
 /**
  * Calculates if a day is locked based on the "Next Midnight" logic.
@@ -125,6 +126,11 @@ const ParticipantDashboard: React.FC = () => {
   const [showPulse, setShowPulse] = useState(false);
   const [checkedIgnites, setCheckedIgnites] = useState<Record<string, boolean>>({});
   const [showFloatingIgnite, setShowFloatingIgnite] = useState(true);
+  const [showOverviewSheet, setShowOverviewSheet] = useState(false);
+  const [overviewStep, setOverviewStep] = useState<'overview' | 'commitment'>('overview');
+  const [isCommitted, setIsCommitted] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'coins' | 'card'>('coins');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Mark active Ignite as checked when opened
   useEffect(() => {
@@ -132,6 +138,18 @@ const ParticipantDashboard: React.FC = () => {
       localStorage.setItem(`ignite_checked_${activePlayIgnite.id}`, 'true');
     }
   }, [activePlayIgnite]);
+
+  // Set default payment method when overview sheet is shown
+  useEffect(() => {
+    if (showOverviewSheet) {
+      const userBalance = (user as Participant)?.walletBalance || 0;
+      if (userBalance >= 10) {
+        setPaymentMethod('coins');
+      } else {
+        setPaymentMethod('card');
+      }
+    }
+  }, [showOverviewSheet, user]);
 
   // Read checked state for all ignites
   useEffect(() => {
@@ -709,6 +727,66 @@ const ParticipantDashboard: React.FC = () => {
     }
   };
 
+  const handleStartSprint = async () => {
+    if (!user || !recommendedNextSprint || !isCommitted) return;
+    
+    setIsProcessing(true);
+    try {
+        if (paymentMethod === 'coins') {
+            const userBalance = (user as Participant).walletBalance || 0;
+            if (userBalance < 10) {
+                toast.error("Insufficient coins. Please select another payment method or purchase more coins.");
+                setIsProcessing(false);
+                return;
+            }
+
+            // 1. Process wallet transaction
+            await userService.processWalletTransaction(user.id, {
+                amount: -10,
+                type: 'purchase',
+                description: `Unlocked ${recommendedNextSprint.title} via Credits`,
+                auditId: recommendedNextSprint.id
+            });
+
+            // 2. Enroll user
+            const enrollment = await sprintService.enrollUser(
+                user.id, 
+                recommendedNextSprint.id, 
+                recommendedNextSprint.duration || 7, 
+                {
+                    coachId: recommendedNextSprint.coachId,
+                    pricePaid: 0,
+                    currency: recommendedNextSprint.currency || 'NGN',
+                    source: 'coin'
+                }
+            );
+
+            toast.success("Sprint started successfully!");
+            setShowOverviewSheet(false);
+            
+            // Navigate to the newly enrolled sprint
+            navigate(`/participant/sprint/${enrollment.id}`);
+        } else {
+            // Pay via Card (Flutterwave)
+            const payload = {
+                userId: user.id,
+                email: user.email.toLowerCase().trim(),
+                sprintId: recommendedNextSprint.id,
+                amount: recommendedNextSprint.price || 1000,
+                currency: "NGN",
+                name: user.name || 'Vectorise User'
+            };
+
+            const checkoutUrl = await paymentService.initializeFlutterwave(payload);
+            window.location.href = checkoutUrl;
+        }
+    } catch (err: any) {
+        console.error("Error starting sprint:", err);
+        toast.error(err.message || "Failed to start sprint. Please try again.");
+        setIsProcessing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col min-h-screen w-full bg-[#FDFDFD] font-sans">
@@ -988,10 +1066,21 @@ const ParticipantDashboard: React.FC = () => {
                         </div>
                     </Link>
                 ) : (
-                    <Link to={recommendedNextSprint ? `/sprint/${recommendedNextSprint.id}` : "/explore"} className="block group animate-fade-in">
-                        <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-150 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[260px]">
+                    <div 
+                        onClick={() => {
+                            if (recommendedNextSprint) {
+                                setShowOverviewSheet(true);
+                                setOverviewStep('overview');
+                                setIsCommitted(false);
+                            } else {
+                                navigate("/explore");
+                            }
+                        }}
+                        className="block group animate-fade-in cursor-pointer text-left"
+                    >
+                        <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-150 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[130px]">
                             {/* Left Image Section */}
-                            <div className="w-full md:w-2/5 h-48 md:h-auto relative overflow-hidden">
+                            <div className="w-full md:w-2/5 h-12 md:h-[130px] relative overflow-hidden">
                                 <img 
                                     src={recommendedNextSprint?.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
                                     alt="" 
@@ -1001,10 +1090,10 @@ const ParticipantDashboard: React.FC = () => {
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
                                 {/* Tag Overlay on the Image */}
-                                <div className="absolute top-4 left-4 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
+                                <div className="absolute top-2 left-4 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
                                     See what's next
                                 </div>
-                                <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between z-10">
+                                <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between z-10">
                                     <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm truncate max-w-[110px]">
                                         {recommendedNextSprint?.category || "Growth"}
                                     </span>
@@ -1015,16 +1104,15 @@ const ParticipantDashboard: React.FC = () => {
                             </div>
                             
                             {/* Right Content Section */}
-                            <div className="flex-1 p-6 md:p-8 lg:p-10 flex flex-col justify-between">
-                                <div className="mb-4">
-                                    <p className="text-[9px] md:text-[10px] font-black text-rose-600 uppercase tracking-[0.1em]">{recommendedNextSprint?.category || "Growth"}</p>
-                                    <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight mt-1">{recommendedNextSprint?.title || "Growth Foundations"}</h3>
-                                    <p className="text-xs md:text-sm text-gray-500 font-medium leading-relaxed mt-3 line-clamp-3">
+                            <div className="flex-1 p-4 md:p-6 lg:p-8 flex flex-col justify-between">
+                                <div className="mb-4 text-left">
+                                    <h3 className="text-lg md:text-xl lg:text-2xl font-black text-gray-900 leading-tight tracking-tight">{recommendedNextSprint?.title || "Growth Foundations"}</h3>
+                                    <p className="text-xs text-gray-500 font-medium leading-relaxed mt-2 line-clamp-2">
                                         {recommendedNextSprint?.description || recommendedNextSprint?.subtitle || "Unlock consistency and start your rise with templates."}
                                     </p>
                                 </div>
                                 
-                                <div className="w-full py-4 bg-[#0E7850] text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.3em] text-[10px] md:text-[11px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-3 md:gap-4 group-hover:scale-[1.01] transition-transform active:scale-[0.98]">
+                                <div className="w-full py-3 bg-[#0E7850] text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.3em] text-[9px] md:text-[10px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-3 md:gap-4 group-hover:scale-[1.01] transition-transform active:scale-[0.98]">
                                     Start This Sprint
                                     <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7-7 7m7-7H3" />
@@ -1032,7 +1120,7 @@ const ParticipantDashboard: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                    </Link>
+                    </div>
                 )}
             </div>
 
@@ -1062,148 +1150,15 @@ const ParticipantDashboard: React.FC = () => {
                     `}</style>
                     <div className="flex gap-6 overflow-x-auto pb-4 pt-4 px-1.5 snap-x snap-mandatory no-scrollbar relative items-center">
 
-                        {/* 2. Revisit your Rise */}
+                        {/* 1. Read RiseBlog */}
                         <Link 
-                            to={isStepUpLocked ? "#" : (lastCompletedStep ? `/profile/archive?sprintId=${lastCompletedStep.sprintId}` : "/profile/archive")} 
+                            to={isStepUpLocked ? "#" : "/blog"} 
                             onClick={(e) => isStepUpLocked && e.preventDefault()}
-                            className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
-                                isStepUpLocked 
-                                ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                : 'hover:shadow-md hover:border-indigo-500/20 cursor-pointer'
-                            } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
-                        >
-                            {/* Tag positioned nicely like the impact page milestone cards */}
-                            <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-indigo-50 text-indigo-700 border border-indigo-100/40 z-10">
-                                Revisit your Rise
-                            </div>
-
-                            {/* Content of the card */}
-                            <div className="flex-1 flex flex-col justify-between pt-2">
-                                {lastCompletedStep ? (
-                                    <div className="flex-1 flex flex-col justify-between">
-                                        <div className="space-y-1.5 min-w-0 text-left">
-                                            <p className="text-[9px] font-black text-indigo-600 uppercase tracking-wider truncate">
-                                                {lastCompletedStep.sprintTitle} • Day {lastCompletedStep.day}
-                                            </p>
-                                            <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1">
-                                                {lastCompletedStep.taskPrompt}
-                                            </p>
-                                            <p className="text-[11px] text-gray-500 italic leading-snug line-clamp-2 bg-gray-50 p-2 rounded-xl border border-gray-100/50 mt-1.5 font-medium">
-                                                "{lastCompletedStep.submission}"
-                                            </p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="flex-1 flex flex-col justify-center items-center text-center py-4">
-                                        <p className="text-xs font-semibold text-gray-400 max-w-[160px]">
-                                            No daily steps completed yet. Complete your focus to start your archive!
-                                        </p>
-                                    </div>
-                                )}
-
-                                <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
-                                    <span className="text-[10px] font-black uppercase text-indigo-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                                        Explore your archive
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                        </svg>
-                                    </span>
-                                </div>
-                            </div>
-                        </Link>
-
-                        {/* 3. Become a Catalyst */}
-                        <Link 
-                            to={isStepUpLocked ? "#" : "/impact"} 
-                            onClick={(e) => isStepUpLocked && e.preventDefault()}
-                            className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                            className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
                                 isStepUpLocked 
                                 ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
                                 : 'hover:shadow-md hover:border-emerald-500/20 cursor-pointer'
                             } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
-                        >
-                            {/* Tag positioned nicely like the impact page milestone cards */}
-                            <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-emerald-700 border border-emerald-100/40 z-10">
-                                Become a Catalyst
-                            </div>
-
-                            {/* Content of the card */}
-                            <div className="flex-1 flex flex-col justify-between pt-2">
-                                <div className="space-y-2 mt-2 text-left">
-                                    <div className="w-10 h-10 bg-emerald-50 text-[#0E7850] rounded-xl flex items-center justify-center border border-emerald-100/50 shadow-sm">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                        </svg>
-                                    </div>
-                                    <p className="text-sm font-black text-gray-950 leading-tight">
-                                        Help someone to start their growth journey today and be rewarded for it.
-                                    </p>
-                                </div>
-
-                                <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
-                                    <span className="text-[10px] font-black uppercase text-[#0E7850] group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                                        Learn More
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                        </svg>
-                                    </span>
-                                </div>
-                            </div>
-                        </Link>
-
-                        {/* 4. See your rise analysis */}
-                        <Link 
-                            to={isStepUpLocked ? "#" : "/growth"} 
-                            onClick={(e) => isStepUpLocked && e.preventDefault()}
-                            className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
-                                isStepUpLocked 
-                                ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                : 'hover:shadow-md hover:border-emerald-500/20 cursor-pointer'
-                            } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
-                        >
-                            {/* Tag positioned nicely like the impact page milestone cards */}
-                            <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-[#0E7850] border border-emerald-100/40 z-10">
-                                See your rise analysis
-                            </div>
-
-                            {/* Content of the card */}
-                            <div className="flex-1 flex flex-col justify-between pt-2">
-                                <div className="space-y-2 mt-2 text-left">
-                                    <div className="w-10 h-10 bg-emerald-50 text-[#0E7850] rounded-xl flex items-center justify-center border border-emerald-100/50 shadow-sm">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h4 className="text-sm font-black text-gray-950 leading-tight group-hover:text-[#0E7850] transition-colors">
-                                            See your rise analysis
-                                        </h4>
-                                        <p className="text-[10px] font-bold text-gray-400 mt-1">
-                                            Track your overall performance and sprint metrics.
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-1.5 text-left">
-                                    <div className="flex justify-between items-end">
-                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                                            Overall
-                                        </span>
-                                        <span className="text-[11px] font-mono font-black text-[#0E7850]">
-                                            {overallProgress}%
-                                        </span>
-                                    </div>
-                                    <div className="h-1.5 w-full bg-gray-50 border border-gray-100/50 rounded-full overflow-hidden">
-                                        <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </Link>
-
-                        {/* 5. Read RiseBlog */}
-                        <Link 
-                            to="/blog" 
-                            className="flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative hover:shadow-md hover:border-emerald-500/20 cursor-pointer"
                         >
                             {/* Tag positioned nicely like the impact page milestone cards */}
                             <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-emerald-700 border border-emerald-100/40 z-20">
@@ -1261,6 +1216,290 @@ const ParticipantDashboard: React.FC = () => {
                                     <p className="text-xs font-semibold text-gray-400">No releases found</p>
                                 </div>
                             )}
+                        </Link>
+
+                        {/* 2. See what's next (only shown if there's an active sprint, to avoid duplicate card when there's no active sprint) */}
+                        {hasActiveSprints && (
+                            recommendedNextSprint ? (
+                                <div 
+                                    className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                        isStepUpLocked 
+                                        ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
+                                        : 'hover:shadow-md hover:border-rose-500/20'
+                                    } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
+                                >
+                                    {/* Tag: See what's next */}
+                                    <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
+                                        See what's next
+                                    </div>
+
+                                    <div 
+                                        onClick={(e) => {
+                                            if (isStepUpLocked) return;
+                                            navigate(`/sprint/${recommendedNextSprint.id}`);
+                                        }}
+                                        className="flex-1 flex flex-col justify-between cursor-pointer"
+                                    >
+                                        {/* Top part: Cover Image stretching to fill */}
+                                        <div className="h-28 w-full relative overflow-hidden rounded-t-[1.95rem]">
+                                            <img 
+                                                src={recommendedNextSprint.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
+                                                alt="" 
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                                onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
+                                                referrerPolicy="no-referrer"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                                            
+                                            {/* Category & Duration Overlay on the Image */}
+                                            <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between z-10">
+                                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm truncate max-w-[110px]">
+                                                    {recommendedNextSprint.category || "Growth"}
+                                                </span>
+                                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-rose-500/80 text-white backdrop-blur-sm shrink-0">
+                                                    {recommendedNextSprint.duration || 7} Days
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Bottom part: Title, Subtitle & Action link inside padding */}
+                                        <div className="p-4 pt-3 flex-1 flex flex-col justify-between min-h-0">
+                                            <div className="space-y-1 text-left">
+                                                <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+                                                    {recommendedNextSprint.title}
+                                                </p>
+                                                <p className="text-[9px] text-gray-400 leading-snug line-clamp-3 font-medium">
+                                                    {recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise with templates."}
+                                                </p>
+                                            </div>
+
+                                            <div 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (isStepUpLocked) return;
+                                                    navigate("/explore");
+                                                }}
+                                                className="pt-2 border-t border-gray-50 flex items-center justify-between cursor-pointer mt-2"
+                                            >
+                                                <span className="text-[9px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                                    Explore sprints
+                                                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                                    </svg>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div 
+                                    className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                        isStepUpLocked 
+                                        ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
+                                        : 'hover:shadow-md hover:border-rose-500/20'
+                                    } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
+                                >
+                                    {/* Tag: See what's next */}
+                                    <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
+                                        See what's next
+                                    </div>
+
+                                    <div 
+                                        onClick={(e) => {
+                                            if (isStepUpLocked) return;
+                                            navigate("/explore");
+                                        }}
+                                        className="flex-1 flex flex-col justify-between cursor-pointer"
+                                    >
+                                        {/* Top part: Cover Image stretching to fill */}
+                                        <div className="h-28 w-full relative overflow-hidden rounded-t-[1.95rem]">
+                                            <img 
+                                                src={assetService.URLS.DEFAULT_SPRINT_COVER} 
+                                                alt="" 
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                                referrerPolicy="no-referrer"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                                            
+                                            {/* Category & Duration Overlay on the Image */}
+                                            <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between z-10">
+                                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm">
+                                                    GROWTH
+                                                </span>
+                                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-rose-500/80 text-white backdrop-blur-sm shrink-0">
+                                                    7 Days
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Bottom part: Title, Subtitle & Action link inside padding */}
+                                        <div className="p-4 pt-3 flex-1 flex flex-col justify-between min-h-0">
+                                            <div className="space-y-1 text-left">
+                                                <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+                                                    Growth Foundations
+                                                </p>
+                                                <p className="text-[9px] text-gray-400 leading-snug line-clamp-3 font-medium">
+                                                    Unlock consistency and start your rise with templates.
+                                                </p>
+                                            </div>
+
+                                            <div 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (isStepUpLocked) return;
+                                                    navigate("/explore");
+                                                }}
+                                                className="pt-2 border-t border-gray-50 flex items-center justify-between cursor-pointer mt-2"
+                                            >
+                                                <span className="text-[9px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                                    Explore sprints
+                                                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                                    </svg>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        )}
+
+                        {/* 3. See your rise analysis */}
+                        <Link 
+                            to={isStepUpLocked ? "#" : "/growth"} 
+                            onClick={(e) => isStepUpLocked && e.preventDefault()}
+                            className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                isStepUpLocked 
+                                ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
+                                : 'hover:shadow-md hover:border-emerald-500/20 cursor-pointer'
+                            } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
+                        >
+                            {/* Tag positioned nicely like the impact page milestone cards */}
+                            <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-[#0E7850] border border-emerald-100/40 z-10">
+                                See your rise analysis
+                            </div>
+
+                            {/* Content of the card */}
+                            <div className="flex-1 flex flex-col justify-between pt-2">
+                                <div className="space-y-2 mt-2 text-left">
+                                    <div className="w-10 h-10 bg-emerald-50 text-[#0E7850] rounded-xl flex items-center justify-center border border-emerald-100/50 shadow-sm">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-black text-gray-950 leading-tight group-hover:text-[#0E7850] transition-colors">
+                                            See your rise analysis
+                                        </h4>
+                                        <p className="text-[10px] font-bold text-gray-400 mt-1">
+                                            Track your overall performance and sprint metrics.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5 text-left">
+                                    <div className="flex justify-between items-end">
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                            Overall
+                                        </span>
+                                        <span className="text-[11px] font-mono font-black text-[#0E7850]">
+                                            {overallProgress}%
+                                        </span>
+                                    </div>
+                                    <div className="h-1.5 w-full bg-gray-50 border border-gray-100/50 rounded-full overflow-hidden">
+                                        <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${overallProgress}%` }}></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </Link>
+
+                        {/* 4. Become a Catalyst */}
+                        <Link 
+                            to={isStepUpLocked ? "#" : "/impact"} 
+                            onClick={(e) => isStepUpLocked && e.preventDefault()}
+                            className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                isStepUpLocked 
+                                ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
+                                : 'hover:shadow-md hover:border-emerald-500/20 cursor-pointer'
+                            } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
+                        >
+                            {/* Tag positioned nicely like the impact page milestone cards */}
+                            <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-emerald-700 border border-emerald-100/40 z-10">
+                                Become a Catalyst
+                            </div>
+
+                            {/* Content of the card */}
+                            <div className="flex-1 flex flex-col justify-between pt-2">
+                                <div className="space-y-2 mt-2 text-left">
+                                    <div className="w-10 h-10 bg-emerald-50 text-[#0E7850] rounded-xl flex items-center justify-center border border-emerald-100/50 shadow-sm">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-sm font-black text-gray-950 leading-tight">
+                                        Help someone to start their growth journey today and be rewarded for it.
+                                    </p>
+                                </div>
+
+                                <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase text-[#0E7850] group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                        Learn More
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </span>
+                                </div>
+                            </div>
+                        </Link>
+
+                        {/* 5. Revisit your Rise */}
+                        <Link 
+                            to={isStepUpLocked ? "#" : (lastCompletedStep ? `/profile/archive?sprintId=${lastCompletedStep.sprintId}` : "/profile/archive")} 
+                            onClick={(e) => isStepUpLocked && e.preventDefault()}
+                            className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                isStepUpLocked 
+                                ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
+                                : 'hover:shadow-md hover:border-indigo-500/20 cursor-pointer'
+                            } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
+                        >
+                            {/* Tag positioned nicely like the impact page milestone cards */}
+                            <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-indigo-50 text-indigo-700 border border-indigo-100/40 z-10">
+                                Revisit your Rise
+                            </div>
+
+                            {/* Content of the card */}
+                            <div className="flex-1 flex flex-col justify-between pt-2">
+                                {lastCompletedStep ? (
+                                    <div className="flex-1 flex flex-col justify-between">
+                                        <div className="space-y-1.5 min-w-0 text-left">
+                                            <p className="text-[9px] font-black text-indigo-600 uppercase tracking-wider truncate">
+                                                {lastCompletedStep.sprintTitle} • Day {lastCompletedStep.day}
+                                            </p>
+                                            <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1">
+                                                {lastCompletedStep.taskPrompt}
+                                            </p>
+                                            <p className="text-[11px] text-gray-500 italic leading-snug line-clamp-2 bg-gray-50 p-2 rounded-xl border border-gray-100/50 mt-1.5 font-medium">
+                                                "{lastCompletedStep.submission}"
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex-1 flex flex-col justify-center items-center text-center py-4">
+                                        <p className="text-xs font-semibold text-gray-400 max-w-[160px]">
+                                            No daily steps completed yet. Complete your focus to start your archive!
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase text-indigo-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                        Explore your archive
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </span>
+                                </div>
+                            </div>
                         </Link>
                     </div>
                     {isStepUpLocked && (
@@ -1321,6 +1560,201 @@ const ParticipantDashboard: React.FC = () => {
                     ))}
                 </div>
             )}
+
+            {/* Overview / Commitment / Payment Bottom Sheet Modal */}
+            <AnimatePresence>
+                {showOverviewSheet && recommendedNextSprint && (
+                    <>
+                        <div 
+                            className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick"
+                            onClick={() => !isProcessing && setShowOverviewSheet(false)}
+                        />
+                        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-6 sm:p-8 overflow-y-auto max-h-[90vh] pb-10 animate-slide-up-quick text-left">
+                            {/* Drag Handle indicator */}
+                            <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
+                            
+                            {overviewStep === 'overview' ? (
+                                // Step 1: Overview
+                                <div>
+                                    {/* Close button */}
+                                    <button 
+                                        onClick={() => setShowOverviewSheet(false)}
+                                        className="absolute top-6 right-6 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+
+                                    {/* Category / Duration */}
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850] bg-[#0E7850]/5 px-2.5 py-1 rounded-lg">
+                                            {recommendedNextSprint.category || "Growth"}
+                                        </span>
+                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg">
+                                            {recommendedNextSprint.duration || 7} Days
+                                        </span>
+                                    </div>
+
+                                    {/* Sprint Title */}
+                                    <h3 className="text-2xl font-black tracking-tight leading-tight text-gray-900 mb-4">
+                                        {recommendedNextSprint.title}
+                                    </h3>
+
+                                    {/* Description */}
+                                    <div className="text-sm text-gray-600 font-medium leading-relaxed mb-6 space-y-4">
+                                        <p>{recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise."}</p>
+                                    </div>
+
+                                    {/* Action button */}
+                                    <button 
+                                        onClick={() => setOverviewStep('commitment')}
+                                        className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] shadow-xl hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2"
+                                    >
+                                        Continue
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7-7 7m7-7H3" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            ) : (
+                                // Step 2: Commitment & Payment
+                                <div>
+                                    {/* Back button */}
+                                    <button 
+                                        onClick={() => !isProcessing && setOverviewStep('overview')}
+                                        className="absolute top-6 left-6 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1 text-[9px] font-black uppercase tracking-wider"
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                        Back
+                                    </button>
+
+                                    {/* Protocol Tag */}
+                                    <div className="flex items-center gap-2 mb-4 justify-center mt-2">
+                                        <LocalLogo type="favicon" className="h-5 w-5" />
+                                        <div className="h-[1px] w-8 bg-gray-150"></div>
+                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850]">The Protocol</span>
+                                    </div>
+
+                                    {/* Heading */}
+                                    <h3 className="text-xl sm:text-2xl font-black tracking-tight leading-tight text-center text-gray-900 mb-1">
+                                        Before you continue <br/>
+                                        <span className="text-gray-300 italic">you have to decide</span>
+                                    </h3>
+
+                                    {/* Commitments List */}
+                                    <div className="space-y-3.5 my-6 max-w-xs mx-auto">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 text-center mb-1">You'll</p>
+                                        {[
+                                          "Show up daily",
+                                          "Pay attention to what works",
+                                          "Finish what you start"
+                                        ].map((text, i) => (
+                                          <div key={i} className="flex items-center gap-3 pl-4">
+                                            <span className="text-[#0E7850] text-sm leading-none">•</span>
+                                            <span className="text-sm font-bold tracking-tight text-gray-800">{text}</span>
+                                          </div>
+                                        ))}
+                                    </div>
+
+                                    <p className="text-[11px] text-gray-400 font-bold text-center mb-6 px-4">
+                                        Small actions daily builds real momentum over time.
+                                    </p>
+
+                                    {/* Commitment Radio Button */}
+                                    <button 
+                                        onClick={() => !isProcessing && setIsCommitted(!isCommitted)}
+                                        disabled={isProcessing}
+                                        className={`w-full flex items-center gap-3.5 p-4 rounded-2xl transition-all border-2 mb-6 text-left ${
+                                            isCommitted 
+                                            ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
+                                            : 'bg-gray-50 border-gray-100 hover:border-gray-200 text-gray-400 hover:bg-white'
+                                        }`}
+                                    >
+                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                                            isCommitted ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
+                                        }`}>
+                                            {isCommitted && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                                        </div>
+                                        <span className={`text-[12px] font-bold tracking-tight ${isCommitted ? 'text-gray-950' : 'text-gray-400'}`}>
+                                            I commit to showing up and finishing this
+                                        </span>
+                                    </button>
+
+                                    {/* WALLET / PRICING SECTION */}
+                                    <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-6 space-y-3">
+                                        <div className="flex justify-between items-center text-[11px] font-black uppercase tracking-wider text-gray-400">
+                                            <span>Your Balance</span>
+                                            <span className="text-gray-900">{(user as Participant)?.walletBalance ?? 0} COINS</span>
+                                        </div>
+                                        <div className="h-[1px] bg-gray-200 w-full"></div>
+                                        <div className="space-y-2">
+                                            {/* Option 1: Coins */}
+                                            <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                                                paymentMethod === 'coins' 
+                                                ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
+                                                : 'bg-white border-gray-150 text-gray-500'
+                                            } ${((user as Participant)?.walletBalance ?? 0) < 10 ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                                <div className="flex items-center gap-2">
+                                                    <input 
+                                                        type="radio" 
+                                                        name="dashboard_payment_method" 
+                                                        checked={paymentMethod === 'coins'} 
+                                                        onChange={() => ((user as Participant)?.walletBalance ?? 0) >= 10 && setPaymentMethod('coins')}
+                                                        disabled={((user as Participant)?.walletBalance ?? 0) < 10 || isProcessing}
+                                                        className="text-[#0E7850] focus:ring-[#0E7850]"
+                                                    />
+                                                    <span className="text-xs font-black uppercase text-gray-800">Use 10 Coins</span>
+                                                </div>
+                                                {((user as Participant)?.walletBalance ?? 0) < 10 && (
+                                                    <span className="text-[9px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded uppercase">Insufficient</span>
+                                                )}
+                                            </label>
+
+                                            {/* Option 2: Card (Naira) */}
+                                            <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                                                paymentMethod === 'card' 
+                                                ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
+                                                : 'bg-white border-gray-150 text-gray-500'
+                                            }`}>
+                                                <div className="flex items-center gap-2">
+                                                    <input 
+                                                        type="radio" 
+                                                        name="dashboard_payment_method" 
+                                                        checked={paymentMethod === 'card'} 
+                                                        onChange={() => setPaymentMethod('card')}
+                                                        disabled={isProcessing}
+                                                        className="text-[#0E7850] focus:ring-[#0E7850]"
+                                                    />
+                                                    <span className="text-xs font-black uppercase text-gray-800">Pay with Card</span>
+                                                </div>
+                                                <span className="text-xs font-black text-gray-900">₦{recommendedNextSprint.price || 1000}</span>
+                                            </label>
+                                        </div>
+
+                                        <div className="text-center pt-1">
+                                            <span className="text-[10px] font-semibold text-gray-400">
+                                                Need more coins? <span className="underline cursor-pointer text-[#0E7850]" onClick={() => navigate('/buy-coins')}>Buy coins here</span>
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Start Day 1 Button */}
+                                    <button 
+                                        onClick={handleStartSprint}
+                                        disabled={!isCommitted || isProcessing}
+                                        className={`w-full py-4 rounded-2xl shadow-xl transition-all text-[10px] font-black tracking-[0.2em] uppercase text-center flex items-center justify-center gap-2 ${
+                                            isCommitted && !isProcessing
+                                            ? 'bg-gray-900 text-white hover:scale-[1.01] active:scale-95 shadow-gray-900/15' 
+                                            : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        {isProcessing ? "Processing..." : "Start Day 1 Now"}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </>
+                )}
+            </AnimatePresence>
 
           </div>
       </div>

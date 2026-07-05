@@ -11,6 +11,7 @@ import FormattedText from '../../components/FormattedText';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import LocalLogo from '../../components/LocalLogo';
 import { toast } from 'sonner';
+import { paymentService } from '../../services/paymentService';
 
 import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, ShieldCheck, Share2 } from 'lucide-react';
 
@@ -116,6 +117,20 @@ const SprintLandingPage: React.FC = () => {
     const [showCommitmentSheet, setShowCommitmentSheet] = useState(false);
     const [isCommitted, setIsCommitted] = useState(false);
     const [commitmentContext, setCommitmentContext] = useState<{ isGuest: boolean; emailExists?: boolean; guestEmail?: string } | null>(null);
+    const [paymentMethod, setPaymentMethod] = useState<'coins' | 'card'>('coins');
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+    // Set default payment method when commitment sheet is shown
+    useEffect(() => {
+        if (showCommitmentSheet) {
+            const userBalance = (user as Participant)?.walletBalance || 0;
+            if (userBalance >= 10) {
+                setPaymentMethod('coins');
+            } else {
+                setPaymentMethod('card');
+            }
+        }
+    }, [showCommitmentSheet, user]);
 
     const handleJoinClick = async () => {
         if (!sprint) return;
@@ -159,28 +174,85 @@ const SprintLandingPage: React.FC = () => {
         setShowCommitmentSheet(true);
     };
 
-    const handleConfirmCommitment = () => {
+    const handleConfirmCommitment = async () => {
         if (!isCommitted || !sprint || !commitmentContext) return;
         
-        setShowCommitmentSheet(false);
-        if (commitmentContext.isGuest) {
-            navigate(`/sprint/preview/${sprint.id}`, { 
-                state: { 
-                    sprintId: sprint.id, 
-                    sprint: sprint, 
-                    selectedFocus, 
-                    prefilledEmail: commitmentContext.guestEmail,
-                    emailExists: commitmentContext.emailExists
-                } 
-            });
-        } else {
-            navigate('/onboarding/sprint-payment', { 
-                state: { 
-                    sprintId: sprint.id, 
-                    sprint: sprint, 
-                    selectedFocus 
-                } 
-            });
+        setIsProcessingPayment(true);
+        try {
+            if (commitmentContext.isGuest) {
+                // Guests don't have coins, so they must pay via card (Naira)
+                const effectiveEmail = commitmentContext.guestEmail || guestEmail;
+                const traceId = `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
+                
+                const payload = {
+                    userId: traceId,
+                    email: effectiveEmail.toLowerCase().trim(),
+                    sprintId: sprint.id,
+                    amount: sprint.price || 1000,
+                    currency: "NGN",
+                    name: 'Vectorise Guest'
+                };
+
+                const checkoutUrl = await paymentService.initializeFlutterwave(payload);
+                setShowCommitmentSheet(false);
+                window.location.href = checkoutUrl;
+            } else {
+                // Logged in user
+                if (!user) return;
+                if (paymentMethod === 'coins') {
+                    const userBalance = (user as Participant).walletBalance || 0;
+                    if (userBalance < 10) {
+                        toast.error("Insufficient coins. Please select card payment or buy more coins.");
+                        setIsProcessingPayment(false);
+                        return;
+                    }
+
+                    // Process wallet transaction
+                    await userService.processWalletTransaction(user.id, {
+                        amount: -10,
+                        type: 'purchase',
+                        description: `Unlocked ${sprint.title} via Credits`,
+                        auditId: sprint.id
+                    });
+
+                    // Enroll user
+                    const enrollment = await sprintService.enrollUser(
+                        user.id, 
+                        sprint.id, 
+                        sprint.duration, 
+                        {
+                            coachId: sprint.coachId,
+                            pricePaid: 0,
+                            currency: sprint.currency || 'NGN',
+                            source: 'coin'
+                        }
+                    );
+
+                    toast.success("Sprint started successfully!");
+                    setShowCommitmentSheet(false);
+                    
+                    // Navigate to the newly enrolled sprint
+                    navigate(`/participant/sprint/${enrollment.id}`);
+                } else {
+                    // Pay via Card (Naira)
+                    const payload = {
+                        userId: user.id,
+                        email: user.email.toLowerCase().trim(),
+                        sprintId: sprint.id,
+                        amount: sprint.price || 1000,
+                        currency: "NGN",
+                        name: user.name || 'Vectorise User'
+                    };
+
+                    const checkoutUrl = await paymentService.initializeFlutterwave(payload);
+                    setShowCommitmentSheet(false);
+                    window.location.href = checkoutUrl;
+                }
+            }
+        } catch (err: any) {
+            console.error("Error starting day 1:", err);
+            toast.error(err.message || "Failed to start day 1. Please try again.");
+            setIsProcessingPayment(false);
         }
     };
 
@@ -556,7 +628,8 @@ const SprintLandingPage: React.FC = () => {
 
                         {/* Commitment Radio Button */}
                         <button 
-                            onClick={() => setIsCommitted(!isCommitted)}
+                            onClick={() => !isProcessingPayment && setIsCommitted(!isCommitted)}
+                            disabled={isProcessingPayment}
                             className={`w-full flex items-center gap-3.5 p-4 rounded-2xl transition-all border-2 mb-6 text-left ${
                                 isCommitted 
                                 ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
@@ -573,17 +646,83 @@ const SprintLandingPage: React.FC = () => {
                             </span>
                         </button>
 
-                        {/* Continue button */}
+                        {/* WALLET / PRICING SECTION - Only show if user is logged in */}
+                        {user ? (
+                            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-6 space-y-3 text-left">
+                                <div className="flex justify-between items-center text-[11px] font-black uppercase tracking-wider text-gray-400">
+                                    <span>Your Balance</span>
+                                    <span className="text-gray-900">{(user as Participant)?.walletBalance ?? 0} COINS</span>
+                                </div>
+                                <div className="h-[1px] bg-gray-200 w-full"></div>
+                                <div className="space-y-2">
+                                    {/* Option 1: Coins */}
+                                    <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                                        paymentMethod === 'coins' 
+                                        ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
+                                        : 'bg-white border-gray-150 text-gray-500'
+                                    } ${((user as Participant)?.walletBalance ?? 0) < 10 ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                        <div className="flex items-center gap-2">
+                                            <input 
+                                                type="radio" 
+                                                name="landing_payment_method" 
+                                                checked={paymentMethod === 'coins'} 
+                                                onChange={() => ((user as Participant)?.walletBalance ?? 0) >= 10 && setPaymentMethod('coins')}
+                                                disabled={((user as Participant)?.walletBalance ?? 0) < 10 || isProcessingPayment}
+                                                className="text-[#0E7850] focus:ring-[#0E7850]"
+                                            />
+                                            <span className="text-xs font-black uppercase text-gray-800">Use 10 Coins</span>
+                                        </div>
+                                        {((user as Participant)?.walletBalance ?? 0) < 10 && (
+                                            <span className="text-[9px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded uppercase">Insufficient</span>
+                                        )}
+                                    </label>
+
+                                    {/* Option 2: Card (Naira) */}
+                                    <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                                        paymentMethod === 'card' 
+                                        ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
+                                        : 'bg-white border-gray-150 text-gray-500'
+                                    }`}>
+                                        <div className="flex items-center gap-2">
+                                            <input 
+                                                type="radio" 
+                                                name="landing_payment_method" 
+                                                checked={paymentMethod === 'card'} 
+                                                onChange={() => setPaymentMethod('card')}
+                                                disabled={isProcessingPayment}
+                                                className="text-[#0E7850] focus:ring-[#0E7850]"
+                                            />
+                                            <span className="text-xs font-black uppercase text-gray-800">Pay with Card</span>
+                                        </div>
+                                        <span className="text-xs font-black text-gray-900">₦{sprint.price || 1000}</span>
+                                    </label>
+                                </div>
+
+                                <div className="text-center pt-1">
+                                    <span className="text-[10px] font-semibold text-gray-400">
+                                        Need more coins? <span className="underline cursor-pointer text-[#0E7850]" onClick={() => navigate('/buy-coins')}>Buy coins here</span>
+                                    </span>
+                                </div>
+                            </div>
+                        ) : (
+                            // Guest Checkout Price display
+                            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-6 text-left flex justify-between items-center">
+                                <span className="text-xs font-black uppercase text-gray-400">Total Price</span>
+                                <span className="text-sm font-black text-gray-900">₦{sprint.price || 1000}</span>
+                            </div>
+                        )}
+
+                        {/* Start Day 1 Now / Continue button */}
                         <Button 
                             onClick={handleConfirmCommitment}
-                            disabled={!isCommitted}
-                            className={`w-full py-5 rounded-2xl shadow-xl transition-all text-[10px] font-black tracking-[0.2em] uppercase ${
-                                isCommitted 
-                                ? 'bg-gray-900 text-white hover:scale-[1.01] active:scale-95 shadow-gray-900/15 border-none' 
-                                : 'bg-gray-100 text-gray-300 cursor-not-allowed border-none shadow-none'
+                            disabled={!isCommitted || isProcessingPayment}
+                            className={`w-full py-5 rounded-2xl shadow-xl transition-all text-[10px] font-black tracking-[0.2em] uppercase border-none ${
+                                isCommitted && !isProcessingPayment
+                                ? 'bg-gray-900 text-white hover:scale-[1.01] active:scale-95 shadow-gray-900/15' 
+                                : 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
                             }`}
                         >
-                            Start Day 1 Now
+                            {isProcessingPayment ? "Processing..." : "Start Day 1 Now"}
                         </Button>
                     </div>
                 </>
