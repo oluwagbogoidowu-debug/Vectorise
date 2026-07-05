@@ -241,6 +241,40 @@ export const sprintService = {
                     callback(null);
                 }
             }
+        }, (error) => {
+            console.error("Error listening to sprint details via onSnapshot:", error);
+            // Fall back to simple getDoc to bypass potential real-time listening limit/restriction for guests
+            getDoc(detailsRef).then((snap) => {
+                if (snap.exists()) {
+                    latestDetails = { id: sprintId, ...cleanDetailsData(snap.data()) };
+                    emitMerged();
+                } else {
+                    // Try parent fallback
+                    const parentRef = doc(db, SPRINTS_COLLECTION, sprintId);
+                    getDoc(parentRef).then((parentSnap) => {
+                        if (parentSnap.exists()) {
+                            isParentFallback = true;
+                            latestDetails = { id: sprintId, ...cleanDetailsData(parentSnap.data()) };
+                            if (Array.isArray(latestDetails.dailyContent)) {
+                                latestDetails.dailyContent.forEach((day: any) => {
+                                    if (day && typeof day.day !== 'undefined') {
+                                        latestDays[day.day] = day;
+                                    }
+                                });
+                            }
+                            emitMerged();
+                        } else {
+                            callback(null);
+                        }
+                    }).catch((parentErr) => {
+                        console.error("Fallback getDoc parent also failed:", parentErr);
+                        callback(null);
+                    });
+                }
+            }).catch((getErr) => {
+                console.error("Fallback getDoc details also failed:", getErr);
+                callback(null);
+            });
         });
 
         // Listen to the days subcollection
@@ -260,6 +294,21 @@ export const sprintService = {
             emitMerged();
         }, (error) => {
             console.error("Error listening to days subcollection:", error);
+            // Fallback to getDocs to bypass potential real-time listening limit/restriction for guests
+            getDocs(daysCollectionRef).then((daysSnap) => {
+                const newDays: Record<number, any> = {};
+                daysSnap.forEach(dDoc => {
+                    const data = dDoc.data();
+                    const dayNum = parseInt(dDoc.id.replace('day ', ''));
+                    if (!isNaN(dayNum)) {
+                        newDays[dayNum] = data;
+                    }
+                });
+                latestDays = newDays;
+                emitMerged();
+            }).catch((getErr) => {
+                console.error("Fallback getDocs for days failed:", getErr);
+            });
         });
 
         return () => {
