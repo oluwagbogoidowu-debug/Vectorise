@@ -2410,12 +2410,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             ) : (
               <>
                 <div className="animate-fade-in space-y-6 w-full">
-                  <div className="bg-white p-6 md:p-10 border border-gray-100 shadow-sm rounded-3xl animate-slide-up relative overflow-hidden min-h-[200px]">
-                    <div className="space-y-2">
-                      <SectionHeading>Today's Insight</SectionHeading>
-                      <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
-                        <FormattedText text={dayContent?.lessonText || ""} />
-                      </div>
+                  <div className="space-y-2 text-left animate-slide-up">
+                    <SectionHeading>Today's Insight</SectionHeading>
+                    <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
+                      <FormattedText text={dayContent?.lessonText || ""} />
                     </div>
                   </div>
 
