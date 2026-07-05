@@ -370,7 +370,7 @@ export default function DailyActionWorkspace({
       {/* Full Bleed Body with two columns that flows together */}
       <div className="flex flex-col lg:flex-row w-full min-h-full p-4 sm:p-6 gap-6 justify-center items-start">
         {/* Left Column: General Content Hub */}
-        <div className="w-full lg:w-[420px] bg-white border border-gray-200 rounded-3xl flex flex-col p-5 space-y-4 shadow-sm relative shrink-0">
+        <div className="w-full lg:w-[420px] flex flex-col space-y-4 relative shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">General Content Hub</label>
@@ -409,7 +409,7 @@ export default function DailyActionWorkspace({
               <button 
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors flex items-center justify-center cursor-pointer border border-gray-200"
+                className="p-1.5 rounded-lg bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors flex items-center justify-center cursor-pointer border border-gray-200 shadow-sm"
                 title="Exit"
               >
                 <X size={12} />
@@ -484,7 +484,7 @@ export default function DailyActionWorkspace({
             return (
               <div 
                 key={dayNum}
-                className="w-full bg-white rounded-3xl border border-purple-400 ring-4 ring-purple-100/50 flex flex-col p-5 sm:p-6 shadow-sm hover:shadow-md transition-all duration-300 h-auto relative text-left"
+                className="w-full flex flex-col space-y-4 h-auto relative text-left"
               >
                 {/* Day Header inside Card - Removed Day 1 Day 2 indicators */}
                 <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100 shrink-0">
@@ -958,6 +958,52 @@ export default function DailyActionWorkspace({
                       return null;
                     })()}
 
+                    {/* Task Footnote edit input */}
+                    {dayContent.taskFootnotes?.[activeIdx] !== undefined && dayContent.taskFootnotes?.[activeIdx] !== null && (
+                      <div className={`mt-2 animate-fade-in border border-indigo-100 rounded-2xl p-3 bg-indigo-50/5 ${isLastAssignedFootnote ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-[9px] font-black text-indigo-500 uppercase tracking-widest px-1">Task Footnote</label>
+                          <div className="flex items-center gap-1.5">
+                            {selectedText && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDay(dayNum);
+                                  handleTaskFootnoteChange(dayNum, activeIdx, selectedText);
+                                  setLastAssignedField(`footnote-${activeIdx}`);
+                                  setTimeout(() => setLastAssignedField(null), 1500);
+                                  setSelectedText('');
+                                }}
+                                className="px-1.5 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[8px] font-bold rounded border border-indigo-200 flex items-center gap-0.5"
+                              >
+                                Assign Selected
+                              </button>
+                            )}
+                            <button 
+                              type="button" 
+                              onClick={() => {
+                                  setSelectedDay(dayNum);
+                                  handleTaskFootnoteChange(dayNum, activeIdx, null as any);
+                              }}
+                              className="text-gray-300 hover:text-red-500 transition-colors"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        </div>
+                        <textarea 
+                          value={dayContent.taskFootnotes[activeIdx] || ''} 
+                          onChange={e => {
+                            setSelectedDay(dayNum);
+                            handleTaskFootnoteChange(dayNum, activeIdx, e.target.value);
+                          }} 
+                          rows={2} 
+                          className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-indigo-100 bg-indigo-50/20 text-gray-750 font-medium text-sm"} 
+                          placeholder="Add a footnote..." 
+                        />
+                      </div>
+                    )}
+
                     {/* Task Hint edit input */}
                     {dayContent.taskHints?.[activeIdx] !== undefined && dayContent.taskHints?.[activeIdx] !== null && (
                       <div className={`mt-2 animate-fade-in border border-amber-100 rounded-2xl p-3 bg-amber-50/5 ${isLastAssignedHint ? 'ring-2 ring-amber-500 ring-offset-2' : ''}`}>
@@ -1000,52 +1046,6 @@ export default function DailyActionWorkspace({
                           rows={2} 
                           className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-amber-100 bg-amber-50/20 text-gray-750 font-medium text-sm"} 
                           placeholder="Add a hint..." 
-                        />
-                      </div>
-                    )}
-
-                    {/* Task Footnote edit input */}
-                    {dayContent.taskFootnotes?.[activeIdx] !== undefined && dayContent.taskFootnotes?.[activeIdx] !== null && (
-                      <div className={`mt-2 animate-fade-in border border-indigo-100 rounded-2xl p-3 bg-indigo-50/5 ${isLastAssignedFootnote ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}>
-                        <div className="flex justify-between items-center mb-1">
-                          <label className="text-[9px] font-black text-indigo-500 uppercase tracking-widest px-1">Task Footnote</label>
-                          <div className="flex items-center gap-1.5">
-                            {selectedText && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedDay(dayNum);
-                                  handleTaskFootnoteChange(dayNum, activeIdx, selectedText);
-                                  setLastAssignedField(`footnote-${activeIdx}`);
-                                  setTimeout(() => setLastAssignedField(null), 1500);
-                                  setSelectedText('');
-                                }}
-                                className="px-1.5 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[8px] font-bold rounded border border-indigo-200 flex items-center gap-0.5"
-                              >
-                                Assign Selected
-                              </button>
-                            )}
-                            <button 
-                              type="button" 
-                              onClick={() => {
-                                setSelectedDay(dayNum);
-                                handleTaskFootnoteChange(dayNum, activeIdx, null as any);
-                              }}
-                              className="text-gray-300 hover:text-red-500 transition-colors"
-                            >
-                              <X size={12} />
-                            </button>
-                          </div>
-                        </div>
-                        <textarea 
-                          value={dayContent.taskFootnotes[activeIdx] || ''} 
-                          onChange={e => {
-                            setSelectedDay(dayNum);
-                            handleTaskFootnoteChange(dayNum, activeIdx, e.target.value);
-                          }} 
-                          rows={2} 
-                          className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-indigo-100 bg-indigo-50/20 text-gray-750 font-medium text-sm"} 
-                          placeholder="Add a footnote..." 
                         />
                       </div>
                     )}
@@ -1211,18 +1211,27 @@ export default function DailyActionWorkspace({
             onSaveDraft();
           }}
           disabled={saveStatus === 'saving'}
-          className="fixed bottom-6 right-6 z-[250] w-12 h-12 bg-primary text-white rounded-full shadow-2xl hover:bg-primary/95 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer border border-primary/20"
+          className="fixed bottom-6 right-6 z-[250] px-5 py-3 bg-[#0E7850] hover:bg-[#0b5f3f] text-white rounded-xl shadow-lg hover:scale-102 active:scale-98 transition-all duration-300 flex items-center gap-2 cursor-pointer text-xs font-black uppercase tracking-wider border border-emerald-700/20"
           title="Save Draft"
         >
           {saveStatus === 'saving' ? (
-            <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
+            <>
+              <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span>Saving...</span>
+            </>
           ) : saveStatus === 'saved' ? (
-            <CheckCircle2 className="h-5.5 w-5.5 text-white" />
+            <>
+              <CheckCircle2 className="h-4 w-4 text-white" />
+              <span>Saved</span>
+            </>
           ) : (
-            <Save className="h-5.5 w-5.5" />
+            <>
+              <Save className="h-4 w-4" />
+              <span>Save Changes</span>
+            </>
           )}
         </button>
       )}

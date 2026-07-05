@@ -2503,30 +2503,34 @@ const EditSprint: React.FC = () => {
             <div className="space-y-8">
                 {/* Today's Insight Section */}
                 <div className="space-y-2">
-                    <div className="flex justify-between items-end">
-                        <div className="flex items-center gap-3">
-                            <label className={labelClasses}>Today's Insight</label>
-                            <button
-                                type="button"
-                                onClick={() => setShowInsightHelpSheet(true)}
-                                className="text-gray-400 hover:text-[#0E7850] transition-colors p-0.5 rounded flex items-center justify-center cursor-pointer"
-                                title="How to use Today's Insight"
-                            >
-                                <HelpCircle size={14} />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (window.confirm("Are you sure you want to delete Today's Insight content?")) {
-                                        handleContentChange('lessonText', '');
-                                    }
-                                }}
-                                className="p-1 px-2 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-lg border border-red-100 transition-all flex items-center gap-1 cursor-pointer text-[9px] font-black uppercase tracking-widest"
-                                title="Delete Today's Insight Lesson"
-                            >
-                                <Trash2 size={11} />
-                                <span>Delete</span>
-                            </button>
+                    <div className="flex justify-between items-end gap-4">
+                        <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-3">
+                                <label className={labelClasses}>Today's Insight</label>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowInsightHelpSheet(true)}
+                                    className="text-gray-400 hover:text-[#0E7850] transition-colors p-0.5 rounded flex items-center justify-center cursor-pointer"
+                                    title="How to use Today's Insight"
+                                >
+                                    <HelpCircle size={14} />
+                                </button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (window.confirm("Are you sure you want to delete Today's Insight content?")) {
+                                            handleContentChange('lessonText', '');
+                                        }
+                                    }}
+                                    className="p-1 px-2 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-lg border border-red-100 transition-all flex items-center gap-1 cursor-pointer text-[9px] font-black uppercase tracking-widest"
+                                    title="Delete Today's Insight Lesson"
+                                >
+                                    <Trash2 size={11} />
+                                    <span>Delete</span>
+                                </button>
+                            </div>
                         </div>
                         {canEditDirectly && (
                             <FormattingToolbar 
@@ -2726,34 +2730,38 @@ const EditSprint: React.FC = () => {
                         </div>
                     ) : (
                         <>
-                            <div className="flex justify-between items-center sm:items-end">
-                                <div className="flex items-center gap-2">
-                                    <label className={labelClasses}>Today's Action Steps</label>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowActionHelpSheet(true)}
-                                        className="text-gray-400 hover:text-[#0E7850] transition-colors p-0.5 rounded flex items-center justify-center cursor-pointer"
-                                        title="How to use Today's Action Steps"
-                                    >
-                                        <HelpCircle size={14} />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowClearActionConfirm(true)}
-                                        className="p-1.5 rounded-xl bg-red-50 text-red-500 hover:bg-red-105 border border-red-150 shadow-xs hover:text-red-650 transition-all cursor-pointer flex items-center justify-center shrink-0"
-                                        title="Clear Today's Action Steps content"
-                                    >
-                                        <Trash2 size={13} />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowAdvancedActionModal(true)}
-                                        className="h-8 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-650 hover:text-purple-750 border border-purple-150 px-2.5 transition-all flex items-center gap-1 shadow-xs shrink-0 cursor-pointer text-[10px] font-black uppercase tracking-wider"
-                                        title="Smart setup: Paste bulk text and select strings to assign"
-                                    >
-                                        <Sparkles size={11} className="text-purple-500" />
-                                        <span>Smart setup</span>
-                                    </button>
+                            <div className="flex justify-between items-center sm:items-end gap-4">
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <label className={labelClasses}>Today's Action Steps</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowActionHelpSheet(true)}
+                                            className="text-gray-400 hover:text-[#0E7850] transition-colors p-0.5 rounded flex items-center justify-center cursor-pointer"
+                                            title="How to use Today's Action Steps"
+                                        >
+                                            <HelpCircle size={14} />
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowClearActionConfirm(true)}
+                                            className="p-1.5 rounded-xl bg-red-50 text-red-500 hover:bg-red-105 border border-red-150 shadow-xs hover:text-red-650 transition-all cursor-pointer flex items-center justify-center shrink-0"
+                                            title="Clear Today's Action Steps content"
+                                        >
+                                            <Trash2 size={13} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAdvancedActionModal(true)}
+                                            className="h-8 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-650 hover:text-purple-750 border border-purple-150 px-2.5 transition-all flex items-center gap-1 shadow-xs shrink-0 cursor-pointer text-[10px] font-black uppercase tracking-wider"
+                                            title="Smart setup: Paste bulk text and select strings to assign"
+                                        >
+                                            <Sparkles size={11} className="text-purple-500" />
+                                            <span>Smart setup</span>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">Min. 3 Steps</span>
@@ -3371,31 +3379,6 @@ const EditSprint: React.FC = () => {
                                                 }
                                                 return null;
                                             })()}
-                                            {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) && (
-                                                <div className="mt-2 animate-fade-in">
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <label className="text-[9px] font-black text-amber-500 uppercase tracking-widest px-1">Task Hint</label>
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => {
-                                                                const newHints = [...(currentContent.taskHints || [])];
-                                                                newHints[index] = null as any;
-                                                                handleContentChange('taskHints', newHints);
-                                                            }}
-                                                            className="text-gray-300 hover:text-red-500 transition-colors"
-                                                        >
-                                                            <X size={12} />
-                                                        </button>
-                                                    </div>
-                                                    <textarea 
-                                                        value={currentContent.taskHints[index] || ''} 
-                                                        onChange={e => handleTaskHintChange(index, e.target.value)} 
-                                                        rows={2} 
-                                                        className={editorInputClasses + " p-4 !py-3 w-full border-amber-100 bg-amber-50/20 text-gray-700"} 
-                                                        placeholder="Add a hint to help the participant..." 
-                                                    />
-                                                </div>
-                                            )}
                                             {(currentContent.taskFootnotes?.[index] !== undefined && currentContent.taskFootnotes?.[index] !== null) && (
                                                 <div className="mt-2 animate-fade-in">
                                                     <div className="flex justify-between items-center mb-1">
@@ -3418,6 +3401,31 @@ const EditSprint: React.FC = () => {
                                                         rows={2} 
                                                         className={editorInputClasses + " p-4 !py-3 w-full border-indigo-100 bg-indigo-50/20 text-gray-700"} 
                                                         placeholder="Add a footnote to show just below the question..." 
+                                                    />
+                                                </div>
+                                            )}
+                                            {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) && (
+                                                <div className="mt-2 animate-fade-in">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <label className="text-[9px] font-black text-amber-500 uppercase tracking-widest px-1">Task Hint</label>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => {
+                                                                const newHints = [...(currentContent.taskHints || [])];
+                                                                newHints[index] = null as any;
+                                                                handleContentChange('taskHints', newHints);
+                                                            }}
+                                                            className="text-gray-300 hover:text-red-500 transition-colors"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    </div>
+                                                    <textarea 
+                                                        value={currentContent.taskHints[index] || ''} 
+                                                        onChange={e => handleTaskHintChange(index, e.target.value)} 
+                                                        rows={2} 
+                                                        className={editorInputClasses + " p-4 !py-3 w-full border-amber-100 bg-amber-50/20 text-gray-700"} 
+                                                        placeholder="Add a hint to help the participant..." 
                                                     />
                                                 </div>
                                             )}
