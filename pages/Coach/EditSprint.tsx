@@ -9,7 +9,7 @@ import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtil
 import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers, Sparkles, HelpCircle } from 'lucide-react';
+import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers, Sparkles, HelpCircle } from 'lucide-react';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import FormattedText from '../../components/FormattedText';
@@ -291,6 +291,7 @@ const EditSprint: React.FC = () => {
   const [originalSprint, setOriginalSprint] = useState<Sprint | null>(null);
   const [sprint, setSprint] = useState<Sprint | null>(null);
    const [selectedDay, setSelectedDay] = useState(1);
+  const [showDailyPreview, setShowDailyPreview] = useState(true);
   const [setupView, setSetupView] = useState<'action' | 'mirror'>('action');
   const [previewTaskIndex, setPreviewTaskIndex] = useState(0);
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
@@ -2761,19 +2762,19 @@ const EditSprint: React.FC = () => {
                                             <Sparkles size={11} className="text-purple-500" />
                                             <span>Smart setup</span>
                                         </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSetupView('mirror')}
+                                            className="h-8 rounded-xl bg-gray-50 text-gray-500 hover:bg-primary/10 hover:text-primary border border-gray-150 px-2.5 transition-all flex items-center gap-1 shadow-xs shrink-0 cursor-pointer text-[10px] font-black uppercase tracking-wider"
+                                            title="Configure Rise Report: Set up statements and phrasing that frame daily outputs inside the participant's Rise Report."
+                                        >
+                                            <BookOpen size={11} className="text-primary/70" />
+                                            <span>Rise Report</span>
+                                        </button>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 self-end mb-1">
                                     <span className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">Min. 3 Steps</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setSetupView('mirror')}
-                                        className="px-2.5 py-1.5 rounded-xl bg-gray-50 text-gray-500 hover:bg-primary/10 hover:text-primary border border-gray-100 transition-all flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer text-[10px] font-black uppercase tracking-wider"
-                                        title="Configure Rise Report: Set up statements and phrasing that frame daily outputs inside the participant's Rise Report."
-                                    >
-                                        <BookOpen size={13} className="text-primary/70" />
-                                        <span>Rise Report</span>
-                                    </button>
                                 </div>
                             </div>
                             
@@ -3622,31 +3623,43 @@ const EditSprint: React.FC = () => {
             {/* PREVIEW COLUMN */}
             <div className="lg:sticky lg:top-8 space-y-6 self-start">
               <div className="flex items-center justify-between px-1">
-                <h2 className={labelClasses}>Daily Content Preview (Live)</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className={labelClasses}>Daily Content Preview</h2>
+                  <button
+                    type="button"
+                    onClick={() => setShowDailyPreview(!showDailyPreview)}
+                    className="p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-[#0E7850] transition-colors flex items-center justify-center cursor-pointer animate-fade-in"
+                    title={showDailyPreview ? "Hide Preview" : "Reveal Preview"}
+                  >
+                    {showDailyPreview ? <Eye size={15} /> : <EyeOff size={15} />}
+                  </button>
+                </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
                   <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Real-time</span>
                 </div>
               </div>
 
-              <div className="bg-white rounded-[2.5rem] p-8 md:p-10 border border-gray-100 shadow-xl relative overflow-hidden animate-fade-in">
-                <h2 className="text-[7px] font-black text-gray-300 uppercase tracking-[0.25em] mb-6">Execution Path Day {selectedDay}</h2>
-                
-                <div className="space-y-2">
-                    <SectionHeading>Today's Insight</SectionHeading>
-                    <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
-                        <FormattedText text={currentContent.lessonText || "Lesson text will appear here..."} />
+              {showDailyPreview ? (
+                <>
+                  <div className="space-y-2 animate-fade-in text-left">
+                    <h2 className="text-[7px] font-black text-gray-400 uppercase tracking-[0.25em] mb-3">Execution Path Day {selectedDay}</h2>
+                    
+                    <div className="space-y-2">
+                        <SectionHeading>Today's Insight</SectionHeading>
+                        <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
+                            <FormattedText text={currentContent.lessonText || "Lesson text will appear here..."} />
+                        </div>
                     </div>
-                </div>
-              </div>
+                  </div>
 
-              <div className="space-y-6 animate-fade-in w-full mt-6">
+                  <div className="space-y-6 animate-fade-in w-full mt-6">
                 <div className="space-y-6">
                     {(() => {
                         const activePrompts = currentContent.taskPrompts?.filter(p => p && p.trim()) || (currentContent.taskPrompt ? [currentContent.taskPrompt] : []);
                         if (activePrompts.length === 0) {
                             return (
-                                <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden text-center text-gray-400 font-medium text-xs">
+                                <div className="p-6 border border-dashed border-gray-200 text-gray-400 rounded-2xl relative overflow-hidden text-center font-medium text-xs animate-fade-in">
                                     No action steps defined yet. Use the curriculum section on the left to add your execution steps.
                                 </div>
                             );
@@ -3679,7 +3692,7 @@ const EditSprint: React.FC = () => {
                         
                         return (
                             <>
-                                <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group mb-4 animate-fade-in">
+                                <div className="relative group mb-4 animate-fade-in text-left">
                                     <SectionHeading>Action Step {i + 1} of {activePrompts.length}</SectionHeading>
                                                           {currentContent.taskNotes?.[i] && (
                                         <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
@@ -3907,6 +3920,14 @@ const EditSprint: React.FC = () => {
                   <p className="text-center text-[8px] font-black text-gray-300 uppercase tracking-widest">Preview of completion button</p>
                 </div>
               </div>
+                </>
+              ) : (
+                <div className="p-12 border-2 border-dashed border-gray-150 rounded-[2.5rem] flex flex-col items-center justify-center text-center text-gray-400 space-y-2 animate-fade-in">
+                  <EyeOff className="w-8 h-8 text-gray-300" />
+                  <p className="text-xs font-semibold">Preview Hidden</p>
+                  <p className="text-[10px] text-gray-400 max-w-[200px]">Click the eye icon above to reveal the daily execution preview.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
