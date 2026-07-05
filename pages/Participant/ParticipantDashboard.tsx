@@ -842,36 +842,47 @@ const ParticipantDashboard: React.FC = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                    <div className="py-3 px-3 md:py-4 md:px-4 rounded-[1.3rem] flex flex-row items-center justify-start gap-2.5 relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-2">
-                        {cardState === 'start_rising' && (
-                            <>
-                                <div className="w-7 h-7 md:w-8 md:h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                                    <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                    {/* Your Next Sprint Card */}
+                    <Link to="/explore" onClick={handleExploreClick} className="py-6 px-5 md:py-8 md:px-6 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1">
+                        <div className="flex items-center gap-2.5 mb-2.5">
+                            <div className="w-7 h-7 md:w-8 md:h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                                <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div className="relative z-10 min-w-0 text-left">
+                            <p className="text-lg md:text-xl lg:text-2xl font-black uppercase tracking-tight text-white leading-tight">
+                                Your<br/>Next Sprint
+                            </p>
+                        </div>
+                        <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
+                    </Link>
+                    
+                    {/* Keep/Start Rising Card */}
+                    <div className="bg-white border border-gray-100 py-6 px-5 md:py-8 md:px-6 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
+                        <div className="flex items-center gap-2.5 mb-2.5">
+                            <div className="w-7 h-7 md:w-8 md:h-8 bg-[#0E7850]/10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                                {cardState === 'start_rising' ? (
+                                    <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-[#0E7850]" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                     </svg>
-                                </div>
-                                <div className="relative z-10 min-w-0 animate-fade-in text-left">
-                                    <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                        Start<br/>Rising
-                                    </p>
-                                </div>
-                            </>
-                        )}
-                        {cardState === 'keep_rising' && (
-                            <>
-                                <div className="w-7 h-7 md:w-8 md:h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                                    <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                ) : (
+                                    <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-[#0E7850]" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                                     </svg>
-                                </div>
-                                <div className="relative z-10 min-w-0 animate-fade-in text-left">
-                                    <p className="text-[11px] md:text-xs font-black uppercase tracking-[0.1em] text-white leading-tight">
-                                        Keep<br/>Rising
-                                    </p>
-                                </div>
-                            </>
-                        )}
-                        <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="relative z-10 min-w-0 text-left">
+                            <p className="text-lg md:text-xl lg:text-2xl font-black text-gray-950 uppercase tracking-tight leading-tight">
+                                {cardState === 'start_rising' ? (
+                                    <>Start<br/>Rising</>
+                                ) : (
+                                    <>Keep<br/>Rising</>
+                                )}
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}
@@ -943,19 +954,19 @@ const ParticipantDashboard: React.FC = () => {
                                                                         return (
                                                                             <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 border border-emerald-100 text-[#0E7850] rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider flex-shrink-0">
                                                                                 Day {dayNum} ✅
-                                                                            </span>
+                                                                             </span>
                                                                         );
                                                                     } else if (dayNum === current) {
                                                                         return (
                                                                             <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider animate-pulse flex-shrink-0">
                                                                                 Day {dayNum} 🔒
-                                                                            </span>
+                                                                             </span>
                                                                         );
                                                                     } else {
                                                                         return (
                                                                             <span key={dayNum} className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-50 border border-gray-100 text-gray-400 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-wider flex-shrink-0">
                                                                                 Day {dayNum} 🔒
-                                                                            </span>
+                                                                             </span>
                                                                         );
                                                                     }
                                                                 });
@@ -989,35 +1000,55 @@ const ParticipantDashboard: React.FC = () => {
                         </div>
                     </Link>
                 ) : (
-                    <div className="space-y-4">
-                        <Link to="/explore" onClick={handleExploreClick} className="block group animate-fade-in">
-                            <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-100 relative overflow-hidden flex transition-all duration-300 group-hover:shadow-xl">
-                                <div className="w-2 md:w-3 flex-shrink-0 bg-[#0E7850]"></div>
-                                <div className="flex-1 p-5 flex items-center gap-4">
-                                    <div className="w-10 h-10 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 flex-shrink-0 shadow-sm border border-orange-100/50 group-hover:scale-110 transition-transform duration-300">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707-.707M12 17a5 5 0 100-10 5 5 0 000 10z" />
-                                        </svg>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[13px] md:text-sm font-black text-orange-600">No active focus right now.</p>
-                                        <p className="text-[11px] md:text-xs text-gray-500 font-medium mt-0.5 leading-relaxed">
-                                            Choose from your recommended sprints to get back on track.
-                                        </p>
-                                    </div>
+                    <Link to={recommendedNextSprint ? `/sprint/${recommendedNextSprint.id}` : "/explore"} className="block group animate-fade-in">
+                        <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-150 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[260px]">
+                            {/* Left Image Section */}
+                            <div className="w-full md:w-2/5 h-48 md:h-auto relative overflow-hidden">
+                                <img 
+                                    src={recommendedNextSprint?.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
+                                    alt="" 
+                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                    onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
+                                    referrerPolicy="no-referrer"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                                {/* Tag Overlay on the Image */}
+                                <div className="absolute top-4 left-4 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
+                                    See what's next
+                                </div>
+                                <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between z-10">
+                                    <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm truncate max-w-[110px]">
+                                        {recommendedNextSprint?.category || "Growth"}
+                                    </span>
+                                    <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-rose-500/80 text-white backdrop-blur-sm shrink-0">
+                                        {recommendedNextSprint?.duration || 7} Days
+                                    </span>
                                 </div>
                             </div>
-                        </Link>
-                        <div className="flex justify-center pt-2">
-                            <Link to="/explore" onClick={handleExploreClick} className="inline-block text-orange-600 font-black uppercase text-[10px] md:text-[11px] tracking-widest border-b border-orange-500/25 pb-1 transition-all hover:text-orange-700 hover:border-orange-700/25">
-                                Explore recommended
-                            </Link>
+                            
+                            {/* Right Content Section */}
+                            <div className="flex-1 p-6 md:p-8 lg:p-10 flex flex-col justify-between">
+                                <div className="mb-4">
+                                    <p className="text-[9px] md:text-[10px] font-black text-rose-600 uppercase tracking-[0.1em]">{recommendedNextSprint?.category || "Growth"}</p>
+                                    <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight mt-1">{recommendedNextSprint?.title || "Growth Foundations"}</h3>
+                                    <p className="text-xs md:text-sm text-gray-500 font-medium leading-relaxed mt-3 line-clamp-3">
+                                        {recommendedNextSprint?.description || recommendedNextSprint?.subtitle || "Unlock consistency and start your rise with templates."}
+                                    </p>
+                                </div>
+                                
+                                <div className="w-full py-4 bg-[#0E7850] text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.3em] text-[10px] md:text-[11px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-3 md:gap-4 group-hover:scale-[1.01] transition-transform active:scale-[0.98]">
+                                    Start This Sprint
+                                    <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7-7 7m7-7H3" />
+                                    </svg>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    </Link>
                 )}
             </div>
 
-            {isAfterDay1OfFirstSprint && (
+            {(isAfterDay1OfFirstSprint || !hasActiveSprints) && (
                 <div className="mb-8">
                     <style>{`
                         .no-scrollbar::-webkit-scrollbar {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sprint, DailyContent } from '../../types';
-import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
 
 interface DailyActionWorkspaceProps {
@@ -366,113 +366,162 @@ export default function DailyActionWorkspace({
   const smallEditorInputClasses = "w-full p-3 bg-white border border-gray-150 rounded-xl shadow-xs focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-sm font-medium transition-all placeholder-gray-350 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
 
   return (
-    <div className="fixed inset-0 z-[120] bg-gray-50 w-screen h-screen overflow-y-auto animate-fade-in font-sans">
-      {/* Full Bleed Body with two columns that flows together */}
-      <div className="flex flex-col lg:flex-row w-full min-h-full p-4 sm:p-6 gap-6 justify-center items-start">
-        {/* Left Column: General Content Hub */}
-        <div className="w-full lg:w-[420px] flex flex-col space-y-4 relative shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">General Content Hub</label>
-              
-              <div className="inline-block">
-                <button 
-                  type="button" 
-                  onClick={() => setShowHelpSheet(true)}
-                  className="text-gray-400 hover:text-[#0E7850] transition-colors p-0.5 rounded flex items-center justify-center cursor-pointer"
-                  title="How to use General Content Hub"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {advancedGeneralInput && (
-                <button 
-                  type="button"
-                  onClick={() => {
-                    if (window.confirm("Are you sure you want to clear the general text area?")) {
-                      handleGeneralInputChange('');
-                      setSelectedText('');
-                    }
-                  }}
-                  className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-755 transition-colors flex items-center justify-center cursor-pointer border border-red-100"
-                  title="Delete Entire Content"
-                >
-                  <Trash2 size={12} />
-                </button>
-              )}
-
-              <button 
-                type="button"
-                onClick={onClose}
-                className="p-1.5 rounded-lg bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors flex items-center justify-center cursor-pointer border border-gray-200 shadow-sm"
-                title="Exit"
-              >
-                <X size={12} />
-              </button>
-            </div>
+    <div className="fixed inset-0 z-[120] bg-gray-50 w-screen h-screen overflow-y-auto animate-fade-in font-sans flex flex-col">
+      {/* Top Header Bar */}
+      <header className="sticky top-0 z-[130] bg-white border-b border-gray-150 px-6 py-4 flex items-center justify-between shadow-3xs shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="p-2 bg-purple-50 text-purple-600 rounded-xl">
+            <Layers size={16} />
           </div>
-
-          <textarea 
-            value={advancedGeneralInput}
-            onChange={e => handleGeneralInputChange(e.target.value)}
-            onSelect={handleTextareaSelect}
-            className="w-full h-[500px] p-4 bg-white border border-gray-150 rounded-2xl shadow-inner focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-sm font-medium transition-all placeholder-gray-300 resize-none overflow-y-auto"
-            placeholder="paste or type all your sprint actions steps and other details here...."
-          />
-
-          {/* Compact Curriculum Timeline Selector */}
-          <div className="shrink-0 bg-purple-50/30 p-3 rounded-2xl border border-purple-100/40 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-purple-700/80 uppercase tracking-wider">
-                Curriculum Timeline
-              </span>
-              <span className="text-[9px] font-bold text-purple-600 uppercase tracking-widest bg-white px-2 py-0.5 rounded-md border border-purple-100 shadow-3xs">
-                Day {selectedDay} Active
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-thin scroll-smooth">
-              {Array.from({ length: sprint?.duration || 7 }, (_, i) => i + 1).map((dayNum) => {
-                const dayContent = getDailyContentForDay(dayNum);
-                const stepCount = dayContent.taskPrompts?.filter(p => p && p.trim()).length || 0;
-                const isSelected = selectedDay === dayNum;
-                return (
-                  <button
-                    key={dayNum}
-                    type="button"
-                    onClick={() => setSelectedDay(dayNum)}
-                    className={`flex-shrink-0 min-w-[54px] h-10 px-2 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer relative ${
-                      isSelected
-                        ? 'bg-purple-600 border-purple-600 text-white shadow-md shadow-purple-600/25 scale-102 font-black'
-                        : 'bg-white border-gray-200 text-gray-500 hover:border-purple-300 hover:text-purple-600 font-semibold'
-                    }`}
-                  >
-                    <span className="text-[7px] uppercase tracking-tight leading-none opacity-80">Day</span>
-                    <span className="text-xs leading-none mt-0.5">{dayNum}</span>
-                    {stepCount > 0 && (
-                      <span className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-purple-500 animate-pulse'}`} />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+          <div>
+            <h1 className="text-xs font-black text-gray-900 uppercase tracking-wider leading-none">Daily Action Steps Workspace</h1>
+            <p className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-wider">{sprint?.title || "Untitled Sprint"}</p>
           </div>
         </div>
 
-        {/* Right Column: Day Card for currently selected day, flows naturally */}
-        <div className="flex-1 w-full max-w-[560px]">
-          {(() => {
-            const dayNum = selectedDay;
-            const dayContent = getDailyContentForDay(dayNum);
-            const activeStepIdx = activeStepIndices[dayNum] !== undefined ? activeStepIndices[dayNum] : 0;
-            const totalSteps = dayContent.taskPrompts?.length || 0;
-            const activeIdx = activeStepIdx < totalSteps ? activeStepIdx : 0;
+        <div className="flex items-center gap-2">
+          {onSaveDraft && (
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onSaveDraft();
+              }}
+              disabled={saveStatus === 'saving'}
+              className="px-3.5 py-1.5 bg-[#0E7850] hover:bg-[#0b5f3f] disabled:bg-gray-100 disabled:text-gray-400 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-3xs"
+            >
+              {saveStatus === 'saving' ? (
+                <>
+                  <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span>Saving...</span>
+                </>
+              ) : saveStatus === 'saved' ? (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                  <span>Saved</span>
+                </>
+              ) : (
+                <>
+                  <Save className="h-3.5 w-3.5" />
+                  <span>Save Changes</span>
+                </>
+              )}
+            </button>
+          )}
 
-            const prompt = dayContent.taskPrompts?.[activeIdx] || '';
+          <button 
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors flex items-center justify-center cursor-pointer border border-gray-200 shadow-3xs"
+            title="Exit"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      </header>
+
+      {/* Main Full-Bleed Continuous Canvas Container */}
+      <div className="max-w-6xl mx-auto w-full p-4 sm:p-6 md:p-8 flex-grow flex flex-col justify-start">
+        <div className="bg-white rounded-[2.5rem] border border-gray-150 shadow-xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[550px] w-full">
+          {/* Left Column (General Content Hub) - 5 Cols */}
+          <div className="lg:col-span-5 p-6 border-b lg:border-b-0 lg:border-r border-gray-150 flex flex-col space-y-4 bg-gray-50/15">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">General Content Hub</label>
+                
+                <div className="inline-block">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowHelpSheet(true)}
+                    className="text-gray-400 hover:text-[#0E7850] transition-colors p-0.5 rounded flex items-center justify-center cursor-pointer"
+                    title="How to use General Content Hub"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {advancedGeneralInput && (
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm("Are you sure you want to clear the general text area?")) {
+                        handleGeneralInputChange('');
+                        setSelectedText('');
+                      }
+                    }}
+                    className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-755 transition-colors flex items-center justify-center cursor-pointer border border-red-100"
+                    title="Delete Entire Content"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <textarea 
+              value={advancedGeneralInput}
+              onChange={e => handleGeneralInputChange(e.target.value)}
+              onSelect={handleTextareaSelect}
+              className="w-full flex-grow min-h-[300px] lg:h-[400px] p-4 bg-white border border-gray-150 rounded-2xl shadow-inner focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-sm font-medium transition-all placeholder-gray-300 resize-none overflow-y-auto"
+              placeholder="paste or type all your sprint actions steps and other details here...."
+            />
+
+            {/* Compact Curriculum Timeline Selector */}
+            <div className="shrink-0 bg-purple-50/30 p-3 rounded-2xl border border-purple-100/40 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black text-purple-700/80 uppercase tracking-wider">
+                  Curriculum Timeline
+                </span>
+                <span className="text-[9px] font-bold text-purple-600 uppercase tracking-widest bg-white px-2 py-0.5 rounded-md border border-purple-100 shadow-3xs">
+                  Day {selectedDay} Active
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-thin scroll-smooth">
+                {Array.from({ length: sprint?.duration || 7 }, (_, i) => i + 1).map((dayNum) => {
+                  const dayContent = getDailyContentForDay(dayNum);
+                  const stepCount = dayContent.taskPrompts?.filter(p => p && p.trim()).length || 0;
+                  const isSelected = selectedDay === dayNum;
+                  return (
+                    <button
+                      key={dayNum}
+                      type="button"
+                      onClick={() => setSelectedDay(dayNum)}
+                      className={`flex-shrink-0 min-w-[54px] h-10 px-2 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer relative ${
+                        isSelected
+                          ? 'bg-purple-600 border-purple-600 text-white shadow-md shadow-purple-600/25 scale-102 font-black'
+                          : 'bg-white border-gray-200 text-gray-500 hover:border-purple-300 hover:text-purple-600 font-semibold'
+                      }`}
+                    >
+                      <span className="text-[7px] uppercase tracking-tight leading-none opacity-80">Day</span>
+                      <span className="text-xs leading-none mt-0.5">{dayNum}</span>
+                      {stepCount > 0 && (
+                        <span className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-purple-500 animate-pulse'}`} />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Day Card for currently selected day, flows naturally inside unified layout */}
+          <div className="lg:col-span-7 p-6 sm:p-8 flex flex-col bg-white overflow-y-auto">
+            {(() => {
+              const dayNum = selectedDay;
+              const dayContent = getDailyContentForDay(dayNum);
+              const activeStepIdx = activeStepIndices[dayNum] !== undefined ? activeStepIndices[dayNum] : 0;
+              const totalSteps = dayContent.taskPrompts?.length || 0;
+              const activeIdx = activeStepIdx < totalSteps ? activeStepIdx : 0;
+
+              const prompt = dayContent.taskPrompts?.[activeIdx] || '';
             const isLastAssignedPrompt = lastAssignedField === `prompt-${activeIdx}` && selectedDay === dayNum;
             const isLastAssignedNote = lastAssignedField === `note-${activeIdx}` && selectedDay === dayNum;
             const isLastAssignedHint = lastAssignedField === `hint-${activeIdx}` && selectedDay === dayNum;
@@ -1200,6 +1249,7 @@ export default function DailyActionWorkspace({
             })()}
           </div>
         </div>
+      </div>
 
       {onSaveDraft && (
         <button 
