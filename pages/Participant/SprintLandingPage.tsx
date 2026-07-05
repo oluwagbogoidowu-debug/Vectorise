@@ -714,7 +714,7 @@ const SprintLandingPage: React.FC = () => {
                                 : 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
                             }`}
                         >
-                            {isProcessingPayment ? "Processing..." : "Start Day 1 Now"}
+                            {isProcessingPayment ? "Processing..." : "Day 1 Done"}
                         </Button>
                     </div>
                 </>

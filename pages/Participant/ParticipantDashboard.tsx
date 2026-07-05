@@ -1740,7 +1740,7 @@ const ParticipantDashboard: React.FC = () => {
                                             : 'bg-gray-100 text-gray-300 cursor-not-allowed'
                                         }`}
                                     >
-                                        {isProcessing ? "Processing..." : "Start Day 1 Now"}
+                                        {isProcessing ? "Processing..." : "Day 1 Done"}
                                     </button>
                                 </div>
                             )}
