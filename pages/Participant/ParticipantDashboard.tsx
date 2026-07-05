@@ -773,29 +773,17 @@ const ParticipantDashboard: React.FC = () => {
       <div className="flex-1 px-4 md:px-6 pt-4 md:pt-6">
           <div className="max-w-screen-md mx-auto w-full flex flex-col">
             
-            {isNoProgress && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-[1.5rem] flex items-start gap-4 animate-pulse">
-                    <span className="text-xl">⚠️</span>
-                    <div>
-                        <h4 className="text-[10px] font-black text-red-900 uppercase tracking-widest leading-none mb-1">No Progress State</h4>
-                        <p className="text-xs text-red-700 font-bold leading-relaxed">
-                            Your progress is currently suspended. Please start a new sprint from the Explore page today to proceed with your goals.
-                        </p>
-                    </div>
-                </div>
-            )}
-            
             {cardState === 'task_ready' ? (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                    <div className={`py-6 px-5 md:py-8 md:px-6 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg ${
+                    <div className={`py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg ${
                         secondCardText ? 'col-span-1' : 'col-span-2'
                     }`}>
                         <div className="relative z-10 min-w-0 text-left">
-                            <p className="text-lg md:text-xl lg:text-2xl font-black uppercase tracking-tight text-white leading-tight">
+                            <p className="text-sm sm:text-base md:text-lg font-black uppercase tracking-tight text-white leading-tight">
                                 {firstCardText.title}
                             </p>
                             {firstCardText.subtitle && (
-                                <p className="text-xs md:text-sm font-bold text-white/95 mt-1.5 leading-snug">
+                                <p className="text-[10px] sm:text-xs font-bold text-white/95 mt-1 leading-snug">
                                     {firstCardText.subtitle}
                                 </p>
                             )}
@@ -804,13 +792,13 @@ const ParticipantDashboard: React.FC = () => {
                     </div>
                     
                     {secondCardText && (
-                        <div className="bg-white border border-gray-100 py-6 px-5 md:py-8 md:px-6 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
+                        <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
                             <div className="relative z-10 min-w-0 text-left">
-                                <p className="text-lg md:text-xl lg:text-2xl font-black text-gray-950 uppercase tracking-tight leading-tight">
+                                <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
                                     {secondCardText.title}
                                 </p>
                                 {secondCardText.subtitle && (
-                                    <p className="text-xs md:text-sm font-bold text-[#0E7850] mt-1.5 leading-snug uppercase tracking-wider">
+                                    <p className="text-[10px] sm:text-xs font-bold text-[#0E7850] mt-1 leading-snug uppercase tracking-wider">
                                         {secondCardText.subtitle}
                                     </p>
                                 )}
@@ -820,21 +808,21 @@ const ParticipantDashboard: React.FC = () => {
                 </div>
             ) : cardState === 'well_done' ? (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                    <div className="py-6 px-5 md:py-8 md:px-6 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#159E6A] text-white shadow-lg col-span-1">
+                    <div className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#159E6A] text-white shadow-lg col-span-1">
                         <div className="relative z-10 min-w-0 text-left animate-fade-in">
-                            <p className="text-lg md:text-xl lg:text-2xl font-black uppercase tracking-tight text-white leading-tight">
+                            <p className="text-sm sm:text-base md:text-lg font-black uppercase tracking-tight text-white leading-tight">
                                 Day {completedDaysCount} Done
                             </p>
                         </div>
                         <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                     </div>
                     
-                    <div className="bg-white border border-gray-100 py-6 px-5 md:py-8 md:px-6 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
+                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
                         <div className="relative z-10 min-w-0 text-left animate-fade-in">
-                            <p className="text-lg md:text-xl lg:text-2xl font-black text-gray-950 uppercase tracking-tight leading-tight">
+                            <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
                                 Come back tomorrow.
                             </p>
-                            <p className="text-xs md:text-sm font-bold text-[#0E7850] mt-1.5 leading-snug uppercase tracking-wider">
+                            <p className="text-[10px] sm:text-xs font-bold text-[#0E7850] mt-1 leading-snug uppercase tracking-wider">
                                 Don’t break the streak.
                             </p>
                         </div>
@@ -843,16 +831,16 @@ const ParticipantDashboard: React.FC = () => {
             ) : (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
                     {/* Your Next Sprint Card */}
-                    <Link to="/explore" onClick={handleExploreClick} className="py-6 px-5 md:py-8 md:px-6 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1">
-                        <div className="flex items-center gap-2.5 mb-2.5">
-                            <div className="w-7 h-7 md:w-8 md:h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                                <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                    <Link to="/explore" onClick={handleExploreClick} className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className="w-5 h-5 md:w-6 md:h-6 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+                                <svg className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                                 </svg>
                             </div>
                         </div>
                         <div className="relative z-10 min-w-0 text-left">
-                            <p className="text-lg md:text-xl lg:text-2xl font-black uppercase tracking-tight text-white leading-tight">
+                            <p className="text-sm sm:text-base md:text-lg font-black uppercase tracking-tight text-white leading-tight">
                                 Your<br/>Next Sprint
                             </p>
                         </div>
@@ -860,22 +848,22 @@ const ParticipantDashboard: React.FC = () => {
                     </Link>
                     
                     {/* Keep/Start Rising Card */}
-                    <div className="bg-white border border-gray-100 py-6 px-5 md:py-8 md:px-6 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
-                        <div className="flex items-center gap-2.5 mb-2.5">
-                            <div className="w-7 h-7 md:w-8 md:h-8 bg-[#0E7850]/10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className="w-5 h-5 md:w-6 md:h-6 bg-[#0E7850]/10 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
                                 {cardState === 'start_rising' ? (
-                                    <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-[#0E7850]" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                    <svg className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-[#0E7850]" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                     </svg>
                                 ) : (
-                                    <svg className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-[#0E7850]" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                    <svg className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-[#0E7850]" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                                     </svg>
                                 )}
                             </div>
                         </div>
                         <div className="relative z-10 min-w-0 text-left">
-                            <p className="text-lg md:text-xl lg:text-2xl font-black text-gray-950 uppercase tracking-tight leading-tight">
+                            <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
                                 {cardState === 'start_rising' ? (
                                     <>Start<br/>Rising</>
                                 ) : (
@@ -1073,149 +1061,6 @@ const ParticipantDashboard: React.FC = () => {
                         }
                     `}</style>
                     <div className="flex gap-6 overflow-x-auto pb-4 pt-4 px-1.5 snap-x snap-mandatory no-scrollbar relative items-center">
-                        {/* Recommended Next Sprint Card */}
-                        {recommendedNextSprint ? (
-                            <div 
-                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
-                                    isStepUpLocked 
-                                    ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                    : 'hover:shadow-md hover:border-rose-500/20'
-                                } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
-                            >
-                                {/* Tag: See what's next */}
-                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
-                                    See what's next
-                                </div>
-
-                                <div 
-                                    onClick={(e) => {
-                                        if (isStepUpLocked) return;
-                                        navigate(`/sprint/${recommendedNextSprint.id}`);
-                                    }}
-                                    className="flex-1 flex flex-col justify-between cursor-pointer"
-                                >
-                                    {/* Top part: Cover Image stretching to fill */}
-                                    <div className="h-28 w-full relative overflow-hidden rounded-t-[1.95rem]">
-                                        <img 
-                                            src={recommendedNextSprint.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
-                                            alt="" 
-                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                                            onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
-                                            referrerPolicy="no-referrer"
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
-                                        
-                                        {/* Category & Duration Overlay on the Image */}
-                                        <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between z-10">
-                                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm truncate max-w-[110px]">
-                                                {recommendedNextSprint.category || "Growth"}
-                                            </span>
-                                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-rose-500/80 text-white backdrop-blur-sm shrink-0">
-                                                {recommendedNextSprint.duration || 7} Days
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Bottom part: Title, Subtitle & Action link inside padding */}
-                                    <div className="p-4 pt-3 flex-1 flex flex-col justify-between min-h-0">
-                                        <div className="space-y-1 text-left">
-                                            <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
-                                                {recommendedNextSprint.title}
-                                            </p>
-                                            <p className="text-[9px] text-gray-400 leading-snug line-clamp-3 font-medium">
-                                                {recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise with templates."}
-                                            </p>
-                                        </div>
-
-                                        <div 
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (isStepUpLocked) return;
-                                                navigate("/explore");
-                                            }}
-                                            className="pt-2 border-t border-gray-50 flex items-center justify-between cursor-pointer mt-2"
-                                        >
-                                            <span className="text-[9px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                                                Explore sprints
-                                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                                </svg>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div 
-                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
-                                    isStepUpLocked 
-                                    ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                    : 'hover:shadow-md hover:border-rose-500/20'
-                                } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
-                            >
-                                {/* Tag: See what's next */}
-                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
-                                    See what's next
-                                </div>
-
-                                <div 
-                                    onClick={(e) => {
-                                        if (isStepUpLocked) return;
-                                        navigate("/explore");
-                                    }}
-                                    className="flex-1 flex flex-col justify-between cursor-pointer"
-                                >
-                                    {/* Top part: Cover Image stretching to fill */}
-                                    <div className="h-28 w-full relative overflow-hidden rounded-t-[1.95rem]">
-                                        <img 
-                                            src={assetService.URLS.DEFAULT_SPRINT_COVER} 
-                                            alt="" 
-                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                                            referrerPolicy="no-referrer"
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
-                                        
-                                        {/* Category & Duration Overlay on the Image */}
-                                        <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between z-10">
-                                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm">
-                                                GROWTH
-                                            </span>
-                                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-rose-500/80 text-white backdrop-blur-sm shrink-0">
-                                                7 Days
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Bottom part: Title, Subtitle & Action link inside padding */}
-                                    <div className="p-4 pt-3 flex-1 flex flex-col justify-between min-h-0">
-                                        <div className="space-y-1 text-left">
-                                            <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
-                                                Growth Foundations
-                                            </p>
-                                            <p className="text-[9px] text-gray-400 leading-snug line-clamp-3 font-medium">
-                                                Unlock consistency and start your rise with templates.
-                                            </p>
-                                        </div>
-
-                                        <div 
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (isStepUpLocked) return;
-                                                navigate("/explore");
-                                            }}
-                                            className="pt-2 border-t border-gray-50 flex items-center justify-between cursor-pointer mt-2"
-                                        >
-                                            <span className="text-[9px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                                                Explore sprints
-                                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                                </svg>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
 
                         {/* 2. Revisit your Rise */}
                         <Link 
