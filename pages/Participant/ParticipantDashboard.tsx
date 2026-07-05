@@ -19,6 +19,7 @@ import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
 import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import NextSprintModal from '../../components/NextSprintModal';
 import ConfirmModal from '../../components/ConfirmModal';
+import FormattedText from '../../components/FormattedText';
 import { streakService } from '../../services/streakService';
 import { blogService } from '../../services/blogService';
 import { paymentService } from '../../services/paymentService';
@@ -1078,22 +1079,22 @@ const ParticipantDashboard: React.FC = () => {
                         }}
                         className="block group animate-fade-in cursor-pointer text-left"
                     >
-                        <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-150 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[130px]">
+                        <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-150 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[220px]">
                             {/* Left Image Section */}
-                            <div className="w-full md:w-2/5 h-12 md:h-[130px] relative overflow-hidden">
+                            <div className="w-full md:w-2/5 h-28 md:h-auto relative overflow-hidden">
                                 <img 
                                     src={recommendedNextSprint?.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
                                     alt="" 
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                                     onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
                                     referrerPolicy="no-referrer"
-                                />
+                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
                                 {/* Tag Overlay on the Image */}
-                                <div className="absolute top-2 left-4 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
+                                <div className="absolute top-4 left-4 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
                                     See what's next
                                 </div>
-                                <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between z-10">
+                                <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between z-10">
                                     <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm truncate max-w-[110px]">
                                         {recommendedNextSprint?.category || "Growth"}
                                     </span>
@@ -1104,15 +1105,15 @@ const ParticipantDashboard: React.FC = () => {
                             </div>
                             
                             {/* Right Content Section */}
-                            <div className="flex-1 p-4 md:p-6 lg:p-8 flex flex-col justify-between">
+                            <div className="flex-1 p-6 md:p-8 flex flex-col justify-between">
                                 <div className="mb-4 text-left">
-                                    <h3 className="text-lg md:text-xl lg:text-2xl font-black text-gray-900 leading-tight tracking-tight">{recommendedNextSprint?.title || "Growth Foundations"}</h3>
-                                    <p className="text-xs text-gray-500 font-medium leading-relaxed mt-2 line-clamp-2">
+                                    <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight">{recommendedNextSprint?.title || "Growth Foundations"}</h3>
+                                    <p className="text-xs md:text-sm text-gray-500 font-medium leading-relaxed mt-3 line-clamp-3">
                                         {recommendedNextSprint?.description || recommendedNextSprint?.subtitle || "Unlock consistency and start your rise with templates."}
                                     </p>
                                 </div>
                                 
-                                <div className="w-full py-3 bg-[#0E7850] text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.3em] text-[9px] md:text-[10px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-3 md:gap-4 group-hover:scale-[1.01] transition-transform active:scale-[0.98]">
+                                <div className="w-full py-4 bg-[#0E7850] text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.3em] text-[10px] md:text-[11px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-3 md:gap-4 group-hover:scale-[1.01] transition-transform active:scale-[0.98]">
                                     Start This Sprint
                                     <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7-7 7m7-7H3" />
@@ -1569,9 +1570,9 @@ const ParticipantDashboard: React.FC = () => {
                             className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick"
                             onClick={() => !isProcessing && setShowOverviewSheet(false)}
                         />
-                        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-6 sm:p-8 overflow-y-auto max-h-[90vh] pb-10 animate-slide-up-quick text-left">
+                        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-5 sm:p-6 overflow-y-auto max-h-[60vh] sm:max-h-[55vh] pb-6 animate-slide-up-quick text-left">
                             {/* Drag Handle indicator */}
-                            <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
+                            <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
                             
                             {overviewStep === 'overview' ? (
                                 // Step 1: Overview
@@ -1579,13 +1580,13 @@ const ParticipantDashboard: React.FC = () => {
                                     {/* Close button */}
                                     <button 
                                         onClick={() => setShowOverviewSheet(false)}
-                                        className="absolute top-6 right-6 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                                        className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
                                     >
                                         <X className="w-5 h-5" />
                                     </button>
 
                                     {/* Category / Duration */}
-                                    <div className="flex items-center gap-2 mb-4">
+                                    <div className="flex items-center gap-2 mb-3">
                                         <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850] bg-[#0E7850]/5 px-2.5 py-1 rounded-lg">
                                             {recommendedNextSprint.category || "Growth"}
                                         </span>
@@ -1595,19 +1596,19 @@ const ParticipantDashboard: React.FC = () => {
                                     </div>
 
                                     {/* Sprint Title */}
-                                    <h3 className="text-2xl font-black tracking-tight leading-tight text-gray-900 mb-4">
+                                    <h3 className="text-xl font-black tracking-tight leading-tight text-gray-900 mb-3">
                                         {recommendedNextSprint.title}
                                     </h3>
 
                                     {/* Description */}
-                                    <div className="text-sm text-gray-600 font-medium leading-relaxed mb-6 space-y-4">
-                                        <p>{recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise."}</p>
+                                    <div className="text-xs text-gray-600 font-medium leading-relaxed mb-4">
+                                        <FormattedText text={recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise."} />
                                     </div>
 
                                     {/* Action button */}
                                     <button 
                                         onClick={() => setOverviewStep('commitment')}
-                                        className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] shadow-xl hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2"
+                                        className="w-full py-3.5 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] shadow-xl hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2"
                                     >
                                         Continue
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1621,41 +1622,33 @@ const ParticipantDashboard: React.FC = () => {
                                     {/* Back button */}
                                     <button 
                                         onClick={() => !isProcessing && setOverviewStep('overview')}
-                                        className="absolute top-6 left-6 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1 text-[9px] font-black uppercase tracking-wider"
+                                        className="absolute top-5 left-5 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1 text-[9px] font-black uppercase tracking-wider"
                                     >
                                         <ChevronLeft className="w-4 h-4" />
                                         Back
                                     </button>
 
-                                    {/* Protocol Tag */}
-                                    <div className="flex items-center gap-2 mb-4 justify-center mt-2">
-                                        <LocalLogo type="favicon" className="h-5 w-5" />
-                                        <div className="h-[1px] w-8 bg-gray-150"></div>
-                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850]">The Protocol</span>
-                                    </div>
-
-                                    {/* Heading */}
-                                    <h3 className="text-xl sm:text-2xl font-black tracking-tight leading-tight text-center text-gray-900 mb-1">
-                                        Before you continue <br/>
-                                        <span className="text-gray-300 italic">you have to decide</span>
+                                    {/* Stay in your rise header */}
+                                    <h3 className="text-lg sm:text-xl font-black tracking-tight leading-tight text-center text-gray-900 italic mt-3 mb-4">
+                                        Stay in your rise
                                     </h3>
 
                                     {/* Commitments List */}
-                                    <div className="space-y-3.5 my-6 max-w-xs mx-auto">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 text-center mb-1">You'll</p>
+                                    <div className="space-y-2 my-4 max-w-xs mx-auto">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 text-center mb-0.5">You'll</p>
                                         {[
                                           "Show up daily",
                                           "Pay attention to what works",
                                           "Finish what you start"
                                         ].map((text, i) => (
-                                          <div key={i} className="flex items-center gap-3 pl-4">
+                                          <div key={i} className="flex items-center gap-2.5 pl-4">
                                             <span className="text-[#0E7850] text-sm leading-none">•</span>
-                                            <span className="text-sm font-bold tracking-tight text-gray-800">{text}</span>
+                                            <span className="text-xs font-bold tracking-tight text-gray-800">{text}</span>
                                           </div>
                                         ))}
                                     </div>
 
-                                    <p className="text-[11px] text-gray-400 font-bold text-center mb-6 px-4">
+                                    <p className="text-[10px] text-gray-400 font-bold text-center mb-4 px-4">
                                         Small actions daily builds real momentum over time.
                                     </p>
 
@@ -1663,32 +1656,32 @@ const ParticipantDashboard: React.FC = () => {
                                     <button 
                                         onClick={() => !isProcessing && setIsCommitted(!isCommitted)}
                                         disabled={isProcessing}
-                                        className={`w-full flex items-center gap-3.5 p-4 rounded-2xl transition-all border-2 mb-6 text-left ${
+                                        className={`w-full flex items-center gap-3.5 p-3.5 rounded-2xl transition-all border-2 mb-4 text-left ${
                                             isCommitted 
                                             ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
                                             : 'bg-gray-50 border-gray-100 hover:border-gray-200 text-gray-400 hover:bg-white'
                                         }`}
                                     >
-                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
                                             isCommitted ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
                                         }`}>
                                             {isCommitted && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
                                         </div>
-                                        <span className={`text-[12px] font-bold tracking-tight ${isCommitted ? 'text-gray-950' : 'text-gray-400'}`}>
+                                        <span className={`text-[11px] font-bold tracking-tight ${isCommitted ? 'text-gray-950' : 'text-gray-400'}`}>
                                             I commit to showing up and finishing this
                                         </span>
                                     </button>
 
                                     {/* WALLET / PRICING SECTION */}
-                                    <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-6 space-y-3">
-                                        <div className="flex justify-between items-center text-[11px] font-black uppercase tracking-wider text-gray-400">
+                                    <div className="bg-gray-50 rounded-2xl p-3.5 border border-gray-100 mb-4 space-y-2.5">
+                                        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                                             <span>Your Balance</span>
                                             <span className="text-gray-900">{(user as Participant)?.walletBalance ?? 0} COINS</span>
                                         </div>
                                         <div className="h-[1px] bg-gray-200 w-full"></div>
                                         <div className="space-y-2">
                                             {/* Option 1: Coins */}
-                                            <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                                            <label className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
                                                 paymentMethod === 'coins' 
                                                 ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
                                                 : 'bg-white border-gray-150 text-gray-500'
@@ -1700,17 +1693,17 @@ const ParticipantDashboard: React.FC = () => {
                                                         checked={paymentMethod === 'coins'} 
                                                         onChange={() => ((user as Participant)?.walletBalance ?? 0) >= 10 && setPaymentMethod('coins')}
                                                         disabled={((user as Participant)?.walletBalance ?? 0) < 10 || isProcessing}
-                                                        className="text-[#0E7850] focus:ring-[#0E7850]"
+                                                        className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
                                                     />
-                                                    <span className="text-xs font-black uppercase text-gray-800">Use 10 Coins</span>
+                                                    <span className="text-[11px] font-black uppercase text-gray-800">Use 10 Coins</span>
                                                 </div>
                                                 {((user as Participant)?.walletBalance ?? 0) < 10 && (
-                                                    <span className="text-[9px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded uppercase">Insufficient</span>
+                                                    <span className="text-[8px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded uppercase">Insufficient</span>
                                                 )}
                                             </label>
 
                                             {/* Option 2: Card (Naira) */}
-                                            <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                                            <label className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
                                                 paymentMethod === 'card' 
                                                 ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
                                                 : 'bg-white border-gray-150 text-gray-500'
@@ -1722,16 +1715,16 @@ const ParticipantDashboard: React.FC = () => {
                                                         checked={paymentMethod === 'card'} 
                                                         onChange={() => setPaymentMethod('card')}
                                                         disabled={isProcessing}
-                                                        className="text-[#0E7850] focus:ring-[#0E7850]"
+                                                        className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
                                                     />
-                                                    <span className="text-xs font-black uppercase text-gray-800">Pay with Card</span>
+                                                    <span className="text-[11px] font-black uppercase text-gray-800">Pay with Card</span>
                                                 </div>
                                                 <span className="text-xs font-black text-gray-900">₦{recommendedNextSprint.price || 1000}</span>
                                             </label>
                                         </div>
 
-                                        <div className="text-center pt-1">
-                                            <span className="text-[10px] font-semibold text-gray-400">
+                                        <div className="text-center pt-0.5">
+                                            <span className="text-[9px] font-semibold text-gray-400">
                                                 Need more coins? <span className="underline cursor-pointer text-[#0E7850]" onClick={() => navigate('/buy-coins')}>Buy coins here</span>
                                             </span>
                                         </div>
@@ -1741,7 +1734,7 @@ const ParticipantDashboard: React.FC = () => {
                                     <button 
                                         onClick={handleStartSprint}
                                         disabled={!isCommitted || isProcessing}
-                                        className={`w-full py-4 rounded-2xl shadow-xl transition-all text-[10px] font-black tracking-[0.2em] uppercase text-center flex items-center justify-center gap-2 ${
+                                        className={`w-full py-3.5 rounded-2xl shadow-xl transition-all text-[10px] font-black tracking-[0.2em] uppercase text-center flex items-center justify-center gap-2 ${
                                             isCommitted && !isProcessing
                                             ? 'bg-gray-900 text-white hover:scale-[1.01] active:scale-95 shadow-gray-900/15' 
                                             : 'bg-gray-100 text-gray-300 cursor-not-allowed'

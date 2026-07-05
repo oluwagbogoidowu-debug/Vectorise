@@ -589,40 +589,32 @@ const SprintLandingPage: React.FC = () => {
                         className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick"
                         onClick={() => setShowCommitmentSheet(false)}
                     />
-                    <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-6 sm:p-8 animate-slide-up-quick pb-10">
+                    <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-5 sm:p-6 overflow-y-auto max-h-[60vh] sm:max-h-[55vh] pb-6 animate-slide-up-quick">
                         {/* Drag Handle indicator */}
-                        <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
+                        <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
                         
-                        {/* Protocol Tag */}
-                        <div className="flex items-center gap-2 mb-4 justify-center">
-                            <LocalLogo type="favicon" className="h-5 w-5" />
-                            <div className="h-[1px] w-8 bg-gray-150"></div>
-                            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850]">The Protocol</span>
-                        </div>
-
-                        {/* Heading */}
-                        <h3 className="text-xl sm:text-2xl font-black tracking-tight leading-tight text-center text-gray-900 mb-1">
-                            Before you continue <br/>
-                            <span className="text-gray-300 italic">you have to decide</span>
+                        {/* Stay in your rise header */}
+                        <h3 className="text-lg sm:text-xl font-black tracking-tight leading-tight text-center text-gray-900 italic mt-3 mb-4">
+                            Stay in your rise
                         </h3>
 
                         {/* List items */}
-                        <div className="space-y-3.5 my-6 max-w-xs mx-auto">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 text-center mb-1">You'll</p>
+                        <div className="space-y-2 my-4 max-w-xs mx-auto">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 text-center mb-0.5">You'll</p>
                             {[
                               "Show up daily",
                               "Pay attention to what works",
                               "Finish what you start"
                             ].map((text, i) => (
-                              <div key={i} className="flex items-center gap-3 pl-4">
+                              <div key={i} className="flex items-center gap-2.5 pl-4">
                                 <span className="text-[#0E7850] text-sm leading-none">•</span>
-                                <span className="text-sm font-bold tracking-tight text-gray-800">{text}</span>
+                                <span className="text-xs font-bold tracking-tight text-gray-800">{text}</span>
                               </div>
                             ))}
                         </div>
 
                         {/* Small momentum text */}
-                        <p className="text-[11px] text-gray-400 font-bold text-center mb-6 px-4">
+                        <p className="text-[10px] text-gray-400 font-bold text-center mb-4 px-4">
                             Small actions daily builds real momentum over time.
                         </p>
 
@@ -630,33 +622,33 @@ const SprintLandingPage: React.FC = () => {
                         <button 
                             onClick={() => !isProcessingPayment && setIsCommitted(!isCommitted)}
                             disabled={isProcessingPayment}
-                            className={`w-full flex items-center gap-3.5 p-4 rounded-2xl transition-all border-2 mb-6 text-left ${
+                            className={`w-full flex items-center gap-3.5 p-3.5 rounded-2xl transition-all border-2 mb-4 text-left ${
                                 isCommitted 
                                 ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
                                 : 'bg-gray-50 border-gray-100 hover:border-gray-200 text-gray-400 hover:bg-white'
                             }`}
                         >
-                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
                                 isCommitted ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
                             }`}>
                                 {isCommitted && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
                             </div>
-                            <span className={`text-[12px] font-bold tracking-tight ${isCommitted ? 'text-gray-950' : 'text-gray-400'}`}>
+                            <span className={`text-[11px] font-bold tracking-tight ${isCommitted ? 'text-gray-950' : 'text-gray-400'}`}>
                                 I commit to showing up and finishing this
                             </span>
                         </button>
 
                         {/* WALLET / PRICING SECTION - Only show if user is logged in */}
                         {user ? (
-                            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-6 space-y-3 text-left">
-                                <div className="flex justify-between items-center text-[11px] font-black uppercase tracking-wider text-gray-400">
+                            <div className="bg-gray-50 rounded-2xl p-3.5 border border-gray-100 mb-4 space-y-2.5 text-left">
+                                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                                     <span>Your Balance</span>
                                     <span className="text-gray-900">{(user as Participant)?.walletBalance ?? 0} COINS</span>
                                 </div>
                                 <div className="h-[1px] bg-gray-200 w-full"></div>
                                 <div className="space-y-2">
                                     {/* Option 1: Coins */}
-                                    <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                                    <label className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
                                         paymentMethod === 'coins' 
                                         ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
                                         : 'bg-white border-gray-150 text-gray-500'
@@ -668,17 +660,17 @@ const SprintLandingPage: React.FC = () => {
                                                 checked={paymentMethod === 'coins'} 
                                                 onChange={() => ((user as Participant)?.walletBalance ?? 0) >= 10 && setPaymentMethod('coins')}
                                                 disabled={((user as Participant)?.walletBalance ?? 0) < 10 || isProcessingPayment}
-                                                className="text-[#0E7850] focus:ring-[#0E7850]"
+                                                className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
                                             />
-                                            <span className="text-xs font-black uppercase text-gray-800">Use 10 Coins</span>
+                                            <span className="text-[11px] font-black uppercase text-gray-800">Use 10 Coins</span>
                                         </div>
                                         {((user as Participant)?.walletBalance ?? 0) < 10 && (
-                                            <span className="text-[9px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded uppercase">Insufficient</span>
+                                            <span className="text-[8px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded uppercase">Insufficient</span>
                                         )}
                                     </label>
 
                                     {/* Option 2: Card (Naira) */}
-                                    <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                                    <label className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
                                         paymentMethod === 'card' 
                                         ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
                                         : 'bg-white border-gray-150 text-gray-500'
@@ -690,25 +682,25 @@ const SprintLandingPage: React.FC = () => {
                                                 checked={paymentMethod === 'card'} 
                                                 onChange={() => setPaymentMethod('card')}
                                                 disabled={isProcessingPayment}
-                                                className="text-[#0E7850] focus:ring-[#0E7850]"
+                                                className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
                                             />
-                                            <span className="text-xs font-black uppercase text-gray-800">Pay with Card</span>
+                                            <span className="text-[11px] font-black uppercase text-gray-800">Pay with Card</span>
                                         </div>
                                         <span className="text-xs font-black text-gray-900">₦{sprint.price || 1000}</span>
                                     </label>
                                 </div>
 
-                                <div className="text-center pt-1">
-                                    <span className="text-[10px] font-semibold text-gray-400">
+                                <div className="text-center pt-0.5">
+                                    <span className="text-[9px] font-semibold text-gray-400">
                                         Need more coins? <span className="underline cursor-pointer text-[#0E7850]" onClick={() => navigate('/buy-coins')}>Buy coins here</span>
                                     </span>
                                 </div>
                             </div>
                         ) : (
                             // Guest Checkout Price display
-                            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-6 text-left flex justify-between items-center">
+                            <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 mb-4 text-left flex justify-between items-center">
                                 <span className="text-xs font-black uppercase text-gray-400">Total Price</span>
-                                <span className="text-sm font-black text-gray-900">₦{sprint.price || 1000}</span>
+                                <span className="text-xs font-black text-gray-900">₦{sprint.price || 1000}</span>
                             </div>
                         )}
 
@@ -716,7 +708,7 @@ const SprintLandingPage: React.FC = () => {
                         <Button 
                             onClick={handleConfirmCommitment}
                             disabled={!isCommitted || isProcessingPayment}
-                            className={`w-full py-5 rounded-2xl shadow-xl transition-all text-[10px] font-black tracking-[0.2em] uppercase border-none ${
+                            className={`w-full py-4 rounded-2xl shadow-xl transition-all text-[10px] font-black tracking-[0.2em] uppercase border-none ${
                                 isCommitted && !isProcessingPayment
                                 ? 'bg-gray-900 text-white hover:scale-[1.01] active:scale-95 shadow-gray-900/15' 
                                 : 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
