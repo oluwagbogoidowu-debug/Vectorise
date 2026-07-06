@@ -150,7 +150,13 @@ const SprintLandingPage: React.FC = () => {
                 // Always proceed directly to day one preview flow to allow preview before logging in (as requested)
                 analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, existing_user: emailExists }, undefined, guestEmail);
                 
-                navigate(`/sprint/preview/${sprint.id}`, { state: { prefilledEmail: guestEmail } });
+                setCommitmentContext({
+                    isGuest: true,
+                    emailExists,
+                    guestEmail
+                });
+                setIsCommitted(false);
+                setShowCommitmentSheet(true);
             } catch (err) {
                 console.error("Error checking email:", err);
                 setEmailError("Something went wrong. Please try again.");
@@ -416,7 +422,7 @@ const SprintLandingPage: React.FC = () => {
                         {/* MAIN CONTENT */}
                         <div className="space-y-8">
                             {(displayDescription || hasDynamicContent) && (
-                                <section className="animate-fade-in text-left">
+                                <section className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">
                                     <SectionHeading>Sprint Overview</SectionHeading>
                                     
                                     <div className="space-y-8">
