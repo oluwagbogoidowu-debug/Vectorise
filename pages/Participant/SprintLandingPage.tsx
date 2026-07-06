@@ -180,8 +180,26 @@ const SprintLandingPage: React.FC = () => {
         setIsProcessingPayment(true);
         try {
             if (commitmentContext.isGuest) {
-                // Guests don't have coins, so they must pay via card (Naira)
                 const effectiveEmail = commitmentContext.guestEmail || guestEmail;
+                
+                // If this is their first time (email doesn't exist in system), they get it for free!
+                if (commitmentContext.emailExists === false) {
+                    setShowCommitmentSheet(false);
+                    toast.success("Congratulations! Your first sprint is completely free!");
+                    navigate('/signup', {
+                        state: {
+                            fromPayment: true,
+                            targetSprintId: sprint.id,
+                            prefilledEmail: effectiveEmail.toLowerCase().trim(),
+                            authMessage: "This is your first sprint—it's completely free! Create an account to start."
+                        },
+                        replace: true
+                    });
+                    setIsProcessingPayment(false);
+                    return;
+                }
+
+                // Existing guest (not first time) -> pay via card (Naira)
                 const traceId = `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
                 
                 const payload = {
@@ -700,7 +718,13 @@ const SprintLandingPage: React.FC = () => {
                             // Guest Checkout Price display
                             <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 mb-4 text-left flex justify-between items-center">
                                 <span className="text-xs font-black uppercase text-gray-400">Total Price</span>
-                                <span className="text-xs font-black text-gray-900">₦{sprint.price || 1000}</span>
+                                {commitmentContext?.emailExists === false ? (
+                                    <span className="text-xs font-black text-[#0E7850] bg-[#0E7850]/10 px-2.5 py-1 rounded-lg">
+                                        FREE (First Sprint)
+                                    </span>
+                                ) : (
+                                    <span className="text-xs font-black text-gray-900">₦{sprint.price || 1000}</span>
+                                )}
                             </div>
                         )}
 
@@ -714,7 +738,7 @@ const SprintLandingPage: React.FC = () => {
                                 : 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
                             }`}
                         >
-                            {isProcessingPayment ? "Processing..." : "Start Day 1 Now"}
+                            {isProcessingPayment ? "Processing..." : (commitmentContext?.isGuest && commitmentContext?.emailExists === false ? "Claim Free Day 1" : "Start Day 1 Now")}
                         </Button>
                     </div>
                 </>
