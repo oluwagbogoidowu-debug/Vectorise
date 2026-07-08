@@ -183,38 +183,21 @@ const SprintLandingPage: React.FC = () => {
             if (commitmentContext.isGuest) {
                 const effectiveEmail = commitmentContext.guestEmail || guestEmail;
                 
-                // If this is their first time (email doesn't exist in system), they get it for free!
-                if (commitmentContext.emailExists === false) {
-                    setShowCommitmentSheet(false);
-                    toast.success("Congratulations! Your first sprint is completely free!");
-                    navigate('/signup', {
-                        state: {
-                            fromPayment: true,
-                            targetSprintId: sprint.id,
-                            prefilledEmail: effectiveEmail.toLowerCase().trim(),
-                            authMessage: "This is your first sprint—it's completely free! Create an account to start."
-                        },
-                        replace: true
-                    });
-                    setIsProcessingPayment(false);
-                    return;
+                // Store guest email in localStorage to persist it
+                if (effectiveEmail) {
+                    localStorage.setItem('guest_email', effectiveEmail.toLowerCase().trim());
                 }
-
-                // Existing guest (not first time) -> pay via card (Naira)
-                const traceId = `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
                 
-                const payload = {
-                    userId: traceId,
-                    email: effectiveEmail.toLowerCase().trim(),
-                    sprintId: sprint.id,
-                    amount: sprint.price || 1000,
-                    currency: "NGN",
-                    name: 'Vectorise Guest'
-                };
-
-                const checkoutUrl = await paymentService.initializeFlutterwave(payload);
                 setShowCommitmentSheet(false);
-                window.location.href = checkoutUrl;
+                toast.success("Enjoy Day 1 of your sprint!");
+                navigate(`/sprint/preview/${sprint.id}`, {
+                    state: {
+                        prefilledEmail: effectiveEmail ? effectiveEmail.toLowerCase().trim() : ''
+                    },
+                    replace: true
+                });
+                setIsProcessingPayment(false);
+                return;
             } else {
                 // Logged in user
                 if (!user) return;
@@ -378,7 +361,17 @@ const SprintLandingPage: React.FC = () => {
         <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
             <div className="max-w-screen-lg mx-auto px-4 pt-4">
                 <div className="flex justify-between items-center mb-6">
-                    {user ? (
+                    {location.pathname.startsWith('/onboarding') ? (
+                        <button 
+                            onClick={() => navigate('/onboarding/focus-selector', { state: { trigger: 'refine_focus' } })} 
+                            className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-2 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                            </svg>
+                            Refine Focus
+                        </button>
+                    ) : user ? (
                         <button 
                             onClick={() => navigate('/explore')} 
                             className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest"
@@ -716,15 +709,7 @@ const SprintLandingPage: React.FC = () => {
                                     </span>
                                 </div>
                             </div>
-                        ) : (
-                            // Guest Checkout Price display
-                            commitmentContext?.emailExists !== false && (
-                                <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 mb-4 text-left flex justify-between items-center">
-                                    <span className="text-xs font-black uppercase text-gray-400">Total Price</span>
-                                    <span className="text-xs font-black text-gray-900">₦{sprint.price || 1000}</span>
-                                </div>
-                            )
-                        )}
+                        ) : null}
 
                         {/* Start Day 1 Now / Continue button */}
                         <Button 
@@ -736,7 +721,7 @@ const SprintLandingPage: React.FC = () => {
                                 : 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
                             }`}
                         >
-                            {isProcessingPayment ? "Processing..." : (commitmentContext?.isGuest && commitmentContext?.emailExists === false ? "Claim Free Day 1" : "Start Day 1 Now")}
+                            {isProcessingPayment ? "Processing..." : (commitmentContext?.isGuest ? "Claim Free Day 1" : "Start Day 1 Now")}
                         </Button>
                     </div>
                 </>
