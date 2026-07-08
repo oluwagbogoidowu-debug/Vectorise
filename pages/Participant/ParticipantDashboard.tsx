@@ -19,10 +19,8 @@ import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
 import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import NextSprintModal from '../../components/NextSprintModal';
 import ConfirmModal from '../../components/ConfirmModal';
-import FormattedText from '../../components/FormattedText';
 import { streakService } from '../../services/streakService';
 import { blogService } from '../../services/blogService';
-import { paymentService } from '../../services/paymentService';
 
 /**
  * Calculates if a day is locked based on the "Next Midnight" logic.
@@ -127,12 +125,6 @@ const ParticipantDashboard: React.FC = () => {
   const [showPulse, setShowPulse] = useState(false);
   const [checkedIgnites, setCheckedIgnites] = useState<Record<string, boolean>>({});
   const [showFloatingIgnite, setShowFloatingIgnite] = useState(true);
-  const [showOverviewSheet, setShowOverviewSheet] = useState(false);
-  const [overviewStep, setOverviewStep] = useState<'overview' | 'commitment'>('overview');
-  const [isCommitted, setIsCommitted] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'coins' | 'card'>('coins');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showStreakText, setShowStreakText] = useState(false);
 
   // Mark active Ignite as checked when opened
   useEffect(() => {
@@ -308,19 +300,6 @@ const ParticipantDashboard: React.FC = () => {
 
     return list[0] || publishedSprints[0] || null;
   }, [publishedSprints, allEnrollments, user, orchestration]);
-
-  // Set default payment method when overview sheet is shown
-  useEffect(() => {
-    if (showOverviewSheet && recommendedNextSprint) {
-      const userBalance = (user as Participant)?.walletBalance || 0;
-      const neededCoins = recommendedNextSprint.pointCost || 10;
-      if (userBalance >= neededCoins) {
-        setPaymentMethod('coins');
-      } else {
-        setPaymentMethod('card');
-      }
-    }
-  }, [showOverviewSheet, user, recommendedNextSprint]);
 
   const latestBlogPost = useMemo(() => {
     return blogService.getPosts()[0] || null;
@@ -671,18 +650,6 @@ const ParticipantDashboard: React.FC = () => {
     return "Today's Focus";
   }, [cardState, completedDaysCount]);
 
-  // Delay streak text in well_done state
-  useEffect(() => {
-    if (cardState === 'well_done') {
-      const timer = setTimeout(() => {
-        setShowStreakText(true);
-      }, 4000);
-      return () => clearTimeout(timer);
-    } else {
-      setShowStreakText(false);
-    }
-  }, [cardState]);
-
   const p = user as Participant;
   const currentArchetype = ARCHETYPES.find(a => a.id === p.archetype);
 
@@ -739,67 +706,6 @@ const ParticipantDashboard: React.FC = () => {
     } catch (err) {
         console.error("Check-in failed:", err);
         toast.error("Failed to check in. Please try again.");
-    }
-  };
-
-  const handleStartSprint = async () => {
-    if (!user || !recommendedNextSprint || !isCommitted) return;
-    
-    setIsProcessing(true);
-    try {
-        if (paymentMethod === 'coins') {
-            const userBalance = (user as Participant).walletBalance || 0;
-            const neededCoins = recommendedNextSprint.pointCost || 10;
-            if (userBalance < neededCoins) {
-                toast.error(`Insufficient coins. Please select another payment method or purchase more coins.`);
-                setIsProcessing(false);
-                return;
-            }
-
-            // 1. Process wallet transaction
-            await userService.processWalletTransaction(user.id, {
-                amount: -neededCoins,
-                type: 'purchase',
-                description: `Unlocked ${recommendedNextSprint.title} via Credits`,
-                auditId: recommendedNextSprint.id
-            });
-
-            // 2. Enroll user
-            const enrollment = await sprintService.enrollUser(
-                user.id, 
-                recommendedNextSprint.id, 
-                recommendedNextSprint.duration || 7, 
-                {
-                    coachId: recommendedNextSprint.coachId,
-                    pricePaid: 0,
-                    currency: recommendedNextSprint.currency || 'NGN',
-                    source: 'coin'
-                }
-            );
-
-            toast.success("Sprint started successfully!");
-            setShowOverviewSheet(false);
-            
-            // Navigate to the newly enrolled sprint
-            navigate(`/participant/sprint/${enrollment.id}`);
-        } else {
-            // Pay via Card (Flutterwave)
-            const payload = {
-                userId: user.id,
-                email: user.email.toLowerCase().trim(),
-                sprintId: recommendedNextSprint.id,
-                amount: recommendedNextSprint.price || 1000,
-                currency: "NGN",
-                name: user.name || 'Vectorise User'
-            };
-
-            const checkoutUrl = await paymentService.initializeFlutterwave(payload);
-            window.location.href = checkoutUrl;
-        }
-    } catch (err: any) {
-        console.error("Error starting sprint:", err);
-        toast.error(err.message || "Failed to start sprint. Please try again.");
-        setIsProcessing(false);
     }
   };
 
@@ -916,11 +822,9 @@ const ParticipantDashboard: React.FC = () => {
                             <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
                                 Come back tomorrow.
                             </p>
-                            {showStreakText && (
-                                <p className="text-[10px] sm:text-xs font-bold text-[#0E7850] mt-1 leading-snug uppercase tracking-wider animate-fade-in">
-                                    Don’t break the streak.
-                                </p>
-                            )}
+                            <p className="text-[10px] sm:text-xs font-bold text-[#0E7850] mt-1 leading-snug uppercase tracking-wider">
+                                Don’t break the streak.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -1084,28 +988,17 @@ const ParticipantDashboard: React.FC = () => {
                         </div>
                     </Link>
                 ) : (
-                    <div 
-                        onClick={() => {
-                            if (recommendedNextSprint) {
-                                setShowOverviewSheet(true);
-                                setOverviewStep('overview');
-                                setIsCommitted(false);
-                            } else {
-                                navigate("/explore");
-                            }
-                        }}
-                        className="block group animate-fade-in cursor-pointer text-left"
-                    >
-                        <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-150 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[220px]">
+                    <Link to={recommendedNextSprint ? `/sprint/${recommendedNextSprint.id}` : "/explore"} className="block group animate-fade-in">
+                        <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-150 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[260px]">
                             {/* Left Image Section */}
-                            <div className="w-full md:w-2/5 h-28 md:h-auto relative overflow-hidden">
+                            <div className="w-full md:w-2/5 h-24 md:h-auto relative overflow-hidden">
                                 <img 
                                     src={recommendedNextSprint?.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
                                     alt="" 
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                                     onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
                                     referrerPolicy="no-referrer"
-                                 />
+                                />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
                                 {/* Tag Overlay on the Image */}
                                 <div className="absolute top-4 left-4 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
@@ -1122,7 +1015,7 @@ const ParticipantDashboard: React.FC = () => {
                             </div>
                             
                             {/* Right Content Section */}
-                            <div className="flex-1 p-6 md:p-8 flex flex-col justify-between">
+                            <div className="flex-1 p-6 md:p-8 lg:p-10 flex flex-col justify-between">
                                 <div className="mb-4 text-left">
                                     <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight">{recommendedNextSprint?.title || "Growth Foundations"}</h3>
                                     <p className="text-xs md:text-sm text-gray-500 font-medium leading-relaxed mt-3 line-clamp-3">
@@ -1138,7 +1031,7 @@ const ParticipantDashboard: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </Link>
                 )}
             </div>
 
@@ -1578,193 +1471,6 @@ const ParticipantDashboard: React.FC = () => {
                     ))}
                 </div>
             )}
-
-            {/* Overview / Commitment / Payment Bottom Sheet Modal */}
-            <AnimatePresence>
-                {showOverviewSheet && recommendedNextSprint && (
-                    <>
-                        <div 
-                            className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick"
-                            onClick={() => !isProcessing && setShowOverviewSheet(false)}
-                        />
-                        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-5 sm:p-6 overflow-y-auto max-h-[60vh] sm:max-h-[55vh] pb-6 animate-slide-up-quick text-left">
-                            {/* Drag Handle indicator */}
-                            <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
-                            
-                            {overviewStep === 'overview' ? (
-                                // Step 1: Overview
-                                <div>
-                                    {/* Close button */}
-                                    <button 
-                                        onClick={() => setShowOverviewSheet(false)}
-                                        className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-                                    >
-                                        <X className="w-5 h-5" />
-                                    </button>
-
-                                    {/* Category / Duration */}
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850] bg-[#0E7850]/5 px-2.5 py-1 rounded-lg">
-                                            {recommendedNextSprint.category || "Growth"}
-                                        </span>
-                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg">
-                                            {recommendedNextSprint.duration || 7} Days
-                                        </span>
-                                    </div>
-
-                                    {/* Sprint Title */}
-                                    <h3 className="text-xl font-black tracking-tight leading-tight text-gray-900 mb-3">
-                                        {recommendedNextSprint.title}
-                                    </h3>
-
-                                    {/* Description */}
-                                    <div className="text-xs text-gray-600 font-medium leading-relaxed mb-4">
-                                        <FormattedText text={recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise."} />
-                                    </div>
-
-                                    {/* Action button */}
-                                    <button 
-                                        onClick={() => setOverviewStep('commitment')}
-                                        className="w-full py-3.5 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] shadow-xl hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2"
-                                    >
-                                        Continue
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7-7 7m7-7H3" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            ) : (
-                                // Step 2: Commitment & Payment
-                                <div>
-                                    {/* Back button */}
-                                    <button 
-                                        onClick={() => !isProcessing && setOverviewStep('overview')}
-                                        className="absolute top-5 left-5 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1 text-[9px] font-black uppercase tracking-wider"
-                                    >
-                                        <ChevronLeft className="w-4 h-4" />
-                                        Back
-                                    </button>
-
-                                    {/* Stay in your rise header */}
-                                    <h3 className="text-lg sm:text-xl font-black tracking-tight leading-tight text-center text-gray-900 italic mt-3 mb-4">
-                                        Stay in your rise
-                                    </h3>
-
-                                    {/* Commitments List */}
-                                    <div className="space-y-2 my-4 max-w-xs mx-auto">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 text-center mb-0.5">You'll</p>
-                                        {[
-                                          "Show up daily",
-                                          "Pay attention to what works",
-                                          "Finish what you start"
-                                        ].map((text, i) => (
-                                          <div key={i} className="flex items-center gap-2.5 pl-4">
-                                            <span className="text-[#0E7850] text-sm leading-none">•</span>
-                                            <span className="text-xs font-bold tracking-tight text-gray-800">{text}</span>
-                                          </div>
-                                        ))}
-                                    </div>
-
-                                    <p className="text-[10px] text-gray-400 font-bold text-center mb-4 px-4">
-                                        Small actions daily builds real momentum over time.
-                                    </p>
-
-                                    {/* Commitment Radio Button */}
-                                    <button 
-                                        onClick={() => !isProcessing && setIsCommitted(!isCommitted)}
-                                        disabled={isProcessing}
-                                        className={`w-full flex items-center gap-3.5 p-3.5 rounded-2xl transition-all border-2 mb-4 text-left ${
-                                            isCommitted 
-                                            ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
-                                            : 'bg-gray-50 border-gray-100 hover:border-gray-200 text-gray-400 hover:bg-white'
-                                        }`}
-                                    >
-                                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                                            isCommitted ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
-                                        }`}>
-                                            {isCommitted && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
-                                        </div>
-                                        <span className={`text-[11px] font-bold tracking-tight ${isCommitted ? 'text-gray-950' : 'text-gray-400'}`}>
-                                            I commit to showing up and finishing this
-                                        </span>
-                                    </button>
-
-                                    {/* WALLET / PRICING SECTION */}
-                                    <div className="bg-gray-50 rounded-2xl p-3.5 border border-gray-100 mb-4 space-y-2.5">
-                                        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-gray-400">
-                                            <span>Your Balance</span>
-                                            <span className="text-gray-900">{(user as Participant)?.walletBalance ?? 0} COINS</span>
-                                        </div>
-                                        <div className="h-[1px] bg-gray-200 w-full"></div>
-                                        <div className="space-y-2">
-                                            {/* Option 1: Coins */}
-                                            <label className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
-                                                paymentMethod === 'coins' 
-                                                ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
-                                                : 'bg-white border-gray-150 text-gray-500'
-                                            } ${((user as Participant)?.walletBalance ?? 0) < (recommendedNextSprint.pointCost || 10) ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                                <div className="flex items-center gap-2">
-                                                    <input 
-                                                        type="radio" 
-                                                        name="dashboard_payment_method" 
-                                                        checked={paymentMethod === 'coins'} 
-                                                        onChange={() => ((user as Participant)?.walletBalance ?? 0) >= (recommendedNextSprint.pointCost || 10) && setPaymentMethod('coins')}
-                                                        disabled={((user as Participant)?.walletBalance ?? 0) < (recommendedNextSprint.pointCost || 10) || isProcessing}
-                                                        className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
-                                                    />
-                                                    <span className="text-[11px] font-black uppercase text-gray-800">Use {recommendedNextSprint.pointCost || 10} Coins</span>
-                                                </div>
-                                                {((user as Participant)?.walletBalance ?? 0) < (recommendedNextSprint.pointCost || 10) && (
-                                                    <span className="text-[8px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded uppercase">Insufficient</span>
-                                                )}
-                                            </label>
-
-                                            {/* Option 2: Card (Naira) */}
-                                            <label className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
-                                                paymentMethod === 'card' 
-                                                ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
-                                                : 'bg-white border-gray-150 text-gray-500'
-                                            }`}>
-                                                <div className="flex items-center gap-2">
-                                                    <input 
-                                                        type="radio" 
-                                                        name="dashboard_payment_method" 
-                                                        checked={paymentMethod === 'card'} 
-                                                        onChange={() => setPaymentMethod('card')}
-                                                        disabled={isProcessing}
-                                                        className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
-                                                    />
-                                                    <span className="text-[11px] font-black uppercase text-gray-800">Pay with Card</span>
-                                                </div>
-                                                <span className="text-xs font-black text-gray-900">₦{recommendedNextSprint.price || 1000}</span>
-                                            </label>
-                                        </div>
-
-                                        <div className="text-center pt-0.5">
-                                            <span className="text-[9px] font-semibold text-gray-400">
-                                                Need more coins? <span className="underline cursor-pointer text-[#0E7850]" onClick={() => navigate('/buy-coins')}>Buy coins here</span>
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Start Day 1 Button */}
-                                    <button 
-                                        onClick={handleStartSprint}
-                                        disabled={!isCommitted || isProcessing}
-                                        className={`w-full py-3.5 rounded-2xl shadow-xl transition-all text-[10px] font-black tracking-[0.2em] uppercase text-center flex items-center justify-center gap-2 ${
-                                            isCommitted && !isProcessing
-                                            ? 'bg-gray-900 text-white hover:scale-[1.01] active:scale-95 shadow-gray-900/15' 
-                                            : 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                                        }`}
-                                    >
-                                        {isProcessing ? "Processing..." : "Start Day 1 Now"}
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </>
-                )}
-            </AnimatePresence>
 
           </div>
       </div>

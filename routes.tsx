@@ -38,6 +38,7 @@ import PartnerApply from './pages/Partner/PartnerApply';
 import PartnerDashboard from './pages/Partner/PartnerDashboard';
 
 import FocusSelector from './pages/Onboarding/FocusSelector';
+import ProgramDescription from './pages/Onboarding/ProgramDescription';
 import CommitmentFraming from './pages/Onboarding/CommitmentFraming';
 import SprintPayment from './pages/Onboarding/SprintPayment';
 import TheMap from './pages/Onboarding/TheMap';
@@ -130,7 +131,7 @@ export const AppRoutes: React.FC = () => {
       {/* Consolidated Onboarding Paths */}
       <Route path="/onboarding/welcome" element={<Welcome />} />
       <Route path="/onboarding/focus-selector" element={<FocusSelector />} />
-      <Route path="/onboarding/description/:sprintId" element={<SprintLandingPage />} />
+      <Route path="/onboarding/description/:sprintId" element={<ProgramDescription />} />
       <Route path="/onboarding/commitment" element={<CommitmentFraming />} />
       <Route path="/onboarding/sprint-payment" element={<SprintPayment />} />
       <Route path="/onboarding/map" element={<TheMap />} />

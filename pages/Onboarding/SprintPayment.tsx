@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { X } from 'lucide-react';
-import { toast } from 'sonner';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
 import { paymentService } from '../../services/paymentService';
@@ -209,23 +208,8 @@ const SprintPayment: React.FC = () => {
                   return;
               }
               // Scenario 2: Account exists but no active enrollment - proceed to payment
-          } else {
-              // Scenario 3: No account (first-time guest) -> It's completely free!
-              if (sprintId) {
-                  toast.success("Congratulations! Your first sprint is completely free!");
-                  navigate('/signup', {
-                      state: {
-                          fromPayment: true,
-                          targetSprintId: sprintId,
-                          prefilledEmail: effectiveEmail.toLowerCase().trim(),
-                          authMessage: "This is your first sprint—it's completely free! Create an account to start."
-                      },
-                      replace: true
-                  });
-                  setIsProcessing(false);
-                  return;
-              }
           }
+          // Scenario 3: No account - proceed to payment
       }
 
       const checkoutUrl = await paymentService.initializeFlutterwave(payload);
