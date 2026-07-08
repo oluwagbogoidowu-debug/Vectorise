@@ -151,13 +151,8 @@ const SprintLandingPage: React.FC = () => {
                 // Always proceed directly to day one preview flow to allow preview before logging in (as requested)
                 analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, existing_user: emailExists }, undefined, guestEmail);
                 
-                setCommitmentContext({
-                    isGuest: true,
-                    emailExists,
-                    guestEmail
-                });
-                setIsCommitted(false);
-                setShowCommitmentSheet(true);
+                // Navigate directly to sprint preview page without any modal or commitment sheet
+                navigate(`/sprint/preview/${sprint.id}`, { state: { sprintId: sprint.id, sprint: sprint, prefilledEmail: guestEmail } });
             } catch (err) {
                 console.error("Error checking email:", err);
                 setEmailError("Something went wrong. Please try again.");
