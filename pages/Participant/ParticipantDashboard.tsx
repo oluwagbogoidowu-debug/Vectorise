@@ -991,7 +991,7 @@ const ParticipantDashboard: React.FC = () => {
                     <Link to={recommendedNextSprint ? `/sprint/${recommendedNextSprint.id}` : "/explore"} className="block group animate-fade-in">
                         <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-150 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[260px]">
                             {/* Left Image Section */}
-                            <div className="w-full md:w-2/5 h-24 md:h-auto relative overflow-hidden">
+                            <div className="w-full md:w-2/5 h-48 md:h-auto relative overflow-hidden">
                                 <img 
                                     src={recommendedNextSprint?.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
                                     alt="" 
@@ -1016,8 +1016,9 @@ const ParticipantDashboard: React.FC = () => {
                             
                             {/* Right Content Section */}
                             <div className="flex-1 p-6 md:p-8 lg:p-10 flex flex-col justify-between">
-                                <div className="mb-4 text-left">
-                                    <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight">{recommendedNextSprint?.title || "Growth Foundations"}</h3>
+                                <div className="mb-4">
+                                    <p className="text-[9px] md:text-[10px] font-black text-rose-600 uppercase tracking-[0.1em]">{recommendedNextSprint?.category || "Growth"}</p>
+                                    <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight mt-1">{recommendedNextSprint?.title || "Growth Foundations"}</h3>
                                     <p className="text-xs md:text-sm text-gray-500 font-medium leading-relaxed mt-3 line-clamp-3">
                                         {recommendedNextSprint?.description || recommendedNextSprint?.subtitle || "Unlock consistency and start your rise with templates."}
                                     </p>
