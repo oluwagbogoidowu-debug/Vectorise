@@ -197,8 +197,8 @@ const SprintPreview: React.FC = () => {
     const location = useLocation();
     const { user } = useAuth();
     
-    const [sprint, setSprint] = useState<Sprint | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [sprint, setSprint] = useState<Sprint | null>(location.state?.sprint || null);
+    const [isLoading, setIsLoading] = useState(!location.state?.sprint);
     const [activeTaskIndex, setActiveTaskIndex] = useState(0);
     const [taskInputs, setTaskInputs] = useState<string[]>([]);
     const [showSignupModal, setShowSignupModal] = useState(false);
@@ -226,12 +226,40 @@ const SprintPreview: React.FC = () => {
 
     useEffect(() => {
         if (!sprintId) return;
-        setIsLoading(true);
-        const unsubscribe = sprintService.subscribeToSprint(sprintId, (data) => {
-            setSprint(data);
-            setIsLoading(false);
-        });
+        
+        console.log("[SprintPreview] Initializing subscription or loading static fallback for sprint ID:", sprintId);
+        
+        // As a reliable and direct fallback, load static sprint data.
+        // This is safe from snapshot/permissions issues on Firestore for guest users.
+        let active = true;
+        sprintService.getSprintById(sprintId)
+            .then(data => {
+                if (active && data) {
+                    console.log("[SprintPreview] Successfully fetched static sprint data:", data.id);
+                    setSprint(data);
+                    setIsLoading(false);
+                }
+            })
+            .catch(err => {
+                console.error("[SprintPreview] Error fetching static sprint data:", err);
+            });
+
+        // Also subscribe for realtime updates, wrapping in try/catch to avoid crash if permissions are missing
+        let unsubscribe = () => {};
+        try {
+            unsubscribe = sprintService.subscribeToSprint(sprintId, (data) => {
+                if (active && data) {
+                    console.log("[SprintPreview] Received realtime sprint details snapshot updates.");
+                    setSprint(data);
+                    setIsLoading(false);
+                }
+            });
+        } catch (err) {
+            console.error("[SprintPreview] Realtime subscription failed (usually expected for guest users):", err);
+        }
+
         return () => {
+            active = false;
             unsubscribe();
         };
     }, [sprintId]);

@@ -241,6 +241,18 @@ export const sprintService = {
                     callback(null);
                 }
             }
+        }, (error) => {
+            console.error("Error listening to sprint details snapshot:", error);
+            // Fallback to static fetch to make sure the callback receives the data
+            sprintService.getSprintById(sprintId)
+                .then(data => {
+                    if (data) {
+                        callback(data);
+                    }
+                })
+                .catch(err => {
+                    console.error("Static fallback also failed for detailsRef in subscribeToSprint:", err);
+                });
         });
 
         // Listen to the days subcollection
