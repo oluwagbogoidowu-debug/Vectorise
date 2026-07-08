@@ -146,18 +146,18 @@ const SprintLandingPage: React.FC = () => {
             setEmailError('');
             try {
                 const emailExists = await userService.checkEmailExists(guestEmail);
-                localStorage.setItem('guest_email', guestEmail);
+                localStorage.setItem('guest_email', guestEmail.toLowerCase().trim());
                 
                 // Always proceed directly to day one preview flow to allow preview before logging in (as requested)
                 analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, existing_user: emailExists }, undefined, guestEmail);
                 
-                setCommitmentContext({
-                    isGuest: true,
-                    emailExists,
-                    guestEmail
+                toast.success("Enjoy Day 1 of your sprint!");
+                navigate(`/sprint/preview/${sprint.id}`, {
+                    state: {
+                        prefilledEmail: guestEmail.toLowerCase().trim()
+                    },
+                    replace: true
                 });
-                setIsCommitted(false);
-                setShowCommitmentSheet(true);
             } catch (err) {
                 console.error("Error checking email:", err);
                 setEmailError("Something went wrong. Please try again.");

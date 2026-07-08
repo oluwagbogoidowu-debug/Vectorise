@@ -211,6 +211,8 @@ const SprintPreview: React.FC = () => {
 
     const prefilledEmail = location.state?.prefilledEmail || localStorage.getItem('guest_email');
 
+    const day1Content = (sprint && Array.isArray(sprint.dailyContent)) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
+
     useEffect(() => {
         window.scrollTo(0, 0);
     }, []);
@@ -319,7 +321,7 @@ const SprintPreview: React.FC = () => {
     }
     if (!sprint) return <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center"><h2 className="text-base font-black mb-4">Sprint not found.</h2><button onClick={() => navigate('/discover')} className="text-primary font-black uppercase tracking-widest text-xs">Back to Discover</button></div>;
 
-    const day1Content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
+    // day1Content is now declared at the top of the component
 
     const getLinkedTagsForStep = (stepIndex: number): string[] => {
         if (!day1Content) return [];
