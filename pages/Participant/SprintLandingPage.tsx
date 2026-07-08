@@ -122,15 +122,16 @@ const SprintLandingPage: React.FC = () => {
 
     // Set default payment method when commitment sheet is shown
     useEffect(() => {
-        if (showCommitmentSheet) {
+        if (showCommitmentSheet && sprint) {
             const userBalance = (user as Participant)?.walletBalance || 0;
-            if (userBalance >= 10) {
+            const neededCoins = sprint.pointCost || 10;
+            if (userBalance >= neededCoins) {
                 setPaymentMethod('coins');
             } else {
                 setPaymentMethod('card');
             }
         }
-    }, [showCommitmentSheet, user]);
+    }, [showCommitmentSheet, user, sprint]);
 
     const handleJoinClick = async () => {
         if (!sprint) return;
@@ -219,15 +220,16 @@ const SprintLandingPage: React.FC = () => {
                 if (!user) return;
                 if (paymentMethod === 'coins') {
                     const userBalance = (user as Participant).walletBalance || 0;
-                    if (userBalance < 10) {
-                        toast.error("Insufficient coins. Please select card payment or buy more coins.");
+                    const neededCoins = sprint.pointCost || 10;
+                    if (userBalance < neededCoins) {
+                        toast.error(`Insufficient coins. Please select card payment or buy more coins.`);
                         setIsProcessingPayment(false);
                         return;
                     }
 
                     // Process wallet transaction
                     await userService.processWalletTransaction(user.id, {
-                        amount: -10,
+                        amount: -neededCoins,
                         type: 'purchase',
                         description: `Unlocked ${sprint.title} via Credits`,
                         auditId: sprint.id
@@ -670,19 +672,19 @@ const SprintLandingPage: React.FC = () => {
                                         paymentMethod === 'coins' 
                                         ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
                                         : 'bg-white border-gray-150 text-gray-500'
-                                    } ${((user as Participant)?.walletBalance ?? 0) < 10 ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                    } ${((user as Participant)?.walletBalance ?? 0) < (sprint.pointCost || 10) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                         <div className="flex items-center gap-2">
                                             <input 
                                                 type="radio" 
                                                 name="landing_payment_method" 
                                                 checked={paymentMethod === 'coins'} 
-                                                onChange={() => ((user as Participant)?.walletBalance ?? 0) >= 10 && setPaymentMethod('coins')}
-                                                disabled={((user as Participant)?.walletBalance ?? 0) < 10 || isProcessingPayment}
+                                                onChange={() => ((user as Participant)?.walletBalance ?? 0) >= (sprint.pointCost || 10) && setPaymentMethod('coins')}
+                                                disabled={((user as Participant)?.walletBalance ?? 0) < (sprint.pointCost || 10) || isProcessingPayment}
                                                 className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
                                             />
-                                            <span className="text-[11px] font-black uppercase text-gray-800">Use 10 Coins</span>
+                                            <span className="text-[11px] font-black uppercase text-gray-800">Use {sprint.pointCost || 10} Coins</span>
                                         </div>
-                                        {((user as Participant)?.walletBalance ?? 0) < 10 && (
+                                        {((user as Participant)?.walletBalance ?? 0) < (sprint.pointCost || 10) && (
                                             <span className="text-[8px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded uppercase">Insufficient</span>
                                         )}
                                     </label>
@@ -716,16 +718,12 @@ const SprintLandingPage: React.FC = () => {
                             </div>
                         ) : (
                             // Guest Checkout Price display
-                            <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 mb-4 text-left flex justify-between items-center">
-                                <span className="text-xs font-black uppercase text-gray-400">Total Price</span>
-                                {commitmentContext?.emailExists === false ? (
-                                    <span className="text-xs font-black text-[#0E7850] bg-[#0E7850]/10 px-2.5 py-1 rounded-lg">
-                                        FREE (First Sprint)
-                                    </span>
-                                ) : (
+                            commitmentContext?.emailExists !== false && (
+                                <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100 mb-4 text-left flex justify-between items-center">
+                                    <span className="text-xs font-black uppercase text-gray-400">Total Price</span>
                                     <span className="text-xs font-black text-gray-900">₦{sprint.price || 1000}</span>
-                                )}
-                            </div>
+                                </div>
+                            )
                         )}
 
                         {/* Start Day 1 Now / Continue button */}

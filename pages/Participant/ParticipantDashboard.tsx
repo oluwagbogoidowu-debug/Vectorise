@@ -141,18 +141,6 @@ const ParticipantDashboard: React.FC = () => {
     }
   }, [activePlayIgnite]);
 
-  // Set default payment method when overview sheet is shown
-  useEffect(() => {
-    if (showOverviewSheet) {
-      const userBalance = (user as Participant)?.walletBalance || 0;
-      if (userBalance >= 10) {
-        setPaymentMethod('coins');
-      } else {
-        setPaymentMethod('card');
-      }
-    }
-  }, [showOverviewSheet, user]);
-
   // Read checked state for all ignites
   useEffect(() => {
     const checkedMap: Record<string, boolean> = {};
@@ -320,6 +308,19 @@ const ParticipantDashboard: React.FC = () => {
 
     return list[0] || publishedSprints[0] || null;
   }, [publishedSprints, allEnrollments, user, orchestration]);
+
+  // Set default payment method when overview sheet is shown
+  useEffect(() => {
+    if (showOverviewSheet && recommendedNextSprint) {
+      const userBalance = (user as Participant)?.walletBalance || 0;
+      const neededCoins = recommendedNextSprint.pointCost || 10;
+      if (userBalance >= neededCoins) {
+        setPaymentMethod('coins');
+      } else {
+        setPaymentMethod('card');
+      }
+    }
+  }, [showOverviewSheet, user, recommendedNextSprint]);
 
   const latestBlogPost = useMemo(() => {
     return blogService.getPosts()[0] || null;
@@ -748,15 +749,16 @@ const ParticipantDashboard: React.FC = () => {
     try {
         if (paymentMethod === 'coins') {
             const userBalance = (user as Participant).walletBalance || 0;
-            if (userBalance < 10) {
-                toast.error("Insufficient coins. Please select another payment method or purchase more coins.");
+            const neededCoins = recommendedNextSprint.pointCost || 10;
+            if (userBalance < neededCoins) {
+                toast.error(`Insufficient coins. Please select another payment method or purchase more coins.`);
                 setIsProcessing(false);
                 return;
             }
 
             // 1. Process wallet transaction
             await userService.processWalletTransaction(user.id, {
-                amount: -10,
+                amount: -neededCoins,
                 type: 'purchase',
                 description: `Unlocked ${recommendedNextSprint.title} via Credits`,
                 auditId: recommendedNextSprint.id
@@ -1700,19 +1702,19 @@ const ParticipantDashboard: React.FC = () => {
                                                 paymentMethod === 'coins' 
                                                 ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
                                                 : 'bg-white border-gray-150 text-gray-500'
-                                            } ${((user as Participant)?.walletBalance ?? 0) < 10 ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                            } ${((user as Participant)?.walletBalance ?? 0) < (recommendedNextSprint.pointCost || 10) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                                 <div className="flex items-center gap-2">
                                                     <input 
                                                         type="radio" 
                                                         name="dashboard_payment_method" 
                                                         checked={paymentMethod === 'coins'} 
-                                                        onChange={() => ((user as Participant)?.walletBalance ?? 0) >= 10 && setPaymentMethod('coins')}
-                                                        disabled={((user as Participant)?.walletBalance ?? 0) < 10 || isProcessing}
+                                                        onChange={() => ((user as Participant)?.walletBalance ?? 0) >= (recommendedNextSprint.pointCost || 10) && setPaymentMethod('coins')}
+                                                        disabled={((user as Participant)?.walletBalance ?? 0) < (recommendedNextSprint.pointCost || 10) || isProcessing}
                                                         className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
                                                     />
-                                                    <span className="text-[11px] font-black uppercase text-gray-800">Use 10 Coins</span>
+                                                    <span className="text-[11px] font-black uppercase text-gray-800">Use {recommendedNextSprint.pointCost || 10} Coins</span>
                                                 </div>
-                                                {((user as Participant)?.walletBalance ?? 0) < 10 && (
+                                                {((user as Participant)?.walletBalance ?? 0) < (recommendedNextSprint.pointCost || 10) && (
                                                     <span className="text-[8px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded uppercase">Insufficient</span>
                                                 )}
                                             </label>
