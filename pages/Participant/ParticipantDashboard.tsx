@@ -671,13 +671,14 @@ const ParticipantDashboard: React.FC = () => {
     return "Today's Focus";
   }, [cardState, completedDaysCount]);
 
-  // Delay streak text in well_done state
+  // Alternate streak text and come back tomorrow text in well_done state
   useEffect(() => {
     if (cardState === 'well_done') {
-      const timer = setTimeout(() => {
-        setShowStreakText(true);
+      setShowStreakText(false);
+      const interval = setInterval(() => {
+        setShowStreakText(prev => !prev);
       }, 4000);
-      return () => clearTimeout(timer);
+      return () => clearInterval(interval);
     } else {
       setShowStreakText(false);
     }
@@ -911,16 +912,35 @@ const ParticipantDashboard: React.FC = () => {
                         <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                     </div>
                     
-                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
-                        <div className="relative z-10 min-w-0 text-left animate-fade-in">
-                            <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
-                                Come back tomorrow.
-                            </p>
-                            {showStreakText && (
-                                <p className="text-[10px] sm:text-xs font-bold text-[#0E7850] mt-1 leading-snug uppercase tracking-wider animate-fade-in">
-                                    Don’t break the streak.
-                                </p>
-                            )}
+                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 min-h-[72px] md:min-h-[84px]">
+                        <div className="relative z-10 min-w-0 text-left w-full">
+                            <AnimatePresence mode="wait">
+                                {!showStreakText ? (
+                                    <motion.div
+                                        key="come_back"
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: 0.3, ease: "easeOut" }}
+                                    >
+                                        <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
+                                            Come back tomorrow.
+                                        </p>
+                                    </motion.div>
+                                ) : (
+                                    <motion.div
+                                        key="streak_text"
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: 0.3, ease: "easeOut" }}
+                                    >
+                                        <p className="text-sm sm:text-base md:text-lg font-black text-[#0E7850] uppercase tracking-tight leading-tight">
+                                            Don’t break the streak.
+                                        </p>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </div>
                 </div>

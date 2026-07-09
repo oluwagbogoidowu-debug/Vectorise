@@ -928,6 +928,168 @@ const SprintCardModal: React.FC<{
   );
 };
 
+const SprintOverviewSheet: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  sprint: Sprint | null;
+  coach: Coach | null;
+}> = ({ isOpen, onClose, sprint, coach }) => {
+  if (!isOpen || !sprint) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-end justify-center animate-fade-in font-sans">
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-200 cursor-pointer"
+      />
+
+      {/* Sheet */}
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[201] p-6 overflow-y-auto max-h-[85vh] pb-8 animate-slide-up-quick text-left font-sans custom-scrollbar">
+        {/* Drag Handle indicator */}
+        <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-5"></div>
+
+        {/* Header Action */}
+        <div className="flex justify-between items-start mb-4 gap-2">
+          <div>
+            <span className="text-[9px] font-black bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 rounded-full uppercase tracking-widest inline-block mb-1.5">
+              {sprint.category || "Sprint Mission"}
+            </span>
+            <h2 className="text-xl font-black text-gray-900 tracking-tight leading-tight uppercase">
+              {sprint.title}
+            </h2>
+            {sprint.subtitle && (
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">
+                {sprint.subtitle}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-50 transition-colors cursor-pointer shrink-0"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Quick Metrics Grid */}
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
+            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-1">Duration</span>
+            <span className="text-xs font-black text-gray-800 uppercase tracking-wide flex items-center gap-1.5">
+              ⏱️ {sprint.duration} Days
+            </span>
+          </div>
+          <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
+            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-1">Difficulty</span>
+            <span className="text-xs font-black text-primary uppercase tracking-wide flex items-center gap-1.5">
+              🛡️ {sprint.difficulty || "All Levels"}
+            </span>
+          </div>
+        </div>
+
+        {/* Cover Image */}
+        {sprint.coverImageUrl && (
+          <img
+            src={sprint.coverImageUrl}
+            alt=""
+            className="w-full h-36 object-cover rounded-2xl mb-5 border border-gray-100 shadow-sm"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80';
+            }}
+          />
+        )}
+
+        {/* Scrollable Content Details */}
+        <div className="space-y-5 pr-1 max-h-[40vh] overflow-y-auto custom-scrollbar">
+          {/* Mission Statement */}
+          {sprint.description && (
+            <div className="p-4 bg-emerald-50/40 border border-emerald-500/10 rounded-2xl">
+              <span className="text-[9px] font-black text-[#0E7850] uppercase tracking-widest block mb-1.5">
+                The Mission Overview
+              </span>
+              <p className="text-xs text-gray-750 font-medium leading-relaxed">
+                {sprint.description}
+              </p>
+            </div>
+          )}
+
+          {/* Ultimate Transformation */}
+          {sprint.transformation && (
+            <div className="p-4 bg-indigo-50/30 border border-indigo-500/10 rounded-2xl">
+              <span className="text-[9px] font-black text-indigo-700 uppercase tracking-widest block mb-1.5">
+                The Transformation Outcome
+              </span>
+              <p className="text-xs text-gray-750 font-medium leading-relaxed italic">
+                "{sprint.transformation}"
+              </p>
+            </div>
+          )}
+
+          {/* Target Audience: For Who */}
+          {sprint.forWho && sprint.forWho.length > 0 && (
+            <div>
+              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">
+                Who is this designed for?
+              </span>
+              <ul className="space-y-1.5">
+                {sprint.forWho.map((item, idx) => (
+                  <li key={idx} className="flex items-start gap-2 text-xs font-medium text-gray-700">
+                    <span className="text-emerald-500 text-xs mt-0.5">✓</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Key Expected Outcomes */}
+          {sprint.outcomes && sprint.outcomes.length > 0 && (
+            <div className="pt-2 border-t border-gray-50">
+              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">
+                Core Sprints Outcomes
+              </span>
+              <ul className="space-y-1.5">
+                {sprint.outcomes.map((item, idx) => (
+                  <li key={idx} className="flex items-start gap-2 text-xs font-medium text-gray-700">
+                    <span className="text-indigo-500 text-xs mt-0.5">✦</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Coach Profile */}
+          {coach && (
+            <div className="pt-4 border-t border-gray-50 flex items-center gap-3">
+              <img
+                src={coach.profileImageUrl || "https://picsum.photos/seed/coach/100/100"}
+                alt=""
+                className="w-10 h-10 rounded-full object-cover border border-gray-150 shadow-xs"
+              />
+              <div>
+                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block">Led By Coach</span>
+                <span className="text-xs font-black text-gray-800 leading-none">{coach.name}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Action Button to Dismiss */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full mt-6 py-4 bg-gray-900 hover:bg-gray-850 active:scale-98 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-2xl transition-all shadow-md cursor-pointer text-center"
+        >
+          Continue Learning
+        </button>
+      </div>
+    </div>
+  );
+};
+
 interface SprintViewProps {
   isPreview?: boolean;
   previewSprintId?: string;
@@ -952,6 +1114,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [coach, setCoach] = useState<Coach | null>(null);
   const [isSprintCardModalOpen, setIsSprintCardModalOpen] = useState(false);
+  const [isSprintOverviewOpen, setIsSprintOverviewOpen] = useState(false);
 
   useEffect(() => {
     if (sprint?.coachId) {
@@ -2183,9 +2346,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                   Sprint Preview
                 </span>
                 <div className="flex items-center gap-2">
-                  <Link
-                    to={`/sprint/${sprint.id}`}
-                    className="p-2 bg-white border border-gray-100 rounded-xl shadow-sm text-gray-400 active:scale-95 transition-all flex items-center justify-center"
+                  <button
+                    type="button"
+                    onClick={() => setIsSprintOverviewOpen(true)}
+                    className="p-2 bg-white border border-gray-100 rounded-xl shadow-sm text-gray-400 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
                     title="Sprint Description"
                   >
                     <svg
@@ -2201,7 +2365,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                         d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
-                  </Link>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setIsSprintCardModalOpen(true)}
@@ -2227,9 +2391,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               </div>
             ) : (
               <div className="flex gap-2">
-                <Link
-                  to={`/sprint/${sprint.id}`}
-                  className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
+                <button
+                  type="button"
+                  onClick={() => setIsSprintOverviewOpen(true)}
+                  className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all cursor-pointer"
+                  title="Sprint Description"
                 >
                   <svg
                     className="w-5 h-5"
@@ -2244,7 +2410,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                       d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
-                </Link>
+                </button>
                 <button
                   onClick={() => setIsChatModalOpen(true)}
                   disabled={dayLockDetails.isLocked}
@@ -2420,8 +2586,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               exit={{ opacity: 0, x: -12 }}
                               transition={{ duration: 0.2, ease: "easeInOut" }}
                               className={isFullBleed 
-                                ? "fixed inset-0 z-50 bg-transparent overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in" 
-                                : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left"
+                                ? "fixed inset-0 z-50 bg-transparent overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in !transition-none" 
+                                : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left !transition-none"
                               }
                             >
                               {/* Full-bleed Focus Toggle Button in Top Right */}
@@ -2429,7 +2595,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 <button
                                   type="button"
                                   onClick={() => setIsFullBleed(!isFullBleed)}
-                                  className="p-2 rounded-xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-sm transition-all cursor-pointer flex items-center justify-center active:scale-95"
+                                  className="p-2 rounded-xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-sm !transition-all !duration-75 cursor-pointer flex items-center justify-center active:scale-95"
                                   title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
                                 >
                                   {isFullBleed ? (
@@ -2448,17 +2614,17 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 {/* Progress Bar under Action Step header in Full Bleed */}
                                 {isFullBleed && (
                                   <div className="w-full mb-2 animate-fade-in font-sans -mt-2">
-                                    <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.4em] text-emerald-600 mb-2">
+                                    <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.4em] text-[#0E7850] mb-2">
                                       <span className="flex items-center gap-2">
                                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                        {Math.round((i / (dayContent?.taskPrompts?.length || 1)) * 100)}% Complete
+                                        {dayProgress?.completed ? "100" : (i === (dayContent?.taskPrompts?.length || 1) - 1 ? "88" : Math.round((i / (dayContent?.taskPrompts?.length || 1)) * 100))}% Complete
                                       </span>
-                                      <span className="font-bold">{(dayContent?.taskPrompts?.length || 1) - (i + 1)} more steps to go</span>
+                                      <span className="font-bold">{dayProgress?.completed ? "0" : (i === (dayContent?.taskPrompts?.length || 1) - 1 ? "0" : (dayContent?.taskPrompts?.length || 1) - (i + 1))} more steps to go</span>
                                     </div>
                                     <div className="w-full bg-emerald-500/10 rounded-full h-1.5 overflow-hidden shadow-inner font-sans">
                                       <div 
                                         className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out animate-pulse" 
-                                        style={{ width: `${((i + 1) / (dayContent?.taskPrompts?.length || 1)) * 100}%` }}
+                                        style={{ width: dayProgress?.completed ? "100%" : (i === (dayContent?.taskPrompts?.length || 1) - 1 ? "88%" : `${((i + 1) / (dayContent?.taskPrompts?.length || 1)) * 100}%`) }}
                                       />
                                     </div>
                                   </div>
@@ -3179,8 +3345,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                     ) : (
                       <div 
                           className={isFullBleed 
-                            ? "fixed inset-0 z-50 bg-transparent overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in" 
-                            : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left"
+                            ? "fixed inset-0 z-50 bg-transparent overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in !transition-none" 
+                            : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left !transition-none"
                           }
                         >
                         {/* Full-bleed Focus Toggle Button in Top Right */}
@@ -3188,7 +3354,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                           <button
                             type="button"
                             onClick={() => setIsFullBleed(!isFullBleed)}
-                            className="p-2 rounded-xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-sm transition-all cursor-pointer flex items-center justify-center active:scale-95"
+                            className="p-2 rounded-xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-sm !transition-all !duration-75 cursor-pointer flex items-center justify-center active:scale-95"
                             title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
                           >
                             {isFullBleed ? (
@@ -3214,14 +3380,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.4em] text-[#0E7850] mb-2">
                                 <span className="flex items-center gap-2">
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                  {dayProgress?.completed ? "100" : "0"}% Complete
+                                  {dayProgress?.completed ? "100" : "88"}% Complete
                                 </span>
                                 <span className="font-bold">0 more steps to go</span>
                               </div>
                               <div className="w-full bg-emerald-500/10 rounded-full h-1.5 overflow-hidden shadow-inner font-sans">
                                 <div 
                                   className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out animate-pulse" 
-                                  style={{ width: dayProgress?.completed ? "100%" : "50%" }}
+                                  style={{ width: dayProgress?.completed ? "100%" : "88%" }}
                                 />
                               </div>
                             </div>
@@ -3910,6 +4076,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       <SprintCardModal
         isOpen={isSprintCardModalOpen}
         onClose={() => setIsSprintCardModalOpen(false)}
+        sprint={sprint}
+        coach={coach}
+      />
+      <SprintOverviewSheet
+        isOpen={isSprintOverviewOpen}
+        onClose={() => setIsSprintOverviewOpen(false)}
         sprint={sprint}
         coach={coach}
       />
