@@ -351,12 +351,13 @@ const SprintLandingPage: React.FC = () => {
 
     return (
         <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
-            <div className="max-w-screen-lg mx-auto px-4 pt-4">
-                <div className="flex justify-between items-center mb-6">
+            {/* NAVIGATION HEADER - Full Width */}
+            <header className="bg-white border-b border-gray-100 py-4 px-4 sm:px-6 lg:px-8">
+                <div className="max-w-screen-lg mx-auto flex justify-between items-center">
                     {user ? (
                         <button 
                             onClick={() => navigate('/explore')} 
-                            className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest"
+                            className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest cursor-pointer"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-2 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -369,7 +370,7 @@ const SprintLandingPage: React.FC = () => {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={handleShare}
-                            className="bg-white px-4 py-1.5 rounded-xl border border-gray-200 text-gray-500 hover:text-primary transition-colors flex items-center gap-2 text-[11px] font-black uppercase tracking-widest shadow-sm"
+                            className="bg-white px-4 py-1.5 rounded-xl border border-gray-200 text-gray-500 hover:text-primary transition-colors flex items-center gap-2 text-[11px] font-black uppercase tracking-widest shadow-sm cursor-pointer"
                         >
                             <Share2 className="w-3.5 h-3.5" />
                             Share
@@ -380,40 +381,56 @@ const SprintLandingPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            </header>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    <div className="lg:col-span-8 space-y-8">
-                        {/* HERO SECTION */}
-                        <div className="relative h-[280px] sm:h-[340px] lg:h-[440px] rounded-[3rem] overflow-hidden shadow-2xl group border-4 border-white bg-dark">
-                            <img 
-                                src={imageError || !sprint.coverImageUrl ? fallbackImage : sprint.coverImageUrl} 
-                                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
-                                alt={sprint.title} 
-                                onError={() => setImageError(true)}
-                                referrerPolicy="no-referrer"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
-                            <div className="absolute bottom-10 left-10 right-10 text-white">
-                                <div className="mb-4">
-                                    <span className="pl-3 pr-2 py-1.5 bg-[#0E7850] text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg inline-flex items-center">
-                                        {isFoundational ? 'FOUNDATIONAL PATH' : 'PREMIUM SPRINT'}
-                                    </span>
-                                </div>
-                                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-4">
-                                    <FormattedText text={sprint.title} inline />
-                                </h1>
-                                {sprint.subtitle && (
-                                    <p className="text-white/70 text-sm md:text-base font-medium tracking-tight mb-6 leading-snug max-w-xl">
-                                        {sprint.subtitle}
-                                    </p>
-                                )}
-                                <div className="flex items-center gap-2 text-white/40 text-[11px] font-black uppercase tracking-[0.2em]">
-                                    <Clock className="w-3 h-3" />
-                                    {sprint.duration} DAY JOURNEY
-                                </div>
+            {/* MODERN FULL-WIDTH HERO HEADER SECTION */}
+            <div className="relative w-full h-[320px] sm:h-[380px] lg:h-[460px] bg-[#0c1310] overflow-hidden">
+                <img 
+                    src={imageError || !sprint.coverImageUrl ? fallbackImage : sprint.coverImageUrl} 
+                    className="w-full h-full object-cover object-center scale-[1.01] filter brightness-[0.7] contrast-[1.02]" 
+                    alt={sprint.title} 
+                    onError={() => setImageError(true)}
+                    referrerPolicy="no-referrer"
+                />
+                
+                {/* Visual Gradient Overlays */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0c1310] via-[#0c1310]/50 to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-[#0c1310]/60 via-transparent to-[#0c1310]/40"></div>
+
+                {/* Content aligned inside a beautiful centered container */}
+                <div className="absolute inset-0 flex flex-col justify-end">
+                    <div className="max-w-screen-lg w-full mx-auto px-4 sm:px-6 lg:px-8 pb-10 sm:pb-12">
+                        <div className="space-y-4 animate-fade-in max-w-2xl">
+                            <div>
+                                <span className="px-3 py-1 bg-[#0E7850] text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] shadow-lg inline-flex items-center gap-1.5 border border-[#159E6A]/20">
+                                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+                                    {isFoundational ? 'FOUNDATIONAL PATH' : 'PREMIUM SPRINT'}
+                                </span>
+                            </div>
+                            
+                            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter text-white leading-[1.05] uppercase">
+                                <FormattedText text={sprint.title} inline />
+                            </h1>
+                            
+                            {sprint.subtitle && (
+                                <p className="text-white/85 text-xs sm:text-sm font-semibold tracking-tight leading-relaxed max-w-xl">
+                                    {sprint.subtitle}
+                                </p>
+                            )}
+                            
+                            <div className="pt-2 flex items-center gap-2 text-white/50 text-[10px] font-black uppercase tracking-[0.2em]">
+                                <Clock className="w-3.5 h-3.5 text-[#159E6A]" />
+                                <span>{sprint.duration} DAY JOURNEY</span>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
 
+            {/* TWO-COLUMN CONTENT LAYOUT */}
+            <div className="max-w-screen-lg mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-12">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
+                    <div className="lg:col-span-8">
                         {/* MAIN CONTENT */}
                         <div className="space-y-8">
                             {(displayDescription || hasDynamicContent) && (
@@ -442,87 +459,101 @@ const SprintLandingPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <aside className="lg:col-span-4 space-y-6">
-                        <div className="bg-white rounded-[3rem] p-10 md:p-12 border border-gray-100 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] lg:sticky lg:top-8 overflow-hidden relative group/card">
-                            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary/40 via-primary to-primary/40"></div>
-                            
-                            {/* Decorative Background Element */}
-                            <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl group-hover/card:bg-primary/10 transition-colors duration-700"></div>
-
-                            <div className="text-center mb-10 relative z-10">
-                                <SectionHeading>Sprint Status</SectionHeading>
-                                {enrollmentStatus === 'none' && (
-                                    <div className="flex flex-col items-center">
-                                        <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1">Path Ready</h3>
-                                        <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Start Now</p>
+                    <aside className="lg:col-span-4">
+                        <div className="bg-white border border-gray-100 rounded-3xl p-6 sm:p-8 relative lg:sticky lg:top-8">
+                            {/* Simple Card Design - Clean flat layout without decorative blobs or top gradients */}
+                            <div className="relative z-10">
+                                {enrollmentStatus === 'none' ? (
+                                    <div className="mb-6">
+                                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Path Ready</h3>
+                                        <p className="text-xs font-semibold text-gray-500 leading-relaxed">
+                                            Start by seeing how you actually spend your time.
+                                        </p>
                                     </div>
-                                )}
-                                {enrollmentStatus === 'active' && (
-                                    <div className="flex flex-col items-center gap-2">
-                                        <div className="bg-emerald-50 text-emerald-600 px-5 py-2.5 rounded-2xl border border-emerald-100 flex items-center gap-2 font-black uppercase text-[12px] tracking-widest animate-pulse shadow-sm">
-                                            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                                ) : enrollmentStatus === 'active' ? (
+                                    <div className="mb-6">
+                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-black uppercase tracking-wider mb-2">
+                                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                                             In Progress
                                         </div>
+                                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Sprint Active</h3>
+                                        <p className="text-xs font-semibold text-gray-500 leading-relaxed">
+                                            Continue your current sprint to build momentum.
+                                        </p>
+                                    </div>
+                                ) : enrollmentStatus === 'queued' ? (
+                                    <div className="mb-6">
+                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-black uppercase tracking-wider mb-2">
+                                            <Clock className="w-3 h-3" />
+                                            Enrolled
+                                        </div>
+                                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">In Upcoming Queue</h3>
+                                        <p className="text-xs font-semibold text-gray-500 leading-relaxed">
+                                            You are enrolled and ready to begin soon.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="mb-6">
+                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-50 text-gray-400 border border-gray-100 text-[10px] font-black uppercase tracking-wider mb-2">
+                                            <CheckCircle2 className="w-3 h-3" />
+                                            Completed
+                                        </div>
+                                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Sprint Mastered</h3>
+                                        <p className="text-xs font-semibold text-gray-500 leading-relaxed">
+                                            You have successfully completed this sprint!
+                                        </p>
                                     </div>
                                 )}
-                                {enrollmentStatus === 'queued' && (
-                                    <div className="bg-blue-50 text-blue-600 px-5 py-2.5 rounded-2xl border border-blue-100 inline-flex items-center gap-2 font-black uppercase text-[12px] tracking-widest shadow-sm">
-                                        <Clock className="w-3 h-3" />
-                                        In Upcoming Queue
-                                    </div>
-                                )}
-                                {enrollmentStatus === 'completed' && (
-                                    <div className="bg-gray-50 text-gray-400 px-5 py-2.5 rounded-2xl border border-gray-100 inline-flex items-center gap-2 font-black uppercase text-[12px] tracking-widest shadow-sm">
-                                        <CheckCircle2 className="w-3 h-3" />
-                                        Mastered
-                                    </div>
-                                )}
-                            </div>
-                            
-                            <div className="space-y-4 relative z-10">
-                                {enrollmentStatus === 'none' ? (
-                                    <div className="space-y-4">
+
+                                <div className="space-y-4">
+                                    {enrollmentStatus === 'none' ? (
                                         <Button 
                                             onClick={handleJoinClick} 
                                             isLoading={isCheckingEmail}
-                                            className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black group/btn"
+                                            className="w-full py-4 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black group/btn border-0"
                                         >
                                             Begin Day 1 
-                                            <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                                            <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
                                         </Button>
+                                    ) : enrollmentStatus === 'active' ? (
+                                        <Button 
+                                            onClick={() => navigate(`/participant/sprint/${activeEnrollmentId}`)} 
+                                            className="w-full py-4 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black bg-emerald-600 hover:bg-emerald-700 border-none group/btn"
+                                        >
+                                            Back to Sprint 
+                                            <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
+                                        </Button>
+                                    ) : (
+                                        <Button 
+                                            onClick={() => navigate('/my-sprints')} 
+                                            className="w-full py-4 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black bg-blue-600 hover:bg-blue-700 border-none group/btn"
+                                        >
+                                            View in My Sprints 
+                                            <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
+                                        </Button>
+                                    )}
+                                    
+                                    <div className="flex items-center justify-center gap-2 pt-1 opacity-40">
+                                        <ShieldCheck className="w-3.5 h-3.5 text-gray-400" />
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Secure Access</span>
                                     </div>
-                                ) : enrollmentStatus === 'active' ? (
-                                    <Button onClick={() => navigate(`/participant/sprint/${activeEnrollmentId}`)} className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black bg-emerald-600 border-none group/btn">
-                                        Back to Sprint 
-                                        <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-                                    </Button>
-                                ) : (
-                                    <Button onClick={() => navigate('/my-sprints')} className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black bg-blue-600 border-none group/btn">
-                                        View in My Sprints 
-                                        <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-                                    </Button>
-                                )}
-                                
-                                <div className="flex items-center justify-center gap-2 pt-2 opacity-40 group-hover/card:opacity-60 transition-opacity">
-                                    <ShieldCheck className="w-3 h-3 text-gray-400" />
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Secure Access</span>
                                 </div>
-                            </div>
 
-                            {/* COACH SECTION */}
-                            <div className="mt-6 pt-6 border-t border-gray-50 relative z-10">
-                                <div className="flex items-center gap-4">
-                                    <img 
-                                        src={displayCoachImage} 
-                                        alt="" 
-                                        className="w-12 h-12 rounded-2xl object-cover border-2 border-white shadow-md ring-1 ring-gray-100" 
-                                        referrerPolicy="no-referrer"
-                                    />
-                                    <div className="min-w-0">
-                                        <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Guided By</p>
-                                        <p className="text-sm font-black text-gray-900 uppercase tracking-tight truncate">
-                                            {displayCoachName}
-                                        </p>
+                                {/* COACH SECTION */}
+                                <div className="mt-6 pt-6 border-t border-gray-100">
+                                    <div className="flex items-center gap-3">
+                                        <img 
+                                            src={displayCoachImage} 
+                                            alt="" 
+                                            className="w-10 h-10 rounded-xl object-cover border border-gray-100" 
+                                            referrerPolicy="no-referrer"
+                                        />
+                                        <div className="min-w-0">
+                                            <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Guided By</p>
+                                            <p className="text-xs font-black text-gray-800 uppercase tracking-tight truncate">
+                                                {displayCoachName}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
