@@ -137,28 +137,8 @@ const SprintLandingPage: React.FC = () => {
         if (!sprint) return;
         
         if (!user) {
-            if (!guestEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
-                setEmailError("Please enter a valid email to continue.");
-                return;
-            }
-
-            setIsCheckingEmail(true);
-            setEmailError('');
-            try {
-                const emailExists = await userService.checkEmailExists(guestEmail);
-                localStorage.setItem('guest_email', guestEmail);
-                
-                // Always proceed directly to day one preview flow to allow preview before logging in (as requested)
-                analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, existing_user: emailExists }, undefined, guestEmail);
-                
-                // Navigate directly to sprint preview page without any modal or commitment sheet
-                navigate(`/sprint/preview/${sprint.id}`, { state: { sprintId: sprint.id, sprint: sprint, prefilledEmail: guestEmail } });
-            } catch (err) {
-                console.error("Error checking email:", err);
-                setEmailError("Something went wrong. Please try again.");
-            } finally {
-                setIsCheckingEmail(false);
-            }
+            // Navigate directly to sprint preview page without any email requirement
+            navigate(`/sprint/preview/${sprint.id}`, { state: { sprintId: sprint.id, sprint: sprint } });
             return;
         }
 
@@ -437,10 +417,10 @@ const SprintLandingPage: React.FC = () => {
                         {/* MAIN CONTENT */}
                         <div className="space-y-8">
                             {(displayDescription || hasDynamicContent) && (
-                                <section className="bg-white rounded-[2.5rem] p-8 md:p-12 lg:p-16 border border-gray-100 shadow-sm animate-fade-in">
+                                <section className="animate-fade-in py-2">
                                     <SectionHeading>Sprint Overview</SectionHeading>
                                     
-                                    <div className="space-y-8">
+                                    <div className="space-y-8 mt-6">
                                         {displayDescription && !hasDynamicContent && (
                                             <div className="text-base md:text-lg text-gray-600 font-medium leading-[1.6]">
                                                 <FormattedText text={displayDescription} />
@@ -470,84 +450,38 @@ const SprintLandingPage: React.FC = () => {
                             <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl group-hover/card:bg-primary/10 transition-colors duration-700"></div>
 
                             <div className="text-center mb-10 relative z-10">
-                                {(!user && sprint.pricingType === 'credits') ? (
-                                    <div className="py-2">
-                                        <SectionHeading>Path Discovery</SectionHeading>
-                                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Preview Mode</p>
+                                <SectionHeading>Sprint Status</SectionHeading>
+                                {enrollmentStatus === 'none' && (
+                                    <div className="flex flex-col items-center">
+                                        <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1">Path Ready</h3>
+                                        <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Start Now</p>
                                     </div>
-                                ) : (
-                                    <>
-                                        <SectionHeading>Sprint Status</SectionHeading>
-                                        {enrollmentStatus === 'none' && (
-                                            <div className="flex flex-col items-center">
-                                                <h3 className="text-4xl font-black text-gray-900 tracking-tighter leading-none mb-1">Path Ready</h3>
-                                                <p className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Start Now</p>
-                                            </div>
-                                        )}
-                                        {enrollmentStatus === 'active' && (
-                                            <div className="flex flex-col items-center gap-2">
-                                                <div className="bg-emerald-50 text-emerald-600 px-5 py-2.5 rounded-2xl border border-emerald-100 flex items-center gap-2 font-black uppercase text-[12px] tracking-widest animate-pulse shadow-sm">
-                                                    <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                                                    In Progress
-                                                </div>
-                                            </div>
-                                        )}
-                                        {enrollmentStatus === 'queued' && (
-                                            <div className="bg-blue-50 text-blue-600 px-5 py-2.5 rounded-2xl border border-blue-100 inline-flex items-center gap-2 font-black uppercase text-[12px] tracking-widest shadow-sm">
-                                                <Clock className="w-3 h-3" />
-                                                In Upcoming Queue
-                                            </div>
-                                        )}
-                                        {enrollmentStatus === 'completed' && (
-                                            <div className="bg-gray-50 text-gray-400 px-5 py-2.5 rounded-2xl border border-gray-100 inline-flex items-center gap-2 font-black uppercase text-[12px] tracking-widest shadow-sm">
-                                                <CheckCircle2 className="w-3 h-3" />
-                                                Mastered
-                                            </div>
-                                        )}
-                                    </>
                                 )}
-                            </div>
-
-                            <div className="space-y-4 mb-10 relative z-10">
-                                <div className="flex items-center gap-5 p-5 bg-gray-50/50 rounded-[2rem] border border-gray-100 group/item transition-all hover:bg-white hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5">
-                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm border border-gray-100 transition-all group-hover/item:scale-110 group-hover/item:bg-primary group-hover/item:text-white">
-                                        <Calendar className="w-6 h-6" />
+                                {enrollmentStatus === 'active' && (
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="bg-emerald-50 text-emerald-600 px-5 py-2.5 rounded-2xl border border-emerald-100 flex items-center gap-2 font-black uppercase text-[12px] tracking-widest animate-pulse shadow-sm">
+                                            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                                            In Progress
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Timeline</p>
-                                        <p className="text-sm font-black text-gray-900 leading-none">{sprint.duration} Continuous Days</p>
+                                )}
+                                {enrollmentStatus === 'queued' && (
+                                    <div className="bg-blue-50 text-blue-600 px-5 py-2.5 rounded-2xl border border-blue-100 inline-flex items-center gap-2 font-black uppercase text-[12px] tracking-widest shadow-sm">
+                                        <Clock className="w-3 h-3" />
+                                        In Upcoming Queue
                                     </div>
-                                </div>
-                                    <div className="flex items-center gap-5 p-5 bg-gray-50/50 rounded-[2rem] border border-gray-100 group/item transition-all hover:bg-white hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5">
-                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm border border-gray-100 transition-all group-hover/item:scale-110 group-hover/item:bg-primary group-hover/item:text-white">
-                                        <Zap className="w-6 h-6" />
+                                )}
+                                {enrollmentStatus === 'completed' && (
+                                    <div className="bg-gray-50 text-gray-400 px-5 py-2.5 rounded-2xl border border-gray-100 inline-flex items-center gap-2 font-black uppercase text-[12px] tracking-widest shadow-sm">
+                                        <CheckCircle2 className="w-3 h-3" />
+                                        Mastered
                                     </div>
-                                    <div>
-                                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Daily Action</p>
-                                        <p className="text-sm font-black text-gray-900 leading-none">Daily action steps</p>
-                                    </div>
-                                </div>
+                                )}
                             </div>
                             
                             <div className="space-y-4 relative z-10">
                                 {enrollmentStatus === 'none' ? (
                                     <div className="space-y-4">
-                                        {!user && (
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Enter email to start</label>
-                                                <input 
-                                                    type="email" 
-                                                    value={guestEmail}
-                                                    onChange={(e) => {
-                                                        setGuestEmail(e.target.value);
-                                                        if (emailError) setEmailError('');
-                                                    }}
-                                                    placeholder="your@email.com"
-                                                    className={`w-full px-6 py-4 bg-gray-50 border rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-black text-black transition-all ${emailError ? 'border-red-500' : 'border-gray-100'}`}
-                                                />
-                                                {emailError && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{emailError}</p>}
-                                            </div>
-                                        )}
                                         <Button 
                                             onClick={handleJoinClick} 
                                             isLoading={isCheckingEmail}
