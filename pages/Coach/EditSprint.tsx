@@ -2162,8 +2162,8 @@ const EditSprint: React.FC = () => {
 
                     {/* Article content below */}
                     <div className="p-6 md:p-8 space-y-4">
-                      <div className="leading-relaxed text-gray-800 text-sm whitespace-pre-wrap font-medium font-sans">
-                        {sprint.blogBody || sprint.description || 'Write something inspiring to rise...'}
+                      <div className="leading-relaxed text-gray-800 text-sm font-sans">
+                        <FormattedText text={sprint.blogBody || sprint.description || 'Write something inspiring to rise...'} />
                       </div>
                     </div>
                   </div>

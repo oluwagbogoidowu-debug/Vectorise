@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/Button';
-import { Coach, Sprint, Participant, ParticipantSprint, UserRole } from '../../types';
+import { Coach, Sprint, Participant, ParticipantSprint, UserRole, LifecycleSlotAssignment } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { assetService } from '../../services/assetService';
@@ -12,6 +12,7 @@ import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import LocalLogo from '../../components/LocalLogo';
 import { toast } from 'sonner';
 import { paymentService } from '../../services/paymentService';
+import { LIFECYCLE_SLOTS } from '../../services/mockData';
 
 import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, Share2 } from 'lucide-react';
 
@@ -51,6 +52,123 @@ const SprintLandingPage: React.FC = () => {
     
     const fallbackImage = assetService.URLS.DEFAULT_SPRINT_COVER;
     const selectedFocus = location.state?.selectedFocus;
+
+    const isOnboardingPath = useMemo(() => {
+        return location.pathname.startsWith('/onboarding') || !!selectedFocus;
+    }, [location.pathname, selectedFocus]);
+
+    const activeTrigger = location.state?.trigger || 'after_homepage';
+    const allMatchedSprintIds = location.state?.allMatchedSprintIds || [];
+
+    const [orchestration, setOrchestration] = useState<Record<string, LifecycleSlotAssignment>>({});
+
+    useEffect(() => {
+        if (!isOnboardingPath) return;
+
+        const unsubOrchestration = sprintService.subscribeToOrchestration((mapping) => {
+            const orchestrationMapping = mapping as Record<string, LifecycleSlotAssignment>;
+            setOrchestration(orchestrationMapping);
+
+            // REAL-TIME SYNC: If we have a focus and trigger, re-resolve the sprint
+            if (selectedFocus && activeTrigger) {
+                const slots = Object.entries(orchestrationMapping);
+                let resolvedSprintId: string | null = null;
+                let currentMatchedIds: string[] = [];
+                
+                // 1. Priority check within the triggering slot
+                const triggerEntry = slots.find(([_, val]) => val.stateTrigger === activeTrigger);
+                if (triggerEntry && triggerEntry[1].sprintFocusMap) {
+                    const matches = Object.keys(triggerEntry[1].sprintFocusMap).filter(
+                        sId => triggerEntry[1].sprintFocusMap?.[sId]?.includes(selectedFocus)
+                    );
+                    if (matches.length > 0) {
+                        const priorities = triggerEntry[1].focusOptionPriorityMap?.[selectedFocus] || [];
+                        if (priorities.length > 0) {
+                            matches.sort((a, b) => {
+                                const idxA = priorities.indexOf(a);
+                                const idxB = priorities.indexOf(b);
+                                if (idxA > -1 && idxB > -1) return idxA - idxB;
+                                if (idxA > -1) return -1;
+                                if (idxB > -1) return 1;
+                                return 0;
+                            });
+                        }
+                        resolvedSprintId = matches[0];
+                        currentMatchedIds = matches;
+                    }
+                }
+                
+                // 2. Global registry check
+                if (!resolvedSprintId) {
+                    for (const [_, mapping] of slots) {
+                        if (mapping.sprintFocusMap) {
+                            const matches = Object.keys(mapping.sprintFocusMap).filter(
+                                sId => mapping.sprintFocusMap?.[sId]?.includes(selectedFocus)
+                            );
+                            if (matches.length > 0) {
+                                const priorities = mapping.focusOptionPriorityMap?.[selectedFocus] || [];
+                                if (priorities.length > 0) {
+                                    matches.sort((a, b) => {
+                                        const idxA = priorities.indexOf(a);
+                                        const idxB = priorities.indexOf(b);
+                                        if (idxA > -1 && idxB > -1) return idxA - idxB;
+                                        if (idxA > -1) return -1;
+                                        if (idxB > -1) return 1;
+                                        return 0;
+                                    });
+                                }
+                                resolvedSprintId = matches[0];
+                                currentMatchedIds = matches;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                if (resolvedSprintId && resolvedSprintId !== sprintId) {
+                    // The orchestrator has changed the mapping for this focus!
+                    const targetPath = location.pathname.startsWith('/onboarding') 
+                        ? `/onboarding/description/${resolvedSprintId}`
+                        : `/sprint/${resolvedSprintId}`;
+                    navigate(targetPath, { 
+                        state: { selectedFocus, trigger: activeTrigger, allMatchedSprintIds: currentMatchedIds },
+                        replace: true 
+                    });
+                }
+            }
+        });
+
+        return () => unsubOrchestration();
+    }, [sprintId, isOnboardingPath, selectedFocus, activeTrigger, navigate, location.pathname]);
+
+    const slotInfo = useMemo(() => {
+        if (!sprintId || !orchestration || Object.keys(orchestration).length === 0) return null;
+        const entry = Object.entries(orchestration).find(([_, assignment]) => 
+            assignment.sprintId === sprintId || (assignment.sprintIds && assignment.sprintIds.includes(sprintId))
+        );
+        if (!entry) return null;
+        const [slotId, assignment] = entry;
+        
+        const slotDef = LIFECYCLE_SLOTS.find(s => s.id === slotId);
+        if (!slotDef) return null;
+
+        const isFoundation = slotDef.stage === 'Foundation';
+        
+        return {
+            slotId,
+            name: slotDef.name.toUpperCase(),
+            stage: isFoundation ? 'PHASE 01' : 'PHASE 02'
+        };
+    }, [sprintId, orchestration]);
+
+    const handleSkipClarity = () => {
+        navigate('/onboarding/focus-selector', { 
+            state: { 
+                trigger: 'skip_clarity',
+                fromClaritySprintId: sprintId 
+            } 
+        });
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -136,6 +254,16 @@ const SprintLandingPage: React.FC = () => {
     const handleJoinClick = async () => {
         if (!sprint) return;
         
+        if (isOnboardingPath) {
+            analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, onboarding: true }, user?.id);
+            if (!user) {
+                navigate(`/sprint/preview/${sprint.id}`, { state: { sprintId: sprint.id, sprint: sprint, selectedFocus, trigger: activeTrigger, allMatchedSprintIds } });
+            } else {
+                navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus, trigger: activeTrigger, allMatchedSprintIds } });
+            }
+            return;
+        }
+
         if (!user) {
             // Navigate directly to sprint preview page without any email requirement
             navigate(`/sprint/preview/${sprint.id}`, { state: { sprintId: sprint.id, sprint: sprint } });
@@ -352,36 +480,64 @@ const SprintLandingPage: React.FC = () => {
     return (
         <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
             {/* NAVIGATION HEADER - Full Width */}
-            <header className="bg-white border-b border-gray-100 py-4 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-screen-lg mx-auto flex justify-between items-center">
-                    {user ? (
-                        <button 
-                            onClick={() => navigate('/explore')} 
-                            className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest cursor-pointer"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-2 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                            </svg>
-                            Back to Registry
-                        </button>
-                    ) : (
-                        <LocalLogo type="green" className="h-8 w-auto" />
-                    )}
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={handleShare}
-                            className="bg-white px-4 py-1.5 rounded-xl border border-gray-200 text-gray-500 hover:text-primary transition-colors flex items-center gap-2 text-[11px] font-black uppercase tracking-widest shadow-sm cursor-pointer"
-                        >
-                            <Share2 className="w-3.5 h-3.5" />
-                            Share
-                        </button>
-                        <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest hidden sm:flex items-center gap-2">
-                            <LocalLogo type="favicon" className="h-3 w-auto" />
-                            {isFoundational ? 'FOUNDATIONAL PATH' : 'FOUNDATION PATH'}
+            {isOnboardingPath ? (
+                <header className="bg-white border-b border-gray-100 py-4 px-4 sm:px-6 lg:px-8">
+                    <div className="max-w-screen-lg mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex flex-col items-start">
+                            <LocalLogo type="green" className="h-8 w-auto mb-2" />
+                            <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: '25%' }}></div>
+                            </div>
+                        </div>
+                        <div className="flex justify-between sm:justify-end items-center gap-4 w-full sm:w-auto">
+                            <button 
+                                onClick={() => navigate('/onboarding/focus-selector', { state: { trigger: activeTrigger } })} 
+                                className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest cursor-pointer"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-2 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                                </svg>
+                                Refine Focus
+                            </button>
+                            <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
+                                <LocalLogo type="favicon" className="h-3 w-auto" />
+                                {slotInfo ? `${slotInfo.stage}: ${slotInfo.name}` : 'PHASE 01: CORE'}
+                            </div>
                         </div>
                     </div>
-                </div>
-            </header>
+                </header>
+            ) : (
+                <header className="bg-white border-b border-gray-100 py-4 px-4 sm:px-6 lg:px-8">
+                    <div className="max-w-screen-lg mx-auto flex justify-between items-center">
+                        {user ? (
+                            <button 
+                                onClick={() => navigate('/explore')} 
+                                className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest cursor-pointer"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-2 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                                </svg>
+                                Back to Registry
+                            </button>
+                        ) : (
+                            <LocalLogo type="green" className="h-8 w-auto" />
+                        )}
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={handleShare}
+                                className="bg-white px-4 py-1.5 rounded-xl border border-gray-200 text-gray-500 hover:text-primary transition-colors flex items-center gap-2 text-[11px] font-black uppercase tracking-widest shadow-sm cursor-pointer"
+                            >
+                                <Share2 className="w-3.5 h-3.5" />
+                                Share
+                            </button>
+                            <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest hidden sm:flex items-center gap-2">
+                                <LocalLogo type="favicon" className="h-3 w-auto" />
+                                {isFoundational ? 'FOUNDATIONAL PATH' : 'FOUNDATION PATH'}
+                            </div>
+                        </div>
+                    </div>
+                </header>
+            )}
 
             {/* MODERN FULL-WIDTH HERO HEADER SECTION */}
             <div className="relative w-full h-[320px] sm:h-[380px] lg:h-[460px] bg-[#0c1310] overflow-hidden">
@@ -553,6 +709,18 @@ const SprintLandingPage: React.FC = () => {
                                         </div>
                                     </div>
                                 </div>
+
+                                {isOnboardingPath && slotInfo?.name === 'CLARITY' && (
+                                    <div className="text-center space-y-3 pt-6 border-t border-gray-100 mt-6">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">Already clear on your direction?</p>
+                                        <button 
+                                            onClick={handleSkipClarity} 
+                                            className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest transition-all cursor-pointer bg-primary/5 px-6 py-3 rounded-2xl hover:bg-primary/10 border-none w-full"
+                                        >
+                                            Skip to Execution
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </aside>

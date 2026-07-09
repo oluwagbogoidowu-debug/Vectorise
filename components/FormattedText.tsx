@@ -128,7 +128,7 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
         remarkPlugins={[remarkGfm]}
         components={{
           p: ({ node, ...props }) => <span {...props} />,
-          em: ({ node, ...props }) => <em className="not-italic" {...props} />,
+          em: ({ node, ...props }) => <strong className="font-bold" {...props} />,
           strong: ({ node, ...props }) => <strong className="font-black" {...props} />,
         }}
       >
@@ -142,7 +142,7 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          em: ({ node, ...props }) => <em className="not-italic text-primary font-bold" {...props} />,
+          em: ({ node, ...props }) => <strong className="font-bold text-gray-900" {...props} />,
           strong: ({ node, ...props }) => <strong className="font-black text-gray-900" {...props} />,
           ul: ({ node, ...props }) => <ul className="list-none p-0 space-y-2 my-4" {...props} />,
           ol: ({ node, ...props }) => <ol className="list-none p-0 space-y-2 my-4" {...props} />,

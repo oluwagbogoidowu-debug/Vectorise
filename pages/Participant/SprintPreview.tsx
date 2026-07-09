@@ -202,6 +202,27 @@ const TagInput: React.FC<{
   );
 };
 
+interface SectionHeadingProps {
+  children: React.ReactNode;
+  color?: string;
+  showDot?: boolean;
+}
+
+const SectionHeading: React.FC<SectionHeadingProps> = ({
+  children,
+  color = "primary",
+  showDot = false,
+}) => (
+  <h2
+    className={`text-[8px] font-black text-${color} uppercase tracking-[0.4em] mb-4 flex items-center gap-2`}
+  >
+    {showDot && (
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+    )}
+    <span>{children}</span>
+  </h2>
+);
+
 const SprintPreview: React.FC = () => {
     const { sprintId } = useParams();
     const navigate = useNavigate();
@@ -831,25 +852,11 @@ const SprintPreview: React.FC = () => {
                     ))}
                 </div>
 
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
-                    <button
-                      onClick={() => setIsInsightExpanded(!isInsightExpanded)}
-                      className="w-full flex items-center justify-between p-6 focus:outline-none text-left"
-                    >
-                      <span className="text-gray-900 font-black text-sm uppercase tracking-wider">
-                        Daily Insight
-                      </span>
-                      <span className={`transform transition-transform duration-300 ${isInsightExpanded ? 'rotate-180' : 'rotate-0'}`}>
-                        <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </span>
-                    </button>
-                    {isInsightExpanded && (
-                      <div className="px-6 pb-6 border-t border-gray-50 pt-4 text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch] animate-fade-in pl-6 pr-6">
+                <div className="space-y-2 text-left animate-slide-up">
+                    <SectionHeading>Today's Insight</SectionHeading>
+                    <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
                         <FormattedText text={day1Content?.lessonText || ""} />
-                      </div>
-                    )}
+                    </div>
                 </div>
 
                 <div className="space-y-6 w-full animate-slide-up relative overflow-hidden">
@@ -1461,10 +1468,10 @@ const SprintPreview: React.FC = () => {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                     </svg>
                                 </div>
-                                <h3 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight mb-3">
+                                <h3 className="text-lg md:text-xl font-black text-gray-900 tracking-tight mb-3">
                                     You’ve completed the first day of your sprint.
                                 </h3>
-                                <p className="text-gray-500 font-semibold text-xs leading-relaxed mb-8">
+                                <p className="text-gray-500 font-semibold text-sm leading-relaxed mb-8">
                                     Create an account to save your progress.
                                 </p>
                                 
@@ -1499,16 +1506,6 @@ const SprintPreview: React.FC = () => {
 
                         {bottomModalStep === 2 && (
                             <div className="animate-fade-in text-center">
-                                {authMode === 'signup' ? (
-                                    <h1 className="text-4xl font-black leading-[0.95] text-center tracking-tighter text-gray-900 mb-6 uppercase">
-                                        Start<br/><span className="text-primary italic pb-1">your rise</span>
-                                    </h1>
-                                ) : (
-                                    <h1 className="text-4xl font-black leading-[0.95] text-center tracking-tighter text-gray-900 mb-6 uppercase">
-                                        Welcome<br/><span className="text-primary italic pb-1">back</span>
-                                    </h1>
-                                )}
-
                                 <form onSubmit={authMode === 'signup' ? handleSignUpSubmit : handleLoginSubmit} className="space-y-4 text-left">
                                     {authMode === 'signup' && (
                                         <div className="grid grid-cols-2 gap-3">
