@@ -1945,15 +1945,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         if (isLastDay && updatedProgress.every((p) => p.completed)) {
           setIsCompletionModalOpen(true);
         } else {
-          setIsDayCompletionModalOpen(true);
-        }
-
-        if (dayContent?.mirrorActive) {
-          if (mirrorTimerRef.current) clearTimeout(mirrorTimerRef.current);
-          mirrorTimerRef.current = setTimeout(() => {
-            setIsDayCompletionModalOpen(false);
-            setIsMirrorReportModalOpen(true);
-          }, 7000);
+          navigate('/participant/day-success', { state: { day: viewingDay, coinsUnlocked: viewingDay === 1 ? 10 : 0 } });
         }
 
         setIsSubmitting(false);
@@ -2000,16 +1992,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       if (isLastDay && updatedProgress.every((p) => p.completed)) {
         setIsCompletionModalOpen(true);
       } else {
-        setIsDayCompletionModalOpen(true);
-      }
-
-      // Start 7-second automatic mirror report transition
-      if (dayContent?.mirrorActive) {
-        if (mirrorTimerRef.current) clearTimeout(mirrorTimerRef.current);
-        mirrorTimerRef.current = setTimeout(() => {
-          setIsDayCompletionModalOpen(false);
-          setIsMirrorReportModalOpen(true);
-        }, 7000);
+        navigate('/participant/day-success', { state: { day: viewingDay, coinsUnlocked: viewingDay === 1 ? 10 : 0 } });
       }
 
       // Trigger push permission request if it's the first submission or based on logic

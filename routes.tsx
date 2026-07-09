@@ -11,6 +11,7 @@ import SprintLandingPage from './pages/Participant/SprintLandingPage';
 import DiscoverSprints from './pages/Participant/DiscoverSprints';
 import ParticipantDashboard from './pages/Participant/ParticipantDashboard';
 import SprintView from './pages/Participant/SprintView';
+import DaySuccessPage from './pages/Participant/DaySuccessPage';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import UserAnalyticsDetail from './pages/Admin/UserAnalyticsDetail';
 
@@ -188,6 +189,7 @@ export const AppRoutes: React.FC = () => {
          <Route path="/impact/rewards" element={<GrowthRewards />} />
          <Route path="/impact/badges" element={<Badges />} />
          <Route path="/buy-coins" element={<BuyCoins />} />
+         <Route path="/participant/day-success" element={<DaySuccessPage />} />
       </Route>
 
       {/* Public RiseBlog routes */}

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendEmailVerification } from 'firebase/auth';
 import { auth } from '../../services/firebase';
 import { toast as alertToast } from 'sonner';
 
 const VerifyEmailPage: React.FC = () => {
-  const { user, mustVerifyEmail, loading, checkVerification, logout } = useAuth();
+  const { user, mustVerifyEmail, loading, checkVerification, logout, deferVerification } = useAuth();
+  const navigate = useNavigate();
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [isResendingLink, setIsResendingLink] = useState(false);
 
@@ -48,6 +49,7 @@ const VerifyEmailPage: React.FC = () => {
       const isVerified = await checkVerification();
       if (isVerified) {
         alertToast.success("Email verified successfully! Welcome.");
+        navigate('/participant/day-success', { state: { day: 1, unlockedCoins: 10 } });
       } else {
         alertToast.error("We checked, but the link hasn't been verified in your inbox yet!");
       }
@@ -60,7 +62,22 @@ const VerifyEmailPage: React.FC = () => {
   };
 
   return (
-    <div className="h-[100dvh] w-screen bg-[#FAFAFA] flex items-center justify-center px-6 overflow-hidden">
+    <div className="h-[100dvh] w-screen bg-[#FAFAFA] flex items-center justify-center px-6 overflow-hidden relative">
+      {/* Subtle floating Cancel button at top-left of the viewport */}
+      <button 
+        type="button" 
+        onClick={() => {
+          deferVerification();
+          navigate('/participant/day-success', { state: { day: 1, unlockedCoins: 10 } });
+        }}
+        className="absolute top-6 left-6 flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200/80 rounded-full shadow-sm text-xs font-black text-gray-500 uppercase tracking-widest transition-all active:scale-95"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        Cancel
+      </button>
+
       <div className="w-full max-w-sm bg-white rounded-[2.5rem] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] border border-gray-100 p-8 sm:p-10 text-center animate-fade-in relative max-h-[90vh] overflow-y-auto">
         
         <div className="w-16 h-16 bg-primary/5 text-primary rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">

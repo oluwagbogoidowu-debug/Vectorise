@@ -7,7 +7,7 @@ import { PushToggle } from '../../../components/PushToggle';
 
 const AccountSettings: React.FC = () => {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, isEmailUnverified, resetVerificationDeferral } = useAuth();
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return document.documentElement.classList.contains('dark');
@@ -36,6 +36,28 @@ const AccountSettings: React.FC = () => {
       </header>
 
       <main className="flex-1 overflow-y-auto p-6 space-y-4">
+        {isEmailUnverified && (
+          <div className="p-5 bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/20 rounded-3xl shadow-sm flex items-center justify-between transition-colors duration-300">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/15 flex items-center justify-center text-lg">✉️</div>
+              <div>
+                <span className="text-[10px] font-black text-amber-800 dark:text-amber-400 uppercase tracking-widest block">Email Unverified</span>
+                <span className="text-[8px] text-amber-600/80 dark:text-amber-500/80 font-bold uppercase tracking-wider block mt-0.5">Secure your rise from the bottom</span>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => {
+                resetVerificationDeferral();
+                navigate('/verify-email');
+              }}
+              className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-full text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer shadow-sm"
+            >
+              Verify Now
+            </button>
+          </div>
+        )}
+
         <div className="space-y-2">
           <p className="text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.3em] mb-3 px-1">Settings</p>
           

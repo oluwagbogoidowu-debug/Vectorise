@@ -227,7 +227,7 @@ const SprintPreview: React.FC = () => {
     const { sprintId } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
-    const { user, checkVerification, logout } = useAuth();
+    const { user, checkVerification, logout, deferVerification } = useAuth();
     
     const [sprint, setSprint] = useState<Sprint | null>(location.state?.sprint || null);
     const [isLoading, setIsLoading] = useState(!location.state?.sprint);
@@ -303,7 +303,7 @@ const SprintPreview: React.FC = () => {
                 }
                 localStorage.removeItem('pending_first_action');
                 setShowLockModal(false);
-                navigate(`/participant/sprint/${enrollment.id}?day=1`, { state: { showCompletion: true, isFirstActionAutoClaim: true } });
+                navigate('/participant/day-success', { state: { day: 1, coinsUnlocked: 10 } });
             }
         } catch (error: any) {
             console.error("Google Sign-In Failure:", error);
@@ -426,13 +426,8 @@ const SprintPreview: React.FC = () => {
                 setCreatedEnrollmentId(enrollment.id);
                 localStorage.removeItem('pending_first_action');
 
-                if (!firebaseUser.emailVerified) {
-                    await sendEmailVerification(firebaseUser);
-                    setBottomModalStep(3);
-                } else {
-                    setShowLockModal(false);
-                    navigate(`/participant/sprint/${enrollment.id}?day=1`, { state: { showCompletion: true, isFirstActionAutoClaim: true } });
-                }
+                setShowLockModal(false);
+                navigate('/participant/day-success', { state: { day: 1, coinsUnlocked: 10 } });
             }
         } catch (error: any) {
             console.error("Login error:", error);
@@ -453,11 +448,7 @@ const SprintPreview: React.FC = () => {
             if (isVerified) {
                 toast.success("Email verified successfully! Welcome.");
                 setShowLockModal(false);
-                if (createdEnrollmentId) {
-                    navigate(`/participant/sprint/${createdEnrollmentId}?day=1`, { state: { showCompletion: true, isFirstActionAutoClaim: true } });
-                } else {
-                    navigate('/dashboard');
-                }
+                navigate('/participant/day-success', { state: { day: 1, coinsUnlocked: 10 } });
             } else {
                 toast.error("Email is not verified yet. Please click the link in your inbox first!");
             }
@@ -1640,7 +1631,23 @@ const SprintPreview: React.FC = () => {
                         )}
 
                         {bottomModalStep === 3 && (
-                            <div className="text-center animate-fade-in">
+                            <div className="text-center animate-fade-in relative pt-4">
+                                {/* Subtle Cancel Button */}
+                                <button 
+                                    type="button" 
+                                    onClick={() => {
+                                        deferVerification();
+                                        setShowLockModal(false);
+                                        navigate('/participant/day-success', { state: { day: 1, coinsUnlocked: 10 } });
+                                    }}
+                                    className="absolute -top-4 left-0 flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200/60 rounded-full text-[9px] font-black text-gray-500 uppercase tracking-widest transition-all active:scale-95 cursor-pointer shadow-sm"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    Cancel
+                                </button>
+
                                 <div className="w-16 h-16 bg-primary/5 text-primary rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-[#0E7850]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />

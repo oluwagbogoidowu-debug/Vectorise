@@ -13,6 +13,10 @@ type AuthContextType = {
   activeRole: UserRole; // The currently active view mode (Member vs Coach)
   loading: boolean; // Added loading state
   mustVerifyEmail: boolean; // Track if the user needs email verification
+  isEmailUnverified: boolean; // True if email is unverified (even if deferred)
+  isDeferred: boolean; // True if email verification has been deferred
+  deferVerification: () => void; // Defer/skip verification for this session
+  resetVerificationDeferral: () => void; // Reset deferral to force verification
   login: (userIdOrEmail: string) => boolean; // Kept for legacy/mock compatibility
   signup: (newUser: Participant | Coach) => void;
   logout: () => Promise<void>;
@@ -31,8 +35,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | Coach | Participant | Admin | null>(null);
   const [activeRole, setActiveRole] = useState<UserRole>(UserRole.PARTICIPANT);
   const [loading, setLoading] = useState(true);
-  const [mustVerifyEmail, setMustVerifyEmail] = useState(false);
+  const [actualMustVerifyEmail, setActualMustVerifyEmail] = useState(false);
+  const [isDeferred, setIsDeferred] = useState(localStorage.getItem('vectorise_verify_deferred') === 'true');
   const [forceTrigger, setForceTrigger] = useState(0);
+
+  const mustVerifyEmail = actualMustVerifyEmail && !isDeferred;
+
+  const deferVerification = () => {
+    localStorage.setItem('vectorise_verify_deferred', 'true');
+    setIsDeferred(true);
+  };
+
+  const resetVerificationDeferral = () => {
+    localStorage.removeItem('vectorise_verify_deferred');
+    setIsDeferred(false);
+  };
 
   // Listen for Firebase Auth changes
   useEffect(() => {
@@ -48,7 +65,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (firebaseUser) {
         // Expose emailVerified status helper
         const isGoogleUser = firebaseUser.providerData.some(p => p.providerId === 'google.com');
-        setMustVerifyEmail(!isGoogleUser && !firebaseUser.emailVerified);
+        setActualMustVerifyEmail(!isGoogleUser && !firebaseUser.emailVerified);
 
         setLoading(true);
         const userRef = doc(db, 'users', firebaseUser.uid);
@@ -64,9 +81,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const isDbVerified = serverSnap.data()?.emailVerifiedConfirmed || serverSnap.data()?.emailVerifiedOverride;
 
             if (isGoogle || isDbVerified) {
-              setMustVerifyEmail(false);
+              setActualMustVerifyEmail(false);
             } else {
-              setMustVerifyEmail(true);
+              setActualMustVerifyEmail(true);
             }
 
             // Automatic Role Healing/Recovery for the owner/admin
@@ -144,9 +161,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               const isDbVerified = docSnap.data()?.emailVerifiedConfirmed || docSnap.data()?.emailVerifiedOverride;
 
               if (isGoogle || isDbVerified) {
-                setMustVerifyEmail(false);
+                setActualMustVerifyEmail(false);
               } else {
-                setMustVerifyEmail(true);
+                setActualMustVerifyEmail(true);
               }
 
               // Automatic Role Healing/Recovery for the owner/admin
@@ -362,7 +379,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } catch (e) {
           console.error("Failed to write verification confirmation field to firestore", e);
         }
-        setMustVerifyEmail(false);
+        setActualMustVerifyEmail(false);
         setForceTrigger(prev => prev + 1);
         return true;
       }
@@ -371,7 +388,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ user, activeRole, loading, mustVerifyEmail, login, signup, logout, forgotPassword, hasPermission, switchRole, completeCoachOnboarding, updateProfile, deleteAccount, checkVerification }}>
+    <AuthContext.Provider value={{ user, activeRole, loading, mustVerifyEmail, isEmailUnverified: actualMustVerifyEmail, isDeferred, deferVerification, resetVerificationDeferral, login, signup, logout, forgotPassword, hasPermission, switchRole, completeCoachOnboarding, updateProfile, deleteAccount, checkVerification }}>
       {children}
     </AuthContext.Provider>
   );
