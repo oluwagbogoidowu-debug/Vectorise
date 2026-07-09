@@ -29,8 +29,9 @@ const BlogPreviewModal: React.FC<{
   body: string;
   coverImage: string;
   coachName: string;
+  category?: string;
   onClose: () => void;
-}> = ({ title, body, coverImage, coachName, onClose }) => {
+}> = ({ title, body, coverImage, coachName, category, onClose }) => {
   const currentDate = new Date().toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
@@ -62,7 +63,9 @@ const BlogPreviewModal: React.FC<{
 
         {/* Overlaid Title and Info for immersive reading look */}
         <div className="absolute bottom-0 inset-x-0 p-6 md:p-12 max-w-4xl mx-auto text-white flex flex-col justify-end h-full w-full">
-          <span className="text-[10px] md:text-[11px] font-black text-amber-400 uppercase tracking-[0.25em] mb-3">RiseBlog Preview</span>
+          <span className="text-[10px] md:text-[11px] font-black text-amber-400 uppercase tracking-[0.25em] mb-3">
+            {category ? `${category} • RiseBlog Preview` : 'RiseBlog Preview'}
+          </span>
           <h1 className="text-3xl md:text-5xl font-black leading-tight tracking-tight italic drop-shadow-sm mb-4">
             {title || 'Untitled Rising Post'}
           </h1>
@@ -223,6 +226,8 @@ const CreateSprint: React.FC = () => {
     const [blogTitle, setBlogTitle] = useState('');
     const [blogImage, setBlogImage] = useState('');
     const [blogBody, setBlogBody] = useState('');
+    const [blogCategory, setBlogCategory] = useState('Mindset');
+    const [customBlogCategory, setCustomBlogCategory] = useState('');
     const [isPreviewingBlog, setIsPreviewingBlog] = useState(false);
     const [isSubmittingBlog, setIsSubmittingBlog] = useState(false);
 
@@ -242,6 +247,7 @@ const CreateSprint: React.FC = () => {
         }
         setIsSubmittingBlog(true);
         const blogId = `blog_${Date.now()}`;
+        const finalCategory = blogCategory === 'Others' ? (customBlogCategory.trim() || 'Other') : blogCategory;
         const newBlog: Sprint = {
             id: blogId,
             coachId: user.id,
@@ -255,10 +261,10 @@ const CreateSprint: React.FC = () => {
             duration: 1,
             price: 0,
             currency: 'NGN',
-            category: 'Blog',
+            category: finalCategory,
             difficulty: 'Beginner',
             published: true,
-            approvalStatus: 'approved',
+            approvalStatus: 'pending_approval',
             dailyContent: [],
         };
 
@@ -465,6 +471,7 @@ const CreateSprint: React.FC = () => {
                     body={blogBody}
                     coverImage={blogImage}
                     coachName={user?.name || 'Coach'}
+                    category={blogCategory === 'Others' ? (customBlogCategory.trim() || 'Other') : blogCategory}
                     onClose={() => setIsPreviewingBlog(false)}
                 />
             )}
@@ -841,6 +848,30 @@ const CreateSprint: React.FC = () => {
                                             placeholder="https://images.unsplash.com/photo-..." 
                                         />
                                     </div>
+
+                                    <div>
+                                        <label className={labelClasses}>Blog Category</label>
+                                        <CustomSelect
+                                            options={['Mindset', 'Execution', 'Micro-Habits', 'Others']}
+                                            value={blogCategory}
+                                            onChange={(val) => setBlogCategory(String(val))}
+                                            className="mt-2"
+                                        />
+                                    </div>
+
+                                    {blogCategory === 'Others' && (
+                                        <div className="animate-fade-in">
+                                            <label className={labelClasses}>Custom Category Name</label>
+                                            <input 
+                                                type="text" 
+                                                value={customBlogCategory} 
+                                                onChange={e => setCustomBlogCategory(e.target.value)} 
+                                                className={inputClasses + " mt-2"} 
+                                                placeholder="e.g. Influence, Wellness, Innovation" 
+                                                required 
+                                            />
+                                        </div>
+                                    )}
 
                                     <div>
                                         <label className={labelClasses}>Blog Post Body</label>

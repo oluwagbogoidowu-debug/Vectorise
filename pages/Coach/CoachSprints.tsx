@@ -8,6 +8,7 @@ import Button from '../../components/Button';
 import { Eye, Flame, BookOpen, Sparkles, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import SprintShareModal from '../../components/SprintShareModal';
+import CustomSelect from '../../components/CustomSelect';
 
 const IGNITE_COLORS = [
   { hex: '#111827', name: 'Charcoal' },
@@ -229,6 +230,14 @@ const EditBlogModal: React.FC<{
   const [title, setTitle] = useState(blog.title || '');
   const [image, setImage] = useState(blog.blogImage || blog.coverImageUrl || '');
   const [body, setBody] = useState(blog.blogBody || blog.description || '');
+  
+  const initialCategory = blog.category || 'Mindset';
+  const isPresetCategory = ['Mindset', 'Execution', 'Micro-Habits'].includes(initialCategory);
+  const [category, setCategory] = useState(isPresetCategory ? initialCategory : 'Others');
+  const [customCategory, setCustomCategory] = useState(isPresetCategory ? '' : initialCategory);
+
+  const finalCategory = category === 'Others' ? (customCategory.trim() || 'Other') : category;
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -243,6 +252,7 @@ const EditBlogModal: React.FC<{
       description: body,
       blogImage: image || `https://picsum.photos/seed/${blog.id}/800/400`,
       coverImageUrl: image || `https://picsum.photos/seed/${blog.id}/800/400`,
+      category: finalCategory,
     });
   };
 
@@ -410,6 +420,30 @@ const EditBlogModal: React.FC<{
             />
           </div>
 
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">Blog Category</label>
+            <CustomSelect
+              options={['Mindset', 'Execution', 'Micro-Habits', 'Others']}
+              value={category}
+              onChange={(val) => setCategory(String(val))}
+              className="mt-1.5"
+            />
+          </div>
+
+          {category === 'Others' && (
+            <div className="animate-fade-in">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">Custom Category Name</label>
+              <input 
+                type="text" 
+                value={customCategory} 
+                onChange={e => setCustomCategory(e.target.value)} 
+                placeholder="e.g. Influence, Wellness, Innovation"
+                className="w-full px-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-xs font-bold mt-1.5 transition-all" 
+                required 
+              />
+            </div>
+          )}
+
           <div className="flex-1 flex flex-col min-h-[350px]">
             <div className="flex justify-between items-center mb-1.5">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">Blog Post Body</label>
@@ -508,6 +542,7 @@ This is an inspiring introduction. You can add **bold keywords** easily to empha
               {title || 'Untitled Blog Post'}
             </h1>
             <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-6 pb-4 border-b border-gray-50">
+              <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-md text-[9px] font-black uppercase mr-1">{finalCategory}</span>
               <span>BY COACH</span>
               <span>•</span>
               <span>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>

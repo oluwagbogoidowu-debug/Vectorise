@@ -120,6 +120,7 @@ const ParticipantDashboard: React.FC = () => {
   const [dashboardReferrals, setDashboardReferrals] = useState<Referral[]>([]);
   const [showInviteBanner, setShowInviteBanner] = useState(false);
   const [ignitePosts, setIgnitePosts] = useState<Sprint[]>([]);
+  const [blogPosts, setBlogPosts] = useState<Sprint[]>([]);
   const [publishedSprints, setPublishedSprints] = useState<Sprint[]>([]);
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [orchestration, setOrchestration] = useState<Record<string, any>>({});
@@ -323,15 +324,74 @@ const ParticipantDashboard: React.FC = () => {
   }, [showOverviewSheet, user, recommendedNextSprint]);
 
   const latestBlogPost = useMemo(() => {
-    return blogService.getPosts()[0] || null;
-  }, []);
+    const staticPosts = blogService.getPosts();
+    const approvedDbBlogs = blogPosts.filter(s => s.approvalStatus === 'approved');
 
-  // Load published sprints and ignites in real-time
+    const mappedDbPosts = approvedDbBlogs.map((sprint) => {
+      const coach = coaches.find(c => c.id === sprint.coachId);
+      const words = (sprint.blogBody || sprint.description || '').split(/\s+/).length;
+      const readTimeMin = Math.max(1, Math.round(words / 200));
+      
+      let publishedAt = 'Recently';
+      if (sprint.createdAt) {
+        try {
+          const date = new Date(sprint.createdAt);
+          if (!isNaN(date.getTime())) {
+            publishedAt = date.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            });
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      return {
+        id: sprint.id,
+        title: sprint.title,
+        excerpt: sprint.subtitle || (sprint.description && sprint.description.slice(0, 150) + '...') || 'No description provided.',
+        content: sprint.blogBody || sprint.description || '',
+        category: (sprint.category as any) || 'Execution',
+        readTime: `${readTimeMin} min read`,
+        publishedAt,
+        author: {
+          name: coach?.name || 'Rise Coach',
+          role: coach?.niche || coach?.coachNiche || 'Performance Coach',
+          avatar: coach?.profileImageUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80'
+        },
+        coverImage: sprint.blogImage || sprint.coverImageUrl || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
+        likes: (sprint as any).likes || 0,
+        createdAt: sprint.createdAt || new Date().toISOString()
+      };
+    });
+
+    const allPosts = [
+      ...mappedDbPosts,
+      ...staticPosts.map(p => ({
+        ...p,
+        createdAt: new Date(p.publishedAt).toISOString()
+      }))
+    ];
+
+    allPosts.sort((a, b) => {
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      return timeB - timeA;
+    });
+
+    return allPosts[0] || null;
+  }, [blogPosts, coaches]);
+
+  // Load published sprints, ignites and blogs in real-time
   useEffect(() => {
     const unsubscribe = sprintService.subscribeToPublishedSprints((published) => {
       const ignites = published.filter(s => s.contentType === 'ignite');
       setIgnitePosts(ignites);
-      const regular = published.filter(s => s.contentType !== 'ignite');
+      const blogs = published.filter(s => s.contentType === 'blog');
+      setBlogPosts(blogs);
+      const regular = published.filter(s => s.contentType !== 'ignite' && s.contentType !== 'blog');
       setPublishedSprints(regular);
     }, (err) => {
       console.error("Failed to load published sprints", err);

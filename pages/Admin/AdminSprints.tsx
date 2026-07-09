@@ -102,6 +102,18 @@ const AdminSprints: React.FC = () => {
     }
   };
 
+  const handleToggleBlogLive = async (sprint: Sprint) => {
+    const isLive = sprint.approvalStatus === 'approved';
+    const newStatus = isLive ? 'pending_approval' : 'approved';
+    try {
+      await sprintService.updateSprint(sprint.id, { approvalStatus: newStatus });
+      toast.success(`${sprint.title} is now ${newStatus === 'approved' ? 'LIVE' : 'NOT LIVE (Hidden)'}`);
+    } catch (error) {
+      console.error("Error toggling blog status:", error);
+      toast.error("Failed to update status");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -219,6 +231,26 @@ const AdminSprints: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {activeTab === 'blog' && (
+                <div className="flex items-center gap-2 border-r border-gray-150 pr-4 mr-1">
+                  <span className={`text-[9px] font-black uppercase tracking-wider ${s.approvalStatus === 'approved' ? 'text-emerald-600' : 'text-gray-400'}`}>
+                    {s.approvalStatus === 'approved' ? 'LIVE' : 'HIDDEN'}
+                  </span>
+                  <button
+                    onClick={() => handleToggleBlogLive(s)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      s.approvalStatus === 'approved' ? 'bg-emerald-500' : 'bg-gray-200'
+                    }`}
+                    title={s.approvalStatus === 'approved' ? "Hide Blog" : "Make Blog Live"}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        s.approvalStatus === 'approved' ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              )}
               {activeTab === 'ignite' && (
                 <div className="flex items-center gap-2 border-r border-gray-150 pr-4 mr-1">
                   <span className={`text-[9px] font-black uppercase tracking-wider ${s.published ? 'text-emerald-600' : 'text-gray-405'}`}>
