@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
-import { Sprint, DailyContent } from '../../types';
+import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import FormattedText from '../../components/FormattedText';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
+import { auth, db } from '../../services/firebase';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  updateProfile as updateFbProfile, 
+  sendEmailVerification, 
+  GoogleAuthProvider, 
+  signInWithPopup 
+} from 'firebase/auth';
+import { doc, updateDoc } from 'firebase/firestore';
+import { userService } from '../../services/userService';
 
 import { toast } from 'sonner';
 
@@ -195,7 +206,7 @@ const SprintPreview: React.FC = () => {
     const { sprintId } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
-    const { user } = useAuth();
+    const { user, checkVerification, logout } = useAuth();
     
     const [sprint, setSprint] = useState<Sprint | null>(location.state?.sprint || null);
     const [isLoading, setIsLoading] = useState(!location.state?.sprint);
@@ -206,10 +217,262 @@ const SprintPreview: React.FC = () => {
     const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
     const [isInsightExpanded, setIsInsightExpanded] = useState(true);
     
+    // 3-slide bottom modal bar states
+    const [bottomModalStep, setBottomModalStep] = useState(1); // 1 = locked completion, 2 = signup/login, 3 = verify email
+    const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
+    const [authFirstName, setAuthFirstName] = useState('');
+    const [authLastName, setAuthLastName] = useState('');
+    const [authEmail, setAuthEmail] = useState('');
+    const [authPassword, setAuthPassword] = useState('');
+    const [authError, setAuthError] = useState('');
+    const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+    const [isCheckingVerification, setIsCheckingVerification] = useState(false);
+    const [resendingVerifyEmail, setResendingVerifyEmail] = useState(false);
+    const [createdEnrollmentId, setCreatedEnrollmentId] = useState<string | null>(null);
+    
     const previewStepsContainerRef = useRef<HTMLDivElement>(null);
     const isScrollingInternal = useRef(false);
 
     const prefilledEmail = location.state?.prefilledEmail || localStorage.getItem('guest_email');
+
+    useEffect(() => {
+        if (prefilledEmail) {
+            setAuthEmail(prefilledEmail);
+        }
+    }, [prefilledEmail]);
+
+    useEffect(() => {
+        if (!showLockModal) {
+            setBottomModalStep(1);
+            setAuthError('');
+            setAuthPassword('');
+        }
+    }, [showLockModal]);
+
+    const handleGoogleSignIn = async () => {
+        const provider = new GoogleAuthProvider();
+        setIsSubmittingAuth(true);
+        setAuthError('');
+        try {
+            const res = await signInWithPopup(auth, provider);
+            const firebaseUser = res.user;
+            toast.success("Connected with Google successfully!");
+
+            if (sprint) {
+                // Auto enroll and complete Day 1
+                const enrollment = await sprintService.enrollUser(firebaseUser.uid, sprint.id, sprint.duration, {
+                    firstActionInput: taskInputs[0],
+                    taskInputs: taskInputs
+                } as any);
+
+                if (enrollment && enrollment.progress && enrollment.progress[0]) {
+                    const updatedProgress = [...enrollment.progress];
+                    updatedProgress[0] = {
+                        ...updatedProgress[0],
+                        completed: true,
+                        completedAt: new Date().toISOString(),
+                        answers: taskInputs,
+                        submission: taskInputs[0]
+                    };
+                    const enrollmentRef = doc(db, "users", firebaseUser.uid, "enrollments", enrollment.id);
+                    await updateDoc(enrollmentRef, { 
+                        progress: updatedProgress,
+                        last_activity_at: new Date().toISOString()
+                    });
+                }
+                localStorage.removeItem('pending_first_action');
+                setShowLockModal(false);
+                navigate(`/participant/sprint/${enrollment.id}?day=1`, { state: { showCompletion: true, isFirstActionAutoClaim: true } });
+            }
+        } catch (error: any) {
+            console.error("Google Sign-In Failure:", error);
+            if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+                setAuthError("Google authentication failed. Please try again.");
+            }
+        } finally {
+            setIsSubmittingAuth(false);
+        }
+    };
+
+    const handleSignUpSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!authFirstName || !authLastName || !authEmail || !authPassword) {
+            setAuthError("All fields are required.");
+            return;
+        }
+        setAuthError('');
+        setIsSubmittingAuth(true);
+
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, authEmail.trim().toLowerCase(), authPassword);
+            const firebaseUser = userCredential.user;
+            await updateFbProfile(firebaseUser, { displayName: `${authFirstName} ${authLastName}` });
+
+            const newUser: Partial<Participant> = {
+                id: firebaseUser.uid,
+                name: `${authFirstName} ${authLastName}`,
+                email: authEmail.trim().toLowerCase(),
+                role: UserRole.PARTICIPANT,
+                profileImageUrl: `https://ui-avatars.com/api/?name=${authFirstName}+${authLastName}&background=0E7850&color=fff`,
+                persona: 'Seeker',
+                onboardingAnswers: {},
+                enrolledSprintIds: [],
+                isPartner: false,
+                partnerData: null,
+                walletBalance: 0,
+                referrerId: null,
+                referralFirstTouch: null
+            };
+            await userService.createUserDocument(firebaseUser.uid, newUser);
+
+            let enrollmentId = "";
+            if (sprint) {
+                // Auto enroll and complete Day 1
+                const enrollment = await sprintService.enrollUser(firebaseUser.uid, sprint.id, sprint.duration, {
+                    firstActionInput: taskInputs[0],
+                    taskInputs: taskInputs
+                } as any);
+
+                if (enrollment && enrollment.progress && enrollment.progress[0]) {
+                    const updatedProgress = [...enrollment.progress];
+                    updatedProgress[0] = {
+                        ...updatedProgress[0],
+                        completed: true,
+                        completedAt: new Date().toISOString(),
+                        answers: taskInputs,
+                        submission: taskInputs[0]
+                    };
+                    const enrollmentRef = doc(db, "users", firebaseUser.uid, "enrollments", enrollment.id);
+                    await updateDoc(enrollmentRef, { 
+                        progress: updatedProgress,
+                        last_activity_at: new Date().toISOString()
+                    });
+                }
+                enrollmentId = enrollment.id;
+                setCreatedEnrollmentId(enrollment.id);
+                localStorage.removeItem('pending_first_action');
+            }
+
+            await sendEmailVerification(firebaseUser);
+            toast.success("Account created! Verification email sent.");
+            setBottomModalStep(3); // Transition to verification step
+        } catch (error: any) {
+            console.error("Signup error:", error);
+            if (error.code === 'auth/email-already-in-use') setAuthError("Email already in use. Try logging in instead.");
+            else if (error.code === 'auth/weak-password') setAuthError("Password must be at least 6 characters.");
+            else setAuthError("Account creation failed. Please try again.");
+        } finally {
+            setIsSubmittingAuth(false);
+        }
+    };
+
+    const handleLoginSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!authEmail || !authPassword) {
+            setAuthError("Email and Password are required.");
+            return;
+        }
+        setAuthError('');
+        setIsSubmittingAuth(true);
+
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth, authEmail.trim().toLowerCase(), authPassword);
+            const firebaseUser = userCredential.user;
+            toast.success("Logged in successfully!");
+
+            if (sprint) {
+                // Auto enroll and complete Day 1
+                const enrollment = await sprintService.enrollUser(firebaseUser.uid, sprint.id, sprint.duration, {
+                    firstActionInput: taskInputs[0],
+                    taskInputs: taskInputs
+                } as any);
+
+                if (enrollment && enrollment.progress && enrollment.progress[0]) {
+                    const updatedProgress = [...enrollment.progress];
+                    updatedProgress[0] = {
+                        ...updatedProgress[0],
+                        completed: true,
+                        completedAt: new Date().toISOString(),
+                        answers: taskInputs,
+                        submission: taskInputs[0]
+                    };
+                    const enrollmentRef = doc(db, "users", firebaseUser.uid, "enrollments", enrollment.id);
+                    await updateDoc(enrollmentRef, { 
+                        progress: updatedProgress,
+                        last_activity_at: new Date().toISOString()
+                    });
+                }
+                setCreatedEnrollmentId(enrollment.id);
+                localStorage.removeItem('pending_first_action');
+
+                if (!firebaseUser.emailVerified) {
+                    await sendEmailVerification(firebaseUser);
+                    setBottomModalStep(3);
+                } else {
+                    setShowLockModal(false);
+                    navigate(`/participant/sprint/${enrollment.id}?day=1`, { state: { showCompletion: true, isFirstActionAutoClaim: true } });
+                }
+            }
+        } catch (error: any) {
+            console.error("Login error:", error);
+            if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                setAuthError("Incorrect email or password.");
+            } else {
+                setAuthError("Login failed. Please check your credentials.");
+            }
+        } finally {
+            setIsSubmittingAuth(false);
+        }
+    };
+
+    const handleIHaveVerifiedClick = async () => {
+        setIsCheckingVerification(true);
+        try {
+            const isVerified = await checkVerification();
+            if (isVerified) {
+                toast.success("Email verified successfully! Welcome.");
+                setShowLockModal(false);
+                if (createdEnrollmentId) {
+                    navigate(`/participant/sprint/${createdEnrollmentId}?day=1`, { state: { showCompletion: true, isFirstActionAutoClaim: true } });
+                } else {
+                    navigate('/dashboard');
+                }
+            } else {
+                toast.error("Email is not verified yet. Please click the link in your inbox first!");
+            }
+        } catch (err) {
+            console.error("Verification error", err);
+            toast.error("An error occurred during verification check.");
+        } finally {
+            setIsCheckingVerification(false);
+        }
+    };
+
+    const handleResendVerificationClick = async () => {
+        if (auth.currentUser) {
+            setResendingVerifyEmail(true);
+            try {
+                await sendEmailVerification(auth.currentUser);
+                toast.success("Verification link sent to your inbox!");
+            } catch (err) {
+                toast.error("Failed to resend. Please check back in a moment.");
+            } finally {
+                setResendingVerifyEmail(false);
+            }
+        }
+    };
+
+    const handleSignOutClick = async () => {
+        try {
+            await logout();
+            setBottomModalStep(1);
+            setAuthPassword('');
+            setAuthError('');
+            setCreatedEnrollmentId(null);
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -1174,15 +1437,30 @@ const SprintPreview: React.FC = () => {
             `}</style>
             
             {showLockModal && sprint && createPortal(
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 max-w-sm w-full text-center relative overflow-hidden animate-slide-up border border-gray-100">
-                        <div className="w-16 h-16 bg-[#0E7850]/10 rounded-full flex items-center justify-center mx-auto mb-6 text-[#0E7850]">
-                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                            </svg>
-                        </div>
-                        {sprint.pricingType === 'credits' ? (
-                            <>
+                <>
+                    {/* Backdrop Overlay */}
+                    <div 
+                        onClick={() => {
+                            if (bottomModalStep !== 3) {
+                                setShowLockModal(false);
+                            }
+                        }}
+                        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm animate-fade-in" 
+                    />
+                    
+                    {/* Bottom Modal Sheet Container */}
+                    <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.15)] px-6 pt-8 pb-10 max-w-md mx-auto animate-slide-up border-t border-gray-100 max-h-[92vh] overflow-y-auto no-scrollbar">
+                        
+                        {/* Drag Pull Indicator line */}
+                        <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6 shrink-0" />
+
+                        {bottomModalStep === 1 && (
+                            <div className="text-center animate-fade-in">
+                                <div className="w-16 h-16 bg-[#0E7850]/10 rounded-full flex items-center justify-center mx-auto mb-6 text-[#0E7850]">
+                                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                </div>
                                 <h3 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight mb-3">
                                     You’ve completed the first day of your sprint.
                                 </h3>
@@ -1193,97 +1471,237 @@ const SprintPreview: React.FC = () => {
                                 <div className="space-y-4">
                                     <button 
                                         onClick={() => {
-                                            const pendingObj = {
-                                                sprintId: sprint.id,
-                                                pricingType: sprint.pricingType || 'credits',
-                                                firstActionInput: taskInputs[0],
-                                                taskInputs: taskInputs,
-                                                prefilledEmail: prefilledEmail || ''
-                                            };
-                                            localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
-                                            navigate('/signup', { state: { prefilledEmail, targetSprintId: sprintId } });
+                                            setBottomModalStep(2);
+                                            setAuthMode('signup');
                                         }}
-                                        className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-[#0b5d3e] transition-colors shadow-lg active:scale-95"
+                                        className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-[#0b5d3e] transition-colors shadow-lg active:scale-95 cursor-pointer"
                                     >
                                         Sign up to continue
                                     </button>
                                     <button 
                                         onClick={() => {
-                                            const pendingObj = {
-                                                sprintId: sprint.id,
-                                                pricingType: sprint.pricingType || 'credits',
-                                                firstActionInput: taskInputs[0],
-                                                taskInputs: taskInputs,
-                                                prefilledEmail: prefilledEmail || ''
-                                            };
-                                            localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
-                                            navigate('/login', { state: { prefilledEmail, targetSprintId: sprintId } });
+                                            setBottomModalStep(2);
+                                            setAuthMode('login');
                                         }}
-                                        className="text-[11px] font-extrabold text-[#0E7850] hover:text-[#0b5d3e] hover:underline transition-colors block mx-auto py-1"
+                                        className="text-[11px] font-extrabold text-[#0E7850] hover:text-[#0b5d3e] hover:underline transition-colors block mx-auto py-1 cursor-pointer"
                                     >
                                         Already have an account Login to proceed
                                     </button>
                                     <button 
                                         onClick={() => setShowLockModal(false)}
-                                        className="w-full py-2 text-gray-400 rounded-2xl font-bold uppercase tracking-widest text-[9px] hover:text-gray-500 transition-colors"
+                                        className="w-full py-2 text-gray-400 rounded-2xl font-bold uppercase tracking-widest text-[9px] hover:text-gray-500 transition-colors cursor-pointer"
                                     >
                                         Cancel
                                     </button>
                                 </div>
-                            </>
-                        ) : (
-                            <>
-                                <h3 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight mb-3">
-                                    You’ve completed the first day of your sprint.
-                                </h3>
-                                <p className="text-gray-500 font-semibold text-xs leading-relaxed mb-8">
-                                    Create an account to save your progress.
-                                </p>
-                                
-                                <div className="space-y-3">
-                                    <button 
-                                        onClick={() => {
-                                            const pendingObj = {
-                                                sprintId: sprint.id,
-                                                pricingType: sprint.pricingType || 'cash',
-                                                firstActionInput: taskInputs[0],
-                                                taskInputs: taskInputs,
-                                                prefilledEmail: prefilledEmail || ''
-                                            };
-                                            localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
-                                            navigate('/signup', { state: { prefilledEmail, targetSprintId: sprintId } });
-                                        }}
-                                        className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-[#0b5d3e] transition-colors shadow-lg active:scale-95"
-                                    >
-                                        Sign Up and Unlock
-                                    </button>
-                                    <button 
-                                        onClick={() => {
-                                            const pendingObj = {
-                                                sprintId: sprint.id,
-                                                pricingType: sprint.pricingType || 'cash',
-                                                firstActionInput: taskInputs[0],
-                                                taskInputs: taskInputs,
-                                                prefilledEmail: prefilledEmail || ''
-                                            };
-                                            localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
-                                            navigate('/login', { state: { prefilledEmail, targetSprintId: sprintId } });
-                                        }}
-                                        className="w-full py-4 bg-gray-50 text-gray-700 rounded-2xl font-black uppercase tracking-widest text-[9px] hover:bg-gray-100 transition-colors"
-                                    >
-                                        Log In to Unlock
-                                    </button>
-                                    <button 
-                                        onClick={() => setShowLockModal(false)}
-                                        className="w-full py-4 text-gray-400 rounded-2xl font-black uppercase tracking-widest text-[9px] hover:text-gray-500 transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </>
+                            </div>
                         )}
+
+                        {bottomModalStep === 2 && (
+                            <div className="animate-fade-in text-center">
+                                {authMode === 'signup' ? (
+                                    <h1 className="text-4xl font-black leading-[0.95] text-center tracking-tighter text-gray-900 mb-6 uppercase">
+                                        Start<br/><span className="text-primary italic pb-1">your rise</span>
+                                    </h1>
+                                ) : (
+                                    <h1 className="text-4xl font-black leading-[0.95] text-center tracking-tighter text-gray-900 mb-6 uppercase">
+                                        Welcome<br/><span className="text-primary italic pb-1">back</span>
+                                    </h1>
+                                )}
+
+                                <form onSubmit={authMode === 'signup' ? handleSignUpSubmit : handleLoginSubmit} className="space-y-4 text-left">
+                                    {authMode === 'signup' && (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">First Name</label>
+                                                <input 
+                                                    type="text" 
+                                                    required 
+                                                    value={authFirstName} 
+                                                    onChange={(e) => setAuthFirstName(e.target.value)} 
+                                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-sm focus:bg-white focus:border-primary/20 transition-all text-gray-900" 
+                                                    placeholder="First Name" 
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">Last Name</label>
+                                                <input 
+                                                    type="text" 
+                                                    required 
+                                                    value={authLastName} 
+                                                    onChange={(e) => setAuthLastName(e.target.value)} 
+                                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-sm focus:bg-white focus:border-primary/20 transition-all text-gray-900" 
+                                                    placeholder="Last Name" 
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    <div className="space-y-1">
+                                        <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">Email Address</label>
+                                        <input 
+                                            type="email" 
+                                            required 
+                                            value={authEmail} 
+                                            onChange={(e) => setAuthEmail(e.target.value)} 
+                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-sm focus:bg-white focus:border-primary/20 focus:ring-4 focus:ring-primary/5 transition-all text-gray-900" 
+                                            placeholder="Email Address" 
+                                        />
+                                    </div>
+                                    
+                                    <div className="space-y-1">
+                                        <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">
+                                            {authMode === 'signup' ? 'Set Password' : 'Password'}
+                                        </label>
+                                        <input 
+                                            type="password" 
+                                            required 
+                                            value={authPassword} 
+                                            onChange={(e) => setAuthPassword(e.target.value)} 
+                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-sm focus:bg-white focus:border-primary/20 focus:ring-4 focus:ring-primary/5 transition-all text-gray-900" 
+                                            placeholder="Password" 
+                                        />
+                                    </div>
+
+                                    {authError && (
+                                        <p className="text-[10px] text-red-600 font-black uppercase text-center mt-2 tracking-wide">
+                                            {authError}
+                                        </p>
+                                    )}
+
+                                    <button 
+                                        type="submit" 
+                                        disabled={isSubmittingAuth}
+                                        className="w-full py-4 bg-primary hover:bg-[#0b5d3e] text-white rounded-2xl shadow-lg text-[10px] font-black uppercase tracking-[0.2em] mt-2 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                    >
+                                        {isSubmittingAuth ? (
+                                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                        ) : (
+                                            <>
+                                                {authMode === 'signup' ? 'Create Account' : 'Log In'} &rarr;
+                                            </>
+                                        )}
+                                    </button>
+                                </form>
+
+                                <div className="relative flex py-3 items-center">
+                                    <div className="flex-grow border-t border-gray-100"></div>
+                                    <span className="flex-shrink mx-3 text-[8px] font-black text-gray-300 uppercase tracking-widest block">or continue with</span>
+                                    <div className="flex-grow border-t border-gray-100"></div>
+                                </div>
+
+                                <button 
+                                    type="button" 
+                                    onClick={handleGoogleSignIn}
+                                    disabled={isSubmittingAuth}
+                                    className="w-full flex items-center justify-center gap-2.5 py-3 border border-gray-200 rounded-full hover:bg-gray-50 transition-all font-black text-[9px] uppercase tracking-[0.15em] text-gray-700 active:scale-95 disabled:opacity-50 cursor-pointer"
+                                >
+                                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                        <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.08H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.92l2.85-2.22.81-.6z"/>
+                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 6.16l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                    </svg>
+                                    Google
+                                </button>
+
+                                <div className="mt-6 flex flex-col items-center gap-3">
+                                    {authMode === 'signup' ? (
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                            Already have an account?{" "}
+                                            <button 
+                                                onClick={() => { setAuthMode('login'); setAuthError(''); }} 
+                                                className="text-primary hover:underline font-extrabold cursor-pointer"
+                                            >
+                                                Log in
+                                            </button>
+                                        </p>
+                                    ) : (
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                            Don't have an account?{" "}
+                                            <button 
+                                                onClick={() => { setAuthMode('signup'); setAuthError(''); }} 
+                                                className="text-primary hover:underline font-extrabold cursor-pointer"
+                                            >
+                                                Sign up
+                                            </button>
+                                        </p>
+                                    )}
+                                    
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            setBottomModalStep(1);
+                                            setAuthError('');
+                                        }}
+                                        className="text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors cursor-pointer"
+                                    >
+                                        Back
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {bottomModalStep === 3 && (
+                            <div className="text-center animate-fade-in">
+                                <div className="w-16 h-16 bg-primary/5 text-primary rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-[#0E7850]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                                
+                                <h2 className="text-xl font-black text-gray-900 mb-2 tracking-tight uppercase">
+                                    VERIFY YOUR EMAIL
+                                </h2>
+                                
+                                <p className="text-gray-500 text-xs mb-6 font-medium">
+                                    We’ve sent a portal link to:<br/>
+                                    <span className="text-primary font-black italic break-all">{authEmail}</span>
+                                </p>
+
+                                <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6 text-[10px] text-gray-400 font-bold leading-relaxed uppercase tracking-widest text-center">
+                                    CLICK THE LINK AND YOU WILL BE AUTOMATICALLY VERIFIED
+                                    <span className="block mt-2 font-black text-amber-600">
+                                        (YOU CAN ALSO CHECK YOUR SPAM FOR THE EMAIL IF IT HASN’T ARRIVED)
+                                    </span>
+                                </div>
+
+                                <button 
+                                    type="button"
+                                    disabled={isCheckingVerification}
+                                    onClick={handleIHaveVerifiedClick}
+                                    className="w-full py-4 bg-primary hover:bg-[#0b5d3e] text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg transition-transform active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                                >
+                                    {isCheckingVerification ? (
+                                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                    ) : (
+                                        "I'VE CLICKED THE LINK"
+                                    )}
+                                </button>
+
+                                <div className="flex justify-between gap-4 pt-4 mt-6 border-t border-gray-100">
+                                    <button 
+                                        type="button"
+                                        disabled={resendingVerifyEmail}
+                                        onClick={handleResendVerificationClick}
+                                        className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline disabled:opacity-50 cursor-pointer"
+                                    >
+                                        {resendingVerifyEmail ? 'Sending Link...' : 'RESEND EMAIL'}
+                                    </button>
+
+                                    <button 
+                                        type="button"
+                                        onClick={handleSignOutClick}
+                                        className="text-[9px] font-black text-red-500 uppercase tracking-widest hover:underline cursor-pointer"
+                                    >
+                                        SIGN OUT
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                     </div>
-                </div>,
+                </>,
                 document.body
             )}
 
