@@ -375,6 +375,18 @@ const EditBlogModal: React.FC<{
         
         {/* Left Side: Text input editor pane */}
         <div className="w-full lg:w-1/2 border-r border-gray-100 bg-white p-6 md:p-8 overflow-y-auto flex flex-col space-y-6">
+          {/* Progress Hint Banner */}
+          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between shadow-sm animate-fade-in shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center text-base">🌱</div>
+              <div>
+                <span className="text-[10px] font-black text-emerald-800 uppercase tracking-widest block">88% Complete</span>
+                <span className="text-[8px] text-emerald-600 font-bold uppercase tracking-wider block mt-0.5">0 more steps to go</span>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 bg-[#0E7850] text-white rounded-full text-[8px] font-black uppercase tracking-widest">Ready to go</span>
+          </div>
+
           <div>
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">Blog Post Title</label>
             <input 
