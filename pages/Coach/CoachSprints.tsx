@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Sprint, Coach } from '../../types';
@@ -229,6 +229,7 @@ const EditBlogModal: React.FC<{
   const [title, setTitle] = useState(blog.title || '');
   const [image, setImage] = useState(blog.blogImage || blog.coverImageUrl || '');
   const [body, setBody] = useState(blog.blogBody || blog.description || '');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -245,19 +246,116 @@ const EditBlogModal: React.FC<{
     });
   };
 
+  const insertFormat = (prefix: string, suffix: string = '') => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const text = el.value;
+    const selected = text.substring(start, end);
+
+    let replacement = '';
+    if (prefix === '# ' || prefix === '## ' || prefix === '> ' || prefix === '* ' || prefix === '1. ') {
+      // Line-based block formatting
+      const beforeCursor = text.substring(0, start);
+      const lineStartIdx = beforeCursor.lastIndexOf('\n') + 1;
+      const beforeLine = text.substring(0, lineStartIdx);
+      const lineContent = text.substring(lineStartIdx, end);
+
+      if (lineContent.startsWith(prefix)) {
+        // Toggle off
+        replacement = beforeLine + lineContent.substring(prefix.length) + text.substring(end);
+      } else {
+        // Toggle on
+        replacement = beforeLine + prefix + lineContent + text.substring(end);
+      }
+    } else {
+      // Inline formatting like wrapping text in bold asterisks
+      replacement = text.substring(0, start) + prefix + (selected || 'bold text') + suffix + text.substring(end);
+    }
+
+    setBody(replacement);
+
+    // Maintain focus and reset selection
+    setTimeout(() => {
+      el.focus();
+      const offset = prefix.length + (selected ? selected.length : (prefix === '**' ? 9 : 0)) + suffix.length;
+      el.setSelectionRange(start + prefix.length, start + prefix.length + (selected ? selected.length : (prefix === '**' ? 9 : 0)));
+    }, 50);
+  };
+
+  // Live rendered content formatter aligned with RiseBlog.tsx
+  const renderFormattedPreview = (content: string) => {
+    if (!content.trim()) {
+      return <p className="text-gray-300 italic text-sm">Preview content will appear here in real-time...</p>;
+    }
+    const lines = content.split('\n');
+    return lines.map((line, idx) => {
+      const trimmed = line.trim();
+      if (!trimmed) return <div key={idx} className="h-4" />;
+      
+      if (trimmed.startsWith('# ')) {
+        return <h1 key={idx} className="text-2xl font-black text-gray-900 tracking-tight mt-6 mb-3 border-b pb-2 border-gray-100">{trimmed.replace('# ', '')}</h1>;
+      }
+      if (trimmed.startsWith('## ')) {
+        return <h2 key={idx} className="text-lg font-black text-gray-900 tracking-tight mt-4 mb-2">{trimmed.replace('## ', '')}</h2>;
+      }
+      if (trimmed.startsWith('> ')) {
+        return (
+          <blockquote key={idx} className="border-l-4 border-[#0E7850] pl-4 py-1 italic my-3 text-gray-600 bg-gray-50/50 pr-2 rounded-r-lg font-medium">
+            {trimmed.replace('> ', '')}
+          </blockquote>
+        );
+      }
+      if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
+        const text = trimmed.replace(/^[\*\-]\s+/, '');
+        if (text.includes('**')) {
+          const parts = text.split('**');
+          return (
+            <li key={idx} className="ml-6 list-disc text-xs text-gray-650 leading-relaxed mb-1.5 font-medium">
+              {parts.map((part, pIdx) => pIdx % 2 === 1 ? <strong key={pIdx} className="text-gray-900 font-black">{part}</strong> : part)}
+            </li>
+          );
+        }
+        return <li key={idx} className="ml-6 list-disc text-xs text-gray-650 leading-relaxed mb-1.5 font-medium">{text}</li>;
+      }
+      if (trimmed.match(/^\d+\.\s+/)) {
+        const text = trimmed.replace(/^\d+\.\s+/, '');
+        return (
+          <li key={idx} className="ml-6 list-decimal text-xs text-gray-650 leading-relaxed mb-1.5 font-medium">
+            {text.includes('**') ? (
+              text.split('**').map((part, pIdx) => pIdx % 2 === 1 ? <strong key={pIdx} className="text-gray-900 font-black">{part}</strong> : part)
+            ) : text}
+          </li>
+        );
+      }
+      
+      if (trimmed.includes('**')) {
+        const parts = trimmed.split('**');
+        return (
+          <p key={idx} className="text-xs text-gray-650 leading-relaxed mb-3 font-medium">
+            {parts.map((part, pIdx) => pIdx % 2 === 1 ? <strong key={pIdx} className="text-gray-900 font-black">{part}</strong> : part)}
+          </p>
+        );
+      }
+      return <p key={idx} className="text-xs text-gray-650 leading-relaxed mb-3 font-medium">{trimmed}</p>;
+    });
+  };
+
   return (
-    <div className="fixed inset-0 z-[300] bg-gray-50 flex flex-col overflow-y-auto animate-fade-in font-sans">
-      <div className="bg-white border-b border-gray-150 px-8 py-5 sticky top-0 flex justify-between items-center z-10 shadow-sm">
+    <div className="fixed inset-0 z-[300] bg-[#FAFAFA] flex flex-col overflow-hidden animate-fade-in font-sans">
+      {/* Top action header */}
+      <div className="bg-white border-b border-gray-150 px-8 py-4 flex justify-between items-center z-10 shadow-sm shrink-0">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-black text-primary uppercase tracking-[0.25em]">RiseBlog Studio</span>
-          <span className="text-xs text-gray-400 font-extrabold px-3 py-1 bg-gray-50 rounded-lg">Full Bleed Studio</span>
+          <span className="text-xs font-black text-primary uppercase tracking-[0.25em]">RiseBlog Studio</span>
+          <span className="text-[10px] text-gray-400 font-black px-2.5 py-1 bg-gray-50 rounded-full border border-gray-100 uppercase tracking-wider">Live Rich Editor</span>
         </div>
         <div className="flex gap-3">
           <button 
             type="button"
             disabled={isSaving}
             onClick={onClose} 
-            className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer"
           >
             Cancel
           </button>
@@ -265,22 +363,26 @@ const EditBlogModal: React.FC<{
             type="button"
             disabled={isSaving}
             onClick={handleSubmit} 
-            className="px-6 py-2.5 bg-primary text-white hover:bg-primary/95 disabled:opacity-50 text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer"
+            className="px-5 py-2 bg-[#0E7850] text-white hover:bg-[#0E7850]/90 disabled:opacity-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md cursor-pointer"
           >
             {isSaving ? 'Saving Changes...' : 'Save & Publish'}
           </button>
         </div>
       </div>
 
-      <div className="flex-1 max-w-4xl w-full mx-auto p-6 md:p-12 space-y-8 animate-slide-up">
-        <div className="bg-white rounded-[3.5rem] p-8 md:p-12 border border-gray-100 shadow-sm space-y-6">
+      {/* Main split work space */}
+      <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+        
+        {/* Left Side: Text input editor pane */}
+        <div className="w-full lg:w-1/2 border-r border-gray-100 bg-white p-6 md:p-8 overflow-y-auto flex flex-col space-y-6">
           <div>
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">Blog Post Title</label>
             <input 
               type="text" 
               value={title} 
               onChange={e => setTitle(e.target.value)} 
-              className="w-full px-5 py-3.5 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold mt-2 transition-all" 
+              placeholder="e.g. 5 Micro-Habits That Redefine Executive Leadership"
+              className="w-full px-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-black mt-1.5 transition-all" 
               required 
             />
           </div>
@@ -291,21 +393,120 @@ const EditBlogModal: React.FC<{
               type="url" 
               value={image} 
               onChange={e => setImage(e.target.value)} 
-              className="w-full px-5 py-3.5 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold mt-2 transition-all" 
+              placeholder="e.g. https://images.unsplash.com/... or leave blank for auto seed"
+              className="w-full px-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-xs font-bold mt-1.5 transition-all" 
             />
           </div>
 
-          <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">Blog Post Body</label>
+          <div className="flex-1 flex flex-col min-h-[350px]">
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">Blog Post Body</label>
+              <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Single formatted input</span>
+            </div>
+
+            {/* Quick format utility toolbar */}
+            <div className="bg-gray-50 border border-gray-100 rounded-2xl p-2 mb-2 flex flex-wrap gap-1 items-center shadow-inner">
+              <button
+                type="button"
+                onClick={() => insertFormat('# ')}
+                className="px-3 py-1.5 bg-white hover:bg-gray-100 border border-gray-150 rounded-lg text-[10px] font-black text-gray-700 tracking-wider transition-all active:scale-95"
+                title="Add Heading 1"
+              >
+                H1
+              </button>
+              <button
+                type="button"
+                onClick={() => insertFormat('## ')}
+                className="px-3 py-1.5 bg-white hover:bg-gray-100 border border-gray-150 rounded-lg text-[10px] font-black text-gray-700 tracking-wider transition-all active:scale-95"
+                title="Add Subheading H2"
+              >
+                H2
+              </button>
+              <button
+                type="button"
+                onClick={() => insertFormat('**', '**')}
+                className="px-3 py-1.5 bg-white hover:bg-gray-100 border border-gray-150 rounded-lg text-[10px] font-black text-gray-700 tracking-wider transition-all active:scale-95"
+                title="Format Selection Bold"
+              >
+                Bold
+              </button>
+              <button
+                type="button"
+                onClick={() => insertFormat('> ')}
+                className="px-3 py-1.5 bg-white hover:bg-gray-100 border border-gray-150 rounded-lg text-[10px] font-black text-gray-700 tracking-wider transition-all active:scale-95"
+                title="Add Quote Block"
+              >
+                Quote
+              </button>
+              <button
+                type="button"
+                onClick={() => insertFormat('* ')}
+                className="px-3 py-1.5 bg-white hover:bg-gray-100 border border-gray-150 rounded-lg text-[10px] font-black text-gray-700 tracking-wider transition-all active:scale-95"
+                title="Add Bullet point"
+              >
+                Bullet
+              </button>
+              <button
+                type="button"
+                onClick={() => insertFormat('1. ')}
+                className="px-3 py-1.5 bg-white hover:bg-gray-100 border border-gray-150 rounded-lg text-[10px] font-black text-gray-700 tracking-wider transition-all active:scale-95"
+                title="Add Numbered List"
+              >
+                List
+              </button>
+            </div>
+
             <textarea 
+              ref={textareaRef}
               value={body} 
               onChange={e => setBody(e.target.value)} 
-              rows={16} 
-              className="w-full px-5 py-4 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium font-sans resize-none mt-2 leading-relaxed h-96" 
+              placeholder={`Write your post using the toolbar formatters, e.g.:
+
+# My Major Heading
+This is an inspiring introduction. You can add **bold keywords** easily to emphasize main steps.
+
+## Dynamic Subheading
+* Use bullet lists to break down steps
+* Keep the content extremely concise and engaging`}
+              className="w-full flex-1 p-4 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-xs font-medium font-mono resize-none leading-relaxed min-h-[250px]" 
               required 
             />
           </div>
         </div>
+
+        {/* Right Side: Formatted Live Preview pane */}
+        <div className="w-full lg:w-1/2 bg-[#F9FAF9] p-6 md:p-8 overflow-y-auto flex flex-col">
+          <div className="flex justify-between items-center border-b border-gray-100 pb-3 mb-4">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Real-time Public Preview</span>
+            <span className="text-[8px] bg-[#0E7850]/10 text-[#0E7850] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Synchronized</span>
+          </div>
+
+          <div className="bg-white rounded-[2rem] border border-gray-100/80 p-6 md:p-8 shadow-sm flex-1 min-h-[400px]">
+            {image && (
+              <img 
+                src={image} 
+                alt="Post Preview" 
+                className="w-full h-40 md:h-48 object-cover rounded-2xl mb-6 border border-gray-100" 
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/placeholder/800/400';
+                }}
+              />
+            )}
+            <h1 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight leading-tight mb-4 uppercase">
+              {title || 'Untitled Blog Post'}
+            </h1>
+            <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-6 pb-4 border-b border-gray-50">
+              <span>BY COACH</span>
+              <span>•</span>
+              <span>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+            </div>
+
+            <div className="space-y-1 font-sans">
+              {renderFormattedPreview(body)}
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );
