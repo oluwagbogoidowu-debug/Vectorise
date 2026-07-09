@@ -13,7 +13,7 @@ import LocalLogo from '../../components/LocalLogo';
 import { toast } from 'sonner';
 import { paymentService } from '../../services/paymentService';
 
-import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, ShieldCheck, Share2 } from 'lucide-react';
+import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, Share2 } from 'lucide-react';
 
 interface SectionHeadingProps {
   children: React.ReactNode;
@@ -413,7 +413,7 @@ const SprintLandingPage: React.FC = () => {
                             </h1>
                             
                             {sprint.subtitle && (
-                                <p className="text-white/85 text-xs sm:text-sm font-semibold tracking-tight leading-relaxed max-w-xl">
+                                <p className="text-white/85 text-sm sm:text-base md:text-lg font-semibold tracking-tight leading-relaxed max-w-xl">
                                     {sprint.subtitle}
                                 </p>
                             )}
@@ -465,7 +465,9 @@ const SprintLandingPage: React.FC = () => {
                             <div className="relative z-10">
                                 {enrollmentStatus === 'none' ? (
                                     <div className="mb-6">
-                                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Path Ready</h3>
+                                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">
+                                            Start Your <span className="text-primary italic">Rise</span>
+                                        </h3>
                                         <p className="text-xs font-semibold text-gray-500 leading-relaxed">
                                             Start by seeing how you actually spend your time.
                                         </p>
@@ -532,11 +534,6 @@ const SprintLandingPage: React.FC = () => {
                                             <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
                                         </Button>
                                     )}
-                                    
-                                    <div className="flex items-center justify-center gap-2 pt-1 opacity-40">
-                                        <ShieldCheck className="w-3.5 h-3.5 text-gray-400" />
-                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Secure Access</span>
-                                    </div>
                                 </div>
 
                                 {/* COACH SECTION */}
