@@ -933,160 +933,58 @@ const SprintOverviewSheet: React.FC<{
   onClose: () => void;
   sprint: Sprint | null;
   coach: Coach | null;
-}> = ({ isOpen, onClose, sprint, coach }) => {
-  if (!isOpen || !sprint) return null;
-
+}> = ({ isOpen, onClose, sprint }) => {
   return (
-    <div className="fixed inset-0 z-[200] flex items-end justify-center animate-fade-in font-sans">
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-200 cursor-pointer"
-      />
-
-      {/* Sheet */}
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[201] p-6 overflow-y-auto max-h-[85vh] pb-8 animate-slide-up-quick text-left font-sans custom-scrollbar">
-        {/* Drag Handle indicator */}
-        <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-5"></div>
-
-        {/* Header Action */}
-        <div className="flex justify-between items-start mb-4 gap-2">
-          <div>
-            <span className="text-[9px] font-black bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 rounded-full uppercase tracking-widest inline-block mb-1.5">
-              {sprint.category || "Sprint Mission"}
-            </span>
-            <h2 className="text-xl font-black text-gray-900 tracking-tight leading-tight uppercase">
-              {sprint.title}
-            </h2>
-            {sprint.subtitle && (
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mt-1">
-                {sprint.subtitle}
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
+    <AnimatePresence>
+      {isOpen && sprint && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick cursor-pointer"
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-50 transition-colors cursor-pointer shrink-0"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Quick Metrics Grid */}
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
-            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-1">Duration</span>
-            <span className="text-xs font-black text-gray-800 uppercase tracking-wide flex items-center gap-1.5">
-              ⏱️ {sprint.duration} Days
-            </span>
-          </div>
-          <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100">
-            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block mb-1">Difficulty</span>
-            <span className="text-xs font-black text-primary uppercase tracking-wide flex items-center gap-1.5">
-              🛡️ {sprint.difficulty || "All Levels"}
-            </span>
-          </div>
-        </div>
-
-        {/* Cover Image */}
-        {sprint.coverImageUrl && (
-          <img
-            src={sprint.coverImageUrl}
-            alt=""
-            className="w-full h-36 object-cover rounded-2xl mb-5 border border-gray-100 shadow-sm"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80';
-            }}
           />
-        )}
+          <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-5 sm:p-6 overflow-y-auto max-h-[60vh] sm:max-h-[55vh] pb-6 animate-slide-up-quick text-left font-sans">
+            {/* Drag Handle indicator */}
+            <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
 
-        {/* Scrollable Content Details */}
-        <div className="space-y-5 pr-1 max-h-[40vh] overflow-y-auto custom-scrollbar">
-          {/* Mission Statement */}
-          {sprint.description && (
-            <div className="p-4 bg-emerald-50/40 border border-emerald-500/10 rounded-2xl">
-              <span className="text-[9px] font-black text-[#0E7850] uppercase tracking-widest block mb-1.5">
-                The Mission Overview
+            {/* Close button */}
+            <button
+              onClick={onClose}
+              className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Category / Duration */}
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850] bg-[#0E7850]/5 px-2.5 py-1 rounded-lg">
+                {sprint.category || "Growth"}
               </span>
-              <p className="text-xs text-gray-750 font-medium leading-relaxed">
-                {sprint.description}
-              </p>
-            </div>
-          )}
-
-          {/* Ultimate Transformation */}
-          {sprint.transformation && (
-            <div className="p-4 bg-indigo-50/30 border border-indigo-500/10 rounded-2xl">
-              <span className="text-[9px] font-black text-indigo-700 uppercase tracking-widest block mb-1.5">
-                The Transformation Outcome
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg">
+                {sprint.duration || 7} Days
               </span>
-              <p className="text-xs text-gray-750 font-medium leading-relaxed italic">
-                "{sprint.transformation}"
-              </p>
             </div>
-          )}
 
-          {/* Target Audience: For Who */}
-          {sprint.forWho && sprint.forWho.length > 0 && (
-            <div>
-              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">
-                Who is this designed for?
-              </span>
-              <ul className="space-y-1.5">
-                {sprint.forWho.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-xs font-medium text-gray-700">
-                    <span className="text-emerald-500 text-xs mt-0.5">✓</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
+            {/* Sprint Title */}
+            <h3 className="text-xl font-black tracking-tight leading-tight text-gray-900 mb-3 uppercase">
+              {sprint.title}
+            </h3>
+
+            {/* Description */}
+            <div className="text-xs text-gray-600 font-medium leading-relaxed mb-4 max-h-[25vh] overflow-y-auto custom-scrollbar">
+              <FormattedText text={sprint.description || sprint.subtitle || "Unlock consistency and start your rise."} />
             </div>
-          )}
 
-          {/* Key Expected Outcomes */}
-          {sprint.outcomes && sprint.outcomes.length > 0 && (
-            <div className="pt-2 border-t border-gray-50">
-              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">
-                Core Sprints Outcomes
-              </span>
-              <ul className="space-y-1.5">
-                {sprint.outcomes.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-xs font-medium text-gray-700">
-                    <span className="text-indigo-500 text-xs mt-0.5">✦</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Coach Profile */}
-          {coach && (
-            <div className="pt-4 border-t border-gray-50 flex items-center gap-3">
-              <img
-                src={coach.profileImageUrl || "https://picsum.photos/seed/coach/100/100"}
-                alt=""
-                className="w-10 h-10 rounded-full object-cover border border-gray-150 shadow-xs"
-              />
-              <div>
-                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block">Led By Coach</span>
-                <span className="text-xs font-black text-gray-800 leading-none">{coach.name}</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Action Button to Dismiss */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="w-full mt-6 py-4 bg-gray-900 hover:bg-gray-850 active:scale-98 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-2xl transition-all shadow-md cursor-pointer text-center"
-        >
-          Continue Learning
-        </button>
-      </div>
-    </div>
+            {/* Action button */}
+            <button
+              onClick={onClose}
+              className="w-full py-3.5 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] shadow-xl hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer"
+            >
+              Got It
+            </button>
+          </div>
+        </>
+      )}
+    </AnimatePresence>
   );
 };
 

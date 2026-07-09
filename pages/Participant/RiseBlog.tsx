@@ -1,6 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { blogService, BlogPost } from '../../services/blogService';
+import { sprintService } from '../../services/sprintService';
+import { userService } from '../../services/userService';
+import { Sprint, Coach } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, Clock, Calendar, Heart, Search, Share2, Bookmark, Check } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,7 +16,92 @@ export const RiseBlog: React.FC = () => {
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Record<string, boolean>>({});
 
-  const posts = useMemo(() => blogService.getPosts(), []);
+  const [dbSprints, setDbSprints] = useState<Sprint[]>([]);
+  const [coaches, setCoaches] = useState<Coach[]>([]);
+
+  // Fetch coaches on mount
+  useEffect(() => {
+    userService.getCoaches().then(allCoaches => {
+      setCoaches(allCoaches);
+    }).catch(err => {
+      console.error('Error fetching coaches:', err);
+    });
+  }, []);
+
+  // Subscribe to published sprints (blogs)
+  useEffect(() => {
+    const unsubscribe = sprintService.subscribeToPublishedSprints((sprints) => {
+      const approvedBlogs = sprints.filter(
+        s => s.contentType === 'blog' && s.approvalStatus === 'approved'
+      );
+      setDbSprints(approvedBlogs);
+    }, (err) => {
+      console.error('Error subscribing to blog posts:', err);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Merge static and dynamic posts, sorted descending by creation/publish date
+  const posts = useMemo(() => {
+    const staticPosts = blogService.getPosts();
+    const mappedDbPosts = dbSprints.map((sprint): BlogPost & { createdAt: string } => {
+      const coach = coaches.find(c => c.id === sprint.coachId);
+      const words = (sprint.blogBody || sprint.description || '').split(/\s+/).length;
+      const readTimeMin = Math.max(1, Math.round(words / 200));
+      
+      // Format published date
+      let publishedAt = 'Recently';
+      if (sprint.createdAt) {
+        try {
+          const date = new Date(sprint.createdAt);
+          if (!isNaN(date.getTime())) {
+            publishedAt = date.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            });
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      return {
+        id: sprint.id,
+        title: sprint.title,
+        excerpt: sprint.subtitle || (sprint.description && sprint.description.slice(0, 150) + '...') || 'No description provided.',
+        content: sprint.blogBody || sprint.description || '',
+        category: (sprint.category as any) || 'Execution',
+        readTime: `${readTimeMin} min read`,
+        publishedAt,
+        author: {
+          name: coach?.name || 'Rise Coach',
+          role: coach?.niche || coach?.coachNiche || 'Performance Coach',
+          avatar: coach?.profileImageUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80'
+        },
+        coverImage: sprint.blogImage || sprint.coverImageUrl || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
+        likes: (sprint as any).likes || 0,
+        createdAt: sprint.createdAt || new Date().toISOString()
+      };
+    });
+
+    // Merge lists
+    const allPosts = [
+      ...mappedDbPosts,
+      ...staticPosts.map(p => ({
+        ...p,
+        createdAt: new Date(p.publishedAt).toISOString()
+      }))
+    ];
+
+    // Sort descending by creation/publish date
+    return allPosts.sort((a, b) => {
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      return timeB - timeA;
+    });
+  }, [dbSprints, coaches]);
 
   // Category list
   const categories = ['All', 'Mindset', 'Execution', 'Micro-Habits', 'Influence'];
@@ -47,7 +135,15 @@ export const RiseBlog: React.FC = () => {
     const isLiked = likedPosts[id];
     setLikedPosts(prev => ({ ...prev, [id]: !isLiked }));
     if (!isLiked) {
-      blogService.likePost(id);
+      const isDynamic = dbSprints.some(s => s.id === id);
+      if (isDynamic) {
+        const currentLikes = posts.find(p => p.id === id)?.likes || 0;
+        sprintService.updateSprint(id, { likes: currentLikes + 1 } as any).catch(err => {
+          console.error('Error liking dynamic post:', err);
+        });
+      } else {
+        blogService.likePost(id);
+      }
       toast.success('Added to your inspirations! ❤️');
     }
   };
@@ -71,8 +167,8 @@ export const RiseBlog: React.FC = () => {
   // Find active post for details view
   const activePost = useMemo(() => {
     if (!postId) return null;
-    return blogService.getPostById(postId);
-  }, [postId]);
+    return posts.find(p => p.id === postId) || blogService.getPostById(postId);
+  }, [postId, posts]);
 
   // Helper to parse content with titles/bold lists nicely
   const renderFormattedContent = (content: string) => {
