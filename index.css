@@ -1,0 +1,32 @@
+@import "@fontsource/jost/400.css";
+@import "@fontsource/jost/500.css";
+@import "@fontsource/jost/600.css";
+@import "@fontsource/jost/700.css";
+@import "@fontsource/jost/800.css";
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0E7850;
+  --color-primary-hover: #0B6040;
+  --color-primary-focus: #159E6A;
+  --color-secondary: #10b981;
+  --color-light: #FAFAFA;
+  --color-dark: #111827;
+
+  --font-sans: "Jost", sans-serif;
+
+  --font-size-xs: 10px;
+  --font-size-sm: 12px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
+  --font-size-3xl: 24px;
+  --font-size-4xl: 30px;
+  --font-size-5xl: 38px;
+
+  --breakpoint-sm: 641px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1025px;
+  --breakpoint-xl: 1280px;
+}

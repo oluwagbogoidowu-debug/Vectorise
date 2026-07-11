@@ -31,6 +31,8 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@fontsource/jost": "^5.2.8",
+    "@tailwindcss/vite": "^4.3.2",
     "@types/canvas-confetti": "^1.9.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
@@ -38,6 +40,7 @@
     "@types/react-dom": "^19.0.3",
     "@types/web-push": "^3.6.4",
     "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.3.2",
     "typescript": "^5.7.3",
     "vite": "^6.1.0"
   },
