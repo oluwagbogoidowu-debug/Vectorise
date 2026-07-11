@@ -8,6 +8,8 @@ import { analyticsService } from '../../services/analyticsService';
 import { quoteService } from '../../services/quoteService';
 import { partnerService } from '../../services/partnerService';
 import { analyticsTracker } from '../../services/analyticsTracker';
+import { db } from '../../services/firebase';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import Button from '../../components/Button';
 import LifecycleOrchestrator from './LifecycleOrchestrator';
 import AdminEarnings from './AdminEarnings';
@@ -37,6 +39,50 @@ export default function AdminDashboard() {
     const [isMigrating, setIsMigrating] = useState(false);
     const [migrationLogs, setMigrationLogs] = useState<string[]>([]);
     const [migrationResult, setMigrationResult] = useState<any>(null);
+
+    const [cardSettings, setCardSettings] = useState<any>({
+        blog: true,
+        explore: true,
+        growth: true,
+        impact: true,
+        archive: true,
+        ignite: true,
+        profile: true,
+        hallOfRise: true,
+    });
+
+    useEffect(() => {
+        const docRef = doc(db, 'settings', 'participant_dashboard');
+        const unsubscribe = onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                setCardSettings({
+                    blog: data.blog !== false,
+                    explore: data.explore !== false,
+                    growth: data.growth !== false,
+                    impact: data.impact !== false,
+                    archive: data.archive !== false,
+                    ignite: data.ignite !== false,
+                    profile: data.profile !== false,
+                    hallOfRise: data.hallOfRise !== false,
+                });
+            }
+        }, (err) => {
+            console.error("Error subscribing to cardSettings in admin dashboard:", err);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const toggleCardSetting = async (key: string) => {
+        const newValue = !cardSettings[key];
+        const updatedSettings = { ...cardSettings, [key]: newValue };
+        const docRef = doc(db, 'settings', 'participant_dashboard');
+        try {
+            await setDoc(docRef, updatedSettings);
+        } catch (err) {
+            console.error("Error updating card setting:", err);
+        }
+    };
 
     const handleRunMigration = async () => {
         setIsMigrating(true);
@@ -245,102 +291,51 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
 
-                                {/* 2. Database Centralization & Legacy Purge Utility */}
-                                <div className="bg-white border border-gray-100 rounded-[2.5rem] p-10 shadow-sm space-y-8">
+                                {/* 2. Participant Dashboard Card Control */}
+                                <div className="bg-white border border-gray-100 rounded-[2.5rem] p-10 shadow-sm space-y-8 text-left">
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-50 pb-8">
                                         <div className="space-y-2 text-left">
-                                            <span className="text-[9px] font-black tracking-widest text-[#FF5A5F] bg-[#FF5A5F]/5 px-3 py-1.5 rounded-full uppercase">Database Integrity</span>
-                                            <h3 className="text-xl font-black text-gray-900 tracking-tight italic">Sprint Content Centralizer & Purge Tool</h3>
+                                            <span className="text-[9px] font-black tracking-widest text-[#0E7850] bg-emerald-50 px-3 py-1.5 rounded-full uppercase">Participant Controls</span>
+                                            <h3 className="text-xl font-black text-gray-900 tracking-tight italic">Participant Dashboard Card Control</h3>
                                             <p className="text-gray-400 text-xs font-semibold leading-relaxed max-w-2xl">
-                                                Ensures <code className="font-mono text-primary font-bold">sprints/&#123;sprintId&#125;/days</code> is the unified single-source-of-truth for daily content. This migration scans all sprints, migrates orphan contents, cleans redundant fields from parent paths, and fully deletes legacy <code className="font-mono text-[#FF5A5F]">day X</code> subcollections.
+                                                Toggle which "Step Up Your Rise" cards and widgets are active and visible on the Participant Dashboard in real-time.
                                             </p>
-                                        </div>
-                                        <div className="flex-shrink-0">
-                                            <button 
-                                                id="btn-run-centralizer-migration"
-                                                onClick={handleRunMigration}
-                                                disabled={isMigrating}
-                                                className={`px-8 py-4 rounded-2xl shadow-lg font-black text-[10px] uppercase tracking-widest transition-all duration-300 flex items-center gap-2 cursor-pointer ${isMigrating ? 'bg-gray-100 text-gray-400 shadow-none cursor-not-allowed' : 'bg-primary text-white hover:bg-primary-dark shadow-primary/20 active:scale-95'}`}
-                                            >
-                                                {isMigrating ? (
-                                                    <>
-                                                        <svg className="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">
-                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                                        </svg>
-                                                        Migrating...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89H18" />
-                                                        </svg>
-                                                        Run Purge & Centralization
-                                                    </>
-                                                )}
-                                            </button>
                                         </div>
                                     </div>
 
-                                    {/* Action Logs Terminal */}
-                                    {migrationLogs.length > 0 && (
-                                        <div className="space-y-3 text-left">
-                                            <div className="flex items-center justify-between">
-                                                <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Active Migration Audit Stream</h4>
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className={`w-2 h-2 rounded-full ${isMigrating ? 'bg-amber-400 animate-ping' : 'bg-green-400'}`}></span>
-                                                    <span className="text-[8px] font-bold text-gray-400 uppercase">{isMigrating ? 'Running' : 'Ready'}</span>
-                                                </div>
-                                            </div>
-                                            <div className="bg-[#1E293B] border border-slate-800 rounded-2xl p-6 shadow-inner max-h-72 overflow-y-auto no-scrollbar font-mono text-[10px] text-slate-300 leading-normal space-y-2">
-                                                {migrationLogs.map((log, idx) => (
-                                                    <div key={idx} className={`border-l-2 pl-3 ${log.includes('Successfully') || log.includes('complete') ? 'border-green-500 text-green-300' : log.includes('Error') || log.includes('Fatal') ? 'border-red-500 text-red-400' : 'border-slate-600 text-slate-300'}`}>
-                                                        <span className="text-slate-500 mr-2">[{new Date().toLocaleTimeString([], { hour12: false })}]</span> {log}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {[
+                                            { key: 'ignite', title: 'Daily Ignite widget', desc: 'Displays floating Daily Ignite video/thought of the day player.' },
+                                            { key: 'blog', title: 'Read RiseBlog card', desc: 'Allows participants to see and read the latest blog post.' },
+                                            { key: 'explore', title: 'See what\'s next (Explore) card', desc: 'Recommends and links to the next sprint.' },
+                                            { key: 'growth', title: 'See your rise analysis (Growth) card', desc: 'Shows the overall completion progress and stats analyzer.' },
+                                            { key: 'impact', title: 'Become a Catalyst (Impact) card', desc: 'Displays sharing/referral options and rewards info.' },
+                                            { key: 'archive', title: 'Revisit your Rise (Archive) card', desc: 'Provides quick navigation to completed daily step submissions.' },
+                                            { key: 'profile', title: 'Complete Your Profile Card', desc: 'Prompts users to set up their custom Identity & avatar.' },
+                                            { key: 'hallOfRise', title: 'Hall of Rise Reward Card', desc: 'Notifies participants about unlocked milestone rewards.' },
+                                        ].map((card) => {
+                                            const isEnabled = cardSettings[card.key] !== false;
+                                            return (
+                                                <div key={card.key} className="flex items-center justify-between p-5 bg-gray-50/50 rounded-2xl border border-gray-100 shadow-sm hover:bg-gray-50/85 transition-all">
+                                                    <div className="space-y-1 pr-4 text-left">
+                                                        <p className="text-xs font-black text-gray-900">{card.title}</p>
+                                                        <p className="text-[10px] text-gray-400 font-semibold leading-relaxed">{card.desc}</p>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Migration Report Cards */}
-                                    {migrationResult && (
-                                        <div className="space-y-4 text-left animate-fade-in">
-                                            <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Migration Complete Output Ledger</h4>
-                                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                                <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-5 text-center">
-                                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Sprints Scanned</p>
-                                                    <p className="text-2xl font-black text-slate-700">{migrationResult.sprintsScanned}</p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleCardSetting(card.key)}
+                                                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isEnabled ? 'bg-primary' : 'bg-gray-300'}`}
+                                                        style={{ backgroundColor: isEnabled ? '#0E7850' : '#D1D5DB' }}
+                                                    >
+                                                        <span
+                                                            aria-hidden="true"
+                                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isEnabled ? 'translate-x-5' : 'translate-x-0'}`}
+                                                        />
+                                                    </button>
                                                 </div>
-                                                <div className="bg-green-50/30 border border-green-100 rounded-2xl p-5 text-center">
-                                                    <p className="text-[8px] font-black text-green-500 uppercase tracking-widest mb-1">Migrated to Days</p>
-                                                    <p className="text-2xl font-black text-green-600">{migrationResult.sprintsMigratedToSubcollection}</p>
-                                                </div>
-                                                <div className="bg-red-50/30 border border-red-100 rounded-2xl p-5 text-center">
-                                                    <p className="text-[8px] font-black text-red-500 uppercase tracking-widest mb-1">Redundant Docs Deleted</p>
-                                                    <p className="text-2xl font-black text-red-600">{migrationResult.legacyDocsDeleted}</p>
-                                                </div>
-                                                <div className="bg-blue-50/30 border border-blue-100 rounded-2xl p-5 text-center">
-                                                    <p className="text-[8px] font-black text-blue-500 uppercase tracking-widest mb-1">Parent Fields Purged</p>
-                                                    <p className="text-2xl font-black text-blue-600">{migrationResult.parentFieldsCleaned}</p>
-                                                </div>
-                                                <div className="bg-[#FF5A5F]/5 border border-[#FF5A5F]/10 rounded-2xl p-5 text-center">
-                                                    <p className="text-[8px] font-black text-[#FF5A5F] uppercase tracking-widest mb-1">Details Fields Purged</p>
-                                                    <p className="text-2xl font-black text-[#FF5A5F]">{migrationResult.detailsFieldsCleaned}</p>
-                                                </div>
-                                            </div>
-
-                                            {migrationResult.errors.length > 0 && (
-                                                <div className="bg-red-50 border border-red-100 rounded-2xl p-5 space-y-2">
-                                                    <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">Encountered Anomalies:</p>
-                                                    <ul className="list-disc list-inside text-[11px] text-red-700 font-semibold space-y-1">
-                                                        {migrationResult.errors.map((err: string, idx: number) => (
-                                                            <li key={idx}>{err}</li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         )}
