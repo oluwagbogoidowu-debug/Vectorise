@@ -227,7 +227,7 @@ const SprintPreview: React.FC = () => {
     const { sprintId } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
-    const { user, checkVerification, logout, deferVerification } = useAuth();
+    const { user, loading, checkVerification, logout, deferVerification } = useAuth();
     
     const [sprint, setSprint] = useState<Sprint | null>(location.state?.sprint || null);
     const [isLoading, setIsLoading] = useState(!location.state?.sprint);
@@ -237,6 +237,25 @@ const SprintPreview: React.FC = () => {
     const [showLockModal, setShowLockModal] = useState(false);
     const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
     const [isInsightExpanded, setIsInsightExpanded] = useState(true);
+    const [showBottomCancelConfirm, setShowBottomCancelConfirm] = useState(false);
+    
+    // Auto-redirect already logged-in users so they never see the preview again
+    useEffect(() => {
+        if (!loading && user && !showLockModal) {
+            sprintService.getUserEnrollments(user.id)
+                .then(enrollments => {
+                    const enrolled = enrollments.find(e => e.sprint_id === sprintId);
+                    if (enrolled) {
+                        navigate(`/participant/sprint/${enrolled.id}`, { replace: true });
+                    } else {
+                        navigate(`/sprint/${sprintId}`, { replace: true });
+                    }
+                })
+                .catch(() => {
+                    navigate(`/sprint/${sprintId}`, { replace: true });
+                });
+        }
+    }, [user, loading, showLockModal, sprintId, navigate]);
     
     // 3-slide bottom modal bar states
     const [bottomModalStep, setBottomModalStep] = useState(1); // 1 = locked completion, 2 = signup/login, 3 = verify email
@@ -448,7 +467,7 @@ const SprintPreview: React.FC = () => {
             if (isVerified) {
                 toast.success("Email verified successfully! Welcome.");
                 setShowLockModal(false);
-                navigate('/participant/day-success', { state: { day: 1, coinsUnlocked: 10 } });
+                navigate('/', { replace: true });
             } else {
                 toast.error("Email is not verified yet. Please click the link in your inbox first!");
             }
@@ -1636,9 +1655,7 @@ const SprintPreview: React.FC = () => {
                                 <button 
                                     type="button" 
                                     onClick={() => {
-                                        deferVerification();
-                                        setShowLockModal(false);
-                                        navigate('/participant/day-success', { state: { day: 1, coinsUnlocked: 10 } });
+                                        setShowBottomCancelConfirm(true);
                                     }}
                                     className="absolute -top-4 left-0 flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200/60 rounded-full text-[9px] font-black text-gray-500 uppercase tracking-widest transition-all active:scale-95 cursor-pointer shadow-sm"
                                 >
@@ -1732,6 +1749,43 @@ const SprintPreview: React.FC = () => {
                                 className="w-full py-4 text-gray-500 rounded-2xl font-black uppercase tracking-widest text-[9px] hover:bg-gray-50 transition-colors"
                             >
                                 Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {showBottomCancelConfirm && createPortal(
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 sm:p-10 max-w-sm w-full text-center relative overflow-hidden border border-gray-100">
+                        <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6 text-amber-500">
+                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">Are you sure?</h3>
+                        <p className="text-gray-500 font-medium mb-8 text-sm leading-relaxed">
+                            Canceling email verification may limit what you can do. Are you sure you want to continue?
+                        </p>
+                        
+                        <div className="flex gap-4">
+                            <button 
+                                onClick={() => {
+                                    deferVerification();
+                                    setShowLockModal(false);
+                                    setShowBottomCancelConfirm(false);
+                                    navigate('/', { replace: true });
+                                }}
+                                className="flex-1 py-3 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-primary/90 transition-colors shadow-lg active:scale-95 cursor-pointer"
+                            >
+                                Yes
+                            </button>
+                            <button 
+                                onClick={() => setShowBottomCancelConfirm(false)}
+                                className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-200 transition-colors cursor-pointer"
+                            >
+                                No
                             </button>
                         </div>
                     </div>

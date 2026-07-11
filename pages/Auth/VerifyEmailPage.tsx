@@ -10,6 +10,7 @@ const VerifyEmailPage: React.FC = () => {
   const navigate = useNavigate();
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [isResendingLink, setIsResendingLink] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   if (loading) {
     return (
@@ -49,7 +50,7 @@ const VerifyEmailPage: React.FC = () => {
       const isVerified = await checkVerification();
       if (isVerified) {
         alertToast.success("Email verified successfully! Welcome.");
-        navigate('/participant/day-success', { state: { day: 1, unlockedCoins: 10 } });
+        navigate('/', { replace: true });
       } else {
         alertToast.error("We checked, but the link hasn't been verified in your inbox yet!");
       }
@@ -67,8 +68,7 @@ const VerifyEmailPage: React.FC = () => {
       <button 
         type="button" 
         onClick={() => {
-          deferVerification();
-          navigate('/participant/day-success', { state: { day: 1, unlockedCoins: 10 } });
+          setShowCancelConfirm(true);
         }}
         className="absolute top-6 left-6 flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200/80 rounded-full shadow-sm text-xs font-black text-gray-500 uppercase tracking-widest transition-all active:scale-95"
       >
@@ -129,6 +129,41 @@ const VerifyEmailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal overlay */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 sm:p-10 max-w-sm w-full text-center relative overflow-hidden border border-gray-100">
+            <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6 text-amber-500">
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">Are you sure?</h3>
+            <p className="text-gray-500 font-medium mb-8 text-sm leading-relaxed">
+              Canceling email verification may limit what you can do. Are you sure you want to continue?
+            </p>
+            
+            <div className="flex gap-4">
+              <button 
+                onClick={() => {
+                  deferVerification();
+                  navigate('/', { replace: true });
+                }}
+                className="flex-1 py-3 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-primary/90 transition-colors shadow-lg active:scale-95 cursor-pointer"
+              >
+                Yes
+              </button>
+              <button 
+                onClick={() => setShowCancelConfirm(false)}
+                className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-200 transition-colors cursor-pointer"
+              >
+                No
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }

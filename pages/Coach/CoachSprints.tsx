@@ -5,9 +5,8 @@ import { Sprint, Coach } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { assetService } from '../../services/assetService';
 import Button from '../../components/Button';
-import { Eye, Flame, BookOpen, Sparkles, Share2 } from 'lucide-react';
+import { Eye, Flame, BookOpen, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
-import SprintShareModal from '../../components/SprintShareModal';
 import CustomSelect from '../../components/CustomSelect';
 
 const IGNITE_COLORS = [
@@ -684,7 +683,6 @@ const CoachSprints: React.FC = () => {
   // Preview states
   const [previewingBlog, setPreviewingBlog] = useState<Sprint | null>(null);
   const [previewingIgnite, setPreviewingIgnite] = useState<Sprint | null>(null);
-  const [selectedShareSprint, setSelectedShareSprint] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -730,6 +728,9 @@ const CoachSprints: React.FC = () => {
   const filteredSprints = useMemo(() => {
     // Standard tab isolation
     let tFiltered = sprints.filter(s => {
+      // If it is a version of a sprint, do not show it as a separate sprint in the main list
+      if (s.parentSprintId) return false;
+
       if (activeTab === 'sprint') {
         return !s.contentType || s.contentType === 'sprint';
       }
@@ -840,11 +841,7 @@ const CoachSprints: React.FC = () => {
           />
       )}
 
-      <SprintShareModal
-        isOpen={!!selectedShareSprint}
-        onClose={() => setSelectedShareSprint(null)}
-        sprintTitle={selectedShareSprint || ""}
-      />
+
 
       <div className="flex items-center justify-between gap-3 mb-8 w-full">
         <div className="inline-flex bg-gray-100 p-0.5 rounded-xl">
@@ -1049,13 +1046,6 @@ const CoachSprints: React.FC = () => {
                                             {sprint.approvalStatus === 'rejected' ? 'Fix Errors' : 'Edit Sprint'}
                                         </button>
                                     </Link>
-                                    <button 
-                                        onClick={() => setSelectedShareSprint(sprint.title)}
-                                        className="p-3 bg-white border border-gray-100 text-gray-400 hover:text-primary hover:bg-gray-50 rounded-xl transition-all active:scale-90 cursor-pointer"
-                                        title="Share Sprint"
-                                    >
-                                        <Share2 className="h-4 w-4" />
-                                    </button>
                                 </div>
                             )}
                             <button 

@@ -8,8 +8,6 @@ import Button from '../../components/Button';
 import { sprintService } from '../../services/sprintService';
 import { userService, sanitizeData } from '../../services/userService';
 import { assetService } from '../../services/assetService';
-import { Share2 } from 'lucide-react';
-import SprintShareModal from '../../components/SprintShareModal';
 
 const MySprints: React.FC = () => {
     const { user, updateProfile } = useAuth();
@@ -20,7 +18,6 @@ const MySprints: React.FC = () => {
     const [isQueuedExpanded, setIsQueuedExpanded] = useState(false);
     const [isWaitlistExpanded, setIsWaitlistExpanded] = useState(false);
     const [isArchivedExpanded, setIsArchivedExpanded] = useState(false);
-    const [selectedShareSprint, setSelectedShareSprint] = useState<string | null>(null);
 
     useEffect(() => {
         if (!user) return;
@@ -403,12 +400,6 @@ const MySprints: React.FC = () => {
                 </div>
             </div>
             
-            <SprintShareModal
-                isOpen={!!selectedShareSprint}
-                onClose={() => setSelectedShareSprint(null)}
-                sprintTitle={selectedShareSprint || ""}
-            />
-
             <style>{`
                 .custom-scrollbar::-webkit-scrollbar { width: 3px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.05); border-radius: 10px; }

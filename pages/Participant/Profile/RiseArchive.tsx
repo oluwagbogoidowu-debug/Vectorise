@@ -5,8 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { sprintService } from '../../../services/sprintService';
 import { userService } from '../../../services/userService';
 import { ParticipantSprint, Sprint, Coach } from '../../../types';
-import { Share2, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Lock, CheckCircle2, Calendar, Award, Zap, Sparkles, BookOpen } from 'lucide-react';
-import SprintShareModal from '../../../components/SprintShareModal';
+import { ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Lock, CheckCircle2, Calendar, Award, Zap, Sparkles, BookOpen } from 'lucide-react';
 import FormattedText from '../../../components/FormattedText';
 
 const RiseArchive: React.FC = () => {
@@ -15,7 +14,6 @@ const RiseArchive: React.FC = () => {
   const { user } = useAuth();
   const [enrollments, setEnrollments] = useState<{ enrollment: ParticipantSprint; sprint: Sprint; coach: Coach | null }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedShareSprint, setSelectedShareSprint] = useState<string | null>(null);
   const [selectedSprintDetails, setSelectedSprintDetails] = useState<{
     enrollment: ParticipantSprint;
     sprint: Sprint;
@@ -639,11 +637,6 @@ const RiseArchive: React.FC = () => {
         </div>
       )}
 
-      <SprintShareModal
-        isOpen={!!selectedShareSprint}
-        onClose={() => setSelectedShareSprint(null)}
-        sprintTitle={selectedShareSprint || ""}
-      />
     </div>
   );
 };

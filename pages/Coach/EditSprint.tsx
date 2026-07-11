@@ -330,6 +330,7 @@ const EditSprint: React.FC = () => {
   const [isCreatingVersion, setIsCreatingVersion] = useState(false);
   const [showCreatedPopup, setShowCreatedPopup] = useState(false);
   const [newlyCreatedSprintId, setNewlyCreatedSprintId] = useState('');
+  const [allVersions, setAllVersions] = useState<Sprint[]>([]);
   const [versionSettings, setVersionSettings] = useState({
       duration: 7,
       category: '',
@@ -701,6 +702,28 @@ const EditSprint: React.FC = () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [sprintId, navigate, user]);
+
+  useEffect(() => {
+    if (!user || !sprint) return;
+    const loadVersions = async () => {
+      try {
+        const originalId = sprint.parentSprintId || sprint.id;
+        const coachSprints = await sprintService.getCoachSprints(user.id);
+        const versions = coachSprints.filter(s => s.id === originalId || s.parentSprintId === originalId);
+        
+        // Sort them by versionNumber. Original has versionNumber 1 (or undefined/null, which we default to 1)
+        const sorted = [...versions].sort((a, b) => {
+          const vA = a.id === originalId ? 1 : (a.versionNumber || 1);
+          const vB = b.id === originalId ? 1 : (b.versionNumber || 1);
+          return vA - vB;
+        });
+        setAllVersions(sorted);
+      } catch (err) {
+        console.error("Error loading versions:", err);
+      }
+    };
+    loadVersions();
+  }, [user, sprint?.id, sprint?.parentSprintId]);
 
 
 
@@ -2481,6 +2504,44 @@ const EditSprint: React.FC = () => {
         </header>
 
         <div className="flex flex-col gap-8">
+          {/* Version Selector Bar */}
+          {allVersions.length > 1 && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm animate-fade-in">
+              <div className="flex flex-col gap-1 text-left px-1">
+                <span className="text-[8px] font-black uppercase text-primary tracking-[0.3em]">Sprint Versioning Control</span>
+                <h3 className="text-xs font-black text-gray-950 uppercase tracking-wide">
+                  Active Environment: {sprint.id === (sprint.parentSprintId || sprint.id) ? 'Original Version' : `Version ${sprint.versionNumber || 2}`}
+                </h3>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 bg-gray-50 p-1.5 rounded-2xl border border-gray-100/50">
+                {allVersions.map((v) => {
+                  const isOriginal = !v.parentSprintId;
+                  const label = isOriginal ? 'Original Version' : `Version ${v.versionNumber || 2}`;
+                  const isActive = v.id === sprint.id;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => {
+                        if (isActive) return;
+                        navigate(`/coach/sprint/edit/${v.id}`);
+                        window.location.reload();
+                      }}
+                      className={`px-4 py-2 text-[9px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'text-gray-400 hover:text-gray-700 bg-transparent'
+                      }`}
+                    >
+                      {label}
+                      {v.versionTag && <span className="ml-1.5 opacity-60 text-[7px]">({v.versionTag})</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden p-6">
             <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6 px-1">Curriculum Timeline</h2>
             <div className="flex overflow-x-auto gap-3 hide-scrollbar">
