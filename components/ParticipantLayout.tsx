@@ -115,7 +115,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
     <div className="h-[100dvh] w-full bg-light overflow-hidden flex flex-col">
       {/* Main content area: overflow-y-auto enables scrolling for the whole view */}
       {showHeader && <Header />}
-      <main className={`flex-1 bg-light relative overflow-y-auto custom-scrollbar ${showHeader ? 'pt-24' : ''} ${user ? 'pb-24' : 'pb-28'}`}>
+      <main className={`flex-1 bg-light relative overflow-y-auto custom-scrollbar ${showHeader ? 'pt-2' : ''} ${user ? 'pb-24' : 'pb-28'}`}>
         {children || <Outlet />}
       </main>
       
