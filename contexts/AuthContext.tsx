@@ -32,9 +32,26 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | Coach | Participant | Admin | null>(null);
-  const [activeRole, setActiveRole] = useState<UserRole>(UserRole.PARTICIPANT);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | Coach | Participant | Admin | null>(() => {
+    try {
+      const cached = localStorage.getItem('vectorise_cached_user');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [activeRole, setActiveRole] = useState<UserRole>(() => {
+    const stored = localStorage.getItem('vectorise_active_role');
+    return (stored as UserRole) || UserRole.PARTICIPANT;
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      const cached = localStorage.getItem('vectorise_cached_user');
+      return cached ? false : true;
+    } catch {
+      return true;
+    }
+  });
   const [actualMustVerifyEmail, setActualMustVerifyEmail] = useState(false);
   const [isDeferred, setIsDeferred] = useState(localStorage.getItem('vectorise_verify_deferred') === 'true');
   const [forceTrigger, setForceTrigger] = useState(0);
@@ -67,13 +84,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const isGoogleUser = firebaseUser.providerData.some(p => p.providerId === 'google.com');
         setActualMustVerifyEmail(!isGoogleUser && !firebaseUser.emailVerified);
 
-        setLoading(true);
+        const hasCache = !!localStorage.getItem('vectorise_cached_user');
+        if (!hasCache) {
+          setLoading(true);
+        }
         const userRef = doc(db, 'users', firebaseUser.uid);
 
         // Core Requirement: Every time the app loads, fetch user data from Firestore server directly as primary source of truth
         try {
           console.log("[AuthContext] Primary Action: Fetching fresh user document directly from Firestore server...");
-          const serverSnap = await getDocFromServer(userRef);
+          
+          const fetchPromise = getDocFromServer(userRef);
+          const timeoutPromise = new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error("Server fetch timeout")), 2500)
+          );
+
+          const serverSnap = await Promise.race([
+            fetchPromise,
+            timeoutPromise
+          ]);
+
           if (serverSnap.exists()) {
             let dbUser = sanitizeData(serverSnap.data()) as User | Participant | Coach;
 
@@ -95,6 +125,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             console.log("[AuthContext] Firestore server fetch succeeded. Storing in state.");
             setUser(dbUser);
+            try {
+              localStorage.setItem('vectorise_cached_user', JSON.stringify(dbUser));
+            } catch (err) {
+              console.error("Failed to cache user", err);
+            }
             hasFetchedFromServer = true;
             
             // Determine active role
@@ -175,6 +210,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
               console.log(`[AuthContext] User document updated from snapshot. fromCache: ${docSnap.metadata.fromCache}`);
               setUser(dbUser);
+              try {
+                localStorage.setItem('vectorise_cached_user', JSON.stringify(dbUser));
+              } catch (err) {
+                console.error("Failed to cache user", err);
+              }
               
               if (!docSnap.metadata.fromCache) {
                 hasFetchedFromServer = true;
@@ -285,6 +325,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.removeItem('vectorise_user_id');
         localStorage.removeItem('vectorise_last_sprint');
         localStorage.removeItem('vectorise_active_role');
+        localStorage.removeItem('vectorise_cached_user');
         console.log("Registry Access Revoked Successfully.");
     } catch (error) {
         console.error("Error during logout process:", error);

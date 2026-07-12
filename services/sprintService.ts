@@ -111,6 +111,9 @@ export const deserializeSprint = (sprint: any): any => {
     return cloned;
 };
 
+// In-memory cache for resolved sprint documents
+const sprintCache: Record<string, Sprint> = {};
+
 export const sprintService = {
     incrementLinkClick: async (referralCode: string, sprintId?: string | null) => {
         try {
@@ -160,18 +163,105 @@ export const sprintService = {
         return newSprint;
     },
 
-    getSprintById: async (sprintId: string) => {
-        const snap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId));
-        const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'));
-        if (!snap.exists() && !detailsSnap.exists()) return null;
-        
-        let sprintData = { id: sprintId } as any;
-        if (detailsSnap.exists()) {
-            sprintData = { ...sprintData, ...cleanDetailsData(detailsSnap.data()) };
-        } else if (snap.exists()) {
-            sprintData = { ...sprintData, ...cleanDetailsData(snap.data()) };
+    fetchAndCacheSprintInBackground: async (sprintId: string) => {
+        const cacheKey = `vectorise_sprint_cache_${sprintId}`;
+        try {
+            const snap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId));
+            const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'));
+            if (!snap.exists() && !detailsSnap.exists()) return;
+            
+            let sprintData = { id: sprintId } as any;
+            if (detailsSnap.exists()) {
+                sprintData = { ...sprintData, ...cleanDetailsData(detailsSnap.data()) };
+            } else if (snap.exists()) {
+                sprintData = { ...sprintData, ...cleanDetailsData(snap.data()) };
+            }
+            const resolved = await sprintService.resolveSprintDays(sprintData);
+            if (resolved) {
+                sprintCache[sprintId] = resolved;
+                try {
+                    localStorage.setItem(cacheKey, JSON.stringify(resolved));
+                } catch (err) {
+                    console.error("Failed to save to localStorage:", err);
+                }
+            }
+        } catch (e: any) {
+            console.warn(`[sprintService] Background fetch failed for sprint ${sprintId} (offline?):`, e.message);
         }
-        return await sprintService.resolveSprintDays(sprintData);
+    },
+
+    getSprintById: async (sprintId: string) => {
+        const cacheKey = `vectorise_sprint_cache_${sprintId}`;
+        
+        // 1. Check in-memory cache first
+        if (sprintCache[sprintId]) {
+            // Run background fetch to keep cache warm and updated, but don't block
+            sprintService.fetchAndCacheSprintInBackground(sprintId).catch(() => {});
+            return sprintCache[sprintId];
+        }
+
+        // 2. Check localStorage cache
+        try {
+            const localCached = localStorage.getItem(cacheKey);
+            if (localCached) {
+                const parsed = JSON.parse(localCached);
+                sprintCache[sprintId] = parsed;
+                // Run background fetch to update cache in background
+                sprintService.fetchAndCacheSprintInBackground(sprintId).catch(() => {});
+                return parsed;
+            }
+        } catch (e) {
+            console.error("Error reading sprint from localStorage cache:", e);
+        }
+
+        // 3. No cache available. Let's fetch from Firestore with a 2.5-second timeout.
+        try {
+            console.log(`[sprintService] Fetching sprint ${sprintId} from Firestore...`);
+            
+            const fetchPromise = (async () => {
+                const snap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId));
+                const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'));
+                if (!snap.exists() && !detailsSnap.exists()) return null;
+                
+                let sprintData = { id: sprintId } as any;
+                if (detailsSnap.exists()) {
+                    sprintData = { ...sprintData, ...cleanDetailsData(detailsSnap.data()) };
+                } else if (snap.exists()) {
+                    sprintData = { ...sprintData, ...cleanDetailsData(snap.data()) };
+                }
+                const resolved = await sprintService.resolveSprintDays(sprintData);
+                if (resolved) {
+                    sprintCache[sprintId] = resolved;
+                    try {
+                        localStorage.setItem(cacheKey, JSON.stringify(resolved));
+                    } catch (err) {
+                        console.error("Failed to save sprint to localStorage cache:", err);
+                    }
+                }
+                return resolved;
+            })();
+
+            const timeoutPromise = new Promise<null>((resolve) => 
+                setTimeout(() => {
+                    console.warn(`[sprintService] getSprintById timed out for ${sprintId}. Returning null or local fallback.`);
+                    resolve(null);
+                }, 2500)
+            );
+
+            const result = await Promise.race([fetchPromise, timeoutPromise]);
+            if (result) {
+                return result;
+            }
+            
+            // If timed out, check if we somehow got it in localStorage in the meantime
+            const finalCheck = localStorage.getItem(cacheKey);
+            return finalCheck ? JSON.parse(finalCheck) : null;
+        } catch (err) {
+            console.error(`[sprintService] Error fetching sprint ${sprintId}:`, err);
+            // On failure, fallback to localStorage if any exists
+            const finalCheck = localStorage.getItem(cacheKey);
+            return finalCheck ? JSON.parse(finalCheck) : null;
+        }
     },
 
     getSprintsByIds: async (sprintIds: string[]) => {
@@ -462,16 +552,11 @@ export const sprintService = {
     },
 
     resolveSprintsList: async (sprints: Sprint[]): Promise<Sprint[]> => {
-        return await Promise.all(sprints.map(async (s) => {
-            let sprintData = { ...s };
-            try {
-                const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, s.id, 'sprintdetails', 'info'));
-                if (detailsSnap.exists()) {
-                    sprintData = { ...sprintData, ...cleanDetailsData(detailsSnap.data()) };
-                }
-            } catch (e) {}
-            return await sprintService.resolveSprintDays(sprintData);
+        const results = await Promise.all(sprints.map(async (s) => {
+            const cachedOrFetched = await sprintService.getSprintById(s.id);
+            return cachedOrFetched || s;
         }));
+        return results.filter((s): s is Sprint => s !== null);
     },
 
     _writeSubcollections: async (sprintId: string, sprintData: any) => {

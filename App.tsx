@@ -150,7 +150,7 @@ const AppContent: React.FC = () => {
     location.pathname === '/verify-email' ||
     location.pathname === '/payment-success';
 
-  const showGlobalHeader = location.pathname === '/dashboard';
+  const showGlobalHeader = false;
 
   const showParticipantNav = 
     user && 

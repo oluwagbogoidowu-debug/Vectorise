@@ -20,6 +20,8 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const isHomePage = location.pathname === '/';
+  const isDashboard = location.pathname === '/dashboard';
+  const showHeader = isHomePage || isDashboard;
   const { user } = useAuth();
 
   const [pendingAction, setPendingAction] = useState<any>(null);
@@ -112,8 +114,8 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
   return (
     <div className="h-[100dvh] w-full bg-light overflow-hidden flex flex-col">
       {/* Main content area: overflow-y-auto enables scrolling for the whole view */}
-      {isHomePage && <Header />}
-      <main className={`flex-1 bg-light relative overflow-y-auto custom-scrollbar ${isHomePage ? 'pt-24' : ''} ${user ? 'pb-24' : 'pb-28'}`}>
+      {showHeader && <Header />}
+      <main className={`flex-1 bg-light relative overflow-y-auto custom-scrollbar ${showHeader ? 'pt-24' : ''} ${user ? 'pb-24' : 'pb-28'}`}>
         {children || <Outlet />}
       </main>
       

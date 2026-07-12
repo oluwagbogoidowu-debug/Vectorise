@@ -1729,16 +1729,16 @@ const ParticipantDashboard: React.FC = () => {
                                 {/* Content of the card */}
                                 <div className="flex-1 flex flex-col justify-between pt-2">
                                     {lastCompletedStep ? (
-                                        <div className="flex-1 flex flex-col justify-between">
-                                            <div className="space-y-1.5 min-w-0 text-left">
+                                        <div className="flex-1 flex flex-col min-h-0">
+                                            <div className="flex-1 flex flex-col min-w-0 text-left min-h-0">
                                                 <p className="text-[9px] font-black text-indigo-600 uppercase tracking-wider truncate">
                                                     {lastCompletedStep.sprintTitle} • Day {lastCompletedStep.day}
                                                 </p>
-                                                <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1">
+                                                <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-2 mt-1">
                                                     {lastCompletedStep.taskPrompt}
                                                 </p>
-                                                <p className="text-[11px] text-gray-500 italic leading-snug line-clamp-2 bg-gray-50 p-2 rounded-xl border border-gray-100/50 mt-1.5 font-medium">
-                                                    "{lastCompletedStep.submission}"
+                                                <p className="flex-1 text-[11px] text-gray-500 italic leading-snug bg-gray-50 p-2.5 rounded-xl border border-gray-100/50 mt-2 font-medium overflow-y-auto">
+                                                    {lastCompletedStep.submission}
                                                 </p>
                                             </div>
                                         </div>

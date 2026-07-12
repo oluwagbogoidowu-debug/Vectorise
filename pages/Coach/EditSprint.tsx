@@ -622,7 +622,7 @@ const EditSprint: React.FC = () => {
               ...(found.pendingChanges || {}),
               dailyContent: (Array.isArray(found.pendingChanges?.dailyContent) 
                   ? found.pendingChanges.dailyContent 
-                  : (Array.isArray(found.dailyContent) ? found.dailyContent : [])).map(c => ({
+                  : (Array.isArray(found.dailyContent) ? found.dailyContent : [])).map((c: any) => ({
                       ...c,
                       taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
                   })),
