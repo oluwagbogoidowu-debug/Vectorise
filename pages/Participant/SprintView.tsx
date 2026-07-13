@@ -1675,6 +1675,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   }, [enrollment, user, location.state, hasTriggeredAutoClaim]);
 
   useEffect(() => {
+    if (isPreview) return;
     if (!notificationsEnabled || !enrollment || !sprint || !enrollment.progress)
       return;
 
@@ -2379,7 +2380,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 const firstIncomplete =
                   enrollment.progress?.find((p) => !p.completed)?.day ||
                   sprint.duration;
-                const isDisabled = day > firstIncomplete;
+                const isDisabled = isPreview ? false : (day > firstIncomplete);
 
                 return (
                   <button
