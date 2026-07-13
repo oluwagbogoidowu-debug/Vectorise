@@ -83,33 +83,34 @@ const extractBulletPrefix = (children: any): { bulletChar: string | null; cleane
   if (!children) return { bulletChar: null, cleaned: children };
   
   if (typeof children === 'string') {
-    const match = children.match(/^\[bullet:([^\]]+)\]\s*/);
+    const match = children.match(/\[bullet:([^\]]*)\]\s*/);
     if (match) {
-      return { bulletChar: match[1], cleaned: children.substring(match[0].length) };
+      return { bulletChar: match[1], cleaned: children.replace(/\[bullet:([^\]]*)\]\s*/g, '') };
     }
     return { bulletChar: null, cleaned: children };
   }
 
   if (Array.isArray(children)) {
-    if (children.length > 0) {
-      const first = children[0];
-      const res = extractBulletPrefix(first);
-      if (res.bulletChar) {
-        return { bulletChar: res.bulletChar, cleaned: [res.cleaned, ...children.slice(1)] };
+    let extractedBulletChar: string | null = null;
+    const cleanedArray = children.map(child => {
+      const { bulletChar, cleaned } = extractBulletPrefix(child);
+      if (bulletChar !== null && extractedBulletChar === null) {
+        extractedBulletChar = bulletChar;
       }
-    }
-    return { bulletChar: null, cleaned: children };
+      return cleaned;
+    });
+    return { bulletChar: extractedBulletChar, cleaned: cleanedArray };
   }
 
   if (typeof children === 'object' && children !== null) {
     if (children.props && children.props.children) {
-      const res = extractBulletPrefix(children.props.children);
-      if (res.bulletChar) {
+      const { bulletChar, cleaned } = extractBulletPrefix(children.props.children);
+      if (bulletChar !== null) {
         const cloned = React.cloneElement(children, {
           ...children.props,
-          children: res.cleaned
+          children: cleaned
         });
-        return { bulletChar: res.bulletChar, cleaned: cloned };
+        return { bulletChar, cleaned: cloned };
       }
     }
   }
@@ -128,7 +129,7 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
         remarkPlugins={[remarkGfm]}
         components={{
           p: ({ node, ...props }) => <span {...props} />,
-          em: ({ node, ...props }) => <strong className="font-bold" {...props} />,
+          em: ({ node, ...props }) => <em className="italic" {...props} />,
           strong: ({ node, ...props }) => <strong className="font-black" {...props} />,
         }}
       >
@@ -142,7 +143,7 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          em: ({ node, ...props }) => <strong className="font-bold text-gray-900" {...props} />,
+          em: ({ node, ...props }) => <em className="italic text-gray-900" {...props} />,
           strong: ({ node, ...props }) => <strong className="font-black text-gray-900" {...props} />,
           ul: ({ node, ...props }) => <ul className="list-none p-0 space-y-2 my-4" {...props} />,
           ol: ({ node, ...props }) => <ol className="list-none p-0 space-y-2 my-4" {...props} />,
@@ -150,14 +151,14 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
             const { bulletChar, cleaned: modifiedChildren } = extractBulletPrefix(props.children);
 
             let bulletElement: React.ReactNode = null;
-            if (bulletChar) {
+            if (bulletChar !== null) {
               if (bulletChar === '↠' || bulletChar === '→' || bulletChar === '=>' || bulletChar === '->') {
                 bulletElement = (
                   <span className="text-[#0E7850] font-black text-sm select-none flex-shrink-0 mt-0.5 animate-pulse">
                     {bulletChar}
                   </span>
                 );
-              } else if (bulletChar === '•' || bulletChar === '*' || bulletChar === '-') {
+              } else if (bulletChar === '•' || bulletChar === '*' || bulletChar === '-' || bulletChar === '') {
                 bulletElement = (
                   <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#0E7850] flex-shrink-0" />
                 );
