@@ -300,6 +300,7 @@ const EditSprint: React.FC = () => {
   const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
   const [addingCustomOption, setAddingCustomOption] = useState<Record<number, boolean>>({});
   const [expandedStepEarlierDays, setExpandedStepEarlierDays] = useState<Record<number, boolean>>({});
+  const [previewInputs, setPreviewInputs] = useState<Record<number, string>>({});
 
   useEffect(() => {
     setPreviewTaskIndex(0);
@@ -308,6 +309,7 @@ const EditSprint: React.FC = () => {
     setRevealedHints({});
     setAddingCustomOption({});
     setExpandedStepEarlierDays({});
+    setPreviewInputs({});
   }, [selectedDay]);
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -1263,9 +1265,6 @@ const EditSprint: React.FC = () => {
         let optionsForPrompt: string[] = [];
         try { optionsForPrompt = JSON.parse(currentOptions[promptIndex]); } catch (e) {}
         
-        const isLinked = promptIndex > 0 && updatedDailyContent[existingContentIndex].taskLinkedToNext?.[promptIndex - 1];
-        if (!isLinked && optionsForPrompt.length <= 4) return prev; // Keep at least 4
-        
         optionsForPrompt.splice(optionIndex, 1);
         currentOptions[promptIndex] = JSON.stringify(optionsForPrompt);
         
@@ -2000,7 +1999,12 @@ const EditSprint: React.FC = () => {
     );
   }
 
-  const editorInputClasses = "w-full p-6 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium text-gray-950 transition-all placeholder-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
+  const baseInputClasses = "w-full rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all placeholder-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
+  const editorInputClasses = `${baseInputClasses} p-6 bg-white border border-gray-100 text-gray-950`;
+  const promptInputClasses = `${baseInputClasses} p-4 bg-white border border-gray-100 text-gray-950`;
+  const coachNoteInputClasses = `${baseInputClasses} p-4 py-3 border border-emerald-100 bg-emerald-50/20 text-gray-700`;
+  const footnoteInputClasses = `${baseInputClasses} p-4 py-3 border border-indigo-100 bg-indigo-50/20 text-gray-700`;
+  const hintInputClasses = `${baseInputClasses} p-4 py-3 border border-amber-100 bg-amber-50/20 text-gray-700`;
   const smallEditorInputClasses = "w-full p-3 bg-white border border-gray-100 rounded-xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-xs font-semibold text-gray-950 transition-all placeholder-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
   const registryInputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold text-gray-950 transition-all disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
   const labelClasses = "text-[11px] font-black text-gray-400 uppercase tracking-widest";
@@ -2696,7 +2700,7 @@ const EditSprint: React.FC = () => {
                                         value={currentContent.mirrorIntro || ''}
                                         onChange={e => handleContentChange('mirrorIntro', e.target.value)}
                                         rows={3}
-                                        className={editorInputClasses + " w-full font-semibold text-sm rounded-2xl"}
+                                        className={editorInputClasses}
                                         placeholder="Enter intro text... e.g., 'Here is a mirror reflection of your insights today:'"
                                     />
                                 </div>
@@ -2921,7 +2925,7 @@ const EditSprint: React.FC = () => {
                                                             value={currentContent.taskNotes[index] || ''} 
                                                             onChange={e => handleTaskNoteChange(index, e.target.value)} 
                                                             rows={2} 
-                                                            className={editorInputClasses + " p-4 !py-3 w-full border-emerald-100 bg-emerald-50/20 text-gray-700"} 
+                                                            className={coachNoteInputClasses} 
                                                             placeholder="Add a context note. This note will appear just before the question in the participant view." 
                                                          />
 
@@ -3016,7 +3020,7 @@ const EditSprint: React.FC = () => {
                                                 value={prompt} 
                                                 onChange={e => handleTaskPromptChange(index, e.target.value)} 
                                                 rows={2} 
-                                                className={editorInputClasses + " p-4 !py-4 w-full"} 
+                                                className={promptInputClasses} 
                                                 placeholder={`Action Step ${index + 1}...`} 
                                             />
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2.5 pt-2 border-t border-gray-100">
@@ -3461,7 +3465,7 @@ const EditSprint: React.FC = () => {
                                                         value={currentContent.taskFootnotes[index] || ''} 
                                                         onChange={e => handleTaskFootnoteChange(index, e.target.value)} 
                                                         rows={2} 
-                                                        className={editorInputClasses + " p-4 !py-3 w-full border-indigo-100 bg-indigo-50/20 text-gray-700"} 
+                                                        className={footnoteInputClasses} 
                                                         placeholder="Add a footnote to show just below the question..." 
                                                     />
                                                 </div>
@@ -3486,7 +3490,7 @@ const EditSprint: React.FC = () => {
                                                         value={currentContent.taskHints[index] || ''} 
                                                         onChange={e => handleTaskHintChange(index, e.target.value)} 
                                                         rows={2} 
-                                                        className={editorInputClasses + " p-4 !py-3 w-full border-amber-100 bg-amber-50/20 text-gray-700"} 
+                                                        className={hintInputClasses} 
                                                         placeholder="Add a hint to help the participant..." 
                                                     />
                                                 </div>
@@ -3822,97 +3826,226 @@ const EditSprint: React.FC = () => {
                                             } catch (e) {}
                                             const optionsList = parsedOpts.filter(o => o.trim());
                                             
-                                            if (isLinked) {
-                                                // Dynamic poll from tag
-                                                return (
-                                                    <div className="space-y-3 bg-indigo-50/20 border border-indigo-100 rounded-2xl p-4 text-left animate-fade-in">
-                                                        <div className="flex items-center gap-1.5 text-indigo-800 text-[10px] font-black uppercase tracking-wide">
-                                                            <span>📊 Dynamic selection options (Linked from Tags)</span>
+                                            const linkedTags = getPreviewTagsForStep(i);
+                                            const allOptions = isLinked 
+                                                ? Array.from(new Set([...linkedTags, ...optionsList])).filter(Boolean)
+                                                : optionsList.filter(Boolean);
+                                            
+                                            const isMultiSelect = !!currentContent.taskPollMultiSelect?.[i];
+                                            let selectedOpts: string[] = [];
+                                            try {
+                                                const val = previewInputs[i] || '';
+                                                if (val.startsWith("[")) {
+                                                    selectedOpts = JSON.parse(val);
+                                                } else if (val) {
+                                                    selectedOpts = [val];
+                                                }
+                                            } catch (e) {}
+
+                                            const renderPollButtons = () => {
+                                                if (allOptions.length === 0) {
+                                                    return (
+                                                        <div className="p-3 text-center text-xs text-gray-400 font-semibold italic bg-white border border-gray-100 rounded-xl">
+                                                            No poll options defined yet.
                                                         </div>
-                                                        <div className="space-y-2">
-                                                            {/* Simulated connected dynamic tags from predecessor */}
-                                                            {["Mindset Shift", "Goal Alignment"].map((tagOption, idx) => (
-                                                                <label key={`tag-${idx}`} className="flex items-center gap-2.5 p-2 bg-white border border-indigo-150/50 rounded-xl cursor-default hover:bg-indigo-50/10 transition-colors">
-                                                                    <div className="w-4 h-4 rounded-full border border-indigo-300 flex items-center justify-center shrink-0">
-                                                                        <div className="w-2 h-2 rounded-full bg-indigo-600 opacity-60"></div>
-                                                                    </div>
-                                                                    <span className="text-xs font-bold text-indigo-900 flex items-center gap-1">
-                                                                        🏷️ <span className="underline decoration-indigo-200 decoration-2">{tagOption}</span>
-                                                                        <span className="text-[9px] font-medium text-indigo-400 normal-case">(connected tag)</span>
+                                                    );
+                                                }
+
+                                                if (allOptions.length > 6) {
+                                                    return (
+                                                        <div className="flex flex-wrap gap-1.5 w-full">
+                                                            {allOptions.map((opt, idx) => {
+                                                                const isSel = isMultiSelect ? selectedOpts.includes(opt) : (previewInputs[i] === opt);
+                                                                return (
+                                                                    <button
+                                                                        key={idx}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            if (isMultiSelect) {
+                                                                                let newSelected: string[];
+                                                                                if (selectedOpts.includes(opt)) {
+                                                                                    newSelected = selectedOpts.filter(o => o !== opt);
+                                                                                } else {
+                                                                                    newSelected = [...selectedOpts, opt];
+                                                                                }
+                                                                                setPreviewInputs(prev => ({ ...prev, [i]: JSON.stringify(newSelected) }));
+                                                                            } else {
+                                                                                setPreviewInputs(prev => ({ ...prev, [i]: opt }));
+                                                                            }
+                                                                        }}
+                                                                        className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border cursor-pointer ${
+                                                                            isSel 
+                                                                                ? "bg-primary text-white border-primary shadow-md scale-95" 
+                                                                                : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                                                        }`}
+                                                                    >
+                                                                        {opt}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <div className="space-y-2 w-full">
+                                                        {allOptions.map((opt, idx) => {
+                                                            const isSel = isMultiSelect ? selectedOpts.includes(opt) : (previewInputs[i] === opt);
+                                                            return (
+                                                                <button
+                                                                    key={idx}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        if (isMultiSelect) {
+                                                                            let newSelected: string[];
+                                                                            if (selectedOpts.includes(opt)) {
+                                                                                newSelected = selectedOpts.filter(o => o !== opt);
+                                                                            } else {
+                                                                                newSelected = [...selectedOpts, opt];
+                                                                            }
+                                                                            setPreviewInputs(prev => ({ ...prev, [i]: JSON.stringify(newSelected) }));
+                                                                        } else {
+                                                                            setPreviewInputs(prev => ({ ...prev, [i]: opt }));
+                                                                        }
+                                                                    }}
+                                                                    className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between cursor-pointer ${
+                                                                        isSel 
+                                                                            ? "bg-primary/10 border-primary text-primary shadow-sm" 
+                                                                            : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"
+                                                                    }`}
+                                                                >
+                                                                    <span>
+                                                                        {String.fromCharCode(65 + idx)}. {opt}
                                                                     </span>
-                                                                </label>
-                                                            ))}
-                                                            {/* Custom options */}
-                                                            {optionsList.map((opt, idx) => (
-                                                                <label key={`custom-${idx}`} className="flex items-center gap-2.5 p-2 bg-white border border-gray-150 rounded-xl cursor-default hover:bg-gray-50 transition-all">
-                                                                    <div className="w-4 h-4 rounded-full border border-gray-300 flex items-center justify-center shrink-0" />
-                                                                    <span className="text-xs font-semibold text-gray-700">{opt}</span>
-                                                                </label>
-                                                            ))}
-                                                        </div>
+                                                                    {isMultiSelect ? (
+                                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                                                                            isSel ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"
+                                                                        }`}>
+                                                                            {isSel && (
+                                                                                <svg className="w-2.5 h-2.5 text-white animate-fade-in" fill="none" stroke="currentColor" strokeWidth={4} viewBox="0 0 24 24">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                                                                </svg>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
+                                                                            isSel ? "border-primary bg-primary" : "border-gray-300 bg-white"
+                                                                        }`}>
+                                                                            {isSel && (
+                                                                                <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </button>
+                                                            );
+                                                        })}
                                                     </div>
                                                 );
-                                            } else {
-                                                // Standard poll
-                                                return (
-                                                    <div className="space-y-3 bg-gray-50/50 border border-gray-100 rounded-2xl p-4 text-left animate-fade-in">
-                                                        <div className="flex items-center gap-1.5 text-gray-400 text-[10px] font-black uppercase tracking-wide">
-                                                            <span>📊 Poll Input options</span>
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            {optionsList.length === 0 ? (
-                                                                <div className="p-3 text-center text-xs text-gray-400 font-semibold italic bg-white border border-gray-100 rounded-xl">
-                                                                    No poll options defined yet.
-                                                                </div>
-                                                            ) : (
-                                                                optionsList.map((opt, idx) => (
-                                                                    <label key={idx} className="flex items-center gap-2.5 p-2.5 bg-white border border-gray-150 rounded-xl cursor-default hover:bg-gray-50 transition-all">
-                                                                        <div className="w-4 h-4 rounded-full border border-gray-300 flex items-center justify-center shrink-0" />
-                                                                        <span className="text-xs font-bold text-gray-700">{opt}</span>
-                                                                    </label>
-                                                                ))
-                                                            )}
-                                                        </div>
+                                            };
+
+                                            return (
+                                                <div className="space-y-3 bg-indigo-50/5 border border-indigo-100/60 rounded-2xl p-4 text-left animate-fade-in">
+                                                    <div className="flex items-center justify-between text-indigo-900/40 text-[10px] font-black uppercase tracking-wide">
+                                                        <span className="flex items-center gap-1">📊 Poll Input {isLinked && <span className="text-[9px] text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-md font-bold">(Linked)</span>}</span>
+                                                        {isMultiSelect && <span className="text-primary font-black uppercase tracking-widest text-[9px]">☑️ Multi-Select</span>}
                                                     </div>
-                                                );
-                                            }
+                                                    <div className="space-y-2">
+                                                        {renderPollButtons()}
+                                                    </div>
+                                                </div>
+                                            );
                                         } else if (type === 'tags') {
-                                            // Tags input
+                                            let selectedTags: string[] = [];
+                                            try {
+                                                const val = previewInputs[i] || '["Mindset Shift"]';
+                                                if (val.startsWith("[")) {
+                                                    selectedTags = JSON.parse(val);
+                                                }
+                                            } catch (e) {}
+
                                             return (
                                                 <div className="space-y-3 bg-emerald-50/20 border border-emerald-100 rounded-2xl p-4 text-left animate-fade-in">
                                                     <div className="flex items-center gap-1.5 text-emerald-800 text-[10px] font-black uppercase tracking-wide">
-                                                        <span>🏷️ Dynamic growth focus tags selection</span>
+                                                        <span>🏷️ Dynamic growth focus tags selection (Preview)</span>
                                                     </div>
                                                     <div className="flex flex-wrap gap-2 mt-1">
-                                                        {["Mindset Shift", "Process Scale", "Goal Alignment"].map((tag, idx) => (
-                                                            <div key={idx} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-emerald-200 rounded-xl text-xs font-black text-emerald-800 cursor-pointer shadow-sm hover:border-emerald-500 hover:bg-emerald-50/30 transition-all select-none">
-                                                                <input type="checkbox" className="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 shrink-0 w-3.5 h-3.5" defaultChecked={idx === 0} />
-                                                                <span className="uppercase tracking-wider text-[10px]">{tag}</span>
-                                                            </div>
-                                                        ))}
+                                                        {["Mindset Shift", "Process Scale", "Goal Alignment"].map((tag, idx) => {
+                                                            const isChecked = selectedTags.includes(tag);
+                                                            return (
+                                                                <button 
+                                                                    key={idx} 
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        let newTags: string[];
+                                                                        if (isChecked) {
+                                                                            newTags = selectedTags.filter(t => t !== tag);
+                                                                        } else {
+                                                                            newTags = [...selectedTags, tag];
+                                                                        }
+                                                                        setPreviewInputs(prev => ({ ...prev, [i]: JSON.stringify(newTags) }));
+                                                                    }}
+                                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer shadow-sm transition-all select-none border ${
+                                                                        isChecked 
+                                                                            ? "bg-emerald-500 text-white border-emerald-600 scale-95" 
+                                                                            : "bg-white border-emerald-200 text-emerald-800 hover:border-emerald-500 hover:bg-emerald-50/30"
+                                                                    }`}
+                                                                >
+                                                                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                                                                        isChecked ? "border-white bg-white text-emerald-600" : "border-emerald-300 bg-white"
+                                                                    }`}>
+                                                                        {isChecked && (
+                                                                            <svg className="w-2.5 h-2.5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={5} viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                                                            </svg>
+                                                                        )}
+                                                                    </div>
+                                                                    <span className="uppercase tracking-wider text-[10px]">{tag}</span>
+                                                                </button>
+                                                            );
+                                                        })}
                                                     </div>
                                                 </div>
                                             );
                                         } else if (type === 'mark') {
+                                            const isChecked = previewInputs[i] === "Completed";
                                             return (
-                                                <div className="space-y-3 bg-indigo-50/20 border border-indigo-100 rounded-2xl p-4 text-left animate-fade-in flex items-center justify-between">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setPreviewInputs(prev => ({
+                                                            ...prev,
+                                                            [i]: isChecked ? "" : "Completed"
+                                                        }));
+                                                    }}
+                                                    className={`w-full space-y-3 border rounded-2xl p-4 text-left animate-fade-in flex items-center justify-between cursor-pointer transition-all ${
+                                                        isChecked 
+                                                            ? "bg-indigo-50/40 border-indigo-200 shadow-sm" 
+                                                            : "bg-white border-gray-150 hover:border-indigo-200"
+                                                    }`}
+                                                >
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-5 h-5 rounded border-2 border-indigo-500 bg-indigo-50 flex items-center justify-center shrink-0 shadow-sm">
-                                                            <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3.5}>
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                            </svg>
+                                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 shadow-sm transition-all ${
+                                                            isChecked ? "border-indigo-500 bg-indigo-50" : "border-gray-300 bg-white"
+                                                        }`}>
+                                                            {isChecked && (
+                                                                <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3.5}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                </svg>
+                                                            )}
                                                         </div>
-                                                        <span className="text-xs font-black text-indigo-900 uppercase tracking-wider">
-                                                            Mark complete (No input required)
+                                                        <span className={`text-xs font-black uppercase tracking-wider transition-colors ${
+                                                            isChecked ? "text-indigo-900" : "text-gray-700"
+                                                        }`}>
+                                                            {isChecked ? "Completed" : "Mark complete"}
                                                         </span>
                                                     </div>
                                                     <span className="text-[9px] font-black text-indigo-500 bg-indigo-100/50 px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">
                                                         PROOFLY MARK
                                                     </span>
-                                                </div>
+                                                </button>
                                             );
                                         } else {
-                                            // Text input
+                                            const val = previewInputs[i] || '';
                                             return (
                                                 <div className="space-y-2 text-left animate-fade-in">
                                                     {isLinked && (
@@ -3924,9 +4057,10 @@ const EditSprint: React.FC = () => {
                                                         </div>
                                                     )}
                                                     <textarea 
-                                                        disabled
-                                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-bold text-gray-400 cursor-not-allowed italic min-h-[80px]"
-                                                        placeholder="Participant comments / text input..."
+                                                        value={val}
+                                                        onChange={e => setPreviewInputs(prev => ({ ...prev, [i]: e.target.value }))}
+                                                        className="w-full px-4 py-3 bg-white border border-gray-200 focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none rounded-2xl text-xs font-semibold text-gray-800 placeholder-gray-400 min-h-[80px]"
+                                                        placeholder="Type simulated participant comments / text input here to test..."
                                                     />
                                                 </div>
                                             );
