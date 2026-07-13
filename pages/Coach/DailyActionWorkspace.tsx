@@ -363,7 +363,7 @@ export default function DailyActionWorkspace({
     return result;
   };
 
-  const smallEditorInputClasses = "w-full p-3 bg-white border border-gray-150 rounded-xl shadow-xs focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-sm font-medium transition-all placeholder-gray-350 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
+  const smallEditorInputClasses = "w-full p-3 bg-white border border-gray-150 rounded-xl shadow-xs focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-sm font-medium text-gray-950 transition-all placeholder-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
 
   return (
     <div className="fixed inset-0 z-[120] bg-gray-50 w-screen h-screen overflow-y-auto animate-fade-in font-sans flex flex-col">

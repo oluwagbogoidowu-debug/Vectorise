@@ -2000,9 +2000,9 @@ const EditSprint: React.FC = () => {
     );
   }
 
-  const editorInputClasses = "w-full p-6 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all placeholder-gray-300 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
-  const smallEditorInputClasses = "w-full p-3 bg-white border border-gray-100 rounded-xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-xs font-semibold transition-all placeholder-gray-300 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
-  const registryInputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
+  const editorInputClasses = "w-full p-6 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium text-gray-950 transition-all placeholder-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
+  const smallEditorInputClasses = "w-full p-3 bg-white border border-gray-100 rounded-xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-xs font-semibold text-gray-950 transition-all placeholder-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
+  const registryInputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold text-gray-950 transition-all disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
   const labelClasses = "text-[11px] font-black text-gray-400 uppercase tracking-widest";
 
   if (sprint.contentType === 'blog') {
@@ -2093,7 +2093,7 @@ const EditSprint: React.FC = () => {
                         const updated = { ...sprint, title: e.target.value, blogTitle: e.target.value };
                         setSprint(updated);
                       }} 
-                      className="w-full px-5 py-3.5 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold mt-2 transition-all" 
+                      className="w-full px-5 py-3.5 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold mt-2 text-gray-950 transition-all" 
                       required 
                     />
                   </div>
@@ -2107,7 +2107,7 @@ const EditSprint: React.FC = () => {
                         const updated = { ...sprint, coverImageUrl: e.target.value, blogImage: e.target.value };
                         setSprint(updated);
                       }} 
-                      className="w-full px-5 py-3.5 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold mt-2 transition-all" 
+                      className="w-full px-5 py-3.5 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold mt-2 text-gray-950 transition-all" 
                     />
                   </div>
 
@@ -2139,7 +2139,7 @@ const EditSprint: React.FC = () => {
                         setSprint(updated);
                       }} 
                       rows={16} 
-                      className="w-full px-5 py-4 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium font-sans resize-none mt-2 leading-relaxed h-96 animate-fade-in" 
+                      className="w-full px-5 py-4 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium font-sans text-gray-950 resize-none mt-2 leading-relaxed h-96 animate-fade-in" 
                       placeholder="Write your inspiring article post content here..."
                       required 
                     />

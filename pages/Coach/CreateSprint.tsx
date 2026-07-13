@@ -460,7 +460,7 @@ const CreateSprint: React.FC = () => {
         return sprint;
     }, [formData, user]);
 
-    const inputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold transition-all placeholder-gray-300";
+    const inputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold text-gray-950 transition-all placeholder-gray-400";
     const labelClasses = "text-[11px] font-black text-gray-400 uppercase tracking-widest";
 
     return (

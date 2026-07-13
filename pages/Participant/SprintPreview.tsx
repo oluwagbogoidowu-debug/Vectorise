@@ -46,7 +46,7 @@ const AutoGrowingTextarea: React.FC<{
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className={`${className} overflow-y-auto min-h-[80px]`}
+      className={`text-gray-950 ${className} overflow-y-auto min-h-[80px]`}
       style={{ maxHeight: "180px" }}
     />
   );
