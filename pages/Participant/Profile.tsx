@@ -130,9 +130,6 @@ const Profile: React.FC = () => {
   }, [user?.id]);
 
   if (!user) return null;
-  if (user && user.role === UserRole.COACH && !user.coachApplicationSubmitted && !((user as any).approved || (user as any).coachApplicationApproved)) {
-    return <CoachWelcome />;
-  }
   const p = user as Participant;
 
   const currentArchetype = useMemo(() => {
@@ -426,8 +423,8 @@ const Profile: React.FC = () => {
           </div>
         </div>
 
-        {/* Rise and Impact Cards Moved Up - Only show if identity is set */}
-        {setupStep === -1 && (
+        {/* Rise and Impact Cards Moved Up - Only show if identity is set or they are a coach */}
+        {(setupStep === -1 || user.role === UserRole.COACH) && (
           <div className="grid grid-cols-2 gap-3">
             <Link to="/profile/hall-of-rise" className="bg-dark rounded-3xl p-4 text-white relative overflow-hidden flex flex-col justify-center active:scale-[0.98] transition-all">
                <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 mb-1">Rise Score</p>
@@ -519,189 +516,233 @@ const Profile: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* Progressive Identity Tasks */}
-            {setupStep >= 0 && (
-          <div className="space-y-3 animate-fade-in">
-            <div className="flex items-center justify-between px-1">
-              <SectionLabel text="Identity Setup" />
-              <span className="text-[8px] font-black text-[#0E7850] uppercase tracking-widest">{setupProgress}%</span>
-            </div>
-            
-            <div className="bg-white rounded-[2rem] p-6 border border-[#0E7850]/10 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gray-50">
-                <div 
-                  className="h-full bg-[#0E7850] transition-all duration-500" 
-                  style={{ width: `${setupProgress}%` }}
-                />
-              </div>
-
-              {/* Step 1: Persona */}
-              {setupStep === 1 && (
-                <div className="animate-fade-in min-h-[320px]">
-                  <h3 className="text-sm font-black text-gray-900 mb-1">Which best describes you today?</h3>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your persona</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {INITIAL_OPTIONS.map(opt => (
-                      <button
-                        key={opt}
-                        onClick={() => handleQuizOptionSelect(opt)}
-                        className={`p-3 rounded-2xl border text-[10px] font-bold text-left transition-all ${tempPersona === opt ? 'bg-[#0E7850] text-white border-[#0E7850] shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
+            {/* Progressive Identity Tasks or Coach Account Setup */}
+            {user.role === UserRole.COACH ? (
+              <div className="space-y-3 animate-fade-in">
+                <div className="flex items-center justify-between px-1">
+                  <SectionLabel text="Coach Account" />
                 </div>
-              )}
-
-              {/* Steps 2-4: Persona Questions */}
-              {setupStep >= 2 && setupStep <= 4 && tempPersona && currentQuiz && currentQuiz[setupStep - 2] && (
-                <div className="animate-fade-in min-h-[320px]">
-                  <h3 className="text-sm font-black text-gray-900 mb-1" dangerouslySetInnerHTML={{ __html: currentQuiz[setupStep - 2].title }} />
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Question {setupStep - 1}/3</p>
-                  <div className="space-y-2">
-                    {currentQuiz[setupStep - 2].options.map(opt => (
-                      <button
-                        key={opt}
-                        onClick={() => handleQuizOptionSelect(opt)}
-                        className={`w-full p-3 rounded-xl border text-[10px] font-bold text-left transition-all ${tempOnboardingAnswers[setupStep - 1] === opt ? 'bg-[#0E7850] text-white border-[#0E7850] shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Steps 5-9: Growth Areas */}
-              {setupStep >= 5 && setupStep <= 9 && currentGrowthGroup && (
-                <div className="animate-fade-in min-h-[320px]">
-                  <h3 className="text-sm font-black text-gray-900 mb-1">Where do you want to grow next?</h3>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Pick one from each group ({currentTaskGroupIdx + 1}/5)</p>
-                  
-                  <div className="mb-6">
-                    <p className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest mb-3">{currentGrowthGroup.group}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {currentGrowthGroup.options.map(area => (
-                        <button
-                          key={area}
-                          onClick={() => handleToggleGrowthArea(area)}
-                          className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${tempGrowthAreas.includes(area) ? 'bg-[#0E7850] text-white shadow-md scale-105' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
-                        >
-                          {area}
+                
+                <div className="bg-white rounded-[2rem] p-6 border border-[#0E7850]/10 shadow-sm relative overflow-hidden">
+                  {!user.coachApplicationSubmitted ? (
+                    <div className="text-center py-4">
+                      <div className="w-12 h-12 bg-primary/5 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-6 h-6 text-[#0E7850]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                      </div>
+                      <h3 className="text-sm font-black text-gray-900 mb-1">Ready to step up?</h3>
+                      <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-6 leading-relaxed">
+                        Request a full coach account to design high-impact sprints and help others rise.
+                      </p>
+                      <Link to="/onboarding/coach/welcome">
+                        <button className="w-full py-4 bg-primary hover:bg-[#13a372] text-white font-black text-xs uppercase tracking-[0.2em] rounded-full shadow-lg transition-colors active:scale-95 cursor-pointer">
+                          Request coach account
                         </button>
-                      ))}
+                      </Link>
                     </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 10: Rise Pathway */}
-              {setupStep === 10 && (
-                <div className="animate-fade-in min-h-[320px]">
-                  <h3 className="text-sm font-black text-gray-900 mb-1">What best describes your current focus?</h3>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your Rise Pathway.</p>
-                  
-                  <div className="space-y-2 mb-6">
-                    {RISE_PATHWAYS.map(path => (
-                      <button
-                        key={path.id}
-                        onClick={async () => {
-                          setTempRisePathway(path.id);
-                          setIsSavingIdentity(true);
-                          try {
-                            await updateProfile(sanitizeData({
-                              risePathway: path.id
-                            }));
-                            setSetupStep(11);
-                          } catch (e) {
-                            userService.queueNotification('error', "Failed to save Pathway.", { duration: 3000 });
-                          } finally {
-                            setIsSavingIdentity(false);
-                          }
-                        }}
-                        disabled={isSavingIdentity}
-                        className={`w-full text-left p-3 rounded-2xl border transition-all ${tempRisePathway === path.id ? 'bg-[#0E7850]/5 border-[#0E7850]/20 scale-[1.02] shadow-sm' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}
-                      >
-                        <h4 className="text-[10px] font-black text-gray-900">{path.name}</h4>
-                        <p className="text-[8px] text-gray-400 font-medium mt-0.5">{path.description}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Step 11: Choose Archetype */}
-              {setupStep === 11 && (
-                <div className="animate-fade-in min-h-[320px]">
-                  <h3 className="text-sm font-black text-gray-900 mb-1">Choose Archetype</h3>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-6">Select the energy you want to embody.</p>
-                  
-                  <div className="grid grid-cols-2 gap-2 mb-6">
-                    {ARCHETYPES.map(arch => (
-                      <button
-                        key={arch.id}
-                        onClick={() => setTempArchetype(arch.id)}
-                        className={`p-3 rounded-2xl border text-[10px] font-bold text-left transition-all ${tempArchetype === arch.id ? 'bg-[#0E7850] text-white border-[#0E7850] shadow-md scale-[1.02]' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
-                      >
-                        <div className="flex items-center gap-1.5 mb-1 text-base">
-                          <span>{arch.icon}</span>
-                        </div>
-                        <h4 className="font-black truncate">{arch.name}</h4>
-                        <p className="text-[8px] opacity-70 line-clamp-2 mt-0.5">{arch.description}</p>
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setSetupStep(10)}
-                      className="flex-1 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black uppercase tracking-widest text-[10px] border border-gray-100"
-                    >
-                      Back
-                    </button>
-                    <button 
-                      onClick={handleSaveIdentity}
-                      disabled={!tempArchetype || isSavingIdentity}
-                      className="flex-1 py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-[0.15em] text-[11px] shadow-lg shadow-emerald-900/10 active:scale-95 transition-all disabled:opacity-50"
-                    >
-                      {isSavingIdentity ? 'Saving...' : 'Save'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Navigation Controls for Quiz Steps */}
-              {setupStep >= 1 && setupStep < 11 && (
-                <div className="mt-4 flex gap-2">
-                  {setupStep === 1 ? (
-                    null
-                  ) : setupStep === 10 ? (
-                    <button 
-                      onClick={() => {
-                        setSetupStep(9);
-                        setCurrentTaskGroupIdx(4);
-                      }}
-                      className="w-full py-3 bg-gray-50 text-gray-400 rounded-xl font-black uppercase tracking-widest text-[9px] border border-gray-100"
-                    >
-                      Back
-                    </button>
                   ) : (
-                    <button 
-                      onClick={() => {
-                        setSetupStep(prev => prev - 1);
-                        if (setupStep > 5) setCurrentTaskGroupIdx(prev => prev - 1);
-                      }}
-                      className="w-full py-3 bg-gray-50 text-gray-400 rounded-xl font-black uppercase tracking-widest text-[9px] border border-gray-100"
-                    >
-                      Back
-                    </button>
+                    <div className="text-center py-4">
+                      <div className="w-12 h-12 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-sm font-black text-gray-900 mb-1">Application Submitted</h3>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mb-2">
+                        Status: Pending Approval
+                      </p>
+                      <p className="text-[9px] text-gray-500 font-medium leading-relaxed max-w-xs mx-auto mb-4">
+                        We are reviewing your application to activate your full coach access. This usually takes 4 to 5 working days.
+                      </p>
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
+              </div>
+            ) : (
+              setupStep >= 0 && (
+                <div className="space-y-3 animate-fade-in">
+                  <div className="flex items-center justify-between px-1">
+                    <SectionLabel text="Identity Setup" />
+                    <span className="text-[8px] font-black text-[#0E7850] uppercase tracking-widest">{setupProgress}%</span>
+                  </div>
+                  
+                  <div className="bg-white rounded-[2rem] p-6 border border-[#0E7850]/10 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gray-50">
+                      <div 
+                        className="h-full bg-[#0E7850] transition-all duration-500" 
+                        style={{ width: `${setupProgress}%` }}
+                      />
+                    </div>
+
+                    {/* Step 1: Persona */}
+                    {setupStep === 1 && (
+                      <div className="animate-fade-in min-h-[320px]">
+                        <h3 className="text-sm font-black text-gray-900 mb-1">Which best describes you today?</h3>
+                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your persona</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {INITIAL_OPTIONS.map(opt => (
+                            <button
+                              key={opt}
+                              onClick={() => handleQuizOptionSelect(opt)}
+                              className={`p-3 rounded-2xl border text-[10px] font-bold text-left transition-all ${tempPersona === opt ? 'bg-[#0E7850] text-white border-[#0E7850] shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Steps 2-4: Persona Questions */}
+                    {setupStep >= 2 && setupStep <= 4 && tempPersona && currentQuiz && currentQuiz[setupStep - 2] && (
+                      <div className="animate-fade-in min-h-[320px]">
+                        <h3 className="text-sm font-black text-gray-900 mb-1" dangerouslySetInnerHTML={{ __html: currentQuiz[setupStep - 2].title }} />
+                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Question {setupStep - 1}/3</p>
+                        <div className="space-y-2">
+                          {currentQuiz[setupStep - 2].options.map(opt => (
+                            <button
+                              key={opt}
+                              onClick={() => handleQuizOptionSelect(opt)}
+                              className={`w-full p-3 rounded-xl border text-[10px] font-bold text-left transition-all ${tempOnboardingAnswers[setupStep - 1] === opt ? 'bg-[#0E7850] text-white border-[#0E7850] shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Steps 5-9: Growth Areas */}
+                    {setupStep >= 5 && setupStep <= 9 && currentGrowthGroup && (
+                      <div className="animate-fade-in min-h-[320px]">
+                        <h3 className="text-sm font-black text-gray-900 mb-1">Where do you want to grow next?</h3>
+                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Pick one from each group ({currentTaskGroupIdx + 1}/5)</p>
+                        
+                        <div className="mb-6">
+                          <p className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest mb-3">{currentGrowthGroup.group}</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {currentGrowthGroup.options.map(area => (
+                              <button
+                                key={area}
+                                onClick={() => handleToggleGrowthArea(area)}
+                                className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${tempGrowthAreas.includes(area) ? 'bg-[#0E7850] text-white shadow-md scale-105' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                              >
+                                {area}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 10: Rise Pathway */}
+                    {setupStep === 10 && (
+                      <div className="animate-fade-in min-h-[320px]">
+                        <h3 className="text-sm font-black text-gray-900 mb-1">What best describes your current focus?</h3>
+                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-4">Select your Rise Pathway.</p>
+                        
+                        <div className="space-y-2 mb-6">
+                          {RISE_PATHWAYS.map(path => (
+                            <button
+                              key={path.id}
+                              onClick={async () => {
+                                setTempRisePathway(path.id);
+                                setIsSavingIdentity(true);
+                                try {
+                                  await updateProfile(sanitizeData({
+                                    risePathway: path.id
+                                  }));
+                                  setSetupStep(11);
+                                } catch (e) {
+                                  userService.queueNotification('error', "Failed to save Pathway.", { duration: 3000 });
+                                } finally {
+                                  setIsSavingIdentity(false);
+                                }
+                              }}
+                              disabled={isSavingIdentity}
+                              className={`w-full text-left p-3 rounded-2xl border transition-all ${tempRisePathway === path.id ? 'bg-[#0E7850]/5 border-[#0E7850]/20 scale-[1.02] shadow-sm' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}
+                            >
+                              <h4 className="text-[10px] font-black text-gray-900">{path.name}</h4>
+                              <p className="text-[8px] text-gray-400 font-medium mt-0.5">{path.description}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 11: Choose Archetype */}
+                    {setupStep === 11 && (
+                      <div className="animate-fade-in min-h-[320px]">
+                        <h3 className="text-sm font-black text-gray-900 mb-1">Choose Archetype</h3>
+                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-6">Select the energy you want to embody.</p>
+                        
+                        <div className="grid grid-cols-2 gap-2 mb-6">
+                          {ARCHETYPES.map(arch => (
+                            <button
+                              key={arch.id}
+                              onClick={() => setTempArchetype(arch.id)}
+                              className={`p-3 rounded-2xl border text-[10px] font-bold text-left transition-all ${tempArchetype === arch.id ? 'bg-[#0E7850] text-white border-[#0E7850] shadow-md scale-[1.02]' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
+                            >
+                              <div className="flex items-center gap-1.5 mb-1 text-base">
+                                <span>{arch.icon}</span>
+                              </div>
+                              <h4 className="font-black truncate">{arch.name}</h4>
+                              <p className="text-[8px] opacity-70 line-clamp-2 mt-0.5">{arch.description}</p>
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => setSetupStep(10)}
+                            className="flex-1 py-4 bg-gray-50 text-gray-400 rounded-2xl font-black uppercase tracking-widest text-[10px] border border-gray-100"
+                          >
+                            Back
+                          </button>
+                          <button 
+                            onClick={handleSaveIdentity}
+                            disabled={!tempArchetype || isSavingIdentity}
+                            className="flex-1 py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-[0.15em] text-[11px] shadow-lg shadow-emerald-900/10 active:scale-95 transition-all disabled:opacity-50"
+                          >
+                            {isSavingIdentity ? 'Saving...' : 'Save'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Navigation Controls for Quiz Steps */}
+                    {setupStep >= 1 && setupStep < 11 && (
+                      <div className="mt-4 flex gap-2">
+                        {setupStep === 1 ? (
+                          null
+                        ) : setupStep === 10 ? (
+                          <button 
+                            onClick={() => {
+                              setSetupStep(9);
+                              setCurrentTaskGroupIdx(4);
+                            }}
+                            className="w-full py-3 bg-gray-50 text-gray-400 rounded-xl font-black uppercase tracking-widest text-[9px] border border-gray-100"
+                          >
+                            Back
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => {
+                              setSetupStep(prev => prev - 1);
+                              if (setupStep > 5) setCurrentTaskGroupIdx(prev => prev - 1);
+                            }}
+                            className="w-full py-3 bg-gray-50 text-gray-400 rounded-xl font-black uppercase tracking-widest text-[9px] border border-gray-100"
+                          >
+                            Back
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            )}
 
         {/* Active Path Section */}
         <section>

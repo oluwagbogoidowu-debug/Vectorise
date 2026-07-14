@@ -363,10 +363,10 @@ const SprintPreview: React.FC = () => {
                 walletBalance: 0,
                 referrerId: null,
                 referralFirstTouch: null,
-                defaultLoginMode: isCoachRegistration ? 'COACH' : undefined,
-                coachApplicationSubmitted: isCoachRegistration ? true : undefined,
+                defaultLoginMode: undefined,
+                coachApplicationSubmitted: isCoachRegistration ? false : undefined,
                 coachApplicationApproved: isCoachRegistration ? false : undefined,
-                hasCoachProfile: isCoachRegistration ? true : undefined,
+                hasCoachProfile: isCoachRegistration ? false : undefined,
                 approved: isCoachRegistration ? false : undefined,
                 bio: isCoachRegistration ? "Specialized Coach." : "Ready to grow.",
                 niche: isCoachRegistration ? "Executive Coaching" : undefined,
@@ -403,7 +403,8 @@ const SprintPreview: React.FC = () => {
 
             await sendEmailVerification(firebaseUser);
             toast.success("Account created! Verification email sent.");
-            setBottomModalStep(3); // Transition to verification step
+            setShowLockModal(false);
+            navigate('/verify-email', { replace: true });
         } catch (error: any) {
             console.error("Signup error:", error);
             if (error.code === 'auth/email-already-in-use') setAuthError("Email already in use. Try logging in instead.");

@@ -167,8 +167,9 @@ const SignUpPage: React.FC = () => {
             isCoachRegistration = true;
             coachDetails = {
               approved: false, 
-              coachApplicationSubmitted: true,
+              coachApplicationSubmitted: false,
               coachApplicationApproved: false,
+              hasCoachProfile: false,
               bio: "Specialized Coach.",
               niche: "Executive Coaching"
             };
@@ -305,11 +306,7 @@ const SignUpPage: React.FC = () => {
               }
               localStorage.removeItem('pending_first_action');
               await sendEmailVerification(firebaseUser);
-              setPendingRedirect({ 
-                  path: `/participant/sprint/${enrollment.id}?day=1`, 
-                  state: { showCompletion: true, isFirstActionAutoClaim: true } 
-              });
-              setShowVerifyModal(true);
+              navigate('/verify-email', { replace: true });
               return;
           }
       }
@@ -318,8 +315,7 @@ const SignUpPage: React.FC = () => {
           if (targetTrackId) {
               // For tracks, we redirect to dashboard
               await sendEmailVerification(firebaseUser);
-              setPendingRedirect({ path: '/participant/dashboard', state: { replace: true } });
-              setShowVerifyModal(true);
+              navigate('/verify-email', { replace: true });
               return;
           } else if (targetSprintId) {
               try {
@@ -352,8 +348,7 @@ const SignUpPage: React.FC = () => {
                           }
                           localStorage.removeItem('pending_first_action');
                           await sendEmailVerification(firebaseUser);
-                          setPendingRedirect({ path: `/participant/sprint/${enrollment.id}`, state: { replace: true } });
-                          setShowVerifyModal(true);
+                          navigate('/verify-email', { replace: true });
                           return;
                       }
                   }
@@ -430,10 +425,7 @@ const SignUpPage: React.FC = () => {
 
       await sendEmailVerification(firebaseUser);
       toast.success("Account created! Verification email sent.");
-      
-      const targetPath = newUser.role === UserRole.PARTNER ? '/partner/dashboard' : '/dashboard';
-      setPendingRedirect({ path: targetPath, state: { replace: true } });
-      setShowVerifyModal(true);
+      navigate('/verify-email', { replace: true });
 
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') setRegError("Email already in use. Try logging in instead.");
