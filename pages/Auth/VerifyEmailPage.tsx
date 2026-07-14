@@ -50,7 +50,7 @@ const VerifyEmailPage: React.FC = () => {
       const isVerified = await checkVerification();
       if (isVerified) {
         alertToast.success("Email verified successfully! Welcome.");
-        navigate('/', { replace: true });
+        navigate('/dashboard', { replace: true });
       } else {
         alertToast.error("We checked, but the link hasn't been verified in your inbox yet!");
       }
@@ -148,7 +148,7 @@ const VerifyEmailPage: React.FC = () => {
               <button 
                 onClick={() => {
                   deferVerification();
-                  navigate('/', { replace: true });
+                  navigate('/dashboard', { replace: true });
                 }}
                 className="flex-1 py-3 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-primary/90 transition-colors shadow-lg active:scale-95 cursor-pointer"
               >

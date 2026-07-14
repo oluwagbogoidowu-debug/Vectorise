@@ -230,13 +230,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               const storedRole = localStorage.getItem('vectorise_active_role') as UserRole;
               const dbRole = dbUser.role as UserRole;
               
+              const isCoachApproved = dbRole === UserRole.COACH && (
+                  (dbUser as any).coachApplicationApproved === true || 
+                  (dbUser as any).approved === true
+              );
+              
               let roleToSet = dbRole;
-              if (storedRole) {
-                  const isCoach = (dbUser as Coach).hasCoachProfile || dbRole === UserRole.COACH;
+              if (dbRole === UserRole.COACH && !isCoachApproved) {
+                  // Unapproved coach must default to Participant mode
+                  roleToSet = UserRole.PARTICIPANT;
+              } else if (storedRole) {
+                  const isCoach = ((dbUser as Coach).hasCoachProfile || dbRole === UserRole.COACH) && isCoachApproved;
                   const isAdmin = dbRole === UserRole.ADMIN;
                   
                   if (storedRole === dbRole) {
-                      roleToSet = storedRole;
+                      roleToSet = (dbRole === UserRole.COACH && !isCoachApproved) ? UserRole.PARTICIPANT : storedRole;
                   } else if (storedRole === UserRole.COACH && isCoach) {
                       roleToSet = UserRole.COACH;
                   } else if (isAdmin) {

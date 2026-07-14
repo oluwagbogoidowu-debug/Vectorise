@@ -1366,49 +1366,115 @@ const ParticipantDashboard: React.FC = () => {
                             </Link>
                         )}
 
-                        {/* Complete Your Profile Card */}
-                        {!isIdentitySet && cardSettings.profile && (
-                            <Link 
-                                to={isStepUpLocked ? "#" : "/profile/settings/identity"} 
-                                onClick={(e) => isStepUpLocked && e.preventDefault()}
-                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
-                                    isStepUpLocked 
-                                    ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                    : 'hover:shadow-md hover:border-primary/20 cursor-pointer border-rose-100'
-                                }`}
-                            >
-                                {/* Tag positioned nicely */}
-                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
-                                    Complete Your Profile
-                                </div>
-
-                                <div className="flex-1 flex flex-col justify-between pt-2">
-                                    <div className="space-y-2 mt-2 text-left">
-                                        <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center border border-rose-100/50 shadow-sm">
-                                            <span>👤</span>
+                        {/* Complete Your Profile Card OR Request Coach Account Card */}
+                        {cardSettings.profile && (
+                            user?.role === UserRole.COACH ? (
+                                !(user as any).coachApplicationSubmitted ? (
+                                    <Link 
+                                        to="/onboarding/coach/welcome"
+                                        className="flex-shrink-0 w-60 h-60 bg-white border border-emerald-100 rounded-[2rem] p-5 shadow-sm hover:shadow-md hover:border-emerald-500/20 cursor-pointer flex flex-col justify-between group snap-start animate-fade-in relative"
+                                    >
+                                        <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-emerald-700 border border-emerald-100/40 z-20">
+                                            Coach Onboarding
                                         </div>
-                                        <div>
-                                            <h4 className="text-[11px] font-black text-gray-950 leading-tight">
-                                                You’re not fully set up yet
-                                            </h4>
-                                            <p className="text-[10px] font-medium text-gray-500 mt-1 leading-snug">
-                                                Your identity is incomplete. This helps us recommend the right sprint for you.
-                                            </p>
+
+                                        <div className="flex-1 flex flex-col justify-between pt-2">
+                                            <div className="space-y-2 mt-2 text-left">
+                                                <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100/50 shadow-sm">
+                                                    <span>🎓</span>
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-[11px] font-black text-gray-950 leading-tight">
+                                                        Request your coach account
+                                                    </h4>
+                                                    <p className="text-[10px] font-medium text-gray-500 mt-1 leading-snug">
+                                                        Request a full coach account to design high-impact sprints and help others rise.
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <div className="w-full py-2 bg-[#0E7850] hover:bg-[#13a372] text-white rounded-xl text-center font-black uppercase tracking-widest text-[9px] shadow-sm transition-all active:scale-[0.98] mt-2 group-hover:scale-[1.01]">
+                                                    [ Request Coach Account ]
+                                                </div>
+                                                <div className="text-center mt-1.5">
+                                                    <span className="text-[9px] font-bold text-gray-400">
+                                                        Unlock coaching capabilities
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Link>
+                                ) : (
+                                    <div 
+                                        className="flex-shrink-0 w-60 h-60 bg-white border border-amber-100 rounded-[2rem] p-5 shadow-sm flex flex-col justify-between snap-start animate-fade-in relative"
+                                    >
+                                        <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-amber-50 text-amber-700 border border-amber-100/40 z-20">
+                                            Coach Request Pending
+                                        </div>
+
+                                        <div className="flex-1 flex flex-col justify-center pt-2">
+                                            <div className="space-y-2 text-left">
+                                                <div className="w-10 h-10 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center border border-amber-100/50 shadow-sm animate-pulse mx-auto">
+                                                    <span>⏳</span>
+                                                </div>
+                                                <div className="text-center">
+                                                    <h4 className="text-[11px] font-black text-gray-950 leading-tight">
+                                                        Application Submitted
+                                                    </h4>
+                                                    <p className="text-[10px] font-medium text-gray-500 mt-1 leading-snug">
+                                                        We are reviewing your application. This usually takes 4 to 5 working days.
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
+                                )
+                            ) : (
+                                !isIdentitySet && (
+                                    <Link 
+                                        to={isStepUpLocked ? "#" : "/profile/settings/identity"} 
+                                        onClick={(e) => isStepUpLocked && e.preventDefault()}
+                                        className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                            isStepUpLocked 
+                                            ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
+                                            : 'hover:shadow-md hover:border-primary/20 cursor-pointer border-rose-100'
+                                        }`}
+                                    >
+                                        {/* Tag positioned nicely */}
+                                        <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
+                                            Complete Your Profile
+                                        </div>
 
-                                    <div>
-                                        <div className="w-full py-2 bg-primary hover:bg-primary/90 text-white rounded-xl text-center font-black uppercase tracking-widest text-[9px] shadow-sm transition-all active:scale-[0.98] mt-2 group-hover:scale-[1.01]">
-                                            [ Complete Identity ]
+                                        <div className="flex-1 flex flex-col justify-between pt-2">
+                                            <div className="space-y-2 mt-2 text-left">
+                                                <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center border border-rose-100/50 shadow-sm">
+                                                    <span>👤</span>
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-[11px] font-black text-gray-950 leading-tight">
+                                                        You’re not fully set up yet
+                                                    </h4>
+                                                    <p className="text-[10px] font-medium text-gray-500 mt-1 leading-snug">
+                                                        Your identity is incomplete. This helps us recommend the right sprint for you.
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <div className="w-full py-2 bg-primary hover:bg-primary/90 text-white rounded-xl text-center font-black uppercase tracking-widest text-[9px] shadow-sm transition-all active:scale-[0.98] mt-2 group-hover:scale-[1.01]">
+                                                    [ Complete Identity ]
+                                                </div>
+                                                <div className="text-center mt-1.5">
+                                                    <span className="text-[9px] font-bold text-gray-400">
+                                                        Takes less than 1 minute
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="text-center mt-1.5">
-                                            <span className="text-[9px] font-bold text-gray-400">
-                                                Takes less than 1 minute
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </Link>
+                                    </Link>
+                                )
+                            )
                         )}
 
                         {/* 1. Read RiseBlog */}
