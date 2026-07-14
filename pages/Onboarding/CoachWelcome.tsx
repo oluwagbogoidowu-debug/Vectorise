@@ -5,7 +5,7 @@ import LocalLogo from '../../components/LocalLogo';
 
 export const CoachWelcome: React.FC = () => {
   return (
-    <div className="flex flex-col min-h-screen w-full p-6 bg-primary text-white overflow-hidden relative items-center justify-center">
+    <div className="fixed inset-0 z-[200] flex flex-col h-screen w-screen p-6 bg-primary text-white overflow-y-auto no-scrollbar items-center justify-center">
       <div className="flex flex-col h-full w-full justify-between relative z-10 max-w-sm">
         <div className="pt-10 text-center animate-fade-in flex-shrink-0">
           <LocalLogo type="white" className="h-10 w-auto mx-auto mb-2" />
@@ -23,11 +23,6 @@ export const CoachWelcome: React.FC = () => {
             <Link to="/onboarding/coach/intro" className="block w-full">
               <button className="w-full py-4 bg-[#0FB881] text-primary font-black rounded-full text-base shadow-2xl transition-all active:scale-95 uppercase tracking-widest border-2 border-white/5">
                 START APPLICATION
-              </button>
-            </Link>
-            <Link to="/login" className="block w-full">
-              <button className="w-full py-4 bg-white/10 backdrop-blur-md text-white font-black rounded-full text-base shadow-xl transition-all active:scale-95 uppercase tracking-widest border-2 border-white/10">
-                COACH LOGIN
               </button>
             </Link>
           </div>

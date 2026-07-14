@@ -13,6 +13,7 @@ import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS, PERSONA_QUIZZES, INITIAL_OPTIONS } from '../../constants';
 import { ShinePost } from '../../types';
 import { MILESTONES } from '../../services/milestoneConstants';
+import { CoachWelcome } from '../Onboarding/CoachWelcome';
 
 const Profile: React.FC = () => {
   const { user, logout, updateProfile, mustVerifyEmail, activeRole, switchRole } = useAuth();
@@ -129,6 +130,9 @@ const Profile: React.FC = () => {
   }, [user?.id]);
 
   if (!user) return null;
+  if (user && user.role === UserRole.COACH && !user.coachApplicationSubmitted && !((user as any).approved || (user as any).coachApplicationApproved)) {
+    return <CoachWelcome />;
+  }
   const p = user as Participant;
 
   const currentArchetype = useMemo(() => {
@@ -388,7 +392,7 @@ const Profile: React.FC = () => {
             )}
 
             {/* Switch to Coach Mode button */}
-            {user && (user.role === UserRole.COACH || user.coachApplicationApproved) && activeRole === UserRole.PARTICIPANT && (
+            {user && (user.role === UserRole.COACH || user.coachApplicationApproved) && ((user as any).approved || (user as any).coachApplicationApproved) && activeRole === UserRole.PARTICIPANT && (
               <button 
                 onClick={() => {
                   switchRole(UserRole.COACH);
@@ -413,7 +417,7 @@ const Profile: React.FC = () => {
             )}
 
             {/* Request Coach Mode pending state */}
-            {user && user.role === UserRole.PARTICIPANT && user.coachApplicationSubmitted && !user.coachApplicationApproved && (
+            {user && (user.role === UserRole.PARTICIPANT || user.role === UserRole.COACH) && user.coachApplicationSubmitted && !((user as any).approved || (user as any).coachApplicationApproved) && (
               <div className="px-4 py-2 text-[10px] font-black text-amber-600 bg-amber-50 rounded-xl uppercase tracking-widest border border-amber-100 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                 Coach Application Pending

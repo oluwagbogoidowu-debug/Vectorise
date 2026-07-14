@@ -111,13 +111,9 @@ const CoachOnboardingComplete: React.FC = () => {
 
           <button 
             onClick={() => {
-              if (activeEnrollmentId) {
-                navigate(`/participant/sprint/${activeEnrollmentId}`);
-              } else {
-                navigate('/participant/dashboard');
-              }
+              navigate('/dashboard');
             }}
-            className="w-full py-4 bg-[#0FB881] text-primary font-black rounded-full text-xs shadow-2xl transition-all active:scale-95 uppercase tracking-widest border border-white/5 animate-slide-up"
+            className="w-full py-4 bg-[#0FB881] hover:bg-[#13a372] text-primary font-black rounded-full text-xs shadow-2xl transition-all active:scale-95 uppercase tracking-widest border border-white/5 animate-slide-up hover:shadow-emerald-500/10 cursor-pointer"
           >
             Continue your present sprint
           </button>

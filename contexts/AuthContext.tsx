@@ -137,7 +137,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             let roleToSet = dbRole;
             
             if (dbRole === UserRole.COACH) {
-                if (dbUser.defaultLoginMode === 'COACH') {
+                const isApproved = (dbUser as any).approved || (dbUser as any).coachApplicationApproved;
+                if (dbUser.defaultLoginMode === 'COACH' && isApproved) {
                     roleToSet = UserRole.COACH;
                 } else {
                     roleToSet = UserRole.PARTICIPANT;
@@ -345,10 +346,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!user) return;
     
     // Basic validation
-    const isCoach = (user as Coach).hasCoachProfile || user.role === UserRole.COACH;
+    const isApprovedCoach = ((user as Coach).hasCoachProfile || user.role === UserRole.COACH) && ((user as any).approved || (user as any).coachApplicationApproved);
     const isAdmin = user.role === UserRole.ADMIN;
     
-    if (role === user.role || role === UserRole.PARTICIPANT || (role === UserRole.COACH && isCoach) || isAdmin) {
+    if (role === user.role || role === UserRole.PARTICIPANT || (role === UserRole.COACH && isApprovedCoach) || isAdmin) {
         setActiveRole(role);
         localStorage.setItem('vectorise_active_role', role);
         triggerHaptic(hapticPatterns.light);
