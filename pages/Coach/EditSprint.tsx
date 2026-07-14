@@ -4564,7 +4564,13 @@ const EditSprint: React.FC = () => {
                       <>
                         <div className="fixed inset-0 z-30" onClick={() => setIsAudienceDropdownOpen(false)}></div>
                         <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-250 rounded-2xl shadow-xl z-40 p-2 flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
-                          {["Entrepreneur", "Business Owner", "Freelancer/Consultant", "9-5 Professional", "Student/Graduate", "Creative/Hustler"].map(opt => {
+                          {(() => {
+                            const opts = ["Entrepreneur", "Business Owner", "Freelancer/Consultant", "9-5 Professional", "Student/Graduate", "Creative/Hustler"];
+                            if (user?.role === UserRole.ADMIN) {
+                              opts.push("Coach");
+                            }
+                            return opts;
+                          })().map(opt => {
                             const isSelected = versionSettings.audience?.includes(opt);
                             return (
                               <div 
@@ -4914,7 +4920,13 @@ const EditSprint: React.FC = () => {
                                                     <>
                                                         <div className="fixed inset-0 z-30" onClick={() => setIsAudienceDropdownOpen(false)}></div>
                                                         <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-xl z-40 p-1 flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
-                                                            {["Entrepreneur", "Business Owner", "Freelancer/Consultant", "9-5 Professional", "Student/Graduate", "Creative/Hustler"].map(opt => {
+                                                            {(() => {
+                                                                const opts = ["Entrepreneur", "Business Owner", "Freelancer/Consultant", "9-5 Professional", "Student/Graduate", "Creative/Hustler"];
+                                                                if (user?.role === UserRole.ADMIN) {
+                                                                    opts.push("Coach");
+                                                                }
+                                                                return opts;
+                                                            })().map(opt => {
                                                                 const isSelected = editSettings.audience?.includes(opt);
                                                                 return (
                                                                     <div 

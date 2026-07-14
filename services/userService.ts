@@ -231,11 +231,21 @@ export const userService = {
 
   getAllCoaches: async () => {
     try {
-      const q = query(collection(db, 'users'), where("role", "==", UserRole.COACH));
-      const querySnapshot = await getDocs(q);
-      const coaches: Coach[] = [];
-      querySnapshot.forEach((doc) => coaches.push(sanitizeData(doc.data()) as Coach));
-      return coaches;
+      const q1 = query(collection(db, 'users'), where("role", "==", UserRole.COACH));
+      const q2 = query(collection(db, 'users'), where("coachApplicationSubmitted", "==", true));
+      const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      
+      const map = new Map<string, Coach>();
+      snap1.forEach((doc) => {
+        const d = sanitizeData(doc.data()) as Coach;
+        map.set(doc.id, d);
+      });
+      snap2.forEach((doc) => {
+        const d = sanitizeData(doc.data()) as Coach;
+        map.set(doc.id, d);
+      });
+      
+      return Array.from(map.values());
     } catch (error) {
       return [];
     }
@@ -459,7 +469,11 @@ export const userService = {
   approveCoach: async (uid: string) => {
     try {
       const userRef = doc(db, 'users', uid);
-      await updateDoc(userRef, { approved: true });
+      await updateDoc(userRef, { 
+        approved: true,
+        role: UserRole.COACH,
+        coachApplicationApproved: true
+      });
     } catch (error) {
       console.error("Error approving coach:", error);
       throw error;

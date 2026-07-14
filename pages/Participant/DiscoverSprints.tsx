@@ -76,7 +76,15 @@ const DiscoverSprints: React.FC = () => {
     useEffect(() => {
         // Subscribe to published sprints in real-time
         const unsubSprints = sprintService.subscribeToPublishedSprints((data) => {
-            setSprints(data);
+            // Filter out sprints tagged with "Coach" unless the user is a coach or admin
+            const allowedSprints = data.filter(s => {
+                const isCoachSprint = s.audience && s.audience.includes("Coach");
+                if (isCoachSprint) {
+                    return user?.role === UserRole.COACH || user?.role === UserRole.ADMIN;
+                }
+                return true;
+            });
+            setSprints(allowedSprints);
             setIsSprintsLoaded(true);
         }, (error) => {
             console.error("Error subscribing to sprints:", error);
@@ -102,7 +110,7 @@ const DiscoverSprints: React.FC = () => {
         
         loadCoachesAndOrchestration();
         return () => unsubSprints();
-    }, []);
+    }, [user]);
 
     // Subscribe to enrollments for reactive filtering of "Active" sprints
     useEffect(() => {

@@ -1,17 +1,19 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { userService } from '../../services/userService';
+import { sprintService } from '../../services/sprintService';
 import { auth } from '../../services/firebase';
 import { createUserWithEmailAndPassword, updateProfile as updateFbProfile, sendEmailVerification, signOut } from 'firebase/auth';
 import { UserRole, Coach } from '../../types';
 import Button from '../../components/Button';
 import LocalLogo from '../../components/LocalLogo';
+import { useAuth } from '../../contexts/AuthContext';
 
 const CoachOnboardingComplete: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { niche, applicationDetails } = location.state || {};
+  const { user } = useAuth();
+  const { niche, applicationDetails, answers } = location.state || {};
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -20,6 +22,35 @@ const CoachOnboardingComplete: React.FC = () => {
   const [regError, setRegError] = useState('');
   const [showLoginLink, setShowLoginLink] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Existing logged-in user states
+  const [isAutoSubmitted, setIsAutoSubmitted] = useState(false);
+  const [activeEnrollmentId, setActiveEnrollmentId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user && !isAutoSubmitted) {
+      const submitApplication = async () => {
+        try {
+          await userService.updateUserDocument(user.id, {
+            coachApplicationSubmitted: true,
+            coachApplicationApproved: false,
+            coachApplicationAnswers: applicationDetails || answers || {},
+            coachApplicationNiche: niche || ''
+          });
+          setIsAutoSubmitted(true);
+          
+          const enrollments = await sprintService.getUserEnrollments(user.id);
+          const active = enrollments.find(e => e.status === 'active');
+          if (active) {
+            setActiveEnrollmentId(active.id);
+          }
+        } catch (err) {
+          console.error("Error submitting coach application for logged-in user:", err);
+        }
+      };
+      submitApplication();
+    }
+  }, [user, isAutoSubmitted, niche, applicationDetails, answers]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +92,48 @@ const CoachOnboardingComplete: React.FC = () => {
       }
     } finally { setIsSubmitting(false); }
   };
+
+  if (user) {
+    return (
+      <div className="h-[100dvh] w-screen bg-primary text-white flex flex-col items-center justify-center px-6 overflow-hidden relative">
+        <div className="max-w-sm w-full relative z-10 flex flex-col items-center text-center">
+          
+          <div className="w-16 h-16 bg-[#0FB881]/15 rounded-full flex items-center justify-center mb-6 text-[#0FB881] border border-[#0FB881]/20 animate-fade-in">
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+
+          <h1 className="text-3xl font-black mb-3 tracking-tight animate-fade-in">Application submitted.</h1>
+          <p className="text-white/75 text-sm font-medium mb-8 max-w-xs leading-relaxed animate-fade-in">
+            We will get back to you in 4 to 5 working days.
+          </p>
+
+          <button 
+            onClick={() => {
+              if (activeEnrollmentId) {
+                navigate(`/participant/sprint/${activeEnrollmentId}`);
+              } else {
+                navigate('/participant/dashboard');
+              }
+            }}
+            className="w-full py-4 bg-[#0FB881] text-primary font-black rounded-full text-xs shadow-2xl transition-all active:scale-95 uppercase tracking-widest border border-white/5 animate-slide-up"
+          >
+            Continue your present sprint
+          </button>
+        </div>
+
+        <div className="absolute bottom-[-10%] right-[-10%] w-80 h-80 bg-white/5 rounded-full blur-[100px] pointer-events-none"></div>
+        
+        <style>{`
+          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+          .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
+          .animate-slide-up { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div className="h-[100dvh] w-screen bg-primary text-white flex flex-col items-center justify-center px-6 overflow-hidden relative">

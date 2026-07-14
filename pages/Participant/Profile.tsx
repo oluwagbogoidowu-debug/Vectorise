@@ -373,17 +373,53 @@ const Profile: React.FC = () => {
               </div>
             </div>
           </div>
-          {user && user.role === UserRole.ADMIN && (activeRole === UserRole.PARTICIPANT || activeRole === UserRole.PARTNER) && (
-            <button 
-              onClick={() => {
-                switchRole(UserRole.ADMIN);
-                navigate('/admin/dashboard');
-              }} 
-              className="px-4 py-2 text-xs font-black text-white bg-dark rounded-xl uppercase tracking-widest hover:bg-black transition-colors"
-            >
-              Switch to Admin
-            </button>
-          )}
+          {/* Role Switching & Onboarding Actions */}
+          <div className="flex flex-col gap-2">
+            {user && user.role === UserRole.ADMIN && (activeRole === UserRole.PARTICIPANT || activeRole === UserRole.PARTNER) && (
+              <button 
+                onClick={() => {
+                  switchRole(UserRole.ADMIN);
+                  navigate('/admin/dashboard');
+                }} 
+                className="px-4 py-2 text-xs font-black text-white bg-dark rounded-xl uppercase tracking-widest hover:bg-black transition-colors"
+              >
+                Switch to Admin
+              </button>
+            )}
+
+            {/* Switch to Coach Mode button */}
+            {user && (user.role === UserRole.COACH || user.coachApplicationApproved) && activeRole === UserRole.PARTICIPANT && (
+              <button 
+                onClick={() => {
+                  switchRole(UserRole.COACH);
+                  navigate('/coach/dashboard');
+                }} 
+                className="px-4 py-2 text-xs font-black text-white bg-[#0FB881] rounded-xl uppercase tracking-widest hover:bg-[#0da472] transition-colors"
+              >
+                Switch to Coach Mode
+              </button>
+            )}
+
+            {/* Request Coach Mode button (Not applied yet) */}
+            {user && user.role === UserRole.PARTICIPANT && !user.coachApplicationSubmitted && !user.coachApplicationApproved && (
+              <button 
+                onClick={() => {
+                  navigate('/onboarding/coach/welcome');
+                }} 
+                className="px-4 py-2 text-xs font-black text-[#0FB881] border-2 border-[#0FB881]/20 rounded-xl uppercase tracking-widest hover:bg-[#0FB881]/5 transition-colors"
+              >
+                Request Coach Mode
+              </button>
+            )}
+
+            {/* Request Coach Mode pending state */}
+            {user && user.role === UserRole.PARTICIPANT && user.coachApplicationSubmitted && !user.coachApplicationApproved && (
+              <div className="px-4 py-2 text-[10px] font-black text-amber-600 bg-amber-50 rounded-xl uppercase tracking-widest border border-amber-100 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                Coach Application Pending
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Rise and Impact Cards Moved Up - Only show if identity is set */}

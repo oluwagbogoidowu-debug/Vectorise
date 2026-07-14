@@ -133,19 +133,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             hasFetchedFromServer = true;
             
             // Determine active role
-            const storedRole = localStorage.getItem('vectorise_active_role') as UserRole;
             const dbRole = dbUser.role as UserRole;
-            
             let roleToSet = dbRole;
-            if (storedRole) {
-                const isCoach = (dbUser as Coach).hasCoachProfile || dbRole === UserRole.COACH;
-                const isAdmin = dbRole === UserRole.ADMIN;
-                
-                if (storedRole === dbRole) {
-                    roleToSet = storedRole;
-                } else if (storedRole === UserRole.COACH && isCoach) {
+            
+            if (dbRole === UserRole.COACH) {
+                if (dbUser.defaultLoginMode === 'COACH') {
                     roleToSet = UserRole.COACH;
-                } else if (isAdmin) {
+                } else {
+                    roleToSet = UserRole.PARTICIPANT;
+                }
+            } else if (dbRole === UserRole.ADMIN) {
+                if (dbUser.defaultLoginMode === 'PARTICIPANT') {
+                    roleToSet = UserRole.PARTICIPANT;
+                } else {
+                    roleToSet = UserRole.ADMIN;
+                }
+            } else {
+                const storedRole = localStorage.getItem('vectorise_active_role') as UserRole;
+                if (storedRole) {
                     roleToSet = storedRole;
                 }
             }

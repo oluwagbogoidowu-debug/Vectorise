@@ -157,14 +157,35 @@ const SignUpPage: React.FC = () => {
         }
       }
 
+      // Check if target sprint is a Coach sprint
+      let isCoachRegistration = false;
+      let coachDetails: any = {};
+      if (targetSprintId) {
+        try {
+          const spr = await sprintService.getSprintById(targetSprintId);
+          if (spr && spr.audience && spr.audience.includes("Coach")) {
+            isCoachRegistration = true;
+            coachDetails = {
+              approved: false, 
+              coachApplicationSubmitted: true,
+              coachApplicationApproved: false,
+              bio: "Specialized Coach.",
+              niche: "Executive Coaching"
+            };
+          }
+        } catch (e) {
+          console.error("Error checking target sprint for coach audience:", e);
+        }
+      }
+
       // 3. Create User Document with Permanent Attribution
-      const newUser: Partial<Participant> = {
+      const newUser: Partial<any> = {
         id: firebaseUser.uid,
         name: `${firstName} ${lastName}`,
         email: email.trim().toLowerCase(),
-        role: isPartnerApplication ? UserRole.PARTNER : UserRole.PARTICIPANT,
+        role: isPartnerApplication ? UserRole.PARTNER : (isCoachRegistration ? UserRole.COACH : UserRole.PARTICIPANT),
         profileImageUrl: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=0E7850&color=fff`,
-        persona: persona || (isPartnerApplication ? 'Growth Partner' : 'Seeker'),
+        persona: persona || (isPartnerApplication ? 'Growth Partner' : (isCoachRegistration ? 'Coach' : 'Seeker')),
         onboardingAnswers: answers || {},
         enrolledSprintIds: [],
         isPartner: !!isPartnerApplication,
@@ -173,7 +194,8 @@ const SignUpPage: React.FC = () => {
         
         // ATTACH REFERRAL DATA PERMANENTLY
         referrerId: resolvedReferrerId || null,
-        referralFirstTouch: resolvedReferrerId ? new Date().toISOString() : null
+        referralFirstTouch: resolvedReferrerId ? new Date().toISOString() : null,
+        ...coachDetails
       };
       
       await userService.createUserDocument(firebaseUser.uid, newUser);

@@ -58,11 +58,11 @@ const AdminCoachDetail: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Bio</p>
-                <p className="font-semibold">{coach.bio}</p>
+                <p className="font-semibold">{coach.bio || 'No bio provided'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Niche</p>
-                <p className="font-semibold">{coach.niche}</p>
+                <p className="font-semibold">{coach.niche || coach.coachApplicationNiche || 'No niche specified'}</p>
               </div>
             </div>
           </div>
@@ -73,7 +73,7 @@ const AdminCoachDetail: React.FC = () => {
                 <p className="text-sm text-gray-500">Application Status</p>
                 <p className={`font-semibold ${coach.approved ? 'text-green-600' : 'text-orange-600'}`}>{coach.approved ? 'Approved' : 'Pending'}</p>
               </div>
-              {coach.applicationDetails && Object.entries(coach.applicationDetails).map(([key, value]) => (
+              {((coach.applicationDetails && Object.keys(coach.applicationDetails).length > 0) ? Object.entries(coach.applicationDetails) : (coach.coachApplicationAnswers ? Object.entries(coach.coachApplicationAnswers) : [])).map(([key, value]) => (
                 <div key={key}>
                   <p className="text-sm text-gray-500 capitalize">{key.replace(/([A-Z])/g, ' $1')}</p>
                   <p className="font-semibold">{String(value)}</p>

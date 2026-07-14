@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
-import { ParticipantSprint, Sprint, Notification, Participant, Referral, Coach } from '../../types';
+import { ParticipantSprint, Sprint, Notification, Participant, Referral, Coach, UserRole } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { analyticsService } from '../../services/analyticsService';
 import { userService } from '../../services/userService';
@@ -422,17 +422,26 @@ const ParticipantDashboard: React.FC = () => {
   // Load published sprints, ignites and blogs in real-time
   useEffect(() => {
     const unsubscribe = sprintService.subscribeToPublishedSprints((published) => {
-      const ignites = published.filter(s => s.contentType === 'ignite');
+      // Filter out sprints/blogs/ignites tagged with "Coach" unless the user is a coach or admin
+      const allowedSprints = published.filter(s => {
+        const isCoachSprint = s.audience && s.audience.includes("Coach");
+        if (isCoachSprint) {
+          return user?.role === UserRole.COACH || user?.role === UserRole.ADMIN;
+        }
+        return true;
+      });
+
+      const ignites = allowedSprints.filter(s => s.contentType === 'ignite');
       setIgnitePosts(ignites);
-      const blogs = published.filter(s => s.contentType === 'blog');
+      const blogs = allowedSprints.filter(s => s.contentType === 'blog');
       setBlogPosts(blogs);
-      const regular = published.filter(s => s.contentType !== 'ignite' && s.contentType !== 'blog');
+      const regular = allowedSprints.filter(s => s.contentType !== 'ignite' && s.contentType !== 'blog');
       setPublishedSprints(regular);
     }, (err) => {
       console.error("Failed to load published sprints", err);
     });
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   // Fetch coaches and orchestration on mount
   useEffect(() => {

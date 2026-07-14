@@ -4,10 +4,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import LocalLogo from '../../../components/LocalLogo';
 import { PushToggle } from '../../../components/PushToggle';
+import { UserRole } from '../../../types';
+import { toast } from 'sonner';
 
 const AccountSettings: React.FC = () => {
   const navigate = useNavigate();
-  const { logout, isEmailUnverified, resetVerificationDeferral } = useAuth();
+  const { user, logout, isEmailUnverified, resetVerificationDeferral, updateProfile } = useAuth();
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return document.documentElement.classList.contains('dark');
@@ -102,6 +104,47 @@ const AccountSettings: React.FC = () => {
           <div className="p-5 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-3xl shadow-sm">
             <PushToggle />
           </div>
+
+          {/* Default Login Mode (Only for Coach / Admin) */}
+          {user && (user.role === UserRole.COACH || user.role === UserRole.ADMIN) && (
+            <div className="p-5 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-3xl shadow-sm space-y-3">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-2xl bg-[#0FB881]/15 flex items-center justify-center text-lg">🚀</div>
+                <div>
+                  <span className="text-xs font-black text-gray-900 dark:text-gray-100 uppercase tracking-widest block">Default Login Mode</span>
+                  <span className="text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider">Set view on every login</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-50 dark:border-zinc-800/50">
+                <button
+                  onClick={async () => {
+                    await updateProfile({ defaultLoginMode: 'PARTICIPANT' });
+                    toast.success("Default login mode set to Participant");
+                  }}
+                  className={`py-3 px-4 rounded-2xl font-black uppercase text-[10px] tracking-widest border transition-all ${
+                    (user.defaultLoginMode || 'PARTICIPANT') === 'PARTICIPANT'
+                      ? 'bg-primary text-white border-primary shadow-md shadow-primary/10'
+                      : 'bg-transparent text-gray-400 dark:text-zinc-500 border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800'
+                  }`}
+                >
+                  Participant
+                </button>
+                <button
+                  onClick={async () => {
+                    await updateProfile({ defaultLoginMode: 'COACH' });
+                    toast.success("Default login mode set to Coach");
+                  }}
+                  className={`py-3 px-4 rounded-2xl font-black uppercase text-[10px] tracking-widest border transition-all ${
+                    user.defaultLoginMode === 'COACH'
+                      ? 'bg-[#0FB881] text-white border-[#0FB881] shadow-md shadow-[#0FB881]/10'
+                      : 'bg-transparent text-gray-400 dark:text-zinc-500 border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800'
+                  }`}
+                >
+                  Coach
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="pt-8">

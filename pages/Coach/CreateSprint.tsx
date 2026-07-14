@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Button from '../../components/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
-import { Sprint, SprintDifficulty, DailyContent, Coach, DynamicSection } from '../../types';
+import { Sprint, SprintDifficulty, DailyContent, Coach, DynamicSection, UserRole } from '../../types';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import FormattedText from '../../components/FormattedText';
@@ -645,7 +645,13 @@ const CreateSprint: React.FC = () => {
                                                 <>
                                                     <div className="fixed inset-0 z-30" onClick={() => setIsAudienceDropdownOpen(false)}></div>
                                                     <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-xl z-40 p-1 flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
-                                                        {["Entrepreneur", "Business Owner", "Freelancer/Consultant", "9-5 Professional", "Student/Graduate", "Creative/Hustler"].map(opt => {
+                                                        {(() => {
+                                                            const opts = ["Entrepreneur", "Business Owner", "Freelancer/Consultant", "9-5 Professional", "Student/Graduate", "Creative/Hustler"];
+                                                            if (user?.role === UserRole.ADMIN) {
+                                                                opts.push("Coach");
+                                                            }
+                                                            return opts;
+                                                        })().map(opt => {
                                                             const isSelected = formData.audience?.includes(opt);
                                                             return (
                                                                 <div 

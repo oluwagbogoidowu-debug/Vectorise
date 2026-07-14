@@ -312,6 +312,11 @@ export interface User {
   emailVerifiedConfirmed?: boolean;
   emailVerifiedOverride?: boolean;
   emailVerified?: boolean;
+  defaultLoginMode?: 'COACH' | 'PARTICIPANT';
+  coachApplicationSubmitted?: boolean;
+  coachApplicationApproved?: boolean;
+  coachApplicationNiche?: string;
+  coachApplicationAnswers?: any;
 }
 
 export type UserNotificationState = 'New' | 'Active' | 'Pending' | 'Completed' | 'Inactive' | 'Dormant';
