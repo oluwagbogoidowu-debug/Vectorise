@@ -348,20 +348,28 @@ const SprintPreview: React.FC = () => {
             const firebaseUser = userCredential.user;
             await updateFbProfile(firebaseUser, { displayName: `${authFirstName} ${authLastName}` });
 
-            const newUser: Partial<Participant> = {
+            const isCoachRegistration = sprint?.audience && sprint.audience.includes("Coach");
+            const newUser: Partial<any> = {
                 id: firebaseUser.uid,
                 name: `${authFirstName} ${authLastName}`,
                 email: authEmail.trim().toLowerCase(),
-                role: UserRole.PARTICIPANT,
+                role: isCoachRegistration ? UserRole.COACH : UserRole.PARTICIPANT,
                 profileImageUrl: `https://ui-avatars.com/api/?name=${authFirstName}+${authLastName}&background=0E7850&color=fff`,
-                persona: 'Seeker',
+                persona: isCoachRegistration ? 'Coach' : 'Seeker',
                 onboardingAnswers: {},
                 enrolledSprintIds: [],
                 isPartner: false,
                 partnerData: null,
                 walletBalance: 0,
                 referrerId: null,
-                referralFirstTouch: null
+                referralFirstTouch: null,
+                defaultLoginMode: isCoachRegistration ? 'COACH' : undefined,
+                coachApplicationSubmitted: isCoachRegistration ? true : undefined,
+                coachApplicationApproved: isCoachRegistration ? false : undefined,
+                hasCoachProfile: isCoachRegistration ? true : undefined,
+                approved: isCoachRegistration ? false : undefined,
+                bio: isCoachRegistration ? "Specialized Coach." : "Ready to grow.",
+                niche: isCoachRegistration ? "Executive Coaching" : undefined,
             };
             await userService.createUserDocument(firebaseUser.uid, newUser);
 
