@@ -2000,13 +2000,13 @@ const EditSprint: React.FC = () => {
   }
 
   const baseInputClasses = "w-full rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all placeholder-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
-  const editorInputClasses = `${baseInputClasses} p-6 bg-white border border-gray-100 text-gray-950`;
-  const promptInputClasses = `${baseInputClasses} p-4 bg-white border border-gray-100 text-gray-950`;
-  const coachNoteInputClasses = `${baseInputClasses} p-4 py-3 border border-emerald-100 bg-emerald-50/20 text-gray-700`;
-  const footnoteInputClasses = `${baseInputClasses} p-4 py-3 border border-indigo-100 bg-indigo-50/20 text-gray-700`;
-  const hintInputClasses = `${baseInputClasses} p-4 py-3 border border-amber-100 bg-amber-50/20 text-gray-700`;
-  const smallEditorInputClasses = "w-full p-3 bg-white border border-gray-100 rounded-xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-xs font-semibold text-gray-950 transition-all placeholder-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
-  const registryInputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold text-gray-950 transition-all disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
+  const editorInputClasses = `${baseInputClasses} p-6 bg-white border border-gray-100 text-black`;
+  const promptInputClasses = `${baseInputClasses} p-4 bg-white border border-gray-100 text-black`;
+  const coachNoteInputClasses = `${baseInputClasses} p-4 py-3 border border-gray-200 bg-white text-black`;
+  const footnoteInputClasses = `${baseInputClasses} p-4 py-3 border border-gray-200 bg-white text-black`;
+  const hintInputClasses = `${baseInputClasses} p-4 py-3 border border-gray-200 bg-white text-black`;
+  const smallEditorInputClasses = "w-full p-3 bg-white border border-gray-100 rounded-xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-xs font-semibold text-black transition-all placeholder-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
+  const registryInputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold text-black transition-all disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
   const labelClasses = "text-[11px] font-black text-gray-400 uppercase tracking-widest";
 
   if (sprint.contentType === 'blog') {

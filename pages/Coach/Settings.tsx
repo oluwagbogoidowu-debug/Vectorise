@@ -52,19 +52,19 @@ const CoachSettings: React.FC = () => {
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <label className="text-xs font-bold text-gray-500">Name</label>
-                        <input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full p-2 border border-gray-200 rounded-lg mt-1" />
+                        <input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full p-2 border border-gray-200 rounded-lg mt-1 bg-white text-black" />
                     </div>
                     <div>
                         <label className="text-xs font-bold text-gray-500">Email</label>
-                        <input type="email" name="email" value={formData.email || ''} onChange={handleChange} className="w-full p-2 border border-gray-200 rounded-lg mt-1" />
+                        <input type="email" name="email" value={formData.email || ''} onChange={handleChange} className="w-full p-2 border border-gray-200 rounded-lg mt-1 bg-white text-black" />
                     </div>
                     <div>
                         <label className="text-xs font-bold text-gray-500">Profile Image URL</label>
-                        <input type="url" name="profileImageUrl" value={formData.profileImageUrl || ''} onChange={handleChange} className="w-full p-2 border border-gray-200 rounded-lg mt-1" />
+                        <input type="url" name="profileImageUrl" value={formData.profileImageUrl || ''} onChange={handleChange} className="w-full p-2 border border-gray-200 rounded-lg mt-1 bg-white text-black" />
                     </div>
                     <div>
                         <label className="text-xs font-bold text-gray-500">Bio</label>
-                        <textarea name="bio" value={formData.bio || ''} onChange={handleChange} rows={4} className="w-full p-2 border border-gray-200 rounded-lg mt-1"></textarea>
+                        <textarea name="bio" value={formData.bio || ''} onChange={handleChange} rows={4} className="w-full p-2 border border-gray-200 rounded-lg mt-1 bg-white text-black"></textarea>
                     </div>
                     <button type="submit" disabled={isSaving} className="w-full py-3 bg-primary text-white rounded-lg font-bold disabled:opacity-50">
                         {isSaving ? 'Saving...' : 'Save Changes'}

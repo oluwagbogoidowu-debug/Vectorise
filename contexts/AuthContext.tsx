@@ -348,7 +348,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const isCoach = (user as Coach).hasCoachProfile || user.role === UserRole.COACH;
     const isAdmin = user.role === UserRole.ADMIN;
     
-    if (role === user.role || (role === UserRole.COACH && isCoach) || isAdmin) {
+    if (role === user.role || role === UserRole.PARTICIPANT || (role === UserRole.COACH && isCoach) || isAdmin) {
         setActiveRole(role);
         localStorage.setItem('vectorise_active_role', role);
         triggerHaptic(hapticPatterns.light);

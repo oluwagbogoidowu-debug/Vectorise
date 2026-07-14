@@ -45,7 +45,7 @@ const EditProfile: React.FC = () => {
             <input 
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-white border border-gray-100 rounded-2xl px-5 py-4 text-xs font-bold text-gray-900 outline-none focus:border-primary transition-colors shadow-sm"
+              className="w-full bg-white border border-gray-100 rounded-2xl px-5 py-4 text-xs font-bold text-black outline-none focus:border-primary transition-colors shadow-sm"
               placeholder="Your name"
             />
           </div>
@@ -55,7 +55,7 @@ const EditProfile: React.FC = () => {
             <textarea 
               value={bio}
               onChange={(e) => setBio(e.target.value)}
-              className="w-full bg-white border border-gray-100 rounded-2xl px-5 py-4 text-xs font-bold text-gray-900 outline-none focus:border-primary transition-colors shadow-sm"
+              className="w-full bg-white border border-gray-100 rounded-2xl px-5 py-4 text-xs font-bold text-black outline-none focus:border-primary transition-colors shadow-sm"
               placeholder="Your bio"
             />
           </div>
@@ -65,7 +65,7 @@ const EditProfile: React.FC = () => {
             <input 
               value={niche}
               onChange={(e) => setNiche(e.target.value)}
-              className="w-full bg-white border border-gray-100 rounded-2xl px-5 py-4 text-xs font-bold text-gray-900 outline-none focus:border-primary transition-colors shadow-sm"
+              className="w-full bg-white border border-gray-100 rounded-2xl px-5 py-4 text-xs font-bold text-black outline-none focus:border-primary transition-colors shadow-sm"
               placeholder="Your niche"
             />
           </div>
@@ -75,7 +75,7 @@ const EditProfile: React.FC = () => {
             <input 
               disabled
               value={p.email}
-              className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-xs font-bold text-gray-400 outline-none cursor-not-allowed"
+              className="w-full bg-gray-100 border border-gray-150 rounded-2xl px-5 py-4 text-xs font-bold text-black/60 outline-none cursor-not-allowed"
             />
           </div>
         </div>

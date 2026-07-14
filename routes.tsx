@@ -52,7 +52,7 @@ import CoachSprints from './pages/Coach/CoachSprints';
 import CoachParticipants from './pages/Coach/CoachParticipants';
 import CoachEarnings from './pages/Coach/CoachEarnings';
 import CoachImpact from './pages/Coach/CoachImpact';
-import CoachSettings from './pages/Coach/Settings';
+import CoachSettings from './pages/Coach/Profile/AccountSettings';
 import CoachEditProfile from './pages/Coach/Profile/EditProfile';
 import SprintPreviewPage from './pages/Coach/SprintPreviewPage'; // New import
 

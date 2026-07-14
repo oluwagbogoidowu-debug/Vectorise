@@ -77,7 +77,15 @@ const CoachProfile: React.FC = () => {
                                 Switch to Admin
                             </button>
                         )}
-                        <button onClick={logout} className="px-4 py-2 text-xs font-bold text-gray-500 bg-gray-100 rounded-lg">Logout</button>
+                        <button 
+                            onClick={() => {
+                                switchRole(UserRole.PARTICIPANT);
+                                navigate('/dashboard');
+                            }} 
+                            className="px-4 py-2 text-xs font-black text-white bg-primary rounded-lg uppercase tracking-widest hover:bg-primary-dark transition-colors"
+                        >
+                            Switch to User
+                        </button>
                     </div>
                 </div>
 
