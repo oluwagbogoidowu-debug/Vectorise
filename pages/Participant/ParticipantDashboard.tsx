@@ -802,6 +802,13 @@ const ParticipantDashboard: React.FC = () => {
     return "Today's Focus";
   }, [cardState, completedDaysCount]);
 
+  const isEligibleForCoachRequest = useMemo(() => {
+    if (user?.role === UserRole.COACH) return true;
+    return enrichedSprints.some(item => 
+      item.sprint?.audience && item.sprint.audience.includes('Coach')
+    );
+  }, [user, enrichedSprints]);
+
   // Alternate streak text and come back tomorrow text in well_done state
   useEffect(() => {
     if (cardState === 'well_done') {
@@ -1368,7 +1375,7 @@ const ParticipantDashboard: React.FC = () => {
 
                         {/* Complete Your Profile Card OR Request Coach Account Card */}
                         {cardSettings.profile && (
-                            user?.role === UserRole.COACH ? (
+                            isEligibleForCoachRequest ? (
                                 !(user as any).coachApplicationSubmitted ? (
                                     <Link 
                                         to="/onboarding/coach/welcome"
