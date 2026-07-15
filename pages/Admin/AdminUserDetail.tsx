@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { userService, sanitizeData } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
-import { Participant, ParticipantSprint, Sprint, Referral } from '../../types';
+import { Participant, ParticipantSprint, Sprint, Referral, UserRole } from '../../types';
+import { MILESTONES } from '../../services/milestoneConstants';
 import { ArrowLeft, Calendar, Mail, User as UserIcon, Zap, Target, Clock, AlertCircle, ChevronRight, Award, Flame, TrendingUp, Users, Coins } from 'lucide-react';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { UserStreakVisualizer } from '../../components/UserStreakVisualizer';
@@ -19,6 +20,107 @@ export default function AdminUserDetail() {
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [referrals, setReferrals] = useState<Referral[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+    const statusInfo = useMemo(() => {
+        if (!user) return { label: 'Participant', colorClass: 'bg-blue-50 text-blue-600 border-blue-100', dotClass: 'bg-blue-500' };
+        
+        const role = (user as any).role;
+        if (role === UserRole.ADMIN) {
+            return {
+                label: 'Admin',
+                colorClass: 'bg-rose-50 text-rose-600 border-rose-100',
+                dotClass: 'bg-rose-500'
+            };
+        }
+        
+        if (role === UserRole.COACH || user.coachApplicationApproved || user.coachApplicationSubmitted) {
+            if (user.coachApplicationApproved) {
+                return {
+                    label: 'Coach (Active)',
+                    colorClass: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+                    dotClass: 'bg-emerald-500'
+                };
+            } else if (user.coachApplicationSubmitted) {
+                return {
+                    label: 'Coach (Pending)',
+                    colorClass: 'bg-amber-50 text-amber-600 border-amber-100',
+                    dotClass: 'bg-amber-500'
+                };
+            } else {
+                return {
+                    label: 'Coach (Non-active)',
+                    colorClass: 'bg-gray-100 text-gray-500 border-gray-200',
+                    dotClass: 'bg-gray-400'
+                };
+            }
+        }
+        
+        return {
+            label: 'Participant',
+            colorClass: 'bg-blue-50 text-blue-600 border-blue-100',
+            dotClass: 'bg-blue-500'
+        };
+    }, [user]);
+
+    const currentStatusValue = useMemo(() => {
+        if (!user) return 'participant';
+        const role = (user as any).role;
+        if (role === UserRole.ADMIN) return 'admin';
+        if (role === UserRole.COACH || user.coachApplicationApproved || user.coachApplicationSubmitted) {
+            if (user.coachApplicationApproved) return 'coach_active';
+            if (user.coachApplicationSubmitted) return 'coach_pending';
+            return 'coach_non_active';
+        }
+        return 'participant';
+    }, [user]);
+
+    const handleStatusChange = async (newVal: string) => {
+        if (!userId || !user) return;
+        setIsUpdatingStatus(true);
+        try {
+            let updateData: any = {};
+            if (newVal === 'participant') {
+                updateData = {
+                    role: UserRole.PARTICIPANT,
+                    coachApplicationSubmitted: false,
+                    coachApplicationApproved: false
+                };
+            } else if (newVal === 'coach_active') {
+                updateData = {
+                    role: UserRole.COACH,
+                    coachApplicationSubmitted: true,
+                    coachApplicationApproved: true
+                };
+            } else if (newVal === 'coach_pending') {
+                updateData = {
+                    role: UserRole.COACH,
+                    coachApplicationSubmitted: true,
+                    coachApplicationApproved: false
+                };
+            } else if (newVal === 'coach_non_active') {
+                updateData = {
+                    role: UserRole.COACH,
+                    coachApplicationSubmitted: false,
+                    coachApplicationApproved: false
+                };
+            } else if (newVal === 'admin') {
+                updateData = {
+                    role: UserRole.ADMIN,
+                    coachApplicationSubmitted: false,
+                    coachApplicationApproved: false
+                };
+            }
+            await userService.updateUserDocument(userId, updateData);
+            setUser(prev => prev ? { ...prev, ...updateData } : null);
+            userService.queueNotification('success', 'User role & status updated successfully!', { duration: 3000 });
+        } catch (error) {
+            console.error("Failed to update user status/role:", error);
+            userService.queueNotification('error', 'Failed to update status & role.', { duration: 3000 });
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
 
     const getOnboardingQuestion = (key: string) => {
         if (!user || !user.onboardingAnswers) {
@@ -198,21 +300,47 @@ export default function AdminUserDetail() {
         const daysActive = Math.max(1, Math.ceil((Date.now() - new Date(user.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));
         const reflectionsCount = user.shinePostIds?.length || 0;
         const peopleHelped = referrals.length;
+        const hasCompletedAnyTask = enrollments.some(e => e.progress?.some(p => p.completed));
+        const totalTaskDays = streakStats.completedDatesSet.size;
 
-        const allMilestoneDefs = [
-            { id: 's2', title: 'The Closer', icon: '🏁', targetValue: 1, points: 15, current: completedCount, type: 'Sprints Completed', description: 'Finished what you started.' },
-            { id: 's4', title: 'Growth Habit', icon: '🏗️', targetValue: 14, points: 50, current: completedCount, type: 'Sprints Completed', description: 'Consistency is becoming your default.' },
-            { id: 'cm1', title: 'Rooted', icon: '🌱', targetValue: 60, points: 20, current: daysActive, type: 'Days Active', description: '60 days of intentional growth.' },
-            { id: 'cm2', title: 'Quarter Builder', icon: '🏢', targetValue: 90, points: 50, current: daysActive, type: 'Days Active', description: '90 days of structured rise.' },
-            { id: 'r1', title: 'Deep Diver', icon: '🌊', targetValue: 1, points: 10, current: reflectionsCount, type: 'Reflections', description: 'Went beyond surface-level growth.' },
-            { id: 'r2', title: 'Self-Aware', icon: '💎', targetValue: 5, points: 30, current: reflectionsCount, type: 'Reflections', description: 'Turned reflection into clarity.' },
-            { id: 'i1', title: 'Impact 1 Degree', icon: '🌱', targetValue: 1, points: 5, current: peopleHelped, type: 'People Helped', description: 'Helped someone start their rise.' },
-            { id: 'i3', title: 'Impact 3 Degree', icon: '🔧', targetValue: 3, points: 15, current: peopleHelped, type: 'People Helped', description: 'Helped 3 people start their rise.' },
-            { id: 'i5', title: 'Catalyst', icon: '⚡', targetValue: 5, points: 25, current: peopleHelped, type: 'People Helped', description: 'Helped 5 people start their rise.' },
-            { id: 'i10', title: 'Multiplier', icon: '🌳', targetValue: 10, points: 50, current: peopleHelped, type: 'People Helped', description: 'Ignited growth in 10 people.' },
-            { id: 'i20', title: 'Architect', icon: '🧠', targetValue: 20, points: 150, current: peopleHelped, type: 'People Helped', description: 'Became an architect of opportunity.' },
-            { id: 'i30', title: 'Inner Circle', icon: '👑', targetValue: 30, points: 250, current: peopleHelped, type: 'People Helped', description: 'Joined the inner circle of legacy.' }
-        ];
+        const getStatValue = (id: string, category: string) => {
+            switch(id) {
+                case 'first_leap': return hasCompletedAnyTask ? 1 : 0;
+                case 's2': return completedCount;
+                case 's4': return totalTaskDays;
+                case 'cm1': return totalTaskDays;
+                case 'cm2': return totalTaskDays;
+                case 'r1': return reflectionsCount;
+                case 'r2': return reflectionsCount;
+                default: {
+                    if (category === 'influence') {
+                        return peopleHelped;
+                    }
+                    return 0;
+                }
+            }
+        };
+
+        const getTypeName = (category: string) => {
+            switch(category) {
+                case 'coreProgress': return 'Core Progress';
+                case 'longGame': return 'Long Game';
+                case 'innerWork': return 'Inner Work';
+                case 'influence': return 'People Helped';
+                default: return 'Milestone';
+            }
+        };
+
+        const allMilestoneDefs = MILESTONES.map(m => ({
+            id: m.id,
+            title: m.title,
+            icon: m.icon,
+            targetValue: m.targetValue,
+            points: m.points,
+            current: getStatValue(m.id, m.category),
+            type: getTypeName(m.category),
+            description: m.description
+        }));
 
         const claimedIds = [
             ...(user.claimedMilestoneIds || []),
@@ -220,7 +348,7 @@ export default function AdminUserDetail() {
         ];
         
         return allMilestoneDefs.filter(m => m.current >= m.targetValue && !claimedIds.includes(m.id));
-    }, [user, enrollments, referrals]);
+    }, [user, enrollments, referrals, streakStats]);
 
     const unifiedClaimedBadges = useMemo(() => {
         if (!user) return [];
@@ -232,21 +360,47 @@ export default function AdminUserDetail() {
         const daysActive = Math.max(1, Math.ceil((Date.now() - new Date(user.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));
         const reflectionsCount = user.shinePostIds?.length || 0;
         const peopleHelped = referrals.length;
+        const hasCompletedAnyTask = enrollments.some(e => e.progress?.some(p => p.completed));
+        const totalTaskDays = streakStats.completedDatesSet.size;
 
-        const allMilestoneDefs = [
-            { id: 's2', title: 'The Closer', icon: '🏁', targetValue: 1, points: 15, current: completedCount, type: 'Sprints Completed', description: 'Finished what you started.' },
-            { id: 's4', title: 'Growth Habit', icon: '🏗️', targetValue: 14, points: 50, current: completedCount, type: 'Sprints Completed', description: 'Consistency is becoming your default.' },
-            { id: 'cm1', title: 'Rooted', icon: '🌱', targetValue: 60, points: 20, current: daysActive, type: 'Days Active', description: '60 days of intentional growth.' },
-            { id: 'cm2', title: 'Quarter Builder', icon: '🏢', targetValue: 90, points: 50, current: daysActive, type: 'Days Active', description: '90 days of structured rise.' },
-            { id: 'r1', title: 'Deep Diver', icon: '🌊', targetValue: 1, points: 10, current: reflectionsCount, type: 'Reflections', description: 'Went beyond surface-level growth.' },
-            { id: 'r2', title: 'Self-Aware', icon: '💎', targetValue: 5, points: 30, current: reflectionsCount, type: 'Reflections', description: 'Turned reflection into clarity.' },
-            { id: 'i1', title: 'Impact 1 Degree', icon: '🌱', targetValue: 1, points: 5, current: peopleHelped, type: 'People Helped', description: 'Helped someone start their rise.' },
-            { id: 'i3', title: 'Impact 3 Degree', icon: '🔧', targetValue: 3, points: 15, current: peopleHelped, type: 'People Helped', description: 'Helped 3 people start their rise.' },
-            { id: 'i5', title: 'Catalyst', icon: '⚡', targetValue: 5, points: 25, current: peopleHelped, type: 'People Helped', description: 'Helped 5 people start their rise.' },
-            { id: 'i10', title: 'Multiplier', icon: '🌳', targetValue: 10, points: 50, current: peopleHelped, type: 'People Helped', description: 'Ignited growth in 10 people.' },
-            { id: 'i20', title: 'Architect', icon: '🧠', targetValue: 20, points: 150, current: peopleHelped, type: 'People Helped', description: 'Became an architect of opportunity.' },
-            { id: 'i30', title: 'Inner Circle', icon: '👑', targetValue: 30, points: 250, current: peopleHelped, type: 'People Helped', description: 'Joined the inner circle of legacy.' }
-        ];
+        const getStatValue = (id: string, category: string) => {
+            switch(id) {
+                case 'first_leap': return hasCompletedAnyTask ? 1 : 0;
+                case 's2': return completedCount;
+                case 's4': return totalTaskDays;
+                case 'cm1': return totalTaskDays;
+                case 'cm2': return totalTaskDays;
+                case 'r1': return reflectionsCount;
+                case 'r2': return reflectionsCount;
+                default: {
+                    if (category === 'influence') {
+                        return peopleHelped;
+                    }
+                    return 0;
+                }
+            }
+        };
+
+        const getTypeName = (category: string) => {
+            switch(category) {
+                case 'coreProgress': return 'Core Progress';
+                case 'longGame': return 'Long Game';
+                case 'innerWork': return 'Inner Work';
+                case 'influence': return 'People Helped';
+                default: return 'Milestone';
+            }
+        };
+
+        const allMilestoneDefs = MILESTONES.map(m => ({
+            id: m.id,
+            title: m.title,
+            icon: m.icon,
+            targetValue: m.targetValue,
+            points: m.points,
+            current: getStatValue(m.id, m.category),
+            type: getTypeName(m.category),
+            description: m.description
+        }));
 
         const milDefMap = new Map(allMilestoneDefs.map(m => [m.id, m]));
 
@@ -263,8 +417,15 @@ export default function AdminUserDetail() {
             }
         });
         
-        return badges;
-    }, [user, enrollments, referrals]);
+        return badges.map((badge: any) => {
+            const def = milDefMap.get(badge.milestoneId);
+            return {
+                ...badge,
+                title: def ? def.title : badge.milestoneId.replace(/-/g, ' '),
+                icon: def ? def.icon : '🎖'
+            };
+        });
+    }, [user, enrollments, referrals, streakStats]);
 
     if (isLoading) {
         return (
@@ -412,22 +573,55 @@ export default function AdminUserDetail() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
                 
                 {/* Profile Card Section (A bit smaller like participant design) */}
-                <div>
-                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Participant Identity</h3>
-                    <div className="inline-block bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm min-w-[280px] hover:border-[#0E7850]/20 transition-all duration-300">
-                        <div className="flex items-center gap-4">
-                            <ArchetypeAvatar 
-                                archetypeId={user.archetype} 
-                                profileImageUrl={user.profileImageUrl} 
-                                size="lg" 
-                                isVerified={user.emailVerifiedConfirmed || user.emailVerifiedOverride}
-                            />
-                            <div className="min-w-0">
-                                <h2 className="text-sm font-black text-gray-900 tracking-tight leading-none mb-1">{user.name}</h2>
-                                <p className="text-[10px] font-bold text-gray-400 truncate tracking-wide leading-none">{user.email}</p>
-                                <p className="text-[9px] font-black text-[#0E7850] uppercase mt-2 bg-emerald-50/50 border border-emerald-100/50 px-2 py-0.5 rounded-md inline-block tracking-wider leading-none">
-                                    @{user.occupation || user.persona || 'Student/Graduate'}
-                                </p>
+                <div className="flex flex-wrap gap-6 items-start">
+                    <div>
+                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Participant Identity</h3>
+                        <div className="inline-block bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm min-w-[280px] hover:border-[#0E7850]/20 transition-all duration-300">
+                            <div className="flex items-center gap-4">
+                                <ArchetypeAvatar 
+                                    archetypeId={user.archetype} 
+                                    profileImageUrl={user.profileImageUrl} 
+                                    size="lg" 
+                                    isVerified={user.emailVerifiedConfirmed || user.emailVerifiedOverride}
+                                />
+                                <div className="min-w-0">
+                                    <h2 className="text-sm font-black text-gray-900 tracking-tight leading-none mb-1">{user.name}</h2>
+                                    <p className="text-[10px] font-bold text-gray-400 truncate tracking-wide leading-none">{user.email}</p>
+                                    <p className="text-[9px] font-black text-[#0E7850] uppercase mt-2 bg-emerald-50/50 border border-emerald-100/50 px-2 py-0.5 rounded-md inline-block tracking-wider leading-none">
+                                        @{user.occupation || user.persona || 'Student/Graduate'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Current Status</h3>
+                        <div className="inline-block bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm min-w-[280px] hover:border-[#0E7850]/20 transition-all duration-300">
+                            <div className="flex items-center gap-4">
+                                <div className={`w-8 h-8 rounded-2xl flex items-center justify-center text-sm border ${statusInfo.colorClass}`}>
+                                    <span className={`w-2.5 h-2.5 rounded-full ${statusInfo.dotClass} animate-pulse`} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1.5">Account Role</p>
+                                    <div className="flex items-center gap-2">
+                                        <select
+                                            value={currentStatusValue}
+                                            onChange={(e) => handleStatusChange(e.target.value)}
+                                            disabled={isUpdatingStatus}
+                                            className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-xl border cursor-pointer outline-none transition-all ${statusInfo.colorClass} ${isUpdatingStatus ? 'opacity-50 pointer-events-none' : ''}`}
+                                        >
+                                            <option value="participant" className="bg-white text-gray-700">Participant</option>
+                                            <option value="coach_active" className="bg-white text-gray-700">Coach (Active)</option>
+                                            <option value="coach_pending" className="bg-white text-gray-700">Coach (Pending)</option>
+                                            <option value="coach_non_active" className="bg-white text-gray-700">Coach (Non-active)</option>
+                                            <option value="admin" className="bg-white text-gray-700">Admin</option>
+                                        </select>
+                                        {isUpdatingStatus && (
+                                            <span className="text-[8px] font-bold text-gray-400 uppercase animate-pulse">Updating...</span>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -576,7 +770,10 @@ export default function AdminUserDetail() {
                                     unifiedClaimedBadges.map((badge: any, idx: number) => (
                                         <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100/50 text-xs">
                                             <div>
-                                                <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight truncate max-w-[150px]">{badge.milestoneId.replace(/-/g, ' ')}</p>
+                                                <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight truncate max-w-[200px] flex items-center gap-1">
+                                                    <span className="text-xs">{badge.icon}</span>
+                                                    <span>{badge.title}</span>
+                                                </p>
                                                 <p className="text-[8px] font-bold text-gray-400 uppercase mt-0.5">
                                                     {badge.claimedAt ? format(parseISO(badge.claimedAt), 'MMM d, yyyy') : 'N/A'}
                                                 </p>
