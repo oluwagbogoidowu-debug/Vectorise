@@ -372,7 +372,7 @@ export default function AdminUserDetail() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50/50 pb-20">
+        <div className="min-h-screen bg-white pb-20">
             <style>{`
                 .scrollbar-hidden::-webkit-scrollbar {
                     display: none;

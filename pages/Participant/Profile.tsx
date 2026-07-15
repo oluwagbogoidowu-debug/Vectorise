@@ -132,6 +132,13 @@ const Profile: React.FC = () => {
   if (!user) return null;
   const p = user as Participant;
 
+  const isEligibleForCoachRequest = useMemo(() => {
+    if (user?.role === UserRole.COACH) return true;
+    return enrollments.some(item => 
+      item.sprint?.audience && item.sprint.audience.includes('Coach')
+    );
+  }, [user, enrollments]);
+
   const currentArchetype = useMemo(() => {
     const p = user as Participant;
     return ARCHETYPES.find(a => a.id === p.archetype);
@@ -402,7 +409,7 @@ const Profile: React.FC = () => {
             )}
 
             {/* Request Coach Mode button (Not applied yet) */}
-            {user && user.role === UserRole.PARTICIPANT && !user.coachApplicationSubmitted && !user.coachApplicationApproved && (
+            {isEligibleForCoachRequest && user && user.role === UserRole.PARTICIPANT && !user.coachApplicationSubmitted && !user.coachApplicationApproved && (
               <button 
                 onClick={() => {
                   navigate('/onboarding/coach/welcome');
@@ -517,7 +524,7 @@ const Profile: React.FC = () => {
         ) : (
           <>
             {/* Progressive Identity Tasks or Coach Account Setup */}
-            {user.role === UserRole.COACH ? (
+            {(user.role === UserRole.COACH || isEligibleForCoachRequest) ? (
               <div className="space-y-3 animate-fade-in">
                 <div className="flex items-center justify-between px-1">
                   <SectionLabel text="Coach Account" />
