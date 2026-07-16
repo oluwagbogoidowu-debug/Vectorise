@@ -21,13 +21,15 @@ import AdminQuotes from './AdminQuotes';
 import AdminUsers from './AdminUsers';
 import AdminTracks from './AdminTracks';
 import { adminCache, resetAdminCache } from './adminCache';
+import { SwitchModeModal } from '../../components/SwitchModeModal';
 
 type Tab = 'pulse' | 'orchestrator' | 'analytics' | 'earning' | 'sprints' | 'tracks' | 'coaches' | 'partners' | 'quotes' | 'roles' | 'users';
 type SprintFilter = 'all' | 'active' | 'core' | 'pending' | 'rejected';
 
 export default function AdminDashboard() {
     const navigate = useNavigate();
-    const { logout, switchRole } = useAuth();
+    const { user, logout, switchRole, activeRole } = useAuth();
+    const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<Tab>('pulse');
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [tracks, setTracks] = useState<Track[]>([]);
@@ -161,8 +163,8 @@ export default function AdminDashboard() {
     );
 
     return (
-        <div className="min-h-screen bg-[#FAFAFA] p-6 font-sans">
-            <div className="max-w-7xl mx-auto">
+        <div className="min-h-screen bg-[#FAFAFA] font-sans pb-12">
+            <div className="max-w-7xl mx-auto p-6">
                 <div className="flex justify-between items-center mb-10">
                     <div className="flex items-center gap-5">
                         <button onClick={() => navigate('/')} className="p-3.5 bg-white text-gray-400 hover:text-primary rounded-2xl shadow-sm border border-gray-100 transition-all active:scale-90 cursor-pointer">
@@ -174,23 +176,20 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex items-center gap-3">
                         <button 
-                            onClick={() => {
-                                switchRole(UserRole.COACH);
-                                navigate('/coach/dashboard');
-                            }} 
-                            className="px-5 py-3 bg-blue-500 text-white rounded-2xl shadow-lg shadow-blue-500/20 text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all active:scale-95 flex items-center gap-2"
+                            onClick={() => setIsSwitchModalOpen(true)} 
+                            className="px-5 py-3 bg-dark text-white rounded-2xl shadow-lg shadow-black/10 text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all active:scale-95 flex items-center gap-2"
+                            id="admin-switch-mode-btn"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                            Switch to Coach
+                            <span>🎛️</span> Switch Mode
                         </button>
                         <button onClick={handleLogout} disabled={isLoggingOut} className="p-3 bg-white text-red-400 rounded-2xl shadow-sm border border-gray-100 hover:bg-red-50 active:scale-90 disabled:opacity-50"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg></button>
                     </div>
                 </div>
+            </div>
 
-                <div className="bg-white rounded-[3rem] shadow-sm border border-gray-100 overflow-hidden min-h-[75vh] flex flex-col">
-                    <div className="border-b border-gray-100 bg-gray-50/20 px-10 overflow-x-auto no-scrollbar">
+            <div className="bg-white border-y border-gray-100 min-h-[75vh] flex flex-col">
+                <div className="border-b border-gray-100 bg-gray-50/20 px-6 sm:px-10 overflow-x-auto no-scrollbar">
+                    <div className="max-w-7xl mx-auto">
                         <nav className="-mb-px flex space-x-12">
                             {[
                                 { id: 'pulse', label: 'Pulse' },
@@ -209,8 +208,10 @@ export default function AdminDashboard() {
                             ))}
                         </nav>
                     </div>
-                    
-                    <div className="p-10 flex-1">
+                </div>
+                
+                <div className="p-6 sm:p-10 flex-1 bg-white">
+                    <div className="max-w-7xl mx-auto">
                         {activeTab === 'pulse' && (
                             <div className="animate-fade-in space-y-12">
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -348,6 +349,17 @@ export default function AdminDashboard() {
                     </div>
                 </div>
             </div>
+            <SwitchModeModal
+                isOpen={isSwitchModalOpen}
+                onClose={() => setIsSwitchModalOpen(false)}
+                user={user}
+                activeRole={activeRole}
+                onSelectMode={(role, route) => {
+                    switchRole(role);
+                    navigate(route);
+                }}
+            />
+
             <style>{`
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
                 .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }

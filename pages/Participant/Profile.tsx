@@ -14,6 +14,7 @@ import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS, PERSONA_QUIZZES, INITIAL_OPTIO
 import { ShinePost } from '../../types';
 import { MILESTONES } from '../../services/milestoneConstants';
 import { CoachWelcome } from '../Onboarding/CoachWelcome';
+import { SwitchModeModal } from '../../components/SwitchModeModal';
 
 const Profile: React.FC = () => {
   const { user, logout, updateProfile, mustVerifyEmail, activeRole, switchRole } = useAuth();
@@ -37,6 +38,7 @@ const Profile: React.FC = () => {
   // Quiz Step Logic
   // -2: Loading/Checking, -1: Complete, 0: Persona, 1-3: Persona Questions, 4: Occupation, 5-9: Growth Areas, 10: Rise Pathway
   const [setupStep, setSetupStep] = useState(-2);
+  const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -383,28 +385,13 @@ const Profile: React.FC = () => {
           </div>
           {/* Role Switching & Onboarding Actions */}
           <div className="flex flex-col gap-2">
-            {user && user.role === UserRole.ADMIN && (activeRole === UserRole.PARTICIPANT || activeRole === UserRole.PARTNER) && (
+            {user && (user.role === UserRole.ADMIN || ((user.role === UserRole.COACH || user.coachApplicationApproved) && ((user as any).approved || (user as any).coachApplicationApproved))) && (
               <button 
-                onClick={() => {
-                  switchRole(UserRole.ADMIN);
-                  navigate('/admin/dashboard');
-                }} 
-                className="px-4 py-2 text-xs font-black text-white bg-dark rounded-xl uppercase tracking-widest hover:bg-black transition-colors"
+                onClick={() => setIsSwitchModalOpen(true)} 
+                className="px-4 py-2 text-xs font-black text-white bg-dark rounded-xl uppercase tracking-widest hover:bg-black transition-colors flex items-center justify-center gap-1.5"
+                id="profile-switch-mode-btn"
               >
-                Switch to Admin
-              </button>
-            )}
-
-            {/* Switch to Coach Mode button */}
-            {user && (user.role === UserRole.COACH || user.coachApplicationApproved) && ((user as any).approved || (user as any).coachApplicationApproved) && activeRole === UserRole.PARTICIPANT && (
-              <button 
-                onClick={() => {
-                  switchRole(UserRole.COACH);
-                  navigate('/coach/dashboard');
-                }} 
-                className="px-4 py-2 text-xs font-black text-white bg-[#0FB881] rounded-xl uppercase tracking-widest hover:bg-[#0da472] transition-colors"
-              >
-                Switch to Coach Mode
+                <span>🎛️</span> Switch Mode
               </button>
             )}
 
@@ -898,6 +885,17 @@ const Profile: React.FC = () => {
           </>
         )}
       </main>
+
+      <SwitchModeModal
+        isOpen={isSwitchModalOpen}
+        onClose={() => setIsSwitchModalOpen(false)}
+        user={user}
+        activeRole={activeRole}
+        onSelectMode={(role, route) => {
+          switchRole(role);
+          navigate(route);
+        }}
+      />
 
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }

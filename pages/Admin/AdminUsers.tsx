@@ -2,16 +2,18 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { userService } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
-import { Participant, ParticipantSprint, Sprint } from '../../types';
+import { Participant, ParticipantSprint, Sprint, UserRole } from '../../types';
 import { adminCache } from './adminCache';
 
 export default function AdminUsers() {
     const navigate = useNavigate();
-    const [participants, setParticipants] = useState<Participant[]>([]);
+    const [participants, setParticipants] = useState<any[]>([]);
     const [enrollments, setEnrollments] = useState<ParticipantSprint[]>([]);
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [userToDelete, setUserToDelete] = useState<any | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         if (adminCache.users) {
@@ -26,7 +28,7 @@ export default function AdminUsers() {
             setIsLoading(true);
             try {
                 const [usersData, enrollmentsData, sprintsData] = await Promise.all([
-                    userService.getParticipants(),
+                    userService.getAllUsers(),
                     sprintService.getAllEnrollments(),
                     sprintService.getAdminSprints()
                 ]);
@@ -46,6 +48,30 @@ export default function AdminUsers() {
         };
         fetchData();
     }, []);
+
+    const handleDeleteClick = (e: React.MouseEvent, user: any) => {
+        e.stopPropagation(); // prevent clicking on the row which triggers navigate
+        setUserToDelete(user);
+    };
+
+    const confirmDelete = async () => {
+        if (!userToDelete) return;
+        setIsDeleting(true);
+        try {
+            await userService.deleteUserAccount(userToDelete.id);
+            // Remove from local state
+            setParticipants(prev => prev.filter(u => u.id !== userToDelete.id));
+            // Update cache
+            if (adminCache.users) {
+                adminCache.users.participants = adminCache.users.participants.filter(u => u.id !== userToDelete.id);
+            }
+            setUserToDelete(null);
+        } catch (error) {
+            console.error("Error deleting user:", error);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     const userStats = useMemo(() => {
         const mapped = participants.map(user => {
@@ -215,7 +241,18 @@ export default function AdminUsers() {
                                             )}
                                         </div>
                                         <div>
-                                            <p className="text-sm font-black text-gray-900 leading-none mb-1">{user.name}</p>
+                                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                                <p className="text-sm font-black text-gray-900 leading-none">{user.name}</p>
+                                                {user.role && user.role !== 'participant' && (
+                                                    <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest ${
+                                                        user.role === 'admin' ? 'bg-red-50 text-red-600 border border-red-100' :
+                                                        user.role === 'coach' ? 'bg-teal-50 text-teal-600 border border-teal-100' :
+                                                        'bg-purple-50 text-purple-600 border border-purple-100'
+                                                    }`}>
+                                                        {user.role}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <p className="text-[10px] font-bold text-gray-400">{user.email}</p>
                                         </div>
                                     </div>
@@ -225,7 +262,7 @@ export default function AdminUsers() {
                                         <p className="text-xs font-black text-gray-700 italic">{user.sprintTitle}</p>
                                         {user.activeEnrollment && (
                                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                                                Day {user.activeEnrollment.progress.find(p => !p.completed)?.day || user.activeEnrollment.progress.length} of {user.activeEnrollment.progress.length}
+                                                Day {user.activeEnrollment.progress.find((p: any) => !p.completed)?.day || user.activeEnrollment.progress.length} of {user.activeEnrollment.progress.length}
                                             </p>
                                         )}
                                     </div>
@@ -243,7 +280,7 @@ export default function AdminUsers() {
                                     ) : (
                                         <div className="flex flex-col items-center gap-3">
                                             <div className="flex gap-1">
-                                                {user.activeEnrollment?.progress.map((p, i) => (
+                                                {user.activeEnrollment?.progress.map((p: any, i: number) => (
                                                     <div 
                                                         key={i}
                                                         className={`w-2 h-2 rounded-sm ${p.completed ? 'bg-primary' : 'bg-gray-100'}`}
@@ -265,14 +302,25 @@ export default function AdminUsers() {
                                         </div>
                                     )}
                                 </td>
-                                <td className="px-8 py-6 text-right">
-                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                        user.isActive 
-                                             ? 'bg-green-50 text-green-600' 
-                                             : 'bg-gray-50 text-gray-400'
-                                    }`}>
-                                        {user.isActive ? 'Active' : 'Inactive'}
-                                    </span>
+                                <td className="px-8 py-6">
+                                    <div className="flex items-center justify-end gap-3">
+                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                            user.isActive 
+                                                 ? 'bg-green-50 text-green-600' 
+                                                 : 'bg-gray-50 text-gray-400'
+                                        }`}>
+                                            {user.isActive ? 'Active' : 'Inactive'}
+                                        </span>
+                                        <button
+                                            onClick={(e) => handleDeleteClick(e, user)}
+                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer animate-fade-in"
+                                            title="Delete User Account"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -308,16 +356,38 @@ export default function AdminUsers() {
                                 )}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-base font-black text-gray-900 truncate leading-none mb-1">{user.name}</p>
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <p className="text-base font-black text-gray-900 truncate leading-none">{user.name}</p>
+                                    {user.role && user.role !== 'participant' && (
+                                        <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest flex-shrink-0 ${
+                                            user.role === 'admin' ? 'bg-red-50 text-red-600 border border-red-100' :
+                                            user.role === 'coach' ? 'bg-teal-50 text-teal-600 border border-teal-100' :
+                                            'bg-purple-50 text-purple-600 border border-purple-100'
+                                        }`}>
+                                            {user.role}
+                                        </span>
+                                    )}
+                                </div>
                                 <p className="text-[10px] font-bold text-gray-400 truncate">{user.email}</p>
                             </div>
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
-                                user.isActive 
-                                    ? 'bg-green-50 text-green-600' 
-                                    : 'bg-gray-50 text-gray-400'
-                            }`}>
-                                {user.isActive ? 'Active' : 'Inactive'}
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                                    user.isActive 
+                                        ? 'bg-green-50 text-green-600' 
+                                        : 'bg-gray-50 text-gray-400'
+                                }`}>
+                                    {user.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                                <button
+                                    onClick={(e) => handleDeleteClick(e, user)}
+                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                    title="Delete User Account"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
 
                         {user.isNoProgress ? (
@@ -341,7 +411,7 @@ export default function AdminUsers() {
                                     <div className="text-right">
                                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Completion</p>
                                         <div className="flex justify-end gap-0.5 mt-1">
-                                            {user.activeEnrollment?.progress.map((p, i) => (
+                                            {user.activeEnrollment?.progress.map((p: any, i: number) => (
                                                 <div 
                                                     key={i}
                                                     className={`w-1.5 h-1.5 rounded-sm ${p.completed ? 'bg-primary' : 'bg-gray-100'}`}
@@ -366,6 +436,50 @@ export default function AdminUsers() {
             {userStats.length === 0 && (
                 <div className="py-20 text-center bg-gray-50/50 rounded-[3rem] border border-dashed border-gray-200">
                     <p className="text-sm font-black text-gray-400 uppercase tracking-widest italic">No matching participants found.</p>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {userToDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+                    <div className="bg-white rounded-[2rem] max-w-md w-full p-8 shadow-2xl border border-gray-100 animate-scale-up text-left">
+                        <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 mb-6">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-lg font-black text-gray-900 tracking-tight mb-2">Delete User Account?</h3>
+                        <p className="text-xs text-gray-500 font-semibold leading-relaxed mb-6">
+                            Are you absolutely sure you want to delete <strong className="text-gray-900">{userToDelete.name}</strong> ({userToDelete.email})? 
+                            <br />
+                            <span className="text-red-500 font-bold mt-2 block">
+                                ⚠️ This action is irreversible and will delete their profile, progress, enrollments, posts, transactions, and all other associated database records.
+                            </span>
+                        </p>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setUserToDelete(null)}
+                                disabled={isDeleting}
+                                className="px-5 py-3 bg-gray-50 hover:bg-gray-100 text-gray-500 rounded-xl text-xs font-black uppercase tracking-widest transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                disabled={isDeleting}
+                                className="px-5 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-red-500/20 transition-all flex items-center gap-2 disabled:opacity-50"
+                            >
+                                {isDeleting ? (
+                                    <>
+                                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Deleting...</span>
+                                    </>
+                                ) : (
+                                    <span>Delete Account</span>
+                                )}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

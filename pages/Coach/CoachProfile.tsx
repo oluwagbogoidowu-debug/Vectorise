@@ -4,12 +4,14 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Coach, Sprint, UserRole } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
+import { SwitchModeModal } from '../../components/SwitchModeModal';
 
 const CoachProfile: React.FC = () => {
     const { user, logout, switchRole, activeRole } = useAuth();
     const navigate = useNavigate();
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -66,25 +68,12 @@ const CoachProfile: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        {user.role === UserRole.ADMIN && activeRole === UserRole.COACH && (
-                            <button 
-                                onClick={() => {
-                                    switchRole(UserRole.ADMIN);
-                                    navigate('/admin/dashboard');
-                                }} 
-                                className="px-4 py-2 text-xs font-black text-white bg-dark rounded-lg uppercase tracking-widest hover:bg-black transition-colors"
-                            >
-                                Switch to Admin
-                            </button>
-                        )}
                         <button 
-                            onClick={() => {
-                                switchRole(UserRole.PARTICIPANT);
-                                navigate('/dashboard');
-                            }} 
-                            className="px-4 py-2 text-xs font-black text-white bg-primary rounded-lg uppercase tracking-widest hover:bg-primary-dark transition-colors"
+                            onClick={() => setIsSwitchModalOpen(true)} 
+                            className="px-4 py-2 text-xs font-black text-white bg-dark rounded-lg uppercase tracking-widest hover:bg-black transition-colors flex items-center justify-center gap-1.5"
+                            id="coach-switch-mode-btn"
                         >
-                            Switch to User
+                            <span>🎛️</span> Switch Mode
                         </button>
                     </div>
                 </div>
@@ -146,6 +135,17 @@ const CoachProfile: React.FC = () => {
                     <p className="text-[7px] font-black text-gray-200 uppercase tracking-[0.4em]">Vectorise • Coach Profile</p>
                 </footer>
             </main>
+
+            <SwitchModeModal
+                isOpen={isSwitchModalOpen}
+                onClose={() => setIsSwitchModalOpen(false)}
+                user={user}
+                activeRole={activeRole}
+                onSelectMode={(role, route) => {
+                    switchRole(role);
+                    navigate(route);
+                }}
+            />
 
             <style>{`
                 .custom-scrollbar::-webkit-scrollbar { width: 3px; }

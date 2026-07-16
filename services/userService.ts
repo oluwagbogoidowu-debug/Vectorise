@@ -275,6 +275,75 @@ export const userService = {
     }
   },
 
+  getAllUsers: async () => {
+    try {
+      const q = query(collection(db, 'users'));
+      const querySnapshot = await getDocs(q);
+      const allUsers: Participant[] = [];
+      querySnapshot.forEach((doc) => allUsers.push(sanitizeData(doc.data()) as Participant));
+      return allUsers;
+    } catch (error) {
+      console.error("Error fetching all users:", error);
+      return [];
+    }
+  },
+
+  deleteUserAccount: async (userId: string) => {
+    try {
+      // 1. Delete notifications
+      const notificationsQuery = query(collection(db, 'notifications'), where('userId', '==', userId));
+      const notificationsSnap = await getDocs(notificationsQuery);
+      for (const d of notificationsSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+
+      // 2. Delete wallet_transactions
+      const transactionsQuery = query(collection(db, 'wallet_transactions'), where('userId', '==', userId));
+      const transactionsSnap = await getDocs(transactionsQuery);
+      for (const d of transactionsSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+
+      // 3. Delete ShinePost
+      const shineQuery = query(collection(db, 'ShinePost'), where('userId', '==', userId));
+      const shineSnap = await getDocs(shineQuery);
+      for (const d of shineSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+
+      // 4. Delete enrollments subcollection
+      const enrollmentsRef = collection(db, 'users', userId, 'enrollments');
+      const enrollmentsSnap = await getDocs(enrollmentsRef);
+      for (const d of enrollmentsSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+
+      // 5. Delete claims subcollection
+      const claimsRef = collection(db, 'users', userId, 'claims');
+      const claimsSnap = await getDocs(claimsRef);
+      for (const d of claimsSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+
+      // 6. Delete partner applications
+      const partnerAppQuery = query(collection(db, 'partner_applications'), where('userId', '==', userId));
+      const partnerAppSnap = await getDocs(partnerAppQuery);
+      for (const d of partnerAppSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+
+      // 7. Delete main user document
+      const userRef = doc(db, 'users', userId);
+      await deleteDoc(userRef);
+
+      toast.success("User account deleted successfully");
+    } catch (error) {
+      console.error("Error deleting user account:", error);
+      toast.error("Failed to delete user account");
+      throw error;
+    }
+  },
+
   updateUserDocument: async (uid: string, data: Partial<User | Participant | Coach>) => {
     try {
       const userRef = doc(db, 'users', uid);

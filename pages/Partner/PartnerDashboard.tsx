@@ -8,6 +8,7 @@ import Button from '../../components/Button';
 import { Participant, Sprint, UserRole } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { sanitizeData } from '../../services/userService';
+import { SwitchModeModal } from '../../components/SwitchModeModal';
 
 type PartnerTab = 'overview' | 'links' | 'earnings' | 'referrals' | 'settings';
 
@@ -15,6 +16,7 @@ const PartnerDashboard: React.FC = () => {
   const { user, logout, activeRole, switchRole } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<PartnerTab>('overview');
+  const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
   
   // Real-time states
   const [realTimeReferrals, setRealTimeReferrals] = useState<any[]>([]);
@@ -146,15 +148,13 @@ const PartnerDashboard: React.FC = () => {
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Partner Portal</p>
         </div>
         <div className="flex items-center gap-4">
-          {user?.role === UserRole.ADMIN && activeRole === UserRole.PARTNER && (
+          {user?.role === UserRole.ADMIN && (
             <button 
-              onClick={() => {
-                switchRole(UserRole.ADMIN);
-                navigate('/admin/dashboard');
-              }} 
-              className="px-4 py-2 text-xs font-black text-white bg-dark rounded-lg uppercase tracking-widest hover:bg-black transition-colors"
+              onClick={() => setIsSwitchModalOpen(true)} 
+              className="px-4 py-2 text-xs font-black text-white bg-dark rounded-lg uppercase tracking-widest hover:bg-black transition-colors flex items-center justify-center gap-1.5"
+              id="partner-switch-mode-btn"
             >
-              Switch to Admin
+              <span>🎛️</span> Switch Mode
             </button>
           )}
           <button onClick={() => logout()} className="p-2.5 bg-gray-50 text-gray-400 hover:text-red-500 rounded-xl border border-gray-100 transition-all active:scale-90">
@@ -375,6 +375,17 @@ const PartnerDashboard: React.FC = () => {
           </div>
         )}
       </main>
+
+      <SwitchModeModal
+        isOpen={isSwitchModalOpen}
+        onClose={() => setIsSwitchModalOpen(false)}
+        user={user}
+        activeRole={activeRole}
+        onSelectMode={(role, route) => {
+          switchRole(role);
+          navigate(route);
+        }}
+      />
 
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
