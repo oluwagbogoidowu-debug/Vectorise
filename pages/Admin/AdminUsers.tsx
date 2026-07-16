@@ -14,7 +14,7 @@ export default function AdminUsers() {
     const [searchTerm, setSearchTerm] = useState('');
     const [userToDelete, setUserToDelete] = useState<any | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [roleFilter, setRoleFilter] = useState<'active' | 'participant' | 'coach' | 'admin'>('active');
+    const [roleFilter, setRoleFilter] = useState<'all' | 'active' | 'participant' | 'coach' | 'admin'>('all');
 
     useEffect(() => {
         if (adminCache.users) {
@@ -171,21 +171,39 @@ export default function AdminUsers() {
             if (roleFilter === 'active') {
                 return u.isActive;
             } else if (roleFilter === 'participant') {
-                return !u.role || u.role === 'participant';
+                return !u.role || u.role.toLowerCase() === 'participant';
             } else if (roleFilter === 'coach') {
-                return u.role === 'coach';
+                return u.role && u.role.toLowerCase() === 'coach';
             } else if (roleFilter === 'admin') {
-                return u.role === 'admin';
+                return u.role && u.role.toLowerCase() === 'admin';
             }
             return true;
         });
 
-        // Multi-tier sorting:
-        // Tier 1: Active (isActive === true)
-        // Tier 2: Has a sprint but not active
-        // Tier 3: No sprint
-        // Within each tier, arrange descending by most recent activity timestamp.
+        const getRoleWeight = (role: string) => {
+            const r = (role || '').toLowerCase();
+            if (r === 'coach') return 2;
+            if (r === 'admin') return 3;
+            return 1; // default / Participant
+        };
+
+        // If roleFilter is 'all', sort based on roles (Participant -> Coach -> Admin), 
+        // with recently active first before farthest active.
         return filtered.sort((a, b) => {
+            if (roleFilter === 'all') {
+                const weightA = getRoleWeight(a.role);
+                const weightB = getRoleWeight(b.role);
+                if (weightA !== weightB) {
+                    return weightA - weightB;
+                }
+                return b.latestActivityTime - a.latestActivityTime;
+            }
+
+            // Multi-tier sorting for other filters:
+            // Tier 1: Active (isActive === true)
+            // Tier 2: Has a sprint but not active
+            // Tier 3: No sprint
+            // Within each tier, arrange descending by most recent activity timestamp.
             const getTier = (u: any) => {
                 if (u.isActive) return 1;
                 if (u.hasSprint) return 2;
@@ -226,7 +244,7 @@ export default function AdminUsers() {
                         placeholder="Search by name or email..." 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full md:w-80 pl-10 pr-4 py-3 bg-white border border-gray-200 text-gray-900 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder-gray-400"
+                        className="w-full md:w-80 pl-10 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
                     />
                     <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -237,6 +255,15 @@ export default function AdminUsers() {
             {/* Role Filter Tabs */}
             <div className="flex items-center justify-start gap-3 w-full">
                 <div className="inline-flex bg-gray-100 p-0.5 rounded-xl">
+                    <button
+                        type="button"
+                        onClick={() => setRoleFilter('all')}
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                            roleFilter === 'all' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                        }`}
+                    >
+                        All
+                    </button>
                     <button
                         type="button"
                         onClick={() => setRoleFilter('active')}
@@ -317,6 +344,13 @@ export default function AdminUsers() {
                                         <div>
                                             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                                                 <p className="text-sm font-black text-gray-900 leading-none">{user.name}</p>
+                                                <span className={`px-1.5 py-0.5 rounded-md text-[6.5px] font-black uppercase tracking-wider border leading-none ${
+                                                    (user.role || '').toLowerCase() === 'admin' ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                                                    (user.role || '').toLowerCase() === 'coach' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                    'bg-blue-50 text-blue-600 border-blue-100'
+                                                }`}>
+                                                    {(user.role || 'participant').toLowerCase() === 'participant' ? 'Participant' : (user.role || '').toLowerCase() === 'coach' ? 'Coach' : 'Admin'}
+                                                </span>
                                             </div>
                                             <p className="text-[10px] font-bold text-gray-400">{user.email}</p>
                                         </div>
@@ -421,8 +455,15 @@ export default function AdminUsers() {
                                 )}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5 mb-1">
+                                <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                                     <p className="text-base font-black text-gray-900 truncate leading-none">{user.name}</p>
+                                    <span className={`px-1.5 py-0.5 rounded-md text-[6.5px] font-black uppercase tracking-wider border leading-none ${
+                                        (user.role || '').toLowerCase() === 'admin' ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                                        (user.role || '').toLowerCase() === 'coach' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                        'bg-blue-50 text-blue-600 border-blue-100'
+                                    }`}>
+                                        {(user.role || 'participant').toLowerCase() === 'participant' ? 'Participant' : (user.role || '').toLowerCase() === 'coach' ? 'Coach' : 'Admin'}
+                                    </span>
                                 </div>
                                 <p className="text-[10px] font-bold text-gray-400 truncate">{user.email}</p>
                             </div>
