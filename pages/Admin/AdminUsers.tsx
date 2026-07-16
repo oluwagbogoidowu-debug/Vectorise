@@ -14,6 +14,7 @@ export default function AdminUsers() {
     const [searchTerm, setSearchTerm] = useState('');
     const [userToDelete, setUserToDelete] = useState<any | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [roleFilter, setRoleFilter] = useState<'active' | 'participant' | 'coach' | 'admin'>('active');
 
     useEffect(() => {
         if (adminCache.users) {
@@ -158,10 +159,22 @@ export default function AdminUsers() {
             };
         });
 
-        const filtered = mapped.filter(u => 
-            u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-            u.email.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+        const filtered = mapped.filter(u => {
+            const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                  u.email.toLowerCase().includes(searchTerm.toLowerCase());
+            if (!matchesSearch) return false;
+
+            if (roleFilter === 'active') {
+                return u.isActive;
+            } else if (roleFilter === 'participant') {
+                return !u.role || u.role === 'participant';
+            } else if (roleFilter === 'coach') {
+                return u.role === 'coach';
+            } else if (roleFilter === 'admin') {
+                return u.role === 'admin';
+            }
+            return true;
+        });
 
         // Sort by active first, then inactive
         return filtered.sort((a, b) => {
@@ -169,7 +182,7 @@ export default function AdminUsers() {
             if (!a.isActive && b.isActive) return 1;
             return 0; // maintain relative order
         });
-    }, [participants, enrollments, sprints, searchTerm]);
+    }, [participants, enrollments, sprints, searchTerm, roleFilter]);
 
     if (isLoading) {
         return (
@@ -199,6 +212,48 @@ export default function AdminUsers() {
                     <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
+                </div>
+            </div>
+
+            {/* Role Filter Tabs */}
+            <div className="flex items-center justify-start gap-3 w-full">
+                <div className="inline-flex bg-gray-100 p-0.5 rounded-xl">
+                    <button
+                        type="button"
+                        onClick={() => setRoleFilter('active')}
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                            roleFilter === 'active' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                        }`}
+                    >
+                        Active (for all)
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setRoleFilter('participant')}
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                            roleFilter === 'participant' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                        }`}
+                    >
+                        Participant
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setRoleFilter('coach')}
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                            roleFilter === 'coach' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                        }`}
+                    >
+                        Coach
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setRoleFilter('admin')}
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                            roleFilter === 'admin' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                        }`}
+                    >
+                        Admin
+                    </button>
                 </div>
             </div>
 
@@ -243,15 +298,6 @@ export default function AdminUsers() {
                                         <div>
                                             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                                                 <p className="text-sm font-black text-gray-900 leading-none">{user.name}</p>
-                                                {user.role && user.role !== 'participant' && (
-                                                    <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest ${
-                                                        user.role === 'admin' ? 'bg-red-50 text-red-600 border border-red-100' :
-                                                        user.role === 'coach' ? 'bg-teal-50 text-teal-600 border border-teal-100' :
-                                                        'bg-purple-50 text-purple-600 border border-purple-100'
-                                                    }`}>
-                                                        {user.role}
-                                                    </span>
-                                                )}
                                             </div>
                                             <p className="text-[10px] font-bold text-gray-400">{user.email}</p>
                                         </div>
@@ -358,15 +404,6 @@ export default function AdminUsers() {
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <p className="text-base font-black text-gray-900 truncate leading-none">{user.name}</p>
-                                    {user.role && user.role !== 'participant' && (
-                                        <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-widest flex-shrink-0 ${
-                                            user.role === 'admin' ? 'bg-red-50 text-red-600 border border-red-100' :
-                                            user.role === 'coach' ? 'bg-teal-50 text-teal-600 border border-teal-100' :
-                                            'bg-purple-50 text-purple-600 border border-purple-100'
-                                        }`}>
-                                            {user.role}
-                                        </span>
-                                    )}
                                 </div>
                                 <p className="text-[10px] font-bold text-gray-400 truncate">{user.email}</p>
                             </div>

@@ -163,7 +163,7 @@ const SignUpPage: React.FC = () => {
       if (targetSprintId) {
         try {
           const spr = await sprintService.getSprintById(targetSprintId);
-          if (spr && spr.audience && spr.audience.includes("Coach")) {
+          if (spr && spr.audience && spr.audience.some((a: any) => typeof a === 'string' && a.toLowerCase().includes("coach"))) {
             isCoachRegistration = true;
             coachDetails = {
               approved: false, 

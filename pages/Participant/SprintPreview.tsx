@@ -348,7 +348,7 @@ const SprintPreview: React.FC = () => {
             const firebaseUser = userCredential.user;
             await updateFbProfile(firebaseUser, { displayName: `${authFirstName} ${authLastName}` });
 
-            const isCoachRegistration = sprint?.audience && sprint.audience.includes("Coach");
+            const isCoachRegistration = !!(sprint?.audience && sprint.audience.some((a: any) => typeof a === 'string' && a.toLowerCase().includes("coach")));
             const newUser: Partial<any> = {
                 id: firebaseUser.uid,
                 name: `${authFirstName} ${authLastName}`,

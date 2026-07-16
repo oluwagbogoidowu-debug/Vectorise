@@ -76,13 +76,53 @@ const DiscoverSprints: React.FC = () => {
     useEffect(() => {
         // Subscribe to published sprints in real-time
         const unsubSprints = sprintService.subscribeToPublishedSprints((data) => {
-            // Filter out sprints tagged with "Coach" unless the user is a coach or admin
+            // Filter sprints based on target audience and what the user carries as identity (coach, student, entrepreneur...)
             const allowedSprints = data.filter(s => {
-                const isCoachSprint = s.audience && s.audience.includes("Coach");
-                if (isCoachSprint) {
-                    return user?.role === UserRole.COACH || user?.role === UserRole.ADMIN;
+                if (user?.role === UserRole.ADMIN) {
+                    return true;
                 }
-                return true;
+                
+                // If sprint has no audience specified at all, allow it for everyone as fallback
+                if (!s.audience || s.audience.length === 0) {
+                    return true;
+                }
+
+                // Determine user's active/carried audiences
+                const userAudiences: string[] = [];
+                
+                if (user?.role === UserRole.COACH || (user as any)?.persona === 'Coach') {
+                    userAudiences.push('coach');
+                }
+                
+                if ((user as any)?.persona) {
+                    userAudiences.push(String((user as any).persona).toLowerCase().trim());
+                }
+
+                // Match risePathway to potential audience options
+                if ((user as any)?.risePathway) {
+                    const pathway = String((user as any).risePathway).toLowerCase().trim();
+                    if (pathway === 'student') {
+                        userAudiences.push('student/graduate');
+                    } else if (pathway === 'early_career' || pathway === 'growth_pro') {
+                        userAudiences.push('9-5 professional');
+                    } else if (pathway === 'builder') {
+                        userAudiences.push('entrepreneur');
+                        userAudiences.push('business owner');
+                    } else if (pathway === 'transition') {
+                        userAudiences.push('freelancer/consultant');
+                        userAudiences.push('creative/hustler');
+                    }
+                }
+
+                // Check if any of the sprint's audiences match the user's audiences
+                const sprintAudiences = s.audience.map((a: any) => String(a).toLowerCase().trim());
+                const isMatch = sprintAudiences.some((sa: string) => 
+                    userAudiences.some(ua => {
+                        return sa === ua || sa.includes(ua) || ua.includes(sa);
+                    })
+                );
+
+                return isMatch;
             });
             setSprints(allowedSprints);
             setIsSprintsLoaded(true);
