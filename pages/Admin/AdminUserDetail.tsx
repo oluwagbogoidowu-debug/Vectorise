@@ -22,6 +22,11 @@ export default function AdminUserDetail() {
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
+    // Directory of other users state
+    const [allUsers, setAllUsers] = useState<any[]>([]);
+    const [allEnrollments, setAllEnrollments] = useState<ParticipantSprint[]>([]);
+    const [selectedRoleTab, setSelectedRoleTab] = useState<UserRole>(UserRole.PARTICIPANT);
+
     const statusInfo = useMemo(() => {
         if (!user) return { label: 'Participant', colorClass: 'bg-blue-50 text-blue-600 border-blue-100', dotClass: 'bg-blue-500' };
         
@@ -156,14 +161,30 @@ export default function AdminUserDetail() {
             if (!userId) return;
             setIsLoading(true);
             try {
-                const [userData, enrollmentsData, sprintsData] = await Promise.all([
+                const [userData, enrollmentsData, sprintsData, allUsersData, allEnrollmentsData] = await Promise.all([
                     userService.getUserDocument(userId),
                     sprintService.getUserEnrollments(userId),
-                    sprintService.getAdminSprints()
+                    sprintService.getAdminSprints(),
+                    userService.getAllUsers(),
+                    sprintService.getAllEnrollments()
                 ]);
                 setUser(userData as Participant);
                 setEnrollments(enrollmentsData);
                 setSprints(sprintsData);
+                setAllUsers(allUsersData);
+                setAllEnrollments(allEnrollmentsData);
+
+                // Set initial role tab matching user role
+                if (userData) {
+                    const uRole = ((userData as any).role || '').toUpperCase();
+                    if (uRole === 'ADMIN') {
+                        setSelectedRoleTab(UserRole.ADMIN);
+                    } else if (uRole === 'COACH') {
+                        setSelectedRoleTab(UserRole.COACH);
+                    } else {
+                        setSelectedRoleTab(UserRole.PARTICIPANT);
+                    }
+                }
 
                 // Fetch referrals
                 const referralsQuery = query(collection(db, 'users', userId, 'referrals'));
@@ -178,6 +199,51 @@ export default function AdminUserDetail() {
         };
         fetchData();
     }, [userId]);
+
+    const otherUsersOfRole = useMemo(() => {
+        if (!allUsers || !allEnrollments) return [];
+
+        const mapped = allUsers
+            .filter(u => u.id !== userId)
+            .map(u => {
+                const userEnrollments = allEnrollments.filter(e => e.user_id === u.id);
+                
+                const completedTimestamps = userEnrollments.flatMap(e => 
+                    (e.progress || [])
+                        .filter(p => p.completed && p.completedAt)
+                        .map(p => p.completedAt ? new Date(p.completedAt).getTime() : 0)
+                ).filter(t => t > 0 && !isNaN(t));
+
+                let lastSubmissionTime: number | null = null;
+                if (completedTimestamps.length > 0) {
+                    lastSubmissionTime = Math.max(...completedTimestamps);
+                }
+
+                const latestActivityTime = lastSubmissionTime || 
+                    (userEnrollments.length > 0 ? Math.max(...userEnrollments.map(e => new Date(e.started_at).getTime()).filter(t => !isNaN(t))) : 0) ||
+                    (u.createdAt ? new Date(u.createdAt).getTime() : 0);
+
+                return {
+                    ...u,
+                    latestActivityTime
+                };
+            });
+
+        const filtered = mapped.filter(u => {
+            const uRole = (u.role || '').toUpperCase();
+            if (selectedRoleTab === UserRole.PARTICIPANT) {
+                return uRole === 'PARTICIPANT' || uRole === '';
+            } else if (selectedRoleTab === UserRole.COACH) {
+                return uRole === 'COACH';
+            } else if (selectedRoleTab === UserRole.ADMIN) {
+                return uRole === 'ADMIN';
+            }
+            return false;
+        });
+
+        // "showing the recently active first before the farthest active"
+        return filtered.sort((a, b) => b.latestActivityTime - a.latestActivityTime);
+    }, [allUsers, allEnrollments, selectedRoleTab, userId]);
 
     const streakStats = useMemo(() => {
         const completedDatesSet = new Set<string>();
@@ -1074,6 +1140,105 @@ export default function AdminUserDetail() {
                         ) : (
                             <div className="py-12 text-center bg-gray-50 rounded-[2rem] border border-dashed border-gray-200">
                                 <p className="text-sm font-black text-gray-400 uppercase tracking-widest italic">No sprint history found.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Ecosystem Directory Section */}
+                <div className="bg-white rounded-[2.5rem] border border-gray-100 p-6 md:p-8 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 pb-4 border-b border-gray-50">
+                        <div>
+                            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Ecosystem Directory</h3>
+                            <p className="text-[9px] text-gray-400 font-black uppercase tracking-wider mt-0.5">Explore other members based on their designated account roles</p>
+                        </div>
+                        
+                        {/* Tab Selectors */}
+                        <div className="inline-flex bg-gray-100 p-0.5 rounded-xl self-start sm:self-auto">
+                            <button
+                                type="button"
+                                onClick={() => setSelectedRoleTab(UserRole.PARTICIPANT)}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                                    selectedRoleTab === UserRole.PARTICIPANT ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-655'
+                                }`}
+                            >
+                                Participant
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedRoleTab(UserRole.COACH)}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                                    selectedRoleTab === UserRole.COACH ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-655'
+                                }`}
+                            >
+                                Coach
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedRoleTab(UserRole.ADMIN)}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                                    selectedRoleTab === UserRole.ADMIN ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-655'
+                                }`}
+                            >
+                                Admin
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {otherUsersOfRole.length > 0 ? (
+                            otherUsersOfRole.map((u) => {
+                                const lastActiveStr = u.latestActivityTime > 0
+                                    ? format(new Date(u.latestActivityTime), 'MMM d, yyyy h:mm a')
+                                    : 'No logged activity';
+
+                                return (
+                                    <div 
+                                        key={u.id}
+                                        onClick={() => navigate(`/admin/user/${u.id}`)}
+                                        className="flex items-center justify-between p-4 bg-gray-50/40 border border-gray-100 hover:border-primary/20 hover:bg-primary/[0.02] rounded-2xl cursor-pointer transition-all duration-200 group"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-9 w-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                                {u.profileImageUrl ? (
+                                                    <img src={u.profileImageUrl} alt="" className="h-full w-full object-cover" />
+                                                ) : u.archetype ? (
+                                                    <ArchetypeAvatar archetypeId={u.archetype} size="sm" />
+                                                ) : (
+                                                    <span className="text-xs font-black text-gray-400 uppercase">
+                                                        {u.name ? u.name.charAt(0) : '?'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-black text-gray-950 truncate group-hover:text-primary transition-colors">
+                                                    {u.name || 'Anonymous User'}
+                                                </p>
+                                                <p className="text-[9px] font-bold text-gray-400 truncate">
+                                                    {u.email}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="text-right flex flex-col items-end gap-1.5">
+                                            <div className="flex items-center gap-1.5">
+                                                <Clock className="w-2.5 h-2.5 text-gray-400" />
+                                                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
+                                                    Activity
+                                                </span>
+                                            </div>
+                                            <span className="text-[9px] font-bold text-gray-600 uppercase">
+                                                {lastActiveStr}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="col-span-1 md:col-span-2 py-8 text-center bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                                <p className="text-xs font-black text-gray-400 uppercase tracking-widest italic">
+                                    No other {selectedRoleTab.toLowerCase()}s found in the ecosystem.
+                                </p>
                             </div>
                         )}
                     </div>
