@@ -48,7 +48,7 @@ interface DeliveryLog {
     url: string;
     tag: string;
     sentAt: string;
-    status: 'delivered' | 'failed' | 'unsubscribed' | 'disabled';
+    status: 'sent' | 'delivered' | 'failed' | 'unsubscribed' | 'disabled';
     errorMessage?: string;
 }
 
@@ -105,7 +105,7 @@ export default function AdminNotifications() {
     const [logs, setLogs] = useState<DeliveryLog[]>([]);
     const [logsLimit, setLogsLimit] = useState(50);
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState<'all' | 'delivered' | 'failed' | 'unsubscribed' | 'disabled'>('all');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'sent' | 'delivered' | 'failed' | 'unsubscribed' | 'disabled'>('all');
     const [isClearingLogs, setIsClearingLogs] = useState(false);
 
     // 1. Fetch saved writeups (push notification library) & Seed defaults if empty
@@ -402,7 +402,7 @@ export default function AdminNotifications() {
                                 placeholder="e.g., Rise Momentum! 🔥"
                                 value={newTitle}
                                 onChange={(e) => setNewTitle(e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-150 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                className="w-full px-4 py-3 bg-white border border-gray-200 text-gray-900 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder-gray-400"
                                 required
                             />
                         </div>
@@ -416,7 +416,7 @@ export default function AdminNotifications() {
                                 value={newBody}
                                 onChange={(e) => setNewBody(e.target.value)}
                                 rows={3}
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-150 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none"
+                                className="w-full px-4 py-3 bg-white border border-gray-200 text-gray-900 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none placeholder-gray-400"
                                 required
                             />
                         </div>
@@ -429,7 +429,7 @@ export default function AdminNotifications() {
                                 <select
                                     value={newCategory}
                                     onChange={(e) => setNewCategory(e.target.value)}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-150 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                    className="w-full px-4 py-3 bg-white border border-gray-200 text-gray-900 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer"
                                 >
                                     <option value="Nudge">Nudge</option>
                                     <option value="Reminder">Reminder</option>
@@ -447,7 +447,7 @@ export default function AdminNotifications() {
                                     placeholder="e.g., /participant/sprint"
                                     value={newUrl}
                                     onChange={(e) => setNewUrl(e.target.value)}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-150 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                    className="w-full px-4 py-3 bg-white border border-gray-200 text-gray-900 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder-gray-400"
                                 />
                             </div>
                         </div>
@@ -473,7 +473,7 @@ export default function AdminNotifications() {
                             <select
                                 value={selectedUserId}
                                 onChange={(e) => setSelectedUserId(e.target.value)}
-                                className="px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-wider outline-none text-gray-500 focus:border-primary cursor-pointer"
+                                className="px-4 py-2.5 bg-white border border-gray-200 text-gray-900 rounded-xl text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none cursor-pointer"
                             >
                                 <option value="">🎯 Choose Target User...</option>
                                 {users.map(u => (
@@ -606,7 +606,7 @@ export default function AdminNotifications() {
                                 placeholder="Search logs..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all w-48"
+                                className="pl-9 pr-4 py-2.5 bg-white border border-gray-200 text-gray-900 rounded-xl text-xs font-bold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all w-48 placeholder-gray-400"
                             />
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                         </div>
@@ -615,7 +615,7 @@ export default function AdminNotifications() {
                         <select
                             value={logsLimit}
                             onChange={(e) => setLogsLimit(Number(e.target.value))}
-                            className="px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-wider outline-none text-gray-500"
+                            className="px-3 py-2.5 bg-white border border-gray-200 text-gray-900 rounded-xl text-xs font-bold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none cursor-pointer"
                         >
                             <option value={20}>Show 20</option>
                             <option value={50}>Show 50</option>
@@ -638,6 +638,7 @@ export default function AdminNotifications() {
                 <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar">
                     {[
                         { id: 'all', label: 'All logs' },
+                        { id: 'sent', label: 'Sent' },
                         { id: 'delivered', label: 'Delivered' },
                         { id: 'failed', label: 'Failed' },
                         { id: 'unsubscribed', label: 'Unsubscribed' },
@@ -697,6 +698,12 @@ export default function AdminNotifications() {
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-2">
+                                                        {log.status === 'sent' && (
+                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-600 rounded-full text-[8px] font-black uppercase tracking-widest border border-blue-100 animate-pulse">
+                                                                <Clock className="w-2.5 h-2.5 animate-spin" />
+                                                                <span>Sent</span>
+                                                            </span>
+                                                        )}
                                                         {log.status === 'delivered' && (
                                                             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-600 rounded-full text-[8px] font-black uppercase tracking-widest border border-green-100">
                                                                 <CheckCircle2 className="w-2.5 h-2.5" />

@@ -175,6 +175,21 @@ async function startServer() {
     }
   });
 
+  app.post('/api/notifications/track-delivered', async (req, res) => {
+    const { logId } = req.body;
+    if (!logId) return res.status(400).json({ error: 'logId is required' });
+    try {
+      await db.collection('push_delivery_logs').doc(logId).update({
+        status: 'delivered',
+        deliveredAt: new Date().toISOString()
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[Server] Failed to track delivered notification:', error);
+      res.status(500).json({ error: 'Failed to update delivery log' });
+    }
+  });
+
   // Health check
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });

@@ -122,6 +122,27 @@ export const pushNotificationManager = {
 
       const fcmToken = userData.fcmToken;
       
+      // Create a log document in 'push_delivery_logs' with status 'sent' first
+      let logId = '';
+      let logRef: any = null;
+      try {
+        logRef = await db.collection('push_delivery_logs').add({
+          userId,
+          userName,
+          userEmail,
+          title,
+          body,
+          url: msgUrl,
+          tag: msgTag,
+          sentAt: new Date().toISOString(),
+          status: 'sent', // Starts as 'sent'
+          errorMessage: null
+        });
+        logId = logRef.id;
+      } catch (err) {
+        console.error('Failed to create push delivery log:', err);
+      }
+
       try {
         const message = {
           token: fcmToken,
@@ -130,6 +151,7 @@ export const pushNotificationManager = {
             body: body
           },
           data: {
+            logId: logId, // Crucial for tracking actual client-side delivery!
             url: msgUrl,
             tag: msgTag,
             title: title,
@@ -154,20 +176,6 @@ export const pushNotificationManager = {
           pushSubscriptionInvalidCount: 0 // Reset invalid state
         });
 
-        // Log successful delivery
-        await db.collection('push_delivery_logs').add({
-          userId,
-          userName,
-          userEmail,
-          title,
-          body,
-          url: msgUrl,
-          tag: msgTag,
-          sentAt: new Date().toISOString(),
-          status: 'delivered',
-          errorMessage: null
-        }).catch(err => console.error('Failed to log successful push delivery:', err));
-
         console.log({
           userId,
           attempted: true,
@@ -189,19 +197,13 @@ export const pushNotificationManager = {
           reason: `fcm error: ${errorMessage}`
         });
 
-        // Log failed delivery
-        await db.collection('push_delivery_logs').add({
-          userId,
-          userName,
-          userEmail,
-          title,
-          body,
-          url: msgUrl,
-          tag: msgTag,
-          sentAt: new Date().toISOString(),
-          status: 'failed',
-          errorMessage: errorMessage
-        }).catch(err => console.error('Failed to log failed push delivery:', err));
+        // Update existing log to failed status
+        if (logRef) {
+          await logRef.update({
+            status: 'failed',
+            errorMessage: errorMessage
+          }).catch((err: any) => console.error('Failed to update failed push delivery log:', err));
+        }
         
         // If the token is no longer unregistered, expired, or rejected, clear it
         if (

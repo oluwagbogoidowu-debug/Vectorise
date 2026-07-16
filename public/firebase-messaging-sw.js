@@ -32,6 +32,16 @@ messaging.onBackgroundMessage((payload) => {
   const url = payload.data?.url || '/';
   const tag = payload.data?.tag || 'default';
 
+  // Report delivery specifically for background if native push parsing is bypassed
+  const logId = payload.data?.logId;
+  if (logId) {
+    fetch('/api/notifications/track-delivered', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ logId })
+    }).catch(err => console.error('[FCM SW] Failed to confirm delivery:', err));
+  }
+
   let stateIcon = STATE_ICONS.default;
   if (tag) {
     if (tag === 'daily-unlock') stateIcon = STATE_ICONS['daily-unlock'];
@@ -53,6 +63,29 @@ messaging.onBackgroundMessage((payload) => {
   };
 
   return self.registration.showNotification(title, notificationOptions);
+});
+
+// 2.5 Native Push Event Listener to track delivery (works foreground & background)
+self.addEventListener('push', (event) => {
+  console.log('[FCM Service Worker] Push Event Received:', event);
+  try {
+    const payload = event.data ? event.data.json() : null;
+    if (payload) {
+      const logId = payload.data?.logId || (payload.notification && payload.notification.data ? payload.notification.data.logId : null);
+      if (logId) {
+        console.log('[FCM Service Worker] Reporting delivery for logId:', logId);
+        event.waitUntil(
+          fetch('/api/notifications/track-delivered', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ logId })
+          }).catch(err => console.error('[FCM SW] Delivery report failed:', err))
+        );
+      }
+    }
+  } catch (err) {
+    console.warn('[FCM SW] Non-JSON push event data received or parsing error:', err);
+  }
 });
 
 // 3. PWA Cache Management & Fetching Logic
