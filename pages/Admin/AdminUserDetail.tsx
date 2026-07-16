@@ -25,7 +25,7 @@ export default function AdminUserDetail() {
     // Directory of other users state
     const [allUsers, setAllUsers] = useState<any[]>([]);
     const [allEnrollments, setAllEnrollments] = useState<ParticipantSprint[]>([]);
-    const [selectedRoleTab, setSelectedRoleTab] = useState<UserRole>(UserRole.PARTICIPANT);
+    const [selectedRoleTab, setSelectedRoleTab] = useState<UserRole | 'ALL'>('ALL');
 
     const statusInfo = useMemo(() => {
         if (!user) return { label: 'Participant', colorClass: 'bg-blue-50 text-blue-600 border-blue-100', dotClass: 'bg-blue-500' };
@@ -174,17 +174,7 @@ export default function AdminUserDetail() {
                 setAllUsers(allUsersData);
                 setAllEnrollments(allEnrollmentsData);
 
-                // Set initial role tab matching user role
-                if (userData) {
-                    const uRole = ((userData as any).role || '').toUpperCase();
-                    if (uRole === 'ADMIN') {
-                        setSelectedRoleTab(UserRole.ADMIN);
-                    } else if (uRole === 'COACH') {
-                        setSelectedRoleTab(UserRole.COACH);
-                    } else {
-                        setSelectedRoleTab(UserRole.PARTICIPANT);
-                    }
-                }
+                // Initial role tab defaults to 'ALL' to show the full ecosystem directory sorted by roles
 
                 // Fetch referrals
                 const referralsQuery = query(collection(db, 'users', userId, 'referrals'));
@@ -230,6 +220,7 @@ export default function AdminUserDetail() {
             });
 
         const filtered = mapped.filter(u => {
+            if (selectedRoleTab === 'ALL') return true;
             const uRole = (u.role || '').toUpperCase();
             if (selectedRoleTab === UserRole.PARTICIPANT) {
                 return uRole === 'PARTICIPANT' || uRole === '';
@@ -241,8 +232,26 @@ export default function AdminUserDetail() {
             return false;
         });
 
+        const getRoleWeight = (role: string) => {
+            const r = (role || '').toUpperCase();
+            if (r === 'PARTICIPANT' || r === '') return 1;
+            if (r === 'COACH') return 2;
+            if (r === 'ADMIN') return 3;
+            return 4;
+        };
+
         // "showing the recently active first before the farthest active"
-        return filtered.sort((a, b) => b.latestActivityTime - a.latestActivityTime);
+        // Sorted by roles (Participant -> Coach -> Admin), then by recently active first
+        return filtered.sort((a, b) => {
+            if (selectedRoleTab === 'ALL') {
+                const weightA = getRoleWeight(a.role);
+                const weightB = getRoleWeight(b.role);
+                if (weightA !== weightB) {
+                    return weightA - weightB;
+                }
+            }
+            return b.latestActivityTime - a.latestActivityTime;
+        });
     }, [allUsers, allEnrollments, selectedRoleTab, userId]);
 
     const streakStats = useMemo(() => {
@@ -1157,6 +1166,15 @@ export default function AdminUserDetail() {
                         <div className="inline-flex bg-gray-100 p-0.5 rounded-xl self-start sm:self-auto">
                             <button
                                 type="button"
+                                onClick={() => setSelectedRoleTab('ALL')}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                                    selectedRoleTab === 'ALL' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-655'
+                                }`}
+                            >
+                                All
+                            </button>
+                            <button
+                                type="button"
                                 onClick={() => setSelectedRoleTab(UserRole.PARTICIPANT)}
                                 className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                                     selectedRoleTab === UserRole.PARTICIPANT ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-655'
@@ -1191,6 +1209,7 @@ export default function AdminUserDetail() {
                                 const lastActiveStr = u.latestActivityTime > 0
                                     ? format(new Date(u.latestActivityTime), 'MMM d, yyyy h:mm a')
                                     : 'No logged activity';
+                                const uRole = (u.role || 'PARTICIPANT').toUpperCase();
 
                                 return (
                                     <div 
@@ -1211,9 +1230,20 @@ export default function AdminUserDetail() {
                                                 )}
                                             </div>
                                             <div className="min-w-0">
-                                                <p className="text-xs font-black text-gray-950 truncate group-hover:text-primary transition-colors">
-                                                    {u.name || 'Anonymous User'}
-                                                </p>
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <p className="text-xs font-black text-gray-950 truncate group-hover:text-primary transition-colors">
+                                                        {u.name || 'Anonymous User'}
+                                                    </p>
+                                                    {selectedRoleTab === 'ALL' && (
+                                                        <span className={`px-1.5 py-0.5 rounded-md text-[6.5px] font-black uppercase tracking-wider border leading-none ${
+                                                            uRole === 'ADMIN' ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                                                            uRole === 'COACH' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                            'bg-blue-50 text-blue-600 border-blue-100'
+                                                        }`}>
+                                                            {uRole === 'PARTICIPANT' ? 'Participant' : uRole === 'COACH' ? 'Coach' : 'Admin'}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <p className="text-[9px] font-bold text-gray-400 truncate">
                                                     {u.email}
                                                 </p>
@@ -1237,7 +1267,7 @@ export default function AdminUserDetail() {
                         ) : (
                             <div className="col-span-1 md:col-span-2 py-8 text-center bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
                                 <p className="text-xs font-black text-gray-400 uppercase tracking-widest italic">
-                                    No other {selectedRoleTab.toLowerCase()}s found in the ecosystem.
+                                    No other users found in this category.
                                 </p>
                             </div>
                         )}
