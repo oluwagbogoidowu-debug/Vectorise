@@ -195,12 +195,12 @@ async function startServer() {
     res.json({ status: 'ok' });
   });
 
-  // Background Job for Push Notifications (runs every 30 minutes)
+  // Background Job for Push Notifications (runs every 1 minute to ensure prompt delivery)
   setInterval(() => {
     pushNotificationManager.processTriggers().catch(err => {
       console.error('[Server] Push trigger processing failed:', err);
     });
-  }, 30 * 60 * 1000);
+  }, 1 * 60 * 1000);
 
   let vite: any;
   if (process.env.NODE_ENV !== 'production') {

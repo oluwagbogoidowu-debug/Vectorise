@@ -36,7 +36,30 @@ export default async function handler(req: Request, res: Response) {
               url: '/',
               tag: 'daily-unlock'
             },
+            android: {
+              priority: 'high' as const,
+              notification: {
+                sound: 'default',
+                priority: 'max' as const,
+                channelId: 'default_channel'
+              }
+            },
+            apns: {
+              headers: {
+                'apns-priority': '10',
+                'apns-push-type': 'alert'
+              },
+              payload: {
+                aps: {
+                  sound: 'default',
+                  badge: 1
+                }
+              }
+            },
             webpush: {
+              headers: {
+                Urgency: 'high'
+              },
               notification: {
                 icon: 'https://img.icons8.com/fluency-systems-filled/96/0E7850/clock.png',
                 badge: 'https://lh3.googleusercontent.com/d/1iPPiCUwdOmGZ-KScVrvOpOw0LiauXE7X',

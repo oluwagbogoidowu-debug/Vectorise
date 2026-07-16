@@ -157,7 +157,31 @@ export const pushNotificationManager = {
             title: title,
             body: body
           },
+          android: {
+            priority: 'high' as const,
+            notification: {
+              sound: 'default',
+              clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+              priority: 'max' as const,
+              channelId: 'default_channel'
+            }
+          },
+          apns: {
+            headers: {
+              'apns-priority': '10',
+              'apns-push-type': 'alert'
+            },
+            payload: {
+              aps: {
+                sound: 'default',
+                badge: 1
+              }
+            }
+          },
           webpush: {
+            headers: {
+              Urgency: 'high'
+            },
             notification: {
               icon: 'https://img.icons8.com/fluency-systems-filled/96/0E7850/clock.png',
               badge: 'https://lh3.googleusercontent.com/d/1iPPiCUwdOmGZ-KScVrvOpOw0LiauXE7X',
@@ -499,32 +523,62 @@ export const pushNotificationManager = {
         const notifTitle = `⏰ Reminder: ${sprintTitle}`;
         const notifBody = `Ready to complete Day ${currentDay}? Click here to view task!`;
 
+        const userRef = db.collection('users').doc(user.id);
+        const userData = userDoc.data() as any;
+
         // 8 AM - Task Unlocked
         if (currentHour === 8) {
-          await pushNotificationManager.sendPush(user.id, {
-            title: notifTitle,
-            body: notifBody,
-            url: `/participant/sprint/${enrollment.id}`,
-            tag: 'daily-unlock'
-          });
+          const lastUnlock = userData.lastDailyUnlockSentAt;
+          const alreadySentUnlock = lastUnlock && lastUnlock.startsWith(now.toISOString().split('T')[0]);
+          if (!alreadySentUnlock) {
+            const success = await pushNotificationManager.sendPush(user.id, {
+              title: notifTitle,
+              body: notifBody,
+              url: `/participant/sprint/${enrollment.id}`,
+              tag: 'daily-unlock'
+            });
+            if (success) {
+              await userRef.update({
+                lastDailyUnlockSentAt: now.toISOString()
+              }).catch((e: any) => console.error('[PushManager] Failed to update lastDailyUnlockSentAt:', e));
+            }
+          }
         }
         // 3 PM - Quick Check
         else if (currentHour === 15) {
-          await pushNotificationManager.sendPush(user.id, {
-            title: notifTitle,
-            body: notifBody,
-            url: `/participant/sprint/${enrollment.id}`,
-            tag: 'midday-check'
-          });
+          const lastMidday = userData.lastMiddayCheckSentAt;
+          const alreadySentMidday = lastMidday && lastMidday.startsWith(now.toISOString().split('T')[0]);
+          if (!alreadySentMidday) {
+            const success = await pushNotificationManager.sendPush(user.id, {
+              title: notifTitle,
+              body: notifBody,
+              url: `/participant/sprint/${enrollment.id}`,
+              tag: 'midday-check'
+            });
+            if (success) {
+              await userRef.update({
+                lastMiddayCheckSentAt: now.toISOString()
+              }).catch((e: any) => console.error('[PushManager] Failed to update lastMiddayCheckSentAt:', e));
+            }
+          }
         }
         // 8 PM - Evening Reminder
         else if (currentHour === 20) {
-          await pushNotificationManager.sendPush(user.id, {
-            title: notifTitle,
-            body: notifBody,
-            url: `/participant/sprint/${enrollment.id}`,
-            tag: 'evening-reminder'
-          });
+          const lastEvening = userData.lastEveningReminderSentAt;
+          const alreadySentEvening = lastEvening && lastEvening.startsWith(now.toISOString().split('T')[0]);
+          if (!alreadySentEvening) {
+            const success = await pushNotificationManager.sendPush(user.id, {
+              title: notifTitle,
+              body: notifBody,
+              url: `/participant/sprint/${enrollment.id}`,
+              tag: 'evening-reminder'
+            });
+            if (success) {
+              await userRef.update({
+                lastEveningReminderSentAt: now.toISOString()
+              }).catch((e: any) => console.error('[PushManager] Failed to update lastEveningReminderSentAt:', e));
+            }
+          }
         }
       }
     }
