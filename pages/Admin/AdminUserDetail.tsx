@@ -573,55 +573,22 @@ export default function AdminUserDetail() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
                 
                 {/* Profile Card Section (A bit smaller like participant design) */}
-                <div className="flex flex-wrap gap-6 items-start">
-                    <div>
-                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Participant Identity</h3>
-                        <div className="inline-block bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm min-w-[280px] hover:border-[#0E7850]/20 transition-all duration-300">
-                            <div className="flex items-center gap-4">
-                                <ArchetypeAvatar 
-                                    archetypeId={user.archetype} 
-                                    profileImageUrl={user.profileImageUrl} 
-                                    size="lg" 
-                                    isVerified={user.emailVerifiedConfirmed || user.emailVerifiedOverride}
-                                />
-                                <div className="min-w-0">
-                                    <h2 className="text-sm font-black text-gray-900 tracking-tight leading-none mb-1">{user.name}</h2>
-                                    <p className="text-[10px] font-bold text-gray-400 truncate tracking-wide leading-none">{user.email}</p>
-                                    <p className="text-[9px] font-black text-[#0E7850] uppercase mt-2 bg-emerald-50/50 border border-emerald-100/50 px-2 py-0.5 rounded-md inline-block tracking-wider leading-none">
-                                        @{user.occupation || user.persona || 'Student/Graduate'}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Current Status</h3>
-                        <div className="inline-block bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm min-w-[280px] hover:border-[#0E7850]/20 transition-all duration-300">
-                            <div className="flex items-center gap-4">
-                                <div className={`w-8 h-8 rounded-2xl flex items-center justify-center text-sm border ${statusInfo.colorClass}`}>
-                                    <span className={`w-2.5 h-2.5 rounded-full ${statusInfo.dotClass} animate-pulse`} />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1.5">Account Role</p>
-                                    <div className="flex items-center gap-2">
-                                        <select
-                                            value={currentStatusValue}
-                                            onChange={(e) => handleStatusChange(e.target.value)}
-                                            disabled={isUpdatingStatus}
-                                            className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-xl border cursor-pointer outline-none transition-all ${statusInfo.colorClass} ${isUpdatingStatus ? 'opacity-50 pointer-events-none' : ''}`}
-                                        >
-                                            <option value="participant" className="bg-white text-gray-700">Participant</option>
-                                            <option value="coach_active" className="bg-white text-gray-700">Coach (Active)</option>
-                                            <option value="coach_pending" className="bg-white text-gray-700">Coach (Pending)</option>
-                                            <option value="coach_non_active" className="bg-white text-gray-700">Coach (Non-active)</option>
-                                            <option value="admin" className="bg-white text-gray-700">Admin</option>
-                                        </select>
-                                        {isUpdatingStatus && (
-                                            <span className="text-[8px] font-bold text-gray-400 uppercase animate-pulse">Updating...</span>
-                                        )}
-                                    </div>
-                                </div>
+                <div>
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Participant Identity</h3>
+                    <div className="inline-block bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm min-w-[280px] hover:border-[#0E7850]/20 transition-all duration-300">
+                        <div className="flex items-center gap-4">
+                            <ArchetypeAvatar 
+                                archetypeId={user.archetype} 
+                                profileImageUrl={user.profileImageUrl} 
+                                size="lg" 
+                                isVerified={user.emailVerifiedConfirmed || user.emailVerifiedOverride}
+                            />
+                            <div className="min-w-0">
+                                <h2 className="text-sm font-black text-gray-900 tracking-tight leading-none mb-1">{user.name}</h2>
+                                <p className="text-[10px] font-bold text-gray-400 truncate tracking-wide leading-none">{user.email}</p>
+                                <p className="text-[9px] font-black text-[#0E7850] uppercase mt-2 bg-emerald-50/50 border border-emerald-100/50 px-2 py-0.5 rounded-md inline-block tracking-wider leading-none">
+                                    @{user.occupation || user.persona || 'Student/Graduate'}
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -658,17 +625,23 @@ export default function AdminUserDetail() {
                     <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory scrollbar-hidden">
                         
                         {/* Timeline Metrics Card (The 2nd Card) */}
-                        <div className="flex-shrink-0 w-[290px] sm:w-[320px] h-[280px] bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm snap-start flex flex-col justify-between hover:border-[#0E7850]/10 transition-all duration-300">
+                        <div className="flex-shrink-0 w-[290px] sm:w-[320px] min-h-[280px] bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm snap-start flex flex-col justify-between hover:border-[#0E7850]/10 transition-all duration-300">
                             <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-50 flex-shrink-0">
                                 <span className="text-sm">⏱️</span>
                                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Current Status</h4>
                             </div>
-                            <div className="space-y-4">
+                            <div className="space-y-3">
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Current Stage</p>
                                         <p className="text-xs font-black text-[#0E7850] bg-emerald-50/50 border border-emerald-100/30 px-2.5 py-0.5 rounded-full inline-block tracking-tight uppercase">
                                             {user.currentStage || 'Foundation'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Account Role</p>
+                                        <p className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border inline-block ${statusInfo.colorClass}`}>
+                                            {statusInfo.label}
                                         </p>
                                     </div>
                                 </div>
