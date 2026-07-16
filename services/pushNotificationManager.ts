@@ -52,6 +52,12 @@ export const pushNotificationManager = {
       }
       
       const userData = userSnap.data() as Participant;
+      const userName = userData.name || 'Unknown User';
+      const userEmail = userData.email || 'No Email';
+      const msgUrl = payload.url || '/';
+      const msgTag = payload.tag || 'default';
+      const title = payload.title;
+      const body = payload.body;
       
       if (!userData.fcmToken || userData.notificationsDisabled) {
         console.log(`[PushManager] User ${userId} has no fcmToken or notifications disabled.`);
@@ -61,6 +67,21 @@ export const pushNotificationManager = {
           success: false,
           reason: !userData.fcmToken ? 'no fcmToken' : 'notifications disabled'
         });
+
+        // Log skipped delivery
+        await db.collection('push_delivery_logs').add({
+          userId,
+          userName,
+          userEmail,
+          title,
+          body,
+          url: msgUrl,
+          tag: msgTag,
+          sentAt: new Date().toISOString(),
+          status: !userData.fcmToken ? 'unsubscribed' : 'disabled',
+          errorMessage: !userData.fcmToken ? 'No FCM registration token registered' : 'User disabled push notifications'
+        }).catch(err => console.error('Failed to log skipped push delivery:', err));
+
         return false;
       }
 
@@ -82,17 +103,26 @@ export const pushNotificationManager = {
           success: false,
           reason: 'daily notification cap of 100 exceeded'
         });
+
+        await db.collection('push_delivery_logs').add({
+          userId,
+          userName,
+          userEmail,
+          title,
+          body,
+          url: msgUrl,
+          tag: msgTag,
+          sentAt: new Date().toISOString(),
+          status: 'failed',
+          errorMessage: 'Daily push notification cap (100) reached'
+        }).catch(err => console.error('Failed to log capped push delivery:', err));
+
         return false;
       }
 
       const fcmToken = userData.fcmToken;
       
       try {
-        const title = payload.title;
-        const body = payload.body;
-        const msgUrl = payload.url || '/';
-        const msgTag = payload.tag || 'default';
-
         const message = {
           token: fcmToken,
           notification: {
@@ -124,6 +154,20 @@ export const pushNotificationManager = {
           pushSubscriptionInvalidCount: 0 // Reset invalid state
         });
 
+        // Log successful delivery
+        await db.collection('push_delivery_logs').add({
+          userId,
+          userName,
+          userEmail,
+          title,
+          body,
+          url: msgUrl,
+          tag: msgTag,
+          sentAt: new Date().toISOString(),
+          status: 'delivered',
+          errorMessage: null
+        }).catch(err => console.error('Failed to log successful push delivery:', err));
+
         console.log({
           userId,
           attempted: true,
@@ -144,6 +188,20 @@ export const pushNotificationManager = {
           success: false,
           reason: `fcm error: ${errorMessage}`
         });
+
+        // Log failed delivery
+        await db.collection('push_delivery_logs').add({
+          userId,
+          userName,
+          userEmail,
+          title,
+          body,
+          url: msgUrl,
+          tag: msgTag,
+          sentAt: new Date().toISOString(),
+          status: 'failed',
+          errorMessage: errorMessage
+        }).catch(err => console.error('Failed to log failed push delivery:', err));
         
         // If the token is no longer unregistered, expired, or rejected, clear it
         if (

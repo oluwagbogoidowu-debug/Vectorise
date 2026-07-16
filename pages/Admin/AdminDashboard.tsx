@@ -20,10 +20,11 @@ import AdminPartners from './AdminPartners';
 import AdminQuotes from './AdminQuotes';
 import AdminUsers from './AdminUsers';
 import AdminTracks from './AdminTracks';
+import AdminNotifications from './AdminNotifications';
 import { adminCache, resetAdminCache } from './adminCache';
 import { SwitchModeModal } from '../../components/SwitchModeModal';
 
-type Tab = 'pulse' | 'orchestrator' | 'analytics' | 'earning' | 'sprints' | 'tracks' | 'coaches' | 'partners' | 'quotes' | 'roles' | 'users';
+type Tab = 'pulse' | 'orchestrator' | 'analytics' | 'earning' | 'sprints' | 'tracks' | 'coaches' | 'partners' | 'quotes' | 'roles' | 'users' | 'notifications';
 type SprintFilter = 'all' | 'active' | 'core' | 'pending' | 'rejected';
 
 export default function AdminDashboard() {
@@ -194,6 +195,7 @@ export default function AdminDashboard() {
                             {[
                                 { id: 'pulse', label: 'Pulse' },
                                 { id: 'users', label: 'Users' },
+                                { id: 'notifications', label: 'Notifications' },
                                 { id: 'analytics', label: 'Analytics' },
                                 { id: 'sprints', label: 'Sprints' },
                                 { id: 'tracks', label: 'Tracks' },
@@ -257,6 +259,8 @@ export default function AdminDashboard() {
                         )}
 
                         {activeTab === 'users' && <AdminUsers />}
+
+                        {activeTab === 'notifications' && <AdminNotifications />}
 
                         {activeTab === 'analytics' && <AdminAnalytics />}
 

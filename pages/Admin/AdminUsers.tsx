@@ -155,7 +155,11 @@ export default function AdminUsers() {
                 tasksCompleted: tasksCompleted,
                 totalTasks: activeEnrollment ? activeEnrollment.progress.length : 0,
                 isActive,
-                isNoProgress
+                isNoProgress,
+                hasSprint: userEnrollments.length > 0,
+                latestActivityTime: lastSubmissionTime || 
+                    (userEnrollments.length > 0 ? Math.max(...userEnrollments.map(e => new Date(e.started_at).getTime()).filter(t => !isNaN(t))) : 0) ||
+                    (user.createdAt ? new Date(user.createdAt).getTime() : 0)
             };
         });
 
@@ -176,11 +180,26 @@ export default function AdminUsers() {
             return true;
         });
 
-        // Sort by active first, then inactive
+        // Multi-tier sorting:
+        // Tier 1: Active (isActive === true)
+        // Tier 2: Has a sprint but not active
+        // Tier 3: No sprint
+        // Within each tier, arrange descending by most recent activity timestamp.
         return filtered.sort((a, b) => {
-            if (a.isActive && !b.isActive) return -1;
-            if (!a.isActive && b.isActive) return 1;
-            return 0; // maintain relative order
+            const getTier = (u: any) => {
+                if (u.isActive) return 1;
+                if (u.hasSprint) return 2;
+                return 3;
+            };
+
+            const tierA = getTier(a);
+            const tierB = getTier(b);
+
+            if (tierA !== tierB) {
+                return tierA - tierB;
+            }
+
+            return b.latestActivityTime - a.latestActivityTime;
         });
     }, [participants, enrollments, sprints, searchTerm, roleFilter]);
 
