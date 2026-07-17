@@ -108,6 +108,89 @@ export default function AdminNotifications() {
     const [statusFilter, setStatusFilter] = useState<'all' | 'sent' | 'delivered' | 'failed' | 'unsubscribed' | 'disabled'>('all');
     const [isClearingLogs, setIsClearingLogs] = useState(false);
 
+    // Automated System Reminders & Nudges Configuration State
+    const [unlockHour, setUnlockHour] = useState(8);
+    const [unlockTitle, setUnlockTitle] = useState("⏰ Reminder: {sprintTitle}");
+    const [unlockBody, setUnlockBody] = useState("Ready to complete Day {currentDay}? Click here to view task!");
+    
+    const [middayHour, setMiddayHour] = useState(15);
+    const [middayTitle, setMiddayTitle] = useState("⏰ Reminder: {sprintTitle}");
+    const [middayBody, setMiddayBody] = useState("Ready to complete Day {currentDay}? Click here to view task!");
+    
+    const [eveningHour, setEveningHour] = useState(20);
+    const [eveningTitle, setEveningTitle] = useState("⏰ Reminder: {sprintTitle}");
+    const [eveningBody, setEveningBody] = useState("Ready to complete Day {currentDay}? Click here to view task!");
+
+    const [nudge1, setNudge1] = useState("Missing your momentum? Day {day} is waiting for you in '{title}'.");
+    const [nudge2, setNudge2] = useState("Your growth cycle is stalling. Let's get back to it and finish Day {day} of '{title}'.");
+    const [nudge4, setNudge4] = useState("Consistency is the only bridge to mastery. Resume '{title}' now to stay on track.");
+    const [nudge7, setNudge7] = useState("It's been a week since your last win. Re-ignite your spark in '{title}' before it fades.");
+    const [nudge10, setNudge10] = useState("The path is still there. One small win today changes everything for your '{title}' journey.");
+    const [nudge15, setNudge15] = useState("Your '{title}' sprint is at high risk of abandonment. Your future self is counting on you to finish.");
+
+    const [isSavingSystemReminders, setIsSavingSystemReminders] = useState(false);
+    const [systemRemindersStatus, setSystemRemindersStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+    // Subscription to Automated System Reminders Configuration
+    useEffect(() => {
+        const unsubscribe = onSnapshot(doc(db, 'system_notifications', 'active_reminders'), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (data.unlockHour !== undefined) setUnlockHour(data.unlockHour);
+                if (data.unlockTitle !== undefined) setUnlockTitle(data.unlockTitle);
+                if (data.unlockBody !== undefined) setUnlockBody(data.unlockBody);
+                if (data.middayHour !== undefined) setMiddayHour(data.middayHour);
+                if (data.middayTitle !== undefined) setMiddayTitle(data.middayTitle);
+                if (data.middayBody !== undefined) setMiddayBody(data.middayBody);
+                if (data.eveningHour !== undefined) setEveningHour(data.eveningHour);
+                if (data.eveningTitle !== undefined) setEveningTitle(data.eveningTitle);
+                if (data.eveningBody !== undefined) setEveningBody(data.eveningBody);
+                if (data.nudge_1 !== undefined) setNudge1(data.nudge_1);
+                if (data.nudge_2 !== undefined) setNudge2(data.nudge_2);
+                if (data.nudge_4 !== undefined) setNudge4(data.nudge_4);
+                if (data.nudge_7 !== undefined) setNudge7(data.nudge_7);
+                if (data.nudge_10 !== undefined) setNudge10(data.nudge_10);
+                if (data.nudge_15 !== undefined) setNudge15(data.nudge_15);
+            }
+        }, (error) => {
+            console.error('[AdminNotifications] Error loading system notifications config:', error);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const handleSaveSystemReminders = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSavingSystemReminders(true);
+        setSystemRemindersStatus('idle');
+        try {
+            await setDoc(doc(db, 'system_notifications', 'active_reminders'), {
+                unlockHour,
+                unlockTitle: unlockTitle.trim(),
+                unlockBody: unlockBody.trim(),
+                middayHour,
+                middayTitle: middayTitle.trim(),
+                middayBody: middayBody.trim(),
+                eveningHour,
+                eveningTitle: eveningTitle.trim(),
+                eveningBody: eveningBody.trim(),
+                nudge_1: nudge1.trim(),
+                nudge_2: nudge2.trim(),
+                nudge_4: nudge4.trim(),
+                nudge_7: nudge7.trim(),
+                nudge_10: nudge10.trim(),
+                nudge_15: nudge15.trim(),
+                updatedAt: new Date().toISOString()
+            });
+            setSystemRemindersStatus('success');
+            setTimeout(() => setSystemRemindersStatus('idle'), 3000);
+        } catch (error) {
+            console.error('[AdminNotifications] Error saving system reminders config:', error);
+            setSystemRemindersStatus('error');
+        } finally {
+            setIsSavingSystemReminders(false);
+        }
+    };
+
     // 1. Fetch saved writeups (push notification library) & Seed defaults if empty
     useEffect(() => {
         const q = query(collection(db, 'push_templates'), orderBy('createdAt', 'desc'));
@@ -584,6 +667,213 @@ export default function AdminNotifications() {
                         })}
                     </div>
                 </div>
+            </div>
+
+            {/* Section 2: Automated System Reminders & Nudges Configuration */}
+            <div className="bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-sm text-left">
+                <div className="border-b border-gray-50 pb-6 mb-6">
+                    <h3 className="text-base font-black text-gray-900 tracking-tight italic flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-primary" />
+                        <span>Automated System Reminders & Nudges Configuration</span>
+                    </h3>
+                    <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+                        Control the content and exact hour-mark dispatching for automatic task updates and inactivity alerts.
+                    </p>
+                </div>
+
+                <form onSubmit={handleSaveSystemReminders} className="space-y-8">
+                    {/* Active Daily Reminders Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* 1. Daily Unlock */}
+                        <div className="p-6 bg-gray-50/50 rounded-2xl border border-gray-150/40 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <span className="px-2 py-0.5 bg-green-50 text-green-700 border border-green-100 rounded text-[9px] font-black uppercase tracking-widest">
+                                    Unlock Tasks
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Hour (0-23):</label>
+                                    <input 
+                                        type="number"
+                                        min={0}
+                                        max={23}
+                                        value={unlockHour}
+                                        onChange={e => setUnlockHour(parseInt(e.target.value) || 0)}
+                                        className="w-14 px-2 py-1 text-center bg-white border border-gray-250 text-gray-900 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary outline-none"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Title Template</label>
+                                    <input 
+                                        type="text"
+                                        value={unlockTitle}
+                                        onChange={e => setUnlockTitle(e.target.value)}
+                                        className="w-full px-3 py-2 bg-white border border-gray-200 text-gray-900 rounded-xl text-xs font-bold focus:ring-1 focus:ring-primary outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Body Template</label>
+                                    <textarea 
+                                        rows={2}
+                                        value={unlockBody}
+                                        onChange={e => setUnlockBody(e.target.value)}
+                                        className="w-full px-3 py-2 bg-white border border-gray-200 text-gray-900 rounded-xl text-xs font-bold focus:ring-1 focus:ring-primary outline-none resize-none"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 2. Midday Check-In */}
+                        <div className="p-6 bg-gray-50/50 rounded-2xl border border-gray-150/40 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 rounded text-[9px] font-black uppercase tracking-widest">
+                                    Midday Check-In
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Hour (0-23):</label>
+                                    <input 
+                                        type="number"
+                                        min={0}
+                                        max={23}
+                                        value={middayHour}
+                                        onChange={e => setMiddayHour(parseInt(e.target.value) || 0)}
+                                        className="w-14 px-2 py-1 text-center bg-white border border-gray-250 text-gray-900 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary outline-none"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Title Template</label>
+                                    <input 
+                                        type="text"
+                                        value={middayTitle}
+                                        onChange={e => setMiddayTitle(e.target.value)}
+                                        className="w-full px-3 py-2 bg-white border border-gray-200 text-gray-900 rounded-xl text-xs font-bold focus:ring-1 focus:ring-primary outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Body Template</label>
+                                    <textarea 
+                                        rows={2}
+                                        value={middayBody}
+                                        onChange={e => setMiddayBody(e.target.value)}
+                                        className="w-full px-3 py-2 bg-white border border-gray-200 text-gray-900 rounded-xl text-xs font-bold focus:ring-1 focus:ring-primary outline-none resize-none"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 3. Evening Reminder */}
+                        <div className="p-6 bg-gray-50/50 rounded-2xl border border-gray-150/40 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[9px] font-black uppercase tracking-widest">
+                                    Evening Catch-Up
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Hour (0-23):</label>
+                                    <input 
+                                        type="number"
+                                        min={0}
+                                        max={23}
+                                        value={eveningHour}
+                                        onChange={e => setEveningHour(parseInt(e.target.value) || 0)}
+                                        className="w-14 px-2 py-1 text-center bg-white border border-gray-250 text-gray-900 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary outline-none"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Title Template</label>
+                                    <input 
+                                        type="text"
+                                        value={eveningTitle}
+                                        onChange={e => setEveningTitle(e.target.value)}
+                                        className="w-full px-3 py-2 bg-white border border-gray-200 text-gray-900 rounded-xl text-xs font-bold focus:ring-1 focus:ring-primary outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Body Template</label>
+                                    <textarea 
+                                        rows={2}
+                                        value={eveningBody}
+                                        onChange={e => setEveningBody(e.target.value)}
+                                        className="w-full px-3 py-2 bg-white border border-gray-200 text-gray-900 rounded-xl text-xs font-bold focus:ring-1 focus:ring-primary outline-none resize-none"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-2 flex-wrap">
+                        <span>💡 Hint: Use variables like </span>
+                        <code className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-primary">{`{sprintTitle}`}</code>
+                        <span> and </span>
+                        <code className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-primary">{`{currentDay}`}</code>
+                        <span> inside Title and Body templates.</span>
+                    </div>
+
+                    {/* Inactivity Drop-off Nudges */}
+                    <div className="space-y-4">
+                        <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest italic flex items-center gap-1.5">
+                            <span>Inactivity Nudges (Drop-off Templates)</span>
+                        </h4>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {[
+                                { day: 1, label: "Day 1 Missed", value: nudge1, setter: setNudge1 },
+                                { day: 2, label: "Day 2 Missed", value: nudge2, setter: setNudge2 },
+                                { day: 4, label: "Day 4 Missed", value: nudge4, setter: setNudge4 },
+                                { day: 7, label: "Day 7 Missed", value: nudge7, setter: setNudge7 },
+                                { day: 10, label: "Day 10 Missed", value: nudge10, setter: setNudge10 },
+                                { day: 15, label: "Day 15 Missed", value: nudge15, setter: setNudge15 }
+                            ].map(item => (
+                                <div key={item.day} className="p-4 bg-white rounded-xl border border-gray-100 space-y-2 shadow-sm text-left">
+                                    <span className="px-2 py-0.5 bg-gray-50 text-gray-500 border border-gray-100 rounded text-[8px] font-black uppercase tracking-widest">
+                                        {item.label}
+                                    </span>
+                                    <textarea 
+                                        rows={3}
+                                        value={item.value}
+                                        onChange={e => item.setter(e.target.value)}
+                                        className="w-full px-3 py-2 bg-white border border-gray-150 text-gray-900 rounded-xl text-[10px] font-semibold leading-relaxed focus:ring-1 focus:ring-primary outline-none resize-none"
+                                        placeholder={`Nudge for Day ${item.day} inactive...`}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-2 flex-wrap">
+                            <span>💡 Hint: Use variables like </span>
+                            <code className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-primary">{`{day}`}</code>
+                            <span> and </span>
+                            <code className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-primary">{`{title}`}</code>
+                            <span> inside Nudge templates.</span>
+                        </div>
+                    </div>
+
+                    {/* Action & Status Bar */}
+                    <div className="flex items-center justify-end gap-4 border-t border-gray-50 pt-6">
+                        {systemRemindersStatus === 'success' && (
+                            <p className="text-[10px] font-black text-green-600 uppercase tracking-widest animate-pulse">
+                                ✓ Configurations saved successfully!
+                            </p>
+                        )}
+                        {systemRemindersStatus === 'error' && (
+                            <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">
+                                ⚠ Failed to save configurations.
+                            </p>
+                        )}
+                        <button
+                            type="submit"
+                            disabled={isSavingSystemReminders}
+                            className="px-6 py-3.5 bg-primary hover:bg-primary/95 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer shadow-lg hover:shadow-primary/20 flex items-center gap-1.5"
+                        >
+                            <Send className="w-3.5 h-3.5" />
+                            <span>{isSavingSystemReminders ? 'Saving Configuration...' : 'Save Configurations'}</span>
+                        </button>
+                    </div>
+                </form>
             </div>
 
             {/* Section 3: Delivery Tracking Logs */}

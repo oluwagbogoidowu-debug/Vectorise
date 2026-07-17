@@ -450,6 +450,43 @@ export const pushNotificationManager = {
     const now = new Date();
     const currentHour = now.getHours();
     
+    // Fetch system configurations from Firestore with default values as fallbacks
+    const DEFAULT_SYSTEM_REMINDERS = {
+      unlockHour: 8,
+      unlockTitle: "⏰ Reminder: {sprintTitle}",
+      unlockBody: "Ready to complete Day {currentDay}? Click here to view task!",
+      middayHour: 15,
+      middayTitle: "⏰ Reminder: {sprintTitle}",
+      middayBody: "Ready to complete Day {currentDay}? Click here to view task!",
+      eveningHour: 20,
+      eveningTitle: "⏰ Reminder: {sprintTitle}",
+      eveningBody: "Ready to complete Day {currentDay}? Click here to view task!",
+      nudge_1: "Missing your momentum? Day {day} is waiting for you in '{title}'.",
+      nudge_2: "Your growth cycle is stalling. Let's get back to it and finish Day {day} of '{title}'.",
+      nudge_4: "Consistency is the only bridge to mastery. Resume '{title}' now to stay on track.",
+      nudge_7: "It's been a week since your last win. Re-ignite your spark in '{title}' before it fades.",
+      nudge_10: "The path is still there. One small win today changes everything for your '{title}' journey.",
+      nudge_15: "Your '{title}' sprint is at high risk of abandonment. Your future self is counting on you to finish."
+    };
+
+    let systemConfig = DEFAULT_SYSTEM_REMINDERS;
+    try {
+      const configSnap = await db.collection('system_notifications').doc('active_reminders').get();
+      if (configSnap.exists) {
+        systemConfig = { ...DEFAULT_SYSTEM_REMINDERS, ...configSnap.data() };
+      }
+    } catch (e) {
+      console.error('[PushManager] Failed to fetch system reminders config, using hardcoded fallbacks:', e);
+    }
+
+    const getReplacedMessage = (templateStr: string, replacements: Record<string, string | number>) => {
+      let result = templateStr;
+      Object.entries(replacements).forEach(([key, val]) => {
+        result = result.replace(new RegExp(`{${key}}`, 'g'), String(val));
+      });
+      return result;
+    };
+
     // 1. Get all users with FCM tokens
     const usersSnap = await db.collection('users')
       .where('fcmToken', '!=', null)
@@ -496,8 +533,11 @@ export const pushNotificationManager = {
           if (!alreadyNudged && !sentToday) {
             // Send exact drop-off template nudge
             const nextDay = enrollment.progress.findIndex(p => !p.completed) + 1 || 1;
-            const template = NUDGE_TEMPLATES[currentMilestone];
-            const message = template.replace('{day}', nextDay.toString()).replace('{title}', sprint?.title || 'your sprint');
+            const template = systemConfig[`nudge_${currentMilestone}` as keyof typeof systemConfig] || DEFAULT_SYSTEM_REMINDERS[`nudge_${currentMilestone}` as keyof typeof DEFAULT_SYSTEM_REMINDERS];
+            const message = getReplacedMessage(String(template), {
+              day: nextDay.toString(),
+              title: sprint?.title || 'your sprint'
+            });
             
             const success = await pushNotificationManager.sendPush(user.id, {
               title: 'Resume Sprint',
@@ -520,20 +560,22 @@ export const pushNotificationManager = {
       // Active Reminders (if task not completed)
       if (!isTaskCompleted) {
         const sprintTitle = sprint?.title || 'Gain Clarity First';
-        const notifTitle = `⏰ Reminder: ${sprintTitle}`;
-        const notifBody = `Ready to complete Day ${currentDay}? Click here to view task!`;
+        const replaceParams = {
+          sprintTitle: sprintTitle,
+          currentDay: currentDay
+        };
 
         const userRef = db.collection('users').doc(user.id);
         const userData = userDoc.data() as any;
 
-        // 8 AM - Task Unlocked
-        if (currentHour === 8) {
+        // Daily Unlock
+        if (currentHour === systemConfig.unlockHour) {
           const lastUnlock = userData.lastDailyUnlockSentAt;
           const alreadySentUnlock = lastUnlock && lastUnlock.startsWith(now.toISOString().split('T')[0]);
           if (!alreadySentUnlock) {
             const success = await pushNotificationManager.sendPush(user.id, {
-              title: notifTitle,
-              body: notifBody,
+              title: getReplacedMessage(systemConfig.unlockTitle, replaceParams),
+              body: getReplacedMessage(systemConfig.unlockBody, replaceParams),
               url: `/participant/sprint/${enrollment.id}`,
               tag: 'daily-unlock'
             });
@@ -544,14 +586,14 @@ export const pushNotificationManager = {
             }
           }
         }
-        // 3 PM - Quick Check
-        else if (currentHour === 15) {
+        // Quick Check
+        else if (currentHour === systemConfig.middayHour) {
           const lastMidday = userData.lastMiddayCheckSentAt;
           const alreadySentMidday = lastMidday && lastMidday.startsWith(now.toISOString().split('T')[0]);
           if (!alreadySentMidday) {
             const success = await pushNotificationManager.sendPush(user.id, {
-              title: notifTitle,
-              body: notifBody,
+              title: getReplacedMessage(systemConfig.middayTitle, replaceParams),
+              body: getReplacedMessage(systemConfig.middayBody, replaceParams),
               url: `/participant/sprint/${enrollment.id}`,
               tag: 'midday-check'
             });
@@ -562,14 +604,14 @@ export const pushNotificationManager = {
             }
           }
         }
-        // 8 PM - Evening Reminder
-        else if (currentHour === 20) {
+        // Evening Reminder
+        else if (currentHour === systemConfig.eveningHour) {
           const lastEvening = userData.lastEveningReminderSentAt;
           const alreadySentEvening = lastEvening && lastEvening.startsWith(now.toISOString().split('T')[0]);
           if (!alreadySentEvening) {
             const success = await pushNotificationManager.sendPush(user.id, {
-              title: notifTitle,
-              body: notifBody,
+              title: getReplacedMessage(systemConfig.eveningTitle, replaceParams),
+              body: getReplacedMessage(systemConfig.eveningBody, replaceParams),
               url: `/participant/sprint/${enrollment.id}`,
               tag: 'evening-reminder'
             });
