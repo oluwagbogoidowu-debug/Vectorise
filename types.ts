@@ -425,6 +425,8 @@ export interface Notification {
   nextRetryAt?: any;
   context?: any;
   bypassActiveCheck?: boolean;
+  pushOnly?: boolean;
+  inAppDisabled?: boolean;
   data?: {
     title: string;
     body: string;

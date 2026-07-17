@@ -198,7 +198,8 @@ export const localNotificationScheduler = {
               notifBody,
               {
                 actionUrl,
-                bypassActiveCheck: true
+                bypassActiveCheck: true,
+                pushOnly: true
               }
             ).catch(err => console.error('[NotificationScheduler] Failed to dispatch push notification:', err));
           } else {

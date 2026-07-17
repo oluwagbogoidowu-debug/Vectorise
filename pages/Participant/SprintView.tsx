@@ -202,6 +202,8 @@ const SprintSettingsModal: React.FC<{
 }) => {
   if (!isOpen) return null;
 
+  const { user } = useAuth();
+
   // Local notification scheduler state
   const [reminderConfig, setReminderConfig] = useState<SprintReminderConfig & { id?: string }>({
     sprintId: sprint?.id || '',
@@ -214,6 +216,7 @@ const SprintSettingsModal: React.FC<{
   const [selectedOverrideDay, setSelectedOverrideDay] = useState<number>(1);
   const [selectedOverrideTime, setSelectedOverrideTime] = useState<string>('12:00');
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
+  const isSystemAuthorized = permissionGranted && (user ? !(user as any).notificationsDisabled : true);
 
   // Sync state on mount / open
   useEffect(() => {
@@ -269,6 +272,14 @@ const SprintSettingsModal: React.FC<{
   const handleRequestPermission = async () => {
     const granted = await localNotificationScheduler.requestNotificationPermission();
     setPermissionGranted(granted);
+    if (user && user.id) {
+      try {
+        const userRef = doc(db, "users", user.id);
+        await updateDoc(userRef, { notificationsDisabled: false });
+      } catch (err) {
+        console.error("Failed to update user notificationsDisabled state in DB:", err);
+      }
+    }
     if (granted) {
       toast.success('System reminders unlocked successfully!');
     } else {
@@ -381,7 +392,7 @@ const SprintSettingsModal: React.FC<{
                       {/* Permission Check */}
                       <div className="flex items-center justify-between pb-2 border-b border-gray-100">
                         <span className="text-[10px] font-bold text-gray-650 uppercase tracking-wider">System Reminders</span>
-                        {permissionGranted ? (
+                        {isSystemAuthorized ? (
                           <span className="text-[8px] font-black uppercase text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full flex items-center gap-1">
                             <Check className="w-2.5 h-2.5" /> Authorized
                           </span>

@@ -30,7 +30,9 @@ export const notificationService = {
       actionUrl?: string, 
       context?: any, 
       expiresInDays?: number,
-      bypassActiveCheck?: boolean
+      bypassActiveCheck?: boolean,
+      pushOnly?: boolean,
+      inAppDisabled?: boolean
     } = {}
   ) => {
     try {
@@ -56,6 +58,8 @@ export const notificationService = {
         createdAt: now.toISOString(),
         expiresAt: expiresAt,
         bypassActiveCheck: options.bypassActiveCheck || false,
+        pushOnly: options.pushOnly || false,
+        inAppDisabled: options.inAppDisabled || false,
         data: {
           title,
           body,
@@ -118,7 +122,8 @@ export const notificationService = {
           message,
           { 
             actionUrl: `/participant/sprint/${enrollment.id}?day=${nextDay}`,
-            context: { sprintId: sprint.id, day: nextDay }
+            context: { sprintId: sprint.id, day: nextDay },
+            pushOnly: true
           }
         );
 
@@ -152,11 +157,13 @@ export const notificationService = {
         notifications.push(sanitizeData({ id: doc.id, ...doc.data() }) as Notification);
       });
       
-      // Filter out expired notifications locally for safety
+      // Filter out expired and push-only/in-app-disabled notifications locally for safety
       const now = new Date().getTime();
-      const validNotifications = notifications.filter(n => 
-        !n.expiresAt || new Date(n.expiresAt).getTime() > now
-      );
+      const validNotifications = notifications.filter(n => {
+        const isExpired = n.expiresAt && new Date(n.expiresAt).getTime() <= now;
+        const isPushOnly = n.pushOnly || n.inAppDisabled || n.type === 'sprint_day_unlocked' || n.type === 'sprint_nudge';
+        return !isExpired && !isPushOnly;
+      });
 
       const sorted = validNotifications.sort((a, b) => 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

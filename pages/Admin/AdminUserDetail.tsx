@@ -22,10 +22,7 @@ export default function AdminUserDetail() {
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
-    // Directory of other users state
-    const [allUsers, setAllUsers] = useState<any[]>([]);
-    const [allEnrollments, setAllEnrollments] = useState<ParticipantSprint[]>([]);
-    const [selectedRoleTab, setSelectedRoleTab] = useState<UserRole | 'ALL'>('ALL');
+
 
     const statusInfo = useMemo(() => {
         if (!user) return { label: 'Participant', colorClass: 'bg-blue-50 text-blue-600 border-blue-100', dotClass: 'bg-blue-500' };
@@ -127,6 +124,19 @@ export default function AdminUserDetail() {
         }
     };
 
+    const handleToggleNotifications = async () => {
+        if (!userId || !user) return;
+        try {
+            const nextVal = !user.notificationsDisabled;
+            await userService.updateUserDocument(userId, { notificationsDisabled: nextVal });
+            setUser(prev => prev ? { ...prev, notificationsDisabled: nextVal } : null);
+            userService.queueNotification('success', nextVal ? 'Notifications disabled successfully!' : 'Notifications enabled successfully!', { duration: 3000 });
+        } catch (error) {
+            console.error("Failed to toggle notifications:", error);
+            userService.queueNotification('error', 'Failed to update notification preferences.', { duration: 3000 });
+        }
+    };
+
     const getOnboardingQuestion = (key: string) => {
         if (!user || !user.onboardingAnswers) {
             return key.replace(/_/g, ' ');
@@ -161,20 +171,14 @@ export default function AdminUserDetail() {
             if (!userId) return;
             setIsLoading(true);
             try {
-                const [userData, enrollmentsData, sprintsData, allUsersData, allEnrollmentsData] = await Promise.all([
+                const [userData, enrollmentsData, sprintsData] = await Promise.all([
                     userService.getUserDocument(userId),
                     sprintService.getUserEnrollments(userId),
-                    sprintService.getAdminSprints(),
-                    userService.getAllUsers(),
-                    sprintService.getAllEnrollments()
+                    sprintService.getAdminSprints()
                 ]);
                 setUser(userData as Participant);
                 setEnrollments(enrollmentsData);
                 setSprints(sprintsData);
-                setAllUsers(allUsersData);
-                setAllEnrollments(allEnrollmentsData);
-
-                // Initial role tab defaults to 'ALL' to show the full ecosystem directory sorted by roles
 
                 // Fetch referrals
                 const referralsQuery = query(collection(db, 'users', userId, 'referrals'));
@@ -190,69 +194,7 @@ export default function AdminUserDetail() {
         fetchData();
     }, [userId]);
 
-    const otherUsersOfRole = useMemo(() => {
-        if (!allUsers || !allEnrollments) return [];
 
-        const mapped = allUsers
-            .filter(u => u.id !== userId)
-            .map(u => {
-                const userEnrollments = allEnrollments.filter(e => e.user_id === u.id);
-                
-                const completedTimestamps = userEnrollments.flatMap(e => 
-                    (e.progress || [])
-                        .filter(p => p.completed && p.completedAt)
-                        .map(p => p.completedAt ? new Date(p.completedAt).getTime() : 0)
-                ).filter(t => t > 0 && !isNaN(t));
-
-                let lastSubmissionTime: number | null = null;
-                if (completedTimestamps.length > 0) {
-                    lastSubmissionTime = Math.max(...completedTimestamps);
-                }
-
-                const latestActivityTime = lastSubmissionTime || 
-                    (userEnrollments.length > 0 ? Math.max(...userEnrollments.map(e => new Date(e.started_at).getTime()).filter(t => !isNaN(t))) : 0) ||
-                    (u.createdAt ? new Date(u.createdAt).getTime() : 0);
-
-                return {
-                    ...u,
-                    latestActivityTime
-                };
-            });
-
-        const filtered = mapped.filter(u => {
-            if (selectedRoleTab === 'ALL') return true;
-            const uRole = (u.role || '').toUpperCase();
-            if (selectedRoleTab === UserRole.PARTICIPANT) {
-                return uRole === 'PARTICIPANT' || uRole === '';
-            } else if (selectedRoleTab === UserRole.COACH) {
-                return uRole === 'COACH';
-            } else if (selectedRoleTab === UserRole.ADMIN) {
-                return uRole === 'ADMIN';
-            }
-            return false;
-        });
-
-        const getRoleWeight = (role: string) => {
-            const r = (role || '').toUpperCase();
-            if (r === 'PARTICIPANT' || r === '') return 1;
-            if (r === 'COACH') return 2;
-            if (r === 'ADMIN') return 3;
-            return 4;
-        };
-
-        // "showing the recently active first before the farthest active"
-        // Sorted by roles (Participant -> Coach -> Admin), then by recently active first
-        return filtered.sort((a, b) => {
-            if (selectedRoleTab === 'ALL') {
-                const weightA = getRoleWeight(a.role);
-                const weightB = getRoleWeight(b.role);
-                if (weightA !== weightB) {
-                    return weightA - weightB;
-                }
-            }
-            return b.latestActivityTime - a.latestActivityTime;
-        });
-    }, [allUsers, allEnrollments, selectedRoleTab, userId]);
 
     const streakStats = useMemo(() => {
         const completedDatesSet = new Set<string>();
@@ -897,9 +839,13 @@ export default function AdminUserDetail() {
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">User Preference</p>
-                                    <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${!user.notificationsDisabled ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+                                    <button
+                                        type="button"
+                                        onClick={handleToggleNotifications}
+                                        className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border transition-all cursor-pointer hover:scale-105 active:scale-95 ${!user.notificationsDisabled ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100/50' : 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100/50'}`}
+                                    >
                                         {!user.notificationsDisabled ? 'Enabled' : 'Disabled'}
-                                    </span>
+                                    </button>
                                 </div>
                                 {user.pushPermissionLastRequestAt && (
                                     <div className="pt-2 border-t border-gray-50">
@@ -1154,125 +1100,7 @@ export default function AdminUserDetail() {
                     </div>
                 </div>
 
-                {/* Ecosystem Directory Section */}
-                <div className="bg-white rounded-[2.5rem] border border-gray-100 p-6 md:p-8 shadow-sm">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 pb-4 border-b border-gray-50">
-                        <div>
-                            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Ecosystem Directory</h3>
-                            <p className="text-[9px] text-gray-400 font-black uppercase tracking-wider mt-0.5">Explore other members based on their designated account roles</p>
-                        </div>
-                        
-                        {/* Tab Selectors */}
-                        <div className="inline-flex bg-gray-100 p-0.5 rounded-xl self-start sm:self-auto">
-                            <button
-                                type="button"
-                                onClick={() => setSelectedRoleTab('ALL')}
-                                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                                    selectedRoleTab === 'ALL' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-655'
-                                }`}
-                            >
-                                All
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedRoleTab(UserRole.PARTICIPANT)}
-                                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                                    selectedRoleTab === UserRole.PARTICIPANT ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-655'
-                                }`}
-                            >
-                                Participant
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedRoleTab(UserRole.COACH)}
-                                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                                    selectedRoleTab === UserRole.COACH ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-655'
-                                }`}
-                            >
-                                Coach
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedRoleTab(UserRole.ADMIN)}
-                                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                                    selectedRoleTab === UserRole.ADMIN ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-655'
-                                }`}
-                            >
-                                Admin
-                            </button>
-                        </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {otherUsersOfRole.length > 0 ? (
-                            otherUsersOfRole.map((u) => {
-                                const lastActiveStr = u.latestActivityTime > 0
-                                    ? format(new Date(u.latestActivityTime), 'MMM d, yyyy h:mm a')
-                                    : 'No logged activity';
-                                const uRole = (u.role || 'PARTICIPANT').toUpperCase();
-
-                                return (
-                                    <div 
-                                        key={u.id}
-                                        onClick={() => navigate(`/admin/user/${u.id}`)}
-                                        className="flex items-center justify-between p-4 bg-gray-50/40 border border-gray-100 hover:border-primary/20 hover:bg-primary/[0.02] rounded-2xl cursor-pointer transition-all duration-200 group"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-9 w-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                                {u.profileImageUrl ? (
-                                                    <img src={u.profileImageUrl} alt="" className="h-full w-full object-cover" />
-                                                ) : u.archetype ? (
-                                                    <ArchetypeAvatar archetypeId={u.archetype} size="sm" />
-                                                ) : (
-                                                    <span className="text-xs font-black text-gray-400 uppercase">
-                                                        {u.name ? u.name.charAt(0) : '?'}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                    <p className="text-xs font-black text-gray-950 truncate group-hover:text-primary transition-colors">
-                                                        {u.name || 'Anonymous User'}
-                                                    </p>
-                                                    {selectedRoleTab === 'ALL' && (
-                                                        <span className={`px-1.5 py-0.5 rounded-md text-[6.5px] font-black uppercase tracking-wider border leading-none ${
-                                                            uRole === 'ADMIN' ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                                                            uRole === 'COACH' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                                            'bg-blue-50 text-blue-600 border-blue-100'
-                                                        }`}>
-                                                            {uRole === 'PARTICIPANT' ? 'Participant' : uRole === 'COACH' ? 'Coach' : 'Admin'}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <p className="text-[9px] font-bold text-gray-400 truncate">
-                                                    {u.email}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="text-right flex flex-col items-end gap-1.5">
-                                            <div className="flex items-center gap-1.5">
-                                                <Clock className="w-2.5 h-2.5 text-gray-400" />
-                                                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
-                                                    Activity
-                                                </span>
-                                            </div>
-                                            <span className="text-[9px] font-bold text-gray-600 uppercase">
-                                                {lastActiveStr}
-                                            </span>
-                                        </div>
-                                    </div>
-                                );
-                            })
-                        ) : (
-                            <div className="col-span-1 md:col-span-2 py-8 text-center bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
-                                <p className="text-xs font-black text-gray-400 uppercase tracking-widest italic">
-                                    No other users found in this category.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                </div>
 
             </div>
         </div>
