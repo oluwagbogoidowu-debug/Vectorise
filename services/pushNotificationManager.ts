@@ -461,6 +461,7 @@ export const pushNotificationManager = {
       eveningHour: 20,
       eveningTitle: "⏰ Reminder: {sprintTitle}",
       eveningBody: "Ready to complete Day {currentDay}? Click here to view task!",
+      inactivityHour: 10,
       nudge_1: "Missing your momentum? Day {day} is waiting for you in '{title}'.",
       nudge_2: "Your growth cycle is stalling. Let's get back to it and finish Day {day} of '{title}'.",
       nudge_4: "Consistency is the only bridge to mastery. Resume '{title}' now to stay on track.",
@@ -514,7 +515,14 @@ export const pushNotificationManager = {
       const sprintSnap = await db.collection('sprints').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
       const sprint = sprintSnap.exists ? sprintSnap.data() as Sprint : null;
 
-      const lastActivity = user.lastActivityAt ? new Date(user.lastActivityAt) : new Date(user.createdAt);
+      // Robust calculation of last active timestamp across user logins and actual task progress submissions
+      const dates = [
+        user.lastActivityAt ? new Date(user.lastActivityAt) : null,
+        enrollment.last_activity_at ? new Date(enrollment.last_activity_at) : null,
+        user.createdAt ? new Date(user.createdAt) : null
+      ].filter((d): d is Date => d !== null && !isNaN(d.getTime()));
+
+      const lastActivity = dates.length > 0 ? new Date(Math.max(...dates.map(d => d.getTime()))) : new Date();
       const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
       const daysSinceActivity = Math.floor(hoursSinceActivity / 24);
 
@@ -523,8 +531,8 @@ export const pushNotificationManager = {
       const todayProgress = enrollment.progress.find(p => p.day === currentDay);
       const isTaskCompleted = todayProgress?.completed || false;
 
-      // Inactivity or Missed Days Nudges
-      if (daysSinceActivity >= 1) {
+      // Inactivity or Missed Days Nudges (Processed strictly at the designated inactivity hour to ensure predictable, polite delivery)
+      if (currentHour === (systemConfig.inactivityHour ?? 10) && daysSinceActivity >= 1) {
         const milestones = [1, 2, 4, 7, 10, 15];
         const currentMilestone = [...milestones].reverse().find(m => daysSinceActivity >= m);
         

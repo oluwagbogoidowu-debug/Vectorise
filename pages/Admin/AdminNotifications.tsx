@@ -121,6 +121,8 @@ export default function AdminNotifications() {
     const [eveningTitle, setEveningTitle] = useState("⏰ Reminder: {sprintTitle}");
     const [eveningBody, setEveningBody] = useState("Ready to complete Day {currentDay}? Click here to view task!");
 
+    const [inactivityHour, setInactivityHour] = useState(10);
+
     const [nudge1, setNudge1] = useState("Missing your momentum? Day {day} is waiting for you in '{title}'.");
     const [nudge2, setNudge2] = useState("Your growth cycle is stalling. Let's get back to it and finish Day {day} of '{title}'.");
     const [nudge4, setNudge4] = useState("Consistency is the only bridge to mastery. Resume '{title}' now to stay on track.");
@@ -145,6 +147,7 @@ export default function AdminNotifications() {
                 if (data.eveningHour !== undefined) setEveningHour(data.eveningHour);
                 if (data.eveningTitle !== undefined) setEveningTitle(data.eveningTitle);
                 if (data.eveningBody !== undefined) setEveningBody(data.eveningBody);
+                if (data.inactivityHour !== undefined) setInactivityHour(data.inactivityHour);
                 if (data.nudge_1 !== undefined) setNudge1(data.nudge_1);
                 if (data.nudge_2 !== undefined) setNudge2(data.nudge_2);
                 if (data.nudge_4 !== undefined) setNudge4(data.nudge_4);
@@ -173,6 +176,7 @@ export default function AdminNotifications() {
                 eveningHour,
                 eveningTitle: eveningTitle.trim(),
                 eveningBody: eveningBody.trim(),
+                inactivityHour,
                 nudge_1: nudge1.trim(),
                 nudge_2: nudge2.trim(),
                 nudge_4: nudge4.trim(),
@@ -815,9 +819,22 @@ export default function AdminNotifications() {
 
                     {/* Inactivity Drop-off Nudges */}
                     <div className="space-y-4">
-                        <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest italic flex items-center gap-1.5">
-                            <span>Inactivity Nudges (Drop-off Templates)</span>
-                        </h4>
+                        <div className="flex items-center justify-between flex-wrap gap-4 border-b border-gray-50 pb-3">
+                            <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest italic flex items-center gap-1.5">
+                                <span>Inactivity Nudges (Drop-off Templates)</span>
+                            </h4>
+                            <div className="flex items-center gap-2">
+                                <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Dispatch Hour (0-23):</label>
+                                <input 
+                                    type="number"
+                                    min={0}
+                                    max={23}
+                                    value={inactivityHour}
+                                    onChange={e => setInactivityHour(parseInt(e.target.value) || 0)}
+                                    className="w-14 px-2 py-1 text-center bg-white border border-gray-250 text-gray-900 rounded-lg text-xs font-bold focus:ring-1 focus:ring-primary outline-none"
+                                />
+                            </div>
+                        </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {[
