@@ -39,3 +39,6 @@
   --breakpoint-lg: 1025px;
   --breakpoint-xl: 1280px;
 }
+
+@variant dark (&:where(.dark, .dark *));
+
