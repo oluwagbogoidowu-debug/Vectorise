@@ -18,6 +18,7 @@ import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import DailyActionWorkspace from './DailyActionWorkspace';
 import LocalLogo from '../../components/LocalLogo';
+import { generateDayPDF } from '../../utils/pdfGenerator';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 
@@ -2562,6 +2563,33 @@ const EditSprint: React.FC = () => {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Active Day PDF download Workspace control bar */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-white rounded-[2rem] border border-gray-100 shadow-sm animate-fade-in">
+              <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
+                      <BookOpen size={20} />
+                  </div>
+                  <div>
+                      <h3 className="text-sm font-black text-gray-950 uppercase tracking-wider">
+                          Active Workspace: Day {selectedDay} / {sprint.duration}
+                      </h3>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                          Curate your daily learning materials and interactive tasks.
+                      </p>
+                  </div>
+              </div>
+              <button
+                  type="button"
+                  onClick={() => generateDayPDF(sprint, currentContent)}
+                  className="flex items-center gap-2 px-5 py-3 bg-primary text-white hover:bg-primary/95 font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg hover:shadow-primary/20 transition-all cursor-pointer"
+              >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download Day {selectedDay}/{sprint.duration} PDF
+              </button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in" key={selectedDay}>
