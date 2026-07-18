@@ -136,6 +136,7 @@ const ParticipantDashboard: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showStreakText, setShowStreakText] = useState(false);
   const [unlockedUnclaimedMilestone, setUnlockedUnclaimedMilestone] = useState<any | null>(null);
+  const [nextToUnlockMilestone, setNextToUnlockMilestone] = useState<any | null>(null);
 
   const [cardSettings, setCardSettings] = useState<any>({
     blog: true,
@@ -594,6 +595,19 @@ const ParticipantDashboard: React.FC = () => {
       });
 
       setUnlockedUnclaimedMilestone(unclaimed || null);
+
+      const lockedMilestones = manualMilestones.filter(m => {
+          const isUnlocked = getStatValue(m.id) >= m.targetValue;
+          const isClaimed = (p.claimedMilestoneIds || []).includes(m.id);
+          return !isUnlocked && !isClaimed;
+      }).map(m => {
+          const val = getStatValue(m.id);
+          const progress = Math.min(100, (val / m.targetValue) * 100);
+          return { ...m, currentValue: val, progress };
+      });
+
+      const sortedLocked = lockedMilestones.sort((a, b) => b.progress - a.progress);
+      setNextToUnlockMilestone(sortedLocked[0] || null);
     };
 
     if (!isLoading) {
@@ -1326,53 +1340,6 @@ const ParticipantDashboard: React.FC = () => {
                     `}</style>
                     <div className="flex gap-6 overflow-x-auto pb-4 pt-4 px-1.5 snap-x snap-mandatory no-scrollbar relative items-center">
 
-                        {/* Hall of Rise Unlocked Reward Card */}
-                        {unlockedUnclaimedMilestone && cardSettings.hallOfRise && (
-                            <Link 
-                                to={isStepUpLocked ? "#" : "/profile/hall-of-rise"} 
-                                onClick={(e) => isStepUpLocked && e.preventDefault()}
-                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
-                                    isStepUpLocked 
-                                    ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                    : 'hover:shadow-md hover:border-emerald-500/20 cursor-pointer border-emerald-200'
-                                }`}
-                            >
-                                {/* Tag positioned nicely */}
-                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-emerald-700 border border-emerald-100/40 z-20">
-                                    Hall of Rise
-                                </div>
-
-                                <div className="flex-1 flex flex-col justify-between pt-2">
-                                    <div className="space-y-2 mt-2 text-left">
-                                        <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center border border-amber-100/50 shadow-sm animate-bounce">
-                                            <span>🎁</span>
-                                        </div>
-                                        <div>
-                                            <h4 className="text-xs font-black text-gray-950 leading-tight uppercase tracking-tight">
-                                                You just unlocked a reward claim it below
-                                            </h4>
-                                            <p className="text-[10px] font-bold text-[#0E7850] mt-1.5 flex items-center gap-1">
-                                                <span className="text-xs">{unlockedUnclaimedMilestone.icon || '🏆'}</span>
-                                                <span>{unlockedUnclaimedMilestone.title}</span>
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
-                                        <span className="text-[9px] font-black uppercase text-[#0E7850] group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                                            Claim Reward
-                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                            </svg>
-                                        </span>
-                                        <span className="text-[10px] font-mono font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100/50">
-                                            +{unlockedUnclaimedMilestone.points} pts
-                                        </span>
-                                    </div>
-                                </div>
-                            </Link>
-                        )}
-
                         {/* Complete Your Profile Card OR Request Coach Account Card */}
                         {cardSettings.profile && (
                             isEligibleForCoachRequest ? (
@@ -1697,6 +1664,146 @@ const ParticipantDashboard: React.FC = () => {
                                         </div>
                                     </div>
                                 </div>
+                            )
+                        )}
+
+                        {/* Hall of Rise Coins / Next to Unlock Card */}
+                        {cardSettings.hallOfRise && (
+                            unlockedUnclaimedMilestone ? (
+                                <Link 
+                                    to={isStepUpLocked ? "#" : "/profile/hall-of-rise"} 
+                                    onClick={(e) => isStepUpLocked && e.preventDefault()}
+                                    className={`flex-shrink-0 w-60 h-60 bg-white border rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                        isStepUpLocked 
+                                        ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed border-gray-150' 
+                                        : 'hover:shadow-md hover:border-amber-500/20 cursor-pointer border-amber-200'
+                                    }`}
+                                >
+                                    {/* Tag */}
+                                    <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-amber-50 text-amber-700 border border-amber-100/40 z-20">
+                                        Unclaimed Reward
+                                    </div>
+
+                                    <div className="flex-1 flex flex-col justify-between pt-2">
+                                        <div className="space-y-2 mt-2 text-left">
+                                            <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center border border-amber-100/50 shadow-sm animate-bounce">
+                                                <span>🎁</span>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-xs font-black text-gray-950 leading-tight uppercase tracking-tight">
+                                                    You have unclaimed coins!
+                                                </h4>
+                                                <p className="text-[10px] font-bold text-gray-500 mt-1">
+                                                    {unlockedUnclaimedMilestone.title}
+                                                </p>
+                                                <p className="text-[9px] font-medium text-amber-600 mt-0.5">
+                                                    Claim it in the Hall of Rise
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
+                                            <span className="text-[9px] font-black uppercase text-amber-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                                Claim Reward
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </span>
+                                            <span className="text-[10px] font-mono font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100/50">
+                                                +{unlockedUnclaimedMilestone.points} pts
+                                            </span>
+                                        </div>
+                                    </div>
+                                </Link>
+                            ) : nextToUnlockMilestone ? (
+                                <Link 
+                                    to={isStepUpLocked ? "#" : "/profile/hall-of-rise"} 
+                                    onClick={(e) => isStepUpLocked && e.preventDefault()}
+                                    className={`flex-shrink-0 w-60 h-60 bg-white border rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                        isStepUpLocked 
+                                        ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed border-gray-150' 
+                                        : 'hover:shadow-md hover:border-emerald-500/20 cursor-pointer border-gray-150'
+                                    }`}
+                                >
+                                    {/* Tag */}
+                                    <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-emerald-700 border border-emerald-100/40 z-20">
+                                        Next to Unlock
+                                    </div>
+
+                                    <div className="flex-1 flex flex-col justify-between pt-2">
+                                        <div className="space-y-2 mt-2 text-left">
+                                            <div className="w-10 h-10 bg-emerald-50 text-[#0E7850] rounded-xl flex items-center justify-center border border-emerald-100/50 shadow-sm">
+                                                <span className="text-lg">{nextToUnlockMilestone.icon || '🏆'}</span>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-xs font-black text-gray-950 leading-tight uppercase tracking-tight line-clamp-1">
+                                                    {nextToUnlockMilestone.title}
+                                                </h4>
+                                                <p className="text-[10px] font-medium text-gray-500 line-clamp-2 mt-0.5">
+                                                    {nextToUnlockMilestone.description}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2 text-left">
+                                            <div className="flex justify-between items-end">
+                                                <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
+                                                    Progress
+                                                </span>
+                                                <span className="text-[9px] font-mono font-black text-[#0E7850]">
+                                                    {nextToUnlockMilestone.progress.toFixed(0)}%
+                                                </span>
+                                            </div>
+                                            <div className="h-1.5 w-full bg-gray-50 border border-gray-100/50 rounded-full overflow-hidden">
+                                                <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${nextToUnlockMilestone.progress}%` }}></div>
+                                            </div>
+                                            <div className="flex justify-between items-center text-[8px] font-bold text-gray-400">
+                                                <span>Value: {nextToUnlockMilestone.currentValue} / {nextToUnlockMilestone.targetValue}</span>
+                                                <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100/30">+{nextToUnlockMilestone.points} Coins</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Link>
+                            ) : (
+                                <Link 
+                                    to={isStepUpLocked ? "#" : "/profile/hall-of-rise"} 
+                                    onClick={(e) => isStepUpLocked && e.preventDefault()}
+                                    className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                        isStepUpLocked 
+                                        ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
+                                        : 'hover:shadow-md hover:border-emerald-500/20 cursor-pointer'
+                                    }`}
+                                >
+                                    {/* Tag */}
+                                    <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-emerald-700 border border-emerald-100/40 z-20">
+                                        Hall of Rise
+                                    </div>
+
+                                    <div className="flex-1 flex flex-col justify-between pt-2">
+                                        <div className="space-y-2 mt-2 text-left">
+                                            <div className="w-10 h-10 bg-emerald-50 text-[#0E7850] rounded-xl flex items-center justify-center border border-emerald-100/50 shadow-sm">
+                                                <span>👑</span>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-xs font-black text-gray-950 leading-tight uppercase tracking-tight">
+                                                    Hall of Rise Complete!
+                                                </h4>
+                                                <p className="text-[10px] font-bold text-gray-400 mt-1">
+                                                    You claimed all active milestones!
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
+                                            <span className="text-[9px] font-black uppercase text-emerald-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                                View Badges
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </Link>
                             )
                         )}
 
