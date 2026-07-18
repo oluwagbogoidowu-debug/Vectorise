@@ -5,7 +5,7 @@ import { Sprint, Coach } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { assetService } from '../../services/assetService';
 import Button from '../../components/Button';
-import { Eye, Flame, BookOpen, Sparkles } from 'lucide-react';
+import { Eye, Flame, BookOpen, Sparkles, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import CustomSelect from '../../components/CustomSelect';
 
@@ -355,35 +355,23 @@ const EditBlogModal: React.FC<{
     <div className="fixed inset-0 z-[300] bg-[#FAFAFA] flex flex-col overflow-hidden animate-fade-in font-sans">
       {/* Top action header */}
       <div className="bg-white border-b border-gray-150 px-8 py-4 flex justify-between items-center z-10 shadow-sm shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-black text-primary uppercase tracking-[0.25em]">RiseBlog Studio</span>
-          <span className="text-[10px] text-gray-400 font-black px-2.5 py-1 bg-gray-50 rounded-full border border-gray-100 uppercase tracking-wider">Live Rich Editor</span>
-        </div>
-        <div className="flex gap-3">
-          <button 
-            type="button"
-            disabled={isSaving}
-            onClick={onClose} 
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button 
-            type="button"
-            disabled={isSaving}
-            onClick={handleSubmit} 
-            className="px-5 py-2 bg-[#0E7850] text-white hover:bg-[#0E7850]/90 disabled:opacity-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md cursor-pointer"
-          >
-            {isSaving ? 'Saving Changes...' : 'Save & Publish'}
-          </button>
-        </div>
+        <span className="text-xs font-black text-primary uppercase tracking-[0.25em]">RiseBlog Studio</span>
+        <button 
+          type="button"
+          disabled={isSaving}
+          onClick={onClose} 
+          className="p-1 text-gray-400 hover:text-gray-900 transition-colors cursor-pointer text-2xl font-light leading-none"
+          title="Cancel"
+        >
+          &times;
+        </button>
       </div>
 
       {/* Main split work space */}
-      <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+      <div className="flex-1 overflow-hidden flex flex-row">
         
         {/* Left Side: Text input editor pane */}
-        <div className="w-full lg:w-1/2 border-r border-gray-100 bg-white p-6 md:p-8 overflow-y-auto flex flex-col space-y-6">
+        <div className="w-1/2 border-r border-gray-100 bg-white p-6 md:p-8 overflow-y-auto flex flex-col space-y-6">
           {/* Progress Hint Banner */}
           <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between shadow-sm animate-fade-in shrink-0">
             <div className="flex items-center gap-3">
@@ -519,41 +507,82 @@ This is an inspiring introduction. You can add **bold keywords** easily to empha
           </div>
         </div>
 
-        {/* Right Side: Formatted Live Preview pane */}
-        <div className="w-full lg:w-1/2 bg-[#F9FAF9] p-6 md:p-8 overflow-y-auto flex flex-col">
-          <div className="flex justify-between items-center border-b border-gray-100 pb-3 mb-4">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Real-time Public Preview</span>
-            <span className="text-[8px] bg-[#0E7850]/10 text-[#0E7850] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Synchronized</span>
+        {/* Right Side: Formatted Live Preview pane rendered exactly like real RiseBlog single-post details view */}
+        <div className="w-1/2 bg-[#FAFAFA] overflow-y-auto flex flex-col pb-24 relative">
+          {/* Detail Hero Header */}
+          <div className="relative h-64 md:h-80 w-full flex-shrink-0">
+            <img 
+              src={image || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80'} 
+              alt="Post Preview" 
+              className="w-full h-full object-cover" 
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/placeholder/800/400';
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
+            
+            <div className="absolute bottom-6 left-6 right-6 text-white max-w-2xl">
+              <span className="px-3 py-1 bg-[#0E7850] text-[9px] font-black uppercase tracking-widest rounded-full mb-3 inline-block">
+                {finalCategory}
+              </span>
+              <h1 className="text-xl md:text-3xl font-black tracking-tight leading-snug drop-shadow-sm">
+                {title || 'Untitled Blog Post'}
+              </h1>
+            </div>
           </div>
 
-          <div className="bg-white rounded-[2rem] border border-gray-100/80 p-6 md:p-8 shadow-sm flex-1 min-h-[400px]">
-            {image && (
-              <img 
-                src={image} 
-                alt="Post Preview" 
-                className="w-full h-40 md:h-48 object-cover rounded-2xl mb-6 border border-gray-100" 
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/placeholder/800/400';
-                }}
-              />
-            )}
-            <h1 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight leading-tight mb-4 uppercase">
-              {title || 'Untitled Blog Post'}
-            </h1>
-            <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-6 pb-4 border-b border-gray-50">
-              <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-md text-[9px] font-black uppercase mr-1">{finalCategory}</span>
-              <span>BY COACH</span>
-              <span>•</span>
-              <span>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+          {/* Article Container */}
+          <div className="max-w-xl w-full mx-auto px-6 py-8">
+            {/* Author info */}
+            <div className="flex items-center justify-between pb-6 border-b border-gray-100 mb-8">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gray-200 border border-gray-300 flex items-center justify-center font-black text-xs text-gray-500 overflow-hidden">
+                  <span className="text-gray-600 font-bold uppercase">C</span>
+                </div>
+                <div>
+                  <p className="text-xs font-black text-gray-900">Rise Coach</p>
+                  <p className="text-[10px] text-gray-400 font-semibold">Performance Coach</p>
+                </div>
+              </div>
+              
+              <div className="flex flex-col items-end text-right font-semibold text-[10px] text-gray-400">
+                <span className="flex items-center gap-1">
+                  📅 {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+                <span className="flex items-center gap-1 mt-1">
+                  ⏱️ {Math.max(1, Math.round(body.split(/\s+/).length / 200))} min read
+                </span>
+              </div>
             </div>
 
-            <div className="space-y-1 font-sans">
-              {renderFormattedPreview(body)}
+            {/* Article content */}
+            <div className="prose prose-sm prose-emerald max-w-none mb-12">
+              <div className="space-y-1 font-sans">
+                {renderFormattedPreview(body)}
+              </div>
             </div>
           </div>
         </div>
 
       </div>
+
+      {/* Floating Save Action Button in the bottom right corner */}
+      <button 
+        type="button"
+        disabled={isSaving}
+        onClick={handleSubmit}
+        className="fixed bottom-6 right-6 z-50 w-12 h-12 bg-[#0E7850] text-white rounded-full shadow-lg hover:bg-[#0E7850]/95 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer border border-[#0E7850]/20"
+        title={isSaving ? 'Saving Changes...' : 'Save & Publish'}
+      >
+        {isSaving ? (
+          <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+        ) : (
+          <Save size={20} />
+        )}
+      </button>
     </div>
   );
 };
