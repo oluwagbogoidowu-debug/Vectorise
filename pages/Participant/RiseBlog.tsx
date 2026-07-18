@@ -170,60 +170,115 @@ export const RiseBlog: React.FC = () => {
     return posts.find(p => p.id === postId) || blogService.getPostById(postId);
   }, [postId, posts]);
 
-  // Helper to parse content with titles/bold lists nicely
+  // Helper to parse content with titles/bold lists nicely (Markdown compliant)
   const renderFormattedContent = (content: string) => {
-    const lines = content.split('\n');
-    return lines.map((line, idx) => {
-      const trimmed = line.trim();
-      if (!trimmed) return <div key={idx} className="h-4" />;
-      
-      if (trimmed.startsWith('# ')) {
-        return <h1 key={idx} className="text-3xl font-black text-gray-900 tracking-tight mt-8 mb-4">{trimmed.replace('# ', '')}</h1>;
+    if (!content.trim()) return null;
+
+    const renderInlineText = (text: string) => {
+      const textLines = text.split('\n');
+      return textLines.map((textLine, lineIdx) => {
+        const parts = textLine.split('**');
+        const formattedLine = parts.map((part, pIdx) => {
+          if (pIdx % 2 === 1) {
+            return (
+              <strong key={pIdx} className="text-gray-900 font-bold">
+                {part}
+              </strong>
+            );
+          }
+          return part;
+        });
+        
+        return (
+          <React.Fragment key={lineIdx}>
+            {formattedLine}
+            {lineIdx < textLines.length - 1 && <br />}
+          </React.Fragment>
+        );
+      });
+    };
+
+    // Split content by double line breaks (empty lines) to identify paragraphs/blocks
+    const blocks = content.split(/\n\s*\n+/);
+
+    return blocks.map((block, idx) => {
+      const trimmedBlock = block.trim();
+      if (!trimmedBlock) return null;
+
+      // 1. Heading 1
+      if (trimmedBlock.startsWith('# ')) {
+        const text = trimmedBlock.replace(/^#\s+/, '');
+        return (
+          <h1 key={idx} className="text-3xl font-black text-gray-900 tracking-tight mt-8 mb-4">
+            {renderInlineText(text)}
+          </h1>
+        );
       }
-      if (trimmed.startsWith('## ')) {
-        return <h2 key={idx} className="text-xl font-black text-gray-900 tracking-tight mt-6 mb-3">{trimmed.replace('## ', '')}</h2>;
+
+      // 2. Heading 2
+      if (trimmedBlock.startsWith('## ')) {
+        const text = trimmedBlock.replace(/^##\s+/, '');
+        return (
+          <h2 key={idx} className="text-xl font-black text-gray-900 tracking-tight mt-6 mb-3">
+            {renderInlineText(text)}
+          </h2>
+        );
       }
-      if (trimmed.startsWith('> ')) {
+
+      // 3. Blockquote
+      if (trimmedBlock.startsWith('> ')) {
+        const quoteLines = trimmedBlock.split('\n').map(l => l.replace(/^>\s*/, ''));
+        const text = quoteLines.join('\n');
         return (
           <blockquote key={idx} className="border-l-4 border-primary pl-4 py-1 italic my-4 text-gray-600 font-medium">
-            {trimmed.replace('> ', '')}
+            {renderInlineText(text)}
           </blockquote>
         );
       }
-      if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
-        const text = trimmed.replace(/^[\*\-]\s+/, '');
-        // Check for bold prefix
-        if (text.includes('**')) {
-          const parts = text.split('**');
-          return (
-            <li key={idx} className="ml-6 list-disc text-sm text-gray-600 leading-relaxed mb-2 font-medium">
-              {parts.map((part, pIdx) => pIdx % 2 === 1 ? <strong key={pIdx} className="text-gray-900 font-bold">{part}</strong> : part)}
-            </li>
-          );
-        }
-        return <li key={idx} className="ml-6 list-disc text-sm text-gray-600 leading-relaxed mb-2 font-medium">{text}</li>;
-      }
-      if (trimmed.match(/^\d+\.\s+/)) {
-        const text = trimmed.replace(/^\d+\.\s+/, '');
+
+      // 4. List Items within a block (split by single newline)
+      const lines = trimmedBlock.split('\n');
+      const firstLine = lines[0].trim();
+      if (firstLine.startsWith('* ') || firstLine.startsWith('- ') || firstLine.match(/^\d+\.\s+/)) {
         return (
-          <li key={idx} className="ml-6 list-decimal text-sm text-gray-600 leading-relaxed mb-2 font-medium">
-            {text.includes('**') ? (
-              text.split('**').map((part, pIdx) => pIdx % 2 === 1 ? <strong key={pIdx} className="text-gray-900 font-bold">{part}</strong> : part)
-            ) : text}
-          </li>
+          <ul key={idx} className="my-4 space-y-1">
+            {lines.map((line, lineIdx) => {
+              const tLine = line.trim();
+              const isBullet = tLine.startsWith('* ') || tLine.startsWith('- ');
+              const isNum = tLine.match(/^\d+\.\s+/);
+
+              if (isBullet) {
+                const text = tLine.replace(/^[\*\-]\s+/, '');
+                return (
+                  <li key={lineIdx} className="ml-6 list-disc text-sm text-gray-600 leading-relaxed mb-2 font-medium">
+                    {renderInlineText(text)}
+                  </li>
+                );
+              } else if (isNum) {
+                const text = tLine.replace(/^\d+\.\s+/, '');
+                return (
+                  <li key={lineIdx} className="ml-6 list-decimal text-sm text-gray-600 leading-relaxed mb-2 font-medium">
+                    {renderInlineText(text)}
+                  </li>
+                );
+              } else {
+                return (
+                  <div key={lineIdx} className="ml-6 text-sm text-gray-600 leading-relaxed mb-2 font-medium">
+                    {renderInlineText(tLine)}
+                  </div>
+                );
+              }
+            })}
+          </ul>
         );
       }
-      
-      // Standard paragraph
-      if (trimmed.includes('**')) {
-        const parts = trimmed.split('**');
-        return (
-          <p key={idx} className="text-sm md:text-base text-gray-600 leading-relaxed mb-4 font-medium">
-            {parts.map((part, pIdx) => pIdx % 2 === 1 ? <strong key={pIdx} className="text-gray-900 font-bold">{part}</strong> : part)}
-          </p>
-        );
-      }
-      return <p key={idx} className="text-sm md:text-base text-gray-600 leading-relaxed mb-4 font-medium">{trimmed}</p>;
+
+      // 5. Standard paragraph block
+      return (
+        <p key={idx} className="text-sm md:text-base text-gray-600 leading-relaxed mb-4 font-medium">
+          {renderInlineText(trimmedBlock)}
+        </p>
+      );
     });
   };
 

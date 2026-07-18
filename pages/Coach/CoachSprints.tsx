@@ -5,7 +5,7 @@ import { Sprint, Coach } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { assetService } from '../../services/assetService';
 import Button from '../../components/Button';
-import { Eye, Flame, BookOpen, Sparkles, Save } from 'lucide-react';
+import { Eye, Flame, BookOpen, Sparkles, Save, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import CustomSelect from '../../components/CustomSelect';
 
@@ -298,56 +298,112 @@ const EditBlogModal: React.FC<{
     if (!content.trim()) {
       return <p className="text-gray-300 italic text-sm">Preview content will appear here in real-time...</p>;
     }
-    const lines = content.split('\n');
-    return lines.map((line, idx) => {
-      const trimmed = line.trim();
-      if (!trimmed) return <div key={idx} className="h-4" />;
-      
-      if (trimmed.startsWith('# ')) {
-        return <h1 key={idx} className="text-2xl font-black text-gray-900 tracking-tight mt-6 mb-3 border-b pb-2 border-gray-100">{trimmed.replace('# ', '')}</h1>;
+
+    const renderInlineText = (text: string) => {
+      const textLines = text.split('\n');
+      return textLines.map((textLine, lineIdx) => {
+        const parts = textLine.split('**');
+        const formattedLine = parts.map((part, pIdx) => {
+          if (pIdx % 2 === 1) {
+            return (
+              <strong key={pIdx} className="text-gray-900 font-black">
+                {part}
+              </strong>
+            );
+          }
+          return part;
+        });
+        
+        return (
+          <React.Fragment key={lineIdx}>
+            {formattedLine}
+            {lineIdx < textLines.length - 1 && <br />}
+          </React.Fragment>
+        );
+      });
+    };
+
+    // Split content by double line breaks (empty lines) to identify paragraphs/blocks
+    const blocks = content.split(/\n\s*\n+/);
+
+    return blocks.map((block, idx) => {
+      const trimmedBlock = block.trim();
+      if (!trimmedBlock) return null;
+
+      // 1. Heading 1
+      if (trimmedBlock.startsWith('# ')) {
+        const text = trimmedBlock.replace(/^#\s+/, '');
+        return (
+          <h1 key={idx} className="text-xl md:text-2xl font-black text-gray-900 tracking-tight mt-6 mb-3 border-b pb-2 border-gray-100">
+            {renderInlineText(text)}
+          </h1>
+        );
       }
-      if (trimmed.startsWith('## ')) {
-        return <h2 key={idx} className="text-lg font-black text-gray-900 tracking-tight mt-4 mb-2">{trimmed.replace('## ', '')}</h2>;
+
+      // 2. Heading 2
+      if (trimmedBlock.startsWith('## ')) {
+        const text = trimmedBlock.replace(/^##\s+/, '');
+        return (
+          <h2 key={idx} className="text-lg font-black text-gray-900 tracking-tight mt-4 mb-2">
+            {renderInlineText(text)}
+          </h2>
+        );
       }
-      if (trimmed.startsWith('> ')) {
+
+      // 3. Blockquote
+      if (trimmedBlock.startsWith('> ')) {
+        const quoteLines = trimmedBlock.split('\n').map(l => l.replace(/^>\s*/, ''));
+        const text = quoteLines.join('\n');
         return (
           <blockquote key={idx} className="border-l-4 border-[#0E7850] pl-4 py-1 italic my-3 text-gray-600 bg-gray-50/50 pr-2 rounded-r-lg font-medium">
-            {trimmed.replace('> ', '')}
+            {renderInlineText(text)}
           </blockquote>
         );
       }
-      if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
-        const text = trimmed.replace(/^[\*\-]\s+/, '');
-        if (text.includes('**')) {
-          const parts = text.split('**');
-          return (
-            <li key={idx} className="ml-6 list-disc text-xs text-gray-650 leading-relaxed mb-1.5 font-medium">
-              {parts.map((part, pIdx) => pIdx % 2 === 1 ? <strong key={pIdx} className="text-gray-900 font-black">{part}</strong> : part)}
-            </li>
-          );
-        }
-        return <li key={idx} className="ml-6 list-disc text-xs text-gray-650 leading-relaxed mb-1.5 font-medium">{text}</li>;
-      }
-      if (trimmed.match(/^\d+\.\s+/)) {
-        const text = trimmed.replace(/^\d+\.\s+/, '');
+
+      // 4. List Items within a block (split by single newline)
+      const lines = trimmedBlock.split('\n');
+      const firstLine = lines[0].trim();
+      if (firstLine.startsWith('* ') || firstLine.startsWith('- ') || firstLine.match(/^\d+\.\s+/)) {
         return (
-          <li key={idx} className="ml-6 list-decimal text-xs text-gray-650 leading-relaxed mb-1.5 font-medium">
-            {text.includes('**') ? (
-              text.split('**').map((part, pIdx) => pIdx % 2 === 1 ? <strong key={pIdx} className="text-gray-900 font-black">{part}</strong> : part)
-            ) : text}
-          </li>
+          <ul key={idx} className="my-3 space-y-1">
+            {lines.map((line, lineIdx) => {
+              const tLine = line.trim();
+              const isBullet = tLine.startsWith('* ') || tLine.startsWith('- ');
+              const isNum = tLine.match(/^\d+\.\s+/);
+
+              if (isBullet) {
+                const text = tLine.replace(/^[\*\-]\s+/, '');
+                return (
+                  <li key={lineIdx} className="ml-6 list-disc text-xs text-gray-650 leading-relaxed mb-1.5 font-medium">
+                    {renderInlineText(text)}
+                  </li>
+                );
+              } else if (isNum) {
+                const text = tLine.replace(/^\d+\.\s+/, '');
+                return (
+                  <li key={lineIdx} className="ml-6 list-decimal text-xs text-gray-650 leading-relaxed mb-1.5 font-medium">
+                    {renderInlineText(text)}
+                  </li>
+                );
+              } else {
+                return (
+                  <div key={lineIdx} className="ml-6 text-xs text-gray-650 leading-relaxed mb-1.5 font-medium">
+                    {renderInlineText(tLine)}
+                  </div>
+                );
+              }
+            })}
+          </ul>
         );
       }
-      
-      if (trimmed.includes('**')) {
-        const parts = trimmed.split('**');
-        return (
-          <p key={idx} className="text-xs text-gray-650 leading-relaxed mb-3 font-medium">
-            {parts.map((part, pIdx) => pIdx % 2 === 1 ? <strong key={pIdx} className="text-gray-900 font-black">{part}</strong> : part)}
-          </p>
-        );
-      }
-      return <p key={idx} className="text-xs text-gray-650 leading-relaxed mb-3 font-medium">{trimmed}</p>;
+
+      // 5. Standard paragraph block
+      return (
+        <p key={idx} className="text-xs text-gray-650 leading-relaxed mb-3 font-medium">
+          {renderInlineText(trimmedBlock)}
+        </p>
+      );
     });
   };
 
@@ -368,10 +424,10 @@ const EditBlogModal: React.FC<{
       </div>
 
       {/* Main split work space */}
-      <div className="flex-1 overflow-hidden flex flex-row">
+      <div className="flex-1 overflow-hidden flex flex-col">
         
         {/* Left Side: Text input editor pane */}
-        <div className="w-1/2 border-r border-gray-100 bg-white p-6 md:p-8 overflow-y-auto flex flex-col space-y-6">
+        <div className="h-1/2 w-full border-b border-gray-100 bg-white p-6 md:p-8 overflow-y-auto flex flex-col space-y-6">
           {/* Progress Hint Banner */}
           <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between shadow-sm animate-fade-in shrink-0">
             <div className="flex items-center gap-3">
@@ -508,7 +564,7 @@ This is an inspiring introduction. You can add **bold keywords** easily to empha
         </div>
 
         {/* Right Side: Formatted Live Preview pane rendered exactly like real RiseBlog single-post details view */}
-        <div className="w-1/2 bg-[#FAFAFA] overflow-y-auto flex flex-col pb-24 relative">
+        <div className="h-1/2 w-full bg-[#FAFAFA] overflow-y-auto flex flex-col pb-24 relative">
           {/* Detail Hero Header */}
           <div className="relative h-64 md:h-80 w-full flex-shrink-0">
             <img 
@@ -1022,11 +1078,16 @@ const CoachSprints: React.FC = () => {
                                         Edit RiseBlog
                                     </button>
                                     <button 
-                                        onClick={() => setPreviewingBlog(sprint)}
+                                        onClick={() => {
+                                            const url = `${window.location.origin}/blog/${sprint.id}`;
+                                            navigator.clipboard.writeText(url)
+                                                .then(() => toast.success("Blog link copied to clipboard!"))
+                                                .catch(() => toast.error("Could not copy link."));
+                                        }}
                                         className="p-3 bg-white border border-gray-100 text-gray-400 hover:text-primary hover:bg-gray-50 rounded-xl transition-all active:scale-90 cursor-pointer"
-                                        title="Preview RiseBlog"
+                                        title="Share RiseBlog"
                                     >
-                                        <Eye className="h-4 w-4" />
+                                        <Share2 className="h-4 w-4" />
                                     </button>
                                 </div>
                             ) : sprint.contentType === 'ignite' ? (
