@@ -38,7 +38,53 @@
   --breakpoint-md: 768px;
   --breakpoint-lg: 1025px;
   --breakpoint-xl: 1280px;
+
+  /* Ultra-smooth, elegant, modern shadows matching high-end design languages */
+  --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.02), 0 1px 4px rgba(0, 0, 0, 0.01);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.03), 0 2px 8px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02);
+  --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.05), 0 6px 18px rgba(0, 0, 0, 0.03);
 }
 
 @variant dark (&:where(.dark, .dark *));
+
+/* Ultra-Smooth Border and Card Enhancements */
+[class*="border"] {
+  background-clip: padding-box !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Light Mode Soft Border Customization for smooth, professional outlines */
+.border-gray-50 {
+  border-color: rgba(0, 0, 0, 0.03) !important;
+}
+.border-gray-100 {
+  border-color: rgba(0, 0, 0, 0.045) !important;
+}
+.border-gray-150 {
+  border-color: rgba(0, 0, 0, 0.06) !important;
+}
+.border-gray-200 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Dark Mode Soft Border Customization for high-contrast smooth outlines */
+.dark .border-zinc-800,
+.dark .border-zinc-700/50,
+.dark .border-gray-100,
+.dark .border-gray-200/10 {
+  border-color: rgba(255, 255, 255, 0.055) !important;
+}
+
+.dark .border-zinc-700,
+.dark .border-gray-200 {
+  border-color: rgba(255, 255, 255, 0.09) !important;
+}
+
+.dark .border-zinc-600,
+.dark .border-gray-300 {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
 
