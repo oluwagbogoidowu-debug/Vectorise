@@ -9,6 +9,7 @@ import Button from '../../components/Button';
 import { List, Plus, Trash2, Search, Package, Save, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import FormattingToolbar from '../../components/FormattingToolbar';
+import { adminCache } from './adminCache';
 
 const EditTrack: React.FC = () => {
     const { trackId } = useParams();
@@ -110,6 +111,9 @@ const EditTrack: React.FC = () => {
 
         try {
             await trackService.updateTrack(trackId, updatedTrack);
+            if (adminCache.tracks) {
+                adminCache.tracks = null;
+            }
             alert("Track updated successfully!");
             navigate('/admin/dashboard');
         } catch (error) {
@@ -125,6 +129,9 @@ const EditTrack: React.FC = () => {
         setIsDeleting(true);
         try {
             await trackService.deleteTrack(trackId);
+            if (adminCache.tracks) {
+                adminCache.tracks = null;
+            }
             toast.success("Track bundle deleted successfully");
             navigate('/admin/dashboard');
         } catch (error) {

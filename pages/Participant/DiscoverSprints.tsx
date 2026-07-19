@@ -82,36 +82,100 @@ const DiscoverSprints: React.FC = () => {
                     return true;
                 }
                 
-                // If sprint has no audience specified at all, allow it for everyone as fallback
+                // "Don't show a sprint not tag for a person in their explore page."
                 if (!s.audience || s.audience.length === 0) {
-                    return true;
+                    return false;
                 }
 
                 // Determine user's active/carried audiences
                 const userAudiences: string[] = [];
                 
+                // "A sprint tag coach shows for someone who has a coach account not more sprint."
                 if (user?.role === UserRole.COACH || (user as any)?.persona === 'Coach') {
                     userAudiences.push('coach');
-                }
-                
-                if ((user as any)?.persona) {
-                    userAudiences.push(String((user as any).persona).toLowerCase().trim());
+                    userAudiences.push('coaches');
+                    
+                    const sprintAudiences = s.audience.map((a: any) => String(a).toLowerCase().trim());
+                    const isMatch = sprintAudiences.some((sa: string) => 
+                        userAudiences.some(ua => sa === ua || sa.includes(ua) || ua.includes(sa))
+                    );
+                    return isMatch;
                 }
 
-                // Match risePathway to potential audience options
-                if ((user as any)?.risePathway) {
-                    const pathway = String((user as any).risePathway).toLowerCase().trim();
-                    if (pathway === 'student') {
-                        userAudiences.push('student/graduate');
-                    } else if (pathway === 'early_career' || pathway === 'growth_pro') {
-                        userAudiences.push('9-5 professional');
-                    } else if (pathway === 'builder') {
-                        userAudiences.push('entrepreneur');
-                        userAudiences.push('business owner');
-                    } else if (pathway === 'transition') {
-                        userAudiences.push('freelancer/consultant');
-                        userAudiences.push('creative/hustler');
-                    }
+                // Regular Participant user
+                const pathway = String((user as any)?.risePathway || '').toLowerCase().trim();
+                const persona = String((user as any)?.persona || '').toLowerCase().trim();
+                const occupation = String((user as any)?.occupation || '').toLowerCase().trim();
+
+                if (
+                    pathway === 'student' || 
+                    persona === 'student' || 
+                    persona.includes('student') || 
+                    persona.includes('graduate') || 
+                    occupation === 'student' ||
+                    occupation.includes('student')
+                ) {
+                    userAudiences.push('student');
+                    userAudiences.push('students');
+                    userAudiences.push('student/graduate');
+                }
+
+                if (
+                    pathway === 'early_career' || 
+                    pathway === 'growth_pro' || 
+                    persona.includes('9-5') || 
+                    persona.includes('professional') || 
+                    occupation.includes('professional') || 
+                    occupation.includes('employee') || 
+                    occupation.includes('corporate')
+                ) {
+                    userAudiences.push('9-5 professional');
+                    userAudiences.push('9-5 professionals');
+                    userAudiences.push('professional');
+                    userAudiences.push('professionals');
+                    userAudiences.push('corporate professionals');
+                }
+
+                if (
+                    pathway === 'builder' || 
+                    persona.includes('entrepreneur') || 
+                    persona.includes('owner') || 
+                    persona.includes('founder') || 
+                    occupation.includes('entrepreneur') || 
+                    occupation.includes('business owner') || 
+                    occupation.includes('founder')
+                ) {
+                    userAudiences.push('entrepreneur');
+                    userAudiences.push('entrepreneurs');
+                    userAudiences.push('business owner');
+                    userAudiences.push('business owners');
+                    userAudiences.push('founders / entrepreneurs');
+                    userAudiences.push('founder');
+                    userAudiences.push('builder');
+                    userAudiences.push('builders');
+                }
+
+                if (
+                    pathway === 'transition' || 
+                    persona.includes('freelancer') || 
+                    persona.includes('consultant') || 
+                    persona.includes('creative') || 
+                    persona.includes('hustler') || 
+                    occupation.includes('freelancer') || 
+                    occupation.includes('consultant') || 
+                    occupation.includes('creative') || 
+                    occupation.includes('hustler')
+                ) {
+                    userAudiences.push('freelancer/consultant');
+                    userAudiences.push('creative/hustler');
+                    userAudiences.push('freelancer');
+                    userAudiences.push('consultant');
+                    userAudiences.push('creative');
+                    userAudiences.push('hustler');
+                    userAudiences.push('freelancers');
+                    userAudiences.push('consultants');
+                    userAudiences.push('creatives');
+                    userAudiences.push('hustlers');
                 }
 
                 // Check if any of the sprint's audiences match the user's audiences
@@ -121,6 +185,12 @@ const DiscoverSprints: React.FC = () => {
                         return sa === ua || sa.includes(ua) || ua.includes(sa);
                     })
                 );
+
+                // A sprint tag coach shows only for someone who has a coach account
+                const isCoachSprint = sprintAudiences.some(sa => sa === 'coach' || sa === 'coaches');
+                if (isCoachSprint) {
+                    return false;
+                }
 
                 return isMatch;
             });

@@ -5,10 +5,12 @@ import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { Sprint, Coach } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Clock, Calendar, Heart, Search, Share2, Bookmark, Check } from 'lucide-react';
+import { ArrowLeft, Clock, Calendar, Heart, Search, Share2, Bookmark, Check, Home } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const RiseBlog: React.FC = () => {
+  const { user } = useAuth();
   const { postId } = useParams<{ postId?: string }>();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
@@ -132,6 +134,11 @@ export const RiseBlog: React.FC = () => {
 
   const handleLike = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    if (!user) {
+      toast.error('Please log in to like articles! 🔐');
+      navigate('/login');
+      return;
+    }
     const isLiked = likedPosts[id];
     setLikedPosts(prev => ({ ...prev, [id]: !isLiked }));
     if (!isLiked) {
@@ -150,6 +157,11 @@ export const RiseBlog: React.FC = () => {
 
   const handleBookmark = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!user) {
+      toast.error('Please log in to save articles! 🔐');
+      navigate('/login');
+      return;
+    }
     const isBookmarked = bookmarkedPosts[id];
     setBookmarkedPosts(prev => ({ ...prev, [id]: !isBookmarked }));
     toast.success(isBookmarked ? 'Removed bookmark' : 'Saved for later study! 🔖');
@@ -166,9 +178,14 @@ export const RiseBlog: React.FC = () => {
 
   // Find active post for details view
   const activePost = useMemo(() => {
-    if (!postId) return null;
+    if (!postId) {
+      if (!user && posts.length > 0) {
+        return posts[0];
+      }
+      return null;
+    }
     return posts.find(p => p.id === postId) || blogService.getPostById(postId);
-  }, [postId, posts]);
+  }, [postId, posts, user]);
 
   // Helper to parse content with titles/bold lists nicely (Markdown compliant)
   const renderFormattedContent = (content: string) => {
@@ -285,6 +302,7 @@ export const RiseBlog: React.FC = () => {
   if (activePost) {
     const isLiked = likedPosts[activePost.id];
     const isBookmarked = bookmarkedPosts[activePost.id];
+    const otherPosts = posts.filter(p => p.id !== activePost.id).slice(0, 3);
 
     return (
       <motion.div 
@@ -302,10 +320,11 @@ export const RiseBlog: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
           
           <button 
-            onClick={() => navigate('/blog')}
+            onClick={() => navigate(user ? '/blog' : '/discover')}
             className="absolute top-6 left-6 w-10 h-10 bg-white/90 backdrop-blur-md hover:bg-white rounded-full flex items-center justify-center text-gray-800 transition-all shadow-md active:scale-90"
+            title={user ? "Back to Blog" : "Go to Home"}
           >
-            <ArrowLeft className="w-5 h-5" />
+            {user ? <ArrowLeft className="w-5 h-5" /> : <Home className="w-5 h-5" />}
           </button>
           
           <div className="absolute bottom-6 left-6 right-6 text-white max-w-2xl">
@@ -388,17 +407,55 @@ export const RiseBlog: React.FC = () => {
           {/* Prompt to start a sprint related to the content */}
           <div className="bg-emerald-50/40 border border-emerald-100/70 rounded-3xl p-6 text-center">
             <span className="text-lg mb-2 block">🎯</span>
-            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider mb-1">Put This Lesson Into Practice</h3>
+            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider mb-1">
+              {user ? "Put This Lesson Into Practice" : "Join Rise to Level Up"}
+            </h3>
             <p className="text-xs text-gray-500 font-medium mb-5 leading-relaxed">
-              Don't let this be another piece of information that sits idle. Convert knowledge into execution steps.
+              {user 
+                ? "Don't let this be another piece of information that sits idle. Convert knowledge into execution steps."
+                : "Create an account to join sprints, track your habits, and accelerate your execution."
+              }
             </p>
             <Link 
-              to="/explore" 
+              to={user ? "/explore" : "/login"} 
               className="inline-block px-6 py-3 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95"
             >
-              Start Sprint Now
+              {user ? "Start Sprint Now" : "Join Rise Now"}
             </Link>
           </div>
+
+          {/* Explore other blog posts section */}
+          {otherPosts.length > 0 && (
+            <div className="mt-12 pt-8 border-t border-gray-100">
+              <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider mb-6">Explore More Insights</h3>
+              <div className="space-y-4">
+                {otherPosts.map((post) => (
+                  <div 
+                    key={post.id}
+                    onClick={() => {
+                      navigate(`/blog/${post.id}`);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="bg-white rounded-3xl border border-gray-100 p-4 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-300 cursor-pointer flex gap-4 group"
+                  >
+                    <div className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 relative">
+                      <img 
+                        src={post.coverImage} 
+                        alt={post.title} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <span className="text-[8px] font-black text-primary uppercase tracking-widest mb-1">{post.category}</span>
+                      <h4 className="text-xs font-black text-gray-950 tracking-tight leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                        {post.title}
+                      </h4>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </motion.div>
     );

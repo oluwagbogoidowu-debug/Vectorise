@@ -662,7 +662,11 @@ const CreateSprint: React.FC = () => {
                                                                         const updated = isSelected 
                                                                             ? currentAudience.filter(x => x !== opt)
                                                                             : [...currentAudience, opt];
-                                                                        setFormData(prev => ({ ...prev, audience: updated }));
+                                                                        setFormData(prev => ({ 
+                                                                            ...prev, 
+                                                                            audience: updated,
+                                                                            overrideOrchestrator: updated.length === 0 ? false : prev.overrideOrchestrator
+                                                                        }));
                                                                     }}
                                                                     className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer text-xs font-bold transition-all ${
                                                                         isSelected 
@@ -693,27 +697,43 @@ const CreateSprint: React.FC = () => {
                                                 className="mt-2"
                                             />
                                         </div>
-                                        <div className="md:col-span-2 flex items-center gap-3 bg-[#F4F9F6] border border-emerald-500/10 rounded-2xl p-4 mt-2">
-                                            <input
-                                                type="checkbox"
-                                                id="overrideOrchestrator"
-                                                name="overrideOrchestrator"
-                                                checked={formData.overrideOrchestrator}
-                                                onChange={(e) => {
-                                                    const checked = e.target.checked;
-                                                    setFormData(prev => ({ ...prev, overrideOrchestrator: checked }));
-                                                }}
-                                                className="rounded border-emerald-500/30 text-emerald-600 focus:ring-emerald-500 h-4 w-4"
-                                            />
-                                            <div>
-                                                <label htmlFor="overrideOrchestrator" className="block text-xs font-black text-gray-900 uppercase tracking-wider cursor-pointer">
-                                                    Override Orchestrator to appear in the Explore page
-                                                </label>
-                                                <p className="text-[10px] text-emerald-700/70 font-medium">
-                                                    Force this sprint to bypass orchestrator assignment and appear in the Explore page.
-                                                </p>
-                                            </div>
-                                        </div>
+                                         <div className={`md:col-span-2 flex items-center gap-3 border rounded-2xl p-4 mt-2 transition-all ${
+                                             (!formData.audience || formData.audience.length === 0)
+                                             ? 'bg-gray-50 border-gray-200 opacity-60'
+                                             : 'bg-[#F4F9F6] border-emerald-500/10'
+                                         }`}>
+                                             <input
+                                                 type="checkbox"
+                                                 id="overrideOrchestrator"
+                                                 name="overrideOrchestrator"
+                                                 checked={formData.overrideOrchestrator}
+                                                 disabled={!formData.audience || formData.audience.length === 0}
+                                                 onChange={(e) => {
+                                                     const checked = e.target.checked;
+                                                     setFormData(prev => ({ ...prev, overrideOrchestrator: checked }));
+                                                 }}
+                                                 className="rounded border-emerald-500/30 text-emerald-600 focus:ring-emerald-500 h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                                             />
+                                             <div>
+                                                 <label htmlFor="overrideOrchestrator" className={`block text-xs font-black uppercase tracking-wider ${
+                                                     (!formData.audience || formData.audience.length === 0)
+                                                     ? 'text-gray-400 cursor-not-allowed'
+                                                     : 'text-gray-900 cursor-pointer'
+                                                 }`}>
+                                                     Override Orchestrator to appear in the Explore page
+                                                 </label>
+                                                 <p className={`text-[10px] font-medium ${
+                                                     (!formData.audience || formData.audience.length === 0)
+                                                     ? 'text-gray-400'
+                                                     : 'text-emerald-700/70'
+                                                 }`}>
+                                                     {(!formData.audience || formData.audience.length === 0)
+                                                         ? '⚠️ Select at least one target audience above to enable override.'
+                                                         : 'Force this sprint to bypass orchestrator assignment and appear in the Explore page.'
+                                                     }
+                                                 </p>
+                                             </div>
+                                         </div>
                                     </div>
                                 </section>
 

@@ -339,11 +339,7 @@ const ParticipantDashboard: React.FC = () => {
       });
     }
 
-    // Fallback: any unenrolled sprint or first available
-    const unenrolled = publishedSprints.filter(s => !enrolledSprintIds.has(s.id));
-    unenrolled.forEach(s => addSprint(s));
-
-    return list[0] || publishedSprints[0] || null;
+    return list[0] || null;
   }, [publishedSprints, allEnrollments, user, orchestration]);
 
   // Set default payment method when overview sheet is shown
@@ -423,13 +419,123 @@ const ParticipantDashboard: React.FC = () => {
   // Load published sprints, ignites and blogs in real-time
   useEffect(() => {
     const unsubscribe = sprintService.subscribeToPublishedSprints((published) => {
-      // Filter out sprints/blogs/ignites tagged with "Coach" unless the user is a coach or admin
+      // Filter sprints based on target audience and what the user carries as identity (coach, student, entrepreneur...)
       const allowedSprints = published.filter(s => {
-        const isCoachSprint = s.audience && s.audience.includes("Coach");
-        if (isCoachSprint) {
-          return user?.role === UserRole.COACH || user?.role === UserRole.ADMIN;
+        if (user?.role === UserRole.ADMIN) {
+          return true;
         }
-        return true;
+        
+        // "Don't show a sprint not tag for a person in their explore page."
+        if (!s.audience || s.audience.length === 0) {
+          return false;
+        }
+
+        // Determine user's active/carried audiences
+        const userAudiences: string[] = [];
+        
+        // "A sprint tag coach shows for someone who has a coach account not more sprint."
+        if (user?.role === UserRole.COACH || (user as any)?.persona === 'Coach') {
+          userAudiences.push('coach');
+          userAudiences.push('coaches');
+          
+          const sprintAudiences = s.audience.map((a: any) => String(a).toLowerCase().trim());
+          const isMatch = sprintAudiences.some((sa: string) => 
+            userAudiences.some(ua => sa === ua || sa.includes(ua) || ua.includes(sa))
+          );
+          return isMatch;
+        }
+
+        // Regular Participant user
+        const pathway = String((user as any)?.risePathway || '').toLowerCase().trim();
+        const persona = String((user as any)?.persona || '').toLowerCase().trim();
+        const occupation = String((user as any)?.occupation || '').toLowerCase().trim();
+
+        if (
+          pathway === 'student' || 
+          persona === 'student' || 
+          persona.includes('student') || 
+          persona.includes('graduate') || 
+          occupation === 'student' ||
+          occupation.includes('student')
+        ) {
+          userAudiences.push('student');
+          userAudiences.push('students');
+          userAudiences.push('student/graduate');
+        }
+
+        if (
+          pathway === 'early_career' || 
+          pathway === 'growth_pro' || 
+          persona.includes('9-5') || 
+          persona.includes('professional') || 
+          occupation.includes('professional') || 
+          occupation.includes('employee') || 
+          occupation.includes('corporate')
+        ) {
+          userAudiences.push('9-5 professional');
+          userAudiences.push('9-5 professionals');
+          userAudiences.push('professional');
+          userAudiences.push('professionals');
+          userAudiences.push('corporate professionals');
+        }
+
+        if (
+          pathway === 'builder' || 
+          persona.includes('entrepreneur') || 
+          persona.includes('owner') || 
+          persona.includes('founder') || 
+          occupation.includes('entrepreneur') || 
+          occupation.includes('business owner') || 
+          occupation.includes('founder')
+        ) {
+          userAudiences.push('entrepreneur');
+          userAudiences.push('entrepreneurs');
+          userAudiences.push('business owner');
+          userAudiences.push('business owners');
+          userAudiences.push('founders / entrepreneurs');
+          userAudiences.push('founder');
+          userAudiences.push('builder');
+          userAudiences.push('builders');
+        }
+
+        if (
+          pathway === 'transition' || 
+          persona.includes('freelancer') || 
+          persona.includes('consultant') || 
+          persona.includes('creative') || 
+          persona.includes('hustler') || 
+          occupation.includes('freelancer') || 
+          occupation.includes('consultant') || 
+          occupation.includes('creative') || 
+          occupation.includes('hustler')
+        ) {
+          userAudiences.push('freelancer/consultant');
+          userAudiences.push('creative/hustler');
+          userAudiences.push('freelancer');
+          userAudiences.push('consultant');
+          userAudiences.push('creative');
+          userAudiences.push('hustler');
+          userAudiences.push('freelancers');
+          userAudiences.push('consultants');
+          userAudiences.push('creatives');
+          userAudiences.push('hustlers');
+        }
+
+        // Check if any of the sprint's audiences match the user's audiences
+        const sprintAudiences = s.audience.map((a: any) => String(a).toLowerCase().trim());
+        const isMatch = sprintAudiences.some((sa: string) => 
+          userAudiences.some(ua => {
+            return sa === ua || sa.includes(ua) || ua.includes(sa);
+          })
+        );
+
+        // A sprint tag coach shows only for someone who has a coach account
+        const isCoachSprint = sprintAudiences.some(sa => sa === 'coach' || sa === 'coaches');
+        if (isCoachSprint) {
+          return false;
+        }
+
+        return isMatch;
       });
 
       const ignites = allowedSprints.filter(s => s.contentType === 'ignite');
@@ -1522,149 +1628,77 @@ const ParticipantDashboard: React.FC = () => {
                         )}
 
                         {/* 2. See what's next (only shown if there's an active sprint, to avoid duplicate card when there's no active sprint) */}
-                        {cardSettings.explore && hasActiveSprints && (
-                            recommendedNextSprint ? (
+                        {cardSettings.explore && hasActiveSprints && recommendedNextSprint && (
+                            <div 
+                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                    isStepUpLocked 
+                                    ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
+                                    : 'hover:shadow-md hover:border-rose-500/20'
+                                } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
+                            >
+                                {/* Tag: See what's next */}
+                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
+                                    See what's next
+                                </div>
+
                                 <div 
-                                    className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
-                                        isStepUpLocked 
-                                        ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                        : 'hover:shadow-md hover:border-rose-500/20'
-                                    } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
+                                    onClick={(e) => {
+                                        if (isStepUpLocked) return;
+                                        navigate(`/sprint/${recommendedNextSprint.id}`);
+                                    }}
+                                    className="flex-1 flex flex-col justify-between cursor-pointer"
                                 >
-                                    {/* Tag: See what's next */}
-                                    <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
-                                        See what's next
+                                    {/* Top part: Cover Image stretching to fill */}
+                                    <div className="h-28 w-full relative overflow-hidden rounded-t-[1.95rem]">
+                                        <img 
+                                            src={recommendedNextSprint.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
+                                            alt="" 
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                            onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
+                                            referrerPolicy="no-referrer"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                                        
+                                        {/* Category & Duration Overlay on the Image */}
+                                        <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between z-10">
+                                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm truncate max-w-[110px]">
+                                                {recommendedNextSprint.category || "Growth"}
+                                            </span>
+                                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-rose-500/80 text-white backdrop-blur-sm shrink-0">
+                                                {recommendedNextSprint.duration || 7} Days
+                                            </span>
+                                        </div>
                                     </div>
 
-                                    <div 
-                                        onClick={(e) => {
-                                            if (isStepUpLocked) return;
-                                            navigate(`/sprint/${recommendedNextSprint.id}`);
-                                        }}
-                                        className="flex-1 flex flex-col justify-between cursor-pointer"
-                                    >
-                                        {/* Top part: Cover Image stretching to fill */}
-                                        <div className="h-28 w-full relative overflow-hidden rounded-t-[1.95rem]">
-                                            <img 
-                                                src={recommendedNextSprint.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
-                                                alt="" 
-                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                                                onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
-                                                referrerPolicy="no-referrer"
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
-                                            
-                                            {/* Category & Duration Overlay on the Image */}
-                                            <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between z-10">
-                                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm truncate max-w-[110px]">
-                                                    {recommendedNextSprint.category || "Growth"}
-                                                </span>
-                                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-rose-500/80 text-white backdrop-blur-sm shrink-0">
-                                                    {recommendedNextSprint.duration || 7} Days
-                                                </span>
-                                            </div>
+                                    {/* Bottom part: Title, Subtitle & Action link inside padding */}
+                                    <div className="p-4 pt-3 flex-1 flex flex-col justify-between min-h-0">
+                                        <div className="space-y-1 text-left">
+                                            <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+                                                {recommendedNextSprint.title}
+                                            </p>
+                                            <p className="text-[9px] text-gray-400 leading-snug line-clamp-3 font-medium">
+                                                {recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise with templates."}
+                                            </p>
                                         </div>
 
-                                        {/* Bottom part: Title, Subtitle & Action link inside padding */}
-                                        <div className="p-4 pt-3 flex-1 flex flex-col justify-between min-h-0">
-                                            <div className="space-y-1 text-left">
-                                                <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
-                                                    {recommendedNextSprint.title}
-                                                </p>
-                                                <p className="text-[9px] text-gray-400 leading-snug line-clamp-3 font-medium">
-                                                    {recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise with templates."}
-                                                </p>
-                                            </div>
-
-                                            <div 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (isStepUpLocked) return;
-                                                    navigate("/explore");
-                                                }}
-                                                className="pt-2 border-t border-gray-50 flex items-center justify-between cursor-pointer mt-2"
-                                            >
-                                                <span className="text-[9px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                                                    Explore sprints
-                                                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                                    </svg>
-                                                </span>
-                                            </div>
+                                        <div 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (isStepUpLocked) return;
+                                                navigate("/explore");
+                                            }}
+                                            className="pt-2 border-t border-gray-50 flex items-center justify-between cursor-pointer mt-2"
+                                        >
+                                            <span className="text-[9px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                                                Explore sprints
+                                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
-                            ) : (
-                                <div 
-                                    className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
-                                        isStepUpLocked 
-                                        ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                        : 'hover:shadow-md hover:border-rose-500/20'
-                                    } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
-                                >
-                                    {/* Tag: See what's next */}
-                                    <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
-                                        See what's next
-                                    </div>
-
-                                    <div 
-                                        onClick={(e) => {
-                                            if (isStepUpLocked) return;
-                                            navigate("/explore");
-                                        }}
-                                        className="flex-1 flex flex-col justify-between cursor-pointer"
-                                    >
-                                        {/* Top part: Cover Image stretching to fill */}
-                                        <div className="h-28 w-full relative overflow-hidden rounded-t-[1.95rem]">
-                                            <img 
-                                                src={assetService.URLS.DEFAULT_SPRINT_COVER} 
-                                                alt="" 
-                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                                                referrerPolicy="no-referrer"
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
-                                            
-                                            {/* Category & Duration Overlay on the Image */}
-                                            <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between z-10">
-                                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm">
-                                                    GROWTH
-                                                </span>
-                                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-rose-500/80 text-white backdrop-blur-sm shrink-0">
-                                                    7 Days
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Bottom part: Title, Subtitle & Action link inside padding */}
-                                        <div className="p-4 pt-3 flex-1 flex flex-col justify-between min-h-0">
-                                            <div className="space-y-1 text-left">
-                                                <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
-                                                    Growth Foundations
-                                                </p>
-                                                <p className="text-[9px] text-gray-400 leading-snug line-clamp-3 font-medium">
-                                                    Unlock consistency and start your rise with templates.
-                                                </p>
-                                            </div>
-
-                                            <div 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (isStepUpLocked) return;
-                                                    navigate("/explore");
-                                                }}
-                                                className="pt-2 border-t border-gray-50 flex items-center justify-between cursor-pointer mt-2"
-                                            >
-                                                <span className="text-[9px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                                                    Explore sprints
-                                                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                                    </svg>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )
+                            </div>
                         )}
 
                         {/* Hall of Rise Coins / Next to Unlock Card */}

@@ -4609,7 +4609,11 @@ const EditSprint: React.FC = () => {
                                   const updated = isSelected 
                                     ? currentAudience.filter(x => x !== opt)
                                     : [...currentAudience, opt];
-                                  setVersionSettings(prev => ({ ...prev, audience: updated }));
+                                  setVersionSettings(prev => ({ 
+                                    ...prev, 
+                                    audience: updated,
+                                    overrideOrchestrator: updated.length === 0 ? false : prev.overrideOrchestrator
+                                  }));
                                 }}
                                 className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer text-xs font-bold transition-all ${
                                   isSelected 
@@ -4633,17 +4637,49 @@ const EditSprint: React.FC = () => {
                   </div>
 
                   {/* Override Orchestrator */}
-                  <div className="md:col-span-2 flex items-center justify-between p-5 bg-[#F4F9F6] border border-emerald-500/10 rounded-2xl">
+                  <div className={`md:col-span-2 flex items-center justify-between p-5 border rounded-2xl transition-all ${
+                    (!versionSettings.audience || versionSettings.audience.length === 0)
+                    ? 'bg-gray-50 border-gray-200 opacity-60'
+                    : 'bg-[#F4F9F6] border-emerald-500/10'
+                  }`}>
                     <div>
-                      <label className="text-[11px] font-black text-gray-900 uppercase tracking-widest block mb-1">Override Orchestrator to appear in the Explore page</label>
-                      <p className="text-[10px] text-emerald-700/70 font-medium leading-relaxed">Force this sprint to bypass orchestrator assignment and appear in the Explore page.</p>
+                      <label className={`text-[11px] font-black uppercase tracking-widest block mb-1 ${
+                        (!versionSettings.audience || versionSettings.audience.length === 0)
+                        ? 'text-gray-400'
+                        : 'text-gray-900'
+                      }`}>
+                        Override Orchestrator to appear in the Explore page
+                      </label>
+                      <p className={`text-[10px] font-medium leading-relaxed ${
+                        (!versionSettings.audience || versionSettings.audience.length === 0)
+                        ? 'text-gray-400'
+                        : 'text-emerald-700/70'
+                      }`}>
+                        {(!versionSettings.audience || versionSettings.audience.length === 0)
+                          ? '⚠️ Select at least one target audience above to enable override.'
+                          : 'Force this sprint to bypass orchestrator assignment and appear in the Explore page.'
+                        }
+                      </p>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setVersionSettings({...versionSettings, overrideOrchestrator: !versionSettings.overrideOrchestrator})}
-                      className={`w-12 h-6 rounded-full transition-all duration-300 relative shrink-0 ${versionSettings.overrideOrchestrator ? "bg-[#047857] shadow-lg shadow-emerald-500/10" : "bg-gray-200"}`}
+                      disabled={!versionSettings.audience || versionSettings.audience.length === 0}
+                      onClick={() => setVersionSettings(prev => ({ ...prev, overrideOrchestrator: !prev.overrideOrchestrator }))}
+                      className={`w-12 h-6 rounded-full transition-all duration-300 relative shrink-0 ${
+                        (!versionSettings.audience || versionSettings.audience.length === 0)
+                        ? "bg-gray-100 cursor-not-allowed"
+                        : versionSettings.overrideOrchestrator 
+                        ? "bg-[#047857] shadow-lg shadow-emerald-500/10" 
+                        : "bg-gray-200"
+                      }`}
                     >
-                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${versionSettings.overrideOrchestrator ? "right-1" : "left-1"}`} />
+                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${
+                        (!versionSettings.audience || versionSettings.audience.length === 0)
+                        ? 'left-1'
+                        : versionSettings.overrideOrchestrator 
+                        ? "right-1" 
+                        : "left-1"
+                      }`} />
                     </button>
                   </div>
                 </div>
@@ -4965,7 +5001,11 @@ const EditSprint: React.FC = () => {
                                                                             const updated = isSelected 
                                                                                 ? currentAudience.filter(x => x !== opt)
                                                                                 : [...currentAudience, opt];
-                                                                            setEditSettings(prev => ({ ...prev, audience: updated }));
+                                                                            setEditSettings(prev => ({ 
+                                                                                ...prev, 
+                                                                                audience: updated,
+                                                                                overrideOrchestrator: updated.length === 0 ? false : (prev.overrideOrchestrator || false)
+                                                                            }));
                                                                         }}
                                                                         className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer text-xs font-bold transition-all ${
                                                                             isSelected 
@@ -5016,24 +5056,40 @@ const EditSprint: React.FC = () => {
                                                     placeholder="e.g. Redesign, A/B Test, Marketing, v1-core"
                                                 />
                                             </div>
-                                            <div className="md:col-span-2 flex items-center gap-3 bg-[#F4F9F6] border border-emerald-500/10 rounded-2xl p-4 mt-2">
+                                            <div className={`md:col-span-2 flex items-center gap-3 border rounded-2xl p-4 mt-2 transition-all ${
+                                                (!editSettings.audience || editSettings.audience.length === 0)
+                                                ? 'bg-gray-50 border-gray-200 opacity-60'
+                                                : 'bg-[#F4F9F6] border-emerald-500/10'
+                                            }`}>
                                                 <input
                                                     type="checkbox"
                                                     id="overrideOrchestratorEdit"
                                                     name="overrideOrchestrator"
                                                     checked={editSettings.overrideOrchestrator || false}
+                                                    disabled={!editSettings.audience || editSettings.audience.length === 0}
                                                     onChange={(e) => {
                                                         const checked = e.target.checked;
                                                         setEditSettings(prev => ({ ...prev, overrideOrchestrator: checked }));
                                                     }}
-                                                    className="rounded border-emerald-500/30 text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+                                                    className="rounded border-emerald-500/30 text-emerald-600 focus:ring-emerald-500 h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 />
                                                 <div>
-                                                    <label htmlFor="overrideOrchestratorEdit" className="block text-xs font-black text-gray-900 uppercase tracking-wider cursor-pointer">
+                                                    <label htmlFor="overrideOrchestratorEdit" className={`block text-xs font-black uppercase tracking-wider ${
+                                                        (!editSettings.audience || editSettings.audience.length === 0)
+                                                        ? 'text-gray-400 cursor-not-allowed'
+                                                        : 'text-gray-900 cursor-pointer'
+                                                    }`}>
                                                         Override Orchestrator to appear in the Explore page
                                                     </label>
-                                                    <p className="text-[10px] text-emerald-700/70 font-medium">
-                                                        Force this sprint to bypass orchestrator assignment and appear in the Explore page.
+                                                    <p className={`text-[10px] font-medium ${
+                                                        (!editSettings.audience || editSettings.audience.length === 0)
+                                                        ? 'text-gray-400'
+                                                        : 'text-emerald-700/70'
+                                                    }`}>
+                                                        {(!editSettings.audience || editSettings.audience.length === 0)
+                                                            ? '⚠️ Select at least one target audience above to enable override.'
+                                                            : 'Force this sprint to bypass orchestrator assignment and appear in the Explore page.'
+                                                        }
                                                     </p>
                                                 </div>
                                             </div>

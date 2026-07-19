@@ -37,13 +37,16 @@ const AdminTracks: React.FC = () => {
     };
 
     useEffect(() => {
+        let hasCache = false;
         if (adminCache.tracks) {
             setTracks(adminCache.tracks.tracks);
             setSprints(adminCache.tracks.sprints);
             setIsLoading(false);
-            return;
+            hasCache = true;
         }
-        setIsLoading(true);
+        if (!hasCache) {
+            setIsLoading(true);
+        }
         const unsubscribeTracks = trackService.subscribeToTracks((data) => {
             setTracks(data);
             adminCache.tracks = {
@@ -146,13 +149,13 @@ const AdminTracks: React.FC = () => {
                             </div>
                             
                             <div className="flex-1 min-w-0 text-center md:text-left">
-                                <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
-                                    <h3 className="font-black text-gray-900 text-lg truncate tracking-tight italic">{track.title}</h3>
-                                    <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${track.published ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-400'}`}>
+                                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-1.5">
+                                    <h3 className="font-black text-gray-900 text-lg break-words whitespace-normal tracking-tight italic leading-snug">{track.title}</h3>
+                                    <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest flex-shrink-0 ${track.published ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-400'}`}>
                                         {track.published ? 'Live' : 'Draft'}
                                     </span>
                                 </div>
-                                <p className="text-xs text-gray-400 font-medium truncate mb-3">{track.subtitle}</p>
+                                <p className="text-xs text-gray-400 font-medium break-words whitespace-normal leading-relaxed mb-3">{track.subtitle}</p>
                                 
                                 <div className="flex flex-wrap justify-center md:justify-start items-center gap-3">
                                     <div className="flex -space-x-2">

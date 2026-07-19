@@ -76,8 +76,8 @@ const PublicDiscover: React.FC = () => {
                               />
                           </div>
                           <div className="flex-1 min-w-0 text-center sm:text-left">
-                              <div className="flex items-center gap-3 mb-1">
-                                <h3 className="font-black text-gray-900 text-lg group-hover:text-primary transition-colors truncate tracking-tight">{track.title}</h3>
+                              <div className="flex flex-wrap items-center gap-3 mb-1.5">
+                                <h3 className="font-black text-gray-900 text-lg group-hover:text-primary transition-colors break-words whitespace-normal tracking-tight leading-snug">{track.title}</h3>
                               </div>
                               <p className="text-xs text-gray-500 line-clamp-2 mt-1">{track.description}</p>
                               <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 text-[9px] font-black text-gray-400 mt-2 uppercase tracking-widest">

@@ -8,6 +8,7 @@ import { Sprint, Track } from '../../types';
 import Button from '../../components/Button';
 import { List, Plus, Trash2, Search, Package } from 'lucide-react';
 import FormattingToolbar from '../../components/FormattingToolbar';
+import { adminCache } from './adminCache';
 
 const CreateTrack: React.FC = () => {
     const navigate = useNavigate();
@@ -84,6 +85,9 @@ const CreateTrack: React.FC = () => {
 
         try {
             await trackService.createTrack(newTrack);
+            if (adminCache.tracks) {
+                adminCache.tracks = null;
+            }
             navigate('/admin/dashboard');
         } catch (error) {
             console.error(error);
