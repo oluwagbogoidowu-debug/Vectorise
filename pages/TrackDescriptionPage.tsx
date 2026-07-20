@@ -25,13 +25,6 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
-    const isFoundational = sprint.sprintType === 'Foundational' || 
-                           sprint.sprintType === 'Fundamentals' ||
-                           sprint.sprintType === 'Core' ||
-                           sprint.sprintType === 'Expert' ||
-                           sprint.category === 'Core Platform Sprint' || 
-                           sprint.category === 'Growth Fundamentals';
-
     const displayDescription = sprint.description || sprint.subtitle || "This sprint is designed to help you build a solid foundation for your growth journey.";
     const hasDynamicContent = Array.isArray(sprint.dynamicSections) && sprint.dynamicSections.some(s => s.body && s.body.trim().length > 0);
 
@@ -47,12 +40,6 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
                     </div>
                     <div className="text-left">
                         <div className="flex items-center gap-2 mb-1">
-                            {isFoundational && (
-                                <span className="px-2 py-0.5 bg-primary/10 text-primary text-[8px] font-black uppercase tracking-widest rounded-md flex items-center gap-1">
-                                    <LocalLogo type="favicon" className="h-2 w-auto" />
-                                    FOUNDATIONAL PATH
-                                </span>
-                            )}
                             <span className="px-2 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md">{sprint.category}</span>
                             <span className="text-[8px] font-black text-primary uppercase tracking-widest">{sprint.duration} Days</span>
                         </div>
@@ -283,12 +270,13 @@ const TrackDescriptionPage: React.FC = () => {
 
     return (
         <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
-            <div className="max-w-screen-lg mx-auto px-4 pt-4">
-                <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
+            {/* NAVIGATION HEADER - Full Width */}
+            <header className="bg-white border-b border-gray-100 py-4 px-4 sm:px-6 lg:px-8">
+                <div className="max-w-screen-lg mx-auto flex justify-between items-center">
                     {user ? (
                         <button 
                             onClick={() => navigate('/discover')} 
-                            className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest"
+                            className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest cursor-pointer"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-2 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -298,54 +286,71 @@ const TrackDescriptionPage: React.FC = () => {
                     ) : (
                         <LocalLogo type="green" className="h-8 w-auto" />
                     )}
-                    <div className="flex items-center gap-2">
-                        <div className="px-4 py-1.5 rounded-xl border border-primary/20 bg-white text-primary text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                        <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
                             <LocalLogo type="favicon" className="h-3 w-auto" />
                             TRACK BUNDLE
                         </div>
                     </div>
                 </div>
+            </header>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    <div className="lg:col-span-8 space-y-8">
-                        {/* HERO SECTION */}
-                        <div className="relative h-[280px] sm:h-[340px] lg:h-[440px] rounded-[3rem] overflow-hidden shadow-2xl group border-4 border-white bg-dark">
-                            <img 
-                                src={imageError || !track.coverImageUrl ? fallbackImage : track.coverImageUrl} 
-                                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
-                                alt={track.title} 
-                                onError={() => setImageError(true)}
-                                referrerPolicy="no-referrer"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-dark/95 via-dark/10 to-transparent"></div>
-                            <div className="absolute bottom-10 left-10 right-10 text-white">
-                                <div className="mb-4 flex items-center gap-2">
-                                    <span className="pl-3 pr-2 py-1.5 bg-white text-primary rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg inline-flex items-center">
-                                        TRACK BUNDLE
-                                    </span>
-                                    <span className="px-3 py-1.5 bg-primary text-white rounded-lg text-[11px] font-black uppercase tracking-widest shadow-lg">
-                                        SAVE {track.discountPercentage}%
-                                    </span>
-                                    <span className="px-3 py-1.5 bg-white/10 backdrop-blur-md text-white rounded-lg text-[11px] font-black uppercase tracking-widest">
-                                        {sprints.length} SPRINTS
-                                    </span>
-                                </div>
-                                <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-tight mb-4">
-                                    <FormattedText text={track.title} inline />
-                                </h1>
-                                {track.subtitle && (
-                                    <p className="text-white/70 text-sm md:text-base font-medium tracking-tight mb-6 leading-snug max-w-xl">
-                                        {track.subtitle}
-                                    </p>
-                                )}
+            {/* MODERN FULL-WIDTH HERO HEADER SECTION */}
+            <div className="relative w-full h-[320px] sm:h-[380px] lg:h-[460px] bg-[#0c1310] overflow-hidden">
+                <img 
+                    src={imageError || !track.coverImageUrl ? fallbackImage : track.coverImageUrl} 
+                    className="w-full h-full object-cover object-center scale-[1.01] filter brightness-[0.7] contrast-[1.02]" 
+                    alt={track.title} 
+                    onError={() => setImageError(true)}
+                    referrerPolicy="no-referrer"
+                />
+                
+                {/* Visual Gradient Overlays */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0c1310] via-[#0c1310]/50 to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-[#0c1310]/60 via-transparent to-[#0c1310]/40"></div>
+
+                {/* Content aligned inside a beautiful centered container */}
+                <div className="absolute inset-0 flex flex-col justify-end">
+                    <div className="max-w-screen-lg w-full mx-auto px-4 sm:px-6 lg:px-8 pb-10 sm:pb-12">
+                        <div className="space-y-4 animate-fade-in max-w-2xl">
+                            <div className="flex flex-wrap gap-2">
+                                <span className="px-3 py-1 bg-[#0E7850] text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] shadow-lg inline-flex items-center gap-1.5 border border-[#159E6A]/20">
+                                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+                                    TRACK BUNDLE
+                                </span>
+                                <span className="px-3 py-1 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] shadow-lg inline-flex items-center gap-1.5 border border-primary/20">
+                                    SAVE {track.discountPercentage}%
+                                </span>
+                            </div>
+                            
+                            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter text-white leading-[1.05] uppercase">
+                                <FormattedText text={track.title} inline />
+                            </h1>
+                            
+                            {track.subtitle && (
+                                <p className="text-white/85 text-sm sm:text-base md:text-lg font-semibold tracking-tight leading-relaxed max-w-xl">
+                                    {track.subtitle}
+                                </p>
+                            )}
+                            
+                            <div className="pt-2 flex items-center gap-2 text-white/50 text-[10px] font-black uppercase tracking-[0.2em]">
+                                <Package className="w-3.5 h-3.5 text-[#159E6A]" />
+                                <span>{sprints.length} INCLUDED SPRINTS</span>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
 
+            {/* TWO-COLUMN CONTENT LAYOUT */}
+            <div className="max-w-screen-lg mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-12">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
+                    <div className="lg:col-span-8">
                         {/* MAIN CONTENT */}
                         <div className="space-y-8">
-                            <section className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-sm animate-fade-in">
+                            <section className="animate-fade-in py-2">
                                 <SectionHeading>Track Overview</SectionHeading>
-                                <div className="text-base md:text-lg text-gray-600 font-medium leading-relaxed">
+                                <div className="text-base md:text-lg text-gray-600 font-medium leading-[1.6] mt-6">
                                     <FormattedText text={track.description} />
                                 </div>
                             </section>

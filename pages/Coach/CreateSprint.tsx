@@ -191,6 +191,39 @@ const IgnitePlayer: React.FC<{
 };
 
 
+const SprintPreviewModal: React.FC<{
+  sprint: Partial<Sprint>;
+  coach: Coach;
+  onClose: () => void;
+}> = ({ sprint, coach, onClose }) => {
+  return (
+    <div className="fixed inset-0 z-[400] bg-gray-50 flex flex-col overflow-y-auto animate-fade-in text-gray-900 pb-20">
+      {/* Header bar */}
+      <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between sticky top-0 z-[410] shadow-sm">
+        <div>
+          <span className="text-[9px] font-black text-primary uppercase tracking-[0.25em]">Design Your Cycle</span>
+          <h2 className="text-sm font-black text-gray-900">Sprint Registry Preview</h2>
+        </div>
+        <button 
+          type="button"
+          onClick={onClose} 
+          className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-xl transition-all text-xs font-black uppercase tracking-widest text-gray-700 active:scale-95 cursor-pointer"
+        >
+          Close Preview
+        </button>
+      </div>
+
+      {/* Content container */}
+      <div className="max-w-4xl w-full mx-auto px-6 py-8">
+        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden p-6 md:p-10">
+          <LandingPreview sprint={sprint} coach={coach} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 const CreateSprint: React.FC = () => {
     const navigate = useNavigate();
     const { user, loading } = useAuth();
@@ -237,6 +270,9 @@ const CreateSprint: React.FC = () => {
     const [igniteDate, setIgniteDate] = useState('');
     const [isPreviewingIgnite, setIsPreviewingIgnite] = useState(false);
     const [isSubmittingIgnite, setIsSubmittingIgnite] = useState(false);
+
+    // Sprint State
+    const [isPreviewingSprint, setIsPreviewingSprint] = useState(false);
 
     const handleSaveBlog = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -484,6 +520,14 @@ const CreateSprint: React.FC = () => {
                 />
             )}
 
+            {isPreviewingSprint && (
+                <SprintPreviewModal 
+                    sprint={previewSprint}
+                    coach={user as Coach}
+                    onClose={() => setIsPreviewingSprint(false)}
+                />
+            )}
+
             <div className="max-w-7xl mx-auto">
                 <header className="flex items-center gap-3 mb-10">
                     <button onClick={() => navigate('/coach/dashboard')} className="p-2 text-gray-400 hover:text-primary hover:bg-white rounded-xl transition-all cursor-pointer shadow-sm">
@@ -534,82 +578,74 @@ const CreateSprint: React.FC = () => {
                 </div>
 
                 {activeTab === 'sprint' && (
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-                        <div className="lg:col-span-8">
-                            <form onSubmit={handleSubmit} className="space-y-16">
-                                <section className="space-y-6">
-                                    <div className="flex items-center gap-3 mb-8">
-                                        <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">01</div>
-                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Sprint Identity</h4>
+                    <div className="grid grid-cols-1 gap-10 max-w-4xl mx-auto">
+                        <div className="bg-white rounded-[3rem] shadow-sm border border-gray-100 overflow-hidden p-8 md:p-12 animate-slide-up">
+                            <form onSubmit={handleSubmit} className="space-y-8">
+                                <div>
+                                    <h2 className="text-3xl font-black text-gray-900 tracking-tight italic">Design Your Cycle</h2>
+                                    <p className="text-[10px] text-primary font-black mt-1 uppercase tracking-[0.25em]">Coach Registry System... Launch a high-velocity sprint.</p>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className={labelClasses}>Sprint Title</label>
+                                        <input 
+                                            type="text" 
+                                            name="title" 
+                                            value={formData.title} 
+                                            onChange={handleChange} 
+                                            className={inputClasses + " mt-2"} 
+                                            placeholder="e.g. 7-Day High Velocity Content" 
+                                            required 
+                                        />
                                     </div>
+
+                                    <div>
+                                        <label className={labelClasses}>Sprint Subtitle</label>
+                                        <input 
+                                            type="text" 
+                                            name="subtitle" 
+                                            value={formData.subtitle} 
+                                            onChange={handleChange} 
+                                            className={inputClasses + " mt-2"} 
+                                            placeholder="e.g. For emerging creators" 
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className={labelClasses}>Cover Image URL</label>
+                                        <input 
+                                            type="url" 
+                                            name="coverImageUrl" 
+                                            value={formData.coverImageUrl} 
+                                            onChange={handleChange} 
+                                            className={inputClasses + " mt-2"} 
+                                            placeholder="https://..." 
+                                        />
+                                    </div>
+
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="md:col-span-2">
-                                            <label className={labelClasses}>Sprint Title</label>
-                                            <input type="text" name="title" value={formData.title} onChange={handleChange} className={inputClasses} placeholder="e.g. 7-Day High Velocity Content" required />
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <label className={labelClasses}>Sprint Subtitle</label>
-                                            <input type="text" name="subtitle" value={formData.subtitle} onChange={handleChange} className={inputClasses} placeholder="e.g. For emerging creators" />
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <label className={labelClasses}>Cover Image URL</label>
-                                            <input type="url" name="coverImageUrl" value={formData.coverImageUrl} onChange={handleChange} className={inputClasses} placeholder="https://..." />
-                                        </div>
-                                    </div>
-                                </section>
-
-                                {/* Sprint Overview Section */}
-                                {Array.isArray(formData.dynamicSections) && formData.dynamicSections.filter(s => s.id === 'overview').map((section, index) => (
-                                    <section key={section.id} className="space-y-6">
-                                        <div className="flex items-center gap-3 mb-8">
-                                            <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">02</div>
-                                            <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Sprint Overview</h4>
-                                        </div>
-                                        
-                                        <div className="space-y-2">
-                                            <FormattingToolbar 
-                                                onFormat={(prefix, suffix) => {
-                                                    const textarea = document.getElementById(`section-body-${section.id}`) as HTMLTextAreaElement;
-                                                    if (!textarea) return;
-                                                    const start = textarea.selectionStart;
-                                                    const end = textarea.selectionEnd;
-                                                    const text = textarea.value;
-                                                    const before = text.substring(0, start);
-                                                    const selection = text.substring(start, end);
-                                                    const after = text.substring(end);
-                                                    const newValue = before + prefix + selection + suffix + after;
-                                                    handleDynamicSectionChange(formData.dynamicSections.findIndex(s => s.id === 'overview'), 'body', newValue);
-                                                    setTimeout(() => {
-                                                        textarea.focus();
-                                                        textarea.setSelectionRange(start + prefix.length, end + prefix.length);
-                                                    }, 0);
-                                                }}
-                                            />
-                                            <textarea 
-                                                id={`section-body-${section.id}`}
-                                                value={section.body} 
-                                                onChange={e => handleDynamicSectionChange(formData.dynamicSections.findIndex(s => s.id === 'overview'), 'body', e.target.value)}
-                                                rows={12} 
-                                                className={inputClasses + " resize-none mt-2"} 
-                                                placeholder="Enter sprint overview content..."
+                                        <div>
+                                            <label className={labelClasses}>Discovery Category</label>
+                                            <CustomSelect
+                                                options={ALL_CATEGORIES}
+                                                value={formData.category}
+                                                onChange={(val) => setFormData(prev => ({ ...prev, category: String(val) }))}
+                                                className="mt-2"
                                             />
                                         </div>
-                                        <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                                            <h5 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Preview:</h5>
-                                            <div className="bg-white rounded-xl p-4 border border-gray-100">
-                                                <DynamicSectionRenderer section={section} />
-                                            </div>
+                                        <div>
+                                            <label className={labelClasses}>Difficulty Level</label>
+                                            <CustomSelect
+                                                options={['Beginner', 'Intermediate', 'Advanced']}
+                                                value={formData.difficulty}
+                                                onChange={(val) => setFormData(prev => ({ ...prev, difficulty: val as SprintDifficulty }))}
+                                                className="mt-2"
+                                            />
                                         </div>
-                                    </section>
-                                ))}
-
-                                {/* 03 Metadata */}
-                                <section className="space-y-6">
-                                    <div className="flex items-center gap-3 mb-8">
-                                        <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">03</div>
-                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Metadata</h4>
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
                                             <label className={labelClasses}>Duration (Days)</label>
                                             <CustomSelect
@@ -620,75 +656,6 @@ const CreateSprint: React.FC = () => {
                                             />
                                         </div>
                                         <div>
-                                            <label className={labelClasses}>Discovery Category</label>
-                                            <CustomSelect
-                                                options={ALL_CATEGORIES}
-                                                value={formData.category}
-                                                onChange={(val) => setFormData(prev => ({ ...prev, category: String(val) }))}
-                                                className="mt-2"
-                                            />
-                                        </div>
-                                        <div className="relative">
-                                            <label className={labelClasses}>Audience</label>
-                                            <div 
-                                                onClick={() => setIsAudienceDropdownOpen(!isAudienceDropdownOpen)}
-                                                className={`${inputClasses} mt-2 cursor-pointer flex justify-between items-center bg-white border border-gray-100 px-4 py-2.5 rounded-xl`}
-                                            >
-                                                <span className="text-gray-700 font-bold text-xs select-none">
-                                                    {formData.audience && formData.audience.length > 0 
-                                                        ? formData.audience.join(", ") 
-                                                        : "Select target audience..."}
-                                                </span>
-                                                <span className="text-[10px] text-gray-400">▼</span>
-                                            </div>
-                                            {isAudienceDropdownOpen && (
-                                                <>
-                                                    <div className="fixed inset-0 z-30" onClick={() => setIsAudienceDropdownOpen(false)}></div>
-                                                    <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-xl z-40 p-1 flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
-                                                        {(() => {
-                                                            const opts = ["Entrepreneur", "Business Owner", "Freelancer/Consultant", "9-5 Professional", "Student/Graduate", "Creative/Hustler"];
-                                                            if (user?.role === UserRole.ADMIN) {
-                                                                opts.push("Coach");
-                                                            }
-                                                            return opts;
-                                                        })().map(opt => {
-                                                            const isSelected = formData.audience?.includes(opt);
-                                                            return (
-                                                                <div 
-                                                                    key={opt}
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        const currentAudience = formData.audience || [];
-                                                                        const updated = isSelected 
-                                                                            ? currentAudience.filter(x => x !== opt)
-                                                                            : [...currentAudience, opt];
-                                                                        setFormData(prev => ({ 
-                                                                            ...prev, 
-                                                                            audience: updated,
-                                                                            overrideOrchestrator: updated.length === 0 ? false : prev.overrideOrchestrator
-                                                                        }));
-                                                                    }}
-                                                                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer text-xs font-bold transition-all ${
-                                                                        isSelected 
-                                                                            ? 'bg-primary/5 text-primary' 
-                                                                            : 'text-gray-600 hover:bg-gray-50'
-                                                                    }`}
-                                                                >
-                                                                    <input 
-                                                                        type="checkbox" 
-                                                                        checked={isSelected}
-                                                                        onChange={() => {}}
-                                                                        className="rounded border-gray-300 text-primary focus:ring-primary h-3.5 w-3.5"
-                                                                    />
-                                                                    <span>{opt}</span>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                        <div>
                                             <label className={labelClasses}>Sprint Type</label>
                                             <CustomSelect
                                                 options={["Fundamentals", "Core", "Expert"]}
@@ -697,53 +664,108 @@ const CreateSprint: React.FC = () => {
                                                 className="mt-2"
                                             />
                                         </div>
-                                         <div className={`md:col-span-2 flex items-center gap-3 border rounded-2xl p-4 mt-2 transition-all ${
-                                             (!formData.audience || formData.audience.length === 0)
-                                             ? 'bg-gray-50 border-gray-200 opacity-60'
-                                             : 'bg-[#F4F9F6] border-emerald-500/10'
-                                         }`}>
-                                             <input
-                                                 type="checkbox"
-                                                 id="overrideOrchestrator"
-                                                 name="overrideOrchestrator"
-                                                 checked={formData.overrideOrchestrator}
-                                                 disabled={!formData.audience || formData.audience.length === 0}
-                                                 onChange={(e) => {
-                                                     const checked = e.target.checked;
-                                                     setFormData(prev => ({ ...prev, overrideOrchestrator: checked }));
-                                                 }}
-                                                 className="rounded border-emerald-500/30 text-emerald-600 focus:ring-emerald-500 h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
-                                             />
-                                             <div>
-                                                 <label htmlFor="overrideOrchestrator" className={`block text-xs font-black uppercase tracking-wider ${
-                                                     (!formData.audience || formData.audience.length === 0)
-                                                     ? 'text-gray-400 cursor-not-allowed'
-                                                     : 'text-gray-900 cursor-pointer'
-                                                 }`}>
-                                                     Override Orchestrator to appear in the Explore page
-                                                 </label>
-                                                 <p className={`text-[10px] font-medium ${
-                                                     (!formData.audience || formData.audience.length === 0)
-                                                     ? 'text-gray-400'
-                                                     : 'text-emerald-700/70'
-                                                 }`}>
-                                                     {(!formData.audience || formData.audience.length === 0)
-                                                         ? '⚠️ Select at least one target audience above to enable override.'
-                                                         : 'Force this sprint to bypass orchestrator assignment and appear in the Explore page.'
-                                                     }
-                                                 </p>
-                                             </div>
-                                         </div>
                                     </div>
-                                </section>
 
-                                {/* 04 Pricing & Economy */}
-                                <section className="space-y-6">
-                                    <div className="flex items-center gap-3 mb-8">
-                                        <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">04</div>
-                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Pricing & Economy</h4>
+                                    <div className="relative">
+                                        <label className={labelClasses}>Audience</label>
+                                        <div 
+                                            onClick={() => setIsAudienceDropdownOpen(!isAudienceDropdownOpen)}
+                                            className={`${inputClasses} mt-2 cursor-pointer flex justify-between items-center bg-white border border-gray-100 px-4 py-2.5 rounded-xl`}
+                                        >
+                                            <span className="text-gray-700 font-bold text-xs select-none">
+                                                {formData.audience && formData.audience.length > 0 
+                                                    ? formData.audience.join(", ") 
+                                                    : "Select target audience..."}
+                                            </span>
+                                            <span className="text-[10px] text-gray-400">▼</span>
+                                        </div>
+                                        {isAudienceDropdownOpen && (
+                                            <>
+                                                <div className="fixed inset-0 z-30" onClick={() => setIsAudienceDropdownOpen(false)}></div>
+                                                <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-xl z-40 p-1 flex flex-col gap-0.5" onClick={e => e.stopPropagation()}>
+                                                    {(() => {
+                                                        const opts = ["Entrepreneur", "Business Owner", "Freelancer/Consultant", "9-5 Professional", "Student/Graduate", "Creative/Hustler"];
+                                                        if (user?.role === UserRole.ADMIN) {
+                                                            opts.push("Coach");
+                                                        }
+                                                        return opts;
+                                                    })().map(opt => {
+                                                        const isSelected = formData.audience?.includes(opt);
+                                                        return (
+                                                            <div 
+                                                                key={opt}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const currentAudience = formData.audience || [];
+                                                                    const updated = isSelected 
+                                                                        ? currentAudience.filter(x => x !== opt)
+                                                                        : [...currentAudience, opt];
+                                                                    setFormData(prev => ({ 
+                                                                        ...prev, 
+                                                                        audience: updated,
+                                                                        overrideOrchestrator: updated.length === 0 ? false : prev.overrideOrchestrator
+                                                                    }));
+                                                                }}
+                                                                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer text-xs font-bold transition-all ${
+                                                                    isSelected 
+                                                                        ? 'bg-primary/5 text-primary' 
+                                                                        : 'text-gray-600 hover:bg-gray-50'
+                                                                }`}
+                                                            >
+                                                                <input 
+                                                                    type="checkbox" 
+                                                                    checked={isSelected}
+                                                                    onChange={() => {}}
+                                                                    className="rounded border-gray-300 text-primary focus:ring-primary h-3.5 w-3.5"
+                                                                />
+                                                                <span>{opt}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                                    <div className={`flex items-center gap-3 border rounded-2xl p-4 transition-all ${
+                                        (!formData.audience || formData.audience.length === 0)
+                                        ? 'bg-gray-50 border-gray-200 opacity-60'
+                                        : 'bg-[#F4F9F6] border-emerald-500/10'
+                                    }`}>
+                                        <input
+                                            type="checkbox"
+                                            id="overrideOrchestrator"
+                                            name="overrideOrchestrator"
+                                            checked={formData.overrideOrchestrator}
+                                            disabled={!formData.audience || formData.audience.length === 0}
+                                            onChange={(e) => {
+                                                const checked = e.target.checked;
+                                                setFormData(prev => ({ ...prev, overrideOrchestrator: checked }));
+                                            }}
+                                            className="rounded border-emerald-500/30 text-emerald-600 focus:ring-emerald-500 h-4 w-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        />
+                                        <div>
+                                            <label htmlFor="overrideOrchestrator" className={`block text-xs font-black uppercase tracking-wider ${
+                                                (!formData.audience || formData.audience.length === 0)
+                                                ? 'text-gray-400 cursor-not-allowed'
+                                                : 'text-gray-900 cursor-pointer'
+                                            }`}>
+                                                Override Orchestrator to appear in the Explore page
+                                            </label>
+                                            <p className={`text-[10px] font-medium ${
+                                                (!formData.audience || formData.audience.length === 0)
+                                                ? 'text-gray-400'
+                                                : 'text-emerald-700/70'
+                                            }`}>
+                                                {(!formData.audience || formData.audience.length === 0)
+                                                    ? '⚠️ Select at least one target audience above to enable override.'
+                                                    : 'Force this sprint to bypass orchestrator assignment and appear in the Explore page.'
+                                                }
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
                                             <label className={labelClasses}>Pricing Type</label>
                                             <CustomSelect
@@ -759,85 +781,91 @@ const CreateSprint: React.FC = () => {
                                         {formData.pricingType === 'credits' ? (
                                             <div>
                                                 <label className={labelClasses}>Point Cost</label>
-                                                <input type="number" name="pointCost" value={formData.pointCost || 0} onChange={handleChange} className={inputClasses + " mt-2"} placeholder="0" />
+                                                <input 
+                                                    type="number" 
+                                                    name="pointCost" 
+                                                    value={formData.pointCost || 0} 
+                                                    onChange={handleChange} 
+                                                    className={inputClasses + " mt-2"} 
+                                                    placeholder="0" 
+                                                />
                                             </div>
                                         ) : (
                                             <div>
                                                 <label className={labelClasses}>Proposed Price (NGN)</label>
-                                                <input type="number" name="price" value={formData.price} onChange={handleChange} className={inputClasses + " mt-2"} placeholder="0" />
+                                                <input 
+                                                    type="number" 
+                                                    name="price" 
+                                                    value={formData.price} 
+                                                    onChange={handleChange} 
+                                                    className={inputClasses + " mt-2"} 
+                                                    placeholder="0" 
+                                                />
                                                 <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">Admins will review and set the final price.</p>
                                             </div>
                                         )}
                                     </div>
-                                </section>
 
-                                {/* 05 Completion Assets */}
-                                <section className="space-y-6">
-                                    <div className="flex items-center gap-3 mb-8">
-                                        <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs font-black">05</div>
-                                        <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Completion Assets</h4>
+                                    <div>
+                                        <label className={labelClasses}>Archive Outcome Tag</label>
+                                        <CustomSelect
+                                            options={OUTCOME_TAGS}
+                                            value={formData.outcomeTag}
+                                            onChange={(val) => setFormData(prev => ({ ...prev, outcomeTag: val }))}
+                                            className="mt-2"
+                                        />
+                                        <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">This appears as the badge on completed sprint cards.</p>
                                     </div>
-                                    <div className="space-y-6">
-                                        <div>
-                                            <label className={labelClasses}>Archive Outcome Tag</label>
-                                            <CustomSelect
-                                                options={OUTCOME_TAGS}
-                                                value={formData.outcomeTag}
-                                                onChange={(val) => setFormData(prev => ({ ...prev, outcomeTag: val }))}
-                                                className="mt-2"
-                                            />
-                                            <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">This appears as the badge on completed sprint cards.</p>
-                                        </div>
-                                    </div>
-                                </section>
 
-                                <div className="flex justify-end gap-4 pt-10 border-t border-gray-50">
-                                    <button type="button" onClick={() => navigate('/coach/dashboard')} className="px-8 py-3.5 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-red-400 transition-colors">Cancel</button>
-                                    <Button type="submit" isLoading={isSubmitting} className="px-12 py-4 rounded-[1.5rem] shadow-xl shadow-primary/20 group">
-                                        Next: Build Curriculum &rarr;
+                                    <div>
+                                        <label className={labelClasses}>Sprint Overview & Transformation</label>
+                                        {Array.isArray(formData.dynamicSections) && formData.dynamicSections.filter(s => s.id === 'overview').map((section) => (
+                                            <div key={section.id} className="space-y-2 mt-2">
+                                                <FormattingToolbar 
+                                                    onFormat={(prefix, suffix) => {
+                                                        const textarea = document.getElementById(`section-body-${section.id}`) as HTMLTextAreaElement;
+                                                        if (!textarea) return;
+                                                        const start = textarea.selectionStart;
+                                                        const end = textarea.selectionEnd;
+                                                        const text = textarea.value;
+                                                        const before = text.substring(0, start);
+                                                        const selection = text.substring(start, end);
+                                                        const after = text.substring(end);
+                                                        const newValue = before + prefix + selection + suffix + after;
+                                                        handleDynamicSectionChange(formData.dynamicSections.findIndex(s => s.id === 'overview'), 'body', newValue);
+                                                        setTimeout(() => {
+                                                            textarea.focus();
+                                                            textarea.setSelectionRange(start + prefix.length, end + prefix.length);
+                                                        }, 0);
+                                                    }}
+                                                />
+                                                <textarea 
+                                                    id={`section-body-${section.id}`}
+                                                    value={section.body} 
+                                                    onChange={e => handleDynamicSectionChange(formData.dynamicSections.findIndex(s => s.id === 'overview'), 'body', e.target.value)}
+                                                    rows={12} 
+                                                    className={inputClasses + " resize-none mt-2 font-medium font-sans resize-none leading-relaxed text-sm h-96"} 
+                                                    placeholder="Write the full sprint overview and transformational goals here... Spacing and paragraph structure are preserved."
+                                                    required 
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end gap-3 pt-6 border-t border-gray-50">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setIsPreviewingSprint(true)}
+                                        className="px-8 py-3.5 bg-gray-50 border border-gray-100 hover:bg-gray-100 text-[10px] font-black text-gray-700 uppercase tracking-widest rounded-xl transition-all cursor-pointer"
+                                    >
+                                        🔍 Preview Sprint
+                                    </button>
+                                    <Button type="submit" isLoading={isSubmitting} className="px-10 py-3.5 rounded-[1.25rem] shadow-xl shadow-primary/20">
+                                        Publish Sprint &rarr;
                                     </Button>
                                 </div>
                             </form>
-                        </div>
-
-                        <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-12">
-                             <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm text-center">
-                                <p className="text-[9px] font-black text-primary uppercase tracking-[0.4em] mb-4">Registry Guidance</p>
-                                <h5 className="text-sm font-black text-gray-900 leading-tight mb-4">Clarity over Selling.</h5>
-                                
-                                <div className="bg-gray-100 p-1 rounded-xl flex gap-1 mb-8">
-                                    <button 
-                                        onClick={() => setPreviewType('card')}
-                                        className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${previewType === 'card' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                    >
-                                        Deck View
-                                    </button>
-                                    <button 
-                                        onClick={() => setPreviewType('landing')}
-                                        className={`flex-1 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${previewType === 'landing' ? 'bg-white text-primary shadow-sm' : 'text-gray-400'}`}
-                                    >
-                                        Landing View
-                                    </button>
-                                </div>
-
-                                {previewType === 'card' ? (
-                                    <div className="animate-fade-in flex flex-col items-center text-left">
-                                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6 px-4 text-center w-full">Registry Card Preview</h4>
-                                        <div className="w-full max-w-[320px] text-left">
-                                            <SprintCard 
-                                                sprint={previewSprint as Sprint} 
-                                                coach={user as Coach} 
-                                                forceShowOutcomeTag={true} 
-                                                isStatic={true}
-                                            />
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="animate-fade-in text-left">
-                                        <LandingPreview sprint={previewSprint} coach={user as Coach} />
-                                    </div>
-                                )}
-                             </div>
                         </div>
                     </div>
                 )}

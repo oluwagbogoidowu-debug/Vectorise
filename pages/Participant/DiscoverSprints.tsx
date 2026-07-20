@@ -49,6 +49,7 @@ const DiscoverSprints: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [sprints, setSprints] = useState<Sprint[]>([]);
+    const [allSprints, setAllSprints] = useState<Sprint[]>([]);
     const [tracks, setTracks] = useState<Track[]>([]);
     const [coaches, setCoaches] = useState<Coach[]>([]);
     const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
@@ -76,6 +77,7 @@ const DiscoverSprints: React.FC = () => {
     useEffect(() => {
         // Subscribe to published sprints in real-time
         const unsubSprints = sprintService.subscribeToPublishedSprints((data) => {
+            setAllSprints(data);
             // Filter sprints based on target audience and what the user carries as identity (coach, student, entrepreneur...)
             const allowedSprints = data.filter(s => {
                 if (user?.role === UserRole.ADMIN) {
@@ -539,7 +541,7 @@ const DiscoverSprints: React.FC = () => {
 
                         <TrackCard 
                             track={resolvedSlots['slot_dir_track']} 
-                            sprints={sprints} 
+                            sprints={allSprints} 
                         />
                     </section>
                 )}
