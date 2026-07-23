@@ -239,9 +239,10 @@ const SprintPreview: React.FC = () => {
     const [isInsightExpanded, setIsInsightExpanded] = useState(true);
     const [showBottomCancelConfirm, setShowBottomCancelConfirm] = useState(false);
     
-    // Auto-redirect already logged-in users so they never see the preview again
+    // Auto-redirect already logged-in users so they never see the preview again (unless in coach preview route)
     useEffect(() => {
-        if (!loading && user && !showLockModal) {
+        const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
+        if (!loading && user && !showLockModal && !isCoachPreview) {
             sprintService.getUserEnrollments(user.id)
                 .then(enrollments => {
                     const enrolled = enrollments.find(e => e.sprint_id === sprintId);
@@ -255,7 +256,20 @@ const SprintPreview: React.FC = () => {
                     navigate(`/sprint/${sprintId}`, { replace: true });
                 });
         }
-    }, [user, loading, showLockModal, sprintId, navigate]);
+    }, [user, loading, showLockModal, sprintId, navigate, location.pathname]);
+
+    const handleCompletePreviewDay = () => {
+        const d1Content = Array.isArray(sprint?.dailyContent) ? sprint?.dailyContent.find(dc => dc.day === 1) : undefined;
+        const daySuccessState = { 
+            day: 1, 
+            coinsUnlocked: 10, 
+            bridgeNote: d1Content?.bridgeNote,
+            sprintId: sprint?.id,
+            sprint: sprint,
+            isPreview: true
+        };
+        navigate('/participant/day-success', { state: daySuccessState });
+    };
     
     // 3-slide bottom modal bar states
     const [bottomModalStep, setBottomModalStep] = useState(1); // 1 = locked completion, 2 = signup/login, 3 = verify email
@@ -1177,7 +1191,9 @@ const SprintPreview: React.FC = () => {
                                                     if (isValid) {
                                                         if (getNextVisibleStepIndex(i) !== -1) {
                                                             setActiveTaskIndex(getNextVisibleStepIndex(i));
-                                                        } else if (!user) {
+                                                        } else if (user || location.pathname.startsWith('/coach/sprint/preview')) {
+                                                            handleCompletePreviewDay();
+                                                        } else {
                                                             const pendingObj = {
                                                                 sprintId: sprint.id,
                                                                 pricingType: sprint.pricingType || 'cash',
@@ -1187,8 +1203,6 @@ const SprintPreview: React.FC = () => {
                                                             };
                                                             localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
                                                             setShowLockModal(true);
-                                                        } else {
-                                                            setShowSignupModal(true);
                                                         }
                                                     }
                                                 }}
@@ -1560,19 +1574,17 @@ const SprintPreview: React.FC = () => {
                                                             if (!stepCompleted) return;
                                                             if (getNextVisibleStepIndex(i) !== -1) {
                                                                 setActiveTaskIndex(getNextVisibleStepIndex(i));
+                                                            } else if (user || location.pathname.startsWith('/coach/sprint/preview')) {
+                                                                handleCompletePreviewDay();
                                                             } else {
-                                                                if (!user) {
-                                                                    const pendingObj = {
-                                                                        sprintId: sprint.id,
-                                                                        pricingType: sprint.pricingType || 'cash',
-                                                                        firstActionInput: taskInputs[0],
-                                                                        prefilledEmail: prefilledEmail || ''
-                                                                    };
-                                                                    localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
-                                                                    setShowLockModal(true);
-                                                                } else {
-                                                                    setShowSignupModal(true);
-                                                                }
+                                                                const pendingObj = {
+                                                                    sprintId: sprint.id,
+                                                                    pricingType: sprint.pricingType || 'cash',
+                                                                    firstActionInput: taskInputs[0],
+                                                                    prefilledEmail: prefilledEmail || ''
+                                                                };
+                                                                localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
+                                                                setShowLockModal(true);
                                                             }
                                                         }}
                                                         disabled={!stepCompleted}

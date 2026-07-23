@@ -153,7 +153,8 @@ const AppContent: React.FC = () => {
   const isFullBleed = 
     location.pathname.startsWith('/participant/day-success') || 
     location.pathname.startsWith('/participant/sprint') || 
-    location.pathname.startsWith('/sprint/preview');
+    location.pathname.startsWith('/sprint/preview') ||
+    location.pathname.startsWith('/coach/sprint/preview');
 
   const showGlobalHeader = false;
 

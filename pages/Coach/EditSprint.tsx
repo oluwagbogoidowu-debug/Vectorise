@@ -5662,14 +5662,28 @@ const CoachDaySuccessPreviewModal: React.FC<CoachDaySuccessPreviewModalProps> = 
         </div>
 
         {/* Bridge Note card */}
-        <div className="w-full bg-[#0E7850]/5 border border-[#0E7850]/15 rounded-2xl p-4 mb-6 text-left">
-          <div className="flex items-center gap-2 mb-1.5">
-            <div className="w-2 h-2 rounded-full bg-[#0E7850]" />
-            <span className="text-[10px] font-black text-[#0E7850] uppercase tracking-wider">Bridge Note</span>
+        <div className="w-full bg-purple-50/40 border border-purple-100/80 rounded-[2rem] p-5 mb-6 text-left shadow-sm flex flex-col gap-2 relative overflow-hidden">
+          <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-20 h-20 bg-purple-500/5 rounded-full blur-2xl" />
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-purple-600 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-purple-700 uppercase tracking-widest leading-none">
+                Bridge Note
+              </p>
+              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                Your key to tomorrow
+              </p>
+            </div>
           </div>
-          <p className="text-xs font-semibold text-gray-800 leading-relaxed italic">
-            {bridgeNote && bridgeNote.trim() ? bridgeNote : "No bridge note set for this day yet. Add one in the Bridge Note editor section to inspire participants!"}
-          </p>
+          <div className="text-left bg-white/80 border border-purple-50 p-3.5 rounded-2xl">
+            <p className="text-xs text-gray-800 font-semibold italic leading-relaxed">
+              "{bridgeNote && bridgeNote.trim() ? bridgeNote : "No bridge note set for this day yet. Add one in the Bridge Note editor section to inspire participants!"}"
+            </p>
+          </div>
         </div>
 
         {/* Stats card */}

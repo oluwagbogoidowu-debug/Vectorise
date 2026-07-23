@@ -61,9 +61,15 @@ const DaySuccessPage: React.FC = () => {
 
   const streakCount = (user as any)?.impactStats?.streak || 1;
 
+  const isPreview = location.state?.isPreview;
+
   const handleStepUp = () => {
     triggerHaptic(hapticPatterns.light);
-    navigate('/dashboard');
+    if (isPreview) {
+      navigate(-1);
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   return (
@@ -223,7 +229,7 @@ const DaySuccessPage: React.FC = () => {
           onClick={handleStepUp}
           className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-3xl font-black uppercase tracking-[0.15em] text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
         >
-          Step up your rise
+          {isPreview ? 'Back to Sprint' : 'Step up your rise'}
           <ArrowRight className="w-4 h-4 text-white" />
         </motion.button>
       </footer>
