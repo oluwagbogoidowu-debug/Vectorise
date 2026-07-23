@@ -2055,7 +2055,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         if (isLastDay && updatedProgress.every((p) => p.completed)) {
           setIsCompletionModalOpen(true);
         } else {
-          setIsDayCompletionModalOpen(true);
+          navigate('/participant/day-success', { 
+            state: { 
+              day: viewingDay, 
+              coinsUnlocked: viewingDay === 1 ? 10 : 0, 
+              bridgeNote: dayContent?.bridgeNote,
+              sprintId: sprint?.id,
+              sprint: sprint,
+              isPreview: true
+            } 
+          });
         }
 
         if (dayContent?.mirrorActive) {

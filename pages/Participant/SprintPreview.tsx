@@ -397,7 +397,8 @@ const SprintPreview: React.FC = () => {
             await userService.createUserDocument(firebaseUser.uid, newUser);
 
             let enrollmentId = "";
-            let day1BridgeNote = day1Content?.bridgeNote;
+            const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
+            let day1BridgeNote = d1Content?.bridgeNote;
             if (sprint) {
                 // Auto enroll and complete Day 1
                 const enrollment = await sprintService.enrollUser(firebaseUser.uid, sprint.id, sprint.duration, {
@@ -530,12 +531,14 @@ const SprintPreview: React.FC = () => {
             if (isVerified) {
                 toast.success("Email verified successfully! Welcome.");
                 setShowLockModal(false);
+                const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
                 navigate('/participant/day-success', { 
                     state: { 
                         day: 1, 
                         coinsUnlocked: 10, 
-                        bridgeNote: day1Content?.bridgeNote, 
-                        enrollmentId: createdEnrollmentId 
+                        bridgeNote: d1Content?.bridgeNote, 
+                        enrollmentId: createdEnrollmentId,
+                        sprintId: sprint?.id
                     },
                     replace: true 
                 });
