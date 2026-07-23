@@ -24,6 +24,14 @@ const DaySuccessPage: React.FC = () => {
     // Play satisfying success haptic feedback on entry
     triggerHaptic(hapticPatterns.success);
 
+    // Play completion sound on entry
+    try {
+      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3");
+      audio.play().catch((e) => console.error("Sound playback deferred/failed:", e));
+    } catch (e) {
+      console.error("Audio initialization failed:", e);
+    }
+
     const updateTimer = () => {
       const now = new Date();
       const midnight = new Date(

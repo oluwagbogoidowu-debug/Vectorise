@@ -374,6 +374,7 @@ const SprintPreview: React.FC = () => {
             await userService.createUserDocument(firebaseUser.uid, newUser);
 
             let enrollmentId = "";
+            let day1BridgeNote = day1Content?.bridgeNote;
             if (sprint) {
                 // Auto enroll and complete Day 1
                 const enrollment = await sprintService.enrollUser(firebaseUser.uid, sprint.id, sprint.duration, {
@@ -396,15 +397,29 @@ const SprintPreview: React.FC = () => {
                         last_activity_at: new Date().toISOString()
                     });
                 }
-                enrollmentId = enrollment.id;
-                setCreatedEnrollmentId(enrollment.id);
+                enrollmentId = enrollment?.id || "";
+                setCreatedEnrollmentId(enrollmentId);
                 localStorage.removeItem('pending_first_action');
             }
+
+            const daySuccessState = {
+                redirectToDaySuccess: true,
+                day: 1,
+                coinsUnlocked: 10,
+                bridgeNote: day1BridgeNote,
+                enrollmentId,
+                sprintId: sprint?.id
+            };
+
+            sessionStorage.setItem('post_verify_redirect', JSON.stringify({
+                path: '/participant/day-success',
+                state: daySuccessState
+            }));
 
             await sendEmailVerification(firebaseUser);
             toast.success("Account created! Verification email sent.");
             setShowLockModal(false);
-            navigate('/verify-email', { replace: true });
+            navigate('/verify-email', { state: daySuccessState, replace: true });
         } catch (error: any) {
             console.error("Signup error:", error);
             if (error.code === 'auth/email-already-in-use') setAuthError("Email already in use. Try logging in instead.");
@@ -455,7 +470,23 @@ const SprintPreview: React.FC = () => {
                 localStorage.removeItem('pending_first_action');
 
                 setShowLockModal(false);
-                navigate('/participant/day-success', { state: { day: 1, coinsUnlocked: 10 } });
+                const daySuccessState = { 
+                    day: 1, 
+                    coinsUnlocked: 10, 
+                    bridgeNote: day1Content?.bridgeNote,
+                    enrollmentId: enrollment.id,
+                    sprintId: sprint.id
+                };
+
+                if (!firebaseUser.emailVerified) {
+                    sessionStorage.setItem('post_verify_redirect', JSON.stringify({
+                        path: '/participant/day-success',
+                        state: daySuccessState
+                    }));
+                    navigate('/verify-email', { state: daySuccessState, replace: true });
+                } else {
+                    navigate('/participant/day-success', { state: daySuccessState });
+                }
             }
         } catch (error: any) {
             console.error("Login error:", error);
@@ -476,7 +507,15 @@ const SprintPreview: React.FC = () => {
             if (isVerified) {
                 toast.success("Email verified successfully! Welcome.");
                 setShowLockModal(false);
-                navigate('/', { replace: true });
+                navigate('/participant/day-success', { 
+                    state: { 
+                        day: 1, 
+                        coinsUnlocked: 10, 
+                        bridgeNote: day1Content?.bridgeNote, 
+                        enrollmentId: createdEnrollmentId 
+                    },
+                    replace: true 
+                });
             } else {
                 toast.error("Email is not verified yet. Please click the link in your inbox first!");
             }

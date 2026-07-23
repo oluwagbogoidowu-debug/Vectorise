@@ -9,7 +9,7 @@ import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtil
 import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers, Sparkles, HelpCircle } from 'lucide-react';
+import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers, Sparkles, HelpCircle, Flame, Coins } from 'lucide-react';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import FormattedText from '../../components/FormattedText';
@@ -319,6 +319,7 @@ const EditSprint: React.FC = () => {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showMirrorPreview, setShowMirrorPreview] = useState(false);
+  const [showDaySuccessPreview, setShowDaySuccessPreview] = useState(false);
   const [showClearActionConfirm, setShowClearActionConfirm] = useState(false);
   const [showAdvancedActionModal, setShowAdvancedActionModal] = useState(false);
   const [showInsightHelpSheet, setShowInsightHelpSheet] = useState(false);
@@ -3799,6 +3800,33 @@ const EditSprint: React.FC = () => {
                     </button>
                         </>
                     )}
+
+                    {/* Bridge Note Section */}
+                    <div className="bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm space-y-3 mt-6">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-pulse" />
+                            <span className="text-xs font-black text-gray-800 uppercase tracking-wider">
+                                Bridge Note (Shown after Day {selectedDay} Completion)
+                            </span>
+                        </div>
+                        <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
+                            This note bridges today and tomorrow. It will be shown on the full-screen success screen after completing all steps for Day {selectedDay}.
+                        </p>
+                        {isAdmin && !isFoundational && originalSprint && (
+                            <DiffHighlight 
+                                label="Bridge Note" 
+                                original={Array.isArray(originalSprint.dailyContent) ? originalSprint.dailyContent.find(c => c.day === selectedDay)?.bridgeNote : undefined} 
+                                updated={currentContent.bridgeNote} 
+                            />
+                        )}
+                        <textarea
+                            value={currentContent.bridgeNote || ''}
+                            onChange={(e) => handleContentChange('bridgeNote', e.target.value)}
+                            rows={3}
+                            className={editorInputClasses}
+                            placeholder="Write a note to bridge today and tomorrow (e.g. 'You've laid down the foundation today. Tomorrow, we build...')"
+                        />
+                    </div>
                 </div>
 
               {/* COMPLETION PROTOCOL CURATION */}
@@ -4228,10 +4256,15 @@ const EditSprint: React.FC = () => {
                 </div>
 
                 <div className="mt-12 space-y-4">
-                  <div className="w-full py-5 bg-[#159E5B] text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] text-center shadow-xl shadow-primary/10">
-                    Today's task completed
-                  </div>
-                  <p className="text-center text-[8px] font-black text-gray-300 uppercase tracking-widest">Preview of completion button</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowDaySuccessPreview(true)}
+                    className="w-full py-5 bg-[#0E7850] text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] text-center shadow-xl shadow-[#0E7850]/20 hover:bg-[#0E7850]/90 transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Sparkles size={16} />
+                    <span>Complete Day (Preview Day Success Screen)</span>
+                  </button>
+                  <p className="text-center text-[8px] font-black text-gray-300 uppercase tracking-widest">Click to preview participant Day Success celebration screen</p>
                 </div>
               </div>
                 </>
@@ -5369,6 +5402,14 @@ const EditSprint: React.FC = () => {
         totalDays={sprint?.duration}
       />
 
+      <CoachDaySuccessPreviewModal
+        isOpen={showDaySuccessPreview}
+        onClose={() => setShowDaySuccessPreview(false)}
+        day={selectedDay}
+        dayContent={currentContent}
+        sprintName={sprint?.title}
+      />
+
       {scrolledDown && !(isAdmin && !isFoundational) && !showAdvancedActionModal && (
         <button 
           type="button"
@@ -5534,3 +5575,108 @@ const CoachMirrorPreviewModal: React.FC<CoachMirrorPreviewModalProps> = ({ isOpe
 };
 
 export default EditSprint;
+
+// Interactive Day Success Screen preview modal for coaches
+interface CoachDaySuccessPreviewModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  day: number;
+  dayContent: any;
+  sprintName?: string;
+}
+
+const CoachDaySuccessPreviewModal: React.FC<CoachDaySuccessPreviewModalProps> = ({ isOpen, onClose, day, dayContent, sprintName }) => {
+  useEffect(() => {
+    if (isOpen) {
+      try {
+        const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3");
+        audio.play().catch((e) => console.error("Sound playback deferred/failed:", e));
+      } catch (e) {
+        console.error("Audio initialization failed:", e);
+      }
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const bridgeNote = dayContent?.bridgeNote;
+
+  return (
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-md animate-fade-in">
+      <div className="bg-[#FDFDFD] rounded-[2.5rem] shadow-2xl p-6 sm:p-10 max-w-md w-full border border-gray-150 flex flex-col items-center text-center relative animate-scale-up">
+        {/* Close button */}
+        <button 
+          type="button"
+          onClick={onClose}
+          className="absolute top-5 right-5 p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+          title="Close Day Success Preview"
+        >
+          <X size={18} />
+        </button>
+
+        {/* Header Logo */}
+        <div className="mb-6">
+          <LocalLogo type="green" className="h-6 w-auto text-[#0E7850]" />
+        </div>
+
+        {/* Animated Celebration Icon */}
+        <div className="relative mb-6">
+          <div className="absolute inset-0 bg-[#0E7850]/10 rounded-full animate-ping opacity-30 scale-125" />
+          <div className="w-20 h-20 bg-[#0E7850] rounded-full flex items-center justify-center text-white shadow-xl relative">
+            <Sparkles className="w-8 h-8 animate-pulse text-white" />
+          </div>
+        </div>
+
+        {/* Heading */}
+        <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight uppercase leading-none mb-2">
+          Day {day} Complete!
+        </h2>
+        <p className="text-gray-500 font-medium text-xs uppercase tracking-widest mb-6">
+          Great work on taking today's action step
+        </p>
+
+        {/* Bridge Note card */}
+        <div className="w-full bg-[#0E7850]/5 border border-[#0E7850]/15 rounded-2xl p-4 mb-6 text-left">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="w-2 h-2 rounded-full bg-[#0E7850]" />
+            <span className="text-[10px] font-black text-[#0E7850] uppercase tracking-wider">Bridge Note</span>
+          </div>
+          <p className="text-xs font-semibold text-gray-800 leading-relaxed italic">
+            {bridgeNote && bridgeNote.trim() ? bridgeNote : "No bridge note set for this day yet. Add one in the Bridge Note editor section to inspire participants!"}
+          </p>
+        </div>
+
+        {/* Stats card */}
+        <div className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6 grid grid-cols-2 gap-3 text-center">
+          <div className="flex flex-col items-center">
+            <div className="flex items-center gap-1 text-amber-500 mb-0.5">
+              <Flame size={16} fill="currentColor" />
+              <span className="text-base font-black">1 Day</span>
+            </div>
+            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Current Streak</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <div className="flex items-center gap-1 text-amber-600 mb-0.5">
+              <Coins size={16} />
+              <span className="text-base font-black">+10</span>
+            </div>
+            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Coins Unlocked</span>
+          </div>
+        </div>
+
+        {/* Action Button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-[#0E7850]/90 transition-all shadow-lg shadow-[#0E7850]/20 active:scale-95 cursor-pointer"
+        >
+          Close Preview
+        </button>
+
+        <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-4">
+          ✨ Participant Day Success Screen Preview
+        </span>
+      </div>
+    </div>
+  );
+};

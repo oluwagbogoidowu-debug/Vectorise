@@ -305,8 +305,19 @@ const SignUpPage: React.FC = () => {
                   });
               }
               localStorage.removeItem('pending_first_action');
+              const daySuccessState = {
+                  redirectToDaySuccess: true,
+                  day: 1,
+                  coinsUnlocked: 10,
+                  sprintId: targetSprintId,
+                  enrollmentId: enrollment.id
+              };
+              sessionStorage.setItem('post_verify_redirect', JSON.stringify({
+                  path: '/participant/day-success',
+                  state: daySuccessState
+              }));
               await sendEmailVerification(firebaseUser);
-              navigate('/verify-email', { replace: true });
+              navigate('/verify-email', { state: daySuccessState, replace: true });
               return;
           }
       }

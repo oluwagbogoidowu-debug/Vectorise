@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { sendEmailVerification } from 'firebase/auth';
 import { auth } from '../../services/firebase';
@@ -8,9 +8,38 @@ import { toast as alertToast } from 'sonner';
 const VerifyEmailPage: React.FC = () => {
   const { user, mustVerifyEmail, loading, checkVerification, logout, deferVerification } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [isResendingLink, setIsResendingLink] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  const getTargetRedirect = () => {
+    if (location.state?.redirectToDaySuccess) {
+      return {
+        path: '/participant/day-success',
+        state: {
+          day: location.state.day || 1,
+          coinsUnlocked: location.state.coinsUnlocked !== undefined ? location.state.coinsUnlocked : 10,
+          bridgeNote: location.state.bridgeNote,
+          sprintId: location.state.sprintId,
+          enrollmentId: location.state.enrollmentId
+        }
+      };
+    }
+    const saved = sessionStorage.getItem('post_verify_redirect');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          path: parsed.path || '/participant/day-success',
+          state: parsed.state || { day: 1, coinsUnlocked: 10 }
+        };
+      } catch (e) {
+        console.error("Error parsing post_verify_redirect:", e);
+      }
+    }
+    return null;
+  };
 
   if (loading) {
     return (
@@ -25,8 +54,13 @@ const VerifyEmailPage: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // If email is already verified and confirmed, redirect them to the dashboard
+  // If email is already verified and confirmed, redirect them to post-verify target or dashboard
   if (!mustVerifyEmail) {
+    const target = getTargetRedirect();
+    if (target) {
+      sessionStorage.removeItem('post_verify_redirect');
+      return <Navigate to={target.path} state={target.state} replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -50,7 +84,13 @@ const VerifyEmailPage: React.FC = () => {
       const isVerified = await checkVerification();
       if (isVerified) {
         alertToast.success("Email verified successfully! Welcome.");
-        navigate('/dashboard', { replace: true });
+        const target = getTargetRedirect();
+        if (target) {
+          sessionStorage.removeItem('post_verify_redirect');
+          navigate(target.path, { state: target.state, replace: true });
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
       } else {
         alertToast.error("We checked, but the link hasn't been verified in your inbox yet!");
       }
@@ -148,7 +188,13 @@ const VerifyEmailPage: React.FC = () => {
               <button 
                 onClick={() => {
                   deferVerification();
-                  navigate('/dashboard', { replace: true });
+                  const target = getTargetRedirect();
+                  if (target) {
+                    sessionStorage.removeItem('post_verify_redirect');
+                    navigate(target.path, { state: target.state, replace: true });
+                  } else {
+                    navigate('/dashboard', { replace: true });
+                  }
                 }}
                 className="flex-1 py-3 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-primary/90 transition-colors shadow-lg active:scale-95 cursor-pointer"
               >
