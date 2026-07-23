@@ -137,6 +137,27 @@ const ParticipantDashboard: React.FC = () => {
   const [showStreakText, setShowStreakText] = useState(false);
   const [unlockedUnclaimedMilestone, setUnlockedUnclaimedMilestone] = useState<any | null>(null);
   const [nextToUnlockMilestone, setNextToUnlockMilestone] = useState<any | null>(null);
+  const [isClaimingMilestone, setIsClaimingMilestone] = useState(false);
+
+  const handleClaimMilestoneCard = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!user || !unlockedUnclaimedMilestone || isClaimingMilestone) return;
+    setIsClaimingMilestone(true);
+    try {
+      const milestone = unlockedUnclaimedMilestone;
+      await userService.claimMilestone(user.id, milestone.id, milestone.points);
+      toast.success(`Claimed! +${milestone.points} Coins added to your wallet.`);
+      setUnlockedUnclaimedMilestone(null);
+    } catch (err: any) {
+      console.error("Error claiming milestone:", err);
+      toast.error("Failed to claim milestone. Please try again.");
+    } finally {
+      setIsClaimingMilestone(false);
+    }
+  };
 
   const [cardSettings, setCardSettings] = useState<any>({
     blog: true,
@@ -1704,51 +1725,62 @@ const ParticipantDashboard: React.FC = () => {
                         {/* Hall of Rise Coins / Next to Unlock Card */}
                         {cardSettings.hallOfRise && (
                             unlockedUnclaimedMilestone ? (
-                                <Link 
-                                    to={isStepUpLocked ? "#" : "/profile/hall-of-rise"} 
-                                    onClick={(e) => isStepUpLocked && e.preventDefault()}
+                                <div 
                                     className={`flex-shrink-0 w-60 h-60 bg-white border rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
                                         isStepUpLocked 
                                         ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed border-gray-150' 
-                                        : 'hover:shadow-md hover:border-amber-500/20 cursor-pointer border-amber-200'
+                                        : 'hover:shadow-md hover:border-amber-500/20 border-amber-200'
                                     }`}
                                 >
                                     {/* Tag */}
                                     <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-amber-50 text-amber-700 border border-amber-100/40 z-20">
-                                        Unclaimed Reward
+                                        Unlocked Hall of Rise
                                     </div>
 
                                     <div className="flex-1 flex flex-col justify-between pt-2">
                                         <div className="space-y-2 mt-2 text-left">
-                                            <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center border border-amber-100/50 shadow-sm animate-bounce">
-                                                <span>🎁</span>
+                                            <div className="flex items-center justify-between">
+                                                <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center border border-amber-100/50 shadow-sm animate-bounce">
+                                                    <span className="text-lg">{unlockedUnclaimedMilestone.icon || '🎁'}</span>
+                                                </div>
+                                                <span className="text-[10px] font-mono font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-100/50">
+                                                    +{unlockedUnclaimedMilestone.points} Coins
+                                                </span>
                                             </div>
                                             <div>
                                                 <h4 className="text-xs font-black text-gray-950 leading-tight uppercase tracking-tight">
-                                                    You have unclaimed coins!
+                                                    Claim unlocked milestone.
                                                 </h4>
-                                                <p className="text-[10px] font-bold text-gray-500 mt-1">
+                                                <p className="text-[10px] font-bold text-gray-700 mt-1 line-clamp-1">
                                                     {unlockedUnclaimedMilestone.title}
                                                 </p>
-                                                <p className="text-[9px] font-medium text-amber-600 mt-0.5">
-                                                    Claim it in the Hall of Rise
+                                                <p className="text-[9px] font-medium text-gray-400 mt-0.5 line-clamp-2">
+                                                    {unlockedUnclaimedMilestone.description || 'You unlocked a milestone in the Hall of Rise!'}
                                                 </p>
                                             </div>
                                         </div>
 
                                         <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
-                                            <span className="text-[9px] font-black uppercase text-amber-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                                                Claim Reward
-                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                                </svg>
-                                            </span>
-                                            <span className="text-[10px] font-mono font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100/50">
-                                                +{unlockedUnclaimedMilestone.points} pts
-                                            </span>
+                                            <button
+                                                type="button"
+                                                disabled={isClaimingMilestone}
+                                                onClick={handleClaimMilestoneCard}
+                                                className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-center font-black uppercase tracking-widest text-[9px] shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                                            >
+                                                {isClaimingMilestone ? (
+                                                    <span>Claiming...</span>
+                                                ) : (
+                                                    <>
+                                                        <span>Claim Reward</span>
+                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                                        </svg>
+                                                    </>
+                                                )}
+                                            </button>
                                         </div>
                                     </div>
-                                </Link>
+                                </div>
                             ) : nextToUnlockMilestone ? (
                                 <Link 
                                     to={isStepUpLocked ? "#" : "/profile/hall-of-rise"} 
