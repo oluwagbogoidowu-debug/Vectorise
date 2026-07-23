@@ -13,7 +13,7 @@ import { useAuth } from '../../contexts/AuthContext';
 const SignUpPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { checkVerification } = useAuth();
+  const { checkVerification, resetVerificationDeferral } = useAuth();
   
   const onboardingState = location.state || {};
   
@@ -132,9 +132,18 @@ const SignUpPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
+      resetVerificationDeferral();
       // 1. Create Firebase Auth Account
       const userCredential = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
       const firebaseUser = userCredential.user;
+      
+      // Send email verification right away
+      try {
+        await sendEmailVerification(firebaseUser);
+      } catch (vErr) {
+        console.error("Immediate sendEmailVerification error:", vErr);
+      }
+
       await updateFbProfile(firebaseUser, { displayName: `${firstName} ${lastName}` });
       
       // 2. Resolve Referrer UID and Name

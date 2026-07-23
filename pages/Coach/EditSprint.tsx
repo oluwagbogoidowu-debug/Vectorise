@@ -5641,21 +5641,25 @@ const CoachDaySuccessPreviewModal: React.FC<CoachDaySuccessPreviewModalProps> = 
           <LocalLogo type="green" className="h-6 w-auto text-[#0E7850]" />
         </div>
 
-        {/* Animated Celebration Icon */}
-        <div className="relative mb-6">
-          <div className="absolute inset-0 bg-[#0E7850]/10 rounded-full animate-ping opacity-30 scale-125" />
-          <div className="w-20 h-20 bg-[#0E7850] rounded-full flex items-center justify-center text-white shadow-xl relative">
-            <Sparkles className="w-8 h-8 animate-pulse text-white" />
+        {/* Left Aligned Celebration Header with Small Icon */}
+        <div className="w-full flex items-start gap-3 sm:gap-4 text-left mb-6">
+          {/* Small Celebration Icon on Left */}
+          <div className="relative shrink-0 mt-0.5">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#0E7850] rounded-2xl flex items-center justify-center text-white shadow-md relative">
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white animate-pulse" />
+            </div>
+          </div>
+
+          {/* Main Title and Subtext stacked on right */}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight uppercase leading-tight">
+              Day {day} Complete!
+            </h2>
+            <p className="text-gray-500 font-semibold text-xs uppercase tracking-wider mt-1">
+              You've completed the day's sprint action step
+            </p>
           </div>
         </div>
-
-        {/* Heading */}
-        <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight uppercase leading-none mb-2">
-          Day {day} Complete!
-        </h2>
-        <p className="text-gray-500 font-medium text-xs uppercase tracking-widest mb-6">
-          Great work on taking today's action step
-        </p>
 
         {/* Bridge Note card */}
         <div className="w-full bg-[#0E7850]/5 border border-[#0E7850]/15 rounded-2xl p-4 mb-6 text-left">

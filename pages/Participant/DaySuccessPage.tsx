@@ -82,32 +82,29 @@ const DaySuccessPage: React.FC = () => {
       {/* Main Content Container */}
       <main className="relative z-10 max-w-md w-full mx-auto flex-1 flex flex-col justify-center items-center py-8">
         
-        {/* Animated Celebration Icon */}
-        <motion.div 
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-          className="relative mb-6"
-        >
-          <div className="absolute inset-0 bg-[#0E7850]/10 rounded-full animate-ping opacity-30 scale-125" />
-          <div className="w-24 h-24 bg-[#0E7850] rounded-full flex items-center justify-center text-white shadow-xl relative">
-            <Sparkles className="w-10 h-10 animate-pulse text-white" />
-          </div>
-        </motion.div>
-
-        {/* Display Typography */}
+        {/* Left Aligned Header with Small Icon */}
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.5 }}
-          className="text-center mb-10"
+          className="w-full flex items-start gap-3 sm:gap-4 text-left mb-8"
         >
-          <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight uppercase leading-none">
-            Day {completedDay} Complete!
-          </h1>
-          <p className="text-gray-500 font-medium text-xs uppercase tracking-widest mt-2">
-            You've completed the day's sprint action step
-          </p>
+          {/* Small Celebration Icon on Left */}
+          <div className="relative shrink-0 mt-0.5">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#0E7850] rounded-2xl flex items-center justify-center text-white shadow-md relative">
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white animate-pulse" />
+            </div>
+          </div>
+
+          {/* Main Title and Subtext stacked on right */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight uppercase leading-tight">
+              Day {completedDay} Complete!
+            </h1>
+            <p className="text-gray-500 font-semibold text-xs uppercase tracking-wider mt-1">
+              You've completed the day's sprint action step
+            </p>
+          </div>
         </motion.div>
 
         {/* Info Cards Deck */}

@@ -12,7 +12,7 @@ import { useAuth } from '../../contexts/AuthContext';
 const CoachOnboardingComplete: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, resetVerificationDeferral } = useAuth();
   const { niche, applicationDetails, answers } = location.state || {};
 
   const [firstName, setFirstName] = useState('');
@@ -62,6 +62,7 @@ const CoachOnboardingComplete: React.FC = () => {
     setShowLoginLink(false);
     setIsSubmitting(true);
     try {
+      resetVerificationDeferral();
       const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const firebaseUser = userCredential.user;
       await updateFbProfile(firebaseUser, { displayName: `${firstName} ${lastName}` });

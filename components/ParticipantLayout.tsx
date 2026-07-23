@@ -111,15 +111,19 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
     }
   }, [location.pathname]);
 
+  const isDaySuccess = location.pathname.startsWith('/participant/day-success');
+  const isSprintView = location.pathname.startsWith('/participant/sprint');
+  const isFullBleedPage = isDaySuccess || isSprintView || location.pathname.startsWith('/sprint/preview');
+
   return (
     <div className="h-[100dvh] w-full bg-light overflow-hidden flex flex-col">
       {/* Main content area: overflow-y-auto enables scrolling for the whole view */}
       {showHeader && <Header />}
-      <main className={`flex-1 bg-light relative overflow-y-auto custom-scrollbar ${showHeader ? 'pt-2' : ''} ${user ? 'pb-24' : 'pb-28'}`}>
+      <main className={`flex-1 bg-light relative overflow-y-auto custom-scrollbar ${showHeader ? 'pt-2' : ''} ${isFullBleedPage ? 'pb-0' : (user ? 'pb-24' : 'pb-28')}`}>
         {children || <Outlet />}
       </main>
       
-      {user ? (
+      {!isFullBleedPage && (user ? (
         <BottomNav />
       ) : (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-xs bg-[#0E7850] text-white rounded-[2rem] shadow-xl z-50 p-4 flex items-center justify-between gap-4 border border-emerald-600/20">
@@ -135,7 +139,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
             Get Started
           </button>
         </div>
-      )}
+      ))}
       
       {showCoinPopup && pendingSprint && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">

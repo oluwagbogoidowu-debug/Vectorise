@@ -227,7 +227,7 @@ const SprintPreview: React.FC = () => {
     const { sprintId } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
-    const { user, loading, checkVerification, logout, deferVerification } = useAuth();
+    const { user, loading, checkVerification, logout, deferVerification, resetVerificationDeferral } = useAuth();
     
     const [sprint, setSprint] = useState<Sprint | null>(location.state?.sprint || null);
     const [isLoading, setIsLoading] = useState(!location.state?.sprint);
@@ -344,8 +344,17 @@ const SprintPreview: React.FC = () => {
         setIsSubmittingAuth(true);
 
         try {
+            resetVerificationDeferral();
             const userCredential = await createUserWithEmailAndPassword(auth, authEmail.trim().toLowerCase(), authPassword);
             const firebaseUser = userCredential.user;
+            
+            // Send verification email immediately
+            try {
+                await sendEmailVerification(firebaseUser);
+            } catch (verr) {
+                console.error("Immediate sendEmailVerification error:", verr);
+            }
+
             await updateFbProfile(firebaseUser, { displayName: `${authFirstName} ${authLastName}` });
 
             const isCoachRegistration = !!(sprint?.audience && sprint.audience.some((a: any) => typeof a === 'string' && a.toLowerCase().includes("coach")));

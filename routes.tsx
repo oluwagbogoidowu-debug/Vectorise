@@ -112,6 +112,10 @@ export const AppRoutes: React.FC = () => {
   const { user, activeRole, mustVerifyEmail } = useAuth();
   const location = useLocation();
 
+  if (user && mustVerifyEmail && location.pathname !== '/verify-email') {
+    return <Navigate to="/verify-email" replace />;
+  }
+
   return (
     <Routes>
       <Route path="/login" element={user ? (mustVerifyEmail ? <Navigate to="/verify-email" replace /> : <Navigate to="/dashboard" replace />) : <LoginPage />} />

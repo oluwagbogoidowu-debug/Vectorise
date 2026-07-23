@@ -150,6 +150,11 @@ const AppContent: React.FC = () => {
     location.pathname === '/verify-email' ||
     location.pathname === '/payment-success';
 
+  const isFullBleed = 
+    location.pathname.startsWith('/participant/day-success') || 
+    location.pathname.startsWith('/participant/sprint') || 
+    location.pathname.startsWith('/sprint/preview');
+
   const showGlobalHeader = false;
 
   const showParticipantNav = 
@@ -158,9 +163,10 @@ const AppContent: React.FC = () => {
     !isOnboardingRoute &&
     !location.pathname.startsWith('/coach') &&
     !location.pathname.startsWith('/admin') &&
-    !isAuthRoute;
+    !isAuthRoute &&
+    !isFullBleed;
 
-  const showTopBanner = !isOnboardingRoute && !isAuthRoute;
+  const showTopBanner = !isOnboardingRoute && !isAuthRoute && !isFullBleed;
 
   if (loading) {
     return (
