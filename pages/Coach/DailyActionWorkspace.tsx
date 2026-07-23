@@ -124,6 +124,9 @@ export default function DailyActionWorkspace({
       const currentFootnotes = Array.isArray(dayContent.taskFootnotes) ? [...dayContent.taskFootnotes] : [];
       while (currentFootnotes.length < currentPrompts.length) currentFootnotes.push(null as any);
 
+      const currentPollLinks = Array.isArray(dayContent.taskPollOptionLinks) ? [...dayContent.taskPollOptionLinks] : [];
+      while (currentPollLinks.length < currentPrompts.length) currentPollLinks.push(null as any);
+
       if (existingContentIndex >= 0) {
         updatedDailyContent[existingContentIndex] = {
           ...dayContent,
@@ -131,7 +134,8 @@ export default function DailyActionWorkspace({
           taskInputTypes: currentTypes,
           taskHints: currentHints,
           taskNotes: currentNotes,
-          taskFootnotes: currentFootnotes
+          taskFootnotes: currentFootnotes,
+          taskPollOptionLinks: currentPollLinks
         };
       } else {
         updatedDailyContent.push({
@@ -142,7 +146,8 @@ export default function DailyActionWorkspace({
           taskInputTypes: currentTypes,
           taskHints: currentHints,
           taskNotes: currentNotes,
-          taskFootnotes: currentFootnotes
+          taskFootnotes: currentFootnotes,
+          taskPollOptionLinks: currentPollLinks
         });
       }
       return { ...prev, dailyContent: updatedDailyContent };
@@ -164,12 +169,14 @@ export default function DailyActionWorkspace({
       const currentHints = Array.isArray(dayContent.taskHints) ? [...dayContent.taskHints] : [];
       const currentNotes = Array.isArray(dayContent.taskNotes) ? [...dayContent.taskNotes] : [];
       const currentFootnotes = Array.isArray(dayContent.taskFootnotes) ? [...dayContent.taskFootnotes] : [];
+      const currentPollLinks = Array.isArray(dayContent.taskPollOptionLinks) ? [...dayContent.taskPollOptionLinks] : [];
 
       currentPrompts.splice(index, 1);
       if (currentTypes.length > index) currentTypes.splice(index, 1);
       if (currentHints.length > index) currentHints.splice(index, 1);
       if (currentNotes.length > index) currentNotes.splice(index, 1);
       if (currentFootnotes.length > index) currentFootnotes.splice(index, 1);
+      if (currentPollLinks.length > index) currentPollLinks.splice(index, 1);
 
       updatedDailyContent[existingContentIndex] = {
         ...dayContent,
@@ -177,7 +184,8 @@ export default function DailyActionWorkspace({
         taskInputTypes: currentTypes,
         taskHints: currentHints,
         taskNotes: currentNotes,
-        taskFootnotes: currentFootnotes
+        taskFootnotes: currentFootnotes,
+        taskPollOptionLinks: currentPollLinks
       };
 
       return { ...prev, dailyContent: updatedDailyContent };
@@ -312,6 +320,24 @@ export default function DailyActionWorkspace({
     while (linked.length <= index) linked.push(false);
     linked[index] = !linked[index];
     updateFieldForDay(dayNum, 'taskLinkedToNext', linked);
+  };
+
+  const findNearestPrecedingPoll = (dayContent: DailyContent | undefined, currentIndex: number) => {
+    if (!dayContent || !dayContent.taskInputTypes) return -1;
+    for (let i = currentIndex - 1; i >= 0; i--) {
+      if (dayContent.taskInputTypes[i] === 'poll') {
+        return i;
+      }
+    }
+    return -1;
+  };
+
+  const handleSetPollOptionLink = (dayNum: number, index: number, linkValue: string | null) => {
+    const dayContent = getDailyContentForDay(dayNum);
+    const links = [...(dayContent.taskPollOptionLinks || [])];
+    while (links.length <= index) links.push(undefined);
+    links[index] = linkValue || undefined;
+    updateFieldForDay(dayNum, 'taskPollOptionLinks', links);
   };
 
   const handleToggleSourceLink = (dayNum: number, index: number, val: number) => {
@@ -902,6 +928,65 @@ export default function DailyActionWorkspace({
                       </div>
                     </div>
 
+                    {/* Poll Option Branching Selector */}
+                    {(() => {
+                      const pollIdx = findNearestPrecedingPoll(dayContent, activeIdx);
+                      if (pollIdx === -1) return null;
+
+                      let pollOptions: string[] = [];
+                      if (dayContent.taskPollOptions?.[pollIdx]) {
+                        try {
+                          pollOptions = JSON.parse(dayContent.taskPollOptions[pollIdx]);
+                        } catch (e) {}
+                      }
+                      pollOptions = pollOptions.filter(Boolean);
+
+                      const currentLink = dayContent.taskPollOptionLinks?.[activeIdx];
+
+                      return (
+                        <div className="mt-3 p-3 bg-purple-50/45 border border-purple-100 rounded-xl space-y-2 text-left">
+                          <div className="text-[10px] font-black text-purple-700 uppercase tracking-widest flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            </svg>
+                            <span>Branching Path (Linked to Poll Step {pollIdx + 1})</span>
+                          </div>
+                          <p className="text-[10px] text-gray-500 leading-normal">
+                            Choose if this question should only show when a specific option is clicked in the poll at Step {pollIdx + 1}. If unlinked, it shows normally.
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDay(dayNum);
+                                handleSetPollOptionLink(dayNum, activeIdx, null);
+                              }}
+                              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${!currentLink ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-white text-gray-550 border-gray-200 hover:bg-gray-50'}`}
+                            >
+                              Normal Progression (Always)
+                            </button>
+                            {pollOptions.map((opt, optIdx) => {
+                              const tag = `poll ${optIdx + 1}`;
+                              const isSelected = currentLink === tag;
+                              return (
+                                <button
+                                  key={optIdx}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDay(dayNum);
+                                    handleSetPollOptionLink(dayNum, activeIdx, tag);
+                                  }}
+                                  className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${isSelected ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                                >
+                                  If Option {optIdx + 1}: "{opt}" ({tag})
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {/* Multi-Link selector inside card */}
                     {(() => {
                       const rawPrecedingSteps = (dayContent.taskInputTypes || [])
@@ -1243,6 +1328,29 @@ export default function DailyActionWorkspace({
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  {/* Bridge Note Section */}
+                  <div className="mt-6 pt-6 border-t border-gray-150 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-purple-600 animate-pulse" />
+                      <span className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1">
+                        Bridge Note (Shown after Day {dayNum} is done)
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
+                      This note bridges today and tomorrow. It will be shown in the full bleed screen after completing all steps for Day {dayNum}.
+                    </p>
+                    <textarea
+                      value={dayContent.bridgeNote || ''}
+                      onChange={(e) => {
+                        setSelectedDay(dayNum);
+                        updateFieldForDay(dayNum, 'bridgeNote', e.target.value);
+                      }}
+                      rows={3}
+                      className="w-full px-4 py-3 bg-purple-50/10 border border-purple-100 rounded-2xl text-xs font-medium focus:ring-4 focus:ring-purple-100/50 focus:border-purple-300 outline-none transition-all resize-none"
+                      placeholder="Write a message to bridge today and tomorrow (e.g. 'You've laid down the foundation today. Tomorrow, we build...')"
+                    />
                   </div>
                 </div>
               );

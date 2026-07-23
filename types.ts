@@ -284,6 +284,7 @@ export interface DailyContent {
   taskInputTypes?: ('text' | 'tags' | 'poll' | 'note' | 'mark')[];
   taskMultiTextLabels?: string[][];
   taskPollOptions?: string[];
+  taskPollOptionLinks?: (string | null | undefined)[];
   taskLinkedToNext?: boolean[];
   taskLinkedSources?: number[][];
   taskNotes?: string[];
@@ -300,6 +301,7 @@ export interface DailyContent {
   mirrorFraming?: string[];
   mirrorParaphrases?: string[];
   mirrorDisabledSteps?: boolean[];
+  bridgeNote?: string;
 }
 
 export interface User {

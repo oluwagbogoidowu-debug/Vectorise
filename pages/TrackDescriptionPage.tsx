@@ -40,7 +40,9 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
                     </div>
                     <div className="text-left">
                         <div className="flex items-center gap-2 mb-1">
-                            <span className="px-2 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md">{sprint.category}</span>
+                            {sprint.category && sprint.category.toLowerCase() !== 'foundational path' && sprint.category.toLowerCase() !== 'foundational' && (
+                                <span className="px-2 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md">{sprint.category}</span>
+                            )}
                             <span className="text-[8px] font-black text-primary uppercase tracking-widest">{sprint.duration} Days</span>
                         </div>
                         <h4 className="text-lg font-black text-gray-900 tracking-tight group-hover:text-primary transition-colors leading-tight">{sprint.title}</h4>
@@ -266,7 +268,7 @@ const TrackDescriptionPage: React.FC = () => {
             </div>
         );
     }
-    if (!track) return <div className="min-h-screen flex flex-col items-center justify-center bg-light text-center px-4"><h2 className="text-base font-black mb-2">Track not found.</h2><Button onClick={() => navigate('/discover')}>Discover Paths</Button></div>;
+    if (!track) return <div className="min-h-screen flex flex-col items-center justify-center bg-light text-center px-4"><h2 className="text-base font-black mb-2">Track not found.</h2><Button onClick={() => navigate('/explore')}>Discover Paths</Button></div>;
 
     return (
         <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
@@ -275,7 +277,7 @@ const TrackDescriptionPage: React.FC = () => {
                 <div className="max-w-screen-lg mx-auto flex justify-between items-center">
                     {user ? (
                         <button 
-                            onClick={() => navigate('/discover')} 
+                            onClick={() => navigate('/explore')} 
                             className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest cursor-pointer"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-2 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>

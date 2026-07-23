@@ -652,6 +652,113 @@ const SprintPreview: React.FC = () => {
 
     const day1Content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
 
+    const isStepVisible = (stepIndex: number): boolean => {
+        if (!day1Content) return true;
+        
+        const pollLink = day1Content.taskPollOptionLinks?.[stepIndex];
+        if (!pollLink) {
+            return true;
+        }
+
+        let pollIdx = -1;
+        if (day1Content.taskInputTypes) {
+            for (let i = stepIndex - 1; i >= 0; i--) {
+                if (day1Content.taskInputTypes[i] === 'poll') {
+                    pollIdx = i;
+                    break;
+                }
+            }
+        }
+
+        if (pollIdx === -1) {
+            return true;
+        }
+
+        const selection = taskInputs[pollIdx];
+        if (!selection) {
+            return false;
+        }
+
+        let customOptions: string[] = [];
+        if (day1Content.taskPollOptions?.[pollIdx]) {
+            try {
+                customOptions = JSON.parse(day1Content.taskPollOptions[pollIdx]);
+            } catch (e) {}
+        }
+        customOptions = customOptions.filter(Boolean);
+
+        let linkedTags: string[] = [];
+        if (pollIdx > 0) {
+            linkedTags = getLinkedTagsForStep(pollIdx);
+        }
+        const pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
+
+        let selectedOptions: string[] = [];
+        try {
+            if (selection.startsWith("[")) {
+                selectedOptions = JSON.parse(selection);
+            } else {
+                selectedOptions = [selection];
+            }
+        } catch (e) {
+            selectedOptions = [selection];
+        }
+
+        const match = pollOptions.some((opt, optIndex) => {
+            const tag = `poll ${optIndex + 1}`;
+            return tag === pollLink && selectedOptions.includes(opt);
+        });
+
+        return match;
+    };
+
+    const getNextVisibleStepIndex = (currentIndex: number): number => {
+        if (!day1Content || !day1Content.taskPrompts) return currentIndex;
+        for (let i = currentIndex + 1; i < day1Content.taskPrompts.length; i++) {
+            if (isStepVisible(i)) {
+                return i;
+            }
+        }
+        return -1;
+    };
+
+    const getPrevVisibleStepIndex = (currentIndex: number): number => {
+        if (!day1Content || !day1Content.taskPrompts) return currentIndex;
+        for (let i = currentIndex - 1; i >= 0; i--) {
+            if (isStepVisible(i)) {
+                return i;
+            }
+        }
+        return -1;
+    };
+
+    const getTotalVisibleStepsCount = (): number => {
+        if (!day1Content || !day1Content.taskPrompts) return 1;
+        return day1Content.taskPrompts.filter((_, idx) => isStepVisible(idx)).length;
+    };
+
+    const getVisibleStepIndexOrder = (currentIndex: number): number => {
+        if (!day1Content || !day1Content.taskPrompts) return 0;
+        let order = 0;
+        for (let i = 0; i <= currentIndex; i++) {
+            if (isStepVisible(i)) {
+                order++;
+            }
+        }
+        return order;
+    };
+
+    const getRemainingVisibleStepsCount = (currentIndex: number): number => {
+        if (!day1Content || !day1Content.taskPrompts) return 0;
+        let count = 0;
+        for (let i = currentIndex + 1; i < day1Content.taskPrompts.length; i++) {
+            if (isStepVisible(i)) {
+                count++;
+            }
+        }
+        return count;
+    };
+
     const getLinkedTagsForStep = (stepIndex: number): string[] => {
         if (!day1Content) return [];
 
@@ -896,7 +1003,7 @@ const SprintPreview: React.FC = () => {
                             return (
                                 <>
                                     <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden animate-fade-in">
-                                        <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Action Step {i + 1} of {activePrompts.length}</h2>
+                                        <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Action Step {getVisibleStepIndexOrder(i)} of {getTotalVisibleStepsCount()}</h2>
                                         
                                         {day1Content?.taskNotes?.[i] && (
                                             <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
@@ -1020,8 +1127,8 @@ const SprintPreview: React.FC = () => {
                                                     const tagsVal = taskInputs[i];
                                                     const isValid = !!tagsVal && tagsVal !== "[]" && tagsVal !== "";
                                                     if (isValid) {
-                                                        if (i < activePrompts.length - 1) {
-                                                            setActiveTaskIndex(i + 1);
+                                                        if (getNextVisibleStepIndex(i) !== -1) {
+                                                            setActiveTaskIndex(getNextVisibleStepIndex(i));
                                                         } else if (!user) {
                                                             const pendingObj = {
                                                                 sprintId: sprint.id,
@@ -1338,10 +1445,10 @@ const SprintPreview: React.FC = () => {
                                              />
                                          ))}
                                         <div className="flex justify-between items-center gap-4 pt-4">
-                                            {i > 0 ? (
+                                            {getPrevVisibleStepIndex(i) !== -1 ? (
                                                 <button
                                                     type="button"
-                                                    onClick={() => setActiveTaskIndex(i - 1)}
+                                                    onClick={() => setActiveTaskIndex(getPrevVisibleStepIndex(i))}
                                                     className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95"
                                                 >
                                                     Back
@@ -1403,8 +1510,8 @@ const SprintPreview: React.FC = () => {
                                                         type="button"
                                                         onClick={() => {
                                                             if (!stepCompleted) return;
-                                                            if (i < activePrompts.length - 1) {
-                                                                setActiveTaskIndex(i + 1);
+                                                            if (getNextVisibleStepIndex(i) !== -1) {
+                                                                setActiveTaskIndex(getNextVisibleStepIndex(i));
                                                             } else {
                                                                 if (!user) {
                                                                     const pendingObj = {
@@ -1423,7 +1530,7 @@ const SprintPreview: React.FC = () => {
                                                         disabled={!stepCompleted}
                                                         className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${stepCompleted ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
                                                     >
-                                                        {i < activePrompts.length - 1 ? 'Next Step' : 'Complete Action'}
+                                                        {getNextVisibleStepIndex(i) !== -1 ? 'Next Step' : 'Complete Action'}
                                                     </button>
                                                 );
                                             })()}
@@ -1432,18 +1539,21 @@ const SprintPreview: React.FC = () => {
                                     
                                     {activePrompts.length > 1 && (
                                         <div className="flex justify-center items-center gap-2 mt-8">
-                                            {activePrompts.map((_, idx) => (
-                                                <button
-                                                    type="button"
-                                                    key={idx} 
-                                                    onClick={() => {
-                                                        if (idx <= activeTaskIndex) {
-                                                            setActiveTaskIndex(idx);
-                                                        }
-                                                    }}
-                                                    className={`h-1.5 rounded-full transition-all duration-300 ${idx <= activeTaskIndex ? 'cursor-pointer' : 'cursor-not-allowed'} ${idx === activeTaskIndex ? 'w-8 bg-primary' : idx < activeTaskIndex ? 'w-2 bg-primary/40 hover:bg-primary/60' : 'w-2 bg-gray-200'}`}
-                                                />
-                                            ))}
+                                            {activePrompts.map((_, idx) => {
+                                                if (!isStepVisible(idx)) return null;
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        key={idx} 
+                                                        onClick={() => {
+                                                            if (idx <= activeTaskIndex) {
+                                                                    setActiveTaskIndex(idx);
+                                                            }
+                                                        }}
+                                                        className={`h-1.5 rounded-full transition-all duration-300 ${idx <= activeTaskIndex ? 'cursor-pointer' : 'cursor-not-allowed'} ${idx === activeTaskIndex ? 'w-8 bg-primary' : idx < activeTaskIndex ? 'w-2 bg-primary/40 hover:bg-primary/60' : 'w-2 bg-gray-200'}`}
+                                                    />
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </>

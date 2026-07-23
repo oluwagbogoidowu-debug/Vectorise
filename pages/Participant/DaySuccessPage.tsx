@@ -15,6 +15,7 @@ const DaySuccessPage: React.FC = () => {
   const completedDay = location.state?.day || 1;
   const nextDay = completedDay + 1;
   const coinsUnlocked = location.state?.coinsUnlocked !== undefined ? location.state?.coinsUnlocked : 10;
+  const bridgeNote = location.state?.bridgeNote;
 
   // Real-time local midnight countdown timer
   const [countdown, setCountdown] = useState('00:00:00');
@@ -103,7 +104,39 @@ const DaySuccessPage: React.FC = () => {
 
         {/* Info Cards Deck */}
         <div className="w-full space-y-4 mb-8">
-          
+
+          {/* Bridge Note Card */}
+          {bridgeNote && (
+            <motion.div 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.15, duration: 0.5 }}
+              className="w-full bg-purple-50/40 border border-purple-100/80 rounded-[2rem] p-6 shadow-sm flex flex-col gap-3 relative overflow-hidden"
+            >
+              <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl" />
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <p className="text-[10px] font-black text-purple-700 uppercase tracking-widest leading-none">
+                    Bridge Note
+                  </p>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-1">
+                    Your key to tomorrow
+                  </p>
+                </div>
+              </div>
+              <div className="text-left bg-white/70 border border-purple-50 p-4 rounded-2xl">
+                <p className="text-xs text-gray-800 font-semibold italic leading-relaxed">
+                  "{bridgeNote}"
+                </p>
+              </div>
+            </motion.div>
+          )}
+
           {/* Unlocked Coins Card (If coins unlocked > 0) */}
           {coinsUnlocked > 0 && (
             <motion.div 

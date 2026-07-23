@@ -41,7 +41,8 @@ const DayCompletionModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   day: number;
-}> = ({ isOpen, onClose, day }) => {
+  bridgeNote?: string;
+}> = ({ isOpen, onClose, day, bridgeNote }) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -65,10 +66,20 @@ const DayCompletionModal: React.FC<{
         <h3 className="text-3xl font-black text-gray-900 tracking-tight mb-2">
           Great Job!
         </h3>
-        <p className="text-gray-500 font-medium mb-8">
+        <p className="text-gray-500 font-medium mb-4">
           You've successfully completed Day {day} of the sprint. Keep up the
           momentum!
         </p>
+        {bridgeNote && (
+          <div className="mb-6 p-4 bg-purple-50/70 border border-purple-100 rounded-2xl text-left">
+            <p className="text-[10px] font-black text-purple-700 uppercase tracking-widest mb-1.5">
+              Bridge Note
+            </p>
+            <p className="text-xs text-gray-700 font-bold italic leading-relaxed">
+              "{bridgeNote}"
+            </p>
+          </div>
+        )}
         <button
           onClick={onClose}
           className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-800 transition-colors shadow-lg active:scale-95"
@@ -1055,6 +1066,113 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [taskInputs, setTaskInputs] = useState<string[]>(["", "", ""]);
   const [activeTaskIndex, setActiveTaskIndex] = useState(0);
 
+  const isStepVisible = (stepIndex: number): boolean => {
+    if (!dayContent) return true;
+    
+    const pollLink = dayContent.taskPollOptionLinks?.[stepIndex];
+    if (!pollLink) {
+      return true;
+    }
+
+    let pollIdx = -1;
+    if (dayContent.taskInputTypes) {
+      for (let i = stepIndex - 1; i >= 0; i--) {
+        if (dayContent.taskInputTypes[i] === 'poll') {
+          pollIdx = i;
+          break;
+        }
+      }
+    }
+
+    if (pollIdx === -1) {
+      return true;
+    }
+
+    const selection = taskInputs[pollIdx];
+    if (!selection) {
+      return false;
+    }
+
+    let customOptions: string[] = [];
+    if (dayContent.taskPollOptions?.[pollIdx]) {
+      try {
+        customOptions = JSON.parse(dayContent.taskPollOptions[pollIdx]);
+      } catch (e) {}
+    }
+    customOptions = customOptions.filter(Boolean);
+
+    let linkedTags: string[] = [];
+    if (pollIdx > 0) {
+      linkedTags = getLinkedTagsForStep(pollIdx);
+    }
+    const pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
+
+    let selectedOptions: string[] = [];
+    try {
+      if (selection.startsWith("[")) {
+        selectedOptions = JSON.parse(selection);
+      } else {
+        selectedOptions = [selection];
+      }
+    } catch (e) {
+      selectedOptions = [selection];
+    }
+
+    const match = pollOptions.some((opt, optIndex) => {
+      const tag = `poll ${optIndex + 1}`;
+      return tag === pollLink && selectedOptions.includes(opt);
+    });
+
+    return match;
+  };
+
+  const getNextVisibleStepIndex = (currentIndex: number): number => {
+    if (!dayContent || !dayContent.taskPrompts) return currentIndex;
+    for (let i = currentIndex + 1; i < dayContent.taskPrompts.length; i++) {
+      if (isStepVisible(i)) {
+        return i;
+      }
+    }
+    return -1;
+  };
+
+  const getPrevVisibleStepIndex = (currentIndex: number): number => {
+    if (!dayContent || !dayContent.taskPrompts) return currentIndex;
+    for (let i = currentIndex - 1; i >= 0; i--) {
+      if (isStepVisible(i)) {
+        return i;
+      }
+    }
+    return -1;
+  };
+
+  const getTotalVisibleStepsCount = (): number => {
+    if (!dayContent || !dayContent.taskPrompts) return 1;
+    return dayContent.taskPrompts.filter((_, idx) => isStepVisible(idx)).length;
+  };
+
+  const getVisibleStepIndexOrder = (currentIndex: number): number => {
+    if (!dayContent || !dayContent.taskPrompts) return 0;
+    let order = 0;
+    for (let i = 0; i <= currentIndex; i++) {
+      if (isStepVisible(i)) {
+        order++;
+      }
+    }
+    return order;
+  };
+
+  const getRemainingVisibleStepsCount = (currentIndex: number): number => {
+    if (!dayContent || !dayContent.taskPrompts) return 0;
+    let count = 0;
+    for (let i = currentIndex + 1; i < dayContent.taskPrompts.length; i++) {
+      if (isStepVisible(i)) {
+        count++;
+      }
+    }
+    return count;
+  };
+
   // Refs to prevent loaders from overriding active page indices when database saves trigger subscription updates
   const loadedDayRef = useRef<number | null>(null);
   const loadedEnrollmentIdRef = useRef<string | null>(null);
@@ -2018,7 +2136,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         if (isLastDay && updatedProgress.every((p) => p.completed)) {
           setIsCompletionModalOpen(true);
         } else {
-          navigate('/participant/day-success', { state: { day: viewingDay, coinsUnlocked: viewingDay === 1 ? 10 : 0 } });
+          navigate('/participant/day-success', { state: { day: viewingDay, coinsUnlocked: viewingDay === 1 ? 10 : 0, bridgeNote: dayContent?.bridgeNote } });
         }
 
         setIsSubmitting(false);
@@ -2065,7 +2183,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       if (isLastDay && updatedProgress.every((p) => p.completed)) {
         setIsCompletionModalOpen(true);
       } else {
-        navigate('/participant/day-success', { state: { day: viewingDay, coinsUnlocked: viewingDay === 1 ? 10 : 0 } });
+        navigate('/participant/day-success', { state: { day: viewingDay, coinsUnlocked: viewingDay === 1 ? 10 : 0, bridgeNote: dayContent?.bridgeNote } });
       }
 
       // Trigger push permission request if it's the first submission or based on logic
@@ -2171,6 +2289,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     if (activePrompts.length === 0) return true;
 
     return activePrompts.every((_, i) => {
+      if (!isStepVisible(i)) return true;
+
       const type = dayContent.taskInputTypes?.[i] || "text";
       if (type === "note") return true;
 
@@ -2518,7 +2638,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
                               <div className={isFullBleed ? "w-full max-w-4xl mx-auto space-y-6 flex flex-col relative" : "relative z-10"}>
                                 <SectionHeading showDot={!dayProgress?.completed}>
-                                  Action Step {i + 1}
+                                  Action Step {getVisibleStepIndexOrder(i)}
                                 </SectionHeading>
 
                               {dayContent?.taskNotes?.[i] && (
@@ -2669,9 +2789,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         const tagsVal = taskInputs[i];
                                         const isValid = !!tagsVal && tagsVal !== "[]" && tagsVal !== "";
                                         if (isValid) {
-                                          if (i < (dayContent.taskPrompts?.length || 0) - 1) {
+                                          if (getNextVisibleStepIndex(i) !== -1) {
                                             saveParticipantInputImmediately(taskInputs);
-                                            setActiveTaskIndex(i + 1);
+                                            setActiveTaskIndex(getNextVisibleStepIndex(i));
                                           } else if (isProofMet) {
                                             handleFinishDay();
                                           }
@@ -3116,25 +3236,25 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.4em] text-[#0E7850] mb-2">
                                         <span className="flex items-center gap-2">
                                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                          {dayProgress?.completed ? "100" : (i === (dayContent?.taskPrompts?.length || 1) - 1 ? "88" : Math.round((i / (dayContent?.taskPrompts?.length || 1)) * 100))}% Complete
+                                          {dayProgress?.completed ? "100" : (getNextVisibleStepIndex(i) === -1 ? "88" : Math.round((getVisibleStepIndexOrder(i) / getTotalVisibleStepsCount()) * 100))}% Complete
                                         </span>
-                                        <span className="font-bold">{dayProgress?.completed ? "0" : (i === (dayContent?.taskPrompts?.length || 1) - 1 ? "0" : (dayContent?.taskPrompts?.length || 1) - (i + 1))} more steps to go</span>
+                                        <span className="font-bold">{dayProgress?.completed ? "0" : getRemainingVisibleStepsCount(i)} more steps to go</span>
                                       </div>
                                       <div className="w-full bg-emerald-500/10 rounded-full h-1.5 overflow-hidden shadow-inner font-sans">
                                         <div 
                                           className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out" 
-                                          style={{ width: dayProgress?.completed ? "100%" : (i === (dayContent?.taskPrompts?.length || 1) - 1 ? "88%" : `${((i + 1) / (dayContent?.taskPrompts?.length || 1)) * 100}%`) }}
+                                          style={{ width: dayProgress?.completed ? "100%" : (getNextVisibleStepIndex(i) === -1 ? "88%" : `${(getVisibleStepIndexOrder(i) / getTotalVisibleStepsCount()) * 100}%`) }}
                                         />
                                       </div>
                                     </div>
                                   )}
                                   <div className="flex justify-between items-center gap-4 w-full">
-                                    {i > 0 ? (
+                                    {getPrevVisibleStepIndex(i) !== -1 ? (
                                       <button
                                         type="button"
                                         onClick={() => {
                                           saveParticipantInputImmediately(taskInputs);
-                                          setActiveTaskIndex(i - 1);
+                                          setActiveTaskIndex(getPrevVisibleStepIndex(i));
                                         }}
                                         className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30"
                                       >
@@ -3144,8 +3264,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       <div></div>
                                     )}
 
-                                    {i <
-                                      (dayContent.taskPrompts?.length || 0) - 1 &&
+                                    {getNextVisibleStepIndex(i) !== -1 &&
                                       (() => {
                                         const val = taskInputs[i];
                                         const isTags =
@@ -3191,7 +3310,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                           <button
                                             type="button"
                                             onClick={() =>
-                                              { saveParticipantInputImmediately(taskInputs); setActiveTaskIndex(i + 1); }
+                                              { saveParticipantInputImmediately(taskInputs); setActiveTaskIndex(getNextVisibleStepIndex(i)); }
                                             }
                                             disabled={!isValid}
                                             className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${isValid ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
@@ -3206,28 +3325,31 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   {dayContent?.taskPrompts &&
                                     dayContent.taskPrompts.length > 1 && (
                                       <div className="flex justify-center items-center gap-2 mt-2 w-full">
-                                        {dayContent.taskPrompts.map((_, idx) => (
-                                          <button
-                                            type="button"
-                                            key={idx}
-                                            onClick={() => {
-                                              if (
-                                                dayProgress?.completed ||
-                                                idx < activeTaskIndex ||
-                                                idx === activeTaskIndex
-                                              ) {
-                                                saveParticipantInputImmediately(taskInputs);
-                                                setActiveTaskIndex(idx);
-                                              }
-                                            }}
-                                            className={`h-1.5 rounded-full transition-all duration-300 ${dayProgress?.completed || idx < activeTaskIndex ? "cursor-pointer" : "cursor-not-allowed"} ${idx === activeTaskIndex ? "w-8 bg-primary" : idx < activeTaskIndex ? "w-2 bg-primary/40 hover:bg-primary/60" : dayProgress?.completed ? "w-2 bg-primary/40 hover:bg-primary/60" : "w-2 bg-gray-200"}`}
-                                          />
-                                        ))}
+                                        {dayContent.taskPrompts.map((_, idx) => {
+                                          if (!isStepVisible(idx)) return null;
+                                          return (
+                                            <button
+                                              type="button"
+                                              key={idx}
+                                              onClick={() => {
+                                                if (
+                                                  dayProgress?.completed ||
+                                                  idx < activeTaskIndex ||
+                                                  idx === activeTaskIndex
+                                                ) {
+                                                  saveParticipantInputImmediately(taskInputs);
+                                                  setActiveTaskIndex(idx);
+                                                }
+                                              }}
+                                              className={`h-1.5 rounded-full transition-all duration-300 ${dayProgress?.completed || idx < activeTaskIndex ? "cursor-pointer" : "cursor-not-allowed"} ${idx === activeTaskIndex ? "w-8 bg-primary" : idx < activeTaskIndex ? "w-2 bg-primary/40 hover:bg-primary/60" : dayProgress?.completed ? "w-2 bg-primary/40 hover:bg-primary/60" : "w-2 bg-gray-200"}`}
+                                            />
+                                          );
+                                        })}
                                       </div>
                                     )}
                                 </div>
                               )}
-                              {isFullBleed && i === (dayContent.taskPrompts?.length || 1) - 1 && (
+                              {isFullBleed && getNextVisibleStepIndex(i) === -1 && (
                                 <div className="mt-8 pt-6 border-t border-gray-100/50 flex flex-col gap-4">
                                   {!dayProgress?.completed ? (
                                     <button
@@ -3726,8 +3848,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                   </div>
 
                   {!dayProgress?.completed &&
-                    (activeTaskIndex ===
-                      (dayContent?.taskPrompts?.length || 1) - 1 ||
+                    (getNextVisibleStepIndex(activeTaskIndex) === -1 ||
                       !dayContent?.taskPrompts ||
                       dayContent.taskPrompts.length <= 1) && (
                       <div className="mt-12 space-y-6 animate-fade-in">
@@ -3946,6 +4067,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           }
         }}
         day={viewingDay}
+        bridgeNote={dayContent?.bridgeNote}
       />
       <MirrorReportModal
         isOpen={isMirrorReportModalOpen}

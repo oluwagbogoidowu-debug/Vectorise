@@ -583,6 +583,24 @@ const EditSprint: React.FC = () => {
     return Array.from(new Set(allTags)).filter(Boolean);
   };
 
+  const findNearestPrecedingPoll = (dayContent: DailyContent | undefined, currentIndex: number) => {
+    if (!dayContent || !Array.isArray(dayContent.taskInputTypes)) return -1;
+    for (let i = currentIndex - 1; i >= 0; i--) {
+      if (dayContent.taskInputTypes[i] === 'poll') {
+        return i;
+      }
+    }
+    return -1;
+  };
+
+  const handleSetPollOptionLink = (index: number, linkValue: string | null) => {
+    if (!currentContent) return;
+    const links = [...(currentContent.taskPollOptionLinks || [])];
+    while (links.length <= index) links.push(undefined);
+    links[index] = linkValue || undefined;
+    handleContentChange('taskPollOptionLinks', links);
+  };
+
   const registryIncomplete = useMemo(() => sprint ? isRegistryIncomplete(sprint) : true, [sprint]);
   const curriculumIncomplete = useMemo(() => sprint ? isSprintIncomplete(sprint) : true, [sprint]);
 
@@ -1490,6 +1508,10 @@ const EditSprint: React.FC = () => {
         let currentSpread = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskSpread || [])]
             : [];
+
+        let currentPollLinks = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskPollOptionLinks || [])]
+            : [];
             
         currentPrompts.push('');
         currentTypes.push('text');
@@ -1499,6 +1521,7 @@ const EditSprint: React.FC = () => {
         currentFootnotes.push(null as any);
         currentMultiTextLabels.push(null as any);
         currentSpread.push(false);
+        currentPollLinks.push(null as any);
         
         if (existingContentIndex >= 0) {
           updatedDailyContent[existingContentIndex] = { 
@@ -1510,7 +1533,8 @@ const EditSprint: React.FC = () => {
               taskTagNotes: currentTagNotes,
               taskFootnotes: currentFootnotes,
               taskMultiTextLabels: currentMultiTextLabels,
-              taskSpread: currentSpread
+              taskSpread: currentSpread,
+              taskPollOptionLinks: currentPollLinks
           };
         } else {
           updatedDailyContent.push({
@@ -1524,7 +1548,8 @@ const EditSprint: React.FC = () => {
             taskTagNotes: currentTagNotes,
             taskFootnotes: currentFootnotes,
             taskMultiTextLabels: currentMultiTextLabels,
-            taskSpread: currentSpread
+            taskSpread: currentSpread,
+            taskPollOptionLinks: currentPollLinks
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -1579,6 +1604,10 @@ const EditSprint: React.FC = () => {
         let currentSpread = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskSpread || [])]
             : [];
+
+        let currentPollLinks = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskPollOptionLinks || [])]
+            : [];
             
         let deleteCount = 1;
         if (currentLinked[index]) {
@@ -1595,6 +1624,7 @@ const EditSprint: React.FC = () => {
         while (currentFootnotes.length < maxNeeded) currentFootnotes.push(null as any);
         while (currentMultiTextLabels.length < maxNeeded) currentMultiTextLabels.push(null as any);
         while (currentSpread.length < maxNeeded) currentSpread.push(false);
+        while (currentPollLinks.length < maxNeeded) currentPollLinks.push(null as any);
 
         let currentLinkedSources = existingContentIndex >= 0 && Array.isArray(updatedDailyContent[existingContentIndex].taskLinkedSources)
             ? updatedDailyContent[existingContentIndex].taskLinkedSources.map(sources => Array.isArray(sources) ? [...sources] : [])
@@ -1618,6 +1648,7 @@ const EditSprint: React.FC = () => {
         currentFootnotes.splice(index, deleteCount);
         currentMultiTextLabels.splice(index, deleteCount);
         currentSpread.splice(index, deleteCount);
+        currentPollLinks.splice(index, deleteCount);
         
         if (index > 0 && currentLinked.length >= index && currentLinked[index - 1]) {
             currentLinked[index - 1] = false;
@@ -1637,6 +1668,7 @@ const EditSprint: React.FC = () => {
             currentMultiTextLabels.push(null as any);
             currentSpread.push(false);
             currentLinkedSources.push([]);
+            currentPollLinks.push(null as any);
         }
         
         const filtered = currentPrompts.filter(p => p.trim());
@@ -1656,7 +1688,8 @@ const EditSprint: React.FC = () => {
               taskFootnotes: currentFootnotes,
               taskMultiTextLabels: currentMultiTextLabels,
               taskSpread: currentSpread,
-              taskLinkedSources: currentLinkedSources
+              taskLinkedSources: currentLinkedSources,
+              taskPollOptionLinks: currentPollLinks
           };
         } else {
           updatedDailyContent.push({
@@ -1673,7 +1706,8 @@ const EditSprint: React.FC = () => {
             taskFootnotes: currentFootnotes,
             taskMultiTextLabels: currentMultiTextLabels,
             taskSpread: currentSpread,
-            taskLinkedSources: currentLinkedSources
+            taskLinkedSources: currentLinkedSources,
+            taskPollOptionLinks: currentPollLinks
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -3689,6 +3723,63 @@ const EditSprint: React.FC = () => {
                                                     </div>
                                                 </div>
                                             )}
+
+                                            {/* Poll Option Branching Selector */}
+                                            {(() => {
+                                                const pollIdx = findNearestPrecedingPoll(currentContent, index);
+                                                if (pollIdx === -1) return null;
+
+                                                let pollOptions: string[] = [];
+                                                if (currentContent.taskPollOptions?.[pollIdx]) {
+                                                    try {
+                                                        pollOptions = JSON.parse(currentContent.taskPollOptions[pollIdx]);
+                                                    } catch (e) {}
+                                                }
+                                                pollOptions = pollOptions.filter(Boolean);
+
+                                                const currentLink = currentContent.taskPollOptionLinks?.[index];
+
+                                                return (
+                                                    <div className="mt-3 p-3 bg-purple-50/45 border border-purple-100 rounded-xl space-y-2 text-left">
+                                                        <div className="text-[10px] font-black text-purple-700 uppercase tracking-widest flex items-center gap-1.5">
+                                                            <svg className="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                                            </svg>
+                                                            <span>Branching Path (Linked to Poll Step {pollIdx + 1})</span>
+                                                        </div>
+                                                        <p className="text-[10px] text-gray-500 leading-normal font-medium">
+                                                            Choose if this question should only show when a specific option is clicked in the poll at Step {pollIdx + 1}. If unlinked, it shows normally.
+                                                        </p>
+                                                        <div className="flex flex-wrap gap-1.5 mt-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    handleSetPollOptionLink(index, null);
+                                                                }}
+                                                                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${!currentLink ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                                                            >
+                                                                Normal Progression (Always)
+                                                            </button>
+                                                            {pollOptions.map((opt, optIdx) => {
+                                                                const tag = `poll ${optIdx + 1}`;
+                                                                const isSelected = currentLink === tag;
+                                                                return (
+                                                                    <button
+                                                                        key={optIdx}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            handleSetPollOptionLink(index, tag);
+                                                                        }}
+                                                                        className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${isSelected ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                                                                    >
+                                                                        If Option {optIdx + 1}: "{opt}" ({tag})
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
 
                                     </div>

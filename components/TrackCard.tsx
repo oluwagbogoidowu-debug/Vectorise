@@ -1,8 +1,9 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Track, Sprint } from '../types';
 import { Package, ArrowRight } from 'lucide-react';
+import { sprintService } from '../services/sprintService';
 
 interface TrackCardProps {
     track: Track;
@@ -10,7 +11,28 @@ interface TrackCardProps {
 }
 
 const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
-    const trackSprints = sprints.filter(s => track.sprintIds.includes(s.id));
+    const [fetchedSprints, setFetchedSprints] = useState<Sprint[]>([]);
+
+    useEffect(() => {
+        const existing = (sprints || []).filter(s => track.sprintIds.includes(s.id));
+        const missingIds = (track.sprintIds || []).filter(id => !existing.some(s => s.id === id));
+        
+        if (missingIds.length === 0) {
+            setFetchedSprints(existing);
+        } else {
+            Promise.all(missingIds.map(id => sprintService.getSprintById(id)))
+                .then(loaded => {
+                    const validLoaded = loaded.filter((s): s is Sprint => !!s);
+                    setFetchedSprints([...existing, ...validLoaded]);
+                })
+                .catch(err => {
+                    console.error("Error fetching missing sprints for TrackCard:", err);
+                    setFetchedSprints(existing);
+                });
+        }
+    }, [track.sprintIds, sprints]);
+
+    const trackSprints = fetchedSprints.length > 0 ? fetchedSprints : (sprints || []).filter(s => track.sprintIds.includes(s.id));
     const totalValue = trackSprints.reduce((sum, s) => sum + (s.price || 0), 0);
     const discountedPrice = totalValue * (1 - track.discountPercentage / 100);
 
