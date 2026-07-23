@@ -723,18 +723,19 @@ const ParticipantDashboard: React.FC = () => {
 
       setUnlockedUnclaimedMilestone(unclaimed || null);
 
-      const lockedMilestones = manualMilestones.filter(m => {
+      const nextMilestone = manualMilestones.find(m => {
           const isUnlocked = getStatValue(m.id) >= m.targetValue;
           const isClaimed = (p.claimedMilestoneIds || []).includes(m.id);
           return !isUnlocked && !isClaimed;
-      }).map(m => {
-          const val = getStatValue(m.id);
-          const progress = Math.min(100, (val / m.targetValue) * 100);
-          return { ...m, currentValue: val, progress };
       });
 
-      const sortedLocked = lockedMilestones.sort((a, b) => b.progress - a.progress);
-      setNextToUnlockMilestone(sortedLocked[0] || null);
+      if (nextMilestone) {
+          const val = getStatValue(nextMilestone.id);
+          const progress = Math.min(100, (val / nextMilestone.targetValue) * 100);
+          setNextToUnlockMilestone({ ...nextMilestone, currentValue: val, progress });
+      } else {
+          setNextToUnlockMilestone(null);
+      }
     };
 
     if (!isLoading) {
