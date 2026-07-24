@@ -77,7 +77,14 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Intent capture from payment success flow
-  const targetSprintId = location.state?.targetSprintId;
+  const savedSprint = localStorage.getItem('vectorise_last_sprint');
+  const pendingFirstActionRaw = localStorage.getItem('pending_first_action');
+  let pendingObj: any = null;
+  try {
+      if (pendingFirstActionRaw) pendingObj = JSON.parse(pendingFirstActionRaw);
+  } catch(e) {}
+
+  const targetSprintId = location.state?.targetSprintId || location.state?.sprintId || location.state?.sprint?.id || pendingObj?.sprintId || savedSprint;
   const targetTrackId = location.state?.targetTrackId;
   const tx_ref = location.state?.tx_ref;
   const authMessage = location.state?.authMessage;
@@ -138,28 +145,26 @@ const LoginPage: React.FC = () => {
                           navigate('/participant/dashboard', { replace: true });
                           return;
                       } else if (targetSprintId) {
-                          const pendingFirstActionRaw = localStorage.getItem('pending_first_action');
-                          let pendingFirstAction = null;
-                          try {
-                              if (pendingFirstActionRaw) {
-                                  pendingFirstAction = JSON.parse(pendingFirstActionRaw);
-                              }
-                          } catch (err) {
-                              console.error("Error parsing pending_first_action:", err);
-                          }
+                          const sprint = await sprintService.getSprintById(targetSprintId);
+                          if (sprint) {
+                              const existing = enrollments.find(e => e.sprint_id === targetSprintId);
+                              let enrollmentId = existing?.id;
 
-                          if (pendingFirstAction && pendingFirstAction.sprintId === targetSprintId) {
-                              const sprint = await sprintService.getSprintById(targetSprintId);
-                              if (sprint) {
+                              if (!existing) {
                                   const enrollment = await sprintService.enrollUser(user.id, targetSprintId, sprint.duration, {
-                                      firstActionInput: pendingFirstAction.firstActionInput, taskInputs: pendingFirstAction.taskInputs
+                                      firstActionInput: pendingObj?.firstActionInput,
+                                      taskInputs: pendingObj?.taskInputs
                                   });
+                                  enrollmentId = enrollment?.id;
+
                                   if (enrollment && enrollment.progress && enrollment.progress[0]) {
                                       const updatedProgress = [...enrollment.progress];
                                       updatedProgress[0] = {
                                           ...updatedProgress[0],
                                           completed: true,
-                                          completedAt: new Date().toISOString(), answers: pendingFirstAction.taskInputs || [pendingFirstAction.firstActionInput], submission: pendingFirstAction.taskInputs?.[0] || pendingFirstAction.firstActionInput
+                                          completedAt: new Date().toISOString(),
+                                          answers: pendingObj?.taskInputs || (pendingObj?.firstActionInput ? [pendingObj.firstActionInput] : []),
+                                          submission: pendingObj?.taskInputs?.[0] || pendingObj?.firstActionInput || ""
                                       };
                                       const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
                                       await updateDoc(enrollmentRef, { 
@@ -167,48 +172,30 @@ const LoginPage: React.FC = () => {
                                           last_activity_at: new Date().toISOString()
                                       });
                                   }
-                                  localStorage.removeItem('pending_first_action');
-                                  navigate(`/participant/sprint/${enrollment.id}?day=1`, { 
-                                      replace: true, 
-                                      state: { showCompletion: true, isFirstActionAutoClaim: true } 
-                                  });
-                                  return;
                               }
-                          }
 
-                          const existing = enrollments.find(e => e.sprint_id === targetSprintId);
-                          
-                          if (existing) {
-                              if (existing.status === 'active') {
-                                  navigate(`/participant/sprint/${existing.id}`, { replace: true });
-                                  return;
-                              } else if (existing.status === 'queued') {
-                                  navigate('/my-sprints', { replace: true });
-                                  return;
-                              }
-                          }
+                              localStorage.removeItem('pending_first_action');
+                              localStorage.removeItem('vectorise_last_sprint');
 
-                          const sprint = await sprintService.getSprintById(targetSprintId);
-                          if (sprint) {
-                              const isFoundational = sprint.sprintType === 'Foundational' || 
-                                                     sprint.sprintType === 'Fundamentals' ||
-                                                     sprint.sprintType === 'Core' ||
-                                                     sprint.sprintType === 'Expert' ||
-                                                     sprint.category === 'Core Platform Sprint' || 
-                                                     sprint.category === 'Growth Fundamentals';
-                              if (isFoundational || sprint.price === 0) {
-                                  const enrollment = await sprintService.enrollUser(user.id, targetSprintId, sprint.duration, {
-                                      firstActionInput: pendingFirstAction?.firstActionInput
-                                  });
-                                  if (enrollment.status === 'queued') {
-                                      toast.success("Added to waitlist since you have another active sprint! Progress saved.");
-                                  }
-                                  localStorage.removeItem('pending_first_action');
-                                  navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
-                                  return;
+                              const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
+                              const daySuccessState = {
+                                  redirectToDaySuccess: true,
+                                  day: 1,
+                                  coinsUnlocked: 10,
+                                  bridgeNote: d1Content?.bridgeNote,
+                                  sprintId: targetSprintId,
+                                  enrollmentId: enrollmentId
+                              };
+
+                              if (mustVerifyEmail) {
+                                  sessionStorage.setItem('post_verify_redirect', JSON.stringify({
+                                      path: '/participant/day-success',
+                                      state: daySuccessState
+                                  }));
+                                  navigate('/verify-email', { state: daySuccessState, replace: true });
+                              } else {
+                                  navigate('/participant/day-success', { state: daySuccessState, replace: true });
                               }
-                              
-                              navigate('/onboarding/sprint-payment', { state: { sprint: sprint, prefilledEmail: user.email } });
                               return;
                           }
                       }

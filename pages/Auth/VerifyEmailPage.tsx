@@ -14,7 +14,7 @@ const VerifyEmailPage: React.FC = () => {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const getTargetRedirect = () => {
-    if (location.state?.redirectToDaySuccess) {
+    if (location.state?.redirectToDaySuccess || location.state?.sprintId) {
       return {
         path: '/participant/day-success',
         state: {
@@ -38,7 +38,17 @@ const VerifyEmailPage: React.FC = () => {
         console.error("Error parsing post_verify_redirect:", e);
       }
     }
-    return null;
+    const savedSprint = localStorage.getItem('vectorise_last_sprint');
+    if (savedSprint) {
+      return {
+        path: '/participant/day-success',
+        state: { day: 1, coinsUnlocked: 10, sprintId: savedSprint }
+      };
+    }
+    return {
+      path: '/participant/day-success',
+      state: { day: 1, coinsUnlocked: 10 }
+    };
   };
 
   if (loading) {

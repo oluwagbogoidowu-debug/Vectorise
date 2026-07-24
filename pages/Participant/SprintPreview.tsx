@@ -1921,7 +1921,7 @@ const SprintPreview: React.FC = () => {
                         
                         <div className="space-y-3">
                             <button 
-                                onClick={() => navigate('/signup', { state: { prefilledEmail, targetSprintId: sprintId } })}
+                                onClick={() => navigate('/signup', { state: { prefilledEmail, targetSprintId: sprintId, sprintId: sprintId, sprint: sprint } })}
                                 className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-primary/90 transition-colors shadow-lg active:scale-95"
                             >
                                 Sign Up to Continue
@@ -1957,7 +1957,17 @@ const SprintPreview: React.FC = () => {
                                     deferVerification();
                                     setShowLockModal(false);
                                     setShowBottomCancelConfirm(false);
-                                    navigate('/', { replace: true });
+                                    const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
+                                    navigate('/participant/day-success', {
+                                        state: {
+                                            day: 1,
+                                            coinsUnlocked: 10,
+                                            bridgeNote: d1Content?.bridgeNote,
+                                            sprintId: sprint?.id,
+                                            enrollmentId: createdEnrollmentId
+                                        },
+                                        replace: true
+                                    });
                                 }}
                                 className="flex-1 py-3 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-primary/90 transition-colors shadow-lg active:scale-95 cursor-pointer"
                             >

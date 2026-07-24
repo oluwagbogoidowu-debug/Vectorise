@@ -39,7 +39,9 @@ const SignUpPage: React.FC = () => {
     prefilledFirstName,
     prefilledLastName,
     fromPayment, 
-    targetSprintId = savedSprint,
+    targetSprintId: targetSprintIdProp = savedSprint,
+    sprintId: sprintIdProp,
+    sprint: sprintProp,
     targetTrackId,
     tx_ref,
     isPartnerApplication,
@@ -48,6 +50,8 @@ const SignUpPage: React.FC = () => {
     isQueued,
     allMatchedSprintIds
   } = onboardingState;
+
+  const targetSprintId = targetSprintIdProp || sprintIdProp || sprintProp?.id || savedSprint;
 
   const [firstName, setFirstName] = useState(prefilledFirstName || '');
   const [lastName, setLastName] = useState(prefilledLastName || '');
@@ -61,6 +65,58 @@ const SignUpPage: React.FC = () => {
   const [pendingRedirect, setPendingRedirect] = useState<{ path: string; state?: any } | null>(null);
   const [verificationChecking, setVerificationChecking] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
+
+  const enrollAndPrepareDaySuccess = async (uid: string, sprintId: string, customAnswers?: any) => {
+    try {
+      const sprint = await sprintService.getSprintById(sprintId);
+      if (!sprint) return null;
+
+      const firstInput = customAnswers?.firstActionInput || customAnswers?.taskInputs?.[0];
+      const enrollment = await sprintService.enrollUser(uid, sprintId, sprint.duration, {
+        firstActionInput: firstInput,
+        taskInputs: customAnswers?.taskInputs || (firstInput ? [firstInput] : undefined)
+      } as any);
+
+      if (enrollment && enrollment.progress && enrollment.progress[0]) {
+        const updatedProgress = [...enrollment.progress];
+        updatedProgress[0] = {
+          ...updatedProgress[0],
+          completed: true,
+          completedAt: new Date().toISOString(),
+          answers: customAnswers?.taskInputs || (firstInput ? [firstInput] : []),
+          submission: firstInput || ""
+        };
+        const enrollmentRef = doc(db, "users", uid, "enrollments", enrollment.id);
+        await updateDoc(enrollmentRef, { 
+          progress: updatedProgress,
+          last_activity_at: new Date().toISOString()
+        });
+      }
+
+      localStorage.removeItem('pending_first_action');
+      localStorage.removeItem('vectorise_last_sprint');
+
+      const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
+      const daySuccessState = {
+        redirectToDaySuccess: true,
+        day: 1,
+        coinsUnlocked: 10,
+        bridgeNote: d1Content?.bridgeNote,
+        sprintId: sprintId,
+        enrollmentId: enrollment?.id
+      };
+
+      sessionStorage.setItem('post_verify_redirect', JSON.stringify({
+        path: '/participant/day-success',
+        state: daySuccessState
+      }));
+
+      return daySuccessState;
+    } catch (err) {
+      console.error("Error in enrollAndPrepareDaySuccess:", err);
+      return null;
+    }
+  };
 
   const handleIHaveVerified = async () => {
     setVerificationChecking(true);
@@ -103,8 +159,51 @@ const SignUpPage: React.FC = () => {
     const provider = new GoogleAuthProvider();
     setIsSubmitting(true);
     try {
-      await signInWithPopup(auth, provider);
+      const res = await signInWithPopup(auth, provider);
+      const firebaseUser = res.user;
       toast.success("Connected with Google successfully!");
+
+      const existingDoc = await userService.getUserDocument(firebaseUser.uid);
+      if (!existingDoc) {
+        const isCoachRegistration = !!(isPartnerApplication || false);
+        const nameParts = (firebaseUser.displayName || 'Rise Seeker').split(' ');
+        const newUser: Partial<any> = {
+          id: firebaseUser.uid,
+          name: firebaseUser.displayName || `${firstName || 'Rise'} ${lastName || 'Seeker'}`,
+          email: firebaseUser.email || email.trim().toLowerCase(),
+          role: isCoachRegistration ? UserRole.COACH : UserRole.PARTICIPANT,
+          profileImageUrl: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${nameParts[0]}+${nameParts[1] || ''}&background=0E7850&color=fff`,
+          persona: 'Seeker',
+          onboardingAnswers: answers || {},
+          enrolledSprintIds: [],
+          isPartner: false,
+          partnerData: null,
+          walletBalance: 0,
+          referrerId: referrerId || null,
+          referralFirstTouch: storedRef || null
+        };
+        await userService.createUserDocument(firebaseUser.uid, newUser);
+      }
+
+      const pendingFirstActionRaw = localStorage.getItem('pending_first_action');
+      let pendingFirstAction: any = null;
+      try {
+        if (pendingFirstActionRaw) pendingFirstAction = JSON.parse(pendingFirstActionRaw);
+      } catch (err) {}
+
+      const effectiveSprintId = targetSprintId || pendingFirstAction?.sprintId || savedSprint;
+
+      if (effectiveSprintId) {
+        const daySuccessState = await enrollAndPrepareDaySuccess(firebaseUser.uid, effectiveSprintId, pendingFirstAction);
+        if (daySuccessState) {
+          if (!firebaseUser.emailVerified) {
+            navigate('/verify-email', { state: daySuccessState, replace: true });
+          } else {
+            navigate('/participant/day-success', { state: daySuccessState, replace: true });
+          }
+          return;
+        }
+      }
     } catch (error: any) {
       console.error("Google SSO Failure:", error);
       if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
@@ -282,7 +381,7 @@ const SignUpPage: React.FC = () => {
 
       // 5. Post-Payment, Preview, or Recommended Path Fulfillment
       const pendingFirstActionRaw = localStorage.getItem('pending_first_action');
-      let pendingFirstAction = null;
+      let pendingFirstAction: any = null;
       try {
           if (pendingFirstActionRaw) {
               pendingFirstAction = JSON.parse(pendingFirstActionRaw);
@@ -291,41 +390,13 @@ const SignUpPage: React.FC = () => {
           console.error("Error parsing pending_first_action in SignUpPage:", err);
       }
 
-      if (pendingFirstAction && pendingFirstAction.sprintId === targetSprintId) {
-          const sprint = await sprintService.getSprintById(targetSprintId);
-          if (sprint) {
-              const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprintId, sprint.duration, {
-                  firstActionInput: pendingFirstAction.firstActionInput,
-                  taskInputs: pendingFirstAction.taskInputs
-              } as any);
-              if (enrollment && enrollment.progress && enrollment.progress[0]) {
-                  const updatedProgress = [...enrollment.progress];
-                  updatedProgress[0] = {
-                      ...updatedProgress[0],
-                      completed: true,
-                      completedAt: new Date().toISOString(),
-                      answers: pendingFirstAction.taskInputs || [pendingFirstAction.firstActionInput],
-                      submission: pendingFirstAction.taskInputs?.[0] || pendingFirstAction.firstActionInput
-                  };
-                  const enrollmentRef = doc(db, "users", firebaseUser.uid, "enrollments", enrollment.id);
-                  await updateDoc(enrollmentRef, { 
-                      progress: updatedProgress,
-                      last_activity_at: new Date().toISOString()
-                  });
-              }
-              localStorage.removeItem('pending_first_action');
-              const daySuccessState = {
-                  redirectToDaySuccess: true,
-                  day: 1,
-                  coinsUnlocked: 10,
-                  sprintId: targetSprintId,
-                  enrollmentId: enrollment.id
-              };
-              sessionStorage.setItem('post_verify_redirect', JSON.stringify({
-                  path: '/participant/day-success',
-                  state: daySuccessState
-              }));
+      const effectiveSprintId = targetSprintId || pendingFirstAction?.sprintId || savedSprint;
+
+      if (effectiveSprintId) {
+          const daySuccessState = await enrollAndPrepareDaySuccess(firebaseUser.uid, effectiveSprintId, pendingFirstAction);
+          if (daySuccessState) {
               await sendEmailVerification(firebaseUser);
+              toast.success("Account created! Verification email sent.");
               navigate('/verify-email', { state: daySuccessState, replace: true });
               return;
           }
