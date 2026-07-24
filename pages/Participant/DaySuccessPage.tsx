@@ -70,12 +70,19 @@ const DaySuccessPage: React.FC = () => {
         <div className="absolute -bottom-[10%] -right-[10%] w-[50%] h-[50%] bg-[#0E7850]/5 rounded-full blur-[120px]" />
       </div>
 
-      {/* Top Header Bar with Cancel Button */}
-      <div className="relative z-10 w-full max-w-md mx-auto flex justify-end items-center pt-2 pb-2">
+      {/* Top Header Bar with Day complete badge on the left & Cancel button on the right */}
+      <div className="relative z-10 w-full max-w-md mx-auto flex justify-between items-center pt-2 pb-2">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#0E7850]/10 border border-[#0E7850]/20 rounded-full text-[#0E7850]">
+          <Sparkles className="w-3.5 h-3.5 text-[#0E7850] animate-pulse" />
+          <span className="text-xs font-black uppercase tracking-wider">
+            Day {completedDay} is complete!
+          </span>
+        </div>
+
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="w-9 h-9 bg-gray-100 hover:bg-gray-200 border border-gray-200/80 rounded-full flex items-center justify-center text-gray-600 transition-colors cursor-pointer active:scale-95"
+          className="w-9 h-9 bg-gray-100 hover:bg-gray-200 border border-gray-200/80 rounded-full flex items-center justify-center text-gray-600 transition-colors cursor-pointer active:scale-95 shrink-0"
           aria-label="Cancel"
         >
           <X className="w-5 h-5" />
@@ -83,56 +90,46 @@ const DaySuccessPage: React.FC = () => {
       </div>
 
       {/* Main Content Container */}
-      <main className="relative z-10 max-w-md w-full mx-auto flex-1 flex flex-col justify-center items-center py-4">
+      <main className="relative z-10 max-w-md w-full mx-auto flex-1 flex flex-col justify-center items-start py-4">
         
-        {/* Day X is complete badge & Bridge note headline */}
+        {/* Bridge note headline */}
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.5 }}
-          className="w-full text-left mb-8"
+          className="w-full text-left my-auto py-4"
         >
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 bg-[#0E7850] rounded-xl flex items-center justify-center text-white shadow-sm shrink-0">
-              <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
-            </div>
-            <h2 className="text-xs sm:text-sm font-black text-[#0E7850] uppercase tracking-wider">
-              Day {completedDay} is complete!
-            </h2>
-          </div>
-
           {bridgeNote ? (
-            <p className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight mt-2">
+            <p className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight">
               {bridgeNote}
             </p>
           ) : (
-            <p className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight mt-2">
+            <p className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight">
               Great momentum today. Keep building your daily habit!
             </p>
           )}
         </motion.div>
 
-        {/* Compact Info Cards Deck */}
-        <div className="w-full space-y-3 mb-6">
+        {/* Compact Side-by-Side Cards (Fit on same line) */}
+        <div className="w-full grid grid-cols-2 gap-3 mb-6">
 
-          {/* Unlocked Coins Card (If coins unlocked > 0) */}
+          {/* Unlocked Coins Card */}
           {coinsUnlocked > 0 && (
             <motion.div 
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: 0.2, duration: 0.5 }}
-              className="w-full bg-[#FFFBEB] border border-amber-200/60 rounded-2xl p-3.5 sm:p-4 shadow-sm flex items-center gap-3.5 relative overflow-hidden"
+              className="bg-[#FFFBEB] border border-amber-200/60 rounded-2xl p-3 shadow-sm flex items-center gap-2.5 relative overflow-hidden"
             >
-              <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-20 h-20 bg-amber-400/5 rounded-full blur-xl" />
-              <div className="w-9 h-9 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-sm relative shrink-0">
+              <div className="w-8 h-8 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0">
                 <Coins className="w-4 h-4 text-white" />
               </div>
-              <div className="text-left">
-                <p className="text-[9px] font-black text-amber-800 uppercase tracking-widest leading-none">
+              <div className="text-left min-w-0">
+                <p className="text-[8px] sm:text-[9px] font-black text-amber-800 uppercase tracking-widest leading-none truncate">
                   Unlocked Reward
                 </p>
-                <p className="text-base font-black text-amber-950 tracking-tight mt-1">
-                  +{coinsUnlocked} Rise Coins
+                <p className="text-xs sm:text-sm font-black text-amber-950 tracking-tight mt-1 truncate">
+                  +{coinsUnlocked} Coins
                 </p>
               </div>
             </motion.div>
@@ -143,16 +140,16 @@ const DaySuccessPage: React.FC = () => {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
-            className="w-full bg-white border border-gray-100 rounded-2xl p-3.5 sm:p-4 shadow-sm flex items-center gap-3.5 relative overflow-hidden"
+            className={`bg-white border border-gray-100 rounded-2xl p-3 shadow-sm flex items-center gap-2.5 relative overflow-hidden ${coinsUnlocked <= 0 ? 'col-span-2' : ''}`}
           >
-            <div className="w-9 h-9 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center text-gray-500 shrink-0">
+            <div className="w-8 h-8 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center text-gray-500 shrink-0">
               <Clock className="w-4 h-4 text-[#0E7850]" />
             </div>
-            <div className="text-left">
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">
-                Next Day Unlock In
+            <div className="text-left min-w-0">
+              <p className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none truncate">
+                Next Day In
               </p>
-              <p className="text-lg font-mono font-black text-gray-900 tracking-tight mt-1">
+              <p className="text-xs sm:text-sm font-mono font-black text-gray-900 tracking-tight mt-1 truncate">
                 {countdown}
               </p>
             </div>
