@@ -1790,7 +1790,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     
     if (location.state?.showCompletion) {
       setHasTriggeredAutoClaim(true);
-      setIsCompletionModalOpen(true);
+      const isAllCompleted = enrollment?.progress && enrollment.progress.length > 0 && enrollment.progress.every((p: any) => p.completed);
+      if (isAllCompleted) {
+        setIsCompletionModalOpen(true);
+      }
       
       const triggerMilestone = async () => {
         try {

@@ -66,9 +66,14 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                     });
                   }
                   localStorage.removeItem('pending_first_action');
-                  navigate(`/participant/sprint/${enrollment.id}?day=1`, { 
+                  navigate('/participant/day-success', { 
                     replace: true, 
-                    state: { showCompletion: true, isFirstActionAutoClaim: true } 
+                    state: { 
+                      day: 1, 
+                      coinsUnlocked: 10, 
+                      sprintId: pending.sprintId, 
+                      enrollmentId: enrollment.id 
+                    } 
                   });
                 } catch (autoErr) {
                   console.error("Auto enrollment inside layout failed:", autoErr);
