@@ -696,9 +696,10 @@ const ParticipantDashboard: React.FC = () => {
 
       await userService.checkAndNotifyMilestones(user.id, stats, p.claimedMilestoneIds || []);
 
-      const manualMilestones = MILESTONES.filter(m => !m.isAutoClaim);
+      const allCheckableMilestones = MILESTONES;
       const getStatValue = (id: string) => {
           switch(id) {
+              case 'first_leap': return (mySprints.some(e => e.enrollment?.progress?.some(p => p.completed))) ? 1 : 0;
               case 's2': return stats.completed;
               case 's4': return stats.completed;
               case 'cm1': return stats.daysActive;
@@ -711,11 +712,12 @@ const ParticipantDashboard: React.FC = () => {
               case 'i10':
               case 'i20':
               case 'i30': return stats.peopleHelped;
+              case 'setup_identity': return Gr.isIdentitySet(user) ? 1 : 0;
               default: return 0;
           }
       };
 
-      const unclaimed = manualMilestones.find(m => {
+      const unclaimed = allCheckableMilestones.find(m => {
           const isUnlocked = getStatValue(m.id) >= m.targetValue;
           const isClaimed = (p.claimedMilestoneIds || []).includes(m.id);
           return isUnlocked && !isClaimed;
@@ -723,7 +725,7 @@ const ParticipantDashboard: React.FC = () => {
 
       setUnlockedUnclaimedMilestone(unclaimed || null);
 
-      const nextMilestone = manualMilestones.find(m => {
+      const nextMilestone = allCheckableMilestones.find(m => {
           const isUnlocked = getStatValue(m.id) >= m.targetValue;
           const isClaimed = (p.claimedMilestoneIds || []).includes(m.id);
           return !isUnlocked && !isClaimed;
@@ -1442,31 +1444,31 @@ const ParticipantDashboard: React.FC = () => {
                 )}
             </div>
 
-            {(isAfterDay1OfFirstSprint || !hasActiveSprints) && (
-                <div className="mb-8">
-                    <style>{`
-                        .no-scrollbar::-webkit-scrollbar {
-                            display: none;
+            {/* Step Up Your Rise Section */}
+            <div className="mb-8">
+                <style>{`
+                    .no-scrollbar::-webkit-scrollbar {
+                        display: none;
+                    }
+                    .no-scrollbar {
+                        -ms-overflow-style: none;
+                        scrollbar-width: none;
+                    }
+                    @keyframes unlockPulse {
+                        0%, 100% {
+                            opacity: 1;
+                            filter: grayscale(0%) saturate(100%);
                         }
-                        .no-scrollbar {
-                            -ms-overflow-style: none;
-                            scrollbar-width: none;
+                        50% {
+                            opacity: 0.45;
+                            filter: grayscale(40%) saturate(30%);
                         }
-                        @keyframes unlockPulse {
-                            0%, 100% {
-                                opacity: 1;
-                                filter: grayscale(0%) saturate(100%);
-                            }
-                            50% {
-                                opacity: 0.45;
-                                filter: grayscale(40%) saturate(30%);
-                            }
-                        }
-                        .animate-unlock-pulse-card {
-                            animation: unlockPulse 1.8s ease-in-out infinite;
-                        }
-                    `}</style>
-                    <div className="flex gap-6 overflow-x-auto pb-4 pt-4 px-1.5 snap-x snap-mandatory no-scrollbar relative items-center">
+                    }
+                    .animate-unlock-pulse-card {
+                        animation: unlockPulse 1.8s ease-in-out infinite;
+                    }
+                `}</style>
+                <div className="flex gap-6 overflow-x-auto pb-4 pt-4 px-1.5 snap-x snap-mandatory no-scrollbar relative items-center">
 
                         {/* Complete Your Profile Card OR Request Coach Account Card */}
                         {cardSettings.profile && (
@@ -2029,7 +2031,6 @@ const ParticipantDashboard: React.FC = () => {
                         </div>
                     )}
                 </div>
-            )}
 
             {checkInSprints.length > 0 && (
                 <div className="mb-8 space-y-4">
