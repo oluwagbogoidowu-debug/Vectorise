@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { motion } from 'motion/react';
-import { Flame, Coins, Clock, ArrowRight, Sparkles } from 'lucide-react';
-import LocalLogo from '../../components/LocalLogo';
+import { Coins, Clock, ArrowRight, Sparkles } from 'lucide-react';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 
 const DaySuccessPage: React.FC = () => {
@@ -59,13 +58,17 @@ const DaySuccessPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const streakCount = (user as any)?.impactStats?.streak || 1;
-
   const isPreview = location.state?.isPreview;
 
   const handleStepUp = () => {
     triggerHaptic(hapticPatterns.light);
-    if (isPreview) {
+    const enrollmentId = location.state?.enrollmentId;
+    const sprintId = location.state?.sprintId;
+    if (enrollmentId) {
+      navigate(`/participant/sprint/${enrollmentId}`);
+    } else if (sprintId) {
+      navigate(`/sprint/${sprintId}`);
+    } else if (isPreview) {
       navigate(-1);
     } else {
       navigate('/dashboard');
@@ -80,73 +83,38 @@ const DaySuccessPage: React.FC = () => {
         <div className="absolute -bottom-[10%] -right-[10%] w-[50%] h-[50%] bg-[#0E7850]/5 rounded-full blur-[120px]" />
       </div>
 
-      {/* Header */}
-      <header className="relative z-10 w-full flex justify-center items-center py-2">
-        <LocalLogo type="green" className="h-7 w-auto text-[#0E7850]" />
-      </header>
-
       {/* Main Content Container */}
       <main className="relative z-10 max-w-md w-full mx-auto flex-1 flex flex-col justify-center items-center py-8">
         
-        {/* Left Aligned Header with Small Icon */}
+        {/* Day X is complete badge & Bridge note headline */}
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.5 }}
-          className="w-full flex items-start gap-3 sm:gap-4 text-left mb-8"
+          className="w-full text-left mb-8"
         >
-          {/* Small Celebration Icon on Left */}
-          <div className="relative shrink-0 mt-0.5">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#0E7850] rounded-2xl flex items-center justify-center text-white shadow-md relative">
-              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white animate-pulse" />
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 bg-[#0E7850] rounded-xl flex items-center justify-center text-white shadow-sm shrink-0">
+              <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
             </div>
+            <h2 className="text-xs sm:text-sm font-black text-[#0E7850] uppercase tracking-wider">
+              Day {completedDay} is complete!
+            </h2>
           </div>
 
-          {/* Main Title and Subtext stacked on right */}
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight uppercase leading-tight">
-              Day {completedDay} Complete!
-            </h1>
-            <p className="text-gray-500 font-semibold text-xs uppercase tracking-wider mt-1">
-              You've completed the day's sprint action step
+          {bridgeNote ? (
+            <p className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight leading-snug mt-2">
+              {bridgeNote}
             </p>
-          </div>
+          ) : (
+            <p className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight leading-snug mt-2">
+              Great momentum today. Keep building your daily habit!
+            </p>
+          )}
         </motion.div>
 
         {/* Info Cards Deck */}
         <div className="w-full space-y-4 mb-8">
-
-          {/* Bridge Note Card */}
-          {bridgeNote && (
-            <motion.div 
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.15, duration: 0.5 }}
-              className="w-full bg-purple-50/40 border border-purple-100/80 rounded-[2rem] p-6 shadow-sm flex flex-col gap-3 relative overflow-hidden"
-            >
-              <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl" />
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                  </svg>
-                </div>
-                <div className="text-left">
-                  <p className="text-[10px] font-black text-purple-700 uppercase tracking-widest leading-none">
-                    Bridge Note
-                  </p>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-1">
-                    Your key to tomorrow
-                  </p>
-                </div>
-              </div>
-              <div className="text-left bg-white/70 border border-purple-50 p-4 rounded-2xl">
-                <p className="text-xs text-gray-800 font-semibold italic leading-relaxed">
-                  "{bridgeNote}"
-                </p>
-              </div>
-            </motion.div>
-          )}
 
           {/* Unlocked Coins Card (If coins unlocked > 0) */}
           {coinsUnlocked > 0 && (
@@ -171,36 +139,11 @@ const DaySuccessPage: React.FC = () => {
             </motion.div>
           )}
 
-          {/* Current Active Streak Card */}
-          <motion.div 
-            initial={{ x: 20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-            className="w-full bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm flex items-center gap-5 relative overflow-hidden"
-          >
-            <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-24 h-24 bg-[#0E7850]/5 rounded-full blur-2xl" />
-            <div className="w-12 h-12 bg-[#0E7850] rounded-2xl flex items-center justify-center text-white shadow-md shrink-0">
-              <Flame className="w-6 h-6 text-white animate-bounce" />
-            </div>
-            <div className="text-left flex-1">
-              <p className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest leading-none">
-                Active Streak
-              </p>
-              <p className="text-xl font-black text-gray-900 tracking-tight mt-1">
-                {streakCount} {streakCount === 1 ? 'Day' : 'Days'}
-              </p>
-              <div className="h-[1px] w-full bg-gray-100 my-2" />
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">
-                Come back tomorrow: <span className="text-[#0E7850]">Day {nextDay}</span>
-              </p>
-            </div>
-          </motion.div>
-
           {/* Next Day Timer Card */}
           <motion.div 
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
             className="w-full bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm flex items-center gap-5 relative overflow-hidden"
           >
             <div className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center text-gray-500 shrink-0">
@@ -225,11 +168,11 @@ const DaySuccessPage: React.FC = () => {
         <motion.button
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.5, duration: 0.5 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
           onClick={handleStepUp}
-          className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-3xl font-black uppercase tracking-[0.15em] text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+          className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-3xl font-black uppercase tracking-[0.15em] text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
         >
-          {isPreview ? 'Back to Sprint' : 'Step up your rise'}
+          <span>Back to sprint to step up your rise</span>
           <ArrowRight className="w-4 h-4 text-white" />
         </motion.button>
       </footer>
