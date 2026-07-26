@@ -83,7 +83,26 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                 setPendingSprint(sprint);
                 setShowAlreadyDonePopup(true);
               } else {
-                // Case 2: In-progress/active, resume automatically
+                // Case 2: In-progress/active, save any pending preview inputs to database and resume automatically
+                if (pending && (pending.taskInputs || pending.firstActionInput) && existingEnrollment.progress && existingEnrollment.progress[0]) {
+                  try {
+                    const updatedProgress = [...existingEnrollment.progress];
+                    updatedProgress[0] = {
+                      ...updatedProgress[0],
+                      completed: true,
+                      completedAt: new Date().toISOString(),
+                      answers: pending.taskInputs || [pending.firstActionInput],
+                      submission: pending.taskInputs?.[0] || pending.firstActionInput || ""
+                    };
+                    const enrollmentRef = doc(db, "users", user.id, "enrollments", existingEnrollment.id);
+                    await updateDoc(enrollmentRef, {
+                      progress: updatedProgress,
+                      last_activity_at: new Date().toISOString()
+                    });
+                  } catch (e) {
+                    console.error("Failed to update active enrollment progress with pending preview action:", e);
+                  }
+                }
                 toast.success("Resuming your active sprint...");
                 localStorage.removeItem('pending_first_action');
                 navigate(`/participant/sprint/${existingEnrollment.id}?day=1`);

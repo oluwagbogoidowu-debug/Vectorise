@@ -712,7 +712,7 @@ const ParticipantDashboard: React.FC = () => {
               case 'i10':
               case 'i20':
               case 'i30': return stats.peopleHelped;
-              case 'setup_identity': return Gr.isIdentitySet(user) ? 1 : 0;
+              case 'setup_identity': return isIdentitySet ? 1 : 0;
               default: return 0;
           }
       };

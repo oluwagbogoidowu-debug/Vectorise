@@ -295,6 +295,45 @@ const SprintPreview: React.FC = () => {
         }
     }, [prefilledEmail]);
 
+    // Restore pending sprint preview state from localStorage on load/mount
+    useEffect(() => {
+        if (!sprintId) return;
+        const pendingRaw = localStorage.getItem('pending_first_action');
+        if (pendingRaw) {
+            try {
+                const parsed = JSON.parse(pendingRaw);
+                if (parsed && parsed.sprintId === sprintId) {
+                    if (Array.isArray(parsed.taskInputs) && parsed.taskInputs.length > 0) {
+                        setTaskInputs(parsed.taskInputs);
+                    }
+                    if (typeof parsed.activeTaskIndex === 'number' && parsed.activeTaskIndex >= 0) {
+                        setActiveTaskIndex(parsed.activeTaskIndex);
+                    }
+                }
+            } catch (e) {
+                console.error("Error restoring pending sprint preview:", e);
+            }
+        }
+    }, [sprintId]);
+
+    // Continuously store sprint preview inputs locally before login so page reloads maintain state
+    useEffect(() => {
+        if (!sprint || user) return;
+        const hasSomeInput = taskInputs.some(val => val && String(val).trim().length > 0);
+        if (!hasSomeInput) return;
+
+        const pendingObj = {
+            sprintId: sprint.id,
+            pricingType: sprint.pricingType || 'cash',
+            firstActionInput: taskInputs[0] || "",
+            taskInputs: taskInputs,
+            activeTaskIndex: activeTaskIndex,
+            prefilledEmail: prefilledEmail || '',
+            updatedAt: new Date().toISOString()
+        };
+        localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
+    }, [sprint, taskInputs, activeTaskIndex, user, prefilledEmail]);
+
     useEffect(() => {
         if (!showLockModal) {
             setBottomModalStep(1);
@@ -302,6 +341,23 @@ const SprintPreview: React.FC = () => {
             setAuthPassword('');
         }
     }, [showLockModal]);
+
+    // Helper to get effective task inputs from state or localStorage
+    const getEffectiveTaskInputs = () => {
+        let inputs = [...taskInputs];
+        if (!inputs.some(Boolean)) {
+            const raw = localStorage.getItem('pending_first_action');
+            if (raw) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (parsed?.taskInputs && Array.isArray(parsed.taskInputs) && parsed.taskInputs.length > 0) {
+                        inputs = parsed.taskInputs;
+                    }
+                } catch(e) {}
+            }
+        }
+        return inputs;
+    };
 
     const handleGoogleSignIn = async () => {
         const provider = new GoogleAuthProvider();
@@ -313,10 +369,12 @@ const SprintPreview: React.FC = () => {
             toast.success("Connected with Google successfully!");
 
             if (sprint) {
-                // Auto enroll and complete Day 1
+                const effectiveInputs = getEffectiveTaskInputs();
+                const firstInput = effectiveInputs[0] || "";
+                // Auto enroll and complete Day 1 in database
                 const enrollment = await sprintService.enrollUser(firebaseUser.uid, sprint.id, sprint.duration, {
-                    firstActionInput: taskInputs[0],
-                    taskInputs: taskInputs
+                    firstActionInput: firstInput,
+                    taskInputs: effectiveInputs
                 } as any);
 
                 if (enrollment && enrollment.progress && enrollment.progress[0]) {
@@ -325,8 +383,8 @@ const SprintPreview: React.FC = () => {
                         ...updatedProgress[0],
                         completed: true,
                         completedAt: new Date().toISOString(),
-                        answers: taskInputs,
-                        submission: taskInputs[0]
+                        answers: effectiveInputs,
+                        submission: firstInput
                     };
                     const enrollmentRef = doc(db, "users", firebaseUser.uid, "enrollments", enrollment.id);
                     await updateDoc(enrollmentRef, { 
@@ -400,10 +458,12 @@ const SprintPreview: React.FC = () => {
             const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
             let day1BridgeNote = d1Content?.bridgeNote;
             if (sprint) {
-                // Auto enroll and complete Day 1
+                const effectiveInputs = getEffectiveTaskInputs();
+                const firstInput = effectiveInputs[0] || "";
+                // Auto enroll and complete Day 1 in database
                 const enrollment = await sprintService.enrollUser(firebaseUser.uid, sprint.id, sprint.duration, {
-                    firstActionInput: taskInputs[0],
-                    taskInputs: taskInputs
+                    firstActionInput: firstInput,
+                    taskInputs: effectiveInputs
                 } as any);
 
                 if (enrollment && enrollment.progress && enrollment.progress[0]) {
@@ -412,8 +472,8 @@ const SprintPreview: React.FC = () => {
                         ...updatedProgress[0],
                         completed: true,
                         completedAt: new Date().toISOString(),
-                        answers: taskInputs,
-                        submission: taskInputs[0]
+                        answers: effectiveInputs,
+                        submission: firstInput
                     };
                     const enrollmentRef = doc(db, "users", firebaseUser.uid, "enrollments", enrollment.id);
                     await updateDoc(enrollmentRef, { 
@@ -469,10 +529,12 @@ const SprintPreview: React.FC = () => {
             toast.success("Logged in successfully!");
 
             if (sprint) {
-                // Auto enroll and complete Day 1
+                const effectiveInputs = getEffectiveTaskInputs();
+                const firstInput = effectiveInputs[0] || "";
+                // Auto enroll and complete Day 1 in database
                 const enrollment = await sprintService.enrollUser(firebaseUser.uid, sprint.id, sprint.duration, {
-                    firstActionInput: taskInputs[0],
-                    taskInputs: taskInputs
+                    firstActionInput: firstInput,
+                    taskInputs: effectiveInputs
                 } as any);
 
                 if (enrollment && enrollment.progress && enrollment.progress[0]) {
@@ -481,8 +543,8 @@ const SprintPreview: React.FC = () => {
                         ...updatedProgress[0],
                         completed: true,
                         completedAt: new Date().toISOString(),
-                        answers: taskInputs,
-                        submission: taskInputs[0]
+                        answers: effectiveInputs,
+                        submission: firstInput
                     };
                     const enrollmentRef = doc(db, "users", firebaseUser.uid, "enrollments", enrollment.id);
                     await updateDoc(enrollmentRef, { 

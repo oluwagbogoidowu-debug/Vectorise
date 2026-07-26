@@ -172,6 +172,22 @@ const LoginPage: React.FC = () => {
                                           last_activity_at: new Date().toISOString()
                                       });
                                   }
+                              } else if (pendingObj && (pendingObj.taskInputs || pendingObj.firstActionInput)) {
+                                  if (existing.progress && existing.progress[0]) {
+                                      const updatedProgress = [...existing.progress];
+                                      updatedProgress[0] = {
+                                          ...updatedProgress[0],
+                                          completed: true,
+                                          completedAt: new Date().toISOString(),
+                                          answers: pendingObj?.taskInputs || (pendingObj?.firstActionInput ? [pendingObj.firstActionInput] : []),
+                                          submission: pendingObj?.taskInputs?.[0] || pendingObj?.firstActionInput || ""
+                                      };
+                                      const enrollmentRef = doc(db, "users", user.id, "enrollments", existing.id);
+                                      await updateDoc(enrollmentRef, { 
+                                          progress: updatedProgress,
+                                          last_activity_at: new Date().toISOString()
+                                      });
+                                  }
                               }
 
                               localStorage.removeItem('pending_first_action');
