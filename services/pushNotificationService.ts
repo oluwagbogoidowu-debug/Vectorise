@@ -161,7 +161,7 @@ export const pushNotificationService = {
       }
 
       // 3. Fetch VAPID Key from endpoint
-      const response = await fetch(`${window.location.origin}/api/vapid-key`);
+      const response = await fetch('/api/vapid-key');
       if (!response.ok) throw new Error('Failed to fetch VAPID key');
       const { publicKey } = await response.json();
 
@@ -193,7 +193,7 @@ export const pushNotificationService = {
       });
 
       // 7. Sync with subscription record on backend
-      const responseSub = await fetch(`${window.location.origin}/api/subscribe`, {
+      const responseSub = await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId, fcmToken }))
@@ -226,7 +226,7 @@ export const pushNotificationService = {
 
   updateActivity: async (userId: string, state: string = 'Active') => {
     try {
-      await fetch(`${window.location.origin}/api/notifications/update-state`, {
+      await fetch('/api/notifications/update-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId, state }))
@@ -238,7 +238,7 @@ export const pushNotificationService = {
 
   triggerCompletedTask: async (userId: string) => {
     try {
-      await fetch(`${window.location.origin}/api/notifications/trigger-completed`, {
+      await fetch('/api/notifications/trigger-completed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId }))
@@ -250,7 +250,7 @@ export const pushNotificationService = {
   
   triggerUpdate: async (userId: string) => {
     try {
-      await fetch(`${window.location.origin}/api/notifications/trigger-update`, {
+      await fetch('/api/notifications/trigger-update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId }))
@@ -262,7 +262,7 @@ export const pushNotificationService = {
 
   sendPush: async (userId: string, title: string, body: string, url?: string, tag?: string, bypassActiveCheck: boolean = false) => {
     try {
-      const res = await fetch(`${window.location.origin}/api/notifications/send-push`, {
+      const res = await fetch('/api/notifications/send-push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId, title, body, url, tag, bypassActiveCheck }))
@@ -280,7 +280,7 @@ export const pushNotificationService = {
 
   broadcastPush: async (userIds: string[], title: string, body: string, url?: string, tag?: string) => {
     try {
-      const res = await fetch(`${window.location.origin}/api/notifications/broadcast`, {
+      const res = await fetch('/api/notifications/broadcast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userIds, title, body, url, tag }))

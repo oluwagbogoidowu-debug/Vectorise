@@ -19,6 +19,7 @@ export default function AdminUserDetail() {
     const [enrollments, setEnrollments] = useState<ParticipantSprint[]>([]);
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [referrals, setReferrals] = useState<Referral[]>([]);
+    const [lastNotificationReceivedAt, setLastNotificationReceivedAt] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
@@ -185,6 +186,31 @@ export default function AdminUserDetail() {
                 const referralsSnap = await getDocs(referralsQuery);
                 const referralsList = referralsSnap.docs.map(doc => sanitizeData({ id: doc.id, ...doc.data() }) as Referral);
                 setReferrals(referralsList);
+
+                // Fetch last notification timestamp
+                let lastTime = (userData as Participant)?.lastNotificationSentAt || (userData as any)?.lastNotificationReceivedAt || null;
+                try {
+                    const logsQuery = query(collection(db, 'push_delivery_logs'), where('userId', '==', userId));
+                    const logsSnap = await getDocs(logsQuery);
+                    if (!logsSnap.empty) {
+                        const logDocs = logsSnap.docs.map(d => d.data());
+                        logDocs.sort((a, b) => {
+                            const timeA = new Date(a.sentAt || a.timestamp || a.createdAt || 0).getTime();
+                            const timeB = new Date(b.sentAt || b.timestamp || b.createdAt || 0).getTime();
+                            return timeB - timeA;
+                        });
+                        const latestLog = logDocs[0];
+                        const logTime = latestLog.sentAt || latestLog.timestamp || latestLog.createdAt;
+                        if (logTime) {
+                            if (!lastTime || new Date(logTime).getTime() > new Date(lastTime).getTime()) {
+                                lastTime = logTime;
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error("Error fetching user push logs:", err);
+                }
+                setLastNotificationReceivedAt(lastTime);
             } catch (error) {
                 console.error("Error fetching user detail:", error);
             } finally {
@@ -833,8 +859,12 @@ export default function AdminUserDetail() {
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">System Push</p>
-                                    <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${user.pushSubscription ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>
-                                        {user.pushSubscription ? 'Subscribed' : 'Not Subscribed'}
+                                    <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
+                                        (user.fcmToken || user.pushSubscription) 
+                                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                                            : 'bg-gray-50 text-gray-400 border-gray-100'
+                                    }`}>
+                                        {(user.fcmToken || user.pushSubscription) ? 'Subscribed' : 'Not Subscribed'}
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between">
@@ -847,11 +877,33 @@ export default function AdminUserDetail() {
                                         {!user.notificationsDisabled ? 'Enabled' : 'Disabled'}
                                     </button>
                                 </div>
+
+                                <div className="pt-2 border-t border-gray-50">
+                                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Last Received Notification</p>
+                                    <p className="text-[10px] font-bold text-gray-600 uppercase">
+                                        {lastNotificationReceivedAt ? (() => {
+                                            try {
+                                                const parsed = parseISO(lastNotificationReceivedAt);
+                                                return isNaN(parsed.getTime()) ? lastNotificationReceivedAt : format(parsed, 'MMM d, yyyy h:mm a');
+                                            } catch {
+                                                return lastNotificationReceivedAt;
+                                            }
+                                        })() : 'Never'}
+                                    </p>
+                                </div>
+
                                 {user.pushPermissionLastRequestAt && (
                                     <div className="pt-2 border-t border-gray-50">
                                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Last Request Time</p>
                                         <p className="text-[10px] font-bold text-gray-500 uppercase">
-                                            {format(parseISO(user.pushPermissionLastRequestAt), 'MMM d, h:mm a')}
+                                            {(() => {
+                                                try {
+                                                    const parsed = parseISO(user.pushPermissionLastRequestAt);
+                                                    return isNaN(parsed.getTime()) ? user.pushPermissionLastRequestAt : format(parsed, 'MMM d, yyyy h:mm a');
+                                                } catch {
+                                                    return user.pushPermissionLastRequestAt;
+                                                }
+                                            })()}
                                         </p>
                                     </div>
                                 )}
