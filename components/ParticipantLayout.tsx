@@ -43,7 +43,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
     try {
       const pending = JSON.parse(pendingRaw);
       if (pending && pending.sprintId) {
-        sprintService.getSprintById(pending.sprintId).then((sprint) => {
+        sprintService.getSprintById(pending.sprintId).then((sprint: any) => {
           if (sprint) {
             sprintService.getUserEnrollments(user.id).then(async (enrollments) => {
               const existingEnrollment = enrollments.find(e => e.sprint_id === pending.sprintId);

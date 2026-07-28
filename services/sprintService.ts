@@ -190,12 +190,12 @@ export const sprintService = {
         }
     },
 
-    getSprintById: async (sprintId: string) => {
+    getSprintById: async (sprintId: string): Promise<Sprint | null> => {
+        if (!sprintId) return null;
         const cacheKey = `vectorise_sprint_cache_${sprintId}`;
         
         // 1. Check in-memory cache first
         if (sprintCache[sprintId]) {
-            // Run background fetch to keep cache warm and updated, but don't block
             sprintService.fetchAndCacheSprintInBackground(sprintId).catch(() => {});
             return sprintCache[sprintId];
         }
@@ -206,7 +206,6 @@ export const sprintService = {
             if (localCached) {
                 const parsed = JSON.parse(localCached);
                 sprintCache[sprintId] = parsed;
-                // Run background fetch to update cache in background
                 sprintService.fetchAndCacheSprintInBackground(sprintId).catch(() => {});
                 return parsed;
             }
@@ -214,26 +213,64 @@ export const sprintService = {
             console.error("Error reading sprint from localStorage cache:", e);
         }
 
-        // 3. No cache available. Let's fetch from Firestore with a 2.5-second timeout.
+        // 3. No cache available. Let's fetch from Firestore with resilient fallbacks
         try {
             console.log(`[sprintService] Fetching sprint ${sprintId} from Firestore...`);
             
-            const fetchPromise = (async () => {
-                const snap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId));
-                const detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'));
-                if (!snap.exists() && !detailsSnap.exists()) return null;
+            const fetchPromise: Promise<Sprint | null> = (async (): Promise<Sprint | null> => {
+                let snap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId));
+                let detailsSnap = await getDoc(doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'));
                 
-                let sprintData = { id: sprintId } as any;
+                let sprintData: any = null;
                 if (detailsSnap.exists()) {
-                    sprintData = { ...sprintData, ...cleanDetailsData(detailsSnap.data()) };
+                    sprintData = { id: sprintId, ...cleanDetailsData(detailsSnap.data()) };
                 } else if (snap.exists()) {
-                    sprintData = { ...sprintData, ...cleanDetailsData(snap.data()) };
+                    sprintData = { id: sprintId, ...cleanDetailsData(snap.data()) };
                 }
+
+                // Fallback A: Check if sprintId is an orchestration slot ID
+                if (!sprintData) {
+                    try {
+                        const slotSnap = await getDoc(doc(db, ORCHESTRATION_SLOTS_COLLECTION, sprintId));
+                        if (slotSnap.exists()) {
+                            const slotData = slotSnap.data();
+                            const targetId = slotData.sprintId || (slotData.sprintIds && slotData.sprintIds[0]);
+                            if (targetId && targetId !== sprintId) {
+                                return await sprintService.getSprintById(targetId);
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                // Fallback B: Search collectionGroup('sprintdetails')
+                if (!sprintData) {
+                    try {
+                        const q = query(collectionGroup(db, 'sprintdetails'));
+                        const cgSnap = await getDocs(q);
+                        for (const dDoc of cgSnap.docs) {
+                            const parentId = dDoc.ref.parent?.parent?.id;
+                            const data = dDoc.data();
+                            if (parentId === sprintId || data.id === sprintId || data.sprintId === sprintId) {
+                                sprintData = { id: parentId || sprintId, ...cleanDetailsData(data) };
+                                break;
+                            }
+                        }
+                    } catch (e) {}
+                }
+
+                if (!sprintData) return null;
+
                 const resolved = await sprintService.resolveSprintDays(sprintData);
                 if (resolved) {
                     sprintCache[sprintId] = resolved;
+                    if (resolved.id && resolved.id !== sprintId) {
+                        sprintCache[resolved.id] = resolved;
+                    }
                     try {
                         localStorage.setItem(cacheKey, JSON.stringify(resolved));
+                        if (resolved.id) {
+                            localStorage.setItem(`vectorise_sprint_cache_${resolved.id}`, JSON.stringify(resolved));
+                        }
                     } catch (err) {
                         console.error("Failed to save sprint to localStorage cache:", err);
                     }
@@ -243,9 +280,9 @@ export const sprintService = {
 
             const timeoutPromise = new Promise<null>((resolve) => 
                 setTimeout(() => {
-                    console.warn(`[sprintService] getSprintById timed out for ${sprintId}. Returning null or local fallback.`);
+                    console.warn(`[sprintService] getSprintById timeout check reached for ${sprintId}.`);
                     resolve(null);
-                }, 2500)
+                }, 12000)
             );
 
             const result = await Promise.race([fetchPromise, timeoutPromise]);
@@ -253,12 +290,11 @@ export const sprintService = {
                 return result;
             }
             
-            // If timed out, check if we somehow got it in localStorage in the meantime
+            // If timed out or returned null from promise race, check local storage again
             const finalCheck = localStorage.getItem(cacheKey);
             return finalCheck ? JSON.parse(finalCheck) : null;
         } catch (err) {
             console.error(`[sprintService] Error fetching sprint ${sprintId}:`, err);
-            // On failure, fallback to localStorage if any exists
             const finalCheck = localStorage.getItem(cacheKey);
             return finalCheck ? JSON.parse(finalCheck) : null;
         }
@@ -335,12 +371,12 @@ export const sprintService = {
             console.error("Error listening to sprint details snapshot:", error);
             // Fallback to static fetch to make sure the callback receives the data
             sprintService.getSprintById(sprintId)
-                .then(data => {
+                .then((data: any) => {
                     if (data) {
                         callback(data);
                     }
                 })
-                .catch(err => {
+                .catch((err: any) => {
                     console.error("Static fallback also failed for detailsRef in subscribeToSprint:", err);
                 });
         });

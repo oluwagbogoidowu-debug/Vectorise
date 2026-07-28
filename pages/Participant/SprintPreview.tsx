@@ -663,14 +663,14 @@ const SprintPreview: React.FC = () => {
         // This is safe from snapshot/permissions issues on Firestore for guest users.
         let active = true;
         sprintService.getSprintById(sprintId)
-            .then(data => {
+            .then((data: any) => {
                 if (active && data) {
                     console.log("[SprintPreview] Successfully fetched static sprint data:", data.id);
                     setSprint(data);
                     setIsLoading(false);
                 }
             })
-            .catch(err => {
+            .catch((err: any) => {
                 console.error("[SprintPreview] Error fetching static sprint data:", err);
             });
 

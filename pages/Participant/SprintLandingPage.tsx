@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/Button';
@@ -33,11 +33,25 @@ const SprintLandingPage: React.FC = () => {
     const location = useLocation();
     const { user } = useAuth();
     
-    const [sprint, setSprint] = useState<Sprint | null>(null);
+    const initialSprintState = useMemo(() => {
+        if (location.state?.sprint && (location.state.sprint.id === sprintId || !sprintId)) {
+            return location.state.sprint;
+        }
+        if (sprintId) {
+            try {
+                const local = localStorage.getItem(`vectorise_sprint_cache_${sprintId}`);
+                if (local) return JSON.parse(local);
+            } catch (e) {}
+        }
+        return null;
+    }, [location.state, sprintId]);
+
+    const [sprint, setSprint] = useState<Sprint | null>(initialSprintState);
     const [fetchedCoach, setFetchedCoach] = useState<Coach | null>(null);
     const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(!initialSprintState);
     const [imageError, setImageError] = useState(false);
+    const [fetchFailed, setFetchFailed] = useState(false);
 
     const vectoriseCoach: Coach = {
         id: 'vectorise',
@@ -170,43 +184,86 @@ const SprintLandingPage: React.FC = () => {
         });
     };
 
-    useEffect(() => {
-        const fetchData = async () => {
-            if (!sprintId) {
-                setIsLoading(false);
-                return;
-            }
+    const loadSprintData = useCallback(async () => {
+        if (!sprintId) {
+            setIsLoading(false);
+            setFetchFailed(true);
+            return;
+        }
+
+        if (!sprint) {
             setIsLoading(true);
-            try {
-                const data = await sprintService.getSprintById(sprintId);
+        }
+        setFetchFailed(false);
+
+        try {
+            let data = await sprintService.getSprintById(sprintId);
+            
+            if (!data) {
+                console.log("[SprintLandingPage] Primary getSprintById returned null, searching admin/coach sprints fallback...");
+                const adminSprints = await sprintService.getAdminSprints().catch(() => []);
+                data = adminSprints.find(s => s.id === sprintId) || null;
+            }
+
+            if (data) {
                 setSprint(data);
                 setImageError(false);
+                setFetchFailed(false);
+                document.title = `${data.title} - Vectorise`;
                 
-                if (data) {
-                    document.title = `${data.title} - Vectorise`;
-                    const dbCoach = await userService.getUserDocument(data.coachId);
-                    setFetchedCoach((dbCoach as Coach) || vectoriseCoach);
-                    
-                    // Analytics: Track view
-                    analyticsTracker.trackEvent('landing_viewed', { 
-                        sprint_id: sprintId, 
-                        title: data.title,
-                        category: data.category
-                    }, user?.id);
+                try {
+                    if (data.coachId) {
+                        const dbCoach = await userService.getUserDocument(data.coachId);
+                        setFetchedCoach((dbCoach as Coach) || vectoriseCoach);
+                    }
+                } catch (e) {
+                    setFetchedCoach(vectoriseCoach);
                 }
 
-                if (user) {
-                    const enrollments = await sprintService.getUserEnrollments(user.id);
-                    setUserEnrollments(enrollments);
-                }
-            } catch (err) {
-                console.error("Error fetching sprint landing data:", err);
-            } finally {
-                setIsLoading(false);
+                analyticsTracker.trackEvent('landing_viewed', { 
+                    sprint_id: data.id, 
+                    title: data.title,
+                    category: data.category
+                }, user?.id);
+            } else {
+                if (!sprint) setFetchFailed(true);
             }
-        };
-        fetchData();
+        } catch (err) {
+            console.error("Error fetching sprint landing data:", err);
+            if (!sprint) setFetchFailed(true);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [sprintId, sprint, user]);
+
+    useEffect(() => {
+        loadSprintData();
+
+        if (!sprintId) return;
+
+        const unsub = sprintService.subscribeToSprint(sprintId, (realtimeData) => {
+            if (realtimeData) {
+                setSprint(realtimeData);
+                setIsLoading(false);
+                setFetchFailed(false);
+                if (realtimeData.coachId) {
+                    userService.getUserDocument(realtimeData.coachId)
+                        .then(dbCoach => setFetchedCoach((dbCoach as Coach) || vectoriseCoach))
+                        .catch(() => setFetchedCoach(vectoriseCoach));
+                }
+            }
+        });
+
+        return () => unsub();
     }, [sprintId, user]);
+
+    useEffect(() => {
+        if (user) {
+            sprintService.getUserEnrollments(user.id)
+                .then(setUserEnrollments)
+                .catch(e => console.error("Error fetching user enrollments:", e));
+        }
+    }, [user]);
 
     useEffect(() => {
         setImageError(false);
@@ -452,7 +509,27 @@ const SprintLandingPage: React.FC = () => {
             </div>
         );
     }
-    if (!sprint) return <div className="min-h-screen flex flex-col items-center justify-center bg-light text-center px-4"><h2 className="text-base font-black mb-2">Registry item not found.</h2><Button onClick={() => navigate('/explore')}>Discover Paths</Button></div>;
+    if (!sprint) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-light text-center px-6 py-12">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-4">
+                    <Zap className="w-6 h-6" />
+                </div>
+                <h2 className="text-base font-black mb-2 text-gray-900 tracking-tight">Registry item not found.</h2>
+                <p className="text-xs text-gray-500 max-w-xs mb-6">
+                    Unable to load sprint content. Check connection or retry fetching.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2.5 w-full max-w-xs">
+                    <Button onClick={loadSprintData} className="w-full text-xs">
+                        Try Again
+                    </Button>
+                    <Button onClick={() => navigate('/explore')} variant="secondary" className="w-full text-xs">
+                        Discover Paths
+                    </Button>
+                </div>
+            </div>
+        );
+    }
 
     const isFoundational = sprint.sprintType === 'Foundational' || 
                            sprint.sprintType === 'Fundamentals' ||
