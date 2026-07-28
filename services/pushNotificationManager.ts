@@ -34,6 +34,23 @@ export const pushNotificationManager = {
   },
 
   /**
+   * Broadcast a push notification to multiple user IDs in real time.
+   */
+  broadcastPush: async (userIds: string[], payload: { title: string; body: string; url?: string; tag?: string }) => {
+    let sentCount = 0;
+    let failedCount = 0;
+    const results = await Promise.all(
+      userIds.map(async (userId) => {
+        const ok = await pushNotificationManager.sendPush(userId, payload, true);
+        if (ok) sentCount++;
+        else failedCount++;
+        return { userId, ok };
+      })
+    );
+    return { sentCount, failedCount, total: userIds.length, results };
+  },
+
+  /**
    * Send a push notification to a specific user via FCM.
    */
   sendPush: async (userId: string, payload: { title: string; body: string; url?: string; tag?: string }, bypassActiveCheck: boolean = false) => {

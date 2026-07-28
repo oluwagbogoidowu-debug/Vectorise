@@ -164,6 +164,20 @@ async function startServer() {
     }
   });
 
+  app.post('/api/notifications/broadcast', async (req, res) => {
+    const { userIds, title, body, url, tag } = req.body;
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0 || !title || !body) {
+      return res.status(400).json({ error: 'userIds (array), title, and body are required' });
+    }
+    try {
+      const result = await pushNotificationManager.broadcastPush(userIds, { title, body, url, tag });
+      res.json({ success: true, ...result });
+    } catch (error) {
+      console.error('[Server] Broadcast failed:', error);
+      res.status(500).json({ error: 'Failed to broadcast notifications' });
+    }
+  });
+
   app.post('/api/notifications/update-state', async (req, res) => {
     const { userId, state } = req.body;
     if (!userId || !state) return res.status(400).json({ error: 'userId and state are required' });

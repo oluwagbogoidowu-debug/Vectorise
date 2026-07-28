@@ -262,13 +262,37 @@ export const pushNotificationService = {
 
   sendPush: async (userId: string, title: string, body: string, url?: string, tag?: string, bypassActiveCheck: boolean = false) => {
     try {
-      await fetch(`${window.location.origin}/api/notifications/send-push`, {
+      const res = await fetch(`${window.location.origin}/api/notifications/send-push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId, title, body, url, tag, bypassActiveCheck }))
       });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `HTTP ${res.status}`);
+      }
+      return await res.json();
     } catch (error) {
       console.error('Failed to send push:', error);
+      throw error;
+    }
+  },
+
+  broadcastPush: async (userIds: string[], title: string, body: string, url?: string, tag?: string) => {
+    try {
+      const res = await fetch(`${window.location.origin}/api/notifications/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sanitizeData({ userIds, title, body, url, tag }))
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `HTTP ${res.status}`);
+      }
+      return await res.json();
+    } catch (error) {
+      console.error('Failed to broadcast push:', error);
+      throw error;
     }
   }
 };
