@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { motion } from 'motion/react';
-import { Coins, Clock, ArrowRight, Sparkles, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Coins, Clock, ArrowRight, Sparkles, X, Bell, Check } from 'lucide-react';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
+import { pushNotificationService } from '../../services/pushNotificationService';
 
 const DaySuccessPage: React.FC = () => {
   const { user } = useAuth();
@@ -17,6 +18,30 @@ const DaySuccessPage: React.FC = () => {
 
   // Real-time local midnight countdown timer
   const [countdown, setCountdown] = useState('00:00:00');
+
+  // Push notification subscription states
+  const [isSubscribed, setIsSubscribed] = useState<boolean>(true); // default true to prevent flicker
+  const [isSubscribedChecked, setIsSubscribedChecked] = useState(false);
+  const [isSetForTomorrow, setIsSetForTomorrow] = useState(false);
+  const [isSubscribing, setIsSubscribing] = useState(false);
+
+  useEffect(() => {
+    // Check if user is already subscribed to push notifications
+    const checkPushSubscription = async () => {
+      try {
+        const status = await pushNotificationService.getPushStatus();
+        const hasFcmToken = !!((user as any)?.fcmToken || (user as any)?.pushSubscription);
+        const subscribed = status.subscribed && hasFcmToken;
+        setIsSubscribed(subscribed);
+      } catch (err) {
+        console.error('[DaySuccessPage] Error checking push status:', err);
+      } finally {
+        setIsSubscribedChecked(true);
+      }
+    };
+
+    checkPushSubscription();
+  }, [user]);
 
   useEffect(() => {
     // Play satisfying success haptic feedback on entry
@@ -60,6 +85,23 @@ const DaySuccessPage: React.FC = () => {
   const handleStepUp = () => {
     triggerHaptic(hapticPatterns.light);
     navigate('/');
+  };
+
+  const handleRemindMeTomorrow = async () => {
+    triggerHaptic(hapticPatterns.medium);
+    setIsSubscribing(true);
+
+    try {
+      if (user?.id) {
+        await pushNotificationService.subscribeUser(user.id);
+      }
+    } catch (err) {
+      console.log('[DaySuccessPage] User permission or push subscription attempt result:', err);
+    } finally {
+      setIsSubscribing(false);
+      setIsSetForTomorrow(true);
+      triggerHaptic(hapticPatterns.success);
+    }
   };
 
   return (
@@ -107,6 +149,41 @@ const DaySuccessPage: React.FC = () => {
             <p className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight">
               Great momentum today. Keep building your daily habit!
             </p>
+          )}
+
+          {/* Remind me tomorrow button for unsubscribed users */}
+          {!isSubscribed && isSubscribedChecked && (
+            <div className="mt-6">
+              <AnimatePresence mode="wait">
+                {!isSetForTomorrow ? (
+                  <motion.button
+                    key="remind-btn"
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleRemindMeTomorrow}
+                    disabled={isSubscribing}
+                    className="inline-flex items-center gap-2.5 px-5 py-3 bg-[#0E7850]/10 hover:bg-[#0E7850]/15 border border-[#0E7850]/20 text-[#0E7850] rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95"
+                  >
+                    <Bell className="w-4 h-4 text-[#0E7850]" />
+                    <span>{isSubscribing ? 'Setting reminder...' : 'Remind me tomorrow'}</span>
+                  </motion.button>
+                ) : (
+                  <motion.div
+                    key="success-badge"
+                    initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200/80 text-emerald-800 rounded-2xl text-xs sm:text-sm font-black tracking-wide shadow-xs"
+                  >
+                    <Check className="w-4 h-4 text-emerald-600 stroke-[3]" />
+                    <span>You’re set for tomorrow</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           )}
         </motion.div>
 
