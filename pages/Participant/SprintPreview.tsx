@@ -419,13 +419,6 @@ const SprintPreview: React.FC = () => {
             resetVerificationDeferral();
             const userCredential = await createUserWithEmailAndPassword(auth, authEmail.trim().toLowerCase(), authPassword);
             const firebaseUser = userCredential.user;
-            
-            // Send verification email immediately
-            try {
-                await sendEmailVerification(firebaseUser);
-            } catch (verr) {
-                console.error("Immediate sendEmailVerification error:", verr);
-            }
 
             await updateFbProfile(firebaseUser, { displayName: `${authFirstName} ${authLastName}` });
 
@@ -500,10 +493,9 @@ const SprintPreview: React.FC = () => {
                 state: daySuccessState
             }));
 
-            await sendEmailVerification(firebaseUser);
-            toast.success("Account created! Verification email sent.");
+            toast.success("Account created successfully!");
             setShowLockModal(false);
-            navigate('/verify-email', { state: daySuccessState, replace: true });
+            navigate('/participant/day-success', { state: daySuccessState, replace: true });
         } catch (error: any) {
             console.error("Signup error:", error);
             if (error.code === 'auth/email-already-in-use') setAuthError("Email already in use. Try logging in instead.");
@@ -564,15 +556,7 @@ const SprintPreview: React.FC = () => {
                     sprintId: sprint.id
                 };
 
-                if (!firebaseUser.emailVerified) {
-                    sessionStorage.setItem('post_verify_redirect', JSON.stringify({
-                        path: '/participant/day-success',
-                        state: daySuccessState
-                    }));
-                    navigate('/verify-email', { state: daySuccessState, replace: true });
-                } else {
-                    navigate('/participant/day-success', { state: daySuccessState });
-                }
+                navigate('/participant/day-success', { state: daySuccessState, replace: true });
             }
         } catch (error: any) {
             console.error("Login error:", error);

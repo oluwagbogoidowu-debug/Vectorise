@@ -196,11 +196,7 @@ const SignUpPage: React.FC = () => {
       if (effectiveSprintId) {
         const daySuccessState = await enrollAndPrepareDaySuccess(firebaseUser.uid, effectiveSprintId, pendingFirstAction);
         if (daySuccessState) {
-          if (!firebaseUser.emailVerified) {
-            navigate('/verify-email', { state: daySuccessState, replace: true });
-          } else {
-            navigate('/participant/day-success', { state: daySuccessState, replace: true });
-          }
+          navigate('/participant/day-success', { state: daySuccessState, replace: true });
           return;
         }
       }
@@ -395,9 +391,8 @@ const SignUpPage: React.FC = () => {
       if (effectiveSprintId) {
           const daySuccessState = await enrollAndPrepareDaySuccess(firebaseUser.uid, effectiveSprintId, pendingFirstAction);
           if (daySuccessState) {
-              await sendEmailVerification(firebaseUser);
-              toast.success("Account created! Verification email sent.");
-              navigate('/verify-email', { state: daySuccessState, replace: true });
+              toast.success("Account created successfully!");
+              navigate('/participant/day-success', { state: daySuccessState, replace: true });
               return;
           }
       }
@@ -405,8 +400,8 @@ const SignUpPage: React.FC = () => {
       if (fromPayment || targetSprintId) {
           if (targetTrackId) {
               // For tracks, we redirect to dashboard
-              await sendEmailVerification(firebaseUser);
-              navigate('/verify-email', { replace: true });
+              toast.success("Account created successfully!");
+              navigate('/dashboard', { replace: true });
               return;
           } else if (targetSprintId) {
               try {
@@ -447,12 +442,8 @@ const SignUpPage: React.FC = () => {
                               sprintId: targetSprintId,
                               enrollmentId: enrollment?.id
                           };
-                          sessionStorage.setItem('post_verify_redirect', JSON.stringify({
-                              path: '/participant/day-success',
-                              state: daySuccessState
-                          }));
-                          await sendEmailVerification(firebaseUser);
-                          navigate('/verify-email', { state: daySuccessState, replace: true });
+                          toast.success("Account created successfully!");
+                          navigate('/participant/day-success', { state: daySuccessState, replace: true });
                           return;
                       }
                   }
@@ -527,9 +518,8 @@ const SignUpPage: React.FC = () => {
           }
       }
 
-      await sendEmailVerification(firebaseUser);
-      toast.success("Account created! Verification email sent.");
-      navigate('/verify-email', { replace: true });
+      toast.success("Account created successfully!");
+      navigate('/dashboard', { replace: true });
 
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') setRegError("Email already in use. Try logging in instead.");

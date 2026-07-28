@@ -78,7 +78,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
-  const { user, activeRole, loading, mustVerifyEmail } = useAuth();
+  const { user, activeRole, loading } = useAuth();
 
   if (loading) {
     return (
@@ -90,10 +90,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
 
   if (!user) {
     return <Navigate to="/login" replace />;
-  }
-
-  if (mustVerifyEmail) {
-    return <Navigate to="/verify-email" replace />;
   }
 
   // Admins bypass role checks
@@ -109,21 +105,17 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, roles }) => {
 };
 
 export const AppRoutes: React.FC = () => {
-  const { user, activeRole, mustVerifyEmail } = useAuth();
+  const { user, activeRole } = useAuth();
   const location = useLocation();
-
-  if (user && mustVerifyEmail && location.pathname !== '/verify-email') {
-    return <Navigate to="/verify-email" replace />;
-  }
 
   return (
     <Routes>
-      <Route path="/login" element={user ? (mustVerifyEmail ? <Navigate to="/verify-email" replace /> : <Navigate to="/dashboard" replace />) : <LoginPage />} />
-      <Route path="/signup" element={user ? (mustVerifyEmail ? <Navigate to="/verify-email" replace /> : <Navigate to="/dashboard" replace />) : <SignUpPage />} />
+      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+      <Route path="/signup" element={user ? <Navigate to="/dashboard" replace /> : <SignUpPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/" element={
         user 
-          ? (mustVerifyEmail ? <Navigate to="/verify-email" replace /> : <Navigate to={`/dashboard${location.search}`} replace />)
+          ? <Navigate to={`/dashboard${location.search}`} replace />
           : <Navigate to={`/login${location.search}`} replace />
       } />
       <Route path="/welcome" element={<HomePage />} />

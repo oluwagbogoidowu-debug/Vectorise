@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
+import { sendEmailVerification } from 'firebase/auth';
+import { auth } from '../../../services/firebase';
 import LocalLogo from '../../../components/LocalLogo';
 import { PushToggle } from '../../../components/PushToggle';
 import { UserRole } from '../../../types';
@@ -49,7 +51,16 @@ const AccountSettings: React.FC = () => {
             </div>
             
             <button 
-              onClick={() => {
+              onClick={async () => {
+                if (auth.currentUser) {
+                  try {
+                    await sendEmailVerification(auth.currentUser);
+                    toast.success("Verification link sent to your inbox!");
+                  } catch (err) {
+                    console.error("Error sending verification email:", err);
+                    toast.error("Failed to send verification link. Please try again.");
+                  }
+                }
                 resetVerificationDeferral();
                 navigate('/verify-email');
               }}

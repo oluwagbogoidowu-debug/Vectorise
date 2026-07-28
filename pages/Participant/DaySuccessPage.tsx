@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { Coins, Clock, ArrowRight, Sparkles, X, Bell, Check } from 'lucide-react';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
@@ -14,7 +16,35 @@ const DaySuccessPage: React.FC = () => {
   // Retrieve parameters from state or use sensible fallbacks
   const completedDay = location.state?.day || 1;
   const coinsUnlocked = location.state?.coinsUnlocked !== undefined ? location.state?.coinsUnlocked : 10;
-  const bridgeNote = location.state?.bridgeNote;
+  const initialBridgeNote = location.state?.bridgeNote;
+
+  const [liveBridgeNote, setLiveBridgeNote] = useState<string | null>(initialBridgeNote || null);
+
+  // Subscribe to real-time updates for the sprint's bridge note for the completed day
+  useEffect(() => {
+    const targetSprintId = location.state?.sprintId || (user as any)?.enrolledSprintIds?.[0] || localStorage.getItem('vectorise_last_sprint');
+    if (!targetSprintId) return;
+
+    const sprintRef = doc(db, 'sprints', targetSprintId);
+    const unsubscribe = onSnapshot(sprintRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        const dailyContent = data.dailyContent;
+        if (Array.isArray(dailyContent)) {
+          const dContent = dailyContent.find((dc: any) => dc.day === completedDay);
+          if (dContent && typeof dContent.bridgeNote === 'string' && dContent.bridgeNote.trim()) {
+            setLiveBridgeNote(dContent.bridgeNote);
+          }
+        }
+      }
+    }, (err) => {
+      console.error("[DaySuccessPage] Error listening to live sprint bridge note:", err);
+    });
+
+    return () => unsubscribe();
+  }, [location.state?.sprintId, completedDay, user]);
+
+  const displayBridgeNote = liveBridgeNote || initialBridgeNote;
 
   // Real-time local midnight countdown timer
   const [countdown, setCountdown] = useState('00:00:00');
@@ -141,9 +171,9 @@ const DaySuccessPage: React.FC = () => {
           transition={{ delay: 0.1, duration: 0.5 }}
           className="w-full text-left my-auto py-4"
         >
-          {bridgeNote ? (
+          {displayBridgeNote ? (
             <p className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight">
-              {bridgeNote}
+              {displayBridgeNote}
             </p>
           ) : (
             <p className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight">

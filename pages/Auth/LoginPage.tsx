@@ -99,11 +99,6 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
       const handleUserRedirect = async () => {
           if (user) {
-              if (mustVerifyEmail) {
-                  navigate('/verify-email', { replace: true });
-                  return;
-              }
-
               // 1. Admin Redirection
               if (user.role === UserRole.ADMIN) {
                   navigate('/admin/dashboard', { replace: true });
@@ -203,15 +198,7 @@ const LoginPage: React.FC = () => {
                                   enrollmentId: enrollmentId
                               };
 
-                              if (mustVerifyEmail) {
-                                  sessionStorage.setItem('post_verify_redirect', JSON.stringify({
-                                      path: '/participant/day-success',
-                                      state: daySuccessState
-                                  }));
-                                  navigate('/verify-email', { state: daySuccessState, replace: true });
-                              } else {
-                                  navigate('/participant/day-success', { state: daySuccessState, replace: true });
-                              }
+                              navigate('/participant/day-success', { state: daySuccessState, replace: true });
                               return;
                           }
                       }
