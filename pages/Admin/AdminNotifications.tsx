@@ -443,58 +443,45 @@ export default function AdminNotifications() {
     const sentLogsCount = useMemo(() => logs.filter(l => l.status === 'sent' || l.status === 'delivered').length, [logs]);
 
     return (
-        <div className="space-y-8 animate-fade-in text-left pb-20">
+        <div className="space-y-6 animate-fade-in text-left pb-20">
             
-            {/* Header section with Navigation Tabs & Summary */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-sm">
-                <div>
-                    <h2 className="text-2xl font-black text-gray-900 flex items-center gap-2.5 tracking-tight">
-                        <Bell className="w-6 h-6 text-primary" />
-                        <span>Push Notification Control</span>
-                    </h2>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-1">
-                        Writeup Library, Target Selection, Real-Time Broadcast & Delivery Tracking
-                    </p>
-                </div>
-
-                {/* Navigation Bar styled like AdminPartners */}
-                <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex bg-gray-100 p-1 rounded-2xl flex-wrap">
-                        <button 
-                            type="button"
-                            onClick={() => setActiveTab('writeups')}
-                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                                activeTab === 'writeups' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
-                            }`}
-                        >
-                            <BookOpen className="w-3.5 h-3.5" />
-                            <span>Push Writeups & Library ({writeups.length})</span>
-                        </button>
-                        <button 
-                            type="button"
-                            onClick={() => setActiveTab('system')}
-                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                                activeTab === 'system' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
-                            }`}
-                        >
-                            <Clock className="w-3.5 h-3.5" />
-                            <span>System Reminders</span>
-                        </button>
-                        <button 
-                            type="button"
-                            onClick={() => setActiveTab('tracker')}
-                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                                activeTab === 'tracker' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
-                            }`}
-                        >
-                            <Bell className="w-3.5 h-3.5" />
-                            <span>Live Delivery Tracker ({logs.length})</span>
-                        </button>
-                    </div>
+            {/* Top Navigation Bar styled like AdminPartners */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex bg-gray-100 p-1 rounded-2xl flex-wrap">
+                    <button 
+                        type="button"
+                        onClick={() => setActiveTab('writeups')}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                            activeTab === 'writeups' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                        }`}
+                    >
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>Push Library ({writeups.length})</span>
+                    </button>
+                    <button 
+                        type="button"
+                        onClick={() => setActiveTab('system')}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                            activeTab === 'system' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                        }`}
+                    >
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>System Reminders</span>
+                    </button>
+                    <button 
+                        type="button"
+                        onClick={() => setActiveTab('tracker')}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                            activeTab === 'tracker' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                        }`}
+                    >
+                        <Bell className="w-3.5 h-3.5" />
+                        <span>Live Tracker ({logs.length})</span>
+                    </button>
                 </div>
             </div>
 
-            {/* Quick Metrics Strip */}
+            {/* Quick Metrics Strip (Maintained Cards) */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm text-left">
                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Library Writeups</p>
@@ -521,20 +508,20 @@ export default function AdminNotifications() {
                 </div>
             </div>
 
-            {/* TAB 1: Push Writeups & Notification Library (SAME TAB) */}
+            {/* TAB 1: Push Writeups & Notification Library */}
             {activeTab === 'writeups' && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-fade-in">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-fade-in pt-2">
                     
-                    {/* 1. Add New Push Writeup form */}
-                    <div className="lg:col-span-5 bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-sm text-left">
-                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    {/* 1. Add New Push Writeup form (Plain section on page) */}
+                    <div className="lg:col-span-5 text-left">
+                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
                             <Plus className="w-4 h-4 text-primary" />
                             <span>Create New Push Writeup</span>
                         </h3>
                         
-                        <form onSubmit={handleAddWriteup} className="space-y-5">
+                        <form onSubmit={handleAddWriteup} className="space-y-4">
                             <div>
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
                                     Writeup Title
                                 </label>
                                 <input
@@ -548,7 +535,7 @@ export default function AdminNotifications() {
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
                                     Message Body (Push content)
                                 </label>
                                 <textarea
@@ -563,7 +550,7 @@ export default function AdminNotifications() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
                                         Category
                                     </label>
                                     <select
@@ -579,7 +566,7 @@ export default function AdminNotifications() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
                                         Target URL Redirect
                                     </label>
                                     <input
@@ -595,23 +582,20 @@ export default function AdminNotifications() {
                             <button
                                 type="submit"
                                 disabled={isSavingWriteup}
-                                className="w-full py-4 bg-primary text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-primary-dark active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer shadow-sm flex items-center justify-center gap-2"
+                                className="w-full py-3.5 bg-primary text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-primary-dark active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer shadow-sm flex items-center justify-center gap-2"
                             >
                                 {isSavingWriteup ? 'Saving writeup...' : 'Save Writeup to Library'}
                             </button>
                         </form>
                     </div>
 
-                    {/* 2. Push Notification Library list */}
-                    <div className="lg:col-span-7 bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-sm text-left space-y-6">
+                    {/* 2. Push Notification Library list (Plain section on page) */}
+                    <div className="lg:col-span-7 text-left space-y-4">
                         <div>
                             <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest flex items-center gap-2 mb-1">
                                 <BookOpen className="w-4 h-4 text-primary" />
                                 <span>Push Notification Library ({writeups.length})</span>
                             </h3>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                                Select multi-targets using Sprint Settings dropdown style and trigger real-time push broadcasts.
-                            </p>
                         </div>
 
                         {/* Multi-Select Target Selector using Sprint Settings CustomSelect Style */}
@@ -751,8 +735,8 @@ export default function AdminNotifications() {
 
             {/* TAB 2: Automated System Reminders & Nudges Configuration */}
             {activeTab === 'system' && (
-                <div className="bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-sm text-left animate-fade-in">
-                    <div className="border-b border-gray-50 pb-6 mb-6">
+                <div className="text-left animate-fade-in space-y-6 pt-2">
+                    <div className="border-b border-gray-100 pb-4">
                         <h3 className="text-base font-black text-gray-900 tracking-tight flex items-center gap-2">
                             <Clock className="w-5 h-5 text-primary" />
                             <span>Automated System Reminders & Nudges Configuration</span>
@@ -973,8 +957,8 @@ export default function AdminNotifications() {
 
             {/* TAB 3: Delivery Tracking Logs */}
             {activeTab === 'tracker' && (
-                <div className="bg-white border border-gray-100 rounded-[2.5rem] p-8 shadow-sm text-left animate-fade-in">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-50 pb-6 mb-6">
+                <div className="text-left animate-fade-in space-y-6 pt-2">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-100 pb-4">
                         <div>
                             <h3 className="text-base font-black text-gray-900 tracking-tight">
                                 Live Push Delivery Tracker
