@@ -1414,13 +1414,6 @@ const ParticipantDashboard: React.FC = () => {
                                         <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-3xl shadow-lg mx-auto border border-white/30">
                                             👤
                                         </div>
-                                        <span className="inline-block mt-3 text-[9px] font-black uppercase tracking-[0.2em] text-white/90 bg-black/20 px-3 py-1 rounded-full backdrop-blur-sm">
-                                            Step 01 • Registry
-                                        </span>
-                                    </div>
-                                    {/* Tag Overlay on the Image */}
-                                    <div className="absolute top-4 left-4 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-white text-rose-700 border border-rose-100 z-20">
-                                        Identity Setup
                                     </div>
                                 </div>
                                 
@@ -1429,20 +1422,20 @@ const ParticipantDashboard: React.FC = () => {
                                     <div className="mb-4 text-left">
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-100">
-                                                Required First Step
+                                                First Step
                                             </span>
                                             <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded bg-gray-100 text-gray-600">
                                                 &lt; 1 Minute
                                             </span>
                                         </div>
-                                        <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight">Set Your Registry Identity</h3>
+                                        <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight">Tell Us About You</h3>
                                         <p className="text-xs md:text-sm text-gray-500 font-medium leading-relaxed mt-2.5 line-clamp-3">
-                                            Your identity determines your customized first sprint. Tell us who you are to unlock your Rise pathway.
+                                            This helps us match you with the exact sprint you need to start making real progress immediately.
                                         </p>
                                     </div>
                                     
                                     <div className="w-full py-4 bg-[#0E7850] text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.3em] text-[10px] md:text-[11px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-3 md:gap-4 group-hover:scale-[1.01] transition-transform active:scale-[0.98]">
-                                        Set Your Identity
+                                        Begin My Journey
                                         <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7-7 7m7-7H3" />
                                         </svg>
