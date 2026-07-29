@@ -40,7 +40,7 @@ const AccountSettings: React.FC = () => {
       </header>
 
       <main className="flex-1 overflow-y-auto p-6 space-y-4">
-        {isEmailUnverified && (
+        {isEmailUnverified ? (
           <div className="p-5 bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/20 rounded-3xl shadow-sm flex items-center justify-between transition-colors duration-300">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-2xl bg-amber-500/15 flex items-center justify-center text-lg">✉️</div>
@@ -61,13 +61,27 @@ const AccountSettings: React.FC = () => {
                     toast.error("Failed to send verification link. Please try again.");
                   }
                 }
+                sessionStorage.setItem('post_verify_redirect', JSON.stringify({ path: '/profile/settings/account' }));
                 resetVerificationDeferral();
-                navigate('/verify-email');
+                navigate('/verify-email', { state: { redirectTo: '/profile/settings/account' } });
               }}
               className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-full text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer shadow-sm"
             >
               Verify Now
             </button>
+          </div>
+        ) : (
+          <div className="p-5 bg-[#0E7850]/10 dark:bg-[#0E7850]/10 border border-[#0E7850]/20 rounded-3xl shadow-sm flex items-center justify-between transition-colors duration-300">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-[#0E7850]/20 flex items-center justify-center text-lg">✅</div>
+              <div>
+                <span className="text-[10px] font-black text-[#0E7850] dark:text-[#0E7850] uppercase tracking-widest block">Email Verified</span>
+                <span className="text-[8px] text-[#0E7850]/80 dark:text-[#0E7850]/80 font-bold uppercase tracking-wider block mt-0.5">{user?.email || 'Your account is secure'}</span>
+              </div>
+            </div>
+            <span className="px-3 py-1.5 bg-[#0E7850] text-white rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm">
+              Verified
+            </span>
           </div>
         )}
 

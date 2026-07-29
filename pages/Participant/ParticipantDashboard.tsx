@@ -1187,49 +1187,35 @@ const ParticipantDashboard: React.FC = () => {
             
             {cardState === 'task_ready' ? (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                    <div className={`py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg ${
-                        secondCardText ? 'col-span-1' : 'col-span-2'
-                    }`}>
+                    <div className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1 h-[72px] md:h-[84px]">
                         <div className="relative z-10 min-w-0 text-left">
-                            <p className="text-sm sm:text-base md:text-lg font-black uppercase tracking-tight text-white leading-tight">
+                            <p className="text-xs sm:text-sm md:text-base font-black uppercase tracking-tight text-white leading-tight">
                                 {firstCardText.title}
                             </p>
-                            {firstCardText.subtitle && (
-                                <p className="text-[10px] sm:text-xs font-bold text-white/95 mt-1 leading-snug">
-                                    {firstCardText.subtitle}
-                                </p>
-                            )}
                         </div>
                         <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                     </div>
                     
-                    {secondCardText && (
-                        <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
-                            <div className="relative z-10 min-w-0 text-left">
-                                <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
-                                    {secondCardText.title}
-                                </p>
-                                {secondCardText.subtitle && (
-                                    <p className="text-[10px] sm:text-xs font-bold text-[#0E7850] mt-1 leading-snug uppercase tracking-wider">
-                                        {secondCardText.subtitle}
-                                    </p>
-                                )}
-                            </div>
+                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 h-[72px] md:h-[84px]">
+                        <div className="relative z-10 min-w-0 text-left">
+                            <p className="text-xs sm:text-sm md:text-base font-black text-gray-950 uppercase tracking-tight leading-tight">
+                                {secondCardText ? secondCardText.title : "Start your Rise."}
+                            </p>
                         </div>
-                    )}
+                    </div>
                 </div>
             ) : cardState === 'well_done' ? (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                    <div className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#159E6A] text-white shadow-lg col-span-1">
+                    <div className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1 h-[72px] md:h-[84px]">
                         <div className="relative z-10 min-w-0 text-left animate-fade-in">
-                            <p className="text-sm sm:text-base md:text-lg font-black uppercase tracking-tight text-white leading-tight">
+                            <p className="text-xs sm:text-sm md:text-base font-black uppercase tracking-tight text-white leading-tight">
                                 Day {completedDaysCount} Done
                             </p>
                         </div>
                         <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                     </div>
                     
-                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 min-h-[72px] md:min-h-[84px]">
+                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 h-[72px] md:h-[84px]">
                         <div className="relative z-10 min-w-0 text-left w-full">
                             <AnimatePresence mode="wait">
                                 {!showStreakText ? (
@@ -1240,7 +1226,7 @@ const ParticipantDashboard: React.FC = () => {
                                         exit={{ opacity: 0, y: -10 }}
                                         transition={{ duration: 0.3, ease: "easeOut" }}
                                     >
-                                        <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
+                                        <p className="text-xs sm:text-sm md:text-base font-black text-gray-950 uppercase tracking-tight leading-tight">
                                             Come back tomorrow.
                                         </p>
                                     </motion.div>
@@ -1252,7 +1238,7 @@ const ParticipantDashboard: React.FC = () => {
                                         exit={{ opacity: 0, y: -10 }}
                                         transition={{ duration: 0.3, ease: "easeOut" }}
                                     >
-                                        <p className="text-sm sm:text-base md:text-lg font-black text-[#0E7850] uppercase tracking-tight leading-tight">
+                                        <p className="text-xs sm:text-sm md:text-base font-black text-[#0E7850] uppercase tracking-tight leading-tight">
                                             Don’t break the streak.
                                         </p>
                                     </motion.div>
@@ -1263,14 +1249,9 @@ const ParticipantDashboard: React.FC = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                    {/* Your Next Sprint / Start First Sprint Card */}
-                    <Link to="/explore" onClick={handleExploreClick} className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex items-center gap-2.5 md:gap-3 relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1">
-                        <div className="w-6 h-6 md:w-7 md:h-7 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                            <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                            </svg>
-                        </div>
-                        <div className="relative z-10 min-w-0 text-left flex-1">
+                    {/* Your Next Sprint / Begin Your First Sprint Card */}
+                    <Link to="/explore" onClick={handleExploreClick} className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1 h-[72px] md:h-[84px]">
+                        <div className="relative z-10 min-w-0 text-left">
                             <p className="text-xs sm:text-sm md:text-base font-black uppercase tracking-tight text-white leading-tight">
                                 {hasCompletedFirstSprint ? (
                                     <>Your Next Sprint</>
@@ -1283,19 +1264,8 @@ const ParticipantDashboard: React.FC = () => {
                     </Link>
                     
                     {/* Keep/Start Rising Card */}
-                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex items-center gap-2.5 md:gap-3 relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
-                        <div className="w-6 h-6 md:w-7 md:h-7 bg-[#0E7850]/10 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                            {hasCompletedFirstSprint ? (
-                                <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-[#0E7850]" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                                </svg>
-                            ) : (
-                                <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-[#0E7850]" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                            )}
-                        </div>
-                        <div className="relative z-10 min-w-0 text-left flex-1">
+                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 h-[72px] md:h-[84px]">
+                        <div className="relative z-10 min-w-0 text-left">
                             <p className="text-xs sm:text-sm md:text-base font-black text-gray-950 uppercase tracking-tight leading-tight">
                                 {hasCompletedFirstSprint ? (
                                     <>Keep Rising</>
@@ -1863,14 +1833,14 @@ const ParticipantDashboard: React.FC = () => {
                                                     Progress
                                                 </span>
                                                 <span className="text-[9px] font-mono font-black text-[#0E7850]">
-                                                    {nextToUnlockMilestone.progress.toFixed(0)}%
+                                                    {nextToUnlockMilestone.currentValue} / {nextToUnlockMilestone.targetValue}
                                                 </span>
                                             </div>
                                             <div className="h-1.5 w-full bg-gray-50 border border-gray-100/50 rounded-full overflow-hidden">
                                                 <div className="h-full bg-[#0E7850] rounded-full transition-all duration-1000" style={{ width: `${nextToUnlockMilestone.progress}%` }}></div>
                                             </div>
                                             <div className="flex justify-between items-center text-[8px] font-bold text-gray-400">
-                                                <span>Value: {nextToUnlockMilestone.currentValue} / {nextToUnlockMilestone.targetValue}</span>
+                                                <span>Reward</span>
                                                 <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100/30">+{nextToUnlockMilestone.points} Coins</span>
                                             </div>
                                         </div>

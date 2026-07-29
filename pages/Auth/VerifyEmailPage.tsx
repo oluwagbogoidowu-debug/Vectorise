@@ -14,40 +14,29 @@ const VerifyEmailPage: React.FC = () => {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const getTargetRedirect = () => {
-    if (location.state?.redirectToDaySuccess || location.state?.sprintId) {
+    if (location.state?.redirectTo) {
       return {
-        path: '/participant/day-success',
-        state: {
-          day: location.state.day || 1,
-          coinsUnlocked: location.state.coinsUnlocked !== undefined ? location.state.coinsUnlocked : 10,
-          bridgeNote: location.state.bridgeNote,
-          sprintId: location.state.sprintId,
-          enrollmentId: location.state.enrollmentId
-        }
+        path: location.state.redirectTo,
+        state: location.state.state || {}
       };
     }
     const saved = sessionStorage.getItem('post_verify_redirect');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        return {
-          path: parsed.path || '/participant/day-success',
-          state: parsed.state || { day: 1, coinsUnlocked: 10 }
-        };
+        if (parsed.path) {
+          return {
+            path: parsed.path === '/participant/day-success' ? '/profile' : parsed.path,
+            state: parsed.state || {}
+          };
+        }
       } catch (e) {
         console.error("Error parsing post_verify_redirect:", e);
       }
     }
-    const savedSprint = localStorage.getItem('vectorise_last_sprint');
-    if (savedSprint) {
-      return {
-        path: '/participant/day-success',
-        state: { day: 1, coinsUnlocked: 10, sprintId: savedSprint }
-      };
-    }
     return {
-      path: '/participant/day-success',
-      state: { day: 1, coinsUnlocked: 10 }
+      path: '/profile',
+      state: {}
     };
   };
 
