@@ -120,6 +120,18 @@ const LoginPage: React.FC = () => {
               // 4. Participant Redirection (with complex resume logic)
               if (user.role === UserRole.PARTICIPANT) {
                   try {
+                      // Re-read localStorage directly at the moment user object becomes available
+                      const latestSavedSprint = localStorage.getItem('vectorise_last_sprint');
+                      const latestPendingRaw = localStorage.getItem('pending_first_action');
+                      let latestPendingObj: any = null;
+                      try {
+                          if (latestPendingRaw) latestPendingObj = JSON.parse(latestPendingRaw);
+                      } catch (e) {
+                          console.error("[LoginPage] Error parsing pending_first_action:", e);
+                      }
+
+                      const effectiveTargetSprintId = location.state?.targetSprintId || location.state?.sprintId || location.state?.sprint?.id || latestPendingObj?.sprintId || latestSavedSprint;
+
                       const enrollments = await sprintService.getUserEnrollments(user.id);
 
                       // 0. Claim payment if applicable
@@ -139,16 +151,16 @@ const LoginPage: React.FC = () => {
                       if (targetTrackId) {
                           navigate('/participant/dashboard', { replace: true });
                           return;
-                      } else if (targetSprintId) {
-                          const sprint = await sprintService.getSprintById(targetSprintId);
+                      } else if (effectiveTargetSprintId) {
+                          const sprint = await sprintService.getSprintById(effectiveTargetSprintId);
                           if (sprint) {
-                              const existing = enrollments.find(e => e.sprint_id === targetSprintId);
+                              const existing = enrollments.find(e => e.sprint_id === effectiveTargetSprintId);
                               let enrollmentId = existing?.id;
 
                               if (!existing) {
-                                  const enrollment = await sprintService.enrollUser(user.id, targetSprintId, sprint.duration, {
-                                      firstActionInput: pendingObj?.firstActionInput,
-                                      taskInputs: pendingObj?.taskInputs
+                                  const enrollment = await sprintService.enrollUser(user.id, effectiveTargetSprintId, sprint.duration, {
+                                      firstActionInput: latestPendingObj?.firstActionInput,
+                                      taskInputs: latestPendingObj?.taskInputs
                                   });
                                   enrollmentId = enrollment?.id;
 
@@ -158,8 +170,8 @@ const LoginPage: React.FC = () => {
                                           ...updatedProgress[0],
                                           completed: true,
                                           completedAt: new Date().toISOString(),
-                                          answers: pendingObj?.taskInputs || (pendingObj?.firstActionInput ? [pendingObj.firstActionInput] : []),
-                                          submission: pendingObj?.taskInputs?.[0] || pendingObj?.firstActionInput || ""
+                                          answers: latestPendingObj?.taskInputs || (latestPendingObj?.firstActionInput ? [latestPendingObj.firstActionInput] : []),
+                                          submission: latestPendingObj?.taskInputs?.[0] || latestPendingObj?.firstActionInput || ""
                                       };
                                       const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
                                       await updateDoc(enrollmentRef, { 
@@ -167,15 +179,15 @@ const LoginPage: React.FC = () => {
                                           last_activity_at: new Date().toISOString()
                                       });
                                   }
-                              } else if (pendingObj && (pendingObj.taskInputs || pendingObj.firstActionInput)) {
+                              } else if (latestPendingObj && (latestPendingObj.taskInputs || latestPendingObj.firstActionInput)) {
                                   if (existing.progress && existing.progress[0]) {
                                       const updatedProgress = [...existing.progress];
                                       updatedProgress[0] = {
                                           ...updatedProgress[0],
                                           completed: true,
                                           completedAt: new Date().toISOString(),
-                                          answers: pendingObj?.taskInputs || (pendingObj?.firstActionInput ? [pendingObj.firstActionInput] : []),
-                                          submission: pendingObj?.taskInputs?.[0] || pendingObj?.firstActionInput || ""
+                                          answers: latestPendingObj?.taskInputs || (latestPendingObj?.firstActionInput ? [latestPendingObj.firstActionInput] : []),
+                                          submission: latestPendingObj?.taskInputs?.[0] || latestPendingObj?.firstActionInput || ""
                                       };
                                       const enrollmentRef = doc(db, "users", user.id, "enrollments", existing.id);
                                       await updateDoc(enrollmentRef, { 
@@ -185,8 +197,13 @@ const LoginPage: React.FC = () => {
                                   }
                               }
 
-                              localStorage.removeItem('pending_first_action');
-                              localStorage.removeItem('vectorise_last_sprint');
+                              if (enrollmentId) {
+                                  console.log("[LoginPage] Confirmed enrollment created/updated:", enrollmentId, "Removing pending_first_action");
+                                  localStorage.removeItem('pending_first_action');
+                                  localStorage.removeItem('vectorise_last_sprint');
+                              } else {
+                                  console.warn("[LoginPage] Enrollment ID not confirmed, keeping pending_first_action");
+                              }
 
                               const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
                               const daySuccessState = {
@@ -194,7 +211,7 @@ const LoginPage: React.FC = () => {
                                   day: 1,
                                   coinsUnlocked: 10,
                                   bridgeNote: d1Content?.bridgeNote,
-                                  sprintId: targetSprintId,
+                                  sprintId: effectiveTargetSprintId,
                                   enrollmentId: enrollmentId
                               };
 

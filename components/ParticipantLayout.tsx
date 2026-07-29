@@ -65,14 +65,21 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                         last_activity_at: new Date().toISOString()
                     });
                   }
-                  localStorage.removeItem('pending_first_action');
+                  if (enrollment && enrollment.id) {
+                    console.log("[ParticipantLayout] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
+                    localStorage.removeItem('pending_first_action');
+                  } else {
+                    console.warn("[ParticipantLayout] Enrollment ID not confirmed, keeping pending_first_action");
+                  }
+                  const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
                   navigate('/participant/day-success', { 
                     replace: true, 
                     state: { 
                       day: 1, 
                       coinsUnlocked: 10, 
+                      bridgeNote: d1Content?.bridgeNote,
                       sprintId: pending.sprintId, 
-                      enrollmentId: enrollment.id 
+                      enrollmentId: enrollment?.id 
                     } 
                   });
                 } catch (autoErr) {
@@ -104,6 +111,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                   }
                 }
                 toast.success("Resuming your active sprint...");
+                console.log("[ParticipantLayout] Confirmed existing enrollment updated:", existingEnrollment.id, "Removing pending_first_action");
                 localStorage.removeItem('pending_first_action');
                 navigate(`/participant/sprint/${existingEnrollment.id}?day=1`);
               }

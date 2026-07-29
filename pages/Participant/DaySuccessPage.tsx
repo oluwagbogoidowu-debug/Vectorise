@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { sprintService } from '../../services/sprintService';
 import { motion, AnimatePresence } from 'motion/react';
 import { Coins, Clock, ArrowRight, Sparkles, X, Bell, Check } from 'lucide-react';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
@@ -25,23 +26,18 @@ const DaySuccessPage: React.FC = () => {
     const targetSprintId = location.state?.sprintId || (user as any)?.enrolledSprintIds?.[0] || localStorage.getItem('vectorise_last_sprint');
     if (!targetSprintId) return;
 
-    const sprintRef = doc(db, 'sprints', targetSprintId);
-    const unsubscribe = onSnapshot(sprintRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        const dailyContent = data.dailyContent;
-        if (Array.isArray(dailyContent)) {
-          const dContent = dailyContent.find((dc: any) => dc.day === completedDay);
-          if (dContent && typeof dContent.bridgeNote === 'string' && dContent.bridgeNote.trim()) {
-            setLiveBridgeNote(dContent.bridgeNote);
-          }
+    const unsubscribe = sprintService.subscribeToSprint(targetSprintId, (sprint) => {
+      if (sprint && Array.isArray(sprint.dailyContent)) {
+        const dContent = sprint.dailyContent.find((dc: any) => dc.day === completedDay);
+        if (dContent && typeof dContent.bridgeNote === 'string' && dContent.bridgeNote.trim()) {
+          setLiveBridgeNote(dContent.bridgeNote);
         }
       }
-    }, (err) => {
-      console.error("[DaySuccessPage] Error listening to live sprint bridge note:", err);
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
   }, [location.state?.sprintId, completedDay, user]);
 
   const displayBridgeNote = liveBridgeNote || initialBridgeNote;

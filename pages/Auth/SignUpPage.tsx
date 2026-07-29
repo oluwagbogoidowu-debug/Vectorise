@@ -93,8 +93,13 @@ const SignUpPage: React.FC = () => {
         });
       }
 
-      localStorage.removeItem('pending_first_action');
-      localStorage.removeItem('vectorise_last_sprint');
+      if (enrollment && enrollment.id) {
+        console.log("[SignUpPage] Confirmed enrollment created/updated:", enrollment.id, "Removing pending_first_action");
+        localStorage.removeItem('pending_first_action');
+        localStorage.removeItem('vectorise_last_sprint');
+      } else {
+        console.warn("[SignUpPage] Enrollment returned no valid ID, keeping pending_first_action in localStorage");
+      }
 
       const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
       const daySuccessState = {
@@ -414,7 +419,8 @@ const SignUpPage: React.FC = () => {
                                              sprint.sprintType === 'Expert' ||
                                              sprint.category === 'Core Platform Sprint' || 
                                              sprint.category === 'Growth Fundamentals';
-                      if (fromPayment || isFoundational || sprint.price === 0) {
+                      const isCoinBased = sprint.pricingType === 'credits' || (sprint.pointCost !== undefined && sprint.pointCost >= 0);
+                      if (fromPayment || isFoundational || isCoinBased || sprint.price === 0) {
                           const pendingFirstActionRaw = localStorage.getItem('pending_first_action');
                           let pendingFirstAction = null;
                           try {
@@ -426,13 +432,21 @@ const SignUpPage: React.FC = () => {
                           }
 
                           const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprintId, sprint.duration, {
-                              firstActionInput: pendingFirstAction?.firstActionInput
+                              firstActionInput: pendingFirstAction?.firstActionInput,
+                              taskInputs: pendingFirstAction?.taskInputs
                           });
+
+                          if (enrollment && enrollment.id) {
+                              console.log("[SignUpPage:handleSignUp] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
+                              localStorage.removeItem('pending_first_action');
+                              localStorage.removeItem('vectorise_last_sprint');
+                          } else {
+                              console.warn("[SignUpPage:handleSignUp] Target enrollment returned no ID, keeping pending_first_action");
+                          }
 
                           if (enrollment.status === 'queued') {
                               toast.success("Added to waitlist since you have another active sprint! Progress saved.");
                           }
-                          localStorage.removeItem('pending_first_action');
                           const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
                           const daySuccessState = {
                               redirectToDaySuccess: true,

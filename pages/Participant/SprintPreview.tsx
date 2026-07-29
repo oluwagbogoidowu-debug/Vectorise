@@ -392,7 +392,12 @@ const SprintPreview: React.FC = () => {
                         last_activity_at: new Date().toISOString()
                     });
                 }
-                localStorage.removeItem('pending_first_action');
+                if (enrollment && enrollment.id) {
+                    console.log("[SprintPreview:GoogleSignIn] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
+                    localStorage.removeItem('pending_first_action');
+                } else {
+                    console.warn("[SprintPreview:GoogleSignIn] Enrollment ID not confirmed, keeping pending_first_action");
+                }
                 setShowLockModal(false);
                 navigate('/participant/day-success', { state: { day: 1, coinsUnlocked: 10 } });
             }
@@ -476,7 +481,12 @@ const SprintPreview: React.FC = () => {
                 }
                 enrollmentId = enrollment?.id || "";
                 setCreatedEnrollmentId(enrollmentId);
-                localStorage.removeItem('pending_first_action');
+                if (enrollment && enrollment.id) {
+                    console.log("[SprintPreview:EmailSignUp] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
+                    localStorage.removeItem('pending_first_action');
+                } else {
+                    console.warn("[SprintPreview:EmailSignUp] Enrollment ID not confirmed, keeping pending_first_action");
+                }
             }
 
             const daySuccessState = {
@@ -545,7 +555,12 @@ const SprintPreview: React.FC = () => {
                     });
                 }
                 setCreatedEnrollmentId(enrollment.id);
-                localStorage.removeItem('pending_first_action');
+                if (enrollment && enrollment.id) {
+                    console.log("[SprintPreview:EmailLogin] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
+                    localStorage.removeItem('pending_first_action');
+                } else {
+                    console.warn("[SprintPreview:EmailLogin] Enrollment ID not confirmed, keeping pending_first_action");
+                }
 
                 setShowLockModal(false);
                 const daySuccessState = { 
