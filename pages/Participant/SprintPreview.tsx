@@ -412,7 +412,11 @@ const SprintPreview: React.FC = () => {
             }
         } catch (error: any) {
             console.error("Google Sign-In Failure:", error);
-            if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+            if (error.code === 'auth/unauthorized-domain') {
+                setAuthError("Google Sign-In is not enabled for this domain. Please use Email & Password instead.");
+            } else if (error.code === 'auth/too-many-requests') {
+                setAuthError("Too many attempts. Please wait a few minutes before trying again.");
+            } else if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
                 setAuthError("Google authentication failed. Please try again.");
             }
         } finally {
@@ -519,6 +523,7 @@ const SprintPreview: React.FC = () => {
             console.error("Signup error:", error);
             if (error.code === 'auth/email-already-in-use') setAuthError("Email already in use. Try logging in instead.");
             else if (error.code === 'auth/weak-password') setAuthError("Password must be at least 6 characters.");
+            else if (error.code === 'auth/too-many-requests') setAuthError("Too many attempts. Please wait a few minutes before trying again.");
             else setAuthError("Account creation failed. Please try again.");
         } finally {
             setIsSubmittingAuth(false);
@@ -586,6 +591,8 @@ const SprintPreview: React.FC = () => {
             console.error("Login error:", error);
             if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
                 setAuthError("Incorrect email or password.");
+            } else if (error.code === 'auth/too-many-requests') {
+                setAuthError("Too many attempts. Please wait a few minutes before trying again.");
             } else {
                 setAuthError("Login failed. Please check your credentials.");
             }

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Header from './Header';
-import BottomNav from './BottomNav';
+import BottomNavigation from './BottomNavigation';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../services/firebase';
@@ -146,7 +146,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
   const isDaySuccess = location.pathname.startsWith('/participant/day-success');
   const isSprintView = location.pathname.startsWith('/participant/sprint');
   const isIdentityPage = location.pathname.startsWith('/profile/settings/identity');
-  const isFullBleedPage = isDaySuccess || isSprintView || isIdentityPage || location.pathname.startsWith('/sprint/preview') || location.pathname.startsWith('/coach/sprint/preview');
+  const isFullBleedPage = isDaySuccess || isSprintView || isIdentityPage || location.pathname.startsWith('/sprint') || location.pathname.startsWith('/coach/sprint/preview');
 
   return (
     <div className="h-[100dvh] w-full bg-light overflow-hidden flex flex-col">
@@ -157,7 +157,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
       </main>
       
       {!isFullBleedPage && (user ? (
-        <BottomNav />
+        <BottomNavigation />
       ) : (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-xs bg-[#0E7850] text-white rounded-[2rem] shadow-xl z-50 p-4 flex items-center justify-between gap-4 border border-emerald-600/20">
           <div className="pl-2">

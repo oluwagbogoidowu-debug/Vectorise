@@ -1095,14 +1095,16 @@ export const sprintService = {
         try {
             const q = query(
                 collectionGroup(db, 'referrals'),
-                where('refereeId', '==', userId),
-                where('status', '==', 'joined')
+                where('refereeId', '==', userId)
             );
             const snap = await getDocs(q);
             if (snap.empty) return;
 
+            const docsToProcess = snap.docs.filter(d => d.data()?.status === 'joined');
+            if (docsToProcess.length === 0) return;
+
             const { runTransaction } = await import('firebase/firestore');
-            for (const referralDoc of snap.docs) {
+            for (const referralDoc of docsToProcess) {
                 const rData = referralDoc.data();
                 const referrerId = rData.referrerId;
                 

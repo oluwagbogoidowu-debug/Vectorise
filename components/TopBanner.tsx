@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '../contexts/AuthContext';
 
 interface TopBannerProps {
   deferredPrompt: any;
 }
 
 const TopBanner: React.FC<TopBannerProps> = ({ deferredPrompt }) => {
+  const { user } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    if (!user) {
+      setIsVisible(false);
+      return;
+    }
     const isDismissed = sessionStorage.getItem('vectorise_banner_dismissed');
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
     
@@ -24,7 +30,7 @@ const TopBanner: React.FC<TopBannerProps> = ({ deferredPrompt }) => {
       // Show if mobile OR if we are in the dev environment so you can see it
       setIsVisible(true);
     }
-  }, []);
+  }, [user]);
 
   const handleDismiss = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -59,7 +65,7 @@ const TopBanner: React.FC<TopBannerProps> = ({ deferredPrompt }) => {
     }
   };
 
-  if (!isVisible) return null;
+  if (!user || !isVisible) return null;
 
   const isInstalled = localStorage.getItem('vec_pwa_installed') === 'true';
 

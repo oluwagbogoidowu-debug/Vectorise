@@ -153,21 +153,15 @@ const AppContent: React.FC = () => {
   const isFullBleed = 
     location.pathname.startsWith('/participant/day-success') || 
     location.pathname.startsWith('/participant/sprint') || 
-    location.pathname.startsWith('/sprint/preview') ||
-    location.pathname.startsWith('/coach/sprint/preview');
+    location.pathname.startsWith('/sprint') ||
+    location.pathname.startsWith('/coach/sprint/preview') ||
+    location.pathname.startsWith('/profile/settings/identity');
 
   const showGlobalHeader = false;
 
-  const showParticipantNav = 
-    user && 
-    activeRole === UserRole.PARTICIPANT && 
-    !isOnboardingRoute &&
-    !location.pathname.startsWith('/coach') &&
-    !location.pathname.startsWith('/admin') &&
-    !isAuthRoute &&
-    !isFullBleed;
+  const showParticipantNav = false; // ParticipantLayout handles bottom navigation for participants
 
-  const showTopBanner = !isOnboardingRoute && !isAuthRoute && !isFullBleed;
+  const showTopBanner = Boolean(user) && !isOnboardingRoute && !isAuthRoute && !isFullBleed;
 
   if (loading) {
     return (

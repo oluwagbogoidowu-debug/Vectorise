@@ -207,7 +207,11 @@ const SignUpPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error("Google SSO Failure:", error);
-      if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+      if (error.code === 'auth/unauthorized-domain') {
+        toast.error("Google Sign-In is not enabled for this domain. Please use Email & Password.");
+      } else if (error.code === 'auth/too-many-requests') {
+        toast.error("Too many attempts. Please wait a few minutes before trying again.");
+      } else if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
         toast.error("Google registration failed. Please try again.");
       }
     } finally {
@@ -538,6 +542,7 @@ const SignUpPage: React.FC = () => {
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') setRegError("Email already in use. Try logging in instead.");
       else if (error.code === 'auth/weak-password') setRegError("Password must be at least 6 characters.");
+      else if (error.code === 'auth/too-many-requests') setRegError("Too many attempts. Please wait a few minutes before trying again.");
       else setRegError("Account creation failed. Please try again.");
     } finally {
       setIsSubmitting(false);

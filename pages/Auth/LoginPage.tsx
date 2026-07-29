@@ -59,7 +59,11 @@ const LoginPage: React.FC = () => {
       toast.success("Connected with Google successfully!");
     } catch (error: any) {
       console.error("Google SSO Failure:", error);
-      if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+      if (error.code === 'auth/unauthorized-domain') {
+        toast.error("Google Sign-In is not enabled for this domain. Please use Email & Password.");
+      } else if (error.code === 'auth/too-many-requests') {
+        toast.error("Too many attempts. Please wait a few minutes before trying again.");
+      } else if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
         toast.error("Google authentication failed. Please try again.");
       }
     } finally {
@@ -266,7 +270,11 @@ const LoginPage: React.FC = () => {
         // We set isLoading to false so the button doesn't spin forever if redirect is slow
         setIsLoading(false);
     } catch (error: any) {
-        setEmailError('Authentication failed. Check your credentials.');
+        if (error.code === 'auth/too-many-requests') {
+            setEmailError('Too many attempts. Account temporarily locked. Please try again later.');
+        } else {
+            setEmailError('Authentication failed. Check your credentials.');
+        }
         setIsLoading(false);
     }
   };
