@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { sprintService } from '../services/sprintService';
 import LocalLogo from './LocalLogo';
@@ -9,8 +10,16 @@ interface PWAInstallPromptProps {
 
 const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ deferredPrompt }) => {
   const { user } = useAuth();
+  const location = useLocation();
   const [isVisible, setIsVisible] = useState(false);
   const [sessionTime, setSessionTime] = useState(0);
+
+  const isFullBleed = 
+    location.pathname.startsWith('/participant/day-success') || 
+    location.pathname.startsWith('/participant/sprint') || 
+    location.pathname.startsWith('/sprint') ||
+    location.pathname.startsWith('/coach/sprint/preview') ||
+    location.pathname.startsWith('/profile/settings/identity');
 
   useEffect(() => {
     const timer = setInterval(() => setSessionTime(prev => prev + 1), 1000);
@@ -20,7 +29,7 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ deferredPrompt }) =
   useEffect(() => {
     const checkCriteria = async () => {
       // 1. Basic checks
-      if (!user || !deferredPrompt) return;
+      if (!user || !deferredPrompt || isFullBleed) return;
       if (localStorage.getItem('vec_pwa_installed') === 'true') return;
 
       // 2. Mobile Browser check
@@ -80,7 +89,7 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ deferredPrompt }) =
     setIsVisible(false);
   };
 
-  if (!isVisible) return null;
+  if (!isVisible || isFullBleed || !user) return null;
 
   return (
     <div className="fixed inset-0 z-[200] flex items-end justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
