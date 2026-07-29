@@ -398,8 +398,17 @@ const SprintPreview: React.FC = () => {
                 } else {
                     console.warn("[SprintPreview:GoogleSignIn] Enrollment ID not confirmed, keeping pending_first_action");
                 }
+                const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
                 setShowLockModal(false);
-                navigate('/participant/day-success', { state: { day: 1, coinsUnlocked: 10 } });
+                navigate('/participant/day-success', { 
+                    state: { 
+                        day: 1, 
+                        coinsUnlocked: 10,
+                        bridgeNote: d1Content?.bridgeNote,
+                        sprintId: sprint.id,
+                        enrollmentId: enrollment?.id
+                    } 
+                });
             }
         } catch (error: any) {
             console.error("Google Sign-In Failure:", error);
