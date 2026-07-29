@@ -72,7 +72,8 @@ const getDayStatus = (enrollment: ParticipantSprint, sprint: Sprint, now: number
 
 const DAY_TEXTS: Record<number, { firstCard: { title: string; subtitle?: string }; secondCard?: { title: string; subtitle?: string } }> = {
   1: {
-    firstCard: { title: "Day 1 is ready", subtitle: "Start your Rise." }
+    firstCard: { title: "Day 1 is ready" },
+    secondCard: { title: "Start your Rise." }
   },
   2: {
     firstCard: { title: "Day 2 is ready" },
@@ -1424,8 +1425,6 @@ const ParticipantDashboard: React.FC = () => {
                         onClick={() => {
                             if (!isIdentitySet) {
                                 navigate('/profile/settings/identity');
-                            } else if (!hasCompletedFirstSprint && recommendedNextSprint) {
-                                handleStartFreeFirstSprint(recommendedNextSprint);
                             } else if (recommendedNextSprint) {
                                 setShowOverviewSheet(true);
                                 setOverviewStep('overview');
