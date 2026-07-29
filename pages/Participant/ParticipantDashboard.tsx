@@ -1187,18 +1187,18 @@ const ParticipantDashboard: React.FC = () => {
             
             {cardState === 'task_ready' ? (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                    <div className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1 h-[72px] md:h-[84px]">
+                    <div className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1 min-h-[76px] md:min-h-[88px]">
                         <div className="relative z-10 min-w-0 text-left">
-                            <p className="text-xs sm:text-sm md:text-base font-black uppercase tracking-tight text-white leading-tight">
+                            <p className="text-sm sm:text-base md:text-lg font-black uppercase tracking-tight text-white leading-tight">
                                 {firstCardText.title}
                             </p>
                         </div>
                         <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                     </div>
                     
-                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 h-[72px] md:h-[84px]">
+                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 min-h-[76px] md:min-h-[88px]">
                         <div className="relative z-10 min-w-0 text-left">
-                            <p className="text-xs sm:text-sm md:text-base font-black text-gray-950 uppercase tracking-tight leading-tight">
+                            <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
                                 {secondCardText ? secondCardText.title : "Start your Rise."}
                             </p>
                         </div>
@@ -1206,16 +1206,16 @@ const ParticipantDashboard: React.FC = () => {
                 </div>
             ) : cardState === 'well_done' ? (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                    <div className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1 h-[72px] md:h-[84px]">
+                    <div className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1 min-h-[76px] md:min-h-[88px]">
                         <div className="relative z-10 min-w-0 text-left animate-fade-in">
-                            <p className="text-xs sm:text-sm md:text-base font-black uppercase tracking-tight text-white leading-tight">
+                            <p className="text-sm sm:text-base md:text-lg font-black uppercase tracking-tight text-white leading-tight">
                                 Day {completedDaysCount} Done
                             </p>
                         </div>
                         <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                     </div>
                     
-                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 h-[72px] md:h-[84px]">
+                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 min-h-[76px] md:min-h-[88px]">
                         <div className="relative z-10 min-w-0 text-left w-full">
                             <AnimatePresence mode="wait">
                                 {!showStreakText ? (
@@ -1226,7 +1226,7 @@ const ParticipantDashboard: React.FC = () => {
                                         exit={{ opacity: 0, y: -10 }}
                                         transition={{ duration: 0.3, ease: "easeOut" }}
                                     >
-                                        <p className="text-xs sm:text-sm md:text-base font-black text-gray-950 uppercase tracking-tight leading-tight">
+                                        <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
                                             Come back tomorrow.
                                         </p>
                                     </motion.div>
@@ -1238,7 +1238,7 @@ const ParticipantDashboard: React.FC = () => {
                                         exit={{ opacity: 0, y: -10 }}
                                         transition={{ duration: 0.3, ease: "easeOut" }}
                                     >
-                                        <p className="text-xs sm:text-sm md:text-base font-black text-[#0E7850] uppercase tracking-tight leading-tight">
+                                        <p className="text-sm sm:text-base md:text-lg font-black text-[#0E7850] uppercase tracking-tight leading-tight">
                                             Don’t break the streak.
                                         </p>
                                     </motion.div>
@@ -1250,9 +1250,9 @@ const ParticipantDashboard: React.FC = () => {
             ) : (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
                     {/* Your Next Sprint / Begin Your First Sprint Card */}
-                    <Link to="/explore" onClick={handleExploreClick} className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1 h-[72px] md:h-[84px]">
+                    <Link to="/explore" onClick={handleExploreClick} className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1 min-h-[76px] md:min-h-[88px]">
                         <div className="relative z-10 min-w-0 text-left">
-                            <p className="text-xs sm:text-sm md:text-base font-black uppercase tracking-tight text-white leading-tight">
+                            <p className="text-sm sm:text-base md:text-lg font-black uppercase tracking-tight text-white leading-tight">
                                 {hasCompletedFirstSprint ? (
                                     <>Your Next Sprint</>
                                 ) : (
@@ -1264,9 +1264,9 @@ const ParticipantDashboard: React.FC = () => {
                     </Link>
                     
                     {/* Keep/Start Rising Card */}
-                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 h-[72px] md:h-[84px]">
+                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 min-h-[76px] md:min-h-[88px]">
                         <div className="relative z-10 min-w-0 text-left">
-                            <p className="text-xs sm:text-sm md:text-base font-black text-gray-950 uppercase tracking-tight leading-tight">
+                            <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
                                 {hasCompletedFirstSprint ? (
                                     <>Keep Rising</>
                                 ) : (
