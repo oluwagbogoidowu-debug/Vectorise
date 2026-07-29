@@ -1263,20 +1263,18 @@ const ParticipantDashboard: React.FC = () => {
             ) : (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
                     {/* Your Next Sprint / Start First Sprint Card */}
-                    <Link to="/explore" onClick={handleExploreClick} className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1">
-                        <div className="flex items-center gap-2 mb-1.5">
-                            <div className="w-5 h-5 md:w-6 md:h-6 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                                <svg className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                                </svg>
-                            </div>
+                    <Link to="/explore" onClick={handleExploreClick} className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex items-center gap-2.5 md:gap-3 relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1">
+                        <div className="w-6 h-6 md:w-7 md:h-7 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+                            <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
                         </div>
-                        <div className="relative z-10 min-w-0 text-left">
-                            <p className="text-sm sm:text-base md:text-lg font-black uppercase tracking-tight text-white leading-tight">
+                        <div className="relative z-10 min-w-0 text-left flex-1">
+                            <p className="text-xs sm:text-sm md:text-base font-black uppercase tracking-tight text-white leading-tight">
                                 {hasCompletedFirstSprint ? (
-                                    <>Your<br/>Next Sprint</>
+                                    <>Your Next Sprint</>
                                 ) : (
-                                    <>Begin Your<br/>First Sprint</>
+                                    <>Begin Your First Sprint</>
                                 )}
                             </p>
                         </div>
@@ -1284,26 +1282,24 @@ const ParticipantDashboard: React.FC = () => {
                     </Link>
                     
                     {/* Keep/Start Rising Card */}
-                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
-                        <div className="flex items-center gap-2 mb-1.5">
-                            <div className="w-5 h-5 md:w-6 md:h-6 bg-[#0E7850]/10 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                                {hasCompletedFirstSprint ? (
-                                    <svg className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-[#0E7850]" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                                    </svg>
-                                ) : (
-                                    <svg className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-[#0E7850]" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                    </svg>
-                                )}
-                            </div>
+                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex items-center gap-2.5 md:gap-3 relative overflow-hidden transition-transform active:scale-[0.98] col-span-1">
+                        <div className="w-6 h-6 md:w-7 md:h-7 bg-[#0E7850]/10 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+                            {hasCompletedFirstSprint ? (
+                                <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-[#0E7850]" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                </svg>
+                            ) : (
+                                <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-[#0E7850]" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            )}
                         </div>
-                        <div className="relative z-10 min-w-0 text-left">
-                            <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
+                        <div className="relative z-10 min-w-0 text-left flex-1">
+                            <p className="text-xs sm:text-sm md:text-base font-black text-gray-950 uppercase tracking-tight leading-tight">
                                 {hasCompletedFirstSprint ? (
-                                    <>Keep<br/>Rising</>
+                                    <>Keep Rising</>
                                 ) : (
-                                    <>Start<br/>Rising</>
+                                    <>Start Rising</>
                                 )}
                             </p>
                         </div>
