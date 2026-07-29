@@ -1032,6 +1032,33 @@ const ParticipantDashboard: React.FC = () => {
     }
   };
 
+  const handleStartFreeFirstSprint = async (sprintToEnroll = recommendedNextSprint) => {
+    if (!user || !sprintToEnroll) return;
+    setIsProcessing(true);
+    try {
+        const enrollment = await sprintService.enrollUser(
+            user.id, 
+            sprintToEnroll.id, 
+            sprintToEnroll.duration || 7, 
+            {
+                coachId: sprintToEnroll.coachId,
+                pricePaid: 0,
+                currency: sprintToEnroll.currency || 'NGN',
+                source: 'free_first_sprint'
+            }
+        );
+
+        toast.success("First sprint started for free!");
+        setShowOverviewSheet(false);
+        navigate(`/participant/sprint/${enrollment.id}`);
+    } catch (err: any) {
+        console.error("Error starting first sprint for free:", err);
+        toast.error(err.message || "Failed to start sprint. Please try again.");
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
   const handleStartSprint = async () => {
     if (!user || !recommendedNextSprint || !isCommitted) return;
     
@@ -1249,7 +1276,7 @@ const ParticipantDashboard: React.FC = () => {
                                 {hasCompletedFirstSprint ? (
                                     <>Your<br/>Next Sprint</>
                                 ) : (
-                                    <>Start<br/>First Sprint</>
+                                    <>Begin Your<br/>First Sprint</>
                                 )}
                             </p>
                         </div>
@@ -1401,6 +1428,8 @@ const ParticipantDashboard: React.FC = () => {
                         onClick={() => {
                             if (!isIdentitySet) {
                                 navigate('/profile/settings/identity');
+                            } else if (!hasCompletedFirstSprint && recommendedNextSprint) {
+                                handleStartFreeFirstSprint(recommendedNextSprint);
                             } else if (recommendedNextSprint) {
                                 setShowOverviewSheet(true);
                                 setOverviewStep('overview');
@@ -1458,7 +1487,7 @@ const ParticipantDashboard: React.FC = () => {
                         ) : (
                             <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-150 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[220px]">
                                 {/* Left Image Section */}
-                                <div className="w-full md:w-2/5 h-28 md:h-auto relative overflow-hidden">
+                                <div className="w-full md:w-2/5 h-36 md:h-auto relative overflow-hidden">
                                     <img 
                                         src={recommendedNextSprint?.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
                                         alt="" 
@@ -1466,26 +1495,30 @@ const ParticipantDashboard: React.FC = () => {
                                         onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
                                         referrerPolicy="no-referrer"
                                      />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
-                                    {/* Tag Overlay on the Image */}
-                                    <div className="absolute top-4 left-4 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
-                                        {!hasCompletedFirstSprint ? "Begin your rise here" : "See what's next"}
-                                    </div>
-                                    <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between z-10">
-                                        <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm truncate max-w-[110px]">
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/20"></div>
+                                    
+                                    {/* Top Position: Category (Left) and Duration (Right) */}
+                                    <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
+                                        <span className="text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-white/20 text-white backdrop-blur-sm truncate max-w-[110px]">
                                             {recommendedNextSprint?.category || "Growth"}
                                         </span>
-                                        <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-rose-500/80 text-white backdrop-blur-sm shrink-0">
+                                        <span className="text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-rose-500/80 text-white backdrop-blur-sm shrink-0">
                                             {recommendedNextSprint?.duration || 7} Days
                                         </span>
+                                    </div>
+
+                                    {/* Down position within the image: Sprint Title */}
+                                    <div className="absolute bottom-4 left-4 right-4 z-10">
+                                        <h3 className="text-base md:text-xl font-black text-white leading-tight tracking-tight drop-shadow-md line-clamp-2">
+                                            {recommendedNextSprint?.title || "Growth Foundations"}
+                                        </h3>
                                     </div>
                                 </div>
                                 
                                 {/* Right Content Section */}
                                 <div className="flex-1 p-6 md:p-8 flex flex-col justify-between">
                                     <div className="mb-4 text-left">
-                                        <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight">{recommendedNextSprint?.title || "Growth Foundations"}</h3>
-                                        <p className="text-xs md:text-sm text-gray-500 font-medium leading-relaxed mt-3 line-clamp-3">
+                                        <p className="text-xs md:text-sm text-gray-500 font-medium leading-relaxed line-clamp-3">
                                             {recommendedNextSprint?.description || recommendedNextSprint?.subtitle || "Unlock consistency and start your rise with templates."}
                                         </p>
                                     </div>
@@ -2132,20 +2165,33 @@ const ParticipantDashboard: React.FC = () => {
                                     </h3>
 
                                     {/* Description */}
-                                    <div className="text-xs text-gray-600 font-medium leading-relaxed mb-4">
+                                    <div className="text-sm sm:text-base text-gray-700 font-medium leading-relaxed mb-5">
                                         <FormattedText text={recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise."} />
                                     </div>
 
                                     {/* Action button */}
-                                    <button 
-                                        onClick={() => setOverviewStep('commitment')}
-                                        className="w-full py-3.5 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] shadow-xl hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2"
-                                    >
-                                        Continue
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7-7 7m7-7H3" />
-                                        </svg>
-                                    </button>
+                                    {!hasCompletedFirstSprint ? (
+                                        <button 
+                                            onClick={() => handleStartFreeFirstSprint(recommendedNextSprint)}
+                                            disabled={isProcessing}
+                                            className="w-full py-3.5 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] shadow-xl hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2"
+                                        >
+                                            {isProcessing ? "Starting..." : "Start for Free"}
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7-7 7m7-7H3" />
+                                            </svg>
+                                        </button>
+                                    ) : (
+                                        <button 
+                                            onClick={() => setOverviewStep('commitment')}
+                                            className="w-full py-3.5 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] shadow-xl hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2"
+                                        >
+                                            Continue
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7-7 7m7-7H3" />
+                                            </svg>
+                                        </button>
+                                    )}
                                 </div>
                             ) : (
                                 // Step 2: Commitment & Payment

@@ -7,13 +7,11 @@ import { Participant } from '../types';
 
 const BottomNav: React.FC = () => {
     const location = useLocation();
-    const { user } = useAuth();
-    const isIdentitySet = userService.isIdentitySet(user as Participant);
 
     const navItems = [
         { path: '/', icon: Home, label: 'Home', notification: true },
         { path: '/my-sprints', icon: LayoutList, label: 'My Sprints' },
-        { path: '/profile', icon: User, label: 'Profile', showIdentityDot: !isIdentitySet },
+        { path: '/profile', icon: User, label: 'Profile' },
     ];
 
     return (
@@ -33,9 +31,6 @@ const BottomNav: React.FC = () => {
                                 <Icon className={`w-6 h-6 mb-1 ${isActive ? 'stroke-primary' : 'stroke-gray-300 group-hover:stroke-primary'}`} strokeWidth={2.5} />
                                 {item.notification && isActive && (
                                     <span className="absolute top-0 right-0 -mt-1 -mr-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                                )}
-                                {item.showIdentityDot && (
-                                    <span className="absolute top-0 right-0 -mt-1 -mr-1 w-2 h-2 bg-red-500 rounded-full"></span>
                                 )}
                             </div>
                             {item.label}
