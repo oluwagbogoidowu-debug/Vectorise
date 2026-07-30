@@ -515,13 +515,49 @@ export const pushNotificationManager = {
     
     console.log(`[PushManager] Found ${usersSnap.size} users with active FCM tokens.`);
 
+    const getUserTimezoneDetails = (userDate: Date, uData: Participant) => {
+      const tz = (uData as any).tz || (uData as any).timezone || (uData as any).timeZone;
+      if (tz && typeof tz === 'string') {
+        try {
+          const hourStr = userDate.toLocaleString('en-US', { timeZone: tz, hour: 'numeric', hour12: false });
+          const localHour = parseInt(hourStr, 10) % 24;
+          const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(userDate);
+          return { localHour: isNaN(localHour) ? userDate.getHours() : localHour, dateStr };
+        } catch (e) {}
+      }
+      if (typeof (uData as any).timezoneOffsetMinutes === 'number') {
+        const utcMs = userDate.getTime() + (userDate.getTimezoneOffset() * 60000);
+        const userTime = new Date(utcMs - ((uData as any).timezoneOffsetMinutes * 60000));
+        return { localHour: userTime.getHours(), dateStr: userTime.toISOString().split('T')[0] };
+      }
+      return { localHour: userDate.getHours(), dateStr: userDate.toISOString().split('T')[0] };
+    };
+
     for (const userDoc of usersSnap.docs) {
       const user = { id: userDoc.id, ...userDoc.data() } as Participant;
       
-      if (user.notificationsDisabled) continue;
+      // Pre-send filter checks: skip users without valid FCM token, with notifications disabled, paused notification state, or disabled check-in reminders
+      if (!user.fcmToken) {
+        console.log(`[PushManager] Skipping user ${user.id} - missing fcmToken.`);
+        continue;
+      }
+      if (user.notificationsDisabled) {
+        console.log(`[PushManager] Skipping trigger processing for user ${user.id} - notifications disabled.`);
+        continue;
+      }
+      if ((user as any).notificationState && (user as any).notificationState === 'Paused') {
+        console.log(`[PushManager] Skipping user ${user.id} - notificationState is Paused.`);
+        continue;
+      }
+      if ((user as any).checkInReminderEnabled === false) {
+        console.log(`[PushManager] Skipping user ${user.id} - checkInReminderEnabled is false.`);
+        continue;
+      }
+
+      const { localHour, dateStr } = getUserTimezoneDetails(now, user);
 
       const lastSentAt = user.lastNotificationSentAt ? new Date(user.lastNotificationSentAt) : null;
-      const sentToday = lastSentAt && lastSentAt.toDateString() === now.toDateString();
+      const sentToday = lastSentAt && lastSentAt.toISOString().split('T')[0] === dateStr;
 
       // Get active enrollment to know the sprint category
       const enrollmentsSnap = await db.collection('users').doc(user.id).collection('enrollments')
@@ -551,8 +587,8 @@ export const pushNotificationManager = {
       const todayProgress = enrollment.progress.find(p => p.day === currentDay);
       const isTaskCompleted = todayProgress?.completed || false;
 
-      // Inactivity or Missed Days Nudges (Processed strictly at the designated inactivity hour to ensure predictable, polite delivery)
-      if (currentHour === (systemConfig.inactivityHour ?? 10) && daysSinceActivity >= 1) {
+      // Inactivity or Missed Days Nudges (Processed strictly at user's local inactivity hour)
+      if (localHour === (systemConfig.inactivityHour ?? 10) && daysSinceActivity >= 1) {
         const milestones = [1, 2, 4, 7, 10, 15];
         const currentMilestone = [...milestones].reverse().find(m => daysSinceActivity >= m);
         
@@ -597,9 +633,9 @@ export const pushNotificationManager = {
         const userData = userDoc.data() as any;
 
         // Daily Unlock
-        if (currentHour === systemConfig.unlockHour) {
+        if (localHour === systemConfig.unlockHour) {
           const lastUnlock = userData.lastDailyUnlockSentAt;
-          const alreadySentUnlock = lastUnlock && lastUnlock.startsWith(now.toISOString().split('T')[0]);
+          const alreadySentUnlock = lastUnlock && lastUnlock.startsWith(dateStr);
           if (!alreadySentUnlock) {
             const success = await pushNotificationManager.sendPush(user.id, {
               title: getReplacedMessage(systemConfig.unlockTitle, replaceParams),
@@ -609,15 +645,16 @@ export const pushNotificationManager = {
             });
             if (success) {
               await userRef.update({
-                lastDailyUnlockSentAt: now.toISOString()
+                lastDailyUnlockSentAt: dateStr,
+                lastNotificationSentAt: now.toISOString()
               }).catch((e: any) => console.error('[PushManager] Failed to update lastDailyUnlockSentAt:', e));
             }
           }
         }
         // Quick Check
-        else if (currentHour === systemConfig.middayHour) {
+        else if (localHour === systemConfig.middayHour) {
           const lastMidday = userData.lastMiddayCheckSentAt;
-          const alreadySentMidday = lastMidday && lastMidday.startsWith(now.toISOString().split('T')[0]);
+          const alreadySentMidday = lastMidday && lastMidday.startsWith(dateStr);
           if (!alreadySentMidday) {
             const success = await pushNotificationManager.sendPush(user.id, {
               title: getReplacedMessage(systemConfig.middayTitle, replaceParams),
@@ -627,15 +664,16 @@ export const pushNotificationManager = {
             });
             if (success) {
               await userRef.update({
-                lastMiddayCheckSentAt: now.toISOString()
+                lastMiddayCheckSentAt: dateStr,
+                lastNotificationSentAt: now.toISOString()
               }).catch((e: any) => console.error('[PushManager] Failed to update lastMiddayCheckSentAt:', e));
             }
           }
         }
         // Evening Reminder
-        else if (currentHour === systemConfig.eveningHour) {
+        else if (localHour === systemConfig.eveningHour) {
           const lastEvening = userData.lastEveningReminderSentAt;
-          const alreadySentEvening = lastEvening && lastEvening.startsWith(now.toISOString().split('T')[0]);
+          const alreadySentEvening = lastEvening && lastEvening.startsWith(dateStr);
           if (!alreadySentEvening) {
             const success = await pushNotificationManager.sendPush(user.id, {
               title: getReplacedMessage(systemConfig.eveningTitle, replaceParams),
@@ -645,7 +683,8 @@ export const pushNotificationManager = {
             });
             if (success) {
               await userRef.update({
-                lastEveningReminderSentAt: now.toISOString()
+                lastEveningReminderSentAt: dateStr,
+                lastNotificationSentAt: now.toISOString()
               }).catch((e: any) => console.error('[PushManager] Failed to update lastEveningReminderSentAt:', e));
             }
           }

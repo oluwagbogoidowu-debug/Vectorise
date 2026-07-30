@@ -10,8 +10,28 @@ export interface SprintReminderConfig {
   taskReminders: Record<number, string>; // dayNumber -> "HH:MM" e.g., { 1: "10:00", 2: "14:30" }
 }
 
+export interface FiredLogRecord {
+  firedAt: string; // ISO timestamp
+  sprintId: string;
+  day: number;
+  scheduledTime: string;
+  deliveryType: 'in_app_active' | 'local_fallback' | 'task_override';
+}
+
+export interface NotificationTelemetryEvent {
+  id: string;
+  type: 'fired_local' | 'missed_local_window' | 'server_vs_client_sync';
+  sprintId: string;
+  scheduledTime: string;
+  diffMinutes: number;
+  timestamp: string; // ISO string
+  hasFcmToken: boolean;
+  notes?: string;
+}
+
 const STORAGE_KEY = 'vtr_local_sprint_reminders_v1';
 const FIRED_LOG_KEY = 'vtr_reminders_fired_log_v1';
+const TELEMETRY_KEY = 'vtr_notification_telemetry_v1';
 
 export const localNotificationScheduler = {
   /**
@@ -111,23 +131,62 @@ export const localNotificationScheduler = {
   },
 
   /**
-   * Check all active sprints for the participant and fire notifications if scheduled times are reached.
-   * This is designed to be called periodically (e.g., once every 30-60 secs).
-   * 
-   * @param activeSprints - List of active enrollments with their linked sprint metadata.
-   * @param userId - Optional string of the current user's ID to route via real FCM push notifications.
+   * Retrieve notification telemetry logs (client vs server delivery comparison)
    */
-  checkAndTriggerDueReminders(activeSprints: Array<{ id: string; title: string; currentDayNum?: number }>, userId?: string) {
+  getTelemetryLogs(): NotificationTelemetryEvent[] {
+    try {
+      const stored = localStorage.getItem(TELEMETRY_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      console.error('[NotificationScheduler] Failed to load telemetry logs:', e);
+      return [];
+    }
+  },
+
+  /**
+   * Report telemetry for local notification scheduler (fired or missed windows)
+   */
+  reportTelemetry(event: Omit<NotificationTelemetryEvent, 'id' | 'timestamp'>): void {
+    try {
+      const logs = this.getTelemetryLogs();
+      const newEntry: NotificationTelemetryEvent = {
+        ...event,
+        id: `tel_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        timestamp: new Date().toISOString()
+      };
+      // Keep latest 100 telemetry events
+      const updated = [newEntry, ...logs].slice(0, 100);
+      localStorage.setItem(TELEMETRY_KEY, JSON.stringify(updated));
+      console.log(`[NotificationScheduler Telemetry] ${event.type}:`, event);
+    } catch (e) {
+      console.error('[NotificationScheduler] Failed to save telemetry log:', e);
+    }
+  },
+
+  /**
+   * Minimal hardened client scheduler for in-app active reminders & local overrides.
+   * Uses a tolerant 0-2 minute matching window and stores epoch ms timestamp logs.
+   * Server push (FCM) remains the primary delivery mechanism when the app is closed.
+   *
+   * @param activeSprints - List of active enrollments with their linked sprint metadata.
+   * @param userId - Optional string of the current user's ID.
+   * @param userHasFcmToken - Whether user has an active FCM token registered for server push.
+   */
+  checkAndTriggerDueReminders(
+    activeSprints: Array<{ id: string; title: string; currentDayNum?: number }>,
+    userId?: string,
+    userHasFcmToken: boolean = false
+  ) {
     const allConfigs = this.getAllConfigs();
     const now = new Date();
     const currentHour = now.getHours();
     const currentMin = now.getMinutes();
-    
-    // Create a precise date string for logging: YYYY-MM-DD
+    const currentTotalMins = currentHour * 60 + currentMin;
     const dateStr = now.toISOString().split('T')[0];
+    const nowMs = Date.now();
 
-    // Load logs of fired reminders to avoid duplication
-    let firedLogs: Record<string, boolean> = {};
+    // 1. Load logs of fired reminders
+    let firedLogs: Record<string, number | any> = {};
     try {
       const storedLogs = localStorage.getItem(FIRED_LOG_KEY);
       firedLogs = storedLogs ? JSON.parse(storedLogs) : {};
@@ -135,17 +194,19 @@ export const localNotificationScheduler = {
       console.error('[NotificationScheduler] Failed to load fired logs:', e);
     }
 
-    // Clean up ancient logs older than 7 days to conserve localStorage space
-    const cleanedLogs: Record<string, boolean> = {};
-    const sevenDaysAgoTime = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    Object.keys(firedLogs).forEach(key => {
-      // Key format: sprintId_dateStr_hour
-      const parts = key.split('_');
-      if (parts.length >= 3) {
-        const logDate = new Date(parts[1]);
-        if (logDate.getTime() > sevenDaysAgoTime) {
-          cleanedLogs[key] = firedLogs[key];
-        }
+    // 2. Prune by comparing stored timestamp value against now - retentionMs (7 days)
+    const retentionMs = 7 * 24 * 60 * 60 * 1000;
+    const cutoffMs = nowMs - retentionMs;
+    const cleanedLogs: Record<string, number | any> = {};
+    Object.entries(firedLogs).forEach(([key, val]) => {
+      let timestampMs = 0;
+      if (typeof val === 'number') {
+        timestampMs = val;
+      } else if (typeof val === 'object' && val && val.firedAt) {
+        timestampMs = new Date(val.firedAt).getTime();
+      }
+      if (timestampMs && timestampMs > cutoffMs) {
+        cleanedLogs[key] = val;
       }
     });
     firedLogs = cleanedLogs;
@@ -158,56 +219,101 @@ export const localNotificationScheduler = {
 
       const currentDay = sprint.currentDayNum || 1;
       
-      // Determine what time is scheduled for today.
-      // Checking for specific day assignment first, then matching default daily time.
-      let scheduledTime = config.taskReminders[currentDay] || config.dailyTime;
+      // Check for specific day assignment override first, then fallback to default daily time
+      const scheduledTime = config.taskReminders[currentDay] || config.dailyTime;
       if (!scheduledTime) return;
 
       const [schedHourStr, schedMinStr] = scheduledTime.split(':');
       const schedHour = parseInt(schedHourStr, 10);
       const schedMin = parseInt(schedMinStr, 10);
-
       if (isNaN(schedHour) || isNaN(schedMin)) return;
 
-      // Check if current time matches scheduled hour & minute
-      if (currentHour === schedHour && currentMin === schedMin) {
-        // Log key to ensure we fire exactly once per task/day/hour combo
-        const logKey = `${sprint.id}_${dateStr}_${currentHour}_day${currentDay}`;
+      const formattedHour = String(schedHour).padStart(2, '0');
+      const formattedMin = String(schedMin).padStart(2, '0');
+      const schedTotalMins = schedHour * 60 + schedMin;
+      let diffMinutes = currentTotalMins - schedTotalMins;
+      if (diffMinutes < -1400) diffMinutes += 1440; // Handle midnight rollover
 
-        if (!firedLogs[logKey]) {
-          // Mark as fired immediately
-          firedLogs[logKey] = true;
-          hasUnsavedChanges = true;
+      // Key format: ${sprint.id}_${dateStr}_${schedHour}:${schedMin}_day${currentDay}
+      const logKey = `${sprint.id}_${dateStr}_${formattedHour}:${formattedMin}_day${currentDay}`;
 
-          // Compile notification content in the requested exact format
+      // Cross-tab / atomic re-check before triggering
+      let freshLogs: Record<string, any> = firedLogs;
+      try {
+        const latestStored = localStorage.getItem(FIRED_LOG_KEY);
+        if (latestStored) freshLogs = JSON.parse(latestStored);
+      } catch (e) {}
+
+      // 1. Tolerant 0-2 minute window check
+      if (diffMinutes >= 0 && diffMinutes <= 2) {
+        if (!freshLogs[logKey]) {
+          // Save immediately and atomically after marking with epoch ms
+          firedLogs[logKey] = Date.now();
+          freshLogs[logKey] = firedLogs[logKey];
+          try {
+            localStorage.setItem(FIRED_LOG_KEY, JSON.stringify(freshLogs));
+          } catch (e) {
+            console.error('[NotificationScheduler] Failed to write fired logs atomically:', e);
+          }
+
           const notifTitle = `Today’s Focus: ${sprint.title}`;
           const notifBody = `Day ${currentDay} starts now. This step moves you forward. Start Task.`;
           const actionUrl = `/participant/sprint/${sprint.id}`;
 
-          // 1. Play Completion/Review haptic
+          // Play haptic feedback for active user in app
           try {
             triggerHaptic(hapticPatterns.notification);
           } catch (hErr) {}
 
-          // 2. Route via real FCM push notifications if userId is available, saving it to user's notifications subcollection
-          if (userId) {
+          // Show immediate in-app feedback toast for active user
+          toast.info(notifTitle, {
+            description: notifBody,
+            duration: 4000
+          });
+
+          // Dispatch native browser notification if allowed
+          this.triggerNativeNotification(notifTitle, notifBody, actionUrl);
+
+          // Route to notifications subcollection if user ID available
+          if (userId && !userHasFcmToken) {
             notificationService.createNotification(
               userId,
               'sprint_day_unlocked',
               notifTitle,
               notifBody,
-              {
-                actionUrl,
-                bypassActiveCheck: true,
-                pushOnly: true
-              }
-            ).catch(err => console.error('[NotificationScheduler] Failed to dispatch push notification:', err));
-          } else {
-            console.warn('[NotificationScheduler] Skipping FCM push: no userId available');
+              { actionUrl, bypassActiveCheck: true, pushOnly: true }
+            ).catch(err => console.error('[NotificationScheduler] Failed to dispatch local notification doc:', err));
           }
 
-          // 3. Fire local OS/Browser notification
-          this.triggerNativeNotification(notifTitle, notifBody, actionUrl);
+          // Telemetry report for fired trigger
+          this.reportTelemetry({
+            type: 'fired_local',
+            sprintId: sprint.id,
+            scheduledTime,
+            diffMinutes,
+            hasFcmToken: userHasFcmToken,
+            notes: `Fired within ${diffMinutes}m matching window`
+          });
+        }
+      }
+      // 2. Detect missed local trigger if scheduler skipped the 0-2m window (e.g. browser tab was asleep)
+      else if (diffMinutes > 2 && diffMinutes <= 60 && !freshLogs[logKey]) {
+        const missedKey = `missed_${logKey}`;
+        if (!freshLogs[missedKey]) {
+          firedLogs[missedKey] = Date.now();
+          freshLogs[missedKey] = firedLogs[missedKey];
+          try {
+            localStorage.setItem(FIRED_LOG_KEY, JSON.stringify(freshLogs));
+          } catch (e) {}
+
+          this.reportTelemetry({
+            type: 'missed_local_window',
+            sprintId: sprint.id,
+            scheduledTime,
+            diffMinutes,
+            hasFcmToken: userHasFcmToken,
+            notes: `Missed 0-2m window by ${diffMinutes}m (tab throttled). Server FCM handles closed delivery.`
+          });
         }
       }
     });

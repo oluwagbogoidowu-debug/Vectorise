@@ -24,6 +24,7 @@ import { streakService } from '../../services/streakService';
 import { blogService } from '../../services/blogService';
 import { paymentService } from '../../services/paymentService';
 import { MILESTONES } from '../../services/milestoneConstants';
+import { localNotificationScheduler } from '../../services/localNotificationScheduler';
 
 /**
  * Calculates if a day is locked based on the "Next Midnight" logic.
@@ -801,6 +802,25 @@ const ParticipantDashboard: React.FC = () => {
         unsubscribeNotifs();
     };
   }, [user]);
+
+  // Minimal client scheduler tick for active in-app reminders & local overrides
+  useEffect(() => {
+    if (!user || mySprints.length === 0) return;
+    const activeSprintPayloads = mySprints.map(item => ({
+      id: item.sprint.id,
+      title: item.sprint.title,
+      currentDayNum: item.enrollment.progress.find(p => !p.completed)?.day || 1
+    }));
+    
+    const userHasFcmToken = !!(user as Participant)?.fcmToken;
+    localNotificationScheduler.checkAndTriggerDueReminders(activeSprintPayloads, user.id, userHasFcmToken);
+
+    const reminderInterval = setInterval(() => {
+      localNotificationScheduler.checkAndTriggerDueReminders(activeSprintPayloads, user.id, userHasFcmToken);
+    }, 30000); // Check every 30s while active
+
+    return () => clearInterval(reminderInterval);
+  }, [user, mySprints]);
 
   const activeSprintsData = useMemo(() => {
       return mySprints
