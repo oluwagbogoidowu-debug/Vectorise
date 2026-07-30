@@ -273,6 +273,7 @@ export interface Sprint {
   igniteBody?: string;
   igniteBgColor?: string;
   igniteDate?: string; // Format: YYYY-MM-DD
+  likes?: number;
 }
 
 export interface DailyContent {

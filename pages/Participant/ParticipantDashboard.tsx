@@ -378,8 +378,7 @@ const ParticipantDashboard: React.FC = () => {
   }, [showOverviewSheet, user, recommendedNextSprint]);
 
   const latestBlogPost = useMemo(() => {
-    const staticPosts = blogService.getPosts();
-    const approvedDbBlogs = blogPosts.filter(s => s.approvalStatus === 'approved');
+    const approvedDbBlogs = blogPosts.filter(s => s.approvalStatus === 'approved' && s.published !== false);
 
     const mappedDbPosts = approvedDbBlogs.map((sprint) => {
       const coach = coaches.find(c => c.id === sprint.coachId);
@@ -402,6 +401,10 @@ const ParticipantDashboard: React.FC = () => {
         }
       }
 
+      const authorName = coach?.name || (sprint.coachId === 'admin1' ? 'Platform Admin' : 'Rise Coach');
+      const authorRole = coach?.niche || coach?.coachNiche || (sprint.coachId === 'admin1' ? 'Vectorise Lead' : 'Performance Coach');
+      const authorAvatar = coach?.profileImageUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80';
+
       return {
         id: sprint.id,
         title: sprint.title,
@@ -411,9 +414,9 @@ const ParticipantDashboard: React.FC = () => {
         readTime: `${readTimeMin} min read`,
         publishedAt,
         author: {
-          name: coach?.name || 'Rise Coach',
-          role: coach?.niche || coach?.coachNiche || 'Performance Coach',
-          avatar: coach?.profileImageUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80'
+          name: authorName,
+          role: authorRole,
+          avatar: authorAvatar
         },
         coverImage: sprint.blogImage || sprint.coverImageUrl || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
         likes: (sprint as any).likes || 0,
@@ -421,21 +424,13 @@ const ParticipantDashboard: React.FC = () => {
       };
     });
 
-    const allPosts = [
-      ...mappedDbPosts,
-      ...staticPosts.map(p => ({
-        ...p,
-        createdAt: new Date(p.publishedAt).toISOString()
-      }))
-    ];
-
-    allPosts.sort((a, b) => {
+    mappedDbPosts.sort((a, b) => {
       const timeA = new Date(a.createdAt).getTime();
       const timeB = new Date(b.createdAt).getTime();
       return timeB - timeA;
     });
 
-    return allPosts[0] || null;
+    return mappedDbPosts[0] || null;
   }, [blogPosts, coaches]);
 
   // Load published sprints, ignites and blogs in real-time

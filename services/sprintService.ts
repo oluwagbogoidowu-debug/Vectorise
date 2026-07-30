@@ -3,6 +3,7 @@ import { db } from './firebase';
 import { collection, collectionGroup, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review, Track } from '../types';
 import { sanitizeData, userService } from './userService';
+import { ensureSeedBlogsInFirestore } from './blogService';
 
 const cleanDetailsData = (raw: any): any => {
     const sanitized = sanitizeData(raw);
@@ -441,6 +442,7 @@ export const sprintService = {
     },
 
     subscribeToCoachSprints: (coachId: string, callback: (sprints: Sprint[]) => void) => {
+        ensureSeedBlogsInFirestore().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
             const raw = snap.docs
@@ -449,13 +451,14 @@ export const sprintService = {
                     data.id = d.ref.parent.parent!.id;
                     return data;
                 })
-                .filter(s => s.coachId === coachId && s.deleted !== true);
+                .filter(s => (s.coachId === coachId || (s.contentType === 'blog' && (s.coachId === 'admin1' || coachId === 'admin1'))) && s.deleted !== true);
             const resolved = await sprintService.resolveSprintsList(raw);
             callback(resolved);
         });
     },
 
     getAdminSprints: async () => {
+        ensureSeedBlogsInFirestore().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         const snap = await getDocs(q);
         const raw = snap.docs
@@ -469,6 +472,7 @@ export const sprintService = {
     },
 
     subscribeToAdminSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
+        ensureSeedBlogsInFirestore().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
             const raw = snap.docs
@@ -486,6 +490,7 @@ export const sprintService = {
     },
 
     subscribeToAllSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
+        ensureSeedBlogsInFirestore().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
             const raw = snap.docs.map(d => {
@@ -501,6 +506,7 @@ export const sprintService = {
     },
 
     getPublishedSprints: async () => {
+        ensureSeedBlogsInFirestore().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         const snap = await getDocs(q);
         const raw = snap.docs
@@ -514,6 +520,7 @@ export const sprintService = {
     },
 
     subscribeToPublishedSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
+        ensureSeedBlogsInFirestore().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
             const raw = snap.docs

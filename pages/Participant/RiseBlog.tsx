@@ -32,6 +32,7 @@ export const RiseBlog: React.FC = () => {
 
   // Subscribe to published sprints (blogs)
   useEffect(() => {
+    blogService.ensureSeedBlogsInFirestore().catch(() => {});
     const unsubscribe = sprintService.subscribeToPublishedSprints((sprints) => {
       const approvedBlogs = sprints.filter(
         s => s.contentType === 'blog' && s.approvalStatus === 'approved'
@@ -44,9 +45,8 @@ export const RiseBlog: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Merge static and dynamic posts, sorted descending by creation/publish date
+  // Derive blog posts purely from database sprints, sorted descending by creation/publish date
   const posts = useMemo(() => {
-    const staticPosts = blogService.getPosts();
     const mappedDbPosts = dbSprints.map((sprint): BlogPost & { createdAt: string } => {
       const coach = coaches.find(c => c.id === sprint.coachId);
       const words = (sprint.blogBody || sprint.description || '').split(/\s+/).length;
@@ -69,6 +69,10 @@ export const RiseBlog: React.FC = () => {
         }
       }
 
+      const authorName = coach?.name || (sprint.coachId === 'admin1' ? 'Platform Admin' : 'Rise Coach');
+      const authorRole = coach?.niche || coach?.coachNiche || (sprint.coachId === 'admin1' ? 'Vectorise Lead' : 'Performance Coach');
+      const authorAvatar = coach?.profileImageUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80';
+
       return {
         id: sprint.id,
         title: sprint.title,
@@ -78,9 +82,9 @@ export const RiseBlog: React.FC = () => {
         readTime: `${readTimeMin} min read`,
         publishedAt,
         author: {
-          name: coach?.name || 'Rise Coach',
-          role: coach?.niche || coach?.coachNiche || 'Performance Coach',
-          avatar: coach?.profileImageUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80'
+          name: authorName,
+          role: authorRole,
+          avatar: authorAvatar
         },
         coverImage: sprint.blogImage || sprint.coverImageUrl || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
         likes: (sprint as any).likes || 0,
@@ -88,17 +92,8 @@ export const RiseBlog: React.FC = () => {
       };
     });
 
-    // Merge lists
-    const allPosts = [
-      ...mappedDbPosts,
-      ...staticPosts.map(p => ({
-        ...p,
-        createdAt: new Date(p.publishedAt).toISOString()
-      }))
-    ];
-
     // Sort descending by creation/publish date
-    return allPosts.sort((a, b) => {
+    return mappedDbPosts.sort((a, b) => {
       const timeA = new Date(a.createdAt).getTime();
       const timeB = new Date(b.createdAt).getTime();
       return timeB - timeA;
