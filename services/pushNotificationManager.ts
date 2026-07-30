@@ -247,14 +247,17 @@ export const pushNotificationManager = {
         }
         
         // If the token is no longer unregistered, expired, or rejected, clear it
-        if (
+        const isUnregisteredOrInvalid =
+          errorMsgLower.includes('unregistered') ||
           errorMsgLower.includes('not-registered') ||
+          errorMsgLower.includes('not found') ||
           errorMsgLower.includes('invalid-registration-token') ||
           errorMsgLower.includes('invalid-argument') ||
           error.code === 'messaging/registration-token-not-registered' ||
-          error.code === 'messaging/invalid-argument'
-        ) {
-          console.log(`[PushManager] Clearing invalid fcmToken for user ${userId}`);
+          error.code === 'messaging/invalid-argument';
+
+        if (isUnregisteredOrInvalid) {
+          console.log(`[PushManager] Clearing invalid/unregistered fcmToken for user ${userId}`);
           await userRef.update({
             fcmToken: null
           }).catch(err => console.error(`Failed to clear invalid fcmToken for user ${userId}:`, err));

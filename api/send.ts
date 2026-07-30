@@ -76,13 +76,16 @@ export default async function handler(req: Request, res: Response) {
           console.error(`[API Send] Failure for token: ${fcmToken.substring(0, 25)}... Error:`, errMsg);
           
           const errMsgLower = errMsg.toLowerCase();
-          if (
+          const isUnregisteredOrInvalid =
+            errMsgLower.includes('unregistered') ||
             errMsgLower.includes('not-registered') ||
+            errMsgLower.includes('not found') ||
             errMsgLower.includes('invalid-registration-token') ||
             errMsgLower.includes('invalid-argument') ||
             err.code === 'messaging/registration-token-not-registered' ||
-            err.code === 'messaging/invalid-argument'
-          ) {
+            err.code === 'messaging/invalid-argument';
+
+          if (isUnregisteredOrInvalid) {
             console.log(`Removing invalid subscription token: ${fcmToken.substring(0, 25)}...`);
             await sub.ref.delete().catch(() => {});
           }
