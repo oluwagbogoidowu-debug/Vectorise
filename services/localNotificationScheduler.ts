@@ -180,8 +180,8 @@ export const localNotificationScheduler = {
           hasUnsavedChanges = true;
 
           // Compile notification content in the requested exact format
-          const notifTitle = `⏰ Reminder: ${sprint.title}`;
-          const notifBody = `Ready to complete Day ${currentDay}? Click here to view task!`;
+          const notifTitle = `Today’s Focus: ${sprint.title}`;
+          const notifBody = `Day ${currentDay} starts now. This step moves you forward. Start Task.`;
           const actionUrl = `/participant/sprint/${sprint.id}`;
 
           // 1. Play Completion/Review haptic

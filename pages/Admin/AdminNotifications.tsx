@@ -115,16 +115,16 @@ export default function AdminNotifications() {
 
     // Automated System Reminders & Nudges Configuration State
     const [unlockHour, setUnlockHour] = useState(8);
-    const [unlockTitle, setUnlockTitle] = useState("⏰ Reminder: {sprintTitle}");
-    const [unlockBody, setUnlockBody] = useState("Ready to complete Day {currentDay}? Click here to view task!");
+    const [unlockTitle, setUnlockTitle] = useState("Today’s Focus: {sprintTitle}");
+    const [unlockBody, setUnlockBody] = useState("Day {currentDay} starts now. This step moves you forward. Start Task.");
     
     const [middayHour, setMiddayHour] = useState(15);
-    const [middayTitle, setMiddayTitle] = useState("⏰ Reminder: {sprintTitle}");
-    const [middayBody, setMiddayBody] = useState("Ready to complete Day {currentDay}? Click here to view task!");
+    const [middayTitle, setMiddayTitle] = useState("You haven’t completed today’s step");
+    const [middayBody, setMiddayBody] = useState("Day {currentDay} is still open. Get it done before the day slips. Start Task.");
     
     const [eveningHour, setEveningHour] = useState(20);
-    const [eveningTitle, setEveningTitle] = useState("⏰ Reminder: {sprintTitle}");
-    const [eveningBody, setEveningBody] = useState("Ready to complete Day {currentDay}? Click here to view task!");
+    const [eveningTitle, setEveningTitle] = useState("Don’t break the streak");
+    const [eveningBody, setEveningBody] = useState("Finish Day {currentDay} before today ends. Keep your momentum. Start Task.");
 
     const [inactivityHour, setInactivityHour] = useState(10);
 
