@@ -508,6 +508,60 @@ export const userService = {
     }
   },
 
+  adminDeleteUserAuth: async (userId: string) => {
+    try {
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, action: 'clear_auth' })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to clear user authentication');
+      toast.success("User authentication cleared successfully");
+      return data;
+    } catch (error: any) {
+      console.error("Error clearing user auth:", error);
+      toast.error(error?.message || "Failed to clear user auth");
+      throw error;
+    }
+  },
+
+  adminDeleteUserDb: async (userId: string) => {
+    try {
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, action: 'delete_db' })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete user database document');
+      toast.success("User database file & records deleted successfully");
+      return data;
+    } catch (error: any) {
+      console.error("Error deleting user database file:", error);
+      toast.error(error?.message || "Failed to delete user database document");
+      throw error;
+    }
+  },
+
+  adminDeleteUserFull: async (userId: string) => {
+    try {
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, action: 'delete_both' })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to completely delete user');
+      toast.success("User completely removed from Auth and Database");
+      return data;
+    } catch (error: any) {
+      console.error("Error deleting user completely:", error);
+      toast.error(error?.message || "Failed to delete user");
+      throw error;
+    }
+  },
+
   toggleSavedSprint: async (uid: string, sprintId: string, isSaved: boolean) => {
       try {
           const userRef = doc(db, 'users', uid);

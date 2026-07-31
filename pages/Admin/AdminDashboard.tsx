@@ -21,6 +21,7 @@ import AdminQuotes from './AdminQuotes';
 import AdminUsers from './AdminUsers';
 import AdminTracks from './AdminTracks';
 import AdminNotifications from './AdminNotifications';
+import AdminSystemParticipantControl from './AdminSystemParticipantControl';
 import { adminCache, resetAdminCache } from './adminCache';
 import { SwitchModeModal } from '../../components/SwitchModeModal';
 
@@ -274,27 +275,8 @@ export default function AdminDashboard() {
 
                         {activeTab === 'roles' && (
                             <div id="admin-system-panel" className="animate-fade-in max-w-4xl mx-auto py-8 space-y-12">
-                                {/* 1. Theme Configuration & Role Utility */}
-                                <div className="bg-white border border-gray-100 rounded-[2.5rem] p-10 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-                                    <div className="flex items-center gap-6">
-                                        <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center flex-shrink-0 animate-pulse">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                                            </svg>
-                                        </div>
-                                        <div className="space-y-1 text-left">
-                                            <h3 className="text-lg font-black text-gray-900 tracking-tight leading-none italic">System Mode Selector</h3>
-                                            <p className="text-gray-400 text-xs font-semibold leading-relaxed max-w-md">
-                                                Switch role permissions or access the universal root selector configuration panel.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex-shrink-0">
-                                        <Button id="btn-open-role-selector" variant="primary" onClick={() => navigate('/admin/role-selector')}>
-                                            Open Role Selector
-                                        </Button>
-                                    </div>
-                                </div>
+                                {/* 1. Participant Control (User Removal & Auth Clearing Panel) */}
+                                <AdminSystemParticipantControl />
 
                                 {/* 2. Participant Dashboard Card Control */}
                                 <div className="bg-white border border-gray-100 rounded-[2.5rem] p-10 shadow-sm space-y-8 text-left">

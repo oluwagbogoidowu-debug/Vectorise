@@ -310,6 +310,7 @@ export const pushNotificationManager = {
                     }, notification.bypassActiveCheck || false);
 
                     if (success) {
+                      processingNotifications.delete(notification.id);
                       await change.doc.ref.update({
                         pushSent: true,
                         pushSentAt: new Date().toISOString(),

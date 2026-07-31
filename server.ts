@@ -11,6 +11,8 @@ import { db } from './api/lib/firebaseAdmin.js';
 // @ts-ignore
 import provisionPartner from './api/admin/provision-partner.js';
 // @ts-ignore
+import deleteUserAdmin from './api/admin/delete-user.js';
+// @ts-ignore
 import paymentSuccess from './api/payment-success.js';
 // @ts-ignore
 import initiatePayment from './api/flutterwave/initiate.js';
@@ -37,6 +39,7 @@ async function startServer() {
 
   // API Routes
   app.post('/api/admin/provision-partner', provisionPartner);
+  app.post('/api/admin/delete-user', deleteUserAdmin);
   app.post('/api/flutterwave/initiate', initiatePayment);
   app.get('/api/flutterwave/check-status', checkStatus);
   app.post('/api/flutterwave/webhook', webhook);

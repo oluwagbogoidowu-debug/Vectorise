@@ -36,6 +36,7 @@ import { localNotificationScheduler, SprintReminderConfig } from "../../services
 import { offlineSyncService } from "../../services/offlineSyncService";
 import { motion, AnimatePresence } from "motion/react";
 import { createPortal } from "react-dom";
+import { SprintProgressGraphic } from "../../components/SprintProgressGraphic";
 
 const DayCompletionModal: React.FC<{
   isOpen: boolean;
@@ -1534,6 +1535,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   }, [activeTaskIndex, dayContent, taskInputs]);
 
   const dayProgress = enrollment?.progress?.find((p) => p.day === viewingDay);
+  const completedDaysCount = useMemo(
+    () => enrollment?.progress?.filter((p) => p.completed).length || 0,
+    [enrollment]
+  );
 
   useEffect(() => {
     if (isPreview && previewSprintId) {
@@ -2513,6 +2518,15 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         </header>
 
         <div className="px-6 max-w-2xl mx-auto w-full space-y-6 mt-4">
+          <SprintProgressGraphic
+            currentDay={viewingDay}
+            totalDays={sprint?.duration || 7}
+            completedDaysCount={completedDaysCount}
+            isCurrentDayCompleted={!!dayProgress?.completed}
+            activeStepIndex={activeTaskIndex}
+            totalStepsCount={getTotalVisibleStepsCount()}
+          />
+
           <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1">
             {Array.from({ length: sprint.duration }, (_, i) => i + 1).map(
               (day) => {
@@ -3244,21 +3258,15 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               {i === activeTaskIndex && (
                                 <div className="mt-4 flex flex-col gap-4 w-full">
                                   {isFullBleed && (
-                                    <div className="w-full mb-2 animate-fade-in font-sans">
-                                      <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.4em] text-[#0E7850] mb-2">
-                                        <span className="flex items-center gap-2">
-                                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                          {dayProgress?.completed ? "100" : (getNextVisibleStepIndex(i) === -1 ? "88" : Math.round((getVisibleStepIndexOrder(i) / getTotalVisibleStepsCount()) * 100))}% Complete
-                                        </span>
-                                        <span className="font-bold">{dayProgress?.completed ? "0" : getRemainingVisibleStepsCount(i)} more steps to go</span>
-                                      </div>
-                                      <div className="w-full bg-emerald-500/10 rounded-full h-1.5 overflow-hidden shadow-inner font-sans">
-                                        <div 
-                                          className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out" 
-                                          style={{ width: dayProgress?.completed ? "100%" : (getNextVisibleStepIndex(i) === -1 ? "88%" : `${(getVisibleStepIndexOrder(i) / getTotalVisibleStepsCount()) * 100}%`) }}
-                                        />
-                                      </div>
-                                    </div>
+                                    <SprintProgressGraphic
+                                      currentDay={viewingDay}
+                                      totalDays={sprint?.duration || 7}
+                                      completedDaysCount={completedDaysCount}
+                                      isCurrentDayCompleted={!!dayProgress?.completed}
+                                      activeStepIndex={i}
+                                      totalStepsCount={getTotalVisibleStepsCount()}
+                                      isFullBleed={true}
+                                    />
                                   )}
                                   <div className="flex justify-between items-center gap-4 w-full">
                                     {getPrevVisibleStepIndex(i) !== -1 ? (
@@ -3416,23 +3424,17 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             )}
                           </SectionHeading>
 
-                          {/* Progress Bar under Action Step header in Full Bleed */}
+                          {/* Visual Progress Ring & Bar in Full Bleed */}
                           {isFullBleed && (
-                            <div className="w-full mb-2 animate-fade-in font-sans -mt-2">
-                              <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.4em] text-[#0E7850] mb-2">
-                                <span className="flex items-center gap-2">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                  {dayProgress?.completed ? "100" : "88"}% Complete
-                                </span>
-                                <span className="font-bold">0 more steps to go</span>
-                              </div>
-                              <div className="w-full bg-emerald-500/10 rounded-full h-1.5 overflow-hidden shadow-inner font-sans">
-                                <div 
-                                  className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out animate-pulse" 
-                                  style={{ width: dayProgress?.completed ? "100%" : "88%" }}
-                                />
-                              </div>
-                            </div>
+                            <SprintProgressGraphic
+                              currentDay={viewingDay}
+                              totalDays={sprint?.duration || 7}
+                              completedDaysCount={completedDaysCount}
+                              isCurrentDayCompleted={!!dayProgress?.completed}
+                              activeStepIndex={0}
+                              totalStepsCount={1}
+                              isFullBleed={true}
+                            />
                           )}
                         {dayContent?.taskNotes?.[0] && (
                           <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">

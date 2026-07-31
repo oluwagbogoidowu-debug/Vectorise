@@ -271,7 +271,8 @@ export const pushNotificationService = {
         const errJson = await res.json().catch(() => ({}));
         throw new Error(errJson.error || `HTTP ${res.status}`);
       }
-      return await res.json();
+      const data = await res.json();
+      return data.success === true;
     } catch (error) {
       console.error('Failed to send push:', error);
       throw error;

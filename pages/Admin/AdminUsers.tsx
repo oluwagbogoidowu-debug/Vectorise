@@ -59,7 +59,7 @@ export default function AdminUsers() {
         if (!userToDelete) return;
         setIsDeleting(true);
         try {
-            await userService.deleteUserAccount(userToDelete.id);
+            await userService.adminDeleteUserFull(userToDelete.id);
             // Remove from local state
             setParticipants(prev => prev.filter(u => u.id !== userToDelete.id));
             // Update cache

@@ -80,12 +80,30 @@ export const notificationService = {
           options.actionUrl || '/',
           type === 'coach_message' ? 'coach-message' : type.replace(/_/g, '-'),
           options.bypassActiveCheck || false
-        ).then(() => {
-          updateDoc(docRef, {
-            pushSent: true,
-            pushSentAt: new Date().toISOString()
-          }).catch(e => console.warn("[NotificationService] Failed to mark push as sent:", e));
-        }).catch(e => console.error("[NotificationService] Immediate push failed:", e));
+        ).then((sent) => {
+          if (sent) {
+            updateDoc(docRef, {
+              pushSent: true,
+              pushSentAt: new Date().toISOString(),
+              pushFailed: false
+            }).catch(e => console.warn("[NotificationService] Failed to mark push as sent:", e));
+          } else {
+            updateDoc(docRef, {
+              pushFailed: true,
+              lastPushError: 'Immediate FCM push returned false',
+              retryCount: 1,
+              nextRetryAt: new Date(Date.now() + 60000)
+            }).catch(e => console.error("[NotificationService] Failed to mark for retry:", e));
+          }
+        }).catch(async (err) => {
+          console.error("[NotificationService] Immediate push failed:", err);
+          await updateDoc(docRef, {
+            pushFailed: true,
+            lastPushError: err?.message || String(err),
+            retryCount: 1,
+            nextRetryAt: new Date(Date.now() + 60000)
+          }).catch(e => console.error("[NotificationService] Failed to mark for retry:", e));
+        });
       } catch (err) {
         console.error("[NotificationService] Failed to trigger push via service:", err);
       }
