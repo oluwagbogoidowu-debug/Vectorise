@@ -1,7 +1,8 @@
 {
   "rewrites": [
-    { "source": "/sprint/:id", "destination": "/api/sprint?id=:id" },
-    { "source": "/track/:id", "destination": "/api/track?id=:id" },
+    { "source": "/sprint/:id", "destination": "/api/og?type=sprint&id=:id" },
+    { "source": "/track/:id", "destination": "/api/og?type=track&id=:id" },
+    { "source": "/og", "destination": "/api/og" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

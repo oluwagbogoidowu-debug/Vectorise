@@ -26,6 +26,8 @@ import vapidKeyHandler from './api/vapid-key.js';
 import subscribeHandler from './api/subscribe.js';
 // @ts-ignore
 import sendHandler from './api/send.js';
+// @ts-ignore
+import ogHandler from './api/og.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,6 +50,7 @@ async function startServer() {
   app.get('/api/vapid-key', vapidKeyHandler);
   app.post('/api/subscribe', subscribeHandler);
   app.post('/api/send', sendHandler);
+  app.get('/api/og', ogHandler);
 
   // Puppeteer image card generation endpoint
   app.all(['/generate', '/api/generate'], async (req: any, res: any) => {

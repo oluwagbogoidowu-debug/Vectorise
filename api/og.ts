@@ -3,27 +3,54 @@ import type { Request, Response } from 'express';
 
 export default async function handler(req: Request, res: Response) {
   try {
-    const trackId = req.query.id as string;
-    if (!trackId) {
-      return res.status(400).send('Missing track ID');
+    const type = ((req.query.type as string) || 'sprint').toLowerCase();
+    const id = (req.query.id || req.query.sprintId || req.query.trackId) as string;
+
+    if (!id) {
+      return res.status(400).send('Missing ID parameter');
     }
 
-    let trackData: any = null;
-    const docReq = await db.collection('tracks').doc(trackId).get();
-    if (docReq.exists) {
-      trackData = docReq.data();
+    let title = "Vectorise";
+    let description = "Start your personal growth journey today.";
+    let image = "https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd";
+    let urlPath = `/${type}/${id}`;
+
+    if (type === 'track') {
+      let trackData: any = null;
+      const docReq = await db.collection('tracks').doc(id).get();
+      if (docReq.exists) {
+        trackData = docReq.data();
+      }
+      title = trackData?.title || "Vectorise - Personal Growth Tracks";
+      description = trackData?.description || "Start a personal growth track today.";
+      if (trackData?.coverImageUrl) {
+        image = trackData.coverImageUrl;
+      }
+      urlPath = `/track/${id}`;
+    } else {
+      // Default to sprint
+      let sprintData: any = null;
+      const docReq = await db.collection('sprints').doc(id).collection('sprintdetails').doc('info').get();
+      if (docReq.exists) {
+        sprintData = docReq.data();
+      }
+      title = sprintData?.title || "Vectorise - Personal Growth Sprints";
+      description = sprintData?.subtitle || sprintData?.description || "Start a personal growth sprint today.";
+      if (sprintData?.coverImageUrl) {
+        image = sprintData.coverImageUrl;
+      }
+      urlPath = `/sprint/${id}`;
     }
 
-    const title = trackData?.title || "Vectorise - Personal Growth Tracks";
-    const description = trackData?.description || "Start a personal growth track today.";
-    const image = (trackData?.coverImageUrl || "https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd").replace(/&/g, '&amp;'); 
-    
+    image = image.replace(/&/g, '&amp;');
+
     // Determine the base URL internally
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     const baseUrl = `${protocol}://${host}`;
-    const url = `${baseUrl}/track/${trackId}`;
+    const url = `${baseUrl}${urlPath}`;
 
+    // Read base index.html
     const indexHtmlRes = await fetch(`${baseUrl}/index.html`);
     if (!indexHtmlRes.ok) {
       throw new Error(`Failed to fetch base index.html: ${indexHtmlRes.statusText}`);
@@ -47,13 +74,14 @@ export default async function handler(req: Request, res: Response) {
     <meta name="twitter:image" content="${image}" />
     `;
 
+    // Inject the tags into the <head>
     const htmlWithOg = rawHtml.replace('</title>', `</title>\n${ogTags}`);
-    
+
     res.setHeader('Content-Type', 'text/html');
     res.status(200).send(htmlWithOg);
 
   } catch (error) {
-    console.error('Error serving track OG page:', error);
+    console.error('Error serving OG page:', error);
     res.setHeader('Content-Type', 'text/html');
     res.status(500).send(`
       <!DOCTYPE html>
