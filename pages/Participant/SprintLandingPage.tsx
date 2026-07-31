@@ -293,7 +293,7 @@ const SprintLandingPage: React.FC = () => {
     const [showCommitmentSheet, setShowCommitmentSheet] = useState(false);
     const [isCommitted, setIsCommitted] = useState(false);
     const [commitmentContext, setCommitmentContext] = useState<{ isGuest: boolean; emailExists?: boolean; guestEmail?: string } | null>(null);
-    const [paymentMethod, setPaymentMethod] = useState<string>('coins');
+    const [paymentMethod, setPaymentMethod] = useState<string>('pkg_100');
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
     // Set default payment method when commitment sheet is shown
@@ -304,7 +304,7 @@ const SprintLandingPage: React.FC = () => {
             if (userBalance >= neededCoins) {
                 setPaymentMethod('coins');
             } else {
-                setPaymentMethod('card');
+                setPaymentMethod('pkg_100');
             }
         }
     }, [showCommitmentSheet, user, sprint]);
