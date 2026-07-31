@@ -93,10 +93,10 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
     <div className="w-full mt-3 pt-2 border-t border-gray-100">
       <div className="flex items-center justify-between mb-2 px-1">
         <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-          Get More Coins
+          Get Discounted Coins
         </span>
         <span className="text-[9px] font-bold text-gray-400">
-          Instant top-up to continue
+          Keep your momentum constant
         </span>
       </div>
 

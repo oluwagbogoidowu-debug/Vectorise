@@ -364,11 +364,16 @@ const SprintLandingPage: React.FC = () => {
                 // Existing guest (not first time) -> pay via card (Naira)
                 const traceId = `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
                 
+                const neededCoins = sprint.pointCost || 10;
+                const userBal = user ? ((user as Participant)?.walletBalance ?? 0) : 0;
+                const coinsRem = Math.max(0, neededCoins - userBal);
+                const topupPrice = coinsRem > 0 ? coinsRem * 20 : (sprint.price || 1000);
+
                 const payload = {
                     userId: traceId,
                     email: effectiveEmail.toLowerCase().trim(),
                     sprintId: sprint.id,
-                    amount: sprint.price || 1000,
+                    amount: topupPrice,
                     currency: "NGN",
                     name: 'Vectorise Guest'
                 };
@@ -416,11 +421,16 @@ const SprintLandingPage: React.FC = () => {
                     navigate(`/participant/sprint/${enrollment.id}`);
                 } else {
                     // Pay via Card (Naira)
+                    const neededCoins = sprint.pointCost || 10;
+                    const userBal = (user as Participant)?.walletBalance ?? 0;
+                    const coinsRem = Math.max(0, neededCoins - userBal);
+                    const topupPrice = coinsRem > 0 ? coinsRem * 20 : (sprint.price || 1000);
+
                     const payload = {
                         userId: user.id,
                         email: user.email.toLowerCase().trim(),
                         sprintId: sprint.id,
-                        amount: sprint.price || 1000,
+                        amount: topupPrice,
                         currency: "NGN",
                         name: user.name || 'Vectorise User'
                     };
@@ -907,9 +917,19 @@ const SprintLandingPage: React.FC = () => {
                                                 disabled={isProcessingPayment}
                                                 className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
                                             />
-                                            <span className="text-[10px] font-black uppercase text-gray-800 leading-tight">Keep the rise going with the amount of coin left to make it balance</span>
+                                            <span className="text-[10px] font-black uppercase text-gray-800 leading-tight">Keep the rise going (Instant Topup)</span>
                                         </div>
-                                        <span className="text-xs font-black text-gray-900 shrink-0 ml-2">₦{sprint.price || 1000}</span>
+                                        {(() => {
+                                            const neededCoins = sprint.pointCost || 10;
+                                            const userBal = (user as Participant)?.walletBalance ?? 0;
+                                            const coinsRem = Math.max(0, neededCoins - userBal);
+                                            const topupPrice = coinsRem > 0 ? coinsRem * 20 : (sprint.price || 1000);
+                                            return (
+                                                <span className="text-xs font-black text-gray-900 shrink-0 ml-2">
+                                                    {coinsRem > 0 ? `${coinsRem} Coin${coinsRem > 1 ? 's' : ''} (₦${topupPrice.toLocaleString()})` : `₦${topupPrice.toLocaleString()}`}
+                                                </span>
+                                            );
+                                        })()}
                                     </label>
                                 </div>
 
