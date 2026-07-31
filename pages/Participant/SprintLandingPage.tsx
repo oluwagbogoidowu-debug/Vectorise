@@ -855,24 +855,15 @@ const SprintLandingPage: React.FC = () => {
                         {/* Drag Handle indicator */}
                         <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
                         
-                        {/* Stay in your rise header */}
-                        <h3 className="text-lg sm:text-xl font-black tracking-tight leading-tight text-center text-gray-900 italic mt-3 mb-4">
-                            Stay in your rise
-                        </h3>
-
-                        {/* List items */}
-                        <div className="space-y-2 my-4 max-w-xs mx-auto">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 text-center mb-0.5">You'll</p>
-                            {[
-                              "Show up daily",
-                              "Pay attention to what works",
-                              "Finish what you start"
-                            ].map((text, i) => (
-                              <div key={i} className="flex items-center gap-2.5 pl-4">
-                                <span className="text-[#0E7850] text-sm leading-none">•</span>
-                                <span className="text-xs font-bold tracking-tight text-gray-800">{text}</span>
-                              </div>
-                            ))}
+                        {/* Commitment Header List */}
+                        <div className="my-4 text-center">
+                            <div className="flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm font-extrabold text-gray-900 tracking-tight">
+                                <span>Show up daily</span>
+                                <span className="text-gray-300 font-normal">|</span>
+                                <span>Pay attention to what works</span>
+                                <span className="text-gray-300 font-normal">|</span>
+                                <span>Finish what you start</span>
+                            </div>
                         </div>
 
                         {/* Small momentum text */}
