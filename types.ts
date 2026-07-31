@@ -226,6 +226,7 @@ export interface DynamicSection {
 
 export interface Sprint {
   id: string;
+  trackId?: string;
   coachId: string;
   title: string;
   subtitle?: string;

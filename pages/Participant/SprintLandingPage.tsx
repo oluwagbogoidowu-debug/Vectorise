@@ -8,6 +8,7 @@ import { userService } from '../../services/userService';
 import { assetService } from '../../services/assetService';
 import { analyticsTracker } from '../../services/analyticsTracker';
 import FormattedText from '../../components/FormattedText';
+import BottomModalCoinCards from '../../components/BottomModalCoinCards';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import LocalLogo from '../../components/LocalLogo';
 import { toast } from 'sonner';
@@ -906,11 +907,19 @@ const SprintLandingPage: React.FC = () => {
                                                 disabled={isProcessingPayment}
                                                 className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
                                             />
-                                            <span className="text-[11px] font-black uppercase text-gray-800">Pay with Card</span>
+                                            <span className="text-[10px] font-black uppercase text-gray-800 leading-tight">Keep the rise going with the amount of coin left to make it balance</span>
                                         </div>
-                                        <span className="text-xs font-black text-gray-900">₦{sprint.price || 1000}</span>
+                                        <span className="text-xs font-black text-gray-900 shrink-0 ml-2">₦{sprint.price || 1000}</span>
                                     </label>
                                 </div>
+
+                                {/* Horizontal Coin Packages Cards inside bottom modal bar */}
+                                <BottomModalCoinCards 
+                                    userBalance={(user as Participant)?.walletBalance ?? 0}
+                                    sprintCost={sprint.pointCost || 10}
+                                    sprintId={sprint.id}
+                                    trackId={sprint.trackId}
+                                />
 
                                 <div className="text-center pt-0.5">
                                     <span className="text-[9px] font-semibold text-gray-400">

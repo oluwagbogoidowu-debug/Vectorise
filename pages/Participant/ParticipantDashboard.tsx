@@ -20,6 +20,7 @@ import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import NextSprintModal from '../../components/NextSprintModal';
 import ConfirmModal from '../../components/ConfirmModal';
 import FormattedText from '../../components/FormattedText';
+import BottomModalCoinCards from '../../components/BottomModalCoinCards';
 import { streakService } from '../../services/streakService';
 import { blogService } from '../../services/blogService';
 import { paymentService } from '../../services/paymentService';
@@ -2267,11 +2268,19 @@ const ParticipantDashboard: React.FC = () => {
                                                         disabled={isProcessing}
                                                         className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
                                                     />
-                                                    <span className="text-[11px] font-black uppercase text-gray-800">Pay with Card</span>
+                                                    <span className="text-[10px] font-black uppercase text-gray-800 leading-tight">Keep the rise going with the amount of coin left to make it balance</span>
                                                 </div>
-                                                <span className="text-xs font-black text-gray-900">₦{recommendedNextSprint.price || 1000}</span>
+                                                <span className="text-xs font-black text-gray-900 shrink-0 ml-2">₦{recommendedNextSprint.price || 1000}</span>
                                             </label>
                                         </div>
+
+                                        {/* Horizontal Coin Packages Cards inside the bottom modal bar */}
+                                        <BottomModalCoinCards 
+                                            userBalance={(user as Participant)?.walletBalance ?? 0}
+                                            sprintCost={recommendedNextSprint.pointCost || 10}
+                                            sprintId={recommendedNextSprint.id}
+                                            trackId={recommendedNextSprint.trackId}
+                                        />
 
                                         <div className="text-center pt-0.5">
                                             <span className="text-[9px] font-semibold text-gray-400">
