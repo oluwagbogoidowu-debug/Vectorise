@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Participant } from '../types';
 import { paymentService } from '../services/paymentService';
-import { Coins, Zap, Sparkles, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface BottomModalCoinCardsProps {
@@ -14,17 +12,12 @@ interface BottomModalCoinCardsProps {
 }
 
 export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
-  userBalance,
-  sprintCost = 10,
   sprintId,
   trackId
 }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loadingPkgId, setLoadingPkgId] = useState<string | null>(null);
-
-  const participant = user as Participant;
-  const currentBalance = userBalance ?? (participant?.walletBalance ?? 25);
 
   const handleBuyPackage = async (pkg: { id: string; coins: number; price: number }) => {
     if (!user) {
@@ -101,31 +94,7 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
       </div>
 
       <div className="flex gap-2.5 overflow-x-auto pb-2 pt-1 no-scrollbar text-left scroll-smooth">
-        {/* Card 1: User's Current Balance Card */}
-        <div className="min-w-[150px] sm:min-w-[165px] w-[155px] shrink-0 bg-gradient-to-br from-gray-900 via-emerald-950 to-gray-900 text-white rounded-2xl p-3 flex flex-col justify-between border border-emerald-500/30 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl pointer-events-none" />
-          <div>
-            <div className="flex items-center justify-between gap-1 mb-1.5">
-              <span className="text-[7.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                Quick Continue
-              </span>
-              <Coins className="w-3.5 h-3.5 text-amber-400" />
-            </div>
-            <div className="text-base sm:text-lg font-black tracking-tight text-white leading-none mb-1">
-              {currentBalance} COINS
-            </div>
-            <p className="text-[9.5px] font-bold text-emerald-200/90 leading-tight">
-              Keep the<br />
-              <span className="italic text-white">Rise going</span>
-            </p>
-          </div>
-          <div className="mt-2.5 pt-1.5 border-t border-white/10 flex items-center justify-between text-[8px] font-black text-emerald-300 uppercase tracking-wider">
-            <span>Your Balance</span>
-            <span>✓</span>
-          </div>
-        </div>
-
-        {/* Cards 2, 3, 4: Coin Packages */}
+        {/* Coin Packages */}
         {packages.map((pkg) => (
           <div
             key={pkg.id}
