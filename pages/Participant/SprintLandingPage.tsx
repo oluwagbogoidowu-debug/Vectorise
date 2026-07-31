@@ -293,7 +293,7 @@ const SprintLandingPage: React.FC = () => {
     const [showCommitmentSheet, setShowCommitmentSheet] = useState(false);
     const [isCommitted, setIsCommitted] = useState(false);
     const [commitmentContext, setCommitmentContext] = useState<{ isGuest: boolean; emailExists?: boolean; guestEmail?: string } | null>(null);
-    const [paymentMethod, setPaymentMethod] = useState<'coins' | 'card'>('coins');
+    const [paymentMethod, setPaymentMethod] = useState<string>('coins');
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
     // Set default payment method when commitment sheet is shown
@@ -419,7 +419,7 @@ const SprintLandingPage: React.FC = () => {
                     
                     // Navigate to the newly enrolled sprint
                     navigate(`/participant/sprint/${enrollment.id}`);
-                } else {
+                } else if (paymentMethod === 'card') {
                     // Pay via Card (Naira)
                     const neededCoins = sprint.pointCost || 10;
                     const userBal = (user as Participant)?.walletBalance ?? 0;
@@ -433,6 +433,35 @@ const SprintLandingPage: React.FC = () => {
                         amount: topupPrice,
                         currency: "NGN",
                         name: user.name || 'Vectorise User'
+                    };
+
+                    const checkoutUrl = await paymentService.initializeFlutterwave(payload);
+                    setShowCommitmentSheet(false);
+                    window.location.href = checkoutUrl;
+                } else {
+                    // Pay via Coin Package selection (pkg_30, pkg_100, pkg_300)
+                    const pkgMap: Record<string, { coins: number; price: number }> = {
+                        pkg_30: { coins: 30, price: 500 },
+                        pkg_100: { coins: 100, price: 1300 },
+                        pkg_300: { coins: 300, price: 3600 }
+                    };
+                    const selectedPkg = pkgMap[paymentMethod];
+                    if (!selectedPkg) {
+                        toast.error("Invalid payment method selected.");
+                        setIsProcessingPayment(false);
+                        return;
+                    }
+
+                    const payload = {
+                        userId: user.id,
+                        email: user.email.toLowerCase().trim(),
+                        name: user.name || 'Vectorise User',
+                        amount: selectedPkg.price,
+                        currency: "NGN",
+                        coinPackageId: paymentMethod,
+                        coins: selectedPkg.coins,
+                        sprintId: sprint.id,
+                        trackId: sprint.trackId
                     };
 
                     const checkoutUrl = await paymentService.initializeFlutterwave(payload);
@@ -901,36 +930,6 @@ const SprintLandingPage: React.FC = () => {
                                             <span className="text-[8px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded uppercase">Insufficient</span>
                                         )}
                                     </label>
-
-                                    {/* Option 2: Card (Naira) */}
-                                    <label className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
-                                        paymentMethod === 'card' 
-                                        ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
-                                        : 'bg-white border-gray-150 text-gray-500'
-                                    }`}>
-                                        <div className="flex items-center gap-2">
-                                            <input 
-                                                type="radio" 
-                                                name="landing_payment_method" 
-                                                checked={paymentMethod === 'card'} 
-                                                onChange={() => setPaymentMethod('card')}
-                                                disabled={isProcessingPayment}
-                                                className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
-                                            />
-                                            <span className="text-[10px] font-black uppercase text-gray-800 leading-tight">Keep the rise going (Instant Topup)</span>
-                                        </div>
-                                        {(() => {
-                                            const neededCoins = sprint.pointCost || 10;
-                                            const userBal = (user as Participant)?.walletBalance ?? 0;
-                                            const coinsRem = Math.max(0, neededCoins - userBal);
-                                            const topupPrice = coinsRem > 0 ? coinsRem * 20 : (sprint.price || 1000);
-                                            return (
-                                                <span className="text-xs font-black text-gray-900 shrink-0 ml-2">
-                                                    {coinsRem > 0 ? `${coinsRem} Coin${coinsRem > 1 ? 's' : ''} (₦${topupPrice.toLocaleString()})` : `₦${topupPrice.toLocaleString()}`}
-                                                </span>
-                                            );
-                                        })()}
-                                    </label>
                                 </div>
 
                                 {/* Horizontal Coin Packages Cards inside bottom modal bar */}
@@ -939,13 +938,40 @@ const SprintLandingPage: React.FC = () => {
                                     sprintCost={sprint.pointCost || 10}
                                     sprintId={sprint.id}
                                     trackId={sprint.trackId}
+                                    selectedPaymentMethod={paymentMethod}
+                                    onSelectPaymentMethod={(method) => setPaymentMethod(method)}
+                                    isProcessing={isProcessingPayment}
                                 />
 
-                                <div className="text-center pt-0.5">
-                                    <span className="text-[9px] font-semibold text-gray-400">
-                                        Need more coins? <span className="underline cursor-pointer text-[#0E7850]" onClick={() => navigate('/buy-coins')}>Buy coins here</span>
-                                    </span>
-                                </div>
+                                {/* Option 2: Card (Instant Topup) */}
+                                <label className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                                    paymentMethod === 'card' 
+                                    ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
+                                    : 'bg-white border-gray-150 text-gray-500'
+                                }`}>
+                                    <div className="flex items-center gap-2">
+                                        <input 
+                                            type="radio" 
+                                            name="landing_payment_method" 
+                                            checked={paymentMethod === 'card'} 
+                                            onChange={() => setPaymentMethod('card')}
+                                            disabled={isProcessingPayment}
+                                            className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
+                                        />
+                                        <span className="text-[10px] font-black uppercase text-gray-800 leading-tight">Instant topup</span>
+                                    </div>
+                                    {(() => {
+                                        const neededCoins = sprint.pointCost || 10;
+                                        const userBal = (user as Participant)?.walletBalance ?? 0;
+                                        const coinsRem = Math.max(0, neededCoins - userBal);
+                                        const topupPrice = coinsRem > 0 ? coinsRem * 20 : (sprint.price || 1000);
+                                        return (
+                                            <span className="text-xs font-black text-gray-900 shrink-0 ml-2">
+                                                {coinsRem > 0 ? `${coinsRem} Coin${coinsRem > 1 ? 's' : ''} (₦${topupPrice.toLocaleString()})` : `₦${topupPrice.toLocaleString()}`}
+                                            </span>
+                                        );
+                                    })()}
+                                </label>
                             </div>
                         ) : (
                             // Guest Checkout Price display
@@ -967,7 +993,29 @@ const SprintLandingPage: React.FC = () => {
                                 : 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
                             }`}
                         >
-                            {isProcessingPayment ? "Processing..." : (commitmentContext?.isGuest && commitmentContext?.emailExists === false ? "Claim Free Day 1" : "Start Day 1 Now")}
+                            {isProcessingPayment ? "Processing..." : (
+                                commitmentContext?.isGuest && commitmentContext?.emailExists === false 
+                                ? "Claim Free Day 1" 
+                                : (
+                                    paymentMethod === 'coins'
+                                    ? `Start Day 1 Now • Use ${sprint.pointCost || 10} Coins`
+                                    : paymentMethod === 'card'
+                                    ? (() => {
+                                        const neededCoins = sprint.pointCost || 10;
+                                        const userBal = (user as Participant)?.walletBalance ?? 0;
+                                        const coinsRem = Math.max(0, neededCoins - userBal);
+                                        const topupPrice = coinsRem > 0 ? coinsRem * 20 : (sprint.price || 1000);
+                                        return `Start Day 1 Now • ₦${topupPrice.toLocaleString()}`;
+                                    })()
+                                    : paymentMethod === 'pkg_30'
+                                    ? "Start Day 1 Now • Pay ₦500"
+                                    : paymentMethod === 'pkg_100'
+                                    ? "Start Day 1 Now • Pay ₦1,300"
+                                    : paymentMethod === 'pkg_300'
+                                    ? "Start Day 1 Now • Pay ₦3,600"
+                                    : "Start Day 1 Now"
+                                )
+                            )}
                         </Button>
                     </div>
                 </>

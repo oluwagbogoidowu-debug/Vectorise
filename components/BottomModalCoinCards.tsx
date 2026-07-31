@@ -9,17 +9,28 @@ interface BottomModalCoinCardsProps {
   sprintId?: string;
   trackId?: string;
   onSuccess?: () => void;
+  selectedPaymentMethod?: string;
+  onSelectPaymentMethod?: (method: string) => void;
+  isProcessing?: boolean;
 }
 
 export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
   sprintId,
-  trackId
+  trackId,
+  selectedPaymentMethod,
+  onSelectPaymentMethod,
+  isProcessing
 }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loadingPkgId, setLoadingPkgId] = useState<string | null>(null);
 
   const handleBuyPackage = async (pkg: { id: string; coins: number; price: number }) => {
+    if (onSelectPaymentMethod) {
+      onSelectPaymentMethod(pkg.id);
+      return;
+    }
+
     if (!user) {
       navigate('/login');
       return;
@@ -53,9 +64,11 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
       price: 500,
       description: 'Continue your current sprint',
       tag: 'Quick Continue',
+      discount: '16% OFF',
       buttonText: 'Continue Now',
       cardStyle: 'border-emerald-500/30 bg-emerald-50/20',
       tagStyle: 'bg-emerald-50 text-emerald-700 border border-emerald-200/60',
+      discountStyle: 'bg-emerald-100 text-emerald-800',
       buttonStyle: 'bg-[#0E7850] hover:bg-[#0A5C3D] text-white shadow-xs'
     },
     {
@@ -64,9 +77,11 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
       price: 1300,
       description: 'Stay in motion. Stack your next wins',
       tag: 'Best Value',
+      discount: '35% OFF',
       buttonText: 'Stay Consistent',
       cardStyle: 'border-primary bg-primary/5 shadow-sm',
       tagStyle: 'bg-primary text-white',
+      discountStyle: 'bg-emerald-600 text-white',
       buttonStyle: 'bg-primary hover:bg-primary/95 text-white shadow-sm'
     },
     {
@@ -75,9 +90,11 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
       price: 3600,
       description: 'Lock in your growth. No interruptions',
       tag: 'Pro Growth',
+      discount: '40% OFF',
       buttonText: 'Go All In',
       cardStyle: 'border-amber-300 bg-amber-50/20',
       tagStyle: 'bg-amber-500 text-white',
+      discountStyle: 'bg-amber-100 text-amber-900 border border-amber-300/80',
       buttonStyle: 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm'
     }
   ];
@@ -95,44 +112,81 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
 
       <div className="flex gap-2.5 overflow-x-auto pb-2 pt-1 no-scrollbar text-left scroll-smooth">
         {/* Coin Packages */}
-        {packages.map((pkg) => (
-          <div
-            key={pkg.id}
-            className={`min-w-[150px] sm:min-w-[165px] w-[155px] shrink-0 border-2 rounded-2xl p-3 flex flex-col justify-between transition-all bg-white relative ${pkg.cardStyle}`}
-          >
-            <div>
-              <div className="flex items-center justify-between gap-1 mb-1">
-                <span className={`text-[7.5px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md ${pkg.tagStyle}`}>
-                  {pkg.tag}
-                </span>
-                <span className="text-[10px] font-black text-gray-900">
-                  ₦{pkg.price.toLocaleString()}
-                </span>
-              </div>
-              <div className="text-xs font-black text-gray-900 tracking-tight mt-1 mb-0.5">
-                {pkg.coins} Coins
-              </div>
-              <p className="text-[9px] text-gray-500 font-medium leading-tight line-clamp-2">
-                {pkg.description}
-              </p>
-            </div>
+        {packages.map((pkg) => {
+          const isSelected = selectedPaymentMethod === pkg.id;
 
-            <div className="mt-2.5">
-              <button
-                type="button"
-                onClick={() => handleBuyPackage(pkg)}
-                disabled={loadingPkgId !== null}
-                className={`w-full py-1.5 rounded-xl text-[8.5px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1 ${pkg.buttonStyle} ${loadingPkgId !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {loadingPkgId === pkg.id ? (
-                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  pkg.buttonText
-                )}
-              </button>
+          return (
+            <div
+              key={pkg.id}
+              onClick={() => {
+                if (!isProcessing) {
+                  if (onSelectPaymentMethod) {
+                    onSelectPaymentMethod(pkg.id);
+                  } else {
+                    handleBuyPackage(pkg);
+                  }
+                }
+              }}
+              className={`min-w-[150px] sm:min-w-[165px] w-[155px] shrink-0 border-2 rounded-2xl p-3 flex flex-col justify-between transition-all relative cursor-pointer ${
+                isSelected 
+                  ? 'border-[#0E7850] ring-2 ring-[#0E7850]/40 shadow-md bg-emerald-50/40 scale-[1.02]' 
+                  : `bg-white ${pkg.cardStyle} hover:border-gray-300`
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 transition-all ${
+                      isSelected ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
+                    }`}>
+                      {isSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                    </div>
+                    <span className={`text-[7.5px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md ${pkg.tagStyle}`}>
+                      {pkg.tag}
+                    </span>
+                  </div>
+                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${pkg.discountStyle}`}>
+                    {pkg.discount}
+                  </span>
+                </div>
+                <div className="text-xs font-black text-gray-900 tracking-tight mt-1 mb-0.5">
+                  {pkg.coins} Coins
+                </div>
+                <p className="text-[9px] text-gray-500 font-medium leading-tight line-clamp-2">
+                  {pkg.description}
+                </p>
+              </div>
+
+              <div className="mt-2.5">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!isProcessing) {
+                      if (onSelectPaymentMethod) {
+                        onSelectPaymentMethod(pkg.id);
+                      } else {
+                        handleBuyPackage(pkg);
+                      }
+                    }
+                  }}
+                  disabled={loadingPkgId !== null || isProcessing}
+                  className={`w-full py-1.5 px-1 rounded-xl text-[8.5px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1 ${
+                    isSelected ? 'bg-[#0E7850] text-white shadow-xs' : pkg.buttonStyle
+                  } ${(loadingPkgId !== null || isProcessing) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {loadingPkgId === pkg.id ? (
+                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : isSelected ? (
+                    `Selected • ₦${pkg.price.toLocaleString()}`
+                  ) : (
+                    `${pkg.buttonText} • ₦${pkg.price.toLocaleString()}`
+                  )}
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
