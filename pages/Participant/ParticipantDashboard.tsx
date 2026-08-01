@@ -685,6 +685,18 @@ const ParticipantDashboard: React.FC = () => {
   }, [location.state, navigate, isLoading, mySprints.length, queuedSprints.length, isNextSprintModalOpen]);
 
   useEffect(() => {
+    if (location.state?.scrollTo === 'step-up-your-rise' || location.hash === '#step-up-your-rise') {
+      const timer = setTimeout(() => {
+        const el = document.getElementById('step-up-your-rise');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [location.state, location.hash]);
+
+  useEffect(() => {
     if (!user) return;
     
     const checkOtherMilestones = async () => {
@@ -1543,7 +1555,7 @@ const ParticipantDashboard: React.FC = () => {
             </div>
 
             {/* Step Up Your Rise Section */}
-            <div className="mb-8">
+            <div id="step-up-your-rise" className="mb-8">
                 <style>{`
                     .no-scrollbar::-webkit-scrollbar {
                         display: none;

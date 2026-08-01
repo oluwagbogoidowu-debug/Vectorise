@@ -68,6 +68,7 @@ const DaySuccessPage: React.FC = () => {
   const handleCloseModal = () => {
     setShowWhatsAppModal(false);
     sessionStorage.removeItem('vectorise_wa_clicked');
+    navigate('/', { state: { scrollTo: 'step-up-your-rise' } });
   };
 
   const handleConfirmJoined = async () => {
@@ -86,6 +87,7 @@ const DaySuccessPage: React.FC = () => {
     sessionStorage.removeItem('vectorise_wa_clicked');
     setShowWhatsAppModal(false);
     triggerHaptic(hapticPatterns.success);
+    navigate('/', { state: { scrollTo: 'step-up-your-rise' } });
   };
 
   const handleTryAgain = () => {
@@ -184,7 +186,7 @@ const DaySuccessPage: React.FC = () => {
 
   const handleStepUp = () => {
     triggerHaptic(hapticPatterns.light);
-    navigate('/');
+    navigate('/', { state: { scrollTo: 'step-up-your-rise' } });
   };
 
   const handleRemindMeTomorrow = async () => {
@@ -288,16 +290,19 @@ const DaySuccessPage: React.FC = () => {
 
           {/* Simple WhatsApp Support Group CTA separated by a line from bridge note */}
           {!user?.whatsappJoinedConfirmed && (
-            <div className="mt-5 pt-5 border-t border-gray-200/80 w-full text-left">
+            <div className="mt-5 pt-4 border-t border-gray-200/80 w-full text-left">
+              <p className="text-xs text-gray-600 font-medium leading-relaxed mb-2.5">
+                Join the WhatsApp support group to get daily reminders and stay on track.
+              </p>
               <a
                 href="https://chat.whatsapp.com/EmXW0yjwdVf9RGgdvyMXdJ?s=cl&p=a&mlu=4"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleWhatsAppClick}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0E7850] hover:bg-[#0b6342] text-white text-xs font-black rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer uppercase tracking-wider"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0E7850] hover:bg-[#0b6342] text-white text-[11px] font-bold rounded-lg transition-all shadow-xs active:scale-95 cursor-pointer"
               >
-                <span>Join Support Group</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span>Join Now</span>
+                <ArrowRight className="w-3 h-3" />
               </a>
             </div>
           )}
