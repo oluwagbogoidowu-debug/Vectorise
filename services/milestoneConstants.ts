@@ -33,3 +33,73 @@ export const MILESTONES: MilestoneDefinition[] = [
     { id: 'i20', title: 'Architect', description: 'You became an architect of opportunity.', icon: '🧠', targetValue: 20, points: 150, category: 'influence', color: 'teal' },
     { id: 'i30', title: 'Inner Circle', description: 'You joined the inner circle of legacy.', icon: '👑', targetValue: 30, points: 250, category: 'influence', color: 'teal' }
 ];
+
+export interface UserMilestoneStats {
+    completedSprints: number;
+    completedTasksCount: number;
+    totalTaskDays: number;
+    meaningfulReflections: number;
+    peopleHelped: number;
+}
+
+export const calculateMilestoneStatValue = (milestoneId: string, stats: UserMilestoneStats): number => {
+    switch (milestoneId) {
+        case 'first_leap': 
+        case 's4': 
+        case 'cm1': 
+        case 'cm2': 
+            return stats.completedTasksCount;
+        case 's2': 
+            return stats.completedSprints;
+        case 'r1': 
+        case 'r2': 
+            return stats.meaningfulReflections;
+        case 'i1': 
+        case 'i3': 
+        case 'i5': 
+        case 'i10': 
+        case 'i20': 
+        case 'i30': 
+            return stats.peopleHelped;
+        default: 
+            return 0;
+    }
+};
+
+export const computeMilestoneStats = (
+    enrollments: Array<any>,
+    reflections: Array<{ content?: string; userId?: string }>,
+    referralsCount: number
+): UserMilestoneStats => {
+    const getProgress = (e: any) => (e && (e.progress || e.enrollment?.progress)) || [];
+
+    const completedSprints = enrollments.filter(e => {
+        const prog = getProgress(e);
+        return prog.length > 0 && prog.every((day: any) => day.completed);
+    }).length;
+
+    const completedTasksCount = enrollments.reduce((sum, e) => {
+        const prog = getProgress(e);
+        return sum + prog.filter((day: any) => day.completed).length;
+    }, 0);
+
+    const allCompletedDates = enrollments.flatMap(e => {
+        const prog = getProgress(e);
+        return prog
+            .filter((day: any) => day.completed && day.completedAt)
+            .map((day: any) => new Date(day.completedAt!).toDateString());
+    });
+    const totalTaskDays = new Set(allCompletedDates).size;
+
+    const meaningfulReflections = reflections.filter(r => 
+        r.content && r.content.trim().length > 50
+    ).length;
+
+    return {
+        completedSprints,
+        completedTasksCount,
+        totalTaskDays,
+        meaningfulReflections,
+        peopleHelped: referralsCount
+    };
+};

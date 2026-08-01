@@ -28,14 +28,6 @@ export const SprintProgressGraphic: React.FC<SprintProgressGraphicProps> = ({
     Math.round((completedDaysCount / safeTotalDays) * 100)
   );
 
-  // Calculate current day step completion
-  const stepPercent = isCurrentDayCompleted
-    ? 100
-    : Math.min(
-        100,
-        Math.round(((activeStepIndex + 1) / Math.max(1, totalStepsCount)) * 88)
-      );
-
   // SVG Ring Calculations
   const radius = 28;
   const strokeWidth = 5;
@@ -116,7 +108,7 @@ export const SprintProgressGraphic: React.FC<SprintProgressGraphicProps> = ({
           </div>
         </div>
 
-        {/* Right: Multi-segment Day Indicators + Step Bar */}
+        {/* Right: Multi-segment Day Indicators */}
         <div className="w-full sm:w-auto sm:max-w-xs flex flex-col justify-center gap-2">
           {/* Day Segment Dots Graphic */}
           <div className="flex items-center justify-between gap-1 w-full">
@@ -139,20 +131,6 @@ export const SprintProgressGraphic: React.FC<SprintProgressGraphicProps> = ({
                 />
               );
             })}
-          </div>
-
-          {/* Action Step Bar */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-wider text-gray-500">
-              <span>Today’s Progress</span>
-              <span className="text-emerald-700 font-extrabold">{stepPercent}%</span>
-            </div>
-            <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden shadow-inner">
-              <div
-                className="bg-emerald-500 h-full rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${stepPercent}%` }}
-              />
-            </div>
           </div>
         </div>
       </div>

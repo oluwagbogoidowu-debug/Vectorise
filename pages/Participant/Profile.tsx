@@ -12,7 +12,7 @@ import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS, PERSONA_QUIZZES, INITIAL_OPTIONS } from '../../constants';
 import { ShinePost } from '../../types';
-import { MILESTONES } from '../../services/milestoneConstants';
+import { MILESTONES, calculateMilestoneStatValue, computeMilestoneStats } from '../../services/milestoneConstants';
 import { CoachWelcome } from '../Onboarding/CoachWelcome';
 import { SwitchModeModal } from '../../components/SwitchModeModal';
 
@@ -154,32 +154,10 @@ const Profile: React.FC = () => {
     const p = user as Participant;
     const claimedIds = p.claimedMilestoneIds || [];
     
-    // Calculate unique days with task completion
-    const allCompletedDates = enrollments.flatMap(e => 
-        e.enrollment.progress
-            .filter(day => day.completed && day.completedAt)
-            .map(day => new Date(day.completedAt!).toDateString())
-    );
-    const totalTaskDays = new Set(allCompletedDates).size;
-    const reflectionsCount = reflections.length;
-    const meaningfulReflections = reflections.filter(r => r.content.trim().length > 50).length;
-    const startedSprints = enrollments.length;
-    const completedSprints = enrollments.filter(e => e.enrollment.progress.every(day => day.completed)).length;
-
-    const getStatValue = (id: string) => {
-        switch(id) {
-            case 's2': return completedSprints;
-            case 's4': return totalTaskDays;
-            case 'cm1': return totalTaskDays;
-            case 'cm2': return totalTaskDays;
-            case 'r1': return meaningfulReflections;
-            case 'r2': return meaningfulReflections;
-            default: return 0;
-        }
-    };
+    const milestoneStats = computeMilestoneStats(enrollments.map(e => e.enrollment), reflections, referrals.length);
 
     const allMilestones = MILESTONES.filter(m => m.category !== 'influence').map(m => {
-        const val = getStatValue(m.id);
+        const val = calculateMilestoneStatValue(m.id, milestoneStats);
         const progress = Math.min(100, (val / m.targetValue) * 100);
         const isClaimed = claimedIds.includes(m.id);
         return { ...m, currentValue: val, progress, isClaimed };

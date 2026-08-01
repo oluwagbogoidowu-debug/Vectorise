@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { userService, sanitizeData } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { Participant, ParticipantSprint, Sprint, Referral, UserRole } from '../../types';
-import { MILESTONES } from '../../services/milestoneConstants';
+import { MILESTONES, calculateMilestoneStatValue, computeMilestoneStats } from '../../services/milestoneConstants';
 import { ArrowLeft, Calendar, Mail, User as UserIcon, Zap, Target, Clock, AlertCircle, ChevronRight, Award, Flame, TrendingUp, Users, Coins } from 'lucide-react';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { UserStreakVisualizer } from '../../components/UserStreakVisualizer';
@@ -338,31 +338,7 @@ export default function AdminUserDetail() {
 
     const unclaimedButActiveMilestones = useMemo(() => {
         if (!user) return [];
-        
-        const completedCount = enrollments.filter(e => e.status === 'completed' || e.progress?.every(p => p.completed)).length;
-        const daysActive = Math.max(1, Math.ceil((Date.now() - new Date(user.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));
-        const reflectionsCount = user.shinePostIds?.length || 0;
-        const peopleHelped = referrals.length;
-        const hasCompletedAnyTask = enrollments.some(e => e.progress?.some(p => p.completed));
-        const totalTaskDays = streakStats.completedDatesSet.size;
-
-        const getStatValue = (id: string, category: string) => {
-            switch(id) {
-                case 'first_leap': return hasCompletedAnyTask ? 1 : 0;
-                case 's2': return completedCount;
-                case 's4': return totalTaskDays;
-                case 'cm1': return totalTaskDays;
-                case 'cm2': return totalTaskDays;
-                case 'r1': return reflectionsCount;
-                case 'r2': return reflectionsCount;
-                default: {
-                    if (category === 'influence') {
-                        return peopleHelped;
-                    }
-                    return 0;
-                }
-            }
-        };
+        const milestoneStats = computeMilestoneStats(enrollments, [], referrals.length);
 
         const getTypeName = (category: string) => {
             switch(category) {
@@ -380,7 +356,7 @@ export default function AdminUserDetail() {
             icon: m.icon,
             targetValue: m.targetValue,
             points: m.points,
-            current: getStatValue(m.id, m.category),
+            current: calculateMilestoneStatValue(m.id, milestoneStats),
             type: getTypeName(m.category),
             description: m.description
         }));
@@ -391,38 +367,14 @@ export default function AdminUserDetail() {
         ];
         
         return allMilestoneDefs.filter(m => m.current >= m.targetValue && !claimedIds.includes(m.id));
-    }, [user, enrollments, referrals, streakStats]);
+    }, [user, enrollments, referrals]);
 
     const unifiedClaimedBadges = useMemo(() => {
         if (!user) return [];
         
         const badges = [...(user.claimedBadges || [])];
         const existingClaimedIds = new Set(badges.map((b: any) => b.milestoneId));
-        
-        const completedCount = enrollments.filter(e => e.status === 'completed' || e.progress?.every(p => p.completed)).length;
-        const daysActive = Math.max(1, Math.ceil((Date.now() - new Date(user.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));
-        const reflectionsCount = user.shinePostIds?.length || 0;
-        const peopleHelped = referrals.length;
-        const hasCompletedAnyTask = enrollments.some(e => e.progress?.some(p => p.completed));
-        const totalTaskDays = streakStats.completedDatesSet.size;
-
-        const getStatValue = (id: string, category: string) => {
-            switch(id) {
-                case 'first_leap': return hasCompletedAnyTask ? 1 : 0;
-                case 's2': return completedCount;
-                case 's4': return totalTaskDays;
-                case 'cm1': return totalTaskDays;
-                case 'cm2': return totalTaskDays;
-                case 'r1': return reflectionsCount;
-                case 'r2': return reflectionsCount;
-                default: {
-                    if (category === 'influence') {
-                        return peopleHelped;
-                    }
-                    return 0;
-                }
-            }
-        };
+        const milestoneStats = computeMilestoneStats(enrollments, [], referrals.length);
 
         const getTypeName = (category: string) => {
             switch(category) {
@@ -440,7 +392,7 @@ export default function AdminUserDetail() {
             icon: m.icon,
             targetValue: m.targetValue,
             points: m.points,
-            current: getStatValue(m.id, m.category),
+            current: calculateMilestoneStatValue(m.id, milestoneStats),
             type: getTypeName(m.category),
             description: m.description
         }));

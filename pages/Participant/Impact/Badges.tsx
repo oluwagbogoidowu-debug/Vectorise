@@ -12,7 +12,7 @@ import { Share2 } from 'lucide-react';
 import AchievementShareModal from '../../../components/AchievementShareModal';
 import { motion } from 'motion/react';
 
-import { MILESTONES, MilestoneDefinition } from '../../../services/milestoneConstants';
+import { MILESTONES, MilestoneDefinition, calculateMilestoneStatValue, computeMilestoneStats } from '../../../services/milestoneConstants';
 
 interface Milestone extends MilestoneDefinition {
     currentValue: number;
@@ -262,38 +262,23 @@ const Badges: React.FC = () => {
         if (!stats || !user) return { coreProgress: [], longGame: [], innerWork: [], influence: [] };
         const p = user as Participant;
         const claimed = p.claimedMilestoneIds || [];
+        const milestoneStats = computeMilestoneStats(enrollments, reflections, referrals.length);
         
-        const getStatValue = (id: string) => {
-            switch(id) {
-                case 'first_leap': return enrollments.reduce((sum, e) => sum + e.progress.filter(day => day.completed).length, 0);
-                case 's2': return stats.completed;
-                case 's4': return stats.totalTaskDays;
-                case 'cm1': return stats.totalTaskDays;
-                case 'cm2': return stats.totalTaskDays;
-                case 'r1': return stats.meaningfulReflections;
-                case 'r2': return stats.meaningfulReflections;
-                case 'i1': return stats.peopleHelped;
-                case 'i3': return stats.peopleHelped;
-                case 'i5': return stats.peopleHelped;
-                case 'i10': return stats.peopleHelped;
-                default: return 0;
-            }
-        };
-
         const result: Record<string, Milestone[]> = { coreProgress: [], longGame: [], innerWork: [], influence: [] };
         
         MILESTONES.forEach(m => {
+            const val = calculateMilestoneStatValue(m.id, milestoneStats);
             const milestone: Milestone = {
                 ...m,
-                currentValue: getStatValue(m.id),
-                isUnlocked: getStatValue(m.id) >= m.targetValue,
+                currentValue: val,
+                isUnlocked: val >= m.targetValue,
                 isClaimed: claimed.includes(m.id)
             };
             result[m.category].push(milestone);
         });
 
         return result;
-    }, [stats, user]);
+    }, [stats, user, enrollments, reflections, referrals]);
 
     const categoryProgressData = useMemo(() => {
         if (!stats || !user) return [];

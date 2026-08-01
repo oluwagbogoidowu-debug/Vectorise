@@ -899,22 +899,15 @@ const SprintLandingPage: React.FC = () => {
                                 />
 
                                 {/* Option 2: Card (Instant Topup - Subtle Styling) */}
-                                <label className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all ${
-                                    paymentMethod === 'card' 
-                                    ? 'bg-gray-100/90 border-gray-300 text-gray-600' 
-                                    : 'bg-gray-50/40 border-gray-200/50 text-gray-400 hover:bg-gray-50'
-                                }`}>
-                                    <div className="flex items-center gap-2">
-                                        <input 
-                                            type="radio" 
-                                            name="landing_payment_method" 
-                                            checked={paymentMethod === 'card'} 
-                                            onChange={() => setPaymentMethod('card')}
-                                            disabled={isProcessingPayment}
-                                            className="text-gray-400 focus:ring-gray-300 h-3 w-3"
-                                        />
-                                        <span className="text-[10px] font-medium text-gray-400 leading-tight">Instant topup</span>
-                                    </div>
+                                <div 
+                                    onClick={() => !isProcessingPayment && setPaymentMethod('card')}
+                                    className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all ${
+                                        paymentMethod === 'card' 
+                                        ? 'bg-gray-100/90 border-gray-300 text-gray-600' 
+                                        : 'bg-gray-50/40 border-gray-200/50 text-gray-400 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <span className="text-[10px] font-medium text-gray-400 leading-tight">Instant topup</span>
                                     {(() => {
                                         const neededCoins = sprint.pointCost || 10;
                                         const userBal = (user as Participant)?.walletBalance ?? 0;
@@ -926,7 +919,7 @@ const SprintLandingPage: React.FC = () => {
                                             </span>
                                         );
                                     })()}
-                                </label>
+                                </div>
 
                                 {/* Commitment Radio Button (Moved Below Instant Topup) */}
                                 <button 

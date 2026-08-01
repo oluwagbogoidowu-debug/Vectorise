@@ -12,7 +12,7 @@ import { pushNotificationService } from '../../services/pushNotificationService'
 import { toast } from 'sonner';
 import { db } from '../../services/firebase';
 import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
-import { X, History, Sparkles, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, History, Sparkles, Heart, ChevronLeft, ChevronRight, Shuffle } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
@@ -24,7 +24,8 @@ import BottomModalCoinCards from '../../components/BottomModalCoinCards';
 import { streakService } from '../../services/streakService';
 import { blogService } from '../../services/blogService';
 import { paymentService } from '../../services/paymentService';
-import { MILESTONES } from '../../services/milestoneConstants';
+import { MILESTONES, calculateMilestoneStatValue, computeMilestoneStats } from '../../services/milestoneConstants';
+import { shineService } from '../../services/shineService';
 import { localNotificationScheduler } from '../../services/localNotificationScheduler';
 
 /**
@@ -379,7 +380,9 @@ const ParticipantDashboard: React.FC = () => {
     }
   }, [showOverviewSheet, user, recommendedNextSprint]);
 
-  const latestBlogPost = useMemo(() => {
+  const [currentBlogIndex, setCurrentBlogIndex] = useState(0);
+
+  const recentBlogPosts = useMemo(() => {
     const approvedDbBlogs = blogPosts.filter(s => s.approvalStatus === 'approved' && s.published !== false);
 
     const mappedDbPosts = approvedDbBlogs.map((sprint) => {
@@ -432,8 +435,18 @@ const ParticipantDashboard: React.FC = () => {
       return timeB - timeA;
     });
 
-    return mappedDbPosts[0] || null;
+    return mappedDbPosts.slice(0, 3);
   }, [blogPosts, coaches]);
+
+  useEffect(() => {
+    if (recentBlogPosts.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentBlogIndex(prev => (prev + 1) % recentBlogPosts.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [recentBlogPosts.length]);
+
+  const latestBlogPost = recentBlogPosts[currentBlogIndex % (recentBlogPosts.length || 1)] || null;
 
   // Load published sprints, ignites and blogs in real-time
   useEffect(() => {
@@ -671,52 +684,32 @@ const ParticipantDashboard: React.FC = () => {
     
     const checkOtherMilestones = async () => {
       const p = user as Participant;
-      const completedSprints = mySprints.filter(e => e.enrollment.progress.every(day => day.completed)).length;
-      const daysSinceJoin = Math.max(1, Math.ceil((Date.now() - new Date(p.createdAt || Date.now()).getTime()) / (1000 * 60 * 60 * 24)));
       
-      let peopleHelpedCount = p.impactStats?.peopleHelped || 0;
+      let referralsCount = p.impactStats?.peopleHelped || 0;
       try {
         const { getDocs, collection, query } = await import('firebase/firestore');
         const snap = await getDocs(query(collection(db, 'users', user.id, 'referrals')));
-        peopleHelpedCount = snap.docs.length;
+        referralsCount = snap.docs.length;
       } catch (err) {
         console.error("Error fetching referrals count on dashboard:", err);
       }
 
-      const stats = {
-        completed: completedSprints,
-        reflectionsCount: p.shinePostIds?.length || 0,
-        streak: p.impactStats?.streak || 0,
-        daysActive: daysSinceJoin,
-        meaningfulReflections: 0, // Simplified for now
-        peopleHelped: peopleHelpedCount
-      };
+      let userReflections: any[] = [];
+      try {
+        userReflections = await shineService.getPostsByUserId(user.id);
+      } catch (err) {
+        console.error("Error fetching reflections on dashboard:", err);
+      }
 
-      await userService.checkAndNotifyMilestones(user.id, stats, p.claimedMilestoneIds || []);
+      const milestoneStats = computeMilestoneStats(allEnrollments, userReflections, referralsCount);
+
+      await userService.checkAndNotifyMilestones(user.id, milestoneStats, p.claimedMilestoneIds || []);
 
       const allCheckableMilestones = MILESTONES;
-      const getStatValue = (id: string) => {
-          switch(id) {
-              case 'first_leap': return (mySprints.some(e => e.enrollment?.progress?.some(p => p.completed))) ? 1 : 0;
-              case 's2': return stats.completed;
-              case 's4': return stats.completed;
-              case 'cm1': return stats.daysActive;
-              case 'cm2': return stats.daysActive;
-              case 'r1': return stats.meaningfulReflections;
-              case 'r2': return stats.meaningfulReflections;
-              case 'i1':
-              case 'i3':
-              case 'i5':
-              case 'i10':
-              case 'i20':
-              case 'i30': return stats.peopleHelped;
-              case 'setup_identity': return isIdentitySet ? 1 : 0;
-              default: return 0;
-          }
-      };
 
       const unclaimed = allCheckableMilestones.find(m => {
-          const isUnlocked = getStatValue(m.id) >= m.targetValue;
+          const val = calculateMilestoneStatValue(m.id, milestoneStats);
+          const isUnlocked = val >= m.targetValue;
           const isClaimed = (p.claimedMilestoneIds || []).includes(m.id);
           return isUnlocked && !isClaimed;
       });
@@ -724,13 +717,14 @@ const ParticipantDashboard: React.FC = () => {
       setUnlockedUnclaimedMilestone(unclaimed || null);
 
       const nextMilestone = allCheckableMilestones.find(m => {
-          const isUnlocked = getStatValue(m.id) >= m.targetValue;
+          const val = calculateMilestoneStatValue(m.id, milestoneStats);
+          const isUnlocked = val >= m.targetValue;
           const isClaimed = (p.claimedMilestoneIds || []).includes(m.id);
           return !isUnlocked && !isClaimed;
       });
 
       if (nextMilestone) {
-          const val = getStatValue(nextMilestone.id);
+          const val = calculateMilestoneStatValue(nextMilestone.id, milestoneStats);
           const progress = Math.min(100, (val / nextMilestone.targetValue) * 100);
           setNextToUnlockMilestone({ ...nextMilestone, currentValue: val, progress });
       } else {
@@ -741,7 +735,7 @@ const ParticipantDashboard: React.FC = () => {
     if (!isLoading) {
       checkOtherMilestones();
     }
-  }, [user, mySprints.length, isLoading]);
+  }, [user, allEnrollments, isLoading]);
 
   useEffect(() => {
     if (!user || isLoading || allEnrollments.length === 0) return;
@@ -1665,6 +1659,35 @@ const ParticipantDashboard: React.FC = () => {
                                             <span className="absolute bottom-2 left-4 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm">
                                                 {latestBlogPost.category}
                                             </span>
+
+                                            {recentBlogPosts.length > 1 && (
+                                                <div className="absolute top-2 right-2.5 z-20 flex items-center gap-1.5">
+                                                    <button
+                                                        type="button"
+                                                        title="Shuffle next blog post"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            setCurrentBlogIndex((prev) => (prev + 1) % recentBlogPosts.length);
+                                                        }}
+                                                        className="p-1 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-sm transition-all hover:scale-110 active:scale-95 border border-white/20"
+                                                    >
+                                                        <Shuffle className="w-3 h-3" />
+                                                    </button>
+                                                    <div className="flex items-center gap-1 bg-black/40 backdrop-blur-sm px-1.5 py-1 rounded-full border border-white/20">
+                                                        {recentBlogPosts.map((_, idx) => (
+                                                            <span
+                                                                key={idx}
+                                                                className={`h-1.5 rounded-full transition-all duration-300 ${
+                                                                    idx === (currentBlogIndex % recentBlogPosts.length)
+                                                                        ? 'bg-emerald-400 w-3'
+                                                                        : 'bg-white/50 w-1.5'
+                                                                }`}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Bottom part has details */}
@@ -2255,22 +2278,15 @@ const ParticipantDashboard: React.FC = () => {
                                         />
 
                                         {/* Option 2: Card (Instant Topup - Subtle Styling) */}
-                                        <label className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all ${
-                                            paymentMethod === 'card' 
-                                            ? 'bg-gray-100/90 border-gray-300 text-gray-600' 
-                                            : 'bg-gray-50/40 border-gray-200/50 text-gray-400 hover:bg-gray-50'
-                                        }`}>
-                                            <div className="flex items-center gap-2">
-                                                <input 
-                                                    type="radio" 
-                                                    name="dashboard_payment_method" 
-                                                    checked={paymentMethod === 'card'} 
-                                                    onChange={() => setPaymentMethod('card')}
-                                                    disabled={isProcessing}
-                                                    className="text-gray-400 focus:ring-gray-300 h-3 w-3"
-                                                />
-                                                <span className="text-[10px] font-medium text-gray-400 leading-tight">Instant topup</span>
-                                            </div>
+                                        <div 
+                                            onClick={() => !isProcessing && setPaymentMethod('card')}
+                                            className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all ${
+                                                paymentMethod === 'card' 
+                                                ? 'bg-gray-100/90 border-gray-300 text-gray-600' 
+                                                : 'bg-gray-50/40 border-gray-200/50 text-gray-400 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <span className="text-[10px] font-medium text-gray-400 leading-tight">Instant topup</span>
                                             {(() => {
                                                 const neededCoins = recommendedNextSprint.pointCost || 10;
                                                 const userBal = (user as Participant)?.walletBalance ?? 0;
@@ -2282,7 +2298,7 @@ const ParticipantDashboard: React.FC = () => {
                                                     </span>
                                                 );
                                             })()}
-                                        </label>
+                                        </div>
 
                                         {/* Commitment Radio Button (Moved Below Instant Topup) */}
                                         <button 

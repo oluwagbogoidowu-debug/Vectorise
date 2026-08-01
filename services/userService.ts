@@ -2,7 +2,7 @@ import { db } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, increment, addDoc } from 'firebase/firestore';
 import { User, Participant, Coach, UserRole, WalletTransaction } from '../types';
 import { toast } from 'sonner';
-import { MILESTONES } from './milestoneConstants';
+import { MILESTONES, calculateMilestoneStatValue, UserMilestoneStats } from './milestoneConstants';
 
 // Notification Queue System
 const notificationQueue: { type: 'success' | 'info' | 'error', message: string, options: any }[] = [];
@@ -463,31 +463,13 @@ export const userService = {
     });
   },
 
-  checkAndNotifyMilestones: async (uid: string, stats: any, currentClaimedIds: string[]) => {
+  checkAndNotifyMilestones: async (uid: string, stats: UserMilestoneStats, currentClaimedIds: string[]) => {
     // Only include milestones that are actually in the Hall of Rise (MILESTONES)
     // and are NOT auto-claimed (since those notify immediately)
     const manualMilestones = MILESTONES.filter(m => !m.isAutoClaim);
 
-    const getStatValue = (id: string) => {
-        switch(id) {
-            case 's2': return stats.completed;
-            case 's4': return stats.completed;
-            case 'cm1': return stats.daysActive;
-            case 'cm2': return stats.daysActive;
-            case 'r1': return stats.meaningfulReflections;
-            case 'r2': return stats.meaningfulReflections;
-            case 'i1':
-            case 'i3':
-            case 'i5':
-            case 'i10':
-            case 'i20':
-            case 'i30': return stats.peopleHelped;
-            default: return 0;
-        }
-    };
-
     for (const m of manualMilestones) {
-      const val = getStatValue(m.id);
+      const val = calculateMilestoneStatValue(m.id, stats);
       if (val >= m.targetValue && !currentClaimedIds.includes(m.id)) {
         // Check if we already notified in this session to avoid spam
         const sessionKey = `notified_${m.id}`;
