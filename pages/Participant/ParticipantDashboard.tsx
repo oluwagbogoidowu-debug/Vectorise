@@ -374,7 +374,7 @@ const ParticipantDashboard: React.FC = () => {
       if (userBalance >= neededCoins) {
         setPaymentMethod('coins');
       } else {
-        setPaymentMethod('card');
+        setPaymentMethod('pkg_100');
       }
     }
   }, [showOverviewSheet, user, recommendedNextSprint]);

@@ -211,6 +211,27 @@ const DaySuccessPage: React.FC = () => {
               </AnimatePresence>
             </div>
           )}
+
+          {/* Stay Consistent Daily - WhatsApp Support Group Card */}
+          <div className="mt-6 p-4 sm:p-5 bg-emerald-50/70 border border-[#0E7850]/20 rounded-2xl text-left shadow-xs">
+            <h4 className="text-sm sm:text-base font-black text-gray-900 tracking-tight mb-1">
+              Stay Consistent Daily
+            </h4>
+            <p className="text-xs text-gray-600 font-medium leading-relaxed mb-3">
+              Your day can get busy, and it’s easy to lose track.
+              <br />
+              Join the WhatsApp support group to get daily reminders and stay on track.
+            </p>
+            <a
+              href="https://chat.whatsapp.com/EmXW0yjwdVf9RGgdvyMXdJ?s=cl&p=a&mlu=4"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0E7850] hover:bg-[#0b6342] text-white text-xs font-black rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer"
+            >
+              <span>Join Vectorise Support Group</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </a>
+          </div>
         </motion.div>
 
         {/* Compact Side-by-Side Cards (Fit on same line) */}
