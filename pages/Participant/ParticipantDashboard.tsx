@@ -2212,41 +2212,6 @@ const ParticipantDashboard: React.FC = () => {
                                         Back
                                     </button>
 
-                                    {/* Commitment Header List */}
-                                    <div className="my-4 text-center">
-                                        <div className="flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm font-extrabold text-gray-900 tracking-tight">
-                                            <span>Show up daily</span>
-                                            <span className="text-gray-300 font-normal">|</span>
-                                            <span>Pay attention to what works</span>
-                                            <span className="text-gray-300 font-normal">|</span>
-                                            <span>Finish what you start</span>
-                                        </div>
-                                    </div>
-
-                                    <p className="text-[10px] text-gray-400 font-bold text-center mb-4 px-4">
-                                        Small actions daily builds real momentum over time.
-                                    </p>
-
-                                    {/* Commitment Radio Button */}
-                                    <button 
-                                        onClick={() => !isProcessing && setIsCommitted(!isCommitted)}
-                                        disabled={isProcessing}
-                                        className={`w-full flex items-center gap-3.5 p-3.5 rounded-2xl transition-all border-2 mb-4 text-left ${
-                                            isCommitted 
-                                            ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
-                                            : 'bg-gray-50 border-gray-100 hover:border-gray-200 text-gray-400 hover:bg-white'
-                                        }`}
-                                    >
-                                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                                            isCommitted ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
-                                        }`}>
-                                            {isCommitted && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
-                                        </div>
-                                        <span className={`text-[11px] font-bold tracking-tight ${isCommitted ? 'text-gray-950' : 'text-gray-400'}`}>
-                                            I commit to showing up and finishing this
-                                        </span>
-                                    </button>
-
                                     {/* WALLET / PRICING SECTION */}
                                     <div className="bg-gray-50 rounded-2xl p-3.5 border border-gray-100 mb-4 space-y-2.5">
                                         <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-gray-400">
@@ -2318,6 +2283,26 @@ const ParticipantDashboard: React.FC = () => {
                                                 );
                                             })()}
                                         </label>
+
+                                        {/* Commitment Radio Button (Moved Below Instant Topup) */}
+                                        <button 
+                                            onClick={() => !isProcessing && setIsCommitted(!isCommitted)}
+                                            disabled={isProcessing}
+                                            className={`w-full flex items-center gap-3.5 p-3 rounded-xl transition-all border mt-3 text-left ${
+                                                isCommitted 
+                                                ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
+                                                : 'bg-white border-gray-200 hover:border-gray-300 text-gray-400'
+                                            }`}
+                                        >
+                                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                                                isCommitted ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
+                                            }`}>
+                                                {isCommitted && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                                            </div>
+                                            <span className={`text-[11px] font-bold tracking-tight ${isCommitted ? 'text-gray-950' : 'text-gray-400'}`}>
+                                                I commit to showing up and finishing this
+                                            </span>
+                                        </button>
                                     </div>
 
                                     {/* Start Day 1 Button */}
