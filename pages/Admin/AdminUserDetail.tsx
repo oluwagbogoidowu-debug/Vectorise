@@ -907,6 +907,29 @@ export default function AdminUserDetail() {
                                         </p>
                                     </div>
                                 )}
+
+                                <div className="pt-2 border-t border-gray-50 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">WhatsApp Link</p>
+                                        <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
+                                            user.whatsappLinkClicked 
+                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                                                : 'bg-gray-50 text-gray-400 border-gray-100'
+                                        }`}>
+                                            {user.whatsappLinkClicked ? 'Clicked' : 'Not Clicked'}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">WhatsApp Group</p>
+                                        <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
+                                            user.whatsappJoinedConfirmed 
+                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                                                : 'bg-gray-50 text-gray-400 border-gray-100'
+                                        }`}>
+                                            {user.whatsappJoinedConfirmed ? 'Joined (Confirmed)' : 'Not Confirmed'}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

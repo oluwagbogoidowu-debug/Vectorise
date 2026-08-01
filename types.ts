@@ -321,6 +321,10 @@ export interface User {
   coachApplicationApproved?: boolean;
   coachApplicationNiche?: string;
   coachApplicationAnswers?: any;
+  whatsappLinkClicked?: boolean;
+  whatsappLinkClickedAt?: string;
+  whatsappJoinedConfirmed?: boolean;
+  whatsappJoinedConfirmedAt?: string;
 }
 
 export type UserNotificationState = 'New' | 'Active' | 'Pending' | 'Completed' | 'Inactive' | 'Dormant';

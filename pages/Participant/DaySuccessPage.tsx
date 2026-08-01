@@ -10,14 +10,86 @@ import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 import { pushNotificationService } from '../../services/pushNotificationService';
 
 const DaySuccessPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const WHATSAPP_GROUP_URL = 'https://chat.whatsapp.com/EmXW0yjwdVf9RGgdvyMXdJ?s=cl&p=a&mlu=4';
+
+  // Popup modal state for returning from WhatsApp link
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
 
   // Retrieve parameters from state or use sensible fallbacks
   const completedDay = location.state?.day || 1;
   const coinsUnlocked = location.state?.coinsUnlocked !== undefined ? location.state?.coinsUnlocked : 10;
   const initialBridgeNote = location.state?.bridgeNote;
+
+  // Listen for window focus / visibility returning after clicking WhatsApp link
+  useEffect(() => {
+    const checkReturnFromWhatsApp = () => {
+      const clicked = sessionStorage.getItem('vectorise_wa_clicked') === 'true';
+      if (clicked) {
+        setShowWhatsAppModal(true);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkReturnFromWhatsApp();
+      }
+    };
+
+    const handleWindowFocus = () => {
+      checkReturnFromWhatsApp();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, []);
+
+  const handleWhatsAppClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (user && updateProfile) {
+      updateProfile({
+        whatsappLinkClicked: true,
+        whatsappLinkClickedAt: new Date().toISOString()
+      }).catch(err => console.error("Failed to record whatsapp link click:", err));
+    }
+
+    sessionStorage.setItem('vectorise_wa_clicked', 'true');
+    window.open(WHATSAPP_GROUP_URL, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleCloseModal = () => {
+    setShowWhatsAppModal(false);
+    sessionStorage.removeItem('vectorise_wa_clicked');
+  };
+
+  const handleConfirmJoined = async () => {
+    if (user && updateProfile) {
+      try {
+        await updateProfile({
+          whatsappJoinedConfirmed: true,
+          whatsappJoinedConfirmedAt: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error("Failed to record whatsapp joined confirmation:", err);
+      }
+    }
+    sessionStorage.removeItem('vectorise_wa_clicked');
+    setShowWhatsAppModal(false);
+    triggerHaptic(hapticPatterns.success);
+  };
+
+  const handleTryAgain = () => {
+    window.open(WHATSAPP_GROUP_URL, '_blank', 'noopener,noreferrer');
+    setShowWhatsAppModal(false);
+  };
 
   const [liveBridgeNote, setLiveBridgeNote] = useState<string | null>(initialBridgeNote || null);
 
@@ -226,6 +298,7 @@ const DaySuccessPage: React.FC = () => {
               href="https://chat.whatsapp.com/EmXW0yjwdVf9RGgdvyMXdJ?s=cl&p=a&mlu=4"
               target="_blank"
               rel="noopener noreferrer"
+              onClick={handleWhatsAppClick}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#0E7850] hover:bg-[#0b6342] text-white text-xs font-black rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer"
             >
               <span>Join Vectorise Support Group</span>
@@ -296,6 +369,70 @@ const DaySuccessPage: React.FC = () => {
           <ArrowRight className="w-4 h-4 text-white" />
         </motion.button>
       </footer>
+
+      {/* WhatsApp Joined Confirmation Modal */}
+      <AnimatePresence>
+        {showWhatsAppModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleCloseModal}
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+            />
+
+            {/* Modal Box */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 10 }}
+              className="relative z-[101] w-full max-w-sm bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 text-center overflow-hidden"
+            >
+              {/* Cancel Button top right */}
+              <button
+                onClick={handleCloseModal}
+                className="absolute top-4 right-4 p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Icon */}
+              <div className="w-12 h-12 bg-emerald-50 rounded-2xl mx-auto mb-4 flex items-center justify-center text-[#0E7850] shadow-xs">
+                <Sparkles className="w-6 h-6" />
+              </div>
+
+              {/* Title */}
+              <h3 className="text-lg font-black text-gray-900 tracking-tight leading-snug mb-2">
+                Joined the WhatsApp group?
+              </h3>
+
+              <p className="text-xs text-gray-500 font-medium mb-6">
+                Confirming helps us make sure you receive daily reminders and stay on track.
+              </p>
+
+              {/* Actions */}
+              <div className="space-y-2.5">
+                <button
+                  onClick={handleConfirmJoined}
+                  className="w-full py-3.5 bg-[#0E7850] hover:bg-[#0b6342] text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
+                >
+                  Yes, I’ve joined
+                </button>
+
+                <button
+                  onClick={handleTryAgain}
+                  className="w-full py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-black text-xs uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
+                >
+                  Try Again
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
