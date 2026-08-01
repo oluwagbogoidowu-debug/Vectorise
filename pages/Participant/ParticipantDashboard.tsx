@@ -2289,11 +2289,11 @@ const ParticipantDashboard: React.FC = () => {
                                             isProcessing={isProcessing}
                                         />
 
-                                        {/* Option 2: Card (Instant Topup) */}
-                                        <label className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                                        {/* Option 2: Card (Instant Topup - Subtle Styling) */}
+                                        <label className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all ${
                                             paymentMethod === 'card' 
-                                            ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
-                                            : 'bg-white border-gray-150 text-gray-500'
+                                            ? 'bg-gray-100/90 border-gray-300 text-gray-600' 
+                                            : 'bg-gray-50/40 border-gray-200/50 text-gray-400 hover:bg-gray-50'
                                         }`}>
                                             <div className="flex items-center gap-2">
                                                 <input 
@@ -2302,9 +2302,9 @@ const ParticipantDashboard: React.FC = () => {
                                                     checked={paymentMethod === 'card'} 
                                                     onChange={() => setPaymentMethod('card')}
                                                     disabled={isProcessing}
-                                                    className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
+                                                    className="text-gray-400 focus:ring-gray-300 h-3 w-3"
                                                 />
-                                                <span className="text-[10px] font-black uppercase text-gray-800 leading-tight">Instant topup</span>
+                                                <span className="text-[10px] font-medium text-gray-400 leading-tight">Instant topup</span>
                                             </div>
                                             {(() => {
                                                 const neededCoins = recommendedNextSprint.pointCost || 10;
@@ -2312,7 +2312,7 @@ const ParticipantDashboard: React.FC = () => {
                                                 const coinsRem = Math.max(0, neededCoins - userBal);
                                                 const topupPrice = coinsRem > 0 ? coinsRem * 20 : (recommendedNextSprint.price || 1000);
                                                 return (
-                                                    <span className="text-xs font-black text-gray-900 shrink-0 ml-2">
+                                                    <span className="text-[10px] font-medium text-gray-400 shrink-0 ml-2">
                                                         {coinsRem > 0 ? `${coinsRem} Coin${coinsRem > 1 ? 's' : ''} (₦${topupPrice.toLocaleString()})` : `₦${topupPrice.toLocaleString()}`}
                                                     </span>
                                                 );
