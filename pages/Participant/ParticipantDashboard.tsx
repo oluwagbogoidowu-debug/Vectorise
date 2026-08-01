@@ -1928,47 +1928,7 @@ const ParticipantDashboard: React.FC = () => {
                                         </div>
                                     </div>
                                 </Link>
-                            ) : (
-                                <Link 
-                                    to={isStepUpLocked ? "#" : "/profile/hall-of-rise"} 
-                                    onClick={(e) => isStepUpLocked && e.preventDefault()}
-                                    className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] p-5 shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
-                                        isStepUpLocked 
-                                        ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                        : 'hover:shadow-md hover:border-emerald-500/20 cursor-pointer'
-                                    }`}
-                                >
-                                    {/* Tag */}
-                                    <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-emerald-700 border border-emerald-100/40 z-20">
-                                        Hall of Rise
-                                    </div>
-
-                                    <div className="flex-1 flex flex-col justify-between pt-2">
-                                        <div className="space-y-2 mt-2 text-left">
-                                            <div className="w-10 h-10 bg-emerald-50 text-[#0E7850] rounded-xl flex items-center justify-center border border-emerald-100/50 shadow-sm">
-                                                <span>👑</span>
-                                            </div>
-                                            <div>
-                                                <h4 className="text-xs font-black text-gray-950 leading-tight uppercase tracking-tight">
-                                                    Hall of Rise Complete!
-                                                </h4>
-                                                <p className="text-[10px] font-bold text-gray-400 mt-1">
-                                                    You claimed all active milestones!
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
-                                            <span className="text-[9px] font-black uppercase text-emerald-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                                                View Badges
-                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                                </svg>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </Link>
-                            )
+                            ) : null
                         )}
 
                         {/* 3. See your rise analysis */}
