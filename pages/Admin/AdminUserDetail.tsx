@@ -862,7 +862,21 @@ export default function AdminUserDetail() {
 
                                 <div className="pt-2 border-t border-gray-50 space-y-2">
                                     <div className="flex items-center justify-between">
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">WhatsApp Link</p>
+                                        <div>
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">WhatsApp Link</p>
+                                            {user.whatsappLinkClicked && user.whatsappLinkClickedAt && (
+                                                <p className="text-[9px] font-bold text-gray-500 mt-0.5">
+                                                    {(() => {
+                                                        try {
+                                                            const parsed = parseISO(user.whatsappLinkClickedAt);
+                                                            return isNaN(parsed.getTime()) ? user.whatsappLinkClickedAt : format(parsed, 'MMM d, h:mm a');
+                                                        } catch {
+                                                            return user.whatsappLinkClickedAt;
+                                                        }
+                                                    })()}
+                                                </p>
+                                            )}
+                                        </div>
                                         <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
                                             user.whatsappLinkClicked 
                                                 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
@@ -872,7 +886,21 @@ export default function AdminUserDetail() {
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">WhatsApp Group</p>
+                                        <div>
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">WhatsApp Group</p>
+                                            {user.whatsappJoinedConfirmed && user.whatsappJoinedConfirmedAt && (
+                                                <p className="text-[9px] font-bold text-gray-500 mt-0.5">
+                                                    {(() => {
+                                                        try {
+                                                            const parsed = parseISO(user.whatsappJoinedConfirmedAt);
+                                                            return isNaN(parsed.getTime()) ? user.whatsappJoinedConfirmedAt : format(parsed, 'MMM d, h:mm a');
+                                                        } catch {
+                                                            return user.whatsappJoinedConfirmedAt;
+                                                        }
+                                                    })()}
+                                                </p>
+                                            )}
+                                        </div>
                                         <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
                                             user.whatsappJoinedConfirmed 
                                                 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
