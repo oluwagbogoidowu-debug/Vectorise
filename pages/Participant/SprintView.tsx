@@ -31,7 +31,7 @@ import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings } f
 
 import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
-import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X } from "lucide-react";
+import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle } from "lucide-react";
 import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
 import { offlineSyncService } from "../../services/offlineSyncService";
 import { motion, AnimatePresence } from "motion/react";
@@ -2365,10 +2365,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           <div className="flex items-center justify-between">
             <button
               onClick={() => isPreview ? navigate(-1) : navigate("/dashboard")}
-              className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
+              className="p-1.5 bg-white border border-gray-100 rounded-xl shadow-xs text-gray-400 active:scale-95 transition-all"
             >
               <svg
-                className="w-5 h-5"
+                className="w-3.5 h-3.5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -2387,19 +2387,19 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               </h1>
             </div>
             {isPreview ? (
-              <div className="flex flex-col items-end gap-1.5 shrink-0">
-                <span className="text-[10px] font-black text-[#0E7850] bg-[#0E7850]/10 border border-[#0E7850]/20 px-3 py-1 rounded-lg uppercase tracking-wider">
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <span className="text-[9px] font-black text-[#0E7850] bg-[#0E7850]/10 border border-[#0E7850]/20 px-2.5 py-0.5 rounded-md uppercase tracking-wider">
                   Sprint Preview
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => setIsSprintOverviewOpen(true)}
-                    className="p-2 bg-white border border-gray-100 rounded-xl shadow-sm text-gray-400 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                    className="p-1.5 bg-white border border-gray-100 rounded-xl shadow-xs text-gray-400 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
                     title="Sprint Description"
                   >
                     <svg
-                      className="w-4 h-4"
+                      className="w-3.5 h-3.5"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -2415,11 +2415,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                   <button
                     type="button"
                     onClick={() => setIsSprintCardModalOpen(true)}
-                    className="p-2 bg-white border border-gray-100 rounded-xl shadow-sm text-gray-400 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                    className="p-1.5 bg-white border border-gray-100 rounded-xl shadow-xs text-gray-400 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
                     title="Sprint Card"
                   >
                     <svg
-                      className="w-4 h-4"
+                      className="w-3.5 h-3.5"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -2436,15 +2436,15 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 </div>
               </div>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setIsSprintOverviewOpen(true)}
-                  className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all cursor-pointer"
+                  className="p-1.5 bg-white border border-gray-100 rounded-xl shadow-xs text-gray-400 active:scale-95 transition-all cursor-pointer"
                   title="Sprint Description"
                 >
                   <svg
-                    className="w-5 h-5"
+                    className="w-3.5 h-3.5"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -2458,41 +2458,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                   </svg>
                 </button>
                 <button
-                  onClick={() => setIsChatModalOpen(true)}
-                  disabled={dayLockDetails.isLocked}
-                  className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm transition-all relative ${dayLockDetails.isLocked ? "opacity-40 cursor-not-allowed" : "text-gray-400 active:scale-95"}`}
-                  title={
-                    dayLockDetails.isLocked
-                      ? "Complete previous day first"
-                      : "Coaching Chat"
-                  }
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2.5}
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    />
-                  </svg>
-                  {!dayLockDetails.isLocked && hasUnreadMessages && (
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse"></span>
-                  )}
-                </button>
-                <button
                   onClick={() => setIsSettingsModalOpen(true)}
-                  className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all"
+                  className="p-1.5 bg-white border border-gray-100 rounded-xl shadow-xs text-gray-400 active:scale-95 transition-all"
                   title="Sprint Settings"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
+                    className="w-3.5 h-3.5"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -3346,6 +3318,23 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         })}
                                       </div>
                                     )}
+
+                                  {/* Request guidance small text CTA at bottom right of action step card */}
+                                  <div className="flex justify-end pt-2 mt-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsChatModalOpen(true)}
+                                      disabled={dayLockDetails.isLocked}
+                                      className={`inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#0E7850] font-medium transition-all cursor-pointer ${dayLockDetails.isLocked ? "opacity-40 cursor-not-allowed" : "active:scale-95"}`}
+                                      title={dayLockDetails.isLocked ? "Complete previous day first" : "Request guidance"}
+                                    >
+                                      <MessageCircle className="w-3.5 h-3.5" />
+                                      <span>Request guidance</span>
+                                      {!dayLockDetails.isLocked && hasUnreadMessages && (
+                                        <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+                                      )}
+                                    </button>
+                                  </div>
                                 </div>
                               )}
                               {isFullBleed && getNextVisibleStepIndex(i) === -1 && (
@@ -3812,6 +3801,23 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             )}
                           </div>
                         )}
+
+                        {/* Request guidance small text CTA at bottom right of action step card */}
+                        <div className="flex justify-end pt-3 mt-1">
+                          <button
+                            type="button"
+                            onClick={() => setIsChatModalOpen(true)}
+                            disabled={dayLockDetails.isLocked}
+                            className={`inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#0E7850] font-medium transition-all cursor-pointer ${dayLockDetails.isLocked ? "opacity-40 cursor-not-allowed" : "active:scale-95"}`}
+                            title={dayLockDetails.isLocked ? "Complete previous day first" : "Request guidance"}
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>Request guidance</span>
+                            {!dayLockDetails.isLocked && hasUnreadMessages && (
+                              <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+                            )}
+                          </button>
+                        </div>
                         </div>
                       </div>
                     )}
