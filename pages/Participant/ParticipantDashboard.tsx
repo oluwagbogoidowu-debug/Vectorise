@@ -383,7 +383,7 @@ const ParticipantDashboard: React.FC = () => {
   const [currentBlogIndex, setCurrentBlogIndex] = useState(0);
 
   const recentBlogPosts = useMemo(() => {
-    const approvedDbBlogs = blogPosts.filter(s => s.approvalStatus === 'approved' && s.published !== false);
+    const approvedDbBlogs = blogPosts.filter(s => (s.approvalStatus === 'approved' || !s.approvalStatus) && s.published !== false);
 
     const mappedDbPosts = approvedDbBlogs.map((sprint) => {
       const coach = coaches.find(c => c.id === sprint.coachId);
@@ -454,6 +454,11 @@ const ParticipantDashboard: React.FC = () => {
       // Filter sprints based on target audience and what the user carries as identity (coach, student, entrepreneur...)
       const allowedSprints = published.filter(s => {
         if (user?.role === UserRole.ADMIN) {
+          return true;
+        }
+
+        // RiseBlog posts are published articles intended for all participants to read
+        if (s.contentType === 'blog') {
           return true;
         }
         
