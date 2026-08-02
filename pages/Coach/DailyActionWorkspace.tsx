@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sprint, DailyContent } from '../../types';
 import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent } from '../../src/utils/stepPlaceholderUtils';
 
 interface DailyActionWorkspaceProps {
   sprint: Sprint | null;
@@ -30,6 +31,18 @@ export default function DailyActionWorkspace({
   const [addingCustomOption, setAddingCustomOption] = useState<Record<number, boolean>>({});
   const [lastAssignedField, setLastAssignedField] = useState<string | null>(null);
   const [showHelpSheet, setShowHelpSheet] = useState(false);
+
+  // Long press drag reorder state for Action Steps (e.g. 1 2 3 4 5)
+  const [dragStepState, setDragStepState] = useState<{
+    dayNum: number;
+    fromIndex: number;
+    currentIndex: number;
+    isDragging: boolean;
+  } | null>(null);
+
+  const stepPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const stepStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const stepButtonsContainerRef = useRef<{ [dayNum: number]: HTMLDivElement | null }>({});
 
   // Load from database/sprint or fallback to local storage
   useEffect(() => {
@@ -193,6 +206,149 @@ export default function DailyActionWorkspace({
 
     setActiveStepIndices(prev => ({ ...prev, [dayNum]: Math.max(0, (prev[dayNum] || 0) - 1) }));
   };
+
+  const triggerHaptic = (pattern: number | number[]) => {
+    if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+      try {
+        window.navigator.vibrate(pattern);
+      } catch (e) {
+        // Haptics not available or supported
+      }
+    }
+  };
+
+  const handleReorderStepsForDay = (dayNum: number, fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+
+    setSprint(prev => {
+      if (!prev) return null;
+      const existingIndex = Array.isArray(prev.dailyContent)
+        ? prev.dailyContent.findIndex(c => c.day === dayNum)
+        : -1;
+      if (existingIndex < 0) return prev;
+
+      const updatedDailyContent = [...prev.dailyContent];
+      const dayContent = { ...updatedDailyContent[existingIndex] };
+
+      const reorderArr = <T,>(arr: T[] | undefined): T[] | undefined => {
+        if (!Array.isArray(arr) || arr.length === 0) return arr;
+        const maxIdx = Math.max(fromIndex, toIndex);
+        const copy = [...arr];
+        while (copy.length <= maxIdx) {
+          copy.push(undefined as any);
+        }
+        const [item] = copy.splice(fromIndex, 1);
+        copy.splice(toIndex, 0, item);
+        return copy;
+      };
+
+      dayContent.taskPrompts = reorderArr(dayContent.taskPrompts);
+      dayContent.taskInputTypes = reorderArr(dayContent.taskInputTypes);
+      dayContent.taskHints = reorderArr(dayContent.taskHints);
+      dayContent.taskNotes = reorderArr(dayContent.taskNotes);
+      dayContent.taskTagNotes = reorderArr(dayContent.taskTagNotes);
+      dayContent.taskTagNoteActive = reorderArr(dayContent.taskTagNoteActive);
+      dayContent.taskFootnotes = reorderArr(dayContent.taskFootnotes);
+      dayContent.taskPollOptionLinks = reorderArr(dayContent.taskPollOptionLinks);
+      dayContent.taskMultiTextLabels = reorderArr(dayContent.taskMultiTextLabels);
+      dayContent.taskPollOptions = reorderArr(dayContent.taskPollOptions as any);
+      if ((dayContent as any).taskTags) {
+        (dayContent as any).taskTags = reorderArr((dayContent as any).taskTags);
+      }
+      dayContent.taskPollMultiSelect = reorderArr(dayContent.taskPollMultiSelect);
+      dayContent.taskSpread = reorderArr(dayContent.taskSpread);
+      dayContent.taskLinkedToNext = reorderArr(dayContent.taskLinkedToNext);
+      dayContent.taskLinkedSources = reorderArr(dayContent.taskLinkedSources);
+
+      updatedDailyContent[existingIndex] = dayContent;
+      return { ...prev, dailyContent: updatedDailyContent };
+    });
+
+    setActiveStepIndices(prev => ({ ...prev, [dayNum]: toIndex }));
+  };
+
+  const handleStepPointerDown = (dayNum: number, index: number, e: React.TouchEvent | React.MouseEvent) => {
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    stepStartPosRef.current = { x: clientX, y: clientY };
+
+    if (stepPressTimerRef.current) clearTimeout(stepPressTimerRef.current);
+
+    stepPressTimerRef.current = setTimeout(() => {
+      setDragStepState({
+        dayNum,
+        fromIndex: index,
+        currentIndex: index,
+        isDragging: true
+      });
+      triggerHaptic([50]);
+    }, 300);
+  };
+
+  useEffect(() => {
+    if (!dragStepState || !dragStepState.isDragging) return;
+
+    const onPointerMove = (e: TouchEvent | MouseEvent) => {
+      const dayNum = dragStepState.dayNum;
+      const clientX = 'touches' in e ? (e as TouchEvent).touches[0].clientX : (e as MouseEvent).clientX;
+      const clientY = 'touches' in e ? (e as TouchEvent).touches[0].clientY : (e as MouseEvent).clientY;
+
+      if (stepStartPosRef.current && (!dragStepState || !dragStepState.isDragging)) {
+        const dist = Math.hypot(clientX - stepStartPosRef.current.x, clientY - stepStartPosRef.current.y);
+        if (dist > 8 && stepPressTimerRef.current) {
+          clearTimeout(stepPressTimerRef.current);
+          stepPressTimerRef.current = null;
+        }
+      }
+
+      const container = stepButtonsContainerRef.current[dayNum];
+      if (container) {
+        if (e.cancelable) e.preventDefault();
+        const rect = container.getBoundingClientRect();
+        const relativeX = clientX - rect.left;
+
+        const dayContent = sprint?.dailyContent?.find(c => c.day === dayNum);
+        const totalSteps = dayContent?.taskPrompts?.length || 1;
+
+        const stepWidth = rect.width / totalSteps;
+        const targetIdx = Math.max(0, Math.min(totalSteps - 1, Math.floor(relativeX / stepWidth)));
+
+        if (targetIdx !== dragStepState.currentIndex) {
+          setDragStepState(prev => prev ? { ...prev, currentIndex: targetIdx } : null);
+          triggerHaptic(25);
+        }
+      }
+    };
+
+    const onPointerUp = () => {
+      if (stepPressTimerRef.current) {
+        clearTimeout(stepPressTimerRef.current);
+        stepPressTimerRef.current = null;
+      }
+
+      if (dragStepState && dragStepState.isDragging) {
+        if (dragStepState.fromIndex !== dragStepState.currentIndex) {
+          handleReorderStepsForDay(dragStepState.dayNum, dragStepState.fromIndex, dragStepState.currentIndex);
+          triggerHaptic([30, 30, 30]);
+        }
+        setDragStepState(null);
+      }
+    };
+
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+    window.addEventListener('touchmove', onPointerMove, { passive: false });
+    window.addEventListener('touchend', onPointerUp);
+    window.addEventListener('touchcancel', onPointerUp);
+
+    return () => {
+      window.removeEventListener('mousemove', onPointerMove);
+      window.removeEventListener('mouseup', onPointerUp);
+      window.removeEventListener('touchmove', onPointerMove);
+      window.removeEventListener('touchend', onPointerUp);
+      window.removeEventListener('touchcancel', onPointerUp);
+    };
+  }, [dragStepState, sprint]);
 
   const updateFieldForDay = (dayNum: number, field: keyof DailyContent, value: any) => {
     setSprint(prev => {
@@ -597,50 +753,103 @@ export default function DailyActionWorkspace({
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Action Steps</span>
                   </div>
 
-                  {/* Pagination with "+" button next to it */}
-                  <div className="flex items-center gap-1.5 bg-gray-50 p-1 border border-gray-150 rounded-xl">
-                    {Array.from({ length: totalSteps }, (_, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedDay(dayNum);
-                          setActiveStepIndices(prev => ({ ...prev, [dayNum]: idx }));
-                        }}
-                        className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-black transition-all cursor-pointer ${
-                          activeIdx === idx 
-                            ? 'bg-purple-600 text-white shadow-xs scale-105' 
-                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  {/* Pagination with "+" button next to it & long-press drag reordering */}
+                  {(() => {
+                    const isThisDayDragging = dragStepState?.isDragging && dragStepState.dayNum === dayNum;
+                    const displayedIndices = Array.from({ length: totalSteps }, (_, i) => i);
+                    if (isThisDayDragging && dragStepState.fromIndex !== dragStepState.currentIndex) {
+                      const [moved] = displayedIndices.splice(dragStepState.fromIndex, 1);
+                      displayedIndices.splice(dragStepState.currentIndex, 0, moved);
+                    }
+
+                    return (
+                      <div 
+                        ref={el => { stepButtonsContainerRef.current[dayNum] = el; }}
+                        className={`flex items-center gap-1.5 bg-gray-50 p-1 border border-gray-150 rounded-xl transition-all ${
+                          isThisDayDragging ? 'ring-2 ring-purple-500/80 bg-purple-50/80 shadow-md touch-none select-none scale-105' : ''
                         }`}
+                        title="Hold step number (1, 2, 3...) to drag and reorder"
                       >
-                        {idx + 1}
-                      </button>
-                    ))}
-                    
-                    {/* "+" Button to add step to this card */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedDay(dayNum);
-                        handleAddStepForDay(dayNum);
-                      }}
-                      className="w-5 h-5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200/50 flex items-center justify-center text-xs font-bold transition-all cursor-pointer"
-                      title="Add Action Step"
-                    >
-                      <Plus size={10} strokeWidth={3} />
-                    </button>
-                  </div>
+                        {displayedIndices.map((stepIdx, slotIdx) => {
+                          const btnPlaceholderVal = validateStepPlaceholders(dayContent.taskPrompts?.[stepIdx] || '', stepIdx, dayContent.taskInputTypes || []);
+                          const isBeingHeldOrDragged = isThisDayDragging && stepIdx === dragStepState.fromIndex;
+                          const isCurrentActiveStep = activeIdx === stepIdx;
+
+                          return (
+                            <button
+                              key={stepIdx}
+                              type="button"
+                              onMouseDown={(e) => handleStepPointerDown(dayNum, stepIdx, e)}
+                              onTouchStart={(e) => handleStepPointerDown(dayNum, stepIdx, e)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (stepPressTimerRef.current) {
+                                  clearTimeout(stepPressTimerRef.current);
+                                  stepPressTimerRef.current = null;
+                                }
+                                if (dragStepState?.isDragging) return;
+                                setSelectedDay(dayNum);
+                                setActiveStepIndices(prev => ({ ...prev, [dayNum]: stepIdx }));
+                              }}
+                              className={`relative w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-black transition-all cursor-grab active:cursor-grabbing select-none ${
+                                isBeingHeldOrDragged
+                                  ? 'bg-purple-700 text-white shadow-lg ring-2 ring-purple-400 scale-125 z-30 animate-pulse'
+                                  : isCurrentActiveStep 
+                                    ? 'bg-purple-600 text-white shadow-xs scale-105' 
+                                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                              }`}
+                              title={`Action Step ${slotIdx + 1} (Hold & drag to reorder)`}
+                            >
+                              {slotIdx + 1}
+                              {btnPlaceholderVal.hasPlaceholders && (
+                                <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ring-1 ring-white ${btnPlaceholderVal.isValid ? 'bg-red-500 animate-pulse' : 'bg-red-600 animate-ping'}`} />
+                              )}
+                            </button>
+                          );
+                        })}
+                        
+                        {/* "+" Button to add step to this card */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedDay(dayNum);
+                            handleAddStepForDay(dayNum);
+                          }}
+                          className="w-5 h-5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200/50 flex items-center justify-center text-xs font-bold transition-all cursor-pointer"
+                          title="Add Action Step"
+                        >
+                          <Plus size={10} strokeWidth={3} />
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
 
-                  {/* Day Action Step edit Workspace inside card */}
-                  <div className="flex-grow flex flex-col space-y-4">
-                    {/* Step title & Coach Note Trigger */}
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-xs font-black bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg flex items-center gap-1">
-                        Action Step {activeIdx + 1}
-                      </span>
+                {(() => {
+                  const currentPlaceholderVal = validateStepPlaceholders(prompt, activeIdx, dayContent.taskInputTypes || []);
+                  return (
+                    /* Day Action Step edit Workspace inside card */
+                    <div className="flex-grow flex flex-col space-y-4">
+                      {/* Step title & Coach Note Trigger */}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-black bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                            Action Step {activeIdx + 1}
+                          </span>
+                          {currentPlaceholderVal.hasPlaceholders && currentPlaceholderVal.isValid && (
+                            <span className="text-[10px] font-black text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-xs" title={`Dynamic text logic linked to Step ${currentPlaceholderVal.validStepRefs.join(', ')}`}>
+                              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0"></span>
+                              <span>Dynamic Logic (Step {currentPlaceholderVal.validStepRefs.join(', ')})</span>
+                            </span>
+                          )}
+                          {currentPlaceholderVal.hasPlaceholders && !currentPlaceholderVal.isValid && (
+                            <span className="text-[10px] font-black text-red-700 bg-red-100 border border-red-300 px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-xs" title={currentPlaceholderVal.errorMsg}>
+                              <span className="w-2 h-2 rounded-full bg-red-600 ring-2 ring-red-300 animate-ping shrink-0"></span>
+                              <span>🔴 Error: Invalid Logic Placeholder</span>
+                            </span>
+                          )}
+                        </div>
 
                       <div className="flex items-center gap-2">
                         {/* Coach Note toggle */}
@@ -762,6 +971,22 @@ export default function DailyActionWorkspace({
                         className={smallEditorInputClasses + " p-3 !py-3 w-full font-medium text-sm"} 
                         placeholder={`Describe Action Step ${activeIdx + 1}...`} 
                       />
+                      {currentPlaceholderVal.hasPlaceholders && currentPlaceholderVal.isValid && (
+                        <div className="p-3 bg-red-50/80 border border-red-200/80 rounded-xl text-xs text-red-800 font-semibold flex items-center justify-between mt-2 animate-fade-in shadow-2xs">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"></span>
+                            <span>
+                              <strong>Dynamic Logic Active:</strong> Placeholder <code className="bg-white px-1.5 py-0.5 rounded border border-red-200 text-red-700 font-mono text-[11px]">{currentPlaceholderVal.validStepRefs.map(n => `{step ${n}}`).join(', ')}</code> will expand into choice(s) collected from Step {currentPlaceholderVal.validStepRefs.join(', ')}.
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {currentPlaceholderVal.hasPlaceholders && !currentPlaceholderVal.isValid && (
+                        <div className="p-3 bg-red-100/90 border border-red-300 rounded-xl text-xs text-red-900 font-bold flex items-center gap-2 mt-2 animate-shake shadow-xs">
+                          <span className="text-base leading-none">🔴</span>
+                          <span>{currentPlaceholderVal.errorMsg}</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Input Type Selector and Helper toggles */}
@@ -1392,6 +1617,8 @@ export default function DailyActionWorkspace({
                       </div>
                     )}
                   </div>
+                );
+              })()}
 
                   {/* Bridge Note Section */}
                   <div className="mt-6 pt-6 border-t border-gray-150 space-y-3">

@@ -19,6 +19,7 @@ import FormattingToolbar from '../../components/FormattingToolbar';
 import DailyActionWorkspace from './DailyActionWorkspace';
 import LocalLogo from '../../components/LocalLogo';
 import { generateDayPDF } from '../../utils/pdfGenerator';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent } from '../../src/utils/stepPlaceholderUtils';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 
@@ -1169,7 +1170,7 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
-  const handleTaskPromptTypeChange = (index: number, type: 'text' | 'tags' | 'poll' | 'note' | 'mark') => {
+  const handleTaskPromptTypeChange = (index: number, type: 'text' | 'tags' | 'poll' | 'note' | 'mark' | 'none') => {
     setSprint(prev => {
         if (!prev) return null;
         const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
@@ -1741,6 +1742,13 @@ const EditSprint: React.FC = () => {
 
   const handleSaveDraft = async () => {
     if (!sprint || !originalSprint) return;
+
+    if (hasAnyInvalidPlaceholdersInContent(sprint.dailyContent || [])) {
+      alert("Cannot save: Invalid {step N} placeholder logic detected! Placeholders like {step 1} can only be used on steps with Input Type 'none' that reference a preceding 'tags' or 'poll' step.");
+      setSaveStatus('idle');
+      return;
+    }
+
     setSaveStatus('saving');
     try {
       const isDraft = sprint.approvalStatus === 'draft';
@@ -2927,15 +2935,19 @@ const EditSprint: React.FC = () => {
                             const isLinkedFromPrevious = 
                                 (index > 0 && currentContent.taskLinkedToNext?.[index - 1]) ||
                                 (Array.isArray(currentContent.taskLinkedSources?.[index]) && currentContent.taskLinkedSources[index].length > 0);
+                            const placeholderVal = validateStepPlaceholders(prompt, index, currentContent.taskInputTypes || []);
                             return (
                                 <div key={index} className="group relative">
                                     <div className="absolute -left-10 top-6 w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-[10px] font-black text-gray-300 group-focus-within:bg-primary/10 group-focus-within:text-primary transition-all z-10">
                                         {index + 1}
+                                        {placeholderVal.hasPlaceholders && (
+                                            <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-white ${placeholderVal.isValid ? 'bg-red-500 animate-pulse' : 'bg-red-600 animate-ping'}`} />
+                                        )}
                                     </div>
                                     <div className="flex gap-2 items-start relative z-20">
                                         <div className="flex-1 space-y-2">
                                             {/* Prominent numbering inline badge */}
-                                            <div className="flex items-center gap-2 mb-2">
+                                            <div className="flex items-center gap-2 mb-2 flex-wrap">
                                                 <span className="text-xs font-black bg-primary/10 text-primary px-3 py-1.5 rounded-lg flex items-center gap-1">
                                                     Action Step {index + 1}
                                                 </span>
@@ -2970,6 +2982,19 @@ const EditSprint: React.FC = () => {
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                                         </svg>
                                                         <span>Linked Follow-Up</span>
+                                                    </span>
+                                                )}
+
+                                                {placeholderVal.hasPlaceholders && placeholderVal.isValid && (
+                                                    <span className="text-[10px] font-black text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-xs" title={`Dynamic text logic linked to Step ${placeholderVal.validStepRefs.join(', ')}`}>
+                                                        <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"></span>
+                                                        <span>Dynamic Logic (Step {placeholderVal.validStepRefs.join(', ')})</span>
+                                                    </span>
+                                                )}
+                                                {placeholderVal.hasPlaceholders && !placeholderVal.isValid && (
+                                                    <span className="text-[10px] font-black text-red-700 bg-red-100 border border-red-300 px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-xs" title={placeholderVal.errorMsg}>
+                                                        <span className="w-2.5 h-2.5 rounded-full bg-red-600 ring-2 ring-red-300 animate-ping shrink-0"></span>
+                                                        <span>🔴 Error: Invalid Logic Placeholder</span>
                                                     </span>
                                                 )}
                                             </div>
@@ -3094,6 +3119,22 @@ const EditSprint: React.FC = () => {
                                                 className={promptInputClasses} 
                                                 placeholder={`Action Step ${index + 1}...`} 
                                             />
+                                            {placeholderVal.hasPlaceholders && placeholderVal.isValid && (
+                                                <div className="p-3 bg-red-50/80 border border-red-200/80 rounded-xl text-xs text-red-800 font-semibold flex items-center justify-between mt-2 animate-fade-in shadow-2xs">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"></span>
+                                                        <span>
+                                                            <strong>Dynamic Logic Active:</strong> Placeholder <code className="bg-white px-1.5 py-0.5 rounded border border-red-200 text-red-700 font-mono text-[11px]">{placeholderVal.validStepRefs.map(n => `{step ${n}}`).join(', ')}</code> will expand into choice(s) collected from Step {placeholderVal.validStepRefs.join(', ')}.
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {placeholderVal.hasPlaceholders && !placeholderVal.isValid && (
+                                                <div className="p-3 bg-red-100/90 border border-red-300 rounded-xl text-xs text-red-900 font-bold flex items-center gap-2 mt-2 animate-shake shadow-xs">
+                                                    <span className="text-base leading-none">🔴</span>
+                                                    <span>{placeholderVal.errorMsg}</span>
+                                                </div>
+                                            )}
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2.5 pt-2 border-t border-gray-100">
                                                 <div className="flex items-center gap-2">
                                                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0 leading-tight">Input<br />Type</label>

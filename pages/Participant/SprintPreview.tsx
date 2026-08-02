@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import FormattedText from '../../components/FormattedText';
+import { formatInterpolatedText } from '../../src/utils/stepPlaceholderUtils';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -1233,7 +1234,7 @@ const SprintPreview: React.FC = () => {
                                         })()}
 
                                         <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed relative ${day1Content?.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
-                                            <FormattedText text={prompt} />
+                                            <FormattedText text={formatInterpolatedText(prompt, day1Content, taskInputs)} />
                                         </div>
                                         {day1Content?.taskFootnotes?.[i] && (
                                             <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">

@@ -21,6 +21,7 @@ import { doc, updateDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
+import { formatInterpolatedText } from "../../src/utils/stepPlaceholderUtils";
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
@@ -2732,7 +2733,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               })()}
 
                               <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed ${dayContent?.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
-                                <FormattedText text={prompt} />
+                                <FormattedText text={formatInterpolatedText(prompt, dayContent, taskInputs)} />
                               </div>
                               {dayContent?.taskFootnotes?.[i] && (
                                 <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
