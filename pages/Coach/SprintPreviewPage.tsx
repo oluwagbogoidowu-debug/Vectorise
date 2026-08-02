@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import SprintView from '../Participant/SprintView';
+import CoachSprintView from './CoachSprintView';
 
 const SprintPreviewPage: React.FC = () => {
   const { sprintId } = useParams<{ sprintId: string }>();
@@ -14,7 +14,7 @@ const SprintPreviewPage: React.FC = () => {
   }
 
   return (
-    <SprintView isPreview={true} previewSprintId={sprintId} />
+    <CoachSprintView />
   );
 };
 

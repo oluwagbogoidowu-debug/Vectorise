@@ -2534,7 +2534,7 @@ const EditSprint: React.FC = () => {
               </button>
             )}
             <button 
-              onClick={() => navigate(`/coach/sprint/preview/${sprintId}`)} 
+              onClick={() => navigate(`/coach/sprint/preview/${sprintId}`, { state: { sprint: sprint } })} 
               title="Sprint Stimulation"
               className="w-10 h-10 flex items-center justify-center bg-white text-gray-400 rounded-xl border border-gray-100 hover:text-primary transition-all shadow-sm cursor-pointer shrink-0"
             >

@@ -679,12 +679,35 @@ const SprintPreview: React.FC = () => {
         
         // As a reliable and direct fallback, load static sprint data.
         // This is safe from snapshot/permissions issues on Firestore for guest users.
+        const processSprint = (data: any) => {
+            if (!data) return data;
+            const stateSprint = location.state?.sprint?.id === data.id ? location.state.sprint : null;
+            const targetSource = stateSprint || data;
+            const pending = targetSource.pendingChanges || (stateSprint ? null : data.pendingChanges);
+            return {
+                ...targetSource,
+                ...(pending || {}),
+                dailyContent: (Array.isArray(pending?.dailyContent)
+                    ? pending.dailyContent
+                    : (Array.isArray(targetSource.dailyContent) ? targetSource.dailyContent : [])).map((c: any) => ({
+                        ...c,
+                        taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
+                    })),
+                duration: pending?.duration || targetSource.duration || 0,
+                outcomes: Array.isArray(pending?.outcomes) ? pending.outcomes : (Array.isArray(targetSource.outcomes) ? targetSource.outcomes : []),
+                forWho: Array.isArray(pending?.forWho) ? pending.forWho : (Array.isArray(targetSource.forWho) ? targetSource.forWho : []),
+                notForWho: Array.isArray(pending?.notForWho) ? pending.notForWho : (Array.isArray(targetSource.notForWho) ? targetSource.notForWho : []),
+                methodSnapshot: Array.isArray(pending?.methodSnapshot) ? pending.methodSnapshot : (Array.isArray(targetSource.methodSnapshot) ? targetSource.methodSnapshot : []),
+                dynamicSections: Array.isArray(pending?.dynamicSections) ? pending.dynamicSections : (Array.isArray(targetSource.dynamicSections) ? targetSource.dynamicSections : [])
+            };
+        };
+
         let active = true;
         sprintService.getSprintById(sprintId)
             .then((data: any) => {
                 if (active && data) {
                     console.log("[SprintPreview] Successfully fetched static sprint data:", data.id);
-                    setSprint(data);
+                    setSprint(processSprint(data));
                     setIsLoading(false);
                 }
             })
@@ -698,7 +721,7 @@ const SprintPreview: React.FC = () => {
             unsubscribe = sprintService.subscribeToSprint(sprintId, (data) => {
                 if (active && data) {
                     console.log("[SprintPreview] Received realtime sprint details snapshot updates.");
-                    setSprint(data);
+                    setSprint(processSprint(data));
                     setIsLoading(false);
                 }
             });

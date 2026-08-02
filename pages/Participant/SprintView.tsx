@@ -1024,7 +1024,32 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const location = useLocation();
 
   const [enrollment, setEnrollment] = useState<ParticipantSprint | null>(null);
-  const [sprint, setSprint] = useState<Sprint | null>(null);
+  const [sprint, setSprint] = useState<Sprint | null>(() => {
+    if (isPreview && location.state?.sprint) {
+      const stateSprint = location.state.sprint;
+      const pending = stateSprint.pendingChanges;
+      if (pending) {
+        return {
+          ...stateSprint,
+          ...pending,
+          dailyContent: (Array.isArray(pending.dailyContent)
+            ? pending.dailyContent
+            : (Array.isArray(stateSprint.dailyContent) ? stateSprint.dailyContent : [])).map((c: any) => ({
+              ...c,
+              taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
+            })),
+          duration: pending.duration || stateSprint.duration || 0,
+          outcomes: Array.isArray(pending.outcomes) ? pending.outcomes : (Array.isArray(stateSprint.outcomes) ? stateSprint.outcomes : []),
+          forWho: Array.isArray(pending.forWho) ? pending.forWho : (Array.isArray(stateSprint.forWho) ? stateSprint.forWho : []),
+          notForWho: Array.isArray(pending.notForWho) ? pending.notForWho : (Array.isArray(stateSprint.notForWho) ? stateSprint.notForWho : []),
+          methodSnapshot: Array.isArray(pending.methodSnapshot) ? pending.methodSnapshot : (Array.isArray(stateSprint.methodSnapshot) ? stateSprint.methodSnapshot : []),
+          dynamicSections: Array.isArray(pending.dynamicSections) ? pending.dynamicSections : (Array.isArray(stateSprint.dynamicSections) ? stateSprint.dynamicSections : [])
+        };
+      }
+      return stateSprint;
+    }
+    return null;
+  });
   const [viewingDay, setViewingDay] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReflectionModalOpen, setIsReflectionModalOpen] = useState(false);
@@ -1556,13 +1581,28 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       let unsubSprint: (() => void) | undefined;
       unsubSprint = sprintService.subscribeToSprint(previewSprintId, (found) => {
         if (found) {
+          // Check if location.state.sprint was passed from EditSprint editor
+          const stateSprint = location.state?.sprint?.id === previewSprintId ? location.state.sprint : null;
+          const targetSource = stateSprint || found;
+          const pending = targetSource.pendingChanges || (stateSprint ? null : found.pendingChanges);
+
           const processed = {
-            ...found,
-            dailyContent: (Array.isArray(found.dailyContent) ? found.dailyContent : []).map(c => ({
-              ...c,
-              taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
-            }))
+            ...targetSource,
+            ...(pending || {}),
+            dailyContent: (Array.isArray(pending?.dailyContent)
+              ? pending.dailyContent
+              : (Array.isArray(targetSource.dailyContent) ? targetSource.dailyContent : [])).map((c: any) => ({
+                ...c,
+                taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
+              })),
+            duration: pending?.duration || targetSource.duration || 0,
+            outcomes: Array.isArray(pending?.outcomes) ? pending.outcomes : (Array.isArray(targetSource.outcomes) ? targetSource.outcomes : []),
+            forWho: Array.isArray(pending?.forWho) ? pending.forWho : (Array.isArray(targetSource.forWho) ? targetSource.forWho : []),
+            notForWho: Array.isArray(pending?.notForWho) ? pending.notForWho : (Array.isArray(targetSource.notForWho) ? targetSource.notForWho : []),
+            methodSnapshot: Array.isArray(pending?.methodSnapshot) ? pending.methodSnapshot : (Array.isArray(targetSource.methodSnapshot) ? targetSource.methodSnapshot : []),
+            dynamicSections: Array.isArray(pending?.dynamicSections) ? pending.dynamicSections : (Array.isArray(targetSource.dynamicSections) ? targetSource.dynamicSections : [])
           };
+
           setSprint(processed);
           setEnrollment((prevMock) => {
             if (prevMock && prevMock.sprint_id === previewSprintId && prevMock.progress.length === processed.duration) return prevMock;
