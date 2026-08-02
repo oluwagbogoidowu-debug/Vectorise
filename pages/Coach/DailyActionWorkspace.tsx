@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sprint, DailyContent } from '../../types';
-import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen } from 'lucide-react';
+import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
 
 interface DailyActionWorkspaceProps {
@@ -281,6 +281,34 @@ export default function DailyActionWorkspace({
     updateFieldForDay(dayNum, 'taskSpread', spread);
   };
 
+  const handleAssignSelectedToPoll = (dayNum: number, index: number, textToAssign: string) => {
+    if (!textToAssign) return;
+    const lines = textToAssign
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    const pollOptionsList = lines.length > 0 ? lines : [textToAssign.trim()];
+
+    const dayContent = getDailyContentForDay(dayNum);
+    
+    // Set input type to 'poll' for this step if not already
+    const types = [...(dayContent.taskInputTypes || [])];
+    while (types.length <= index) types.push('text');
+    types[index] = 'poll';
+    updateFieldForDay(dayNum, 'taskInputTypes', types);
+
+    // Set poll options for this step
+    const options = [...(dayContent.taskPollOptions || [])];
+    while (options.length <= index) options.push('[]');
+    options[index] = JSON.stringify(pollOptionsList);
+    updateFieldForDay(dayNum, 'taskPollOptions', options);
+
+    setLastAssignedField(`poll-${index}`);
+    setTimeout(() => setLastAssignedField(null), 1500);
+    setSelectedText('');
+  };
+
   const handleTaskPollOptionChange = (dayNum: number, index: number, optIndex: number, value: string) => {
     const dayContent = getDailyContentForDay(dayNum);
     const options = [...(dayContent.taskPollOptions || [])];
@@ -454,7 +482,7 @@ export default function DailyActionWorkspace({
       <div className="max-w-6xl mx-auto w-full p-4 sm:p-6 md:p-8 flex-grow flex flex-col justify-start">
         <div className="bg-white rounded-[2.5rem] border border-gray-150 shadow-xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[550px] w-full">
           {/* Left Column (General Content Hub) - 5 Cols */}
-          <div className="lg:col-span-5 p-6 border-b lg:border-b-0 lg:border-r border-gray-150 flex flex-col space-y-4 bg-gray-50/15">
+          <div className="lg:col-span-5 p-6 border-b lg:border-b-0 lg:border-r border-gray-150 flex flex-col space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">General Content Hub</label>
@@ -496,7 +524,7 @@ export default function DailyActionWorkspace({
               value={advancedGeneralInput}
               onChange={e => handleGeneralInputChange(e.target.value)}
               onSelect={handleTextareaSelect}
-              className="w-full flex-grow min-h-[300px] lg:h-[400px] p-4 bg-white border border-gray-150 rounded-2xl shadow-inner focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-sm font-medium transition-all placeholder-gray-300 resize-none overflow-y-auto"
+              className="w-full flex-grow min-h-[300px] lg:h-[400px] p-2 bg-transparent border-0 focus:ring-0 outline-none text-sm font-medium transition-all placeholder-gray-300 resize-none overflow-y-auto text-gray-800"
               placeholder="paste or type all your sprint actions steps and other details here...."
             />
 
@@ -552,6 +580,7 @@ export default function DailyActionWorkspace({
             const isLastAssignedNote = lastAssignedField === `note-${activeIdx}` && selectedDay === dayNum;
             const isLastAssignedHint = lastAssignedField === `hint-${activeIdx}` && selectedDay === dayNum;
             const isLastAssignedFootnote = lastAssignedField === `footnote-${activeIdx}` && selectedDay === dayNum;
+            const isLastAssignedPoll = lastAssignedField === `poll-${activeIdx}` && selectedDay === dayNum;
             const isLinkedFromPrevious = (activeIdx > 0 && dayContent.taskLinkedToNext?.[activeIdx - 1]) || (Array.isArray(dayContent.taskLinkedSources?.[activeIdx]) && dayContent.taskLinkedSources[activeIdx].length > 0);
 
             const isActiveCard = true;
@@ -737,7 +766,7 @@ export default function DailyActionWorkspace({
 
                     {/* Input Type Selector and Helper toggles */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-gray-100">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest shrink-0">Input Type:</label>
                         <div className="flex p-0.5 bg-gray-100 rounded-lg">
                           {(['text', 'tags', 'poll', 'mark'] as const).map((type) => {
@@ -750,7 +779,7 @@ export default function DailyActionWorkspace({
                                   setSelectedDay(dayNum);
                                   handleTaskPromptTypeChange(dayNum, activeIdx, type);
                                 }}
-                                className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all uppercase ${
+                                className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all uppercase cursor-pointer ${
                                   isSelected 
                                     ? 'bg-white text-purple-600 shadow-xs' 
                                     : 'text-gray-400 hover:text-gray-600'
@@ -761,6 +790,21 @@ export default function DailyActionWorkspace({
                             );
                           })}
                         </div>
+
+                        {selectedText && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDay(dayNum);
+                              handleAssignSelectedToPoll(dayNum, activeIdx, selectedText);
+                            }}
+                            className="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 text-[9px] font-bold rounded-lg border border-purple-200 flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                            title="Automatically convert selected text lines into Poll Options"
+                          >
+                            <ListFilter size={11} />
+                            <span>Assign Selected to Poll ({selectedText.split(/\r?\n/).filter(l => l.trim()).length} line{selectedText.split(/\r?\n/).filter(l => l.trim()).length === 1 ? '' : 's'})</span>
+                          </button>
+                        )}
                         
                         {/* Step Relationships Link trigger */}
                         {(() => {
@@ -1235,7 +1279,26 @@ export default function DailyActionWorkspace({
 
                     {/* Poll option configuration */}
                     {dayContent.taskInputTypes?.[activeIdx] === 'poll' && (
-                      <div className="mt-2 pl-2 border-l-2 border-purple-200/50 space-y-2 text-[11px]">
+                      <div className={`mt-2 pl-2 border-l-2 border-purple-200/50 space-y-2 text-[11px] transition-all ${isLastAssignedPoll ? 'ring-2 ring-purple-500 ring-offset-2 p-2 rounded-xl bg-purple-50/20' : ''}`}>
+                        {selectedText && (
+                          <div className="flex items-center justify-between p-2 bg-purple-50/80 rounded-xl border border-purple-200">
+                            <span className="text-[10px] font-bold text-purple-800">
+                              Selected text has {selectedText.split(/\r?\n/).filter(l => l.trim()).length} line(s)
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDay(dayNum);
+                                handleAssignSelectedToPoll(dayNum, activeIdx, selectedText);
+                              }}
+                              className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-[9px] font-bold rounded-lg shadow-xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                            >
+                              <ListFilter size={10} />
+                              <span>Assign Selected to Poll</span>
+                            </button>
+                          </div>
+                        )}
+
                         <div className="flex items-center gap-2 mb-2 bg-white p-2 rounded-xl border border-gray-100 shadow-2xs">
                           <button
                             type="button"

@@ -970,7 +970,7 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
-  const assignSelectedText = (field: 'prompt' | 'note' | 'hint' | 'footnote', index: number) => {
+  const assignSelectedText = (field: 'prompt' | 'note' | 'hint' | 'footnote' | 'poll', index: number) => {
     if (!selectedText) return;
     
     if (field === 'prompt') {
@@ -981,6 +981,26 @@ const EditSprint: React.FC = () => {
       handleTaskHintChange(index, selectedText);
     } else if (field === 'footnote') {
       handleTaskFootnoteChange(index, selectedText);
+    } else if (field === 'poll') {
+      const lines = selectedText
+        .split(/\r?\n/)
+        .map(l => l.trim())
+        .filter(l => l.length > 0);
+      const pollOptions = lines.length > 0 ? lines : [selectedText.trim()];
+      
+      handleContentChange('taskInputTypes', (prev: any) => {
+        const arr = [...(prev || [])];
+        while (arr.length <= index) arr.push('text');
+        arr[index] = 'poll';
+        return arr;
+      });
+
+      handleContentChange('taskPollOptions', (prev: any) => {
+        const arr = [...(prev || [])];
+        while (arr.length <= index) arr.push('[]');
+        arr[index] = JSON.stringify(pollOptions);
+        return arr;
+      });
     }
     
     setLastAssignedField(`${field}-${index}`);
@@ -4500,7 +4520,7 @@ const EditSprint: React.FC = () => {
             {(currentContent.taskPrompts || ['', '', '']).map((_, index) => (
               <div key={index} className="space-y-1">
                 <span className="text-[8px] font-black text-primary/80 uppercase tracking-widest pl-1">Step {index + 1}</span>
-                <div className="grid grid-cols-4 gap-0.5">
+                <div className="grid grid-cols-5 gap-0.5">
                   <button
                     type="button"
                     onClick={() => assignSelectedText('prompt', index)}
@@ -4508,6 +4528,14 @@ const EditSprint: React.FC = () => {
                     title="Assign to prompt"
                   >
                     Prpt
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => assignSelectedText('poll', index)}
+                    className="py-1 px-0.5 bg-gray-800 hover:bg-purple-600 rounded-md text-[8px] font-bold uppercase cursor-pointer text-center"
+                    title="Assign to Poll options (creates option per line)"
+                  >
+                    Poll
                   </button>
                   <button
                     type="button"
