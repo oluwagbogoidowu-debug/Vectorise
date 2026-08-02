@@ -249,7 +249,7 @@ export default function DailyActionWorkspace({
     updateFieldForDay(dayNum, 'taskFootnotes', footnotes);
   };
 
-  const handleTaskPromptTypeChange = (dayNum: number, index: number, value: 'text' | 'tags' | 'poll' | 'mark') => {
+  const handleTaskPromptTypeChange = (dayNum: number, index: number, value: 'text' | 'tags' | 'poll' | 'mark' | 'none') => {
     const dayContent = getDailyContentForDay(dayNum);
     const types = [...(dayContent.taskInputTypes || [])];
     while (types.length <= index) types.push('text');
@@ -767,9 +767,9 @@ export default function DailyActionWorkspace({
                     {/* Input Type Selector and Helper toggles */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-gray-100">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest shrink-0">Input Type:</label>
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest shrink-0 leading-tight">Input<br />Type</label>
                         <div className="flex p-0.5 bg-gray-100 rounded-lg">
-                          {(['text', 'tags', 'poll', 'mark'] as const).map((type) => {
+                          {(['text', 'tags', 'poll', 'mark', 'none'] as const).map((type) => {
                             const isSelected = (!dayContent.taskInputTypes?.[activeIdx] && type === 'text') || dayContent.taskInputTypes?.[activeIdx] === type;
                             return (
                               <button 
@@ -1422,40 +1422,7 @@ export default function DailyActionWorkspace({
         </div>
       </div>
 
-      {onSaveDraft && (
-        <button 
-          type="button"
-          id="fixed-workspace-save-draft-btn"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onSaveDraft();
-          }}
-          disabled={saveStatus === 'saving'}
-          className="fixed bottom-6 right-6 z-[250] px-5 py-3 bg-[#0E7850] hover:bg-[#0b5f3f] text-white rounded-xl shadow-lg hover:scale-102 active:scale-98 transition-all duration-300 flex items-center gap-2 cursor-pointer text-xs font-black uppercase tracking-wider border border-emerald-700/20"
-          title="Save Draft"
-        >
-          {saveStatus === 'saving' ? (
-            <>
-              <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              <span>Saving...</span>
-            </>
-          ) : saveStatus === 'saved' ? (
-            <>
-              <CheckCircle2 className="h-4 w-4 text-white" />
-              <span>Saved</span>
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              <span>Save Changes</span>
-            </>
-          )}
-        </button>
-      )}
+
 
       {/* General Content Hub bottom sheet */}
       {showHelpSheet && (

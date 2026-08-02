@@ -2606,7 +2606,19 @@ const EditSprint: React.FC = () => {
           )}
 
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden p-6">
-            <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6 px-1">Curriculum Timeline</h2>
+            <div className="flex items-center justify-between mb-6 px-1">
+              <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Curriculum Timeline</h2>
+              <button
+                type="button"
+                onClick={() => generateDayPDF(sprint, currentContent)}
+                className="p-1.5 text-gray-400 hover:text-primary transition-colors cursor-pointer"
+                title={`Download Day ${selectedDay}/${sprint.duration} PDF`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </button>
+            </div>
             <div className="flex overflow-x-auto gap-3 hide-scrollbar">
               {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => (
                 <button
@@ -2621,33 +2633,6 @@ const EditSprint: React.FC = () => {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Active Day PDF download Workspace control bar */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-white rounded-[2rem] border border-gray-100 shadow-sm animate-fade-in">
-              <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
-                      <BookOpen size={20} />
-                  </div>
-                  <div>
-                      <h3 className="text-sm font-black text-gray-950 uppercase tracking-wider">
-                          Active Workspace: Day {selectedDay} / {sprint.duration}
-                      </h3>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                          Curate your daily learning materials and interactive tasks.
-                      </p>
-                  </div>
-              </div>
-              <button
-                  type="button"
-                  onClick={() => generateDayPDF(sprint, currentContent)}
-                  className="flex items-center gap-2 px-5 py-3 bg-primary text-white hover:bg-primary/95 font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg hover:shadow-primary/20 transition-all cursor-pointer"
-              >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Download Day {selectedDay}/{sprint.duration} PDF
-              </button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in" key={selectedDay}>
@@ -3111,7 +3096,7 @@ const EditSprint: React.FC = () => {
                                             />
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2.5 pt-2 border-t border-gray-100">
                                                 <div className="flex items-center gap-2">
-                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0">Input Type:</label>
+                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest shrink-0 leading-tight">Input<br />Type</label>
                                                     <div className="flex items-center gap-1">
                                                         <div className="flex p-0.5 bg-gray-100 rounded-lg">
                                                             <button 
@@ -3146,6 +3131,14 @@ const EditSprint: React.FC = () => {
                                                                 title="Mark Complete Input: A simple checklist item that participants can mark as finished once they execute the action step."
                                                             >
                                                                 Mark
+                                                            </button>
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => handleTaskPromptTypeChange(index, 'none')}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'none' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                title="None: Action step with no input field — participants simply read and press next."
+                                                            >
+                                                                None
                                                             </button>
                                                         </div>
                                                         {(() => {

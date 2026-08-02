@@ -1066,6 +1066,17 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [taskInputs, setTaskInputs] = useState<string[]>(["", "", ""]);
   const [activeTaskIndex, setActiveTaskIndex] = useState(0);
 
+  useEffect(() => {
+    if (location.state?.resetPreview) {
+      setViewingDay(1);
+      setActiveTaskIndex(0);
+      setTaskInputs(["", "", ""]);
+      setIsReflectionModalOpen(false);
+      setIsDayCompletionModalOpen(false);
+      setIsCompletionModalOpen(false);
+    }
+  }, [location.state]);
+
   const isStepVisible = (stepIndex: number): boolean => {
     if (!dayContent) return true;
     
@@ -2067,9 +2078,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               day: viewingDay, 
               coinsUnlocked: viewingDay === 1 ? 10 : 0, 
               bridgeNote: dayContent?.bridgeNote,
-              sprintId: sprint?.id,
+              sprintId: sprint?.id || previewSprintId,
               sprint: sprint,
-              isPreview: true
+              isPreview: true,
+              returnToPreviewUrl: `/coach/sprint/preview/${sprint?.id || previewSprintId}`
             } 
           });
         }
@@ -3049,7 +3061,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         )}
                                       </button>
                                     </div>
-                                  ) : isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
+                                  ) : dayContent.taskInputTypes?.[i] === "none" ? null : isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
                                     <div className="space-y-4 animate-fade-in text-left">
                                       {getLinkedTagsForStep(i).map((tag, tagIndex) => {
                                         let currentAnswers: Record<string, string> = {};
@@ -3248,7 +3260,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                           dayContent.taskInputTypes?.[i] ===
                                           "mark";
                                         
-                                        let stepCompleted = isNote;
+                                        const isNone = dayContent.taskInputTypes?.[i] === "none";
+                                        let stepCompleted = isNote || isNone;
                                         if (isMark) {
                                           stepCompleted = val === "Completed";
                                         } else if (!isNote && !!val) {
@@ -3674,7 +3687,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 )}
                               </button>
                             </div>
-                          ) : isMultiTextStep(0) ? (
+                          ) : dayContent?.taskInputTypes?.[0] === "none" ? null : isMultiTextStep(0) ? (
                             <div className="space-y-4 animate-fade-in text-left">
                               {(dayContent?.taskMultiTextLabels?.[0] || []).map((lbl, lblIndex) => {
                                 let currentAnswers: Record<string, string> = {};
@@ -4069,9 +4082,25 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           if (location.state?.showCompletion) {
             localStorage.setItem("show_bonus_toast", "true");
           }
-          navigate("/dashboard", { replace: true });
+          if (isPreview) {
+            setViewingDay(1);
+            setActiveTaskIndex(0);
+            setTaskInputs(["", "", ""]);
+            setIsCompletionModalOpen(false);
+          } else {
+            navigate("/dashboard", { replace: true });
+          }
         }}
-        onStartNext={handleCompletionModalAction}
+        onStartNext={(rating) => {
+          if (isPreview) {
+            setViewingDay(1);
+            setActiveTaskIndex(0);
+            setTaskInputs(["", "", ""]);
+            setIsCompletionModalOpen(false);
+          } else {
+            handleCompletionModalAction(rating);
+          }
+        }}
         sprintTitle={sprint?.title}
         streakCount={(user as any)?.impactStats?.streak || 0}
       />

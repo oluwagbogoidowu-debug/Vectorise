@@ -65,10 +65,24 @@ const DaySuccessPage: React.FC = () => {
     window.open(WHATSAPP_GROUP_URL, '_blank', 'noopener,noreferrer');
   };
 
+  const handleExit = () => {
+    const isPreview = location.state?.isPreview || Boolean(location.state?.returnToPreviewUrl);
+    const sprintId = location.state?.sprintId;
+    const returnToPreviewUrl = location.state?.returnToPreviewUrl;
+
+    if (returnToPreviewUrl) {
+      navigate(returnToPreviewUrl, { replace: true, state: { resetPreview: true } });
+    } else if (isPreview && sprintId) {
+      navigate(`/coach/sprint/preview/${sprintId}`, { replace: true, state: { resetPreview: true } });
+    } else {
+      navigate('/');
+    }
+  };
+
   const handleCloseModal = () => {
     setShowWhatsAppModal(false);
     sessionStorage.removeItem('vectorise_wa_clicked');
-    navigate('/', { state: { scrollTo: 'step-up-your-rise' } });
+    handleExit();
   };
 
   const handleConfirmJoined = async () => {
@@ -87,7 +101,7 @@ const DaySuccessPage: React.FC = () => {
     sessionStorage.removeItem('vectorise_wa_clicked');
     setShowWhatsAppModal(false);
     triggerHaptic(hapticPatterns.success);
-    navigate('/', { state: { scrollTo: 'step-up-your-rise' } });
+    handleExit();
   };
 
   const handleTryAgain = () => {
@@ -186,7 +200,7 @@ const DaySuccessPage: React.FC = () => {
 
   const handleStepUp = () => {
     triggerHaptic(hapticPatterns.light);
-    navigate('/', { state: { scrollTo: 'step-up-your-rise' } });
+    handleExit();
   };
 
   const handleRemindMeTomorrow = async () => {
@@ -225,7 +239,7 @@ const DaySuccessPage: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => navigate('/')}
+          onClick={handleExit}
           className="w-9 h-9 bg-gray-100 hover:bg-gray-200 border border-gray-200/80 rounded-full flex items-center justify-center text-gray-600 transition-colors cursor-pointer active:scale-95 shrink-0"
           aria-label="Cancel"
         >

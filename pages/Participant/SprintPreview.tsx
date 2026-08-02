@@ -260,13 +260,15 @@ const SprintPreview: React.FC = () => {
 
     const handleCompletePreviewDay = () => {
         const d1Content = Array.isArray(sprint?.dailyContent) ? sprint?.dailyContent.find(dc => dc.day === 1) : undefined;
+        const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
         const daySuccessState = { 
             day: 1, 
             coinsUnlocked: 10, 
             bridgeNote: d1Content?.bridgeNote,
             sprintId: sprint?.id,
             sprint: sprint,
-            isPreview: true
+            isPreview: true,
+            returnToPreviewUrl: isCoachPreview ? `/coach/sprint/preview/${sprint?.id}` : `/sprint/${sprint?.id}`
         };
         navigate('/participant/day-success', { state: daySuccessState });
     };
@@ -1497,7 +1499,7 @@ const SprintPreview: React.FC = () => {
                                                     )}
                                                 </button>
                                             </div>
-                                        ) : (
+                                        ) : day1Content?.taskInputTypes?.[i] === "none" ? null : (
                                             isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
                                                  <div className="space-y-4 animate-fade-in text-left mb-4">
                                                      {getLinkedTagsForStep(i).map((tag, tagIndex) => {
@@ -1601,11 +1603,12 @@ const SprintPreview: React.FC = () => {
                                                 const isTags = day1Content?.taskInputTypes?.[i] === "tags";
                                                 const isNote = day1Content?.taskInputTypes?.[i] === "note";
                                                 const isMark = day1Content?.taskInputTypes?.[i] === "mark";
+                                                const isNone = day1Content?.taskInputTypes?.[i] === "none";
                                                 const val = taskInputs[i];
-                                                let stepCompleted = isNote;
+                                                let stepCompleted = isNote || isNone;
                                                 if (isMark) {
                                                     stepCompleted = val === "Completed";
-                                                } else if (!isNote && val) {
+                                                } else if (!isNote && !isNone && val) {
                                                     if (isTags || (day1Content?.taskInputTypes?.[i] === "poll" && !!day1Content?.taskPollMultiSelect?.[i])) {
                                                         stepCompleted = val !== "[]" && val !== "";
                                                     } else if (isLinkedTextStep(i)) {
