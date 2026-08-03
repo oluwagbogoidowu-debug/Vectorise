@@ -28,6 +28,7 @@ import {
     Check
 } from 'lucide-react';
 import { pushNotificationService } from '../../services/pushNotificationService';
+import { notificationService } from '../../services/notificationService';
 import { userService } from '../../services/userService';
 import CustomMultiSelect, { MultiSelectOption } from '../../components/CustomMultiSelect';
 
@@ -325,6 +326,19 @@ export default function AdminNotifications() {
         setSendingStates(prev => ({ ...prev, [actionKey]: { status: 'sending' } }));
 
         try {
+            // Also create in-app notification doc for each targeted user
+            await Promise.all(
+                selectedUserIds.map(uId => 
+                    notificationService.createNotification(
+                        uId, 
+                        'system_alert', 
+                        writeup.title, 
+                        writeup.body, 
+                        { actionUrl: writeup.url, bypassActiveCheck: true }
+                    ).catch(e => console.warn(`Failed to create in-app notif for ${uId}:`, e))
+                )
+            );
+
             const res = await pushNotificationService.broadcastPush(
                 selectedUserIds,
                 writeup.title,
@@ -373,6 +387,18 @@ export default function AdminNotifications() {
         setSendingStates(prev => ({ ...prev, [actionKey]: { status: 'sending' } }));
 
         try {
+            await Promise.all(
+                subscribedUserIds.map(uId => 
+                    notificationService.createNotification(
+                        uId, 
+                        'system_alert', 
+                        writeup.title, 
+                        writeup.body, 
+                        { actionUrl: writeup.url, bypassActiveCheck: true }
+                    ).catch(e => console.warn(`Failed to create in-app notif for ${uId}:`, e))
+                )
+            );
+
             const res = await pushNotificationService.broadcastPush(
                 subscribedUserIds,
                 writeup.title,

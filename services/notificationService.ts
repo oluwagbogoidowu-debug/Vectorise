@@ -45,6 +45,35 @@ export const notificationService = {
         expiresAt = expiryDate.toISOString();
       }
 
+      // 1. Attempt immediate FCM push delivery first
+      let pushSent = false;
+      let pushSentAt: string | null = null;
+      let pushFailed = false;
+      let lastPushError: string | null = null;
+
+      try {
+        const sent = await pushNotificationService.sendPush(
+          userId,
+          title,
+          body,
+          options.actionUrl || '/',
+          type === 'coach_message' ? 'coach-message' : type.replace(/_/g, '-'),
+          options.bypassActiveCheck || false
+        );
+        if (sent) {
+          pushSent = true;
+          pushSentAt = new Date().toISOString();
+        } else {
+          pushFailed = true;
+          lastPushError = 'Immediate FCM push returned false';
+        }
+      } catch (err: any) {
+        pushFailed = true;
+        lastPushError = err?.message || String(err);
+        console.warn("[NotificationService] Immediate push failed (queued for retry):", err);
+      }
+
+      // 2. Build and save notification document with accurate pushSent status
       const rawNotification: Omit<InAppNotification, 'id'> = {
         userId,
         type,
@@ -54,7 +83,11 @@ export const notificationService = {
         context: options.context || null,
         isRead: false,
         readAt: null,
-        pushSent: false,
+        pushSent,
+        pushFailed: pushSent ? false : pushFailed,
+        lastPushError: pushSent ? undefined : (lastPushError || undefined),
+        retryCount: pushSent ? 0 : 1,
+        nextRetryAt: pushSent ? undefined : new Date(Date.now() + 60000).toISOString() as any,
         createdAt: now.toISOString(),
         expiresAt: expiresAt,
         bypassActiveCheck: options.bypassActiveCheck || false,
@@ -70,43 +103,6 @@ export const notificationService = {
 
       const colRef = collection(db, 'users', userId, 'notifications');
       const docRef = await addDoc(colRef, sanitizeData(rawNotification));
-
-      // Trigger immediate FCM push notification on creation
-      try {
-        pushNotificationService.sendPush(
-          userId,
-          title,
-          body,
-          options.actionUrl || '/',
-          type === 'coach_message' ? 'coach-message' : type.replace(/_/g, '-'),
-          options.bypassActiveCheck || false
-        ).then((sent) => {
-          if (sent) {
-            updateDoc(docRef, {
-              pushSent: true,
-              pushSentAt: new Date().toISOString(),
-              pushFailed: false
-            }).catch(e => console.warn("[NotificationService] Failed to mark push as sent:", e));
-          } else {
-            updateDoc(docRef, {
-              pushFailed: true,
-              lastPushError: 'Immediate FCM push returned false',
-              retryCount: 1,
-              nextRetryAt: new Date(Date.now() + 60000)
-            }).catch(e => console.error("[NotificationService] Failed to mark for retry:", e));
-          }
-        }).catch(async (err) => {
-          console.error("[NotificationService] Immediate push failed:", err);
-          await updateDoc(docRef, {
-            pushFailed: true,
-            lastPushError: err?.message || String(err),
-            retryCount: 1,
-            nextRetryAt: new Date(Date.now() + 60000)
-          }).catch(e => console.error("[NotificationService] Failed to mark for retry:", e));
-        });
-      } catch (err) {
-        console.error("[NotificationService] Failed to trigger push via service:", err);
-      }
       
       return { id: docRef.id, ...rawNotification } as InAppNotification;
     } catch (error) {
@@ -174,41 +170,6 @@ export const notificationService = {
       snapshot.forEach((doc) => {
         notifications.push(sanitizeData({ id: doc.id, ...doc.data() }) as InAppNotification);
       });
-
-      // Display native browser push notification for newly added items if permission is granted
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added') {
-            const notif = change.doc.data() as any;
-            const createdAtTime = notif.createdAt ? new Date(notif.createdAt).getTime() : Date.now();
-            if (Date.now() - createdAtTime < 15000 && !notif.isRead) {
-              try {
-                const title = notif.title || 'Vectorise Message';
-                const options = {
-                  body: notif.body || '',
-                  icon: 'https://img.icons8.com/fluency-systems-filled/96/0E7850/chat.png',
-                  badge: 'https://lh3.googleusercontent.com/d/1iPPiCUwdOmGZ-KScVrvOpOw0LiauXE7X',
-                  data: { url: notif.actionUrl || '/' },
-                  tag: notif.type === 'coach_message' ? 'coach-message' : 'default',
-                  renotify: true
-                };
-
-                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                  navigator.serviceWorker.ready.then(reg => {
-                    reg.showNotification(title, options);
-                  }).catch(() => {
-                    new Notification(title, options);
-                  });
-                } else {
-                  new Notification(title, options);
-                }
-              } catch (e) {
-                console.warn('[NotificationService] Foreground notification error:', e);
-              }
-            }
-          }
-        });
-      }
       
       // Filter out expired and push-only/in-app-disabled notifications locally for safety
       const now = new Date().getTime();

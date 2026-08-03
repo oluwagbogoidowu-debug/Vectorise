@@ -237,11 +237,11 @@ export const userService = {
       
       const map = new Map<string, Coach>();
       snap1.forEach((doc) => {
-        const d = sanitizeData(doc.data()) as Coach;
+        const d = sanitizeData({ id: doc.id, ...doc.data() }) as Coach;
         map.set(doc.id, d);
       });
       snap2.forEach((doc) => {
-        const d = sanitizeData(doc.data()) as Coach;
+        const d = sanitizeData({ id: doc.id, ...doc.data() }) as Coach;
         map.set(doc.id, d);
       });
       
@@ -256,7 +256,7 @@ export const userService = {
       const q = query(collection(db, 'users'), where("role", "==", UserRole.COACH));
       const querySnapshot = await getDocs(q);
       const coaches: Coach[] = [];
-      querySnapshot.forEach((doc) => coaches.push(sanitizeData(doc.data()) as Coach));
+      querySnapshot.forEach((doc) => coaches.push(sanitizeData({ id: doc.id, ...doc.data() }) as Coach));
       return coaches;
     } catch (error) {
       return [];
@@ -268,7 +268,7 @@ export const userService = {
       const q = query(collection(db, 'users'), where("role", "==", UserRole.PARTICIPANT));
       const querySnapshot = await getDocs(q);
       const participants: Participant[] = [];
-      querySnapshot.forEach((doc) => participants.push(sanitizeData(doc.data()) as Participant));
+      querySnapshot.forEach((doc) => participants.push(sanitizeData({ id: doc.id, ...doc.data() }) as Participant));
       return participants;
     } catch (error) {
       return [];
@@ -280,7 +280,7 @@ export const userService = {
       const q = query(collection(db, 'users'));
       const querySnapshot = await getDocs(q);
       const allUsers: Participant[] = [];
-      querySnapshot.forEach((doc) => allUsers.push(sanitizeData(doc.data()) as Participant));
+      querySnapshot.forEach((doc) => allUsers.push(sanitizeData({ id: doc.id, ...doc.data() }) as Participant));
       return allUsers;
     } catch (error) {
       console.error("Error fetching all users:", error);

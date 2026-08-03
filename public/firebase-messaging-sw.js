@@ -27,12 +27,7 @@ const STATE_ICONS = {
 messaging.onBackgroundMessage((payload) => {
   console.log('[FCM Service Worker] Background message payload:', payload);
 
-  const title = payload.notification?.title || payload.data?.title || 'Vectorise';
-  const rawBody = payload.notification?.body || payload.data?.body || '';
-  const url = payload.data?.url || '/';
-  const tag = payload.data?.tag || 'default';
-
-  // Report delivery specifically for background if native push parsing is bypassed
+  // Report delivery specifically for background if logId is provided
   const logId = payload.data?.logId;
   if (logId) {
     fetch('/api/notifications/track-delivered', {
@@ -41,6 +36,17 @@ messaging.onBackgroundMessage((payload) => {
       body: JSON.stringify({ logId })
     }).catch(err => console.error('[FCM SW] Failed to confirm delivery:', err));
   }
+
+  // If payload already includes a notification payload object, Firebase Web SDK handles background notification display automatically.
+  // Returning early prevents the browser from showing duplicate notifications.
+  if (payload.notification) {
+    return;
+  }
+
+  const title = payload.data?.title || 'Vectorise';
+  const rawBody = payload.data?.body || '';
+  const url = payload.data?.url || '/';
+  const tag = payload.data?.tag || 'default';
 
   let stateIcon = STATE_ICONS.default;
   if (tag) {
@@ -54,7 +60,7 @@ messaging.onBackgroundMessage((payload) => {
 
   const notificationOptions = {
     body: rawBody,
-    icon: payload.notification?.image || payload.data?.icon || stateIcon,
+    icon: payload.data?.icon || stateIcon,
     badge: LOGO_MONO,
     color: '#0E7850',
     data: { url },

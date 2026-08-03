@@ -413,7 +413,7 @@ export interface RoleDefinition {
   permissions: string[] | Permission[];
 }
 
-export type NotificationType = 'sprint_day_unlocked' | 'payment_success' | 'coach_message' | 'sprint_completed' | 'referral_update' | 'shine_interaction' | 'sprint_nudge';
+export type NotificationType = 'sprint_day_unlocked' | 'payment_success' | 'coach_message' | 'sprint_completed' | 'referral_update' | 'shine_interaction' | 'sprint_nudge' | 'system_alert' | 'sprint_started';
 
 export interface Notification {
   id: string;

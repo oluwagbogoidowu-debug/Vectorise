@@ -76,7 +76,7 @@ export const pushNotificationManager = {
       const title = payload.title;
       const body = payload.body;
       
-      if (!userData.fcmToken || userData.notificationsDisabled) {
+      if (!userData.fcmToken || (userData.notificationsDisabled && !bypassActiveCheck)) {
         console.log(`[PushManager] User ${userId} has no fcmToken or notifications disabled.`);
         console.log({
           userId,
@@ -202,7 +202,8 @@ export const pushNotificationManager = {
             notification: {
               icon: 'https://img.icons8.com/fluency-systems-filled/96/0E7850/clock.png',
               badge: 'https://lh3.googleusercontent.com/d/1iPPiCUwdOmGZ-KScVrvOpOw0LiauXE7X',
-              clickAction: msgUrl
+              clickAction: msgUrl,
+              tag: msgTag || 'vectorise-notif'
             }
           }
         };

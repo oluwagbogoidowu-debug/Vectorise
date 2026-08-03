@@ -115,6 +115,55 @@ export const deserializeSprint = (sprint: any): any => {
 // In-memory cache for resolved sprint documents
 const sprintCache: Record<string, Sprint> = {};
 
+const notifyCoachesOnSprintStart = async (userId: string, sprintId: string, coachIdInput?: string) => {
+    try {
+        const { notificationService } = await import('./notificationService');
+        // 1. Fetch user details
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        const userData = userDoc.exists() ? userDoc.data() : null;
+        const userName = userData?.name || 'A participant';
+
+        // 2. Fetch sprint details
+        const sprint = await sprintService.getSprintById(sprintId);
+        const sprintTitle = sprint?.title || 'a sprint';
+
+        // 3. Determine target coach IDs to notify
+        const coachesToNotify = new Set<string>();
+        if (coachIdInput && coachIdInput.trim() !== '') {
+            coachesToNotify.add(coachIdInput.trim());
+        }
+        if (sprint?.coachId && sprint.coachId.trim() !== '') {
+            coachesToNotify.add(sprint.coachId.trim());
+        }
+
+        // Fetch all registered coaches so no assigned/available coach is missed
+        const coachesList = await userService.getCoaches();
+        coachesList.forEach(c => {
+            if (c.id && c.id !== userId) {
+                coachesToNotify.add(c.id);
+            }
+        });
+
+        const title = `🚀 New Sprint Started: ${sprintTitle}`;
+        const body = `${userName} just started "${sprintTitle}". Check the app to review their progress and respond!`;
+        const actionUrl = `/coach/sprints`;
+
+        for (const coachId of Array.from(coachesToNotify)) {
+            if (coachId && coachId !== userId) {
+                await notificationService.createNotification(
+                    coachId,
+                    'coach_message',
+                    title,
+                    body,
+                    { actionUrl, bypassActiveCheck: true }
+                ).catch(err => console.error(`[SprintService] Failed to notify coach ${coachId}:`, err));
+            }
+        }
+    } catch (err) {
+        console.error('[SprintService] Error in notifyCoachesOnSprintStart:', err);
+    }
+};
+
 export const sprintService = {
     incrementLinkClick: async (referralCode: string, sprintId?: string | null) => {
         try {
@@ -790,6 +839,11 @@ export const sprintService = {
 
         await setDoc(enrollmentRef, sanitizeData(newEnrollment));
         
+        // Notify coach(es) via push and in-app notification when a user starts a sprint
+        notifyCoachesOnSprintStart(userId, sprintId, commercial?.coachId).catch(err => 
+            console.warn("[SprintService] Failed to notify coach on sprint start:", err)
+        );
+
         if (newEnrollment.status === 'active') {
             await sprintService.checkReferralStart(userId);
         }
@@ -1088,6 +1142,11 @@ export const sprintService = {
                 started_at: now, // Reset start time to now when it actually starts
                 last_activity_at: now
             });
+
+            // Notify coach when queued sprint becomes active
+            notifyCoachesOnSprintStart(userId, nextSprint.sprint_id, nextSprint.coach_id).catch(err =>
+                console.warn("[SprintService] Failed to notify coach on queued sprint activation:", err)
+            );
 
             await sprintService.checkReferralStart(userId);
 

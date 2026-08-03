@@ -142,18 +142,10 @@ export function formatInterpolatedText(
       return `[Step ${stepNum}]`;
     }
 
-    const isMatchCapitalized = fullMatch.startsWith('{S');
-    const isStartOfSentence = offset === 0 || /[.!?]\s*$/.test(fullString.slice(0, offset));
-    const shouldCapitalize = isMatchCapitalized || isStartOfSentence;
-
-    const formattedItems = items.map((item, idx) => {
+    const formattedItems = items.map((item) => {
       const clean = item.trim();
       if (!clean) return '';
-      if (idx === 0 && shouldCapitalize) {
-        return clean.charAt(0).toUpperCase() + clean.slice(1);
-      } else {
-        return clean.toLowerCase();
-      }
+      return clean.toLowerCase();
     }).filter(Boolean);
 
     // If 1 item: no comma e.g. "eating"
