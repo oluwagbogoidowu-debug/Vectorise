@@ -267,8 +267,8 @@ const DaySuccessPage: React.FC = () => {
             </p>
           )}
 
-          {/* Remind me tomorrow button for unsubscribed users */}
-          {!isSubscribed && isSubscribedChecked && (
+          {/* Remind me tomorrow button for unsubscribed users (Day 2 onwards) */}
+          {completedDay >= 2 && !isSubscribed && isSubscribedChecked && (
             <div className="mt-6">
               <AnimatePresence mode="wait">
                 {!isSetForTomorrow ? (
@@ -302,8 +302,8 @@ const DaySuccessPage: React.FC = () => {
             </div>
           )}
 
-          {/* Simple WhatsApp Support Group CTA separated by a line from bridge note */}
-          {!user?.whatsappJoinedConfirmed && (
+          {/* Simple WhatsApp Support Group CTA on Day 1 */}
+          {completedDay === 1 && !user?.whatsappJoinedConfirmed && (
             <div className="mt-5 pt-4 border-t border-gray-200/80 w-full text-left">
               <p className="text-xs text-gray-600 font-medium leading-relaxed mb-2.5">
                 Join the WhatsApp support group to get daily reminders and stay on track.
