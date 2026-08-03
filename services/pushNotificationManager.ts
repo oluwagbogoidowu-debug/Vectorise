@@ -478,10 +478,10 @@ export const pushNotificationManager = {
       unlockTitle: "Today’s Focus: {sprintTitle}",
       unlockBody: "Day {currentDay} starts now. This step moves you forward. Start Task.",
       middayHour: 15,
-      middayTitle: "You haven’t completed today’s step",
+      middayTitle: "You haven’t completed today’s step ({sprintTitle})",
       middayBody: "Day {currentDay} is still open. Get it done before the day slips. Start Task.",
       eveningHour: 20,
-      eveningTitle: "Don’t break the streak",
+      eveningTitle: "Don’t break the streak ({sprintTitle})",
       eveningBody: "Finish Day {currentDay} before today ends. Keep your momentum. Start Task.",
       inactivityHour: 10,
       nudge_1: "Missing your momentum? Day {day} is waiting for you in '{title}'.",
@@ -628,7 +628,16 @@ export const pushNotificationManager = {
         const sprintTitle = sprint?.title || 'Gain Clarity First';
         const replaceParams = {
           sprintTitle: sprintTitle,
+          title: sprintTitle,
           currentDay: currentDay
+        };
+
+        const formatPushTitle = (titleTemplate: string) => {
+          let tmpl = titleTemplate || '';
+          if (!tmpl.includes('{sprintTitle}') && !tmpl.includes('{title}')) {
+            tmpl = `${tmpl} (${sprintTitle})`;
+          }
+          return getReplacedMessage(tmpl, replaceParams);
         };
 
         const userRef = db.collection('users').doc(user.id);
@@ -640,7 +649,7 @@ export const pushNotificationManager = {
           const alreadySentUnlock = lastUnlock && lastUnlock.startsWith(dateStr);
           if (!alreadySentUnlock) {
             const success = await pushNotificationManager.sendPush(user.id, {
-              title: getReplacedMessage(systemConfig.unlockTitle, replaceParams),
+              title: formatPushTitle(systemConfig.unlockTitle),
               body: getReplacedMessage(systemConfig.unlockBody, replaceParams),
               url: `/participant/sprint/${enrollment.id}`,
               tag: 'daily-unlock'
@@ -659,7 +668,7 @@ export const pushNotificationManager = {
           const alreadySentMidday = lastMidday && lastMidday.startsWith(dateStr);
           if (!alreadySentMidday) {
             const success = await pushNotificationManager.sendPush(user.id, {
-              title: getReplacedMessage(systemConfig.middayTitle, replaceParams),
+              title: formatPushTitle(systemConfig.middayTitle),
               body: getReplacedMessage(systemConfig.middayBody, replaceParams),
               url: `/participant/sprint/${enrollment.id}`,
               tag: 'midday-check'
@@ -678,7 +687,7 @@ export const pushNotificationManager = {
           const alreadySentEvening = lastEvening && lastEvening.startsWith(dateStr);
           if (!alreadySentEvening) {
             const success = await pushNotificationManager.sendPush(user.id, {
-              title: getReplacedMessage(systemConfig.eveningTitle, replaceParams),
+              title: formatPushTitle(systemConfig.eveningTitle),
               body: getReplacedMessage(systemConfig.eveningBody, replaceParams),
               url: `/participant/sprint/${enrollment.id}`,
               tag: 'evening-reminder'

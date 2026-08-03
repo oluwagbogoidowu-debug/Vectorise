@@ -120,11 +120,11 @@ export default function AdminNotifications() {
     const [unlockBody, setUnlockBody] = useState("Day {currentDay} starts now. This step moves you forward. Start Task.");
     
     const [middayHour, setMiddayHour] = useState(15);
-    const [middayTitle, setMiddayTitle] = useState("You haven’t completed today’s step");
+    const [middayTitle, setMiddayTitle] = useState("You haven’t completed today’s step ({sprintTitle})");
     const [middayBody, setMiddayBody] = useState("Day {currentDay} is still open. Get it done before the day slips. Start Task.");
     
     const [eveningHour, setEveningHour] = useState(20);
-    const [eveningTitle, setEveningTitle] = useState("Don’t break the streak");
+    const [eveningTitle, setEveningTitle] = useState("Don’t break the streak ({sprintTitle})");
     const [eveningBody, setEveningBody] = useState("Finish Day {currentDay} before today ends. Keep your momentum. Start Task.");
 
     const [inactivityHour, setInactivityHour] = useState(10);
