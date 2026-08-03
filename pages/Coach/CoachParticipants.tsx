@@ -218,17 +218,6 @@ const CoachParticipants: React.FC = () => {
 
         try {
             await chatService.sendMessage(newMessage);
-            
-            await notificationService.createNotification(
-                viewingSubmission.enrollment.user_id, 
-                'coach_message',
-                'New Coaching Guidance',
-                `Coach ${user.name} sent feedback for Day ${viewingSubmission.day} of ${viewingSubmission.enrollment.sprint.title}`,
-                { 
-                    actionUrl: `/participant/sprint/${viewingSubmission.enrollment.id}?day=${viewingSubmission.day}&openChat=true`,
-                    bypassActiveCheck: true
-                }
-            );
 
             setFeedbackSent(true);
             setFeedbackText('');

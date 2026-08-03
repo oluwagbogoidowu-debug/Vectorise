@@ -1,7 +1,7 @@
 
 import { db } from './firebase';
 import { collection, addDoc, query, where, updateDoc, doc, onSnapshot, limit } from 'firebase/firestore';
-import { Notification, NotificationType, ParticipantSprint, Sprint } from '../types';
+import type { Notification as InAppNotification, NotificationType, ParticipantSprint, Sprint } from '../types';
 import { sanitizeData } from './userService';
 import { pushNotificationService } from './pushNotificationService';
 
@@ -45,7 +45,7 @@ export const notificationService = {
         expiresAt = expiryDate.toISOString();
       }
 
-      const rawNotification: Omit<Notification, 'id'> = {
+      const rawNotification: Omit<InAppNotification, 'id'> = {
         userId,
         type,
         title,
@@ -108,7 +108,7 @@ export const notificationService = {
         console.error("[NotificationService] Failed to trigger push via service:", err);
       }
       
-      return { id: docRef.id, ...rawNotification } as Notification;
+      return { id: docRef.id, ...rawNotification } as InAppNotification;
     } catch (error) {
       console.error("Error creating notification:", error);
       throw error;
@@ -157,7 +157,7 @@ export const notificationService = {
   /**
    * Real-time subscription to user notifications.
    */
-  subscribeToNotifications: (userId: string, callback: (notifications: Notification[]) => void) => {
+  subscribeToNotifications: (userId: string, callback: (notifications: InAppNotification[]) => void) => {
     if (!userId || typeof userId !== 'string') {
         callback([]);
         return () => {};
@@ -170,10 +170,45 @@ export const notificationService = {
     );
 
     return onSnapshot(q, (snapshot) => {
-      const notifications: Notification[] = [];
+      const notifications: InAppNotification[] = [];
       snapshot.forEach((doc) => {
-        notifications.push(sanitizeData({ id: doc.id, ...doc.data() }) as Notification);
+        notifications.push(sanitizeData({ id: doc.id, ...doc.data() }) as InAppNotification);
       });
+
+      // Display native browser push notification for newly added items if permission is granted
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const notif = change.doc.data() as any;
+            const createdAtTime = notif.createdAt ? new Date(notif.createdAt).getTime() : Date.now();
+            if (Date.now() - createdAtTime < 15000 && !notif.isRead) {
+              try {
+                const title = notif.title || 'Vectorise Message';
+                const options = {
+                  body: notif.body || '',
+                  icon: 'https://img.icons8.com/fluency-systems-filled/96/0E7850/chat.png',
+                  badge: 'https://lh3.googleusercontent.com/d/1iPPiCUwdOmGZ-KScVrvOpOw0LiauXE7X',
+                  data: { url: notif.actionUrl || '/' },
+                  tag: notif.type === 'coach_message' ? 'coach-message' : 'default',
+                  renotify: true
+                };
+
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                  navigator.serviceWorker.ready.then(reg => {
+                    reg.showNotification(title, options);
+                  }).catch(() => {
+                    new Notification(title, options);
+                  });
+                } else {
+                  new Notification(title, options);
+                }
+              } catch (e) {
+                console.warn('[NotificationService] Foreground notification error:', e);
+              }
+            }
+          }
+        });
+      }
       
       // Filter out expired and push-only/in-app-disabled notifications locally for safety
       const now = new Date().getTime();

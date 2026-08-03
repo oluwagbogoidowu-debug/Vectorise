@@ -34,35 +34,70 @@ export const chatService = {
       const docRef = await addDoc(colRef, sanitized);
       const fullMessage = { ...sanitized, id: docRef.id } as CoachingComment;
 
-      // Trigger Logic: Notify the other party
-      // If author is coach, notify student
-      // If author is student, notify coach (using system logic)
+      // Determine sender and recipient
       const sprint = await sprintService.getSprintById(message.sprintId);
-      const isCoach = message.authorId === sprint?.coachId;
-      const targetUserId = isCoach ? message.participantId : sprint?.coachId;
+      const isCoachSending = message.authorId !== message.participantId;
 
-      if (targetUserId && sprint) {
+      let targetUserId: string | undefined = undefined;
+      let notificationTitle = '';
+      let actionUrl = '';
+
+      if (isCoachSending) {
+        // Coach sent a response to student
+        targetUserId = message.participantId;
+
+        let coachName = '';
+        try {
+          const coachUser = await userService.getUserDocument(message.authorId);
+          if (coachUser?.name) coachName = coachUser.name;
+        } catch (e) {}
+
+        notificationTitle = coachName ? `Response from Coach ${coachName}` : 'New Message from Coach';
+        actionUrl = `/participant/sprint/${message.sprintId}?day=${message.day}&openChat=true`;
+      } else {
+        // Student sent a message to coach
+        let coachId = sprint?.coachId;
+        if (!coachId || coachId.trim() === '') {
+          try {
+            const coaches = await userService.getAllCoaches();
+            if (coaches && coaches.length > 0) {
+              coachId = coaches[0].id;
+            }
+          } catch (e) {}
+        }
+        targetUserId = coachId || 'admin1';
+
+        let studentName = '';
+        try {
+          const studentUser = await userService.getUserDocument(message.authorId);
+          if (studentUser?.name) studentName = studentUser.name;
+        } catch (e) {}
+
+        notificationTitle = studentName ? `New Message from Student (${studentName})` : 'New Message from Student';
+        actionUrl = `/coach/participants?participantId=${message.participantId}&sprintId=${message.sprintId}&day=${message.day}`;
+      }
+
+      if (targetUserId) {
         await notificationService.createNotification(
           targetUserId,
           'coach_message',
-          isCoach ? 'Message from Coach' : 'Message from Student',
-          `${message.content.substring(0, 60)}${message.content.length > 60 ? '...' : ''}`,
+          notificationTitle,
+          `${message.content.substring(0, 80)}${message.content.length > 80 ? '...' : ''}`,
           { 
-            actionUrl: isCoach 
-              ? `/participant/sprint/${message.participantId}?day=${message.day}&openChat=true` 
-              : `/coach/participants`, // Coach tracker for coaches
+            actionUrl,
             context: { 
               sprintId: message.sprintId, 
               day: message.day,
               participantId: message.participantId 
             },
-            bypassActiveCheck: true // Always push coach/student messages immediately
+            bypassActiveCheck: true // Send push notification immediately
           }
         );
       }
 
       return fullMessage;
     } catch (error: any) {
+      console.error("Error in chatService.sendMessage:", error);
       return { ...message, id: `local_${Date.now()}` } as CoachingComment;
     }
   },
