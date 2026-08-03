@@ -1107,7 +1107,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     if (!dayContent) return true;
     
     const pollLink = dayContent.taskPollOptionLinks?.[stepIndex];
-    if (!pollLink) {
+    if (!pollLink || pollLink === 'none' || pollLink === 'null') {
       return true;
     }
 
@@ -1122,7 +1122,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     }
 
     if (pollIdx === -1) {
-      return true;
+      if (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0 || dayContent.taskInputTypes[0] === 'poll') {
+        pollIdx = 0;
+      } else {
+        return true;
+      }
     }
 
     const selection = taskInputs[pollIdx];
@@ -1157,7 +1161,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
     const match = pollOptions.some((opt, optIndex) => {
       const tag = `poll ${optIndex + 1}`;
-      return tag === pollLink && selectedOptions.includes(opt);
+      if (tag === pollLink) {
+        return selectedOptions.includes(opt) || selectedOptions.includes(tag) || selectedOptions.includes(String(optIndex + 1));
+      }
+      return false;
     });
 
     return match;
@@ -1320,6 +1327,24 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const dayContent = Array.isArray(sprint?.dailyContent)
     ? sprint?.dailyContent.find((dc) => dc.day === viewingDay)
     : undefined;
+
+  useEffect(() => {
+    if (dayContent?.taskPrompts && dayContent.taskPrompts.length > 0) {
+      if (!isStepVisible(activeTaskIndex)) {
+        const nextVis = getNextVisibleStepIndex(activeTaskIndex);
+        if (nextVis !== -1) {
+          setActiveTaskIndex(nextVis);
+        } else {
+          const prevVis = getPrevVisibleStepIndex(activeTaskIndex);
+          if (prevVis !== -1) {
+            setActiveTaskIndex(prevVis);
+          } else {
+            setActiveTaskIndex(0);
+          }
+        }
+      }
+    }
+  }, [taskInputs, activeTaskIndex, dayContent]);
 
   const getLinkedTagsForStep = (stepIndex: number): string[] => {
     if (!dayContent) return [];
@@ -2361,7 +2386,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       if (!isStepVisible(i)) return true;
 
       const type = dayContent.taskInputTypes?.[i] || "text";
-      if (type === "note") return true;
+      if (type === "note" || type === "none") return true;
 
       const val = taskInputs[i];
       if (!val) return false;

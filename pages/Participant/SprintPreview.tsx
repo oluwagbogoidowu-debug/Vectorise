@@ -824,7 +824,7 @@ const SprintPreview: React.FC = () => {
         if (!day1Content) return true;
         
         const pollLink = day1Content.taskPollOptionLinks?.[stepIndex];
-        if (!pollLink) {
+        if (!pollLink || pollLink === 'none' || pollLink === 'null') {
             return true;
         }
 
@@ -839,7 +839,11 @@ const SprintPreview: React.FC = () => {
         }
 
         if (pollIdx === -1) {
-            return true;
+            if (!day1Content.taskInputTypes || day1Content.taskInputTypes.length === 0 || day1Content.taskInputTypes[0] === 'poll') {
+                pollIdx = 0;
+            } else {
+                return true;
+            }
         }
 
         const selection = taskInputs[pollIdx];
@@ -874,7 +878,10 @@ const SprintPreview: React.FC = () => {
 
         const match = pollOptions.some((opt, optIndex) => {
             const tag = `poll ${optIndex + 1}`;
-            return tag === pollLink && selectedOptions.includes(opt);
+            if (tag === pollLink) {
+                return selectedOptions.includes(opt) || selectedOptions.includes(tag) || selectedOptions.includes(String(optIndex + 1));
+            }
+            return false;
         });
 
         return match;
@@ -926,6 +933,24 @@ const SprintPreview: React.FC = () => {
         }
         return count;
     };
+
+    useEffect(() => {
+        if (day1Content?.taskPrompts && day1Content.taskPrompts.length > 0) {
+            if (!isStepVisible(activeTaskIndex)) {
+                const nextVis = getNextVisibleStepIndex(activeTaskIndex);
+                if (nextVis !== -1) {
+                    setActiveTaskIndex(nextVis);
+                } else {
+                    const prevVis = getPrevVisibleStepIndex(activeTaskIndex);
+                    if (prevVis !== -1) {
+                        setActiveTaskIndex(prevVis);
+                    } else {
+                        setActiveTaskIndex(0);
+                    }
+                }
+            }
+        }
+    }, [taskInputs, activeTaskIndex, day1Content]);
 
     const getLinkedTagsForStep = (stepIndex: number): string[] => {
         if (!day1Content) return [];

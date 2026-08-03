@@ -507,9 +507,10 @@ export default function DailyActionWorkspace({
   };
 
   const findNearestPrecedingPoll = (dayContent: DailyContent | undefined, currentIndex: number) => {
-    if (!dayContent || !dayContent.taskInputTypes) return -1;
+    if (!dayContent) return -1;
     for (let i = currentIndex - 1; i >= 0; i--) {
-      if (dayContent.taskInputTypes[i] === 'poll') {
+      const type = dayContent.taskInputTypes?.[i];
+      if ((type as string) === 'poll' || (i === 0 && (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0 || (type as string) === 'poll'))) {
         return i;
       }
     }
@@ -1221,7 +1222,7 @@ export default function DailyActionWorkspace({
                             <span>Branching Path (Linked to Poll Step {pollIdx + 1})</span>
                           </div>
                           <p className="text-[10px] text-gray-500 leading-normal">
-                            Choose if this question should only show when a specific option is clicked in the poll at Step {pollIdx + 1}. If unlinked, it shows normally.
+                            Choose if this step (Text, Poll, Mark, Note, or None/Action) should only show when a specific option is clicked in the poll at Step {pollIdx + 1}. If unlinked, it shows as a neutral step in sequence.
                           </p>
                           <div className="flex flex-wrap gap-1.5 mt-1">
                             <button
