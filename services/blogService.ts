@@ -8,7 +8,7 @@ export interface BlogPost {
   title: string;
   excerpt: string;
   content: string;
-  category: 'Mindset' | 'Execution' | 'Micro-Habits' | 'Influence';
+  category: 'Mindset' | 'Execution' | 'Micro-Habits' | 'Influence' | string;
   readTime: string;
   publishedAt: string;
   author: {
@@ -18,7 +18,36 @@ export interface BlogPost {
   };
   coverImage: string;
   likes: number;
+  audience?: string[];
 }
+
+export const slugify = (text: string): string => {
+  if (!text) return '';
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+};
+
+export const getBlogPostUrl = (post: { id: string; title: string; audience?: string[] }): string => {
+  let audienceSlug = 'general';
+  const rawAudience = post.audience;
+  if (Array.isArray(rawAudience)) {
+    const cleanedAudience = rawAudience.map(a => String(a).trim()).filter(Boolean);
+    if (cleanedAudience.length === 1) {
+      audienceSlug = slugify(cleanedAudience[0]) || 'general';
+    } else {
+      audienceSlug = 'general';
+    }
+  } else if (typeof rawAudience === 'string' && (rawAudience as string).trim()) {
+    audienceSlug = slugify(rawAudience) || 'general';
+  }
+
+  const titleSlug = slugify(post.title) || post.id;
+  return `/${audienceSlug}/${titleSlug}`;
+};
 
 export const SEED_BLOG_SPRINTS: Sprint[] = [
   {
@@ -154,7 +183,8 @@ export const blogService = {
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80'
       },
       coverImage: found.blogImage || found.coverImageUrl || '',
-      likes: found.likes || 0
+      likes: found.likes || 0,
+      audience: found.audience || []
     };
   },
   likePost: (id: string): void => {

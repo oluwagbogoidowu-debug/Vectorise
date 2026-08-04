@@ -17,7 +17,7 @@ import {
   signInWithPopup 
 } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
-import { userService } from '../../services/userService';
+import { userService, safeJSONStringify } from '../../services/userService';
 
 import { toast } from 'sonner';
 
@@ -334,7 +334,7 @@ const SprintPreview: React.FC = () => {
             prefilledEmail: prefilledEmail || '',
             updatedAt: new Date().toISOString()
         };
-        localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
+        localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
     }, [sprint, taskInputs, activeTaskIndex, user, prefilledEmail]);
 
     useEffect(() => {
@@ -514,7 +514,7 @@ const SprintPreview: React.FC = () => {
                 sprintId: sprint?.id
             };
 
-            sessionStorage.setItem('post_verify_redirect', JSON.stringify({
+            sessionStorage.setItem('post_verify_redirect', safeJSONStringify({
                 path: '/participant/day-success',
                 state: daySuccessState
             }));
@@ -1332,7 +1332,7 @@ const SprintPreview: React.FC = () => {
                                                                 taskInputs: taskInputs,
                                                                 prefilledEmail: prefilledEmail || ''
                                                             };
-                                                            localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
+                                                            localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
                                                             setShowLockModal(true);
                                                         }
                                                     }
@@ -1715,7 +1715,7 @@ const SprintPreview: React.FC = () => {
                                                                     firstActionInput: taskInputs[0],
                                                                     prefilledEmail: prefilledEmail || ''
                                                                 };
-                                                                localStorage.setItem('pending_first_action', JSON.stringify(pendingObj));
+                                                                localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
                                                                 setShowLockModal(true);
                                                             }
                                                         }}

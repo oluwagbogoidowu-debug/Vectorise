@@ -133,6 +133,40 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
     return cleaned;
 };
 
+/**
+ * Safe JSON stringify that strips circular references and Firestore/Firebase internals.
+ */
+export const safeJSONStringify = (val: any): string => {
+    try {
+        const cleaned = sanitizeData(val);
+        return JSON.stringify(cleaned);
+    } catch (err) {
+        console.warn("[safeJSONStringify] Primary sanitize failed, using replacer fallback:", err);
+        try {
+            const seen = new WeakSet();
+            return JSON.stringify(val, (_key, value) => {
+                if (typeof value === 'object' && value !== null) {
+                    if (seen.has(value)) return undefined;
+                    seen.add(value);
+                    const constructorName = value.constructor?.name || '';
+                    if (
+                        /^[A-Z][a-z0-9]$|^[A-Z]\$[0-9]$/.test(constructorName) ||
+                        ['Y2', 'Ka', 'Sa', 'Q$1', 't', 'Reference', 'Query', 'Snapshot'].includes(constructorName) ||
+                        constructorName.includes('Firebase') ||
+                        constructorName.includes('Firestore')
+                    ) {
+                        return undefined;
+                    }
+                    if (value.i && value.src) return undefined;
+                }
+                return value;
+            });
+        } catch (e) {
+            return '{}';
+        }
+    }
+};
+
 export const userService = {
   queueNotification,
   createUserDocument: async (uid: string, data: Partial<User | Participant | Coach>) => {

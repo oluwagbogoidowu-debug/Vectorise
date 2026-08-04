@@ -192,6 +192,7 @@ export const AppRoutes: React.FC = () => {
       <Route element={<ParticipantLayout />}>
          <Route path="/blog" element={<RiseBlog />} />
          <Route path="/blog/:postId" element={<RiseBlog />} />
+         <Route path="/:audienceSlug/:blogSlug" element={<RiseBlog />} />
       </Route>
       
       <Route path="/participant/sprint/:enrollmentId" element={

@@ -2,7 +2,7 @@
 import { db } from './firebase';
 import { collection, collectionGroup, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review, Track } from '../types';
-import { sanitizeData, userService } from './userService';
+import { sanitizeData, safeJSONStringify, userService } from './userService';
 import { ensureSeedBlogsInFirestore } from './blogService';
 
 const cleanDetailsData = (raw: any): any => {
@@ -230,7 +230,7 @@ export const sprintService = {
             if (resolved) {
                 sprintCache[sprintId] = resolved;
                 try {
-                    localStorage.setItem(cacheKey, JSON.stringify(resolved));
+                    localStorage.setItem(cacheKey, safeJSONStringify(resolved));
                 } catch (err) {
                     console.error("Failed to save to localStorage:", err);
                 }
@@ -317,9 +317,9 @@ export const sprintService = {
                         sprintCache[resolved.id] = resolved;
                     }
                     try {
-                        localStorage.setItem(cacheKey, JSON.stringify(resolved));
+                        localStorage.setItem(cacheKey, safeJSONStringify(resolved));
                         if (resolved.id) {
-                            localStorage.setItem(`vectorise_sprint_cache_${resolved.id}`, JSON.stringify(resolved));
+                            localStorage.setItem(`vectorise_sprint_cache_${resolved.id}`, safeJSONStringify(resolved));
                         }
                     } catch (err) {
                         console.error("Failed to save sprint to localStorage cache:", err);

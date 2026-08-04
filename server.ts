@@ -52,6 +52,131 @@ async function startServer() {
   app.post('/api/send', sendHandler);
   app.get('/api/og', ogHandler);
 
+  // Dynamic Sitemap XML handler
+  app.get('/sitemap.xml', async (req: any, res: any) => {
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'vectorise.app';
+    const protocol = req.headers['x-forwarded-proto'] || 'https';
+    const baseUrl = `${protocol}://${host}`;
+
+    const slugify = (text: string): string => {
+      if (!text) return '';
+      return text
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    };
+
+    const staticRoutes = [
+      { url: '/', priority: '1.0', changefreq: 'daily' },
+      { url: '/discover', priority: '0.8', changefreq: 'daily' },
+      { url: '/blog', priority: '0.9', changefreq: 'daily' },
+      { url: '/login', priority: '0.5', changefreq: 'monthly' },
+      { url: '/signup', priority: '0.5', changefreq: 'monthly' },
+      { url: '/partner/apply', priority: '0.6', changefreq: 'monthly' },
+      { url: '/privacy-policy', priority: '0.3', changefreq: 'monthly' },
+      { url: '/terms', priority: '0.3', changefreq: 'monthly' },
+      { url: '/refund-policy', priority: '0.3', changefreq: 'monthly' }
+    ];
+
+    let dynamicRoutes: Array<{ url: string; lastmod: string; priority: string; changefreq: string }> = [];
+
+    try {
+      if (db) {
+        const snapshot = await db.collection('sprints').get();
+        snapshot.forEach((docSnap: any) => {
+          const data = docSnap.data();
+          if (data.deleted === true || data.published === false) return;
+
+          let lastmodDate = new Date();
+          if (data.updatedAt) {
+            try {
+              lastmodDate = typeof data.updatedAt.toDate === 'function' ? data.updatedAt.toDate() : new Date(data.updatedAt);
+            } catch (e) {
+              lastmodDate = new Date();
+            }
+          }
+          const lastmod = isNaN(lastmodDate.getTime()) ? new Date().toISOString() : lastmodDate.toISOString();
+
+          if (data.contentType === 'blog' && (data.approvalStatus === 'approved' || !data.approvalStatus)) {
+            let audienceSlug = 'general';
+            if (Array.isArray(data.audience)) {
+              const cleaned = data.audience.map((a: any) => String(a).trim()).filter(Boolean);
+              if (cleaned.length === 1) {
+                audienceSlug = slugify(cleaned[0]) || 'general';
+              }
+            } else if (typeof data.audience === 'string' && data.audience.trim()) {
+              audienceSlug = slugify(data.audience) || 'general';
+            }
+
+            const titleSlug = slugify(data.title || data.blogTitle || docSnap.id) || docSnap.id;
+            dynamicRoutes.push({
+              url: `/${audienceSlug}/${titleSlug}`,
+              lastmod,
+              priority: '0.8',
+              changefreq: 'weekly'
+            });
+          } else if (data.contentType !== 'blog' && data.contentType !== 'ignite') {
+            dynamicRoutes.push({
+              url: `/sprint/preview/${docSnap.id}`,
+              lastmod,
+              priority: '0.7',
+              changefreq: 'weekly'
+            });
+          }
+        });
+      }
+    } catch (err) {
+      console.error('[Sitemap] Error fetching dynamic pages from Firestore:', err);
+    }
+
+    const nowIso = new Date().toISOString();
+    const allRoutes = [
+      ...staticRoutes.map(r => ({ ...r, lastmod: nowIso })),
+      ...dynamicRoutes
+    ];
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${allRoutes.map(route => `  <url>
+    <loc>${baseUrl}${route.url}</loc>
+    <lastmod>${route.lastmod}</lastmod>
+    <changefreq>${route.changefreq}</changefreq>
+    <priority>${route.priority}</priority>
+  </url>`).join('\n')}
+</urlset>`;
+
+    res.header('Content-Type', 'application/xml');
+    res.send(xml);
+  });
+
+  // Dynamic robots.txt handler
+  app.get('/robots.txt', (req: any, res: any) => {
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'vectorise.app';
+    const protocol = req.headers['x-forwarded-proto'] || 'https';
+    const baseUrl = `${protocol}://${host}`;
+
+    const content = `User-agent: *
+Allow: /
+Allow: /blog
+Allow: /discover
+Allow: /sprint/preview/
+Allow: /general/
+Allow: /student/
+Allow: /students/
+
+Disallow: /admin/
+Disallow: /coach/
+Disallow: /participant/
+Disallow: /api/
+
+Sitemap: ${baseUrl}/sitemap.xml`;
+
+    res.header('Content-Type', 'text/plain');
+    res.send(content);
+  });
+
   // Puppeteer image card generation endpoint
   app.all(['/generate', '/api/generate'], async (req: any, res: any) => {
     const data = req.method === 'POST' ? req.body : req.query;

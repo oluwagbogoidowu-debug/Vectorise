@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { blogService, BlogPost } from '../../services/blogService';
+import { blogService, BlogPost, getBlogPostUrl, slugify } from '../../services/blogService';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { Sprint, Coach } from '../../types';
@@ -11,7 +11,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 export const RiseBlog: React.FC = () => {
   const { user } = useAuth();
-  const { postId } = useParams<{ postId?: string }>();
+  const { postId, audienceSlug, blogSlug } = useParams<{ postId?: string; audienceSlug?: string; blogSlug?: string }>();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -88,7 +88,8 @@ export const RiseBlog: React.FC = () => {
         },
         coverImage: sprint.blogImage || sprint.coverImageUrl || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
         likes: (sprint as any).likes || 0,
-        createdAt: sprint.createdAt || new Date().toISOString()
+        createdAt: sprint.createdAt || new Date().toISOString(),
+        audience: sprint.audience || []
       };
     });
 
@@ -164,7 +165,7 @@ export const RiseBlog: React.FC = () => {
 
   const handleShare = (post: BlogPost, e: React.MouseEvent) => {
     e.stopPropagation();
-    const url = `${window.location.origin}/blog/${post.id}`;
+    const url = `${window.location.origin}${getBlogPostUrl(post)}`;
     navigator.clipboard.writeText(url);
     toast.success('Link copied to clipboard!', {
       description: 'Share this spark of growth with your tribe.'
@@ -173,14 +174,22 @@ export const RiseBlog: React.FC = () => {
 
   // Find active post for details view
   const activePost = useMemo(() => {
-    if (!postId) {
-      if (!user && posts.length > 0) {
-        return posts[0];
-      }
-      return null;
+    if (postId) {
+      return posts.find(p => p.id === postId) || blogService.getPostById(postId);
     }
-    return posts.find(p => p.id === postId) || blogService.getPostById(postId);
-  }, [postId, posts, user]);
+    if (blogSlug) {
+      const targetAudience = (audienceSlug || 'general').toLowerCase();
+      const targetSlug = blogSlug.toLowerCase();
+      const match = posts.find(p => {
+        const url = getBlogPostUrl(p).toLowerCase();
+        const expectedUrl = `/${targetAudience}/${targetSlug}`;
+        return url === expectedUrl || slugify(p.title) === targetSlug || p.id === targetSlug;
+      });
+      if (match) return match;
+      return posts.find(p => p.id === blogSlug) || blogService.getPostById(blogSlug);
+    }
+    return null;
+  }, [postId, audienceSlug, blogSlug, posts]);
 
   // Helper to parse content with titles/bold lists nicely (Markdown compliant)
   const renderFormattedContent = (content: string) => {
@@ -428,7 +437,7 @@ export const RiseBlog: React.FC = () => {
                   <div 
                     key={post.id}
                     onClick={() => {
-                      navigate(`/blog/${post.id}`);
+                      navigate(getBlogPostUrl(post));
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                     className="bg-white rounded-3xl border border-gray-100 p-4 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-300 cursor-pointer flex gap-4 group"
@@ -519,7 +528,7 @@ export const RiseBlog: React.FC = () => {
               <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em]">Featured Spark</p>
             </div>
             <div 
-              onClick={() => navigate(`/blog/${featuredPost.id}`)}
+              onClick={() => navigate(getBlogPostUrl(featuredPost))}
               className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 cursor-pointer group"
             >
               <div className="relative h-48 overflow-hidden">
@@ -596,7 +605,7 @@ export const RiseBlog: React.FC = () => {
               return (
                 <div 
                   key={post.id}
-                  onClick={() => navigate(`/blog/${post.id}`)}
+                  onClick={() => navigate(getBlogPostUrl(post))}
                   className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-300 cursor-pointer flex gap-4 group"
                 >
                   <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 relative">
