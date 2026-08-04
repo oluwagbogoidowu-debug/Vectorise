@@ -27,7 +27,8 @@ export default function DailyActionWorkspace({
   const [selectedText, setSelectedText] = useState('');
   const [activeStepIndices, setActiveStepIndices] = useState<Record<number, number>>({});
   const [activeLinkSelectorIndex, setActiveLinkSelectorIndex] = useState<number | null>(null);
-  const [activeLinkSelectorType, setActiveLinkSelectorType] = useState<'tag' | 'text' | null>(null);
+  const [activeLinkSelectorType, setActiveLinkSelectorType] = useState<'tag' | 'text' | 'poll' | null>(null);
+  const [selectedPollTarget, setSelectedPollTarget] = useState<Record<number, number>>({});
   const [addingCustomOption, setAddingCustomOption] = useState<Record<number, boolean>>({});
   const [lastAssignedField, setLastAssignedField] = useState<string | null>(null);
   const [showHelpSheet, setShowHelpSheet] = useState(false);
@@ -1046,13 +1047,18 @@ export default function DailyActionWorkspace({
 
                           const precedingDaysTagOnlySteps = precedingDaysSteps.filter(item => item.type === 'tags' || item.type === 'poll');
                           const precedingDaysTextOnlySteps = precedingDaysSteps.filter(item => item.type === 'text' || !item.type);
-
                           const hasPrecedingForTagLink = precedingTagSteps.length > 0 || precedingDaysSteps.length > 0;
                           const hasPrecedingTexts = precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
 
+                          const precedingPollSteps = (dayContent.taskInputTypes || [])
+                            .map((type, idx) => ({ type, idx }))
+                            .filter(item => item.idx < activeIdx && (item.type === 'poll' || (item.idx === 0 && (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0))));
+
                           const showTagLink = hasPrecedingForTagLink && (dayContent.taskInputTypes?.[activeIdx] === 'tags' || dayContent.taskInputTypes?.[activeIdx] === 'poll');
                           const showTextLink = hasPrecedingTexts && (dayContent.taskInputTypes?.[activeIdx] === 'text' || !dayContent.taskInputTypes?.[activeIdx]);
+                          const showPollBranchLink = precedingPollSteps.length > 0;
                           const hasSelectedSources = (dayContent.taskLinkedSources?.[activeIdx]?.length || 0) > 0;
+                          const currentPollLink = dayContent.taskPollOptionLinks?.[activeIdx];
 
                           return (
                             <div className="flex items-center gap-1.5 ml-1">
@@ -1117,6 +1123,34 @@ export default function DailyActionWorkspace({
                                   {hasSelectedSources && (
                                     <span className="ml-0.5 text-[9px] font-black bg-emerald-600 text-white rounded-full px-1 min-w-[12px]">
                                       {dayContent.taskLinkedSources?.[activeIdx]?.length}
+                                    </span>
+                                  )}
+                                </button>
+                              )}
+                              {showPollBranchLink && (
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDay(dayNum);
+                                    if (activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'poll') {
+                                      setActiveLinkSelectorIndex(null);
+                                    } else {
+                                      setActiveLinkSelectorIndex(activeIdx);
+                                      setActiveLinkSelectorType('poll');
+                                    }
+                                  }}
+                                  title={currentPollLink ? `Branching Link Active: ${currentPollLink}. Click to edit or disconnect.` : "Link Poll Branching: Connect this step to a specific option in a preceding poll."}
+                                  className={`p-1 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'poll' ? 'bg-purple-650 text-white shadow-sm ring-2 ring-purple-100' : currentPollLink ? 'bg-purple-100 text-purple-700 border border-purple-200 font-bold' : 'bg-gray-150 text-gray-400 hover:text-gray-650'}`}
+                                >
+                                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M6 3v12" />
+                                    <circle cx="18" cy="6" r="3" />
+                                    <circle cx="6" cy="18" r="3" />
+                                    <path d="M18 9a9 9 0 0 1-9 9" />
+                                  </svg>
+                                  {currentPollLink && (
+                                    <span className="ml-0.5 text-[9px] font-black bg-purple-600 text-white rounded-full px-1 min-w-[12px]">
+                                      ✓
                                     </span>
                                   )}
                                 </button>
@@ -1200,30 +1234,108 @@ export default function DailyActionWorkspace({
 
                     {/* Poll Option Branching Selector */}
                     {(() => {
-                      const pollIdx = findNearestPrecedingPoll(dayContent, activeIdx);
-                      if (pollIdx === -1) return null;
+                      const precedingPolls = (dayContent.taskInputTypes || [])
+                        .map((type, idx) => ({ type, idx }))
+                        .filter(item => item.idx < activeIdx && (item.type === 'poll' || (item.idx === 0 && (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0))));
+
+                      if (precedingPolls.length === 0) return null;
+
+                      const currentLink = dayContent.taskPollOptionLinks?.[activeIdx];
+                      const isSelectedByIcon = activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'poll';
+
+                      if (!currentLink && !isSelectedByIcon) return null;
+
+                      let targetPollIdx = -1;
+                      if (currentLink && currentLink.includes(":")) {
+                        const parts = currentLink.split(":");
+                        targetPollIdx = parseInt(parts[0].replace("step", ""), 10);
+                      } else if (currentLink) {
+                        targetPollIdx = findNearestPrecedingPoll(dayContent, activeIdx);
+                      } else {
+                        targetPollIdx = selectedPollTarget[activeIdx] !== undefined 
+                          ? selectedPollTarget[activeIdx] 
+                          : findNearestPrecedingPoll(dayContent, activeIdx);
+                      }
+
+                      if (!precedingPolls.some(p => p.idx === targetPollIdx)) {
+                        targetPollIdx = precedingPolls[precedingPolls.length - 1]?.idx ?? -1;
+                      }
+                      if (targetPollIdx === -1) return null;
 
                       let pollOptions: string[] = [];
-                      if (dayContent.taskPollOptions?.[pollIdx]) {
+                      if (dayContent.taskPollOptions?.[targetPollIdx]) {
                         try {
-                          pollOptions = JSON.parse(dayContent.taskPollOptions[pollIdx]);
+                          pollOptions = JSON.parse(dayContent.taskPollOptions[targetPollIdx]);
                         } catch (e) {}
                       }
                       pollOptions = pollOptions.filter(Boolean);
 
-                      const currentLink = dayContent.taskPollOptionLinks?.[activeIdx];
-
                       return (
-                        <div className="mt-3 p-3 bg-purple-50/45 border border-purple-100 rounded-xl space-y-2 text-left">
-                          <div className="text-[10px] font-black text-purple-700 uppercase tracking-widest flex items-center gap-1.5">
-                            <svg className="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                            </svg>
-                            <span>Branching Path (Linked to Poll Step {pollIdx + 1})</span>
+                        <div className="mt-3 p-3 bg-purple-50/45 border border-purple-100 rounded-xl space-y-2.5 text-left animate-fade-in relative z-20">
+                          <div className="text-[10px] font-black text-purple-700 uppercase tracking-widest flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <svg className="w-3.5 h-3.5 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M6 3v12" />
+                                <circle cx="18" cy="6" r="3" />
+                                <circle cx="6" cy="18" r="3" />
+                                <path d="M18 9a9 9 0 0 1-9 9" />
+                              </svg>
+                              <span>Branching Path Link (Step {activeIdx + 1})</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {currentLink && (
+                                <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                                  Linked: {currentLink}
+                                </span>
+                              )}
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  if (activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'poll') {
+                                    setActiveLinkSelectorIndex(null);
+                                  }
+                                  if (currentLink) {
+                                    handleSetPollOptionLink(dayNum, activeIdx, null);
+                                  }
+                                }}
+                                className="text-gray-400 hover:text-gray-600 text-[10px] font-bold cursor-pointer"
+                                title="Close / Disconnect link"
+                              >
+                                ✕
+                              </button>
+                            </div>
                           </div>
-                          <p className="text-[10px] text-gray-500 leading-normal">
-                            Choose if this step (Text, Poll, Mark, Note, or None/Action) should only show when a specific option is clicked in the poll at Step {pollIdx + 1}. If unlinked, it shows as a neutral step in sequence.
+
+                          {precedingPolls.length > 1 && (
+                            <div className="space-y-1">
+                              <div className="text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+                                Select preceding Poll Step to link from:
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {precedingPolls.map(p => {
+                                  const isTarget = targetPollIdx === p.idx;
+                                  const promptText = dayContent.taskPrompts?.[p.idx] || `Step ${p.idx + 1}`;
+                                  return (
+                                    <button
+                                      key={p.idx}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedPollTarget(prev => ({ ...prev, [activeIdx]: p.idx }));
+                                      }}
+                                      className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${isTarget ? 'bg-purple-700 text-white border-purple-700 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                                    >
+                                      Step {p.idx + 1} Poll ({promptText.slice(0, 15)}{promptText.length > 15 ? '...' : ''})
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          <p className="text-[10px] text-gray-500 leading-normal font-medium">
+                            Choose if this step should only show when a specific option is clicked in Step {targetPollIdx + 1} Poll. If unlinked, it shows as a normal sequential step.
                           </p>
+
                           <div className="flex flex-wrap gap-1.5 mt-1">
                             <button
                               type="button"
@@ -1231,24 +1343,25 @@ export default function DailyActionWorkspace({
                                 setSelectedDay(dayNum);
                                 handleSetPollOptionLink(dayNum, activeIdx, null);
                               }}
-                              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${!currentLink ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-white text-gray-550 border-gray-200 hover:bg-gray-50'}`}
+                              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${!currentLink ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
                             >
                               Normal Progression (Always)
                             </button>
                             {pollOptions.map((opt, optIdx) => {
                               const tag = `poll ${optIdx + 1}`;
-                              const isSelected = currentLink === tag;
+                              const fullLinkValue = `step${targetPollIdx}:${tag}`;
+                              const isSelected = currentLink === fullLinkValue || (targetPollIdx === findNearestPrecedingPoll(dayContent, activeIdx) && currentLink === tag);
                               return (
                                 <button
                                   key={optIdx}
                                   type="button"
                                   onClick={() => {
                                     setSelectedDay(dayNum);
-                                    handleSetPollOptionLink(dayNum, activeIdx, tag);
+                                    handleSetPollOptionLink(dayNum, activeIdx, fullLinkValue);
                                   }}
                                   className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${isSelected ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
                                 >
-                                  If Option {optIdx + 1}: "{opt}" ({tag})
+                                  If Option {optIdx + 1}: "{opt}"
                                 </button>
                               );
                             })}

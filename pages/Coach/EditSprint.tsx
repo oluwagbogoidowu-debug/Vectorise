@@ -298,7 +298,8 @@ const EditSprint: React.FC = () => {
   const [previewTaskIndex, setPreviewTaskIndex] = useState(0);
   const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
   const [activeLinkSelectorIndex, setActiveLinkSelectorIndex] = useState<number | null>(null);
-  const [activeLinkSelectorType, setActiveLinkSelectorType] = useState<'tag' | 'text' | null>(null);
+  const [activeLinkSelectorType, setActiveLinkSelectorType] = useState<'tag' | 'text' | 'poll' | null>(null);
+  const [selectedPollTarget, setSelectedPollTarget] = useState<Record<number, number>>({});
   const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
   const [addingCustomOption, setAddingCustomOption] = useState<Record<number, boolean>>({});
   const [expandedStepEarlierDays, setExpandedStepEarlierDays] = useState<Record<number, boolean>>({});
@@ -3213,6 +3214,8 @@ const EditSprint: React.FC = () => {
 
                                                             const showTagLink = hasPrecedingForTagLink && (currentContent.taskInputTypes?.[index] === 'tags' || currentContent.taskInputTypes?.[index] === 'poll');
                                                             const showTextLink = hasPrecedingTexts && (currentContent.taskInputTypes?.[index] === 'text' || !currentContent.taskInputTypes?.[index]);
+																const showPollBranchLink = (currentContent.taskInputTypes || []).map((type, idx) => ({ type, idx })).filter(item => item.idx < index && (item.type === 'poll' || (item.idx === 0 && (!currentContent.taskInputTypes || currentContent.taskInputTypes.length === 0)))).length > 0;
+																const currentPollLink = currentContent.taskPollOptionLinks?.[index];
                                                             
                                                             const hasSelectedSources = (currentContent.taskLinkedSources?.[index]?.length || 0) > 0;
 
@@ -3270,6 +3273,33 @@ const EditSprint: React.FC = () => {
                                                                             {hasSelectedSources && (
                                                                                 <span className="ml-1 text-[10px] font-black bg-emerald-600 text-white rounded-full px-1 min-w-[14px]">
                                                                                     {currentContent.taskLinkedSources?.[index]?.length}
+                                                                                </span>
+                                                                            )}
+                                                                        </button>
+                                                                    )}
+                                                                    {showPollBranchLink && (
+                                                                        <button 
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                if (activeLinkSelectorIndex === index && activeLinkSelectorType === 'poll') {
+                                                                                    setActiveLinkSelectorIndex(null);
+                                                                                } else {
+                                                                                    setActiveLinkSelectorIndex(index);
+                                                                                    setActiveLinkSelectorType('poll');
+                                                                                }
+                                                                            }}
+                                                                            title={currentPollLink ? `Branching Link Active: ${currentPollLink}. Click to edit or disconnect.` : "Link Poll Branching: Click to connect this step to a specific option in a preceding poll."}
+                                                                            className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index && activeLinkSelectorType === 'poll' ? 'bg-purple-650 text-white shadow-sm ring-2 ring-purple-100' : currentPollLink ? 'bg-purple-100 text-purple-700 border border-purple-200 font-bold' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                                                        >
+                                                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                                <path d="M6 3v12" />
+                                                                                <circle cx="18" cy="6" r="3" />
+                                                                                <circle cx="6" cy="18" r="3" />
+                                                                                <path d="M18 9a9 9 0 0 1-9 9" />
+                                                                            </svg>
+                                                                            {currentPollLink && (
+                                                                                <span className="ml-1 text-[10px] font-black bg-purple-600 text-white rounded-full px-1 min-w-[14px]">
+                                                                                    ✓
                                                                                 </span>
                                                                             )}
                                                                         </button>
@@ -3797,20 +3827,43 @@ const EditSprint: React.FC = () => {
                                             {/* Poll Option Branching Selector */}
                                             {(() => {
                                                 const pollIdx = findNearestPrecedingPoll(currentContent, index);
-                                                if (pollIdx === -1) return null;
+												const precedingPolls = (currentContent.taskInputTypes || [])
+													.map((type, idx) => ({ type, idx }))
+													.filter(item => item.idx < index && (item.type === 'poll' || (item.idx === 0 && (!currentContent.taskInputTypes || currentContent.taskInputTypes.length === 0))));
 
+												if (precedingPolls.length === 0) return null;
+
+												const currentLink = currentContent.taskPollOptionLinks?.[index];
+												const isSelectedByIcon = activeLinkSelectorIndex === index && activeLinkSelectorType === 'poll';
+
+												if (!currentLink && !isSelectedByIcon) return null;
+
+												let targetPollIdx = -1;
+												if (currentLink && currentLink.includes(":")) {
+													const parts = currentLink.split(":");
+													targetPollIdx = parseInt(parts[0].replace("step", ""), 10);
+												} else if (currentLink) {
+													targetPollIdx = findNearestPrecedingPoll(currentContent, index);
+												} else {
+													targetPollIdx = selectedPollTarget[index] !== undefined 
+														? selectedPollTarget[index] 
+														: findNearestPrecedingPoll(currentContent, index);
+												}
+
+												if (!precedingPolls.some(p => p.idx === targetPollIdx)) {
+													targetPollIdx = precedingPolls[precedingPolls.length - 1]?.idx ?? -1;
+												}
+												if (targetPollIdx === -1) return null;
                                                 let pollOptions: string[] = [];
-                                                if (currentContent.taskPollOptions?.[pollIdx]) {
+                                                if (currentContent.taskPollOptions?.[targetPollIdx]) {
                                                     try {
-                                                        pollOptions = JSON.parse(currentContent.taskPollOptions[pollIdx]);
+                                                        pollOptions = JSON.parse(currentContent.taskPollOptions[targetPollIdx]);
                                                     } catch (e) {}
                                                 }
                                                 pollOptions = pollOptions.filter(Boolean);
 
-                                                const currentLink = currentContent.taskPollOptionLinks?.[index];
-
                                                 return (
-                                                    <div className="mt-3 p-3 bg-purple-50/45 border border-purple-100 rounded-xl space-y-2 text-left">
+                                                    <div className="mt-3 p-3 bg-purple-50/45 border border-purple-100 rounded-xl space-y-2.5 text-left animate-fade-in relative z-20">
                                                         <div className="text-[10px] font-black text-purple-700 uppercase tracking-widest flex items-center justify-between">
                                                             <div className="flex items-center gap-1.5">
                                                                 <button
@@ -3824,18 +3877,61 @@ const EditSprint: React.FC = () => {
                                                                 <svg className="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                                                                 </svg>
-                                                                <span>Branching Path (Linked to Poll Step {pollIdx + 1})</span>
+                                                                <span>Branching Path Link (Step {index + 1})</span>
                                                             </div>
-                                                            {currentLink && (
-                                                                <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
-                                                                    Linked: {currentLink}
-                                                                </span>
-                                                            )}
+                                                            <div className="flex items-center gap-2">
+                                                                {currentLink && (
+                                                                    <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                                                                        Linked: {currentLink}
+                                                                    </span>
+                                                                )}
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        if (activeLinkSelectorIndex === index && activeLinkSelectorType === 'poll') {
+                                                                            setActiveLinkSelectorIndex(null);
+                                                                        }
+                                                                        if (currentLink) {
+                                                                            handleSetPollOptionLink(index, null);
+                                                                        }
+                                                                    }}
+                                                                    className="text-gray-400 hover:text-gray-600 text-[10px] font-bold cursor-pointer"
+                                                                    title="Close / Disconnect link"
+                                                                >
+                                                                    ✕
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                         {!collapsedBranchingPaths[index] && (
                                                             <>
+                                                                {precedingPolls.length > 1 && (
+                                                                    <div className="space-y-1">
+                                                                        <div className="text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+                                                                            Select preceding Poll Step to link from:
+                                                                        </div>
+                                                                        <div className="flex flex-wrap gap-1.5">
+                                                                            {precedingPolls.map(p => {
+                                                                                const isTarget = targetPollIdx === p.idx;
+                                                                                const promptText = currentContent.taskPrompts?.[p.idx] || `Step ${p.idx + 1}`;
+                                                                                return (
+                                                                                    <button
+                                                                                        key={p.idx}
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            setSelectedPollTarget(prev => ({ ...prev, [index]: p.idx }));
+                                                                                        }}
+                                                                                        className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${isTarget ? 'bg-purple-700 text-white border-purple-700 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                                                                                    >
+                                                                                        Step {p.idx + 1} Poll ({promptText.slice(0, 15)}{promptText.length > 15 ? '...' : ''})
+                                                                                    </button>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
                                                                 <p className="text-[10px] text-gray-500 leading-normal font-medium">
-                                                                    Choose if this step (Text, Poll, Mark, Note, or None/Action) should only show when a specific option is clicked in the poll at Step {pollIdx + 1}. If unlinked, it shows as a neutral step in sequence.
+                                                                    Choose if this step should only show when a specific option is clicked in Step {targetPollIdx + 1} Poll. If unlinked, it shows as a normal sequential step.
                                                                 </p>
                                                                 <div className="flex flex-wrap gap-1.5 mt-1">
                                                                     <button
@@ -3849,17 +3945,18 @@ const EditSprint: React.FC = () => {
                                                                     </button>
                                                                     {pollOptions.map((opt, optIdx) => {
                                                                         const tag = `poll ${optIdx + 1}`;
-                                                                        const isSelected = currentLink === tag;
+                                                                        const fullLinkValue = `step${targetPollIdx}:${tag}`;
+                                                                        const isSelected = currentLink === fullLinkValue || (targetPollIdx === findNearestPrecedingPoll(currentContent, index) && currentLink === tag);
                                                                         return (
                                                                             <button
                                                                                 key={optIdx}
                                                                                 type="button"
                                                                                 onClick={() => {
-                                                                                    handleSetPollOptionLink(index, tag);
+                                                                                    handleSetPollOptionLink(index, fullLinkValue);
                                                                                 }}
                                                                                 className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${isSelected ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
                                                                             >
-                                                                                If Option {optIdx + 1}: "{opt}" ({tag})
+                                                                                If Option {optIdx + 1}: "{opt}"
                                                                             </button>
                                                                         );
                                                                     })}

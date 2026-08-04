@@ -829,22 +829,33 @@ const SprintPreview: React.FC = () => {
         }
 
         let pollIdx = -1;
-        if (day1Content.taskInputTypes) {
-            for (let i = stepIndex - 1; i >= 0; i--) {
-                if (day1Content.taskInputTypes[i] === 'poll') {
-                    pollIdx = i;
-                    break;
+        let targetLinkTag = pollLink;
+
+        if (pollLink.includes(":")) {
+            const parts = pollLink.split(":");
+            const stepPart = parts[0].replace("step", "");
+            pollIdx = parseInt(stepPart, 10);
+            targetLinkTag = parts[1];
+        } else {
+            if (day1Content.taskInputTypes) {
+                for (let i = stepIndex - 1; i >= 0; i--) {
+                    if (day1Content.taskInputTypes[i] === 'poll') {
+                        pollIdx = i;
+                        break;
+                    }
+                }
+            }
+
+            if (pollIdx === -1) {
+                if (!day1Content.taskInputTypes || day1Content.taskInputTypes.length === 0 || day1Content.taskInputTypes[0] === 'poll') {
+                    pollIdx = 0;
+                } else {
+                    return true;
                 }
             }
         }
 
-        if (pollIdx === -1) {
-            if (!day1Content.taskInputTypes || day1Content.taskInputTypes.length === 0 || day1Content.taskInputTypes[0] === 'poll') {
-                pollIdx = 0;
-            } else {
-                return true;
-            }
-        }
+        if (pollIdx < 0) return true;
 
         const selection = taskInputs[pollIdx];
         if (!selection) {
@@ -878,7 +889,7 @@ const SprintPreview: React.FC = () => {
 
         const match = pollOptions.some((opt, optIndex) => {
             const tag = `poll ${optIndex + 1}`;
-            if (tag === pollLink) {
+            if (tag === targetLinkTag) {
                 return selectedOptions.includes(opt) || selectedOptions.includes(tag) || selectedOptions.includes(String(optIndex + 1));
             }
             return false;

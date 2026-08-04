@@ -1113,22 +1113,33 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     }
 
     let pollIdx = -1;
-    if (dayContent.taskInputTypes) {
-      for (let i = stepIndex - 1; i >= 0; i--) {
-        if (dayContent.taskInputTypes[i] === 'poll') {
-          pollIdx = i;
-          break;
+    let targetLinkTag = pollLink;
+
+    if (pollLink.includes(":")) {
+      const parts = pollLink.split(":");
+      const stepPart = parts[0].replace("step", "");
+      pollIdx = parseInt(stepPart, 10);
+      targetLinkTag = parts[1];
+    } else {
+      if (dayContent.taskInputTypes) {
+        for (let i = stepIndex - 1; i >= 0; i--) {
+          if (dayContent.taskInputTypes[i] === 'poll') {
+            pollIdx = i;
+            break;
+          }
+        }
+      }
+
+      if (pollIdx === -1) {
+        if (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0 || dayContent.taskInputTypes[0] === 'poll') {
+          pollIdx = 0;
+        } else {
+          return true;
         }
       }
     }
 
-    if (pollIdx === -1) {
-      if (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0 || dayContent.taskInputTypes[0] === 'poll') {
-        pollIdx = 0;
-      } else {
-        return true;
-      }
-    }
+    if (pollIdx < 0) return true;
 
     const selection = taskInputs[pollIdx];
     if (!selection) {
@@ -1162,7 +1173,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
     const match = pollOptions.some((opt, optIndex) => {
       const tag = `poll ${optIndex + 1}`;
-      if (tag === pollLink) {
+      if (tag === targetLinkTag) {
         return selectedOptions.includes(opt) || selectedOptions.includes(tag) || selectedOptions.includes(String(optIndex + 1));
       }
       return false;
