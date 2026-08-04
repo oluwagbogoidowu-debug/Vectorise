@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Allow: /blog
+Allow: /discover
+Allow: /sprint/preview/
+Allow: /general/
+Allow: /student/
+Allow: /students/
+
+Disallow: /admin/
+Disallow: /coach/
+Disallow: /participant/
+Disallow: /api/
+
+Sitemap: https://vectorise.app/sitemap.xml
