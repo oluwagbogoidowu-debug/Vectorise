@@ -210,6 +210,10 @@ export const sprintService = {
         // Parent document is kept completely empty to store sprint details purely in subcollections
         await setDoc(doc(db, SPRINTS_COLLECTION, sprint.id), {});
         await sprintService._writeSubcollections(sprint.id, newSprint);
+        sprintCache[sprint.id] = newSprint;
+        try {
+            localStorage.setItem(`vectorise_sprint_cache_${sprint.id}`, safeJSONStringify(newSprint));
+        } catch (e) {}
         return newSprint;
     },
 
@@ -240,27 +244,29 @@ export const sprintService = {
         }
     },
 
-    getSprintById: async (sprintId: string): Promise<Sprint | null> => {
+    getSprintById: async (sprintId: string, forceRefresh: boolean = false): Promise<Sprint | null> => {
         if (!sprintId) return null;
         const cacheKey = `vectorise_sprint_cache_${sprintId}`;
         
-        // 1. Check in-memory cache first
-        if (sprintCache[sprintId]) {
+        // 1. Check in-memory cache first (skip if forceRefresh is true)
+        if (!forceRefresh && sprintCache[sprintId]) {
             sprintService.fetchAndCacheSprintInBackground(sprintId).catch(() => {});
             return sprintCache[sprintId];
         }
 
-        // 2. Check localStorage cache
-        try {
-            const localCached = localStorage.getItem(cacheKey);
-            if (localCached) {
-                const parsed = JSON.parse(localCached);
-                sprintCache[sprintId] = parsed;
-                sprintService.fetchAndCacheSprintInBackground(sprintId).catch(() => {});
-                return parsed;
+        // 2. Check localStorage cache (skip if forceRefresh is true)
+        if (!forceRefresh) {
+            try {
+                const localCached = localStorage.getItem(cacheKey);
+                if (localCached) {
+                    const parsed = JSON.parse(localCached);
+                    sprintCache[sprintId] = parsed;
+                    sprintService.fetchAndCacheSprintInBackground(sprintId).catch(() => {});
+                    return parsed;
+                }
+            } catch (e) {
+                console.error("Error reading sprint from localStorage cache:", e);
             }
-        } catch (e) {
-            console.error("Error reading sprint from localStorage cache:", e);
         }
 
         // 3. No cache available. Let's fetch from Firestore with resilient fallbacks
@@ -699,8 +705,16 @@ export const sprintService = {
                     await setDoc(daysSubDocRef, dayData);
                 }
             }
+
+            // Update in-memory and localStorage cache
+            const updatedSprintObj = { ...sprintData, id: sprintId, updatedAt: detailsData.updatedAt };
+            sprintCache[sprintId] = updatedSprintObj;
+            try {
+                localStorage.setItem(`vectorise_sprint_cache_${sprintId}`, safeJSONStringify(updatedSprintObj));
+            } catch (err) {}
         } catch (err) {
             console.error("Error writing subcollections:", err);
+            throw err;
         }
     },
 
@@ -958,7 +972,7 @@ export const sprintService = {
         
         try {
             // Fetch existing details from subcollection OR parent doc as fallback
-            let existingDetails = {};
+            let existingDetails: any = {};
             const detailsSnap = await getDoc(detailsRef);
             if (detailsSnap.exists()) {
                 existingDetails = sanitizeData(detailsSnap.data());
@@ -968,6 +982,17 @@ export const sprintService = {
                     existingDetails = sanitizeData(parentSnap.data());
                 }
             }
+
+            // Also fetch existing days if data doesn't include dailyContent so dailyContent is preserved
+            if (!data.dailyContent && !existingDetails.dailyContent) {
+                try {
+                    const daysSnap = await getDocs(collection(db, SPRINTS_COLLECTION, sprintId, 'days'));
+                    if (!daysSnap.empty) {
+                        const days = daysSnap.docs.map(d => sanitizeData(d.data())).sort((a: any, b: any) => (a.day || 0) - (b.day || 0));
+                        existingDetails.dailyContent = days;
+                    }
+                } catch (e) {}
+            }
             
             // Construct the merged data to write back to subcollections
             const mergedSub = { ...existingDetails, ...data, updatedAt: new Date().toISOString() };
@@ -976,8 +1001,14 @@ export const sprintService = {
 
             // Ensure the parent doc is completely empty to satisfies single subcollection source of truth ONLY after successful subcollections sync
             await setDoc(sprintRef, {});
+
+            sprintCache[sprintId] = mergedSub;
+            try {
+                localStorage.setItem(`vectorise_sprint_cache_${sprintId}`, safeJSONStringify(mergedSub));
+            } catch (e) {}
         } catch (e) {
             console.error("Failed to sync subcollections in updateSprint", e);
+            throw e;
         }
     },
 
@@ -1071,7 +1102,7 @@ export const sprintService = {
                 }
             }
 
-            const finalData = { ...existingDetails, ...(data || {}), approvalStatus: 'approved', published: true, updatedAt: new Date().toISOString() };
+            const finalData = { ...existingDetails, ...(data || {}), id: sprintId, approvalStatus: 'approved' as const, published: true, updatedAt: new Date().toISOString() };
             if ((finalData as any).pendingChanges) {
                 delete (finalData as any).pendingChanges;
             }
@@ -1080,8 +1111,14 @@ export const sprintService = {
 
             // Entirely clear parent document fields ONLY after writing subcollections successfully
             await setDoc(sprintRef, {});
+
+            sprintCache[sprintId] = finalData as Sprint;
+            try {
+                localStorage.setItem(`vectorise_sprint_cache_${sprintId}`, safeJSONStringify(finalData));
+            } catch (e) {}
         } catch (e) {
             console.error("Failed to sync subcollections in approveSprint", e);
+            throw e;
         }
     },
 

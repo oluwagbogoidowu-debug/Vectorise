@@ -12,4 +12,4 @@ Disallow: /coach/
 Disallow: /participant/
 Disallow: /api/
 
-Sitemap: https://vectorise.app/sitemap.xml
+Sitemap: https://vectorise.online/sitemap.xml

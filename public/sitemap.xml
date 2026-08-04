@@ -1,55 +1,55 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://vectorise.app/</loc>
+    <loc>https://vectorise.online/</loc>
     <lastmod>2026-08-04T00:00:00.000Z</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://vectorise.app/discover</loc>
+    <loc>https://vectorise.online/discover</loc>
     <lastmod>2026-08-04T00:00:00.000Z</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://vectorise.app/blog</loc>
+    <loc>https://vectorise.online/blog</loc>
     <lastmod>2026-08-04T00:00:00.000Z</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://vectorise.app/login</loc>
+    <loc>https://vectorise.online/login</loc>
     <lastmod>2026-08-04T00:00:00.000Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://vectorise.app/signup</loc>
+    <loc>https://vectorise.online/signup</loc>
     <lastmod>2026-08-04T00:00:00.000Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://vectorise.app/partner/apply</loc>
+    <loc>https://vectorise.online/partner/apply</loc>
     <lastmod>2026-08-04T00:00:00.000Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://vectorise.app/privacy-policy</loc>
+    <loc>https://vectorise.online/privacy-policy</loc>
     <lastmod>2026-08-04T00:00:00.000Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://vectorise.app/terms</loc>
+    <loc>https://vectorise.online/terms</loc>
     <lastmod>2026-08-04T00:00:00.000Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://vectorise.app/refund-policy</loc>
+    <loc>https://vectorise.online/refund-policy</loc>
     <lastmod>2026-08-04T00:00:00.000Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>

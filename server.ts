@@ -54,7 +54,7 @@ async function startServer() {
 
   // Dynamic Sitemap XML handler
   app.get('/sitemap.xml', async (req: any, res: any) => {
-    const host = req.headers['x-forwarded-host'] || req.headers.host || 'vectorise.app';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'vectorise.online';
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const baseUrl = `${protocol}://${host}`;
 
@@ -153,7 +153,7 @@ ${allRoutes.map(route => `  <url>
 
   // Dynamic robots.txt handler
   app.get('/robots.txt', (req: any, res: any) => {
-    const host = req.headers['x-forwarded-host'] || req.headers.host || 'vectorise.app';
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'vectorise.online';
     const protocol = req.headers['x-forwarded-proto'] || 'https';
     const baseUrl = `${protocol}://${host}`;
 

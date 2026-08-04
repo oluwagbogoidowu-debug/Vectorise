@@ -626,7 +626,7 @@ const EditSprint: React.FC = () => {
 
     const loadSprint = async () => {
       try {
-        const found = await sprintService.getSprintById(sprintId);
+        const found = await sprintService.getSprintById(sprintId, true);
         if (found) {
           if (timeoutId) clearTimeout(timeoutId);
           
@@ -707,7 +707,7 @@ const EditSprint: React.FC = () => {
           // If not found, wait a bit before giving up (handles race conditions on creation)
           if (!timeoutId) {
             timeoutId = setTimeout(async () => {
-              const retryFound = await sprintService.getSprintById(sprintId);
+              const retryFound = await sprintService.getSprintById(sprintId, true);
               if (retryFound) {
                 loadSprint();
               } else {
@@ -1760,7 +1760,7 @@ const EditSprint: React.FC = () => {
 
       if (isDirectPush) {
           // Apply all changes directly to the main document
-          updatedSprintData = { ...changes };
+          updatedSprintData = { ...sprint };
 
           if (isAdmin && isFoundational) {
               updatedSprintData.published = true;
@@ -1779,9 +1779,7 @@ const EditSprint: React.FC = () => {
 
       await sprintService.updateSprint(sprint.id, updatedSprintData, isAdmin);
       
-      if (isDirectPush) {
-          setOriginalSprint({ ...sprint });
-      }
+      setOriginalSprint(JSON.parse(JSON.stringify(sprint)));
 
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
@@ -1920,18 +1918,31 @@ const EditSprint: React.FC = () => {
             overrideOrchestrator: updatedLocalSprint.overrideOrchestrator || false,
             dynamicSections: editSettings.dynamicSections
         });
-        setSettingsSaveStatus('saved');
         
-        // Confirmation Popup
+        // Directly persist settings to database cleanly without data loss
+        const isDraft = updatedLocalSprint.approvalStatus === 'draft';
+        const isDirectPush = isDraft || isAdmin;
+
+        let dbData: any = {};
+        if (isDirectPush) {
+            dbData = { ...updatedLocalSprint };
+        } else {
+            const changes = getPendingChanges(originalSprint, updatedLocalSprint);
+            dbData = { pendingChanges: changes };
+        }
+
+        await sprintService.updateSprint(sprint.id, dbData, isAdmin);
+        setOriginalSprint(JSON.parse(JSON.stringify(updatedLocalSprint)));
+
+        setSettingsSaveStatus('saved');
         setTimeout(() => {
-            alert("Settings updated in draft. Please click the Save Draft button to persist changes to the database.");
             setSettingsSaveStatus('idle');
             setShowSettings(false);
-        }, 500);
-    } catch (err) {
+        }, 800);
+    } catch (err: any) {
         console.error("Settings update failed:", err);
         setSettingsSaveStatus('idle');
-        alert("Failed to update settings in draft. Please try again.");
+        alert(`Failed to save settings: ${err.message || String(err)}`);
     }
   };
 
