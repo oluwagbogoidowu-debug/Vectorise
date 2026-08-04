@@ -20,6 +20,7 @@ import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import NextSprintModal from '../../components/NextSprintModal';
 import ConfirmModal from '../../components/ConfirmModal';
 import FormattedText from '../../components/FormattedText';
+import PagedSprintDescription from '../../components/PagedSprintDescription';
 import BottomModalCoinCards from '../../components/BottomModalCoinCards';
 import { streakService } from '../../services/streakService';
 import { blogService } from '../../services/blogService';
@@ -2141,7 +2142,7 @@ const ParticipantDashboard: React.FC = () => {
                             className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick"
                             onClick={() => !isProcessing && setShowOverviewSheet(false)}
                         />
-                        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-5 sm:p-6 overflow-y-auto max-h-[60vh] sm:max-h-[55vh] pb-6 animate-slide-up-quick text-left">
+                        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-5 sm:p-6 overflow-y-auto max-h-[75vh] sm:max-h-[70vh] pb-6 animate-slide-up-quick text-left">
                             {/* Drag Handle indicator */}
                             <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
                             
@@ -2171,9 +2172,9 @@ const ParticipantDashboard: React.FC = () => {
                                         {recommendedNextSprint.title}
                                     </h3>
 
-                                    {/* Description */}
-                                    <div className="text-sm sm:text-base text-gray-700 font-medium leading-relaxed mb-5">
-                                        <FormattedText text={recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise."} />
+                                    {/* Description with Paged Slides */}
+                                    <div className="mb-5">
+                                        <PagedSprintDescription text={recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise."} />
                                     </div>
 
                                     {/* Action button */}

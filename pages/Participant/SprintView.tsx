@@ -21,6 +21,7 @@ import { doc, updateDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
+import PagedSprintDescription from "../../components/PagedSprintDescription";
 import { formatInterpolatedText } from "../../src/utils/stepPlaceholderUtils";
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
@@ -965,7 +966,7 @@ const SprintOverviewSheet: React.FC<{
             className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick cursor-pointer"
             onClick={onClose}
           />
-          <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-5 sm:p-6 overflow-y-auto max-h-[60vh] sm:max-h-[55vh] pb-6 animate-slide-up-quick text-left font-sans">
+          <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-5 sm:p-6 overflow-y-auto max-h-[75vh] sm:max-h-[70vh] pb-6 animate-slide-up-quick text-left font-sans">
             {/* Drag Handle indicator */}
             <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
 
@@ -992,15 +993,15 @@ const SprintOverviewSheet: React.FC<{
               {sprint.title}
             </h3>
 
-            {/* Description */}
-            <div className="text-xs text-gray-600 font-medium leading-relaxed mb-4 max-h-[25vh] overflow-y-auto custom-scrollbar">
-              <FormattedText text={sprint.description || sprint.subtitle || "Unlock consistency and start your rise."} />
+            {/* Description with Paged Slides */}
+            <div className="mb-4">
+              <PagedSprintDescription text={sprint.description || sprint.subtitle || "Unlock consistency and start your rise."} />
             </div>
 
             {/* Action button */}
             <button
               onClick={onClose}
-              className="w-full py-3.5 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] shadow-xl hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] shadow-xl hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               Got It
             </button>
