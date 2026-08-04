@@ -637,9 +637,9 @@ export default function DailyActionWorkspace({
 
       {/* Main Full-Bleed Continuous Canvas Container */}
       <div className="max-w-6xl mx-auto w-full p-4 sm:p-6 md:p-8 flex-grow flex flex-col justify-start">
-        <div className="bg-white rounded-[2.5rem] border border-gray-150 shadow-xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 min-h-[550px] w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[550px] w-full">
           {/* Left Column (General Content Hub) - 5 Cols */}
-          <div className="lg:col-span-5 p-6 border-b lg:border-b-0 lg:border-r border-gray-150 flex flex-col space-y-4">
+          <div className="lg:col-span-5 bg-white rounded-3xl border border-gray-150 p-6 flex flex-col space-y-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">General Content Hub</label>
@@ -724,7 +724,7 @@ export default function DailyActionWorkspace({
           </div>
 
           {/* Right Column: Day Card for currently selected day, flows naturally inside unified layout */}
-          <div className="lg:col-span-7 p-6 sm:p-8 flex flex-col bg-white overflow-y-auto">
+          <div className="lg:col-span-7 bg-white rounded-3xl border border-gray-150 p-6 sm:p-8 flex flex-col shadow-sm overflow-y-auto">
             {(() => {
               const dayNum = selectedDay;
               const dayContent = getDailyContentForDay(dayNum);
