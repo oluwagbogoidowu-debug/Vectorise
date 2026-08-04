@@ -1351,6 +1351,16 @@ export default function DailyActionWorkspace({
                               const tag = `poll ${optIdx + 1}`;
                               const fullLinkValue = `step${targetPollIdx}:${tag}`;
                               const isSelected = currentLink === fullLinkValue || (targetPollIdx === findNearestPrecedingPoll(dayContent, activeIdx) && currentLink === tag);
+                              let linkedStepIndex = -1;
+                              if (dayContent.taskPollOptionLinks) {
+                                dayContent.taskPollOptionLinks.forEach((l: string | null | undefined, sIdx: number) => {
+                                  if (sIdx !== activeIdx && l) {
+                                    if (l === fullLinkValue || l === `step${targetPollIdx}:${tag}` || (targetPollIdx === findNearestPrecedingPoll(dayContent, sIdx) && l === tag)) {
+                                      linkedStepIndex = sIdx;
+                                    }
+                                  }
+                                });
+                              }
                               return (
                                 <button
                                   key={optIdx}
@@ -1361,7 +1371,7 @@ export default function DailyActionWorkspace({
                                   }}
                                   className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${isSelected ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
                                 >
-                                  If Option {optIdx + 1}: "{opt}"
+                                  If Option {optIdx + 1}: "{opt}" {linkedStepIndex !== -1 ? `(Linked to Step ${linkedStepIndex + 1})` : ''}
                                 </button>
                               );
                             })}

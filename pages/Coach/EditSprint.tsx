@@ -3947,6 +3947,16 @@ const EditSprint: React.FC = () => {
                                                                         const tag = `poll ${optIdx + 1}`;
                                                                         const fullLinkValue = `step${targetPollIdx}:${tag}`;
                                                                         const isSelected = currentLink === fullLinkValue || (targetPollIdx === findNearestPrecedingPoll(currentContent, index) && currentLink === tag);
+                                                                        let linkedStepIndex = -1;
+                                                                        if (currentContent.taskPollOptionLinks) {
+                                                                            currentContent.taskPollOptionLinks.forEach((l, sIdx) => {
+                                                                                if (sIdx !== index && l) {
+                                                                                    if (l === fullLinkValue || l === `step${targetPollIdx}:${tag}` || (targetPollIdx === findNearestPrecedingPoll(currentContent, sIdx) && l === tag)) {
+                                                                                        linkedStepIndex = sIdx;
+                                                                                    }
+                                                                                }
+                                                                            });
+                                                                        }
                                                                         return (
                                                                             <button
                                                                                 key={optIdx}
@@ -3956,7 +3966,7 @@ const EditSprint: React.FC = () => {
                                                                                 }}
                                                                                 className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${isSelected ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
                                                                             >
-                                                                                If Option {optIdx + 1}: "{opt}"
+                                                                                If Option {optIdx + 1}: "{opt}" {linkedStepIndex !== -1 ? `(Linked to Step ${linkedStepIndex + 1})` : ''}
                                                                             </button>
                                                                         );
                                                                     })}

@@ -1104,82 +1104,174 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     }
   }, [location.state]);
 
-  const isStepVisible = (stepIndex: number): boolean => {
-    if (!dayContent) return true;
-    
-    const pollLink = dayContent.taskPollOptionLinks?.[stepIndex];
-    if (!pollLink || pollLink === 'none' || pollLink === 'null') {
-      return true;
-    }
-
-    let pollIdx = -1;
-    let targetLinkTag = pollLink;
-
-    if (pollLink.includes(":")) {
-      const parts = pollLink.split(":");
-      const stepPart = parts[0].replace("step", "");
-      pollIdx = parseInt(stepPart, 10);
-      targetLinkTag = parts[1];
+  const isStepLinkedToPollOption = (content: any, k: number, pollIdx: number, optTag: string): boolean => {
+    if (!content) return false;
+    const link = content.taskPollOptionLinks?.[k];
+    if (!link || link === 'none' || link === 'null') return false;
+    if (link.includes(':')) {
+      const parts = link.split(':');
+      const targetPollIdx = parseInt(parts[0].replace('step', ''), 10);
+      const targetTag = parts[1];
+      return targetPollIdx === pollIdx && targetTag === optTag;
     } else {
-      if (dayContent.taskInputTypes) {
-        for (let i = stepIndex - 1; i >= 0; i--) {
-          if (dayContent.taskInputTypes[i] === 'poll') {
-            pollIdx = i;
+      let pIdx = -1;
+      if (content.taskInputTypes) {
+        for (let i = k - 1; i >= 0; i--) {
+          if (content.taskInputTypes[i] === 'poll') {
+            pIdx = i;
             break;
           }
         }
       }
+      if (pIdx === -1) pIdx = 0;
+      return pIdx === pollIdx && link === optTag;
+    }
+  };
 
-      if (pollIdx === -1) {
-        if (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0 || dayContent.taskInputTypes[0] === 'poll') {
-          pollIdx = 0;
+  const isStepVisible = (stepIndex: number): boolean => {
+    if (!dayContent) return true;
+    
+    const pollLink = dayContent.taskPollOptionLinks?.[stepIndex];
+    if (pollLink && pollLink !== 'none' && pollLink !== 'null') {
+      let pollIdx = -1;
+      let targetLinkTag = pollLink;
+
+      if (pollLink.includes(":")) {
+        const parts = pollLink.split(":");
+        const stepPart = parts[0].replace("step", "");
+        pollIdx = parseInt(stepPart, 10);
+        targetLinkTag = parts[1];
+      } else {
+        if (dayContent.taskInputTypes) {
+          for (let i = stepIndex - 1; i >= 0; i--) {
+            if (dayContent.taskInputTypes[i] === 'poll') {
+              pollIdx = i;
+              break;
+            }
+          }
+        }
+
+        if (pollIdx === -1) {
+          if (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0 || dayContent.taskInputTypes[0] === 'poll') {
+            pollIdx = 0;
+          } else {
+            return true;
+          }
+        }
+      }
+
+      if (pollIdx < 0) return true;
+
+      const selection = taskInputs[pollIdx];
+      if (!selection) {
+        return false;
+      }
+
+      let customOptions: string[] = [];
+      if (dayContent.taskPollOptions?.[pollIdx]) {
+        try {
+          customOptions = JSON.parse(dayContent.taskPollOptions[pollIdx]);
+        } catch (e) {}
+      }
+      customOptions = customOptions.filter(Boolean);
+
+      let linkedTags: string[] = [];
+      if (pollIdx > 0) {
+        linkedTags = getLinkedTagsForStep(pollIdx);
+      }
+      const pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
+
+      let selectedOptions: string[] = [];
+      try {
+        if (selection.startsWith("[")) {
+          selectedOptions = JSON.parse(selection);
         } else {
-          return true;
+          selectedOptions = [selection];
+        }
+      } catch (e) {
+        selectedOptions = [selection];
+      }
+
+      const match = pollOptions.some((opt, optIndex) => {
+        const tag = `poll ${optIndex + 1}`;
+        if (tag === targetLinkTag) {
+          return selectedOptions.includes(opt) || selectedOptions.includes(tag) || selectedOptions.includes(String(optIndex + 1));
+        }
+        return false;
+      });
+
+      return match;
+    }
+
+    // Step has NO explicit poll link (unlinked / normal progression step).
+    // Check if any preceding poll option forces a jump OVER stepIndex.
+    if (dayContent.taskInputTypes) {
+      for (let pIdx = 0; pIdx < stepIndex; pIdx++) {
+        if (dayContent.taskInputTypes[pIdx] === 'poll' || (pIdx === 0 && (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0))) {
+          const selection = taskInputs[pIdx];
+          if (!selection) continue;
+
+          let customOptions: string[] = [];
+          if (dayContent.taskPollOptions?.[pIdx]) {
+            try {
+              customOptions = JSON.parse(dayContent.taskPollOptions[pIdx]);
+            } catch (e) {}
+          }
+          customOptions = customOptions.filter(Boolean);
+
+          let linkedTags: string[] = [];
+          if (pIdx > 0) {
+            linkedTags = getLinkedTagsForStep(pIdx);
+          }
+          const pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
+
+          let selectedOptions: string[] = [];
+          try {
+            if (selection.startsWith("[")) {
+              selectedOptions = JSON.parse(selection);
+            } else {
+              selectedOptions = [selection];
+            }
+          } catch (e) {
+            selectedOptions = [selection];
+          }
+
+          for (let optIdx = 0; optIdx < pollOptions.length; optIdx++) {
+            const opt = pollOptions[optIdx];
+            const optTag = `poll ${optIdx + 1}`;
+            const isSelected = selectedOptions.includes(opt) || selectedOptions.includes(optTag) || selectedOptions.includes(String(optIdx + 1));
+
+            if (isSelected) {
+              let hasTargetAhead = false;
+              if (dayContent.taskPrompts) {
+                for (let k = stepIndex + 1; k < dayContent.taskPrompts.length; k++) {
+                  if (isStepLinkedToPollOption(dayContent, k, pIdx, optTag)) {
+                    hasTargetAhead = true;
+                    break;
+                  }
+                }
+              }
+
+              if (hasTargetAhead) {
+                let hasReachedTarget = false;
+                for (let j = pIdx + 1; j <= stepIndex; j++) {
+                  if (isStepLinkedToPollOption(dayContent, j, pIdx, optTag)) {
+                    hasReachedTarget = true;
+                    break;
+                  }
+                }
+
+                if (!hasReachedTarget) {
+                  return false;
+                }
+              }
+            }
+          }
         }
       }
     }
 
-    if (pollIdx < 0) return true;
-
-    const selection = taskInputs[pollIdx];
-    if (!selection) {
-      return false;
-    }
-
-    let customOptions: string[] = [];
-    if (dayContent.taskPollOptions?.[pollIdx]) {
-      try {
-        customOptions = JSON.parse(dayContent.taskPollOptions[pollIdx]);
-      } catch (e) {}
-    }
-    customOptions = customOptions.filter(Boolean);
-
-    let linkedTags: string[] = [];
-    if (pollIdx > 0) {
-      linkedTags = getLinkedTagsForStep(pollIdx);
-    }
-    const pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
-
-    let selectedOptions: string[] = [];
-    try {
-      if (selection.startsWith("[")) {
-        selectedOptions = JSON.parse(selection);
-      } else {
-        selectedOptions = [selection];
-      }
-    } catch (e) {
-      selectedOptions = [selection];
-    }
-
-    const match = pollOptions.some((opt, optIndex) => {
-      const tag = `poll ${optIndex + 1}`;
-      if (tag === targetLinkTag) {
-        return selectedOptions.includes(opt) || selectedOptions.includes(tag) || selectedOptions.includes(String(optIndex + 1));
-      }
-      return false;
-    });
-
-    return match;
+    return true;
   };
 
   const getNextVisibleStepIndex = (currentIndex: number): number => {
