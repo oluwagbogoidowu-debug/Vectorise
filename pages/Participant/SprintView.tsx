@@ -1028,26 +1028,22 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [sprint, setSprint] = useState<Sprint | null>(() => {
     if (isPreview && location.state?.sprint) {
       const stateSprint = location.state.sprint;
-      const pending = stateSprint.pendingChanges;
-      if (pending) {
-        return {
-          ...stateSprint,
-          ...pending,
-          dailyContent: (Array.isArray(pending.dailyContent)
-            ? pending.dailyContent
-            : (Array.isArray(stateSprint.dailyContent) ? stateSprint.dailyContent : [])).map((c: any) => ({
-              ...c,
-              taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
-            })),
-          duration: pending.duration || stateSprint.duration || 0,
-          outcomes: Array.isArray(pending.outcomes) ? pending.outcomes : (Array.isArray(stateSprint.outcomes) ? stateSprint.outcomes : []),
-          forWho: Array.isArray(pending.forWho) ? pending.forWho : (Array.isArray(stateSprint.forWho) ? stateSprint.forWho : []),
-          notForWho: Array.isArray(pending.notForWho) ? pending.notForWho : (Array.isArray(stateSprint.notForWho) ? stateSprint.notForWho : []),
-          methodSnapshot: Array.isArray(pending.methodSnapshot) ? pending.methodSnapshot : (Array.isArray(stateSprint.methodSnapshot) ? stateSprint.methodSnapshot : []),
-          dynamicSections: Array.isArray(pending.dynamicSections) ? pending.dynamicSections : (Array.isArray(stateSprint.dynamicSections) ? stateSprint.dynamicSections : [])
-        };
-      }
-      return stateSprint;
+      const approvedDailyContent = (Array.isArray(stateSprint.dailyContent) && stateSprint.dailyContent.length > 0)
+        ? stateSprint.dailyContent
+        : (Array.isArray(stateSprint.pendingChanges?.dailyContent) ? stateSprint.pendingChanges.dailyContent : []);
+      return {
+        ...stateSprint,
+        dailyContent: approvedDailyContent.map((c: any) => ({
+          ...c,
+          taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
+        })),
+        duration: stateSprint.duration || stateSprint.pendingChanges?.duration || 0,
+        outcomes: Array.isArray(stateSprint.outcomes) ? stateSprint.outcomes : (Array.isArray(stateSprint.pendingChanges?.outcomes) ? stateSprint.pendingChanges.outcomes : []),
+        forWho: Array.isArray(stateSprint.forWho) ? stateSprint.forWho : (Array.isArray(stateSprint.pendingChanges?.forWho) ? stateSprint.pendingChanges.forWho : []),
+        notForWho: Array.isArray(stateSprint.notForWho) ? stateSprint.notForWho : (Array.isArray(stateSprint.pendingChanges?.notForWho) ? stateSprint.pendingChanges.notForWho : []),
+        methodSnapshot: Array.isArray(stateSprint.methodSnapshot) ? stateSprint.methodSnapshot : (Array.isArray(stateSprint.pendingChanges?.methodSnapshot) ? stateSprint.pendingChanges.methodSnapshot : []),
+        dynamicSections: Array.isArray(stateSprint.dynamicSections) ? stateSprint.dynamicSections : (Array.isArray(stateSprint.pendingChanges?.dynamicSections) ? stateSprint.pendingChanges.dynamicSections : [])
+      };
     }
     return null;
   });
@@ -1695,23 +1691,22 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           // Check if location.state.sprint was passed from EditSprint editor
           const stateSprint = location.state?.sprint?.id === previewSprintId ? location.state.sprint : null;
           const targetSource = stateSprint || found;
-          const pending = targetSource.pendingChanges || (stateSprint ? null : found.pendingChanges);
+          const approvedDailyContent = (Array.isArray(targetSource.dailyContent) && targetSource.dailyContent.length > 0)
+            ? targetSource.dailyContent
+            : (Array.isArray(targetSource.pendingChanges?.dailyContent) ? targetSource.pendingChanges.dailyContent : []);
 
           const processed = {
             ...targetSource,
-            ...(pending || {}),
-            dailyContent: (Array.isArray(pending?.dailyContent)
-              ? pending.dailyContent
-              : (Array.isArray(targetSource.dailyContent) ? targetSource.dailyContent : [])).map((c: any) => ({
-                ...c,
-                taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
-              })),
-            duration: pending?.duration || targetSource.duration || 0,
-            outcomes: Array.isArray(pending?.outcomes) ? pending.outcomes : (Array.isArray(targetSource.outcomes) ? targetSource.outcomes : []),
-            forWho: Array.isArray(pending?.forWho) ? pending.forWho : (Array.isArray(targetSource.forWho) ? targetSource.forWho : []),
-            notForWho: Array.isArray(pending?.notForWho) ? pending.notForWho : (Array.isArray(targetSource.notForWho) ? targetSource.notForWho : []),
-            methodSnapshot: Array.isArray(pending?.methodSnapshot) ? pending.methodSnapshot : (Array.isArray(targetSource.methodSnapshot) ? targetSource.methodSnapshot : []),
-            dynamicSections: Array.isArray(pending?.dynamicSections) ? pending.dynamicSections : (Array.isArray(targetSource.dynamicSections) ? targetSource.dynamicSections : [])
+            dailyContent: approvedDailyContent.map((c: any) => ({
+              ...c,
+              taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
+            })),
+            duration: targetSource.duration || targetSource.pendingChanges?.duration || 0,
+            outcomes: Array.isArray(targetSource.outcomes) ? targetSource.outcomes : (Array.isArray(targetSource.pendingChanges?.outcomes) ? targetSource.pendingChanges.outcomes : []),
+            forWho: Array.isArray(targetSource.forWho) ? targetSource.forWho : (Array.isArray(targetSource.pendingChanges?.forWho) ? targetSource.pendingChanges.forWho : []),
+            notForWho: Array.isArray(targetSource.notForWho) ? targetSource.notForWho : (Array.isArray(targetSource.pendingChanges?.notForWho) ? targetSource.pendingChanges.notForWho : []),
+            methodSnapshot: Array.isArray(targetSource.methodSnapshot) ? targetSource.methodSnapshot : (Array.isArray(targetSource.pendingChanges?.methodSnapshot) ? targetSource.pendingChanges.methodSnapshot : []),
+            dynamicSections: Array.isArray(targetSource.dynamicSections) ? targetSource.dynamicSections : (Array.isArray(targetSource.pendingChanges?.dynamicSections) ? targetSource.pendingChanges.dynamicSections : [])
           };
 
           setSprint(processed);
