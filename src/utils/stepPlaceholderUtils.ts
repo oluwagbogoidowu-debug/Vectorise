@@ -239,8 +239,36 @@ export function formatInterpolatedText(
       const optIndex = opNum - 1;
       const writtenOpts = getWrittenPollOptions(stepIndex);
       if (optIndex >= 0 && optIndex < writtenOpts.length) {
-        const item = writtenOpts[optIndex].trim();
-        return item ? item.toLowerCase() : `[Step ${stepNum} Op${opNum}]`;
+        const targetWrittenText = writtenOpts[optIndex].trim();
+        if (!targetWrittenText) return `[Step ${stepNum} Op${opNum}]`;
+
+        const val = taskInputs?.[stepIndex];
+        let userChoices: string[] = [];
+        if (val && typeof val === 'string' && val.trim()) {
+          try {
+            if (val.trim().startsWith('[')) {
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed)) userChoices = parsed.filter(Boolean);
+            } else if (val.trim().startsWith('{')) {
+              const parsed = JSON.parse(val);
+              userChoices = Object.values(parsed).filter((v): v is string => typeof v === 'string' && Boolean(v));
+            } else {
+              userChoices = [val.trim()];
+            }
+          } catch (e) {
+            userChoices = [val.trim()];
+          }
+        }
+        userChoices = userChoices.map((c) => String(c).trim()).filter(Boolean);
+
+        if (userChoices.length > 0) {
+          const matchChoice = userChoices.find((c) => c.toLowerCase() === targetWrittenText.toLowerCase());
+          if (matchChoice) {
+            return matchChoice.toLowerCase();
+          }
+        }
+
+        return targetWrittenText.toLowerCase();
       }
       return `[Step ${stepNum} Op${opNum}]`;
     }
