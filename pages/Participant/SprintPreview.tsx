@@ -909,7 +909,7 @@ const SprintPreview: React.FC = () => {
                 if (targetIdx >= 0 && targetIdx < stepIndex && day1Content.taskInputTypes?.[targetIdx] === 'poll') {
                     const val = taskInputs[targetIdx];
                     if (!val || typeof val !== 'string' || !val.trim()) {
-                        continue;
+                        return false;
                     }
 
                     let userChoices: string[] = [];

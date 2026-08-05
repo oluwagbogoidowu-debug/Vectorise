@@ -1193,7 +1193,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         if (targetIdx >= 0 && targetIdx < stepIndex && dayContent.taskInputTypes?.[targetIdx] === 'poll') {
           const val = taskInputs[targetIdx];
           if (!val || typeof val !== 'string' || !val.trim()) {
-            continue;
+            return false;
           }
 
           let userChoices: string[] = [];
