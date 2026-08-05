@@ -132,7 +132,7 @@ export function validateStepPlaceholders(
 
 /**
  * Replaces `{step N}` or `{Step N}` or `{Step N OpM}` placeholders in prompt with user's choices from step N or specific option OpM.
- * Excludes explicitly called options (e.g. {Step 6 Op1}) from general {Step 6} expansions in the same prompt context.
+ * Excludes explicitly called written options (e.g. {Step 6 Op1}) from general {Step 6} expansions across all prompt contexts.
  */
 export function formatInterpolatedText(
   prompt: string,
@@ -143,32 +143,44 @@ export function formatInterpolatedText(
 
   const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?\}/g;
 
-  // First pass: identify explicitly called option indices for each step
+  // First pass: identify explicitly called written option indices for each step across all step prompts in the day
   const explicitlyCalledOptsMap = new Map<number, Set<number>>();
-  let match: RegExpExecArray | null;
 
-  while ((match = regex.exec(prompt)) !== null) {
-    const stepNum = parseInt(match[1], 10);
-    const opNum = match[2] ? parseInt(match[2], 10) : undefined;
-    if (opNum !== undefined) {
-      const stepIndex = stepNum - 1;
-      const optIndex = opNum - 1;
-      if (!explicitlyCalledOptsMap.has(stepIndex)) {
-        explicitlyCalledOptsMap.set(stepIndex, new Set());
+  const scanPromptForOpClaims = (pStr: string) => {
+    if (!pStr || typeof pStr !== 'string') return;
+    const scanRegex = /\{[sS]?tep\s*(\d+)\s*[oO][pP]\s*(\d+)\}/g;
+    let m: RegExpExecArray | null;
+    while ((m = scanRegex.exec(pStr)) !== null) {
+      const sNum = parseInt(m[1], 10);
+      const oNum = parseInt(m[2], 10);
+      const sIdx = sNum - 1;
+      const oIdx = oNum - 1;
+      if (!explicitlyCalledOptsMap.has(sIdx)) {
+        explicitlyCalledOptsMap.set(sIdx, new Set());
       }
-      explicitlyCalledOptsMap.get(stepIndex)!.add(optIndex);
+      explicitlyCalledOptsMap.get(sIdx)!.add(oIdx);
     }
-  }
+  };
 
-  // Helper to get all options for a poll step (combining linked sources + custom written poll options)
-  const getPollOptionsList = (stepIndex: number): string[] => {
-    let customOptions: string[] = [];
+  if (Array.isArray(dayContent?.taskPrompts)) {
+    dayContent.taskPrompts.forEach((p: string) => scanPromptForOpClaims(p));
+  }
+  scanPromptForOpClaims(prompt);
+
+  // Helper to get custom written poll options for a step (defined directly in setup)
+  const getWrittenPollOptions = (stepIndex: number): string[] => {
     if (dayContent?.taskPollOptions?.[stepIndex]) {
       try {
         const parsed = JSON.parse(dayContent.taskPollOptions[stepIndex]);
-        if (Array.isArray(parsed)) customOptions = parsed.filter(Boolean);
+        if (Array.isArray(parsed)) return parsed.map((s: any) => String(s).trim()).filter(Boolean);
       } catch (e) {}
     }
+    return [];
+  };
+
+  // Helper to get all options for a poll step (combining linked sources + custom written poll options)
+  const getPollOptionsList = (stepIndex: number): string[] => {
+    const customOptions = getWrittenPollOptions(stepIndex);
 
     let linkedItems: string[] = [];
     if (Array.isArray(dayContent?.taskLinkedSources?.[stepIndex])) {
@@ -219,14 +231,15 @@ export function formatInterpolatedText(
     }
 
     // CASE 1: Explicit Option Reference e.g. {Step 6 Op1}
+    // Targets the written custom poll option Op1, Op2, etc. defined in Step setup
     if (opNum !== undefined) {
       if (inputType !== 'poll') {
         return fullMatch;
       }
       const optIndex = opNum - 1;
-      const pollOpts = getPollOptionsList(stepIndex);
-      if (optIndex >= 0 && optIndex < pollOpts.length) {
-        const item = pollOpts[optIndex].trim();
+      const writtenOpts = getWrittenPollOptions(stepIndex);
+      if (optIndex >= 0 && optIndex < writtenOpts.length) {
+        const item = writtenOpts[optIndex].trim();
         return item ? item.toLowerCase() : `[Step ${stepNum} Op${opNum}]`;
       }
       return `[Step ${stepNum} Op${opNum}]`;
@@ -262,16 +275,16 @@ export function formatInterpolatedText(
       }
     }
 
-    // EXCLUSION RULE: If specific options (e.g. Op1) for this step were explicitly called,
-    // exclude those options from general {Step N} expansion!
+    // EXCLUSION RULE: If specific written options (e.g. Op1) for this step were explicitly called,
+    // exclude those written options from general {Step N} expansion!
     if (inputType === 'poll' && explicitlyCalledOptsMap.has(stepIndex)) {
       const excludedOptIndices = explicitlyCalledOptsMap.get(stepIndex)!;
-      const pollOptsList = getPollOptionsList(stepIndex);
+      const writtenOptsList = getWrittenPollOptions(stepIndex);
       const excludedTexts = new Set<string>();
 
       excludedOptIndices.forEach((idx) => {
-        if (idx >= 0 && idx < pollOptsList.length) {
-          excludedTexts.add(pollOptsList[idx].trim().toLowerCase());
+        if (idx >= 0 && idx < writtenOptsList.length) {
+          excludedTexts.add(writtenOptsList[idx].trim().toLowerCase());
         }
       });
 
