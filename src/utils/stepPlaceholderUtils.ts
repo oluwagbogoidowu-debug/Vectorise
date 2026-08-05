@@ -136,8 +136,8 @@ export function validateStepPlaceholders(
  */
 export function formatInterpolatedText(
   prompt: string,
-  dayContent: any,
-  taskInputs: string[]
+  dayContent?: any,
+  taskInputs?: any
 ): string {
   if (!prompt) return '';
 

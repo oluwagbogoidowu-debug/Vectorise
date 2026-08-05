@@ -19,7 +19,7 @@ import FormattingToolbar from '../../components/FormattingToolbar';
 import DailyActionWorkspace from './DailyActionWorkspace';
 import LocalLogo from '../../components/LocalLogo';
 import { generateDayPDF } from '../../utils/pdfGenerator';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText } from '../../src/utils/stepPlaceholderUtils';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 
@@ -4155,7 +4155,7 @@ const EditSprint: React.FC = () => {
                                     })()}
 
                                     <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed ${currentContent.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
-                                        <FormattedText text={prompt || "Submit your progress for this step."} />
+                                        <FormattedText text={formatInterpolatedText(prompt || "Submit your progress for this step.", currentContent, {})} />
                                     </div>
                                     {currentContent.taskFootnotes?.[i] && (
                                         <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
