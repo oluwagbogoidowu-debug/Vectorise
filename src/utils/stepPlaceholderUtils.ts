@@ -3,14 +3,17 @@ export interface StepPlaceholderValidation {
   hasPlaceholders: boolean;
   invalidStepRefs: number[];
   validStepRefs: number[];
+  validStepLabels?: string[];
+  invalidStepLabels?: string[];
   errorMsg?: string;
   isLogicLinked?: boolean;
 }
 
 /**
- * Validates `{step N}` or `{Step N}` placeholders in prompt text.
+ * Validates `{step N}` or `{Step N}` or `{Step N OpM}` placeholders in prompt text.
  * Rule:
  * - Placeholders must only be used on inputType 'none' steps if validly referencing a preceding 'tags' or 'poll' step.
+ * - For option syntax `{Step N OpM}`, the target step MUST have inputType 'poll'.
  * - If inputType is NOT 'none' OR if a placeholder references a non-preceding step / non-tags-or-poll step: INVALID (error).
  */
 export function validateStepPlaceholders(
@@ -20,42 +23,75 @@ export function validateStepPlaceholders(
   taskTags?: string[][],
   taskPollOptions?: string[][]
 ): StepPlaceholderValidation {
-  if (!prompt) return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [] };
+  if (!prompt) return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [] };
 
-  const regex = /\{[sS]?tep\s*(\d+)\}/g;
-  let match;
-  const referencedSteps: number[] = [];
+  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?\}/g;
+  let match: RegExpExecArray | null;
+  const references: { stepNum: number; opNum?: number; rawLabel: string; token: string }[] = [];
+
   while ((match = regex.exec(prompt)) !== null) {
     const stepNum = parseInt(match[1], 10);
-    if (!referencedSteps.includes(stepNum)) {
-      referencedSteps.push(stepNum);
+    const opNum = match[2] ? parseInt(match[2], 10) : undefined;
+    const rawLabel = opNum !== undefined ? `${stepNum} Op${opNum}` : `${stepNum}`;
+    const token = match[0];
+
+    if (!references.some(r => r.token === token)) {
+      references.push({ stepNum, opNum, rawLabel, token });
     }
   }
 
-  if (referencedSteps.length === 0) {
-    return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [] };
+  if (references.length === 0) {
+    return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [] };
   }
 
   const currentInputType = taskInputTypes?.[stepIndex] || 'text';
   const invalidStepRefs: number[] = [];
   const validStepRefs: number[] = [];
+  const validStepLabels: string[] = [];
+  const invalidStepLabels: string[] = [];
 
-  for (const stepNum of referencedSteps) {
-    const targetIndex = stepNum - 1; // 1-based to 0-based
+  let invalidReason = '';
+
+  for (const ref of references) {
+    const targetIndex = ref.stepNum - 1; // 1-based to 0-based
+
     // Check 1: Must precede current step
     if (targetIndex < 0 || targetIndex >= stepIndex) {
-      invalidStepRefs.push(stepNum);
+      invalidStepRefs.push(ref.stepNum);
+      invalidStepLabels.push(ref.rawLabel);
+      if (!invalidReason) {
+        invalidReason = `Invalid placeholder {step ${ref.rawLabel}}: Step ${ref.stepNum} must precede Step ${stepIndex + 1}.`;
+      }
       continue;
     }
 
-    // Check 2: Target step input type must be 'tags' or 'poll'
     const targetType = taskInputTypes?.[targetIndex];
-    if (targetType !== 'tags' && targetType !== 'poll') {
-      invalidStepRefs.push(stepNum);
-      continue;
+
+    // Check 2: Target step input type
+    if (ref.opNum !== undefined) {
+      if (targetType !== 'poll') {
+        invalidStepRefs.push(ref.stepNum);
+        invalidStepLabels.push(ref.rawLabel);
+        if (!invalidReason) {
+          invalidReason = `Invalid placeholder {step ${ref.rawLabel}}: Option syntax (Op${ref.opNum}) can only be used on 'poll' steps. Step ${ref.stepNum} is set to '${targetType || 'text'}'.`;
+        }
+        continue;
+      }
+    } else {
+      if (targetType !== 'tags' && targetType !== 'poll') {
+        invalidStepRefs.push(ref.stepNum);
+        invalidStepLabels.push(ref.rawLabel);
+        if (!invalidReason) {
+          invalidReason = `Invalid placeholder {step ${ref.rawLabel}}: Step ${ref.stepNum} must have input type 'tags' or 'poll'.`;
+        }
+        continue;
+      }
     }
 
-    validStepRefs.push(stepNum);
+    if (!validStepRefs.includes(ref.stepNum)) {
+      validStepRefs.push(ref.stepNum);
+    }
+    validStepLabels.push(ref.rawLabel);
   }
 
   // Check 3: Placeholder syntax is only valid on input type 'none'
@@ -63,20 +99,23 @@ export function validateStepPlaceholders(
     return {
       isValid: false,
       hasPlaceholders: true,
-      invalidStepRefs: referencedSteps,
+      invalidStepRefs: references.map(r => r.stepNum),
       validStepRefs: [],
+      validStepLabels: [],
+      invalidStepLabels: references.map(r => r.rawLabel),
       errorMsg: `Placeholder logic {step N} can only be used when Input Type is 'none'. Step ${stepIndex + 1} is currently set to '${currentInputType}'.`
     };
   }
 
-  if (invalidStepRefs.length > 0) {
-    const errText = invalidStepRefs.map(n => `{step ${n}}`).join(', ');
+  if (invalidStepLabels.length > 0) {
     return {
       isValid: false,
       hasPlaceholders: true,
       invalidStepRefs,
       validStepRefs,
-      errorMsg: `Invalid placeholder ${errText}: Step ${invalidStepRefs.join(', ')} must precede Step ${stepIndex + 1} and have input type 'tags' or 'poll'.`
+      validStepLabels,
+      invalidStepLabels,
+      errorMsg: invalidReason || `Invalid placeholder logic: ${invalidStepLabels.map(l => `{step ${l}}`).join(', ')}.`
     };
   }
 
@@ -85,12 +124,15 @@ export function validateStepPlaceholders(
     hasPlaceholders: true,
     invalidStepRefs: [],
     validStepRefs,
+    validStepLabels,
+    invalidStepLabels: [],
     isLogicLinked: true
   };
 }
 
 /**
- * Replaces `{step N}` or `{Step N}` placeholders in prompt with user's choices from step N.
+ * Replaces `{step N}` or `{Step N}` or `{Step N OpM}` placeholders in prompt with user's choices from step N or specific option OpM.
+ * Excludes explicitly called options (e.g. {Step 6 Op1}) from general {Step 6} expansions in the same prompt context.
  */
 export function formatInterpolatedText(
   prompt: string,
@@ -99,8 +141,76 @@ export function formatInterpolatedText(
 ): string {
   if (!prompt) return '';
 
-  return prompt.replace(/\{[sS]?tep\s*(\d+)\}/g, (fullMatch, stepNumStr, offset, fullString) => {
+  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?\}/g;
+
+  // First pass: identify explicitly called option indices for each step
+  const explicitlyCalledOptsMap = new Map<number, Set<number>>();
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(prompt)) !== null) {
+    const stepNum = parseInt(match[1], 10);
+    const opNum = match[2] ? parseInt(match[2], 10) : undefined;
+    if (opNum !== undefined) {
+      const stepIndex = stepNum - 1;
+      const optIndex = opNum - 1;
+      if (!explicitlyCalledOptsMap.has(stepIndex)) {
+        explicitlyCalledOptsMap.set(stepIndex, new Set());
+      }
+      explicitlyCalledOptsMap.get(stepIndex)!.add(optIndex);
+    }
+  }
+
+  // Helper to get all options for a poll step (combining linked sources + custom written poll options)
+  const getPollOptionsList = (stepIndex: number): string[] => {
+    let customOptions: string[] = [];
+    if (dayContent?.taskPollOptions?.[stepIndex]) {
+      try {
+        const parsed = JSON.parse(dayContent.taskPollOptions[stepIndex]);
+        if (Array.isArray(parsed)) customOptions = parsed.filter(Boolean);
+      } catch (e) {}
+    }
+
+    let linkedItems: string[] = [];
+    if (Array.isArray(dayContent?.taskLinkedSources?.[stepIndex])) {
+      dayContent.taskLinkedSources[stepIndex].forEach((srcIdx: number) => {
+        if (srcIdx >= 0 && srcIdx < stepIndex) {
+          const val = taskInputs?.[srcIdx];
+          if (val) {
+            if (val.trim().startsWith('[')) {
+              try {
+                const parsed = JSON.parse(val);
+                if (Array.isArray(parsed)) linkedItems.push(...parsed.filter(Boolean));
+              } catch (e) {}
+            } else {
+              linkedItems.push(...val.split(',').map((s: string) => s.trim()).filter(Boolean));
+            }
+          } else {
+            const srcType = dayContent?.taskInputTypes?.[srcIdx];
+            if (srcType === 'tags') {
+              const configuredTags = dayContent?.taskTags?.[srcIdx];
+              if (Array.isArray(configuredTags)) linkedItems.push(...configuredTags.filter(Boolean));
+            } else if (srcType === 'poll') {
+              const configuredPoll = dayContent?.taskPollOptions?.[srcIdx];
+              if (configuredPoll) {
+                try {
+                  const parsed = JSON.parse(configuredPoll);
+                  if (Array.isArray(parsed)) linkedItems.push(...parsed.filter(Boolean));
+                } catch (e) {}
+              }
+            }
+          }
+        }
+      });
+    }
+
+    return Array.from(new Set([...linkedItems, ...customOptions])).filter(Boolean);
+  };
+
+  regex.lastIndex = 0;
+
+  return prompt.replace(regex, (fullMatch, stepNumStr, opNumStr) => {
     const stepNum = parseInt(stepNumStr, 10);
+    const opNum = opNumStr ? parseInt(opNumStr, 10) : undefined;
     const stepIndex = stepNum - 1;
 
     const inputType = dayContent?.taskInputTypes?.[stepIndex];
@@ -108,15 +218,30 @@ export function formatInterpolatedText(
       return fullMatch;
     }
 
+    // CASE 1: Explicit Option Reference e.g. {Step 6 Op1}
+    if (opNum !== undefined) {
+      if (inputType !== 'poll') {
+        return fullMatch;
+      }
+      const optIndex = opNum - 1;
+      const pollOpts = getPollOptionsList(stepIndex);
+      if (optIndex >= 0 && optIndex < pollOpts.length) {
+        const item = pollOpts[optIndex].trim();
+        return item ? item.toLowerCase() : `[Step ${stepNum} Op${opNum}]`;
+      }
+      return `[Step ${stepNum} Op${opNum}]`;
+    }
+
+    // CASE 2: General Step Reference e.g. {Step 6}
     let items: string[] = [];
     const val = taskInputs?.[stepIndex];
 
     if (val && typeof val === 'string' && val.trim()) {
       try {
-        if (val.trim().startsWith('[') && val.trim().endsWith(']')) {
+        if (val.trim().startsWith('[')) {
           const parsed = JSON.parse(val);
           if (Array.isArray(parsed)) items = parsed.filter(Boolean);
-        } else if (val.trim().startsWith('{') && val.trim().endsWith('}')) {
+        } else if (val.trim().startsWith('{')) {
           const parsed = JSON.parse(val);
           items = Object.values(parsed).filter((v): v is string => typeof v === 'string' && Boolean(v));
         } else {
@@ -131,10 +256,30 @@ export function formatInterpolatedText(
     if (items.length === 0) {
       if (inputType === 'tags') {
         const configuredTags = dayContent?.taskTags?.[stepIndex] || [];
-        if (configuredTags.length > 0) items = configuredTags;
+        if (Array.isArray(configuredTags) && configuredTags.length > 0) items = configuredTags;
       } else if (inputType === 'poll') {
-        const configuredPoll = dayContent?.taskPollOptions?.[stepIndex] || [];
-        if (configuredPoll.length > 0) items = configuredPoll;
+        items = getPollOptionsList(stepIndex);
+      }
+    }
+
+    // EXCLUSION RULE: If specific options (e.g. Op1) for this step were explicitly called,
+    // exclude those options from general {Step N} expansion!
+    if (inputType === 'poll' && explicitlyCalledOptsMap.has(stepIndex)) {
+      const excludedOptIndices = explicitlyCalledOptsMap.get(stepIndex)!;
+      const pollOptsList = getPollOptionsList(stepIndex);
+      const excludedTexts = new Set<string>();
+
+      excludedOptIndices.forEach((idx) => {
+        if (idx >= 0 && idx < pollOptsList.length) {
+          excludedTexts.add(pollOptsList[idx].trim().toLowerCase());
+        }
+      });
+
+      if (excludedTexts.size > 0) {
+        const filteredItems = items.filter((item) => !excludedTexts.has(item.trim().toLowerCase()));
+        if (filteredItems.length > 0) {
+          items = filteredItems;
+        }
       }
     }
 
@@ -142,14 +287,11 @@ export function formatInterpolatedText(
       return `[Step ${stepNum}]`;
     }
 
-    const formattedItems = items.map((item) => {
-      const clean = item.trim();
-      if (!clean) return '';
-      return clean.toLowerCase();
-    }).filter(Boolean);
+    const formattedItems = items
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((clean) => clean.toLowerCase());
 
-    // If 1 item: no comma e.g. "eating"
-    // If multiple items: comma separated e.g. "eating, sleeping, reading"
     return formattedItems.join(', ');
   });
 }

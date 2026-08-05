@@ -840,9 +840,9 @@ export default function DailyActionWorkspace({
                             Action Step {activeIdx + 1}
                           </span>
                           {currentPlaceholderVal.hasPlaceholders && currentPlaceholderVal.isValid && (
-                            <span className="text-[10px] font-black text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-xs" title={`Dynamic text logic linked to Step ${currentPlaceholderVal.validStepRefs.join(', ')}`}>
+                            <span className="text-[10px] font-black text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-xs" title={`Dynamic text logic linked to Step ${currentPlaceholderVal.validStepLabels?.join(', ') || currentPlaceholderVal.validStepRefs.join(', ')}`}>
                               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0"></span>
-                              <span>Dynamic Logic (Step {currentPlaceholderVal.validStepRefs.join(', ')})</span>
+                              <span>Dynamic Logic (Step {currentPlaceholderVal.validStepLabels?.join(', ') || currentPlaceholderVal.validStepRefs.join(', ')})</span>
                             </span>
                           )}
                           {currentPlaceholderVal.hasPlaceholders && !currentPlaceholderVal.isValid && (
@@ -978,7 +978,7 @@ export default function DailyActionWorkspace({
                           <div className="flex items-center gap-2">
                             <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"></span>
                             <span>
-                              <strong>Dynamic Logic Active:</strong> Placeholder <code className="bg-white px-1.5 py-0.5 rounded border border-red-200 text-red-700 font-mono text-[11px]">{currentPlaceholderVal.validStepRefs.map(n => `{step ${n}}`).join(', ')}</code> will expand into choice(s) collected from Step {currentPlaceholderVal.validStepRefs.join(', ')}.
+                              <strong>Dynamic Logic Active:</strong> Placeholder <code className="bg-white px-1.5 py-0.5 rounded border border-red-200 text-red-700 font-mono text-[11px]">{(currentPlaceholderVal.validStepLabels || currentPlaceholderVal.validStepRefs.map(n => String(n))).map(s => `{step ${s}}`).join(', ')}</code> will expand into choice(s) collected from Step {currentPlaceholderVal.validStepLabels?.join(', ') || currentPlaceholderVal.validStepRefs.join(', ')}.
                             </span>
                           </div>
                         </div>
@@ -994,7 +994,7 @@ export default function DailyActionWorkspace({
                     {/* Input Type Selector and Helper toggles */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-gray-100">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest shrink-0 leading-tight">Input<br />Type</label>
+                        <label className="text-[8px] font-bold text-gray-400 uppercase tracking-wider shrink-0 leading-tight">Input<br />Type</label>
                         <div className="flex p-0.5 bg-gray-100 rounded-lg">
                           {(['text', 'tags', 'poll', 'mark', 'none'] as const).map((type) => {
                             const isSelected = (!dayContent.taskInputTypes?.[activeIdx] && type === 'text') || dayContent.taskInputTypes?.[activeIdx] === type;
