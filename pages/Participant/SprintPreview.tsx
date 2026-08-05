@@ -683,22 +683,22 @@ const SprintPreview: React.FC = () => {
             if (!data) return data;
             const stateSprint = location.state?.sprint?.id === data.id ? location.state.sprint : null;
             const targetSource = stateSprint || data;
-            const pending = targetSource.pendingChanges || (stateSprint ? null : data.pendingChanges);
+            const approvedDailyContent = (Array.isArray(targetSource.dailyContent) && targetSource.dailyContent.length > 0)
+                ? targetSource.dailyContent
+                : (Array.isArray(targetSource.pendingChanges?.dailyContent) ? targetSource.pendingChanges.dailyContent : []);
+
             return {
                 ...targetSource,
-                ...(pending || {}),
-                dailyContent: (Array.isArray(pending?.dailyContent)
-                    ? pending.dailyContent
-                    : (Array.isArray(targetSource.dailyContent) ? targetSource.dailyContent : [])).map((c: any) => ({
-                        ...c,
-                        taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
-                    })),
-                duration: pending?.duration || targetSource.duration || 0,
-                outcomes: Array.isArray(pending?.outcomes) ? pending.outcomes : (Array.isArray(targetSource.outcomes) ? targetSource.outcomes : []),
-                forWho: Array.isArray(pending?.forWho) ? pending.forWho : (Array.isArray(targetSource.forWho) ? targetSource.forWho : []),
-                notForWho: Array.isArray(pending?.notForWho) ? pending.notForWho : (Array.isArray(targetSource.notForWho) ? targetSource.notForWho : []),
-                methodSnapshot: Array.isArray(pending?.methodSnapshot) ? pending.methodSnapshot : (Array.isArray(targetSource.methodSnapshot) ? targetSource.methodSnapshot : []),
-                dynamicSections: Array.isArray(pending?.dynamicSections) ? pending.dynamicSections : (Array.isArray(targetSource.dynamicSections) ? targetSource.dynamicSections : [])
+                dailyContent: approvedDailyContent.map((c: any) => ({
+                    ...c,
+                    taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
+                })),
+                duration: targetSource.duration || targetSource.pendingChanges?.duration || 0,
+                outcomes: Array.isArray(targetSource.outcomes) ? targetSource.outcomes : (Array.isArray(targetSource.pendingChanges?.outcomes) ? targetSource.pendingChanges.outcomes : []),
+                forWho: Array.isArray(targetSource.forWho) ? targetSource.forWho : (Array.isArray(targetSource.pendingChanges?.forWho) ? targetSource.pendingChanges.forWho : []),
+                notForWho: Array.isArray(targetSource.notForWho) ? targetSource.notForWho : (Array.isArray(targetSource.pendingChanges?.notForWho) ? targetSource.pendingChanges.notForWho : []),
+                methodSnapshot: Array.isArray(targetSource.methodSnapshot) ? targetSource.methodSnapshot : (Array.isArray(targetSource.pendingChanges?.methodSnapshot) ? targetSource.pendingChanges.methodSnapshot : []),
+                dynamicSections: Array.isArray(targetSource.dynamicSections) ? targetSource.dynamicSections : (Array.isArray(targetSource.pendingChanges?.dynamicSections) ? targetSource.pendingChanges.dynamicSections : [])
             };
         };
 
@@ -1394,36 +1394,88 @@ const SprintPreview: React.FC = () => {
                                             </div>
                                         )}
                                         {day1Content?.taskInputTypes?.[i] === "tags" ? (
-                                            <TagInput
-                                                value={taskInputs[i] || ""}
-                                                onChange={(newVal) => {
-                                                    const newInputs = [...taskInputs];
-                                                    newInputs[i] = newVal;
-                                                    setTaskInputs(newInputs);
-                                                }}
-                                                onNext={() => {
-                                                    const tagsVal = taskInputs[i];
-                                                    const isValid = !!tagsVal && tagsVal !== "[]" && tagsVal !== "";
-                                                    if (isValid) {
-                                                        if (getNextVisibleStepIndex(i) !== -1) {
-                                                            setActiveTaskIndex(getNextVisibleStepIndex(i));
-                                                        } else if (user || location.pathname.startsWith('/coach/sprint/preview')) {
-                                                            handleCompletePreviewDay();
-                                                        } else {
-                                                            const pendingObj = {
-                                                                sprintId: sprint.id,
-                                                                pricingType: sprint.pricingType || 'cash',
-                                                                firstActionInput: taskInputs[0],
-                                                                taskInputs: taskInputs,
-                                                                prefilledEmail: prefilledEmail || ''
-                                                            };
-                                                            localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
-                                                            setShowLockModal(true);
+                                            <div className="space-y-3 mb-4">
+                                                <TagInput
+                                                    value={taskInputs[i] || ""}
+                                                    onChange={(newVal) => {
+                                                        const newInputs = [...taskInputs];
+                                                        newInputs[i] = newVal;
+                                                        setTaskInputs(newInputs);
+                                                    }}
+                                                    onNext={() => {
+                                                        const tagsVal = taskInputs[i];
+                                                        const isValid = !!tagsVal && tagsVal !== "[]" && tagsVal !== "";
+                                                        if (isValid) {
+                                                            if (getNextVisibleStepIndex(i) !== -1) {
+                                                                setActiveTaskIndex(getNextVisibleStepIndex(i));
+                                                            } else if (user || location.pathname.startsWith('/coach/sprint/preview')) {
+                                                                handleCompletePreviewDay();
+                                                            } else {
+                                                                const pendingObj = {
+                                                                    sprintId: sprint.id,
+                                                                    pricingType: sprint.pricingType || 'cash',
+                                                                    firstActionInput: taskInputs[0],
+                                                                    taskInputs: taskInputs,
+                                                                    prefilledEmail: prefilledEmail || ''
+                                                                };
+                                                                localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
+                                                                setShowLockModal(true);
+                                                            }
                                                         }
-                                                    }
-                                                }}
-                                                placeholder="Type and press Enter to add tags..."
-                                            />
+                                                    }}
+                                                    placeholder="Type and press Enter to add tags..."
+                                                />
+                                                {(() => {
+                                                    const linkedTags = getLinkedTagsForStep(i);
+                                                    if (linkedTags.length === 0) return null;
+                                                    
+                                                    let selectedTags: string[] = [];
+                                                    try {
+                                                        if (taskInputs[i] && taskInputs[i].startsWith("[")) {
+                                                            selectedTags = JSON.parse(taskInputs[i]);
+                                                        } else if (taskInputs[i]) {
+                                                            selectedTags = taskInputs[i].split(",").map(t => t.trim()).filter(Boolean);
+                                                        }
+                                                    } catch (e) {}
+
+                                                    return (
+                                                        <div className="pt-2 animate-fade-in text-left">
+                                                            <p className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest mb-2">
+                                                                🏷️ Connected Choices (Click to Toggle):
+                                                            </p>
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {linkedTags.map((tag, tagIndex) => {
+                                                                    const isSel = selectedTags.some(t => t.toLowerCase() === tag.toLowerCase());
+                                                                    return (
+                                                                        <button
+                                                                            key={tagIndex}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                let newTags: string[];
+                                                                                if (isSel) {
+                                                                                    newTags = selectedTags.filter(t => t.toLowerCase() !== tag.toLowerCase());
+                                                                                } else {
+                                                                                    newTags = [...selectedTags, tag];
+                                                                                }
+                                                                                const newInputs = [...taskInputs];
+                                                                                newInputs[i] = JSON.stringify(newTags);
+                                                                                setTaskInputs(newInputs);
+                                                                            }}
+                                                                            className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border cursor-pointer ${
+                                                                                isSel 
+                                                                                    ? "bg-[#0E7850] text-white border-[#0E7850] shadow-md" 
+                                                                                    : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-750"
+                                                                            }`}
+                                                                        >
+                                                                            {tag}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
                                         ) : day1Content?.taskInputTypes?.[i] === "note" ? (
                                             <div className="space-y-4 animate-fade-in text-left mb-4">
                                                 <div className="p-4 bg-emerald-500/10 border border-emerald-500/15 rounded-2xl flex items-center gap-3">
