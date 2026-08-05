@@ -570,7 +570,12 @@ export const sprintService = {
                 data.id = d.ref.parent.parent!.id;
                 return data;
             })
-            .filter(s => s.published === true && s.deleted !== true);
+            .filter(s => {
+                if (s.deleted === true) return false;
+                if (s.contentType === 'blog') return s.approvalStatus === 'approved';
+                if (s.contentType === 'ignite') return s.published === true || s.approvalStatus === 'approved';
+                return s.approvalStatus === 'approved' && s.published === true;
+            });
         return await sprintService.resolveSprintsList(raw);
     },
 
@@ -584,7 +589,12 @@ export const sprintService = {
                     data.id = d.ref.parent.parent!.id;
                     return data;
                 })
-                .filter(s => s.published === true && s.deleted !== true);
+                .filter(s => {
+                    if (s.deleted === true) return false;
+                    if (s.contentType === 'blog') return s.approvalStatus === 'approved';
+                    if (s.contentType === 'ignite') return s.published === true || s.approvalStatus === 'approved';
+                    return s.approvalStatus === 'approved' && s.published === true;
+                });
             const resolved = await sprintService.resolveSprintsList(raw);
             callback(resolved);
         }, (error) => {

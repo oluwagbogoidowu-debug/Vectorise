@@ -1743,7 +1743,7 @@ const EditSprint: React.FC = () => {
   };
 
   const handleSaveDraft = async () => {
-    if (!sprint || !originalSprint) return;
+    if (!sprint) return;
 
     if (hasAnyInvalidPlaceholdersInContent(sprint.dailyContent || [])) {
       alert("Cannot save: Invalid {step N} placeholder logic detected! Placeholders like {step 1} can only be used on steps with Input Type 'none' that reference a preceding 'tags' or 'poll' step.");
@@ -1753,34 +1753,22 @@ const EditSprint: React.FC = () => {
 
     setSaveStatus('saving');
     try {
-      const isDraft = sprint.approvalStatus === 'draft';
-      const isDirectPush = isDraft || isAdmin;
-      const changes = getPendingChanges(originalSprint, sprint);
+      const newStatus = (isAdmin && isFoundational) ? 'approved' : 'draft';
+      const isPublished = (isAdmin && isFoundational);
+
+      const updatedSprintData: Sprint = {
+        ...sprint,
+        approvalStatus: newStatus,
+        published: isPublished,
+        updatedAt: new Date().toISOString()
+      };
       
-      let updatedSprintData: any = {};
-
-      if (isDirectPush) {
-          // Apply all changes directly to the main document
-          updatedSprintData = { ...sprint };
-
-          if (isAdmin && isFoundational) {
-              updatedSprintData.published = true;
-              updatedSprintData.approvalStatus = 'approved';
-          }
-      } else {
-          // Review flow
-          updatedSprintData = {
-              pendingChanges: changes,
-          };
-      }
-
-      if (!isAdmin && sprint.approvalStatus === 'rejected') {
-          updatedSprintData.approvalStatus = 'draft';
-      }
+      delete (updatedSprintData as any).pendingChanges;
 
       await sprintService.updateSprint(sprint.id, updatedSprintData, isAdmin);
       
-      setOriginalSprint(JSON.parse(JSON.stringify(sprint)));
+      setSprint(updatedSprintData);
+      setOriginalSprint(JSON.parse(JSON.stringify(updatedSprintData)));
 
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
@@ -1792,21 +1780,27 @@ const EditSprint: React.FC = () => {
   };
 
   const handleSubmitForReview = async () => {
-      if (!sprint || !originalSprint || isSubmittingReview) return;
+      if (!sprint || isSubmittingReview) return;
 
       if (sprint.approvalStatus === 'approved') {
-          const confirmAgain = window.confirm("Are you sure you want to submit for review again?");
+          const confirmAgain = window.confirm("Are you sure you want to submit a new draft for approval?");
           if (!confirmAgain) return;
       }
 
       setIsSubmittingReview(true);
       try {
-          const changes = getPendingChanges(originalSprint, sprint);
-          await sprintService.updateSprint(sprint.id, {
-              pendingChanges: changes,
-              approvalStatus: 'pending_approval'
-          });
-          alert("Sprint submitted for review.");
+          const updatedSprintData: Sprint = {
+              ...sprint,
+              approvalStatus: 'pending_approval',
+              published: false,
+              updatedAt: new Date().toISOString()
+          };
+          delete (updatedSprintData as any).pendingChanges;
+
+          await sprintService.updateSprint(sprint.id, updatedSprintData, isAdmin);
+          setSprint(updatedSprintData);
+          setOriginalSprint(JSON.parse(JSON.stringify(updatedSprintData)));
+          alert("Sprint submitted for admin approval.");
       } catch (err) {
           alert("Submission failed. Please check your connection.");
       } finally {
@@ -1818,9 +1812,18 @@ const EditSprint: React.FC = () => {
       if (!sprintId || !sprint || approvalStatus === 'processing') return;
       setApprovalStatus('processing');
       try {
-          // Pass the full merged sprint to ensure all changes (registry + curriculum) are pushed live
-          await sprintService.approveSprint(sprintId, sprint);
-          alert("Updates approved and pushed live.");
+          const approvedSprint: Sprint = {
+              ...sprint,
+              approvalStatus: 'approved',
+              published: true,
+              updatedAt: new Date().toISOString()
+          };
+          delete (approvedSprint as any).pendingChanges;
+
+          await sprintService.approveSprint(sprintId, approvedSprint);
+          setSprint(approvedSprint);
+          setOriginalSprint(JSON.parse(JSON.stringify(approvedSprint)));
+          alert("Sprint approved and live!");
           navigate('/dashboard');
       } catch (err: any) {
           alert(err.message || "Approval failed.");
@@ -1832,8 +1835,18 @@ const EditSprint: React.FC = () => {
       if (!sprintId || !sprint || approvalStatus === 'processing') return;
       setApprovalStatus('processing');
       try {
-          const updated = { ...sprint, approvalStatus: 'rejected' as const, reviewFeedback };
+          const updated: Sprint = {
+              ...sprint, 
+              approvalStatus: 'rejected',
+              published: false,
+              reviewFeedback,
+              updatedAt: new Date().toISOString()
+          };
+          delete (updated as any).pendingChanges;
+
           await sprintService.updateSprint(sprintId, updated);
+          setSprint(updated);
+          setOriginalSprint(JSON.parse(JSON.stringify(updated)));
           alert("Amendments sent to coach.");
           navigate('/dashboard');
       } catch (err) { setApprovalStatus('idle'); }
@@ -1910,7 +1923,17 @@ const EditSprint: React.FC = () => {
     });
 
     try {
-        const updatedLocalSprint = { ...sprint, ...updatedSprintData as any };
+        const newStatus = (isAdmin && isFoundational) ? 'approved' : (isAdmin ? sprint.approvalStatus : 'draft');
+        const isPublished = (isAdmin && isFoundational) ? true : (isAdmin ? sprint.published : false);
+
+        const updatedLocalSprint: Sprint = { 
+            ...sprint, 
+            ...updatedSprintData as any,
+            approvalStatus: newStatus,
+            published: isPublished,
+            updatedAt: new Date().toISOString()
+        };
+        delete (updatedLocalSprint as any).pendingChanges;
         
         setSprint(updatedLocalSprint);
         setEditSettings({
@@ -1920,19 +1943,7 @@ const EditSprint: React.FC = () => {
             dynamicSections: editSettings.dynamicSections
         });
         
-        // Directly persist settings to database cleanly without data loss
-        const isDraft = updatedLocalSprint.approvalStatus === 'draft';
-        const isDirectPush = isDraft || isAdmin;
-
-        let dbData: any = {};
-        if (isDirectPush) {
-            dbData = { ...updatedLocalSprint };
-        } else {
-            const changes = getPendingChanges(originalSprint, updatedLocalSprint);
-            dbData = { pendingChanges: changes };
-        }
-
-        await sprintService.updateSprint(sprint.id, dbData, isAdmin);
+        await sprintService.updateSprint(sprint.id, updatedLocalSprint, isAdmin);
         setOriginalSprint(JSON.parse(JSON.stringify(updatedLocalSprint)));
 
         setSettingsSaveStatus('saved');
@@ -2480,10 +2491,23 @@ const EditSprint: React.FC = () => {
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div className="w-full">
             <div className="flex justify-between items-center mb-4">
-              <button onClick={() => navigate(-1)} className="group flex items-center text-gray-400 hover:text-primary transition-colors text-[10px] font-black uppercase tracking-widest cursor-pointer">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
-                Go Back
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => navigate(-1)} className="group flex items-center text-gray-400 hover:text-primary transition-colors text-[10px] font-black uppercase tracking-widest cursor-pointer">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
+                  Go Back
+                </button>
+                <span className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border shrink-0 ${
+                  sprint.approvalStatus === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                  sprint.approvalStatus === 'pending_approval' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                  sprint.approvalStatus === 'rejected' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                  'bg-blue-50 text-blue-700 border-blue-200'
+                }`}>
+                  {sprint.approvalStatus === 'approved' ? 'Approved (Live)' :
+                   sprint.approvalStatus === 'pending_approval' ? 'Pending Approval' :
+                   sprint.approvalStatus === 'rejected' ? 'Amendments Required' :
+                   'Draft'}
+                </span>
+              </div>
               
               {!sprint.parentSprintId ? (
                 <div className="flex items-center gap-2">
