@@ -137,19 +137,20 @@ const HomePage: React.FC = () => {
             Grow into who <br/> <span className="italic">you’re <span className="text-primary">becoming.</span></span>
           </h1>
           
-          <div className="max-w-2xl mx-auto mb-10 space-y-5">
-            <div className="py-4 md:py-6 text-center">
+          <div className="max-w-2xl mx-auto mb-8 flex flex-col items-center">
+            <div className="text-center">
                 <p className="text-base md:text-lg text-black font-bold leading-tight">
                     You don’t lack ambition. You lack a clear structure that turns effort into real progress.
                 </p>
             </div>
             
-            <div className="bg-gray-50 rounded-[2rem] p-8 md:p-10 text-center border border-gray-100 shadow-inner mt-8 mb-6">
+            <div className="bg-gray-50 rounded-[2rem] p-8 md:p-10 text-center border border-gray-100 shadow-inner my-6">
               <p className="text-[14px] md:text-[16px] text-gray-600 font-medium leading-relaxed">
                 <strong className="text-primary font-bold">Vectorise</strong> is a <strong className="text-gray-800 font-bold">guided system</strong> for building real progress through <strong className="text-gray-800 font-bold">focused sprints</strong> — linking <strong className="text-gray-800 font-bold">clarity</strong>, <strong className="text-gray-800 font-bold">skill-building</strong>, and <strong className="text-gray-800 font-bold">real-world application</strong>.
               </p>
             </div>
-            <div className="flex flex-col items-center gap-1 mb-2">
+
+            <div className="flex flex-col items-center gap-1">
                 <span className="text-[11px] font-black uppercase tracking-widest text-black"><span className="text-primary">It is </span>A clear path of progression.</span>
             </div>
           </div>
