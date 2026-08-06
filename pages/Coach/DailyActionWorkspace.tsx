@@ -987,9 +987,6 @@ export default function DailyActionWorkspace({
                               {currentPlaceholderVal.placeholderDetails.map((detail, dIdx) => (
                                 <div key={dIdx} className="flex flex-wrap items-center justify-between gap-2 bg-white/80 p-2 rounded-lg border border-red-100">
                                   <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-red-900">
-                                      Step {detail.rawLabel} Output Tag:
-                                    </span>
                                     <span className="text-[10px] text-gray-500 italic">
                                       ({detail.mode === 'list' ? 'List mode: separated into bulleted lines' : 'Normal mode: displayed inline within sentence'})
                                     </span>
