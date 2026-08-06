@@ -681,8 +681,7 @@ const SprintPreview: React.FC = () => {
         // This is safe from snapshot/permissions issues on Firestore for guest users.
         const processSprint = (data: any) => {
             if (!data) return data;
-            const stateSprint = location.state?.sprint?.id === data.id ? location.state.sprint : null;
-            const targetSource = stateSprint || data;
+            const targetSource = data || (location.state?.sprint?.id === data.id ? location.state.sprint : null);
             const approvedDailyContent = (Array.isArray(targetSource.dailyContent) && targetSource.dailyContent.length > 0)
                 ? targetSource.dailyContent
                 : (Array.isArray(targetSource.pendingChanges?.dailyContent) ? targetSource.pendingChanges.dailyContent : []);
@@ -1044,44 +1043,62 @@ const SprintPreview: React.FC = () => {
         if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex]) && day1Content.taskLinkedSources[stepIndex].length > 0) {
             const allTags: string[] = [];
             day1Content.taskLinkedSources[stepIndex].forEach(srcIndex => {
-                if (srcIndex >= 0 && srcIndex < taskInputs.length && taskInputs[srcIndex]) {
-                    try {
-                        const val = taskInputs[srcIndex];
-                        const srcType = String(day1Content.taskInputTypes?.[srcIndex] || "").trim().toLowerCase();
-                        if (val.startsWith("[")) {
-                            allTags.push(...JSON.parse(val));
-                        } else if (srcType === "poll") {
-                            allTags.push(val);
-                        } else {
-                            allTags.push(...val.split(",").filter(Boolean));
+                if (srcIndex >= 0) {
+                    if (srcIndex < taskInputs.length && taskInputs[srcIndex]) {
+                        try {
+                            const val = taskInputs[srcIndex];
+                            const srcType = String(day1Content.taskInputTypes?.[srcIndex] || "").trim().toLowerCase();
+                            if (val.startsWith("[")) {
+                                allTags.push(...JSON.parse(val));
+                            } else if (srcType === "poll") {
+                                allTags.push(val);
+                            } else {
+                                allTags.push(...val.split(",").filter(Boolean));
+                            }
+                        } catch (e) {
+                            console.error("Error parsing tags for source in preview", srcIndex, e);
                         }
-                    } catch (e) {
-                        console.error("Error parsing tags for source in preview", srcIndex, e);
+                    }
+                } else {
+                    // Cross-day link!
+                    const absVal = Math.abs(srcIndex);
+                    const targetDay = Math.floor(absVal / 100);
+                    const targetStepIdx = absVal % 100;
+                    
+                    const targetProgress = (sprint as any)?.enrollment?.progress?.find((p: any) => p.day === targetDay);
+                    const targetDayContent = Array.isArray(sprint?.dailyContent)
+                        ? sprint.dailyContent.find((dc) => dc.day === targetDay)
+                        : undefined;
+                        
+                    if (targetProgress && targetProgress.answers && Array.isArray(targetProgress.answers) && targetDayContent) {
+                        const val = targetProgress.answers[targetStepIdx];
+                        if (val) {
+                            try {
+                                const srcType = String(targetDayContent.taskInputTypes?.[targetStepIdx] || "").trim().toLowerCase();
+                                if (val.startsWith("[")) {
+                                    allTags.push(...JSON.parse(val));
+                                } else if (srcType === "poll") {
+                                    allTags.push(val);
+                                } else {
+                                    allTags.push(...val.split(",").filter(Boolean));
+                                }
+                            } catch (e) {
+                                console.error("Error parsing cross-day tags for source", srcIndex, e);
+                            }
+                        }
                     }
                 }
             });
             return Array.from(new Set(allTags)).filter(Boolean);
         }
 
-        // 2. Fallback to legacy structure
+        // 2. Fallback to legacy structure - only if taskLinkedToNext is true
         let linkedSourceIndex = -1;
         for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
             const isLinked = 
                 day1Content.taskLinkedToNext?.[prevIndex] === true ||
                 (day1Content.taskLinkedToNext?.[prevIndex] as any) === "true";
             if (isLinked) {
-                const inputType = String(
-                    day1Content.taskInputTypes?.[prevIndex] || ""
-                ).trim().toLowerCase();
-                if (inputType === "tags" || inputType === "poll") {
-                    linkedSourceIndex = prevIndex;
-                    break;
-                }
-            }
-        }
-        // Robust fallback
-        if (linkedSourceIndex === -1) {
-            for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
                 const inputType = String(
                     day1Content.taskInputTypes?.[prevIndex] || ""
                 ).trim().toLowerCase();
