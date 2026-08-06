@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
-import { FOCUS_OPTIONS, PERSONA_HIERARCHY, PERSONAS } from '../../services/mockData';
+import { FOCUS_OPTIONS, FOUNDATION_CLARITY_OPTIONS, PERSONA_HIERARCHY, PERSONAS } from '../../services/mockData';
 import { sprintService } from '../../services/sprintService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Participant, LifecycleSlotAssignment, OrchestrationTrigger } from '../../types';
@@ -28,6 +28,14 @@ const FocusSelector: React.FC = () => {
   const [activeOption, setActiveOption] = useState<string | null>(null);
 
   const currentOptions = useMemo(() => {
+    // For Foundation: Clarity, default to FOUNDATION_CLARITY_OPTIONS if not explicitly overridden with custom options
+    if (currentLevel === 0 && activeSlotName === "Foundation: Clarity") {
+      if (activeAssignment?.availableFocusOptions && activeAssignment.availableFocusOptions.length > 0 && activeAssignment.availableFocusOptions.length !== 4) {
+        return activeAssignment.availableFocusOptions;
+      }
+      return FOUNDATION_CLARITY_OPTIONS;
+    }
+
     // If we have specific options from the orchestrator assignment, use them at level 0
     if (currentLevel === 0 && activeAssignment?.availableFocusOptions && activeAssignment.availableFocusOptions.length > 0) {
       return activeAssignment.availableFocusOptions;
@@ -40,7 +48,7 @@ const FocusSelector: React.FC = () => {
       return levels[currentLevel - 1];
     }
     return [];
-  }, [currentLevel, selections, activeAssignment]);
+  }, [currentLevel, selections, activeAssignment, activeSlotName]);
 
   useEffect(() => {
     const loadDynamicOrchestration = async () => {

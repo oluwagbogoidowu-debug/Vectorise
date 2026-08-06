@@ -5,10 +5,10 @@ export const FOCUS_OPTIONS = [
 ];
 
 export const FOUNDATION_CLARITY_OPTIONS = [
-  "I’m still trying to figure my direction",
-  "I have ideas but no clear focus",
-  "I know what I want — I need to execute",
-  "I just want to explore what’s possible"
+  "I feel stuck and I don’t know what direction to take",
+  "I know what I want but I keep falling off",
+  "I’m putting in effort but nothing is working",
+  "I want to start making money or build something real"
 ];
 
 // USER DEFINED HIERARCHY MAPPING - EXACT LIST

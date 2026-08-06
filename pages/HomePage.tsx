@@ -149,14 +149,14 @@ const HomePage: React.FC = () => {
                 <strong className="text-primary font-bold">Vectorise</strong> is a <strong className="text-gray-800 font-bold">guided system</strong> for building real progress through <strong className="text-gray-800 font-bold">focused sprints</strong> — linking <strong className="text-gray-800 font-bold">clarity</strong>, <strong className="text-gray-800 font-bold">skill-building</strong>, and <strong className="text-gray-800 font-bold">real-world application</strong>.
               </p>
             </div>
-            <div className="flex flex-col items-center gap-1 mb-8">
+            <div className="flex flex-col items-center gap-1 mb-2">
                 <span className="text-[11px] font-black uppercase tracking-widest text-black"><span className="text-primary">It is </span>A clear path of progression.</span>
             </div>
           </div>
 
           <div className="flex flex-col items-center gap-6">
             <div className="flex flex-col items-center">
-              <p className="text-sm md:text-base font-extrabold text-gray-900 uppercase tracking-wider text-center mb-3 leading-snug">
+              <p className="text-sm md:text-base font-normal text-gray-800 uppercase tracking-wider text-center mb-3 leading-snug">
                 START WITH A SPRINT <br /> BUILT FOR WHERE YOU ARE
               </p>
               <button 
