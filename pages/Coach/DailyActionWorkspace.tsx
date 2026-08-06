@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sprint, DailyContent } from '../../types';
 import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode } from '../../src/utils/stepPlaceholderUtils';
 
 interface DailyActionWorkspaceProps {
   sprint: Sprint | null;
@@ -974,13 +974,64 @@ export default function DailyActionWorkspace({
                         placeholder={`Describe Action Step ${activeIdx + 1}...`} 
                       />
                       {currentPlaceholderVal.hasPlaceholders && currentPlaceholderVal.isValid && (
-                        <div className="p-3 bg-red-50/80 border border-red-200/80 rounded-xl text-xs text-red-800 font-semibold flex items-center justify-between mt-2 animate-fade-in shadow-2xs">
+                        <div className="p-3 bg-red-50/80 border border-red-200/80 rounded-xl text-xs text-red-800 font-semibold flex flex-col gap-2 mt-2 animate-fade-in shadow-2xs">
                           <div className="flex items-center gap-2">
                             <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"></span>
                             <span>
                               <strong>Dynamic Logic Active:</strong> Placeholder <code className="bg-white px-1.5 py-0.5 rounded border border-red-200 text-red-700 font-mono text-[11px]">{(currentPlaceholderVal.validStepLabels || currentPlaceholderVal.validStepRefs.map(n => String(n))).map(s => `{step ${s}}`).join(', ')}</code> will expand into choice(s) collected from Step {currentPlaceholderVal.validStepLabels?.join(', ') || currentPlaceholderVal.validStepRefs.join(', ')}.
                             </span>
                           </div>
+
+                          {currentPlaceholderVal.placeholderDetails && currentPlaceholderVal.placeholderDetails.length > 0 && (
+                            <div className="flex flex-col gap-2 pt-2 border-t border-red-200/60">
+                              {currentPlaceholderVal.placeholderDetails.map((detail, dIdx) => (
+                                <div key={dIdx} className="flex flex-wrap items-center justify-between gap-2 bg-white/80 p-2 rounded-lg border border-red-100">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-red-900">
+                                      Step {detail.rawLabel} Output Tag:
+                                    </span>
+                                    <span className="text-[10px] text-gray-500 italic">
+                                      ({detail.mode === 'list' ? 'List mode: separated into bulleted lines' : 'Normal mode: displayed inline within sentence'})
+                                    </span>
+                                  </div>
+                                  <div className="inline-flex p-0.5 bg-gray-100 rounded-lg shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDay(dayNum);
+                                        const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'normal');
+                                        handleTaskPromptChange(dayNum, activeIdx, updatedPrompt);
+                                      }}
+                                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                                        detail.mode === 'normal'
+                                          ? 'bg-red-600 text-white shadow-xs'
+                                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
+                                      }`}
+                                      title="Normal Tag: Displays data inline as text within a sentence separated by commas"
+                                    >
+                                      Normal Tag
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDay(dayNum);
+                                        const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'list');
+                                        handleTaskPromptChange(dayNum, activeIdx, updatedPrompt);
+                                      }}
+                                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                                        detail.mode === 'list'
+                                          ? 'bg-red-600 text-white shadow-xs'
+                                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
+                                      }`}
+                                      title="List Tag: Separates data into a bulleted list rather than comma separation"
+                                    >
+                                      List Tag
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                       {currentPlaceholderVal.hasPlaceholders && !currentPlaceholderVal.isValid && (

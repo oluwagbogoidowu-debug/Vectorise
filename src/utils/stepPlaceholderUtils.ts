@@ -1,3 +1,11 @@
+export interface StepPlaceholderDetail {
+  stepNum: number;
+  opNum?: number;
+  mode: 'normal' | 'list';
+  rawLabel: string;
+  token: string;
+}
+
 export interface StepPlaceholderValidation {
   isValid: boolean;
   hasPlaceholders: boolean;
@@ -5,12 +13,13 @@ export interface StepPlaceholderValidation {
   validStepRefs: number[];
   validStepLabels?: string[];
   invalidStepLabels?: string[];
+  placeholderDetails?: StepPlaceholderDetail[];
   errorMsg?: string;
   isLogicLinked?: boolean;
 }
 
 /**
- * Validates `{step N}` or `{Step N}` or `{Step N OpM}` placeholders in prompt text.
+ * Validates `{step N}`, `{Step N list}`, `{Step N normal}`, or `{Step N OpM}` placeholders in prompt text.
  * Rule:
  * - Placeholders can be used on ANY step input type ('text', 'tags', 'poll', 'mark', 'note', 'none') to receive input from a preceding step.
  * - For option syntax `{Step N OpM}`, the target step MUST have inputType 'poll'.
@@ -23,31 +32,34 @@ export function validateStepPlaceholders(
   taskTags?: string[][],
   taskPollOptions?: string[][]
 ): StepPlaceholderValidation {
-  if (!prompt) return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [] };
+  if (!prompt) return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [], placeholderDetails: [] };
 
-  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?\}/g;
+  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal))?\}/gi;
   let match: RegExpExecArray | null;
-  const references: { stepNum: number; opNum?: number; rawLabel: string; token: string }[] = [];
+  const references: StepPlaceholderDetail[] = [];
 
   while ((match = regex.exec(prompt)) !== null) {
     const stepNum = parseInt(match[1], 10);
     const opNum = match[2] ? parseInt(match[2], 10) : undefined;
+    const modeStr = match[3] ? match[3].toLowerCase() : undefined;
+    const mode: 'normal' | 'list' = modeStr === 'list' ? 'list' : 'normal';
     const rawLabel = opNum !== undefined ? `${stepNum} Op${opNum}` : `${stepNum}`;
     const token = match[0];
 
     if (!references.some(r => r.token === token)) {
-      references.push({ stepNum, opNum, rawLabel, token });
+      references.push({ stepNum, opNum, mode, rawLabel, token });
     }
   }
 
   if (references.length === 0) {
-    return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [] };
+    return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [], placeholderDetails: [] };
   }
 
   const invalidStepRefs: number[] = [];
   const validStepRefs: number[] = [];
   const validStepLabels: string[] = [];
   const invalidStepLabels: string[] = [];
+  const placeholderDetails: StepPlaceholderDetail[] = [];
 
   let invalidReason = '';
 
@@ -82,6 +94,7 @@ export function validateStepPlaceholders(
       validStepRefs.push(ref.stepNum);
     }
     validStepLabels.push(ref.rawLabel);
+    placeholderDetails.push(ref);
   }
 
   if (invalidStepLabels.length > 0) {
@@ -92,6 +105,7 @@ export function validateStepPlaceholders(
       validStepRefs,
       validStepLabels,
       invalidStepLabels,
+      placeholderDetails,
       errorMsg: invalidReason || `Invalid placeholder logic: ${invalidStepLabels.map(l => `{step ${l}}`).join(', ')}.`
     };
   }
@@ -103,13 +117,39 @@ export function validateStepPlaceholders(
     validStepRefs,
     validStepLabels,
     invalidStepLabels: [],
+    placeholderDetails,
     isLogicLinked: true
   };
 }
 
 /**
- * Replaces `{step N}` or `{Step N}` or `{Step N OpM}` placeholders in prompt with user's choices from step N or specific option OpM.
- * Excludes explicitly called written options (e.g. {Step 6 Op1}) from general {Step 6} expansions across all prompt contexts.
+ * Toggles or sets the mode ('normal' | 'list') of a {Step N} placeholder within a prompt string.
+ */
+export function togglePlaceholderMode(
+  prompt: string,
+  targetStepNum: number,
+  targetMode: 'normal' | 'list'
+): string {
+  if (!prompt) return prompt;
+
+  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal))?\}/gi;
+
+  return prompt.replace(regex, (fullMatch, stepNumStr, opNumStr) => {
+    const stepNum = parseInt(stepNumStr, 10);
+    if (stepNum !== targetStepNum) {
+      return fullMatch;
+    }
+
+    const opNum = opNumStr ? parseInt(opNumStr, 10) : undefined;
+    const opPart = opNum !== undefined ? ` Op${opNum}` : '';
+    const modePart = targetMode === 'list' ? ' list' : '';
+
+    return `{Step ${stepNum}${opPart}${modePart}}`;
+  });
+}
+
+/**
+ * Replaces `{step N}` or `{Step N list}` or `{Step N OpM}` placeholders in prompt with user's choices from step N.
  */
 export function formatInterpolatedText(
   prompt: string,
@@ -118,14 +158,14 @@ export function formatInterpolatedText(
 ): string {
   if (!prompt) return '';
 
-  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?\}/g;
+  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal))?\}/gi;
 
   // First pass: identify explicitly called written option indices for each step across all step prompts in the day
   const explicitlyCalledOptsMap = new Map<number, Set<number>>();
 
   const scanPromptForOpClaims = (pStr: string) => {
     if (!pStr || typeof pStr !== 'string') return;
-    const scanRegex = /\{[sS]?tep\s*(\d+)\s*[oO][pP]\s*(\d+)\}/g;
+    const scanRegex = /\{[sS]?tep\s*(\d+)\s*[oO][pP]\s*(\d+)(?:\s*(?:list|normal))?\}/gi;
     let m: RegExpExecArray | null;
     while ((m = scanRegex.exec(pStr)) !== null) {
       const sNum = parseInt(m[1], 10);
@@ -165,12 +205,12 @@ export function formatInterpolatedText(
         if (srcIdx >= 0 && srcIdx < stepIndex) {
           const val = taskInputs?.[srcIdx];
           if (val) {
-            if (val.trim().startsWith('[')) {
+            if (typeof val === 'string' && val.trim().startsWith('[')) {
               try {
                 const parsed = JSON.parse(val);
                 if (Array.isArray(parsed)) linkedItems.push(...parsed.filter(Boolean));
               } catch (e) {}
-            } else {
+            } else if (typeof val === 'string') {
               linkedItems.push(...val.split(',').map((s: string) => s.trim()).filter(Boolean));
             }
           } else {
@@ -197,15 +237,29 @@ export function formatInterpolatedText(
 
   regex.lastIndex = 0;
 
-  return prompt.replace(regex, (fullMatch, stepNumStr, opNumStr) => {
+  return prompt.replace(regex, (fullMatch, stepNumStr, opNumStr, modeStr) => {
     const stepNum = parseInt(stepNumStr, 10);
     const opNum = opNumStr ? parseInt(opNumStr, 10) : undefined;
+    const mode: 'normal' | 'list' = modeStr && modeStr.toLowerCase() === 'list' ? 'list' : 'normal';
     const stepIndex = stepNum - 1;
 
     const inputType = dayContent?.taskInputTypes?.[stepIndex];
 
+    const formatOutput = (rawList: string[]): string => {
+      const cleaned = rawList.map((item) => item.trim()).filter(Boolean);
+
+      if (cleaned.length === 0) {
+        return opNum !== undefined ? `[Step ${stepNum} Op${opNum}]` : `[Step ${stepNum}]`;
+      }
+
+      if (mode === 'list') {
+        return '\n' + cleaned.map((item) => `• ${item}`).join('\n');
+      }
+
+      return cleaned.map(c => c.toLowerCase()).join(', ');
+    };
+
     // CASE 1: Explicit Option Reference e.g. {Step 6 Op1}
-    // Targets the written custom poll option Op1, Op2, etc. defined in Step setup
     if (opNum !== undefined) {
       if (inputType !== 'poll') {
         return fullMatch;
@@ -238,11 +292,11 @@ export function formatInterpolatedText(
         if (userChoices.length > 0) {
           const matchChoice = userChoices.find((c) => c.toLowerCase() === targetWrittenText.toLowerCase());
           if (matchChoice) {
-            return matchChoice.toLowerCase();
+            return formatOutput([matchChoice]);
           }
         }
 
-        return targetWrittenText.toLowerCase();
+        return formatOutput([targetWrittenText]);
       }
       return `[Step ${stepNum} Op${opNum}]`;
     }
@@ -307,16 +361,7 @@ export function formatInterpolatedText(
       }
     }
 
-    if (items.length === 0) {
-      return `[Step ${stepNum}]`;
-    }
-
-    const formattedItems = items
-      .map((item) => item.trim())
-      .filter(Boolean)
-      .map((clean) => clean.toLowerCase());
-
-    return formattedItems.join(', ');
+    return formatOutput(items);
   });
 }
 

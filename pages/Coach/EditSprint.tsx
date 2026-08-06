@@ -19,7 +19,7 @@ import FormattingToolbar from '../../components/FormattingToolbar';
 import DailyActionWorkspace from './DailyActionWorkspace';
 import LocalLogo from '../../components/LocalLogo';
 import { generateDayPDF } from '../../utils/pdfGenerator';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode } from '../../src/utils/stepPlaceholderUtils';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 
@@ -1746,7 +1746,7 @@ const EditSprint: React.FC = () => {
     if (!sprint) return;
 
     if (hasAnyInvalidPlaceholdersInContent(sprint.dailyContent || [])) {
-      alert("Cannot save: Invalid {step N} placeholder logic detected! Placeholders like {step 1} can only be used on steps with Input Type 'none' that reference a preceding 'tags' or 'poll' step.");
+      alert("Cannot save: Invalid {step N} placeholder logic detected! Placeholders like {step 1} must reference a preceding step.");
       setSaveStatus('idle');
       return;
     }
@@ -3157,13 +3157,62 @@ const EditSprint: React.FC = () => {
                                                 placeholder={`Action Step ${index + 1}...`} 
                                             />
                                             {placeholderVal.hasPlaceholders && placeholderVal.isValid && (
-                                                <div className="p-3 bg-red-50/80 border border-red-200/80 rounded-xl text-xs text-red-800 font-semibold flex items-center justify-between mt-2 animate-fade-in shadow-2xs">
+                                                <div className="p-3 bg-red-50/80 border border-red-200/80 rounded-xl text-xs text-red-800 font-semibold flex flex-col gap-2 mt-2 animate-fade-in shadow-2xs">
                                                     <div className="flex items-center gap-2">
                                                         <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"></span>
                                                         <span>
                                                             <strong>Dynamic Logic Active:</strong> Placeholder <code className="bg-white px-1.5 py-0.5 rounded border border-red-200 text-red-700 font-mono text-[11px]">{(placeholderVal.validStepLabels || placeholderVal.validStepRefs.map(n => String(n))).map(s => `{step ${s}}`).join(', ')}</code> will expand into choice(s) collected from Step {placeholderVal.validStepLabels?.join(', ') || placeholderVal.validStepRefs.join(', ')}.
                                                         </span>
                                                     </div>
+
+                                                    {placeholderVal.placeholderDetails && placeholderVal.placeholderDetails.length > 0 && (
+                                                        <div className="flex flex-col gap-2 pt-2 border-t border-red-200/60">
+                                                            {placeholderVal.placeholderDetails.map((detail, dIdx) => (
+                                                                <div key={dIdx} className="flex flex-wrap items-center justify-between gap-2 bg-white/80 p-2 rounded-lg border border-red-100">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span className="text-[10px] font-black uppercase tracking-wider text-red-900">
+                                                                            Step {detail.rawLabel} Output Tag:
+                                                                        </span>
+                                                                        <span className="text-[10px] text-gray-500 italic">
+                                                                            ({detail.mode === 'list' ? 'List mode: separated into bulleted lines' : 'Normal mode: displayed inline within sentence'})
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="inline-flex p-0.5 bg-gray-100 rounded-lg shrink-0">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const newPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'normal');
+                                                                                handleTaskPromptChange(index, newPrompt);
+                                                                            }}
+                                                                            className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                                                                                detail.mode === 'normal'
+                                                                                    ? 'bg-red-600 text-white shadow-xs'
+                                                                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
+                                                                            }`}
+                                                                            title="Normal Tag: Displays data inline as text within a sentence separated by commas"
+                                                                        >
+                                                                            Normal Tag
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const newPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'list');
+                                                                                handleTaskPromptChange(index, newPrompt);
+                                                                            }}
+                                                                            className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                                                                                detail.mode === 'list'
+                                                                                    ? 'bg-red-600 text-white shadow-xs'
+                                                                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
+                                                                            }`}
+                                                                            title="List Tag: Separates data into a bulleted list rather than comma separation"
+                                                                        >
+                                                                            List Tag
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                             {placeholderVal.hasPlaceholders && !placeholderVal.isValid && (
