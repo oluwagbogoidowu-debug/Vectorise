@@ -29,7 +29,7 @@ import SprintCompletionModal from "../../components/SprintCompletionModal";
 import PushPermissionModal from "../../components/PushPermissionModal";
 import ConfirmModal from "../../components/ConfirmModal";
 import { Participant } from "../../types";
-import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings } from "../../utils/haptics";
+import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings, getSoundSettings, setSoundSettings } from "../../utils/haptics";
 
 import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
@@ -1374,7 +1374,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     {},
   );
 
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(() => getSoundSettings());
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [hapticsEnabled, setHapticsEnabled] = useState(() => getHapticSettings());
   const [globalSettings, setGlobalSettings] =
@@ -2094,10 +2094,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   }, [dayLockDetails, now]);
 
   const toggleSoundState = async () => {
-    if (!enrollment) return;
     triggerHaptic(hapticPatterns.light);
     const newState = !soundEnabled;
     setSoundEnabled(newState);
+    setSoundSettings(newState);
+    if (!enrollment) return;
     try {
       const enrollmentRef = doc(db, "users", enrollment.user_id, "enrollments", enrollment.id);
       await updateDoc(enrollmentRef, { soundDisabled: !newState });
@@ -2541,10 +2542,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           <div className="flex items-center justify-between">
             <button
               onClick={() => isPreview ? navigate(-1) : navigate("/dashboard")}
-              className="p-1.5 bg-white border border-gray-100 rounded-xl shadow-xs text-gray-400 active:scale-95 transition-all"
+              className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all cursor-pointer"
             >
               <svg
-                className="w-3.5 h-3.5"
+                className="w-5 h-5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -2562,105 +2563,26 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 {sprint.title}
               </h1>
             </div>
-            {isPreview ? (
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <span className="text-[9px] font-black text-[#0E7850] bg-[#0E7850]/10 border border-[#0E7850]/20 px-2.5 py-0.5 rounded-md uppercase tracking-wider">
-                  Sprint Preview
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setIsSprintOverviewOpen(true)}
-                    className="p-1.5 bg-white border border-gray-100 rounded-xl shadow-xs text-gray-400 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
-                    title="Sprint Description"
-                  >
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsSprintCardModalOpen(true)}
-                    className="p-1.5 bg-white border border-gray-100 rounded-xl shadow-xs text-gray-400 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
-                    title="Sprint Card"
-                  >
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2.5}
-                    >
-                      <rect x="3" y="3" width="18" height="18" rx="2" fill="none" />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M7 8h10M7 12h10M7 16h6"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setIsSprintOverviewOpen(true)}
-                  className="p-1.5 bg-white border border-gray-100 rounded-xl shadow-xs text-gray-400 active:scale-95 transition-all cursor-pointer"
-                  title="Sprint Description"
-                >
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => setIsSettingsModalOpen(true)}
-                  className="p-1.5 bg-white border border-gray-100 rounded-xl shadow-xs text-gray-400 active:scale-95 transition-all"
-                  title="Sprint Settings"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2.5}
-                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2.5}
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                </button>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsSprintOverviewOpen(true)}
+              className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all cursor-pointer"
+              title="Sprint Description"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </button>
           </div>
         </header>
 

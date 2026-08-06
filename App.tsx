@@ -155,7 +155,7 @@ const AppContent: React.FC = () => {
     location.pathname.startsWith('/participant/sprint') || 
     location.pathname.startsWith('/sprint') ||
     location.pathname.startsWith('/coach/sprint/preview') ||
-    location.pathname.startsWith('/profile/settings/identity');
+    location.pathname.startsWith('/profile/settings');
 
   const showGlobalHeader = false;
 

@@ -145,8 +145,8 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
 
   const isDaySuccess = location.pathname.startsWith('/participant/day-success');
   const isSprintView = location.pathname.startsWith('/participant/sprint');
-  const isIdentityPage = location.pathname.startsWith('/profile/settings/identity');
-  const isFullBleedPage = isDaySuccess || isSprintView || isIdentityPage || location.pathname.startsWith('/sprint') || location.pathname.startsWith('/coach/sprint/preview');
+  const isSettingsPage = location.pathname.startsWith('/profile/settings');
+  const isFullBleedPage = isDaySuccess || isSprintView || isSettingsPage || location.pathname.startsWith('/sprint') || location.pathname.startsWith('/coach/sprint/preview');
 
   return (
     <div className="h-[100dvh] w-full bg-light overflow-hidden flex flex-col">

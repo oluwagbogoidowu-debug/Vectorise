@@ -2,6 +2,18 @@
  * Subtle haptic feedback utility using the native HTML5 Vibration API.
  * Safely handles environments where navigator.vibrate is unavailable (or blocked).
  */
+export const getSoundSettings = (): boolean => {
+  if (typeof window === 'undefined') return true;
+  const val = localStorage.getItem('vectorise_sound_enabled');
+  return val === null ? true : val === 'true';
+};
+
+export const setSoundSettings = (enabled: boolean) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('vectorise_sound_enabled', String(enabled));
+  }
+};
+
 export const getHapticSettings = (): boolean => {
   if (typeof window === 'undefined') return true;
   const val = localStorage.getItem('vectorise_haptics_enabled');

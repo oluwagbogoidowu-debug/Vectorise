@@ -18,6 +18,10 @@ import {
 } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { userService, safeJSONStringify } from '../../services/userService';
+import PagedSprintDescription from '../../components/PagedSprintDescription';
+import { triggerHaptic, hapticPatterns, getSoundSettings } from '../../utils/haptics';
+import { motion, AnimatePresence } from 'motion/react';
+import { X } from 'lucide-react';
 
 import { toast } from 'sonner';
 
@@ -239,6 +243,25 @@ const SprintPreview: React.FC = () => {
     const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
     const [isInsightExpanded, setIsInsightExpanded] = useState(true);
     const [showBottomCancelConfirm, setShowBottomCancelConfirm] = useState(false);
+    const [isSprintOverviewOpen, setIsSprintOverviewOpen] = useState(false);
+    const [soundEnabled] = useState(() => getSoundSettings());
+    const prevTaskIndexRef = useRef(0);
+
+    useEffect(() => {
+        if (activeTaskIndex > prevTaskIndexRef.current) {
+            if (soundEnabled) {
+                try {
+                    const sound = new Audio("https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3");
+                    sound.volume = 0.55;
+                    sound.play().catch((e) => console.log("Mint sound play deferred/blocked:", e));
+                } catch (e) {
+                    console.error("Failed to load mint sound audio:", e);
+                }
+            }
+        }
+        prevTaskIndexRef.current = activeTaskIndex;
+        triggerHaptic(hapticPatterns.light);
+    }, [activeTaskIndex, soundEnabled]);
     
     // Auto-redirect already logged-in users so they never see the preview again (unless in coach preview route)
     useEffect(() => {
@@ -260,6 +283,16 @@ const SprintPreview: React.FC = () => {
     }, [user, loading, showLockModal, sprintId, navigate, location.pathname]);
 
     const handleCompletePreviewDay = () => {
+        if (soundEnabled) {
+            try {
+                const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3");
+                audio.play().catch((e) => console.error("Sound playback failed:", e));
+            } catch (e) {
+                console.error("Audio initialization failed:", e);
+            }
+        }
+        triggerHaptic(hapticPatterns.success);
+
         const d1Content = Array.isArray(sprint?.dailyContent) ? sprint?.dailyContent.find(dc => dc.day === 1) : undefined;
         const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
         const daySuccessState = { 
@@ -1253,7 +1286,16 @@ const SprintPreview: React.FC = () => {
                     <div className="text-center flex-1 mx-4 min-w-0">
                         <h1 className="text-lg font-black text-gray-900 truncate italic">{sprint.title}</h1>
                     </div>
-                    <div className="w-10"></div> {/* Spacer */}
+                    <button 
+                        type="button"
+                        onClick={() => setIsSprintOverviewOpen(true)}
+                        className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all cursor-pointer"
+                        title="Sprint Description"
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </button>
                 </div>
             </header>
 
@@ -2268,6 +2310,58 @@ const SprintPreview: React.FC = () => {
                 </div>,
                 document.body
             )}
+
+            {/* Sprint Description Sheet */}
+            <AnimatePresence>
+                {isSprintOverviewOpen && sprint && (
+                    <>
+                        <div
+                            className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick cursor-pointer"
+                            onClick={() => setIsSprintOverviewOpen(false)}
+                        />
+                        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-5 sm:p-6 overflow-y-auto max-h-[75vh] sm:max-h-[70vh] pb-6 animate-slide-up-quick text-left font-sans">
+                            {/* Drag Handle indicator */}
+                            <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
+
+                            {/* Close button */}
+                            <button
+                                onClick={() => setIsSprintOverviewOpen(false)}
+                                className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+
+                            {/* Category / Duration */}
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850] bg-[#0E7850]/5 px-2.5 py-1 rounded-lg">
+                                    {sprint.category || "Growth"}
+                                </span>
+                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg">
+                                    {sprint.duration || 7} Days
+                                </span>
+                            </div>
+
+                            {/* Sprint Title */}
+                            <h3 className="text-xl font-black tracking-tight leading-tight text-gray-900 mb-3 uppercase">
+                                {sprint.title}
+                            </h3>
+
+                            {/* Description with Paged Slides */}
+                            <div className="mb-4">
+                                <PagedSprintDescription text={sprint.description || sprint.subtitle || "Unlock consistency and start your rise."} />
+                            </div>
+
+                            {/* Action button */}
+                            <button
+                                onClick={() => setIsSprintOverviewOpen(false)}
+                                className="w-full py-3.5 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] shadow-xl hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer mt-2"
+                            >
+                                Got It
+                            </button>
+                        </div>
+                    </>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

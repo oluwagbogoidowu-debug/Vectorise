@@ -65,6 +65,7 @@ import PaymentSuccess from './pages/Participant/PaymentSuccess';
 import AccountSettings from './pages/Participant/Profile/AccountSettings';
 import EditProfile from './pages/Participant/Profile/EditProfile';
 import IdentitySettings from './pages/Participant/Profile/IdentitySettings';
+import SprintSettings from './pages/Participant/Profile/SprintSettings';
 import RiseArchive from './pages/Participant/Profile/RiseArchive';
 
 import BuyCoins from './pages/Participant/BuyCoins';
@@ -116,7 +117,7 @@ export const AppRoutes: React.FC = () => {
       <Route path="/" element={
         user 
           ? <Navigate to={`/dashboard${location.search}`} replace />
-          : <Navigate to={`/login${location.search}`} replace />
+          : <HomePage />
       } />
       <Route path="/welcome" element={<HomePage />} />
       <Route path="/recommended" element={<RecommendedSprints />} />
@@ -177,6 +178,7 @@ export const AppRoutes: React.FC = () => {
          <Route path="/profile/settings" element={<AccountSettings />} />
          <Route path="/profile/settings/edit" element={<EditProfile />} />
          <Route path="/profile/settings/identity" element={<IdentitySettings />} />
+         <Route path="/profile/settings/sprint" element={<SprintSettings />} />
           <Route path="/profile/archive" element={<RiseArchive />} />
           <Route path="/profile/hall-of-rise" element={<Badges />} />
          <Route path="/profile/:userId" element={<PublicProfile />} />

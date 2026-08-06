@@ -104,6 +104,14 @@ const AccountSettings: React.FC = () => {
             <svg className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
           </Link>
 
+          <Link to="/profile/settings/sprint" className="flex items-center justify-between p-5 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-3xl shadow-sm group active:scale-[0.98] transition-all">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-2xl bg-primary/5 dark:bg-primary/10 flex items-center justify-center text-lg">⚡</div>
+              <span className="text-xs font-black text-gray-900 dark:text-gray-100 uppercase tracking-widest">Sprint Settings</span>
+            </div>
+            <svg className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
+          </Link>
+
           {/* Dark Mode toggle before push notification */}
           <div className="p-5 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-3xl shadow-sm flex items-center justify-between transition-colors duration-300">
             <div className="flex items-center gap-4">

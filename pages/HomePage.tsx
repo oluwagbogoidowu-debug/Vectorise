@@ -113,7 +113,7 @@ const HomePage: React.FC = () => {
       {/* NAVIGATION */}
       <nav className="fixed top-0 left-0 w-full z-[100] bg-white/95 backdrop-blur-md px-6 py-5">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/welcome" className="hover:scale-105 transition-transform duration-500">
+          <Link to="/" className="hover:scale-105 transition-transform duration-500">
             <LocalLogo type="green" className="h-[2.125rem] w-auto" />
           </Link>
           <div className="flex gap-6 items-center">
@@ -140,7 +140,7 @@ const HomePage: React.FC = () => {
           <div className="max-w-2xl mx-auto mb-10 space-y-5">
             <div className="py-4 md:py-6 text-center">
                 <p className="text-base md:text-lg text-black font-bold leading-tight">
-                    You don’t lack ambition but a clear structure that compounds into intentional growth.
+                    You don’t lack ambition. You lack a clear structure that turns effort into real progress.
                 </p>
             </div>
             
@@ -156,14 +156,20 @@ const HomePage: React.FC = () => {
 
           <div className="flex flex-col items-center gap-6">
             <div className="flex flex-col items-center">
+              <p className="text-xs md:text-sm font-bold text-gray-700 tracking-tight mb-3">
+                Start with a sprint built for where you are
+              </p>
               <button 
                   onClick={handleStartAction}
                   className="px-12 py-5 bg-primary text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
               >
                   Start your Rise
               </button>
+              <p className="text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider mt-3">
+                Your first sprint is free
+              </p>
             </div>
-            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest">
+            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mt-2">
                 ALREADY HAVE AN ACCOUNT? <Link to="/login" className="text-black hover:underline ml-1">CONTINUE YOUR RISE</Link>
             </p>
           </div>
