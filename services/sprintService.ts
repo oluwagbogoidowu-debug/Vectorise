@@ -384,19 +384,31 @@ export const sprintService = {
         const emitMerged = () => {
             if (!latestDetails) return;
             
-            const dailyContent: any[] = [];
+            let dailyContent: any[] = [];
             const dayNums = Object.keys(latestDays).map(Number).sort((a, b) => a - b);
             
-            dayNums.forEach(d => {
-                dailyContent.push({ day: d, ...latestDays[d] });
-            });
+            if (dayNums.length > 0) {
+                dayNums.forEach(d => {
+                    dailyContent.push({ day: d, ...latestDays[d] });
+                });
+            } else if (Array.isArray(latestDetails.dailyContent) && latestDetails.dailyContent.length > 0) {
+                dailyContent = latestDetails.dailyContent;
+            }
 
             const mergedSprint = {
                 ...latestDetails,
                 dailyContent
             };
             
-            callback(deserializeSprint(mergedSprint));
+            const deserialized = deserializeSprint(mergedSprint);
+            
+            // Keep in-memory & localStorage cache updated with the latest realtime snapshot
+            sprintCache[sprintId] = deserialized;
+            try {
+                localStorage.setItem(`vectorise_sprint_cache_${sprintId}`, safeJSONStringify(deserialized));
+            } catch (e) {}
+
+            callback(deserialized);
         };
 
         // Listen to sprint details

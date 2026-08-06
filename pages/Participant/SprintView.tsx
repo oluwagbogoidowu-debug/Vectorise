@@ -1749,7 +1749,24 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           if (!unsubSprint) {
             unsubSprint = sprintService.subscribeToSprint(data.sprint_id, (found) => {
               if (found) {
-                setSprint(found);
+                const approvedDailyContent = (Array.isArray(found.dailyContent) && found.dailyContent.length > 0)
+                  ? found.dailyContent
+                  : (Array.isArray(found.pendingChanges?.dailyContent) ? found.pendingChanges.dailyContent : []);
+
+                const processed = {
+                  ...found,
+                  dailyContent: approvedDailyContent.map((c: any) => ({
+                    ...c,
+                    taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
+                  })),
+                  duration: found.duration || found.pendingChanges?.duration || 0,
+                  outcomes: Array.isArray(found.outcomes) && found.outcomes.length > 0 ? found.outcomes : (Array.isArray(found.pendingChanges?.outcomes) ? found.pendingChanges.outcomes : []),
+                  forWho: Array.isArray(found.forWho) && found.forWho.length > 0 ? found.forWho : (Array.isArray(found.pendingChanges?.forWho) ? found.pendingChanges.forWho : []),
+                  notForWho: Array.isArray(found.notForWho) && found.notForWho.length > 0 ? found.notForWho : (Array.isArray(found.pendingChanges?.notForWho) ? found.pendingChanges.notForWho : []),
+                  methodSnapshot: Array.isArray(found.methodSnapshot) && found.methodSnapshot.length > 0 ? found.methodSnapshot : (Array.isArray(found.pendingChanges?.methodSnapshot) ? found.pendingChanges.methodSnapshot : []),
+                  dynamicSections: Array.isArray(found.dynamicSections) && found.dynamicSections.length > 0 ? found.dynamicSections : (Array.isArray(found.pendingChanges?.dynamicSections) ? found.pendingChanges.dynamicSections : [])
+                };
+                setSprint(processed);
               }
             });
 

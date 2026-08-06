@@ -1850,6 +1850,7 @@ const SprintPreview: React.FC = () => {
                                                                     sprintId: sprint.id,
                                                                     pricingType: sprint.pricingType || 'cash',
                                                                     firstActionInput: taskInputs[0],
+                                                                    taskInputs: taskInputs,
                                                                     prefilledEmail: prefilledEmail || ''
                                                                 };
                                                                 localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
