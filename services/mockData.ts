@@ -6,8 +6,8 @@ export const FOCUS_OPTIONS = [
 
 export const FOUNDATION_CLARITY_OPTIONS = [
   "I feel stuck and I don’t know what direction to take",
-  "I know what I want but I keep falling off",
-  "I’m putting in effort but nothing is working",
+  "I know what I want but I’m not consistent",
+  "I’m trying, but I’m not seeing real results",
   "I want to start making money or build something real"
 ];
 
@@ -260,7 +260,7 @@ export const PERSONA_QUIZZES: Record<string, { title: string; options: string[] 
   ],
   "Student/Graduate": [
     {
-      title: "What’s your biggest focus right now?",
+      title: "Where are you right now?",
       options: ["Build personal brand before job market", "Get clarity on career direction", "Land internships/entry roles", "Move from school to real projects", "Grow skills & confidence to stand out", "Explore entrepreneurship as a path"]
     },
     {

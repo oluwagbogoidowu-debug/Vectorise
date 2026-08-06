@@ -12,9 +12,9 @@ export interface StepPlaceholderValidation {
 /**
  * Validates `{step N}` or `{Step N}` or `{Step N OpM}` placeholders in prompt text.
  * Rule:
- * - Placeholders must only be used on inputType 'none' steps if validly referencing a preceding 'tags' or 'poll' step.
+ * - Placeholders can be used on ANY step input type ('text', 'tags', 'poll', 'mark', 'note', 'none') to receive input from a preceding step.
  * - For option syntax `{Step N OpM}`, the target step MUST have inputType 'poll'.
- * - If inputType is NOT 'none' OR if a placeholder references a non-preceding step / non-tags-or-poll step: INVALID (error).
+ * - Placeholders must reference a preceding step (stepNum < current stepIndex + 1).
  */
 export function validateStepPlaceholders(
   prompt: string,
@@ -44,7 +44,6 @@ export function validateStepPlaceholders(
     return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [] };
   }
 
-  const currentInputType = taskInputTypes?.[stepIndex] || 'text';
   const invalidStepRefs: number[] = [];
   const validStepRefs: number[] = [];
   const validStepLabels: string[] = [];
@@ -67,7 +66,7 @@ export function validateStepPlaceholders(
 
     const targetType = taskInputTypes?.[targetIndex];
 
-    // Check 2: Target step input type
+    // Check 2: Target step input type for option syntax
     if (ref.opNum !== undefined) {
       if (targetType !== 'poll') {
         invalidStepRefs.push(ref.stepNum);
@@ -77,34 +76,12 @@ export function validateStepPlaceholders(
         }
         continue;
       }
-    } else {
-      if (targetType !== 'tags' && targetType !== 'poll') {
-        invalidStepRefs.push(ref.stepNum);
-        invalidStepLabels.push(ref.rawLabel);
-        if (!invalidReason) {
-          invalidReason = `Invalid placeholder {step ${ref.rawLabel}}: Step ${ref.stepNum} must have input type 'tags' or 'poll'.`;
-        }
-        continue;
-      }
     }
 
     if (!validStepRefs.includes(ref.stepNum)) {
       validStepRefs.push(ref.stepNum);
     }
     validStepLabels.push(ref.rawLabel);
-  }
-
-  // Check 3: Placeholder syntax is only valid on input type 'none'
-  if (currentInputType !== 'none') {
-    return {
-      isValid: false,
-      hasPlaceholders: true,
-      invalidStepRefs: references.map(r => r.stepNum),
-      validStepRefs: [],
-      validStepLabels: [],
-      invalidStepLabels: references.map(r => r.rawLabel),
-      errorMsg: `Placeholder logic {step N} can only be used when Input Type is 'none'. Step ${stepIndex + 1} is currently set to '${currentInputType}'.`
-    };
   }
 
   if (invalidStepLabels.length > 0) {
@@ -226,9 +203,6 @@ export function formatInterpolatedText(
     const stepIndex = stepNum - 1;
 
     const inputType = dayContent?.taskInputTypes?.[stepIndex];
-    if (inputType !== 'tags' && inputType !== 'poll') {
-      return fullMatch;
-    }
 
     // CASE 1: Explicit Option Reference e.g. {Step 6 Op1}
     // Targets the written custom poll option Op1, Op2, etc. defined in Step setup
@@ -277,19 +251,25 @@ export function formatInterpolatedText(
     let items: string[] = [];
     const val = taskInputs?.[stepIndex];
 
-    if (val && typeof val === 'string' && val.trim()) {
-      try {
-        if (val.trim().startsWith('[')) {
-          const parsed = JSON.parse(val);
-          if (Array.isArray(parsed)) items = parsed.filter(Boolean);
-        } else if (val.trim().startsWith('{')) {
-          const parsed = JSON.parse(val);
-          items = Object.values(parsed).filter((v): v is string => typeof v === 'string' && Boolean(v));
-        } else {
+    if (val !== undefined && val !== null) {
+      if (typeof val === 'boolean') {
+        if (val) items = ['Completed'];
+      } else if (typeof val === 'string' && val.trim()) {
+        try {
+          if (val.trim().startsWith('[')) {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed)) items = parsed.filter(Boolean);
+          } else if (val.trim().startsWith('{')) {
+            const parsed = JSON.parse(val);
+            items = Object.values(parsed).filter((v): v is string => typeof v === 'string' && Boolean(v));
+          } else {
+            items = [val.trim()];
+          }
+        } catch (e) {
           items = [val.trim()];
         }
-      } catch (e) {
-        items = [val.trim()];
+      } else if (Array.isArray(val)) {
+        items = val.map((v) => String(v).trim()).filter(Boolean);
       }
     }
 
@@ -300,6 +280,9 @@ export function formatInterpolatedText(
         if (Array.isArray(configuredTags) && configuredTags.length > 0) items = configuredTags;
       } else if (inputType === 'poll') {
         items = getPollOptionsList(stepIndex);
+      } else if (inputType === 'text' || inputType === 'note') {
+        const promptText = dayContent?.taskPrompts?.[stepIndex];
+        if (promptText) items = [promptText];
       }
     }
 

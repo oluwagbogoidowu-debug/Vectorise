@@ -17,9 +17,9 @@ const FocusSelector: React.FC = () => {
   
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessingSelection, setIsProcessingSelection] = useState(false);
-  const [pollQuestion, setPollQuestion] = useState<string>("What’s your biggest focus right now?");
+  const [pollQuestion, setPollQuestion] = useState<string>("Where are you right now?");
   const [activeAssignment, setActiveAssignment] = useState<LifecycleSlotAssignment | null>(null);
-  const [activeSlotName, setActiveSlotName] = useState<string>("Growth Catalyst Mapping");
+  const [activeSlotName, setActiveSlotName] = useState<string>("Foundation: Clarity");
   const [lookupError, setLookupError] = useState<string | null>(null);
 
   // Hierarchical State
@@ -29,7 +29,7 @@ const FocusSelector: React.FC = () => {
 
   const currentOptions = useMemo(() => {
     // For Foundation: Clarity, default to FOUNDATION_CLARITY_OPTIONS if not explicitly overridden with custom options
-    if (currentLevel === 0 && activeSlotName === "Foundation: Clarity") {
+    if (currentLevel === 0 && (activeSlotName === "Foundation: Clarity" || activeTrigger === 'after_homepage')) {
       if (activeAssignment?.availableFocusOptions && activeAssignment.availableFocusOptions.length > 0 && activeAssignment.availableFocusOptions.length !== 4) {
         return activeAssignment.availableFocusOptions;
       }
@@ -262,7 +262,7 @@ const FocusSelector: React.FC = () => {
                <LocalLogo type="white" className="h-5 w-auto mx-auto mb-8 opacity-40" />
                <h1 className="text-xl md:text-2xl font-black tracking-tight leading-tight italic">{pollQuestion}</h1>
                <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em] mt-4">
-                 {selections.length > 0 ? selections.join(' > ') : (activeTrigger === 'skip_clarity' ? 'Execution Registry' : activeSlotName)}
+                 {selections.length > 0 ? selections.join(' > ') : (activeTrigger === 'skip_clarity' ? 'Execution Registry' : 'GET 1% BETTER DAILY')}
                </p>
             </header>
             
@@ -332,7 +332,7 @@ const FocusSelector: React.FC = () => {
           </div>
         )}
         <footer className="mt-12 opacity-20 text-center">
-            <p className="text-[7px] font-black uppercase tracking-[0.5em]">GET 1% BETTER DAILY</p>
+            <p className="text-[7px] font-black uppercase tracking-[0.5em]">FOUNDATION: CLARITY</p>
         </footer>
       </div>
       <div className="absolute top-[-10%] right-[-10%] w-80 h-80 bg-white/5 rounded-full blur-[100px] pointer-events-none"></div>
