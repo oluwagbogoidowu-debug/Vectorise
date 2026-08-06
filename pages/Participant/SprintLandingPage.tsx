@@ -601,7 +601,12 @@ const SprintLandingPage: React.FC = () => {
                 <header className="bg-white border-b border-gray-100 py-4 px-4 sm:px-6 lg:px-8">
                     <div className="max-w-screen-lg mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex flex-col items-start">
-                            <LocalLogo type="green" className="h-8 w-auto mb-2" />
+                            <div className="flex items-center gap-2.5 mb-2">
+                                <LocalLogo type="green" className="h-8 w-auto" />
+                                <span className="text-[11px] sm:text-xs font-bold text-gray-500 tracking-tight">
+                                    Get 1% better daily
+                                </span>
+                            </div>
                             <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
                                 <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: '25%' }}></div>
                             </div>
@@ -637,7 +642,12 @@ const SprintLandingPage: React.FC = () => {
                                 Back to Registry
                             </button>
                         ) : (
-                            <LocalLogo type="green" className="h-8 w-auto" />
+                            <div className="flex items-center gap-2.5">
+                                <LocalLogo type="green" className="h-8 w-auto" />
+                                <span className="text-[11px] sm:text-xs font-bold text-gray-500 tracking-tight">
+                                    Get 1% better daily
+                                </span>
+                            </div>
                         )}
                         <div className="flex items-center gap-3">
                             <button

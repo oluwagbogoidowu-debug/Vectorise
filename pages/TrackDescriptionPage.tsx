@@ -286,7 +286,12 @@ const TrackDescriptionPage: React.FC = () => {
                             Back to Registry
                         </button>
                     ) : (
-                        <LocalLogo type="green" className="h-8 w-auto" />
+                        <div className="flex items-center gap-2.5">
+                            <LocalLogo type="green" className="h-8 w-auto" />
+                            <span className="text-[11px] sm:text-xs font-bold text-gray-500 tracking-tight">
+                                Get 1% better daily
+                            </span>
+                        </div>
                     )}
                     <div className="flex items-center gap-3">
                         <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
