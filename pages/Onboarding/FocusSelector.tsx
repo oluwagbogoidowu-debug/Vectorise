@@ -324,7 +324,7 @@ const FocusSelector: React.FC = () => {
           </div>
         )}
         <footer className="mt-12 opacity-20 text-center">
-            <p className="text-[7px] font-black uppercase tracking-[0.5em]">Get 1% better daily</p>
+            <p className="text-[7px] font-black uppercase tracking-[0.5em]">GET 1% BETTER DAILY</p>
         </footer>
       </div>
       <div className="absolute top-[-10%] right-[-10%] w-80 h-80 bg-white/5 rounded-full blur-[100px] pointer-events-none"></div>

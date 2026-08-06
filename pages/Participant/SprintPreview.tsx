@@ -1950,6 +1950,12 @@ const SprintPreview: React.FC = () => {
                         })()}
                     </div>
                 </div>
+
+                <div className="text-center mt-6 mb-2">
+                    <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400">
+                        GET 1% BETTER DAILY
+                    </p>
+                </div>
             </div>
 
             <style>{`

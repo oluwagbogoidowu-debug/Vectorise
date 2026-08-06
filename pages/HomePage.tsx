@@ -156,8 +156,8 @@ const HomePage: React.FC = () => {
 
           <div className="flex flex-col items-center gap-6">
             <div className="flex flex-col items-center">
-              <p className="text-xs md:text-sm font-bold text-gray-700 tracking-tight mb-3">
-                Start with a sprint built for where you are
+              <p className="text-sm md:text-base font-extrabold text-gray-900 uppercase tracking-wider text-center mb-3 leading-snug">
+                START WITH A SPRINT <br /> BUILT FOR WHERE YOU ARE
               </p>
               <button 
                   onClick={handleStartAction}
