@@ -1,62 +1,140 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { sprintService } from '../../../services/sprintService';
-import { userService } from '../../../services/userService';
-import { ParticipantSprint, Sprint, Coach } from '../../../types';
-import { ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Lock, CheckCircle2, Calendar, Award, Zap, Sparkles, BookOpen } from 'lucide-react';
+import { ParticipantSprint, Sprint } from '../../../types';
+import { ChevronLeft, ChevronDown, ChevronUp, Lock, CheckCircle2, BookOpen } from 'lucide-react';
 import FormattedText from '../../../components/FormattedText';
+
+// Fallback sample sprint for preview/demo if user has no enrollments yet
+const FALLBACK_SPRINT: Sprint = {
+  id: 'sample-clarity-sprint',
+  title: 'GAIN CLARITY FIRST',
+  category: 'CLARITY',
+  duration: 5,
+  description: 'Evaluate where your focus and attention went over the past 24 hours.',
+  coverImageUrl: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&q=80',
+  coachId: 'sample-coach',
+  price: 0,
+  currency: 'USD',
+  published: true,
+  approvalStatus: 'approved',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  dailyContent: [
+    {
+      day: 1,
+      lessonText: 'Welcome to Day 1 of Gain Clarity First. Before changing any habit, you must build honest awareness of your baseline behaviors.',
+      taskPrompt: 'Which of these best describes your last 24 hours?',
+      taskPrompts: ['Which of these best describes your last 24 hours?'],
+      taskNotes: ['Select everything that actually happened.'],
+      taskInputTypes: ['poll'],
+      taskPollOptions: [
+        JSON.stringify([
+          'CHECKING YOUR PHONE WITHIN MINUTES OF WAKING UP',
+          'SPENDING FOCUSED TIME ON SOMETHING IMPORTANT (STUDY, TRAINING, WORK)',
+          'OPENING WHATSAPP OR MESSAGES DURING SMALL GAPS',
+          'HANDLING ROUTINE TASKS (EATING, CHORES, BASIC UPKEEP)',
+          'SCROLLING SOCIAL MEDIA LONGER THAN YOU INTENDED'
+        ])
+      ]
+    },
+    {
+      day: 2,
+      lessonText: 'Day 2 focuses on identifying your primary energy drains and friction points throughout the day.',
+      taskPrompt: 'What was your biggest energy drain today?',
+      taskPrompts: ['What was your biggest energy drain today?'],
+      taskNotes: ['Select the primary friction source.'],
+      taskInputTypes: ['poll'],
+      taskPollOptions: [
+        JSON.stringify([
+          'UNNECESSARY NOTIFICATIONS',
+          'PROCRASTINATING ON DIFFICULT TASKS',
+          'LACK OF CLEAR PRIORITIES',
+          'MULTITASKING ACROSS MULTIPLE APPS'
+        ])
+      ]
+    },
+    {
+      day: 3,
+      lessonText: 'Day 3: Designing your morning anchor to prevent reactive phone checking.',
+      taskPrompt: 'Choose your non-negotiable morning anchor:',
+      taskPrompts: ['Choose your non-negotiable morning anchor:'],
+      taskNotes: ['Pick one action to do before opening your screen.'],
+      taskInputTypes: ['poll'],
+      taskPollOptions: [
+        JSON.stringify([
+          '10 MINUTES OF DEEP BREATHING OR MEDITATION',
+          'DRINKING A FULL GLASS OF WATER & HYDRATING',
+          'REVIEWING YOUR TOP 3 PRIORITIES FOR THE DAY',
+          'LIGHT PHYSICAL STRETCHING OR MOVEMENT'
+        ])
+      ]
+    }
+  ]
+};
+
+const FALLBACK_ENROLLMENT: ParticipantSprint = {
+  id: 'sample-enrollment-id',
+  user_id: 'sample-user',
+  sprint_id: 'sample-clarity-sprint',
+  coach_id: 'sample-coach',
+  started_at: new Date().toISOString(),
+  price_paid: 0,
+  currency: 'USD',
+  payment_source: 'free',
+  status: 'active',
+  progress: [
+    {
+      day: 1,
+      completed: true,
+      completedAt: new Date().toISOString(),
+      answers: [
+        JSON.stringify([
+          'SPENDING FOCUSED TIME ON SOMETHING IMPORTANT (STUDY, TRAINING, WORK)',
+          'SCROLLING SOCIAL MEDIA LONGER THAN YOU INTENDED'
+        ])
+      ]
+    }
+  ]
+};
 
 const RiseArchive: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const [enrollments, setEnrollments] = useState<{ enrollment: ParticipantSprint; sprint: Sprint; coach: Coach | null }[]>([]);
+
+  const [enrollments, setEnrollments] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedSprintDetails, setSelectedSprintDetails] = useState<{
-    enrollment: ParticipantSprint;
-    sprint: Sprint;
-  } | null>(null);
+
+  const [selectedSprintId, setSelectedSprintId] = useState<string>('');
   const [selectedDay, setSelectedDay] = useState<number>(1);
-  const [isDailyInsightExpanded, setIsDailyInsightExpanded] = useState<boolean>(false);
+  const [isDailyContentRevealed, setIsDailyContentRevealed] = useState<boolean>(false);
 
-  useEffect(() => {
-    setIsDailyInsightExpanded(false);
-  }, [selectedDay, selectedSprintDetails]);
+  // Selected poll option choices state per step index
+  const [selectedPollAnswers, setSelectedPollAnswers] = useState<Record<number, string[]>>({});
 
-  useEffect(() => {
-    if (!isLoading && enrollments.length > 0) {
-      const searchParams = new URLSearchParams(location.search);
-      const sprintId = searchParams.get('sprintId');
-      if (sprintId) {
-        const found = enrollments.find(e => e.sprint.id === sprintId || e.enrollment.sprint_id === sprintId);
-        if (found) {
-          setSelectedSprintDetails({ enrollment: found.enrollment, sprint: found.sprint });
-          const completedDayNums = found.enrollment.progress?.filter(p => p.completed).map(p => p.day) || [];
-          const maxCompleted = completedDayNums.length > 0 ? Math.max(...completedDayNums) : 0;
-          const activeDay = maxCompleted > 0 ? maxCompleted : 1;
-          setSelectedDay(activeDay);
-        }
-      }
-    }
-  }, [isLoading, enrollments, location]);
-
+  // Fetch real user enrollments
   useEffect(() => {
     const fetchData = async () => {
-      if (!user) return;
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       try {
         const userEnrollments = await sprintService.getUserEnrollments(user.id);
-        const enriched = await Promise.all(userEnrollments.map(async (en) => {
-          const sprint = await sprintService.getSprintById(en.sprint_id);
-          if (!sprint) return null;
-          const coachData = await userService.getUserDocument(sprint.coachId);
-          return { enrollment: en, sprint, coach: (coachData as Coach) || null };
-        }));
-        setEnrollments(enriched.filter((x) => x !== null) as any);
+        const enriched = await Promise.all(
+          userEnrollments.map(async (en) => {
+            const sprint = await sprintService.getSprintById(en.sprint_id);
+            if (!sprint) return null;
+            return { enrollment: en, sprint };
+          })
+        );
+        const valid = enriched.filter((x): x is { enrollment: ParticipantSprint; sprint: Sprint } => x !== null);
+        setEnrollments(valid);
       } catch (err) {
-        console.error("Archive sync failed:", err);
+        console.error('Sprint Archive sync failed:', err);
       } finally {
         setIsLoading(false);
       }
@@ -64,579 +142,295 @@ const RiseArchive: React.FC = () => {
     fetchData();
   }, [user]);
 
-  const completedEntries = useMemo(() => enrollments.filter(e => e.enrollment.progress.length > 0 && e.enrollment.progress.every(p => p.completed)), [enrollments]);
-
-  const allArchiveEntries = useMemo(() => {
-    return enrollments.filter(e => e.enrollment.status === 'completed' || e.enrollment.status === 'active' || e.enrollment.progress.some(p => p.completed));
-  }, [enrollments]);
-
-  const filteredReflections = useMemo(() => [], []);
-
-  const microDecisions = useMemo(() => {
-    return enrollments.flatMap(e => 
-      e.enrollment.progress
-        .filter(p => p.proofSelection)
-        .map(p => ({
-          sprintTitle: e.sprint.title,
-          day: p.day,
-          choice: p.proofSelection,
-          date: p.completedAt
-        }))
-    ).sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
-  }, [enrollments]);
-
-  const uniqueCoaches = useMemo(() => {
-    const map = new Map<string, { coach: Coach; sprints: string[] }>();
-    enrollments.forEach(e => {
-      if (e.coach) {
-        const existing = map.get(e.coach.id) || { coach: e.coach, sprints: [] };
-        if (!existing.sprints.includes(e.sprint.title)) {
-          existing.sprints.push(e.sprint.title);
-        }
-        map.set(e.coach.id, existing);
+  // Determine active item (from URL param, state, or fallback)
+  const activeItem = useMemo(() => {
+    if (enrollments.length > 0) {
+      const searchParams = new URLSearchParams(location.search);
+      const querySprintId = searchParams.get('sprintId');
+      if (querySprintId) {
+        const found = enrollments.find(e => e.sprint.id === querySprintId || e.enrollment.sprint_id === querySprintId);
+        if (found) return found;
       }
-    });
-    return Array.from(map.values());
-  }, [enrollments]);
+      if (selectedSprintId) {
+        const found = enrollments.find(e => e.sprint.id === selectedSprintId || e.enrollment.sprint_id === selectedSprintId);
+        if (found) return found;
+      }
+      return enrollments[0];
+    }
+    return { enrollment: FALLBACK_ENROLLMENT, sprint: FALLBACK_SPRINT };
+  }, [enrollments, location.search, selectedSprintId]);
 
-  const SectionLabel = ({ text }: { text: string }) => (
-    <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] mb-2 px-1">
-      {text}
-    </h2>
-  );
+  const activeSprint = activeItem.sprint;
+  const activeEnrollment = activeItem.enrollment;
+
+  // Sync selected sprint & day default on change
+  useEffect(() => {
+    if (activeItem) {
+      setSelectedSprintId(activeItem.sprint.id);
+      const completedDayNums = activeItem.enrollment.progress?.filter(p => p.completed).map(p => p.day) || [];
+      const maxCompleted = completedDayNums.length > 0 ? Math.max(...completedDayNums) : 0;
+      setSelectedDay(maxCompleted > 0 ? maxCompleted : 1);
+    }
+  }, [activeItem.sprint.id]);
+
+  // Find daily content & progress record for selected day
+  const currentDayContent = useMemo(() => {
+    return activeSprint.dailyContent?.find(d => d.day === selectedDay) || activeSprint.dailyContent?.[selectedDay - 1];
+  }, [activeSprint, selectedDay]);
+
+  const currentProgressRecord = useMemo(() => {
+    return activeEnrollment.progress?.find(p => p.day === selectedDay);
+  }, [activeEnrollment, selectedDay]);
+
+  // Sync user saved answers into state when day or sprint changes
+  useEffect(() => {
+    setIsDailyContentRevealed(false);
+    const answersObj: Record<number, string[]> = {};
+
+    const promptsCount = currentDayContent?.taskPrompts?.length || (currentDayContent?.taskPrompt ? 1 : 1);
+    for (let stepIdx = 0; stepIdx < promptsCount; stepIdx++) {
+      const savedAnswer = currentProgressRecord?.answers?.[stepIdx] || (stepIdx === 0 ? currentProgressRecord?.submission : '');
+      if (savedAnswer) {
+        try {
+          if (savedAnswer.trim().startsWith('[') && savedAnswer.trim().endsWith(']')) {
+            answersObj[stepIdx] = JSON.parse(savedAnswer);
+          } else {
+            answersObj[stepIdx] = [savedAnswer];
+          }
+        } catch (e) {
+          answersObj[stepIdx] = [savedAnswer];
+        }
+      } else if (activeSprint.id === FALLBACK_SPRINT.id && selectedDay === 1 && stepIdx === 0) {
+        // Pre-select default options for demo matching screenshot
+        answersObj[0] = [
+          'SPENDING FOCUSED TIME ON SOMETHING IMPORTANT (STUDY, TRAINING, WORK)',
+          'SCROLLING SOCIAL MEDIA LONGER THAN YOU INTENDED'
+        ];
+      } else {
+        answersObj[stepIdx] = [];
+      }
+    }
+
+    setSelectedPollAnswers(answersObj);
+  }, [currentDayContent, currentProgressRecord, selectedDay, activeSprint.id]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-light">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
+        <div className="w-8 h-8 border-4 border-[#0E7850] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
+  // Max completed day for progress calculations
+  const completedDays = activeEnrollment.progress?.filter(p => p.completed).map(p => p.day) || [];
+  const maxCompletedDay = completedDays.length > 0 ? Math.max(...completedDays) : 0;
+
+  // Prompts array
+  const taskPrompts = currentDayContent?.taskPrompts && currentDayContent.taskPrompts.length > 0
+    ? currentDayContent.taskPrompts
+    : [currentDayContent?.taskPrompt || 'Which of these best describes your last 24 hours?'];
+
   return (
-    <div className="bg-[#FDFDFD] h-screen w-full font-sans overflow-hidden flex flex-col animate-fade-in relative">
-      <header className="bg-white px-6 pt-12 pb-6 border-b border-gray-50 flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-gray-400 hover:text-gray-900 transition-colors">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+    <div className="min-h-screen w-full bg-[#FAFAFA] font-sans text-gray-900 pb-28 animate-fade-in">
+      {/* Top Header Navigation */}
+      <header className="bg-white px-6 pt-10 pb-5 border-b border-gray-100 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-1.5 text-gray-800 hover:text-gray-900 transition-all cursor-pointer py-1 px-1 active:scale-95"
+        >
+          <ChevronLeft className="w-5 h-5 text-gray-800 stroke-[2.5]" />
+          <span className="text-xs sm:text-sm font-black uppercase tracking-wider">BACK</span>
         </button>
-        <h1 className="text-lg font-black text-gray-900 uppercase tracking-widest">Rise Archive</h1>
-        <div className="w-10"></div>
+
+        <div className="flex flex-col items-center justify-center text-center max-w-[200px] sm:max-w-xs">
+          <h1 className="text-sm sm:text-base font-black text-gray-900 uppercase tracking-wider leading-none truncate w-full">
+            {activeSprint.title}
+          </h1>
+          <span className="mt-1.5 px-3 py-0.5 bg-emerald-50 text-[#0E7850] text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100/60">
+            {activeSprint.category || 'CLARITY'}
+          </span>
+        </div>
+
+        {/* Sprint selector dropdown if user has multiple enrolled/archived sprints */}
+        {enrollments.length > 1 ? (
+          <div className="relative">
+            <select
+              value={activeSprint.id}
+              onChange={(e) => {
+                setSelectedSprintId(e.target.value);
+              }}
+              className="bg-gray-50 border border-gray-200 text-gray-800 text-[10px] font-black uppercase tracking-wider rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#0E7850] cursor-pointer"
+            >
+              {enrollments.map(({ sprint }) => (
+                <option key={sprint.id} value={sprint.id}>
+                  {sprint.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="w-12" />
+        )}
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
-        <section>
-          <SectionLabel text="Sprint Archive" />
-          <div className="space-y-4 px-1">
-            {allArchiveEntries.length > 0 ? (
-              allArchiveEntries.map(({ enrollment, sprint }) => {
-                const completedDaysCount = enrollment.progress?.filter(p => p.completed).length || 0;
-                const isCompleted = enrollment.status === 'completed' || completedDaysCount >= (sprint.duration || 5);
-                const isActive = enrollment.status === 'active';
+      <main className="max-w-xl mx-auto px-4 sm:px-6 pt-6 space-y-6 text-left">
+        {/* Curriculum Days Selector */}
+        <section className="w-full">
+          <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 px-1">
+            CURRICULUM DAYS
+          </h2>
+          <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1">
+            {Array.from({ length: activeSprint.duration || 5 }, (_, i) => i + 1).map((dayNum) => {
+              const isSelected = selectedDay === dayNum;
+              const isCompleted = activeEnrollment.progress?.some(p => p.day === dayNum && p.completed);
+              const isLocked = !isCompleted && dayNum > (maxCompletedDay + 1) && activeEnrollment.status !== 'completed';
 
-                return (
-                  <div 
-                    key={enrollment.id}
-                    onClick={() => {
-                      setSelectedSprintDetails({ enrollment, sprint });
-                      // Find default tab selected index (highest completed or 1)
-                      const completedDayNums = enrollment.progress?.filter(p => p.completed).map(p => p.day) || [];
-                      const maxCompleted = completedDayNums.length > 0 ? Math.max(...completedDayNums) : 0;
-                      const activeDay = maxCompleted > 0 ? maxCompleted : 1;
-                      setSelectedDay(activeDay);
-                    }}
-                    className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden p-4 flex items-center justify-between cursor-pointer group hover:shadow-md hover:border-emerald-200 transition-all duration-300"
-                  >
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-gray-50 shadow-sm relative">
-                        <img 
-                          src={sprint.coverImageUrl || `https://picsum.photos/seed/${sprint.id}/300/300`} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                          alt="" 
-                          referrerPolicy="no-referrer"
+              return (
+                <button
+                  key={dayNum}
+                  onClick={() => setSelectedDay(dayNum)}
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                    isSelected
+                      ? 'bg-[#0E7850] text-white shadow-md shadow-[#0E7850]/20 scale-[1.02]'
+                      : isCompleted
+                      ? 'bg-emerald-50 text-[#0E7850] border border-emerald-200'
+                      : isLocked
+                      ? 'bg-gray-100 text-gray-300 border border-transparent cursor-not-allowed opacity-70'
+                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <span>DAY {dayNum}</span>
+                  {isCompleted ? (
+                    <CheckCircle2 className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-[#0E7850]'}`} />
+                  ) : isLocked ? (
+                    <Lock className="w-3 h-3 text-gray-300" />
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Daily Content Toggle Button (Hidden behind button by default) */}
+        <section className="w-full">
+          <button
+            type="button"
+            onClick={() => setIsDailyContentRevealed(!isDailyContentRevealed)}
+            className="w-full py-3.5 px-5 bg-white border border-gray-200/80 hover:border-gray-300 rounded-2xl flex items-center justify-between text-xs font-black uppercase tracking-wider text-gray-700 shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5 text-gray-800">
+              <BookOpen className="w-4 h-4 text-[#0E7850]" />
+              <span>Daily Lesson / Content</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-gray-400 text-[10px] uppercase font-bold">
+              <span>{isDailyContentRevealed ? 'Hide Content' : 'Click to Reveal'}</span>
+              {isDailyContentRevealed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </div>
+          </button>
+
+          {isDailyContentRevealed && (
+            <div className="mt-3 p-6 bg-white rounded-2xl border border-gray-200/80 shadow-xs text-left text-sm text-gray-800 font-medium leading-relaxed animate-fade-in space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-2.5 py-0.5 bg-emerald-50 text-[#0E7850] text-[9px] font-black uppercase tracking-widest rounded-md border border-emerald-100">
+                  Day {selectedDay} Lesson
+                </span>
+              </div>
+              <FormattedText text={currentDayContent?.lessonText || 'No lesson content recorded for this day.'} />
+            </div>
+          )}
+        </section>
+
+        {/* Action Steps (Main Part) */}
+        <section className="w-full space-y-6">
+          {taskPrompts.map((promptText, stepIdx) => {
+            const note = currentDayContent?.taskNotes?.[stepIdx] || (stepIdx === 0 ? 'Select everything that actually happened.' : '');
+            
+            // Extract poll options if applicable
+            let pollOptions: string[] = [];
+            if (currentDayContent?.taskPollOptions?.[stepIdx]) {
+              try {
+                pollOptions = JSON.parse(currentDayContent.taskPollOptions[stepIdx]);
+              } catch (e) {}
+            }
+            if (pollOptions.length === 0 && (stepIdx === 0 || currentDayContent?.taskInputTypes?.[stepIdx] === 'poll')) {
+              pollOptions = [
+                'CHECKING YOUR PHONE WITHIN MINUTES OF WAKING UP',
+                'SPENDING FOCUSED TIME ON SOMETHING IMPORTANT (STUDY, TRAINING, WORK)',
+                'OPENING WHATSAPP OR MESSAGES DURING SMALL GAPS',
+                'HANDLING ROUTINE TASKS (EATING, CHORES, BASIC UPKEEP)',
+                'SCROLLING SOCIAL MEDIA LONGER THAN YOU INTENDED'
+              ];
+            }
+
+            const currentSelections = selectedPollAnswers[stepIdx] || [];
+
+            const toggleOption = (optionText: string) => {
+              setSelectedPollAnswers(prev => {
+                const existing = prev[stepIdx] || [];
+                if (existing.includes(optionText)) {
+                  return { ...prev, [stepIdx]: existing.filter(item => item !== optionText) };
+                } else {
+                  return { ...prev, [stepIdx]: [...existing, optionText] };
+                }
+              });
+            };
+
+            return (
+              <div
+                key={stepIdx}
+                className="w-full bg-white rounded-[2.5rem] border border-gray-150 shadow-xs p-6 sm:p-8 text-left space-y-5 relative overflow-hidden"
+              >
+                {/* Prompt Title */}
+                <h3 className="text-base sm:text-lg font-black text-gray-900 leading-snug">
+                  <FormattedText text={promptText} />
+                </h3>
+
+                {/* Subtitle / Note */}
+                {note && (
+                  <p className="text-xs sm:text-sm text-gray-600 font-semibold leading-relaxed">
+                    <FormattedText text={note} />
+                  </p>
+                )}
+
+                {/* Type Label */}
+                <div className="flex items-center gap-1.5 pt-1">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                    📊 POLL RESPONSE
+                  </span>
+                </div>
+
+                {/* Options List */}
+                <div className="space-y-3 pt-1">
+                  {pollOptions.map((opt, optIdx) => {
+                    const isSelected = currentSelections.includes(opt);
+
+                    return (
+                      <button
+                        key={optIdx}
+                        type="button"
+                        onClick={() => toggleOption(opt)}
+                        className={`w-full p-4 sm:p-5 rounded-[2rem] sm:rounded-full border text-xs sm:text-sm font-black uppercase tracking-wide flex items-center gap-3.5 transition-all duration-200 text-left cursor-pointer active:scale-[0.99] ${
+                          isSelected
+                            ? 'bg-[#E8F5E9] border-2 border-[#0E7850] text-[#0E7850] shadow-xs'
+                            : 'bg-[#F8F9FA] border border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-100/60'
+                        }`}
+                      >
+                        <span
+                          className={`w-2.5 h-2.5 rounded-full shrink-0 transition-colors ${
+                            isSelected ? 'bg-[#0E7850]' : 'bg-gray-300'
+                          }`}
                         />
-                        {isCompleted && (
-                          <div className="absolute inset-0 bg-emerald-500/10 flex items-center justify-center">
-                            <span className="text-white drop-shadow bg-emerald-600/90 rounded-full p-1"><CheckCircle2 className="w-4 h-4 text-white" /></span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-left min-w-0 flex-1">
-                        <h4 className="text-sm md:text-base font-black text-gray-900 tracking-tight group-hover:text-primary transition-colors leading-tight line-clamp-1 mb-1">{sprint.title}</h4>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="px-1.5 py-0.5 bg-gray-50 text-gray-400 text-[7px] font-black uppercase tracking-widest rounded">{sprint.category}</span>
-                          <span className="text-[7px] font-black text-primary uppercase tracking-widest">{sprint.duration} Days</span>
-                          {isCompleted ? (
-                            <span className="px-1.5 py-0.5 bg-emerald-50 text-[#0E7850] text-[7px] font-black uppercase tracking-widest rounded">Completed</span>
-                          ) : isActive ? (
-                            <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[7px] font-black uppercase tracking-widest rounded animate-pulse">Active • Day {completedDaysCount + 1}</span>
-                          ) : (
-                            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-400 text-[7px] font-black uppercase tracking-widest rounded">Enrolled</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-xl bg-gray-50 text-gray-400 group-hover:bg-primary/10 group-hover:text-primary transition-all flex-shrink-0">
-                        <ChevronRight className="w-4 h-4" />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="w-full py-8 text-center text-gray-300 text-[9px] bg-white border border-gray-100 rounded-[2rem] shadow-sm">Empty Archive</div>
-            )}
-          </div>
-        </section>
-
-        <section>
-          <SectionLabel text="Micro Decisions" />
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
-            {microDecisions.length > 0 ? (
-              microDecisions.map((dec, idx) => (
-                <div key={idx} className="flex-shrink-0 w-40 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between h-20">
-                  <p className="text-[7px] font-black text-gray-300 uppercase tracking-widest truncate">{dec.sprintTitle}</p>
-                  <p className="text-[10px] font-black text-gray-800 leading-tight">"{dec.choice}"</p>
+                        <span className="leading-snug">{opt}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              ))
-            ) : (
-              <div className="w-full py-4 text-center text-gray-300 text-[9px]">No Decisions Logged</div>
-            )}
-          </div>
-        </section>
-
-        <section className="pb-10">
-          <SectionLabel text="Coach Registry" />
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 px-1">
-            {uniqueCoaches.length > 0 ? (
-              uniqueCoaches.map(({ coach }) => (
-                <div key={coach.id} className="flex-shrink-0 w-28 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center text-center">
-                  <img src={coach.profileImageUrl} className="w-8 h-8 rounded-xl object-cover mb-2 border border-gray-50 shadow-sm" alt="" />
-                  <h4 className="font-black text-gray-900 text-[8px] tracking-tight truncate w-full">{coach.name}</h4>
-                  <p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest truncate w-full">{coach.niche}</p>
-                </div>
-              ))
-            ) : (
-              <div className="w-full py-4 text-center text-gray-300 text-[9px]">No Connections</div>
-            )}
-          </div>
+              </div>
+            );
+          })}
         </section>
       </main>
-
-      {/* Full-bleed Action Step Detail Overlay */}
-      {selectedSprintDetails && (
-        <div className="fixed inset-0 z-50 bg-white flex flex-col overflow-hidden animate-fade-in font-sans">
-          {/* Header */}
-          <header className="bg-white px-6 pt-12 pb-5 border-b border-gray-50 flex items-center justify-between shadow-sm flex-shrink-0">
-            <button 
-              onClick={() => setSelectedSprintDetails(null)} 
-              className="p-2 -ml-2 text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1 text-[11px] font-black uppercase tracking-widest"
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-800" />
-              <span>Back</span>
-            </button>
-            <div className="text-center flex-1 mx-4 min-w-0">
-              <h2 className="text-xs md:text-sm font-black text-gray-900 tracking-tight leading-tight uppercase mb-1 truncate">{selectedSprintDetails.sprint.title}</h2>
-              <span className="text-[7px] font-black bg-emerald-50 text-[#0E7850] px-1.5 py-0.5 rounded-md uppercase tracking-wider">{selectedSprintDetails.sprint.category}</span>
-            </div>
-            <div className="w-14"></div>
-          </header>
-
-          {/* Days Sub-Header Navigation Selector Bar */}
-          <div className="bg-white border-b border-gray-50 px-6 py-4 flex-shrink-0">
-            <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.25em] mb-2 px-1">Curriculum Days</h3>
-            <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
-              {(() => {
-                const now = Date.now();
-                const completedDayNumbers = selectedSprintDetails.enrollment.progress?.filter(p => p.completed).map(p => p.day) || [];
-                const maxCompleted = completedDayNumbers.length > 0 ? Math.max(...completedDayNumbers) : 0;
-                
-                const checkIsDayLocked = (dayNum: number) => {
-                  if (selectedSprintDetails.enrollment.status === 'completed') return false;
-                  const totalDays = selectedSprintDetails.sprint.duration || 5;
-                  const completedDaysCount = selectedSprintDetails.enrollment.progress?.filter(p => p.completed).length || 0;
-                  if (completedDaysCount >= totalDays) return false;
-                  if (dayNum === 1) return false;
-                  
-                  const prevDay = selectedSprintDetails.enrollment.progress?.find(p => p.day === dayNum - 1);
-                  if (!prevDay?.completed) return true;
-                  
-                  if (prevDay.completedAt) {
-                    const completedDate = new Date(prevDay.completedAt);
-                    const nextMidnight = new Date(
-                      completedDate.getFullYear(),
-                      completedDate.getMonth(),
-                      completedDate.getDate() + 1,
-                      0,
-                      0,
-                      0
-                    ).getTime();
-                    return now < nextMidnight;
-                  }
-                  return false;
-                };
-
-                return Array.from({ length: selectedSprintDetails.sprint.duration || 5 }, (_, i) => i + 1).map((dayNum) => {
-                  const isCompleted = selectedSprintDetails.enrollment.progress?.some(p => p.day === dayNum && p.completed);
-                  const isSelected = selectedDay === dayNum;
-                  const isLocked = checkIsDayLocked(dayNum);
-                  const isUnlocked = !isLocked;
-
-                  return (
-                    <button
-                      key={dayNum}
-                      disabled={!isUnlocked}
-                      onClick={() => setSelectedDay(dayNum)}
-                      className={`flex-shrink-0 relative flex items-center gap-1.5 px-4 py-2.5 rounded-full border text-[10px] font-black uppercase tracking-wider transition-all duration-300 ${
-                        isSelected
-                          ? 'bg-primary border-primary text-white shadow-md shadow-primary/20 scale-[1.03]'
-                          : isCompleted
-                          ? 'bg-emerald-50/65 border-emerald-100 text-[#0E7850]'
-                          : isUnlocked
-                          ? 'bg-white border-gray-100 text-gray-700 hover:bg-gray-50'
-                          : 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed opacity-60'
-                      }`}
-                    >
-                      <span>Day {dayNum}</span>
-                      {isCompleted ? (
-                        <CheckCircle2 className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-emerald-500'}`} />
-                      ) : isUnlocked ? (
-                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-[#0E7850] animate-pulse'}`} />
-                      ) : (
-                        <Lock className="w-3 h-3 text-gray-300" />
-                      )}
-                    </button>
-                  );
-                });
-              })()}
-            </div>
-          </div>
-
-          {/* Scrollable Report Content Area */}
-          <div className="flex-1 overflow-y-auto px-4 md:px-12 py-8 md:py-12 custom-scrollbar bg-white">
-            <div className="w-full max-w-4xl mx-auto space-y-8 flex flex-col relative pb-16">
-              {(() => {
-                const now = Date.now();
-                const dayContent = selectedSprintDetails.sprint.dailyContent?.find(d => d.day === selectedDay);
-                const progressRecord = selectedSprintDetails.enrollment.progress?.find(p => p.day === selectedDay);
-                const isCompleted = !!progressRecord?.completed;
-                
-                const checkIsDayLocked = (dayNum: number) => {
-                  if (selectedSprintDetails.enrollment.status === 'completed') return false;
-                  const totalDays = selectedSprintDetails.sprint.duration || 5;
-                  const completedDaysCount = selectedSprintDetails.enrollment.progress?.filter(p => p.completed).length || 0;
-                  if (completedDaysCount >= totalDays) return false;
-                  if (dayNum === 1) return false;
-                  
-                  const prevDay = selectedSprintDetails.enrollment.progress?.find(p => p.day === dayNum - 1);
-                  if (!prevDay?.completed) return true;
-                  
-                  if (prevDay.completedAt) {
-                    const completedDate = new Date(prevDay.completedAt);
-                    const nextMidnight = new Date(
-                      completedDate.getFullYear(),
-                      completedDate.getMonth(),
-                      completedDate.getDate() + 1,
-                      0,
-                      0,
-                      0
-                    ).getTime();
-                    return now < nextMidnight;
-                  }
-                  return false;
-                };
-
-                const isLocked = checkIsDayLocked(selectedDay);
-                const isUnlocked = !isLocked;
-
-                if (!isUnlocked) {
-                  return (
-                    <div className="h-64 flex flex-col items-center justify-center text-center p-8 bg-white rounded-[2rem] border border-gray-150 shadow-sm animate-fade-in max-w-md mx-auto w-full mt-8">
-                      <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 mb-4 border border-gray-105">
-                        <Lock className="w-6 h-6" />
-                      </div>
-                      <h3 className="text-base font-black text-gray-900 uppercase tracking-wider">Day Locked</h3>
-                      <p className="text-xs text-gray-400 max-w-xs mt-1.5 leading-relaxed font-semibold">
-                        This day is currently locked. Complete previous days and wait until after midnight to unlock this daily report.
-                      </p>
-                    </div>
-                  );
-                }
-
-                if (!isCompleted) {
-                  return (
-                    <div className="space-y-6 animate-fade-in w-full max-w-2xl mx-auto mt-4">
-                      <div className="p-8 bg-white rounded-[2.5rem] border border-gray-155 shadow-sm space-y-5 text-left">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100 shadow-sm">
-                            <Zap className="w-5 h-5 text-amber-600" />
-                          </div>
-                          <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest leading-none">Present Day Task Active</h3>
-                        </div>
-                        <div className="border-l-4 border-amber-200 pl-4 py-1">
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] mb-1">Today's Focus Prompt</p>
-                          <p className="text-base font-black text-gray-900 leading-tight">
-                            {dayContent?.taskPrompt || "Check your current focus in the main workout view."}
-                          </p>
-                        </div>
-                        <div className="pt-2">
-                          <p className="text-sm text-gray-500 font-semibold leading-relaxed">
-                            You haven't completed this step yet. Return to your dashboard and select <span className="font-black text-[#0E7850]">Today's Focus</span> to execute and log your progress.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                // Rendering Day Report completed values
-                const prompts = dayContent?.taskPrompts || (dayContent?.taskPrompt ? [dayContent.taskPrompt] : []);
-                const answers = progressRecord?.answers || [];
-                const submission = progressRecord?.submission || "";
-                const proofSelection = progressRecord?.proofSelection || "";
-                const completedAt = progressRecord?.completedAt;
-
-                return (
-                  <div className="space-y-8 animate-fade-in w-full">
-                    {/* Progress Bar styled header exactly like SprintView Full Bleed */}
-                    <div className="w-full bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm space-y-4">
-                      <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-[0.3em] text-[#0E7850]">
-                        <span className="flex items-center gap-2.5">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                          Day {selectedDay} Complete
-                        </span>
-                        {completedAt && (
-                          <span className="flex items-center gap-1.5 opacity-80 text-gray-500 font-bold">
-                            <Calendar className="w-3.5 h-3.5" />
-                            {new Date(completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                        )}
-                      </div>
-                      <div className="w-full bg-emerald-500/10 rounded-full h-2 overflow-hidden shadow-inner">
-                        <div className="bg-emerald-500 h-full rounded-full w-full transition-all duration-500 ease-out" />
-                      </div>
-                      <p className="text-xs font-semibold text-gray-500">Your logged performance results have been successfully preserved in your personal archives.</p>
-                    </div>
-
-                    {/* Daily Insight (Collapsible) */}
-                    {dayContent?.lessonText && (
-                      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm text-left relative overflow-hidden">
-                        <button 
-                          onClick={() => setIsDailyInsightExpanded(!isDailyInsightExpanded)}
-                          className="w-full px-6 py-5 flex items-center justify-between hover:bg-gray-50/50 transition-colors text-left"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-[8px] font-black uppercase tracking-[0.2em] rounded-md inline-block border border-indigo-100/50">
-                              Daily Insight
-                            </span>
-                          </div>
-                          <div className="p-1.5 rounded-lg bg-gray-50 text-gray-500">
-                            {isDailyInsightExpanded ? (
-                              <ChevronUp className="w-4 h-4 text-gray-600" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-gray-600" />
-                            )}
-                          </div>
-                        </button>
-                        
-                        {isDailyInsightExpanded && (
-                          <div className="px-6 pb-6 md:px-8 md:pb-8 border-t border-gray-50 pt-5 text-gray-805 font-medium text-sm sm:text-base leading-relaxed animate-fade-in">
-                            <FormattedText text={dayContent.lessonText} />
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Micro Decision Selected Highlight Bar */}
-                    {proofSelection && (
-                      <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm text-left relative overflow-hidden group">
-                        <div className="absolute right-0 top-0 translate-x-2 -translate-y-2 w-16 h-16 bg-[#0E7850]/5 rounded-full blur-xl pointer-events-none"></div>
-                        <span className="px-2.5 py-1 bg-[#0E7850]/10 text-[#0E7850] text-[8px] font-black uppercase tracking-[0.15em] rounded-md inline-block mb-3 border border-[#0E7850]/10">Decision Lock</span>
-                        <p className="text-lg font-black text-gray-900 leading-tight italic">
-                          "{proofSelection}"
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Submission text if not multiple */}
-                    {submission && (!answers || answers.length === 0) && (
-                      <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm text-left relative overflow-hidden group">
-                        <span className="px-2.5 py-1 bg-gray-100 text-gray-500 text-[8px] font-black uppercase tracking-[0.15em] rounded-md inline-block mb-3 border border-gray-200/50">Core Submission</span>
-                        <p className="text-sm font-semibold text-gray-800 leading-relaxed whitespace-pre-line">{submission}</p>
-                      </div>
-                    )}
-
-                    {/* Detailed Action Steps content mapping (Sideways scrolling) */}
-                    {prompts.length > 0 && (
-                      <div className="space-y-4">
-                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] px-1">Action Report Details</h4>
-                        
-                        <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory no-scrollbar relative w-full">
-                          {prompts.map((promptText, idx) => {
-                            if (!promptText || !promptText.trim()) return null;
-                            const answer = answers[idx] || "";
-                            const inputType = dayContent?.taskInputTypes?.[idx] || '';
-
-                            // Check if it's a poll representation
-                            let pollOpts: string[] = [];
-                            if (dayContent?.taskPollOptions?.[idx]) {
-                              try {
-                                pollOpts = JSON.parse(dayContent.taskPollOptions[idx]);
-                              } catch (e) {}
-                            }
-                            pollOpts = pollOpts.filter(Boolean);
-                            const isPoll = inputType === 'poll' || pollOpts.length > 0;
-
-                            // Parse JSON answers if applicable
-                            let selectedOpts: string[] = [];
-                            try {
-                              if (answer && answer.trim().startsWith("[")) {
-                                selectedOpts = JSON.parse(answer);
-                              } else if (answer) {
-                                selectedOpts = [answer];
-                              }
-                            } catch (e) {}
-
-                            return (
-                              <div key={idx} className="flex-shrink-0 w-[85vw] sm:w-[500px] bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm space-y-4 text-left relative snap-start">
-                                {/* Step Index Indicator */}
-                                <div className="flex items-center gap-2.5 border-b border-gray-50 pb-3">
-                                  <span className="w-6 h-6 rounded-lg bg-[#0E7850]/10 text-[#0E7850] flex items-center justify-center text-[11px] font-black border border-[#0E7850]/15">
-                                    {idx + 1}
-                                  </span>
-                                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mt-0.5">Report step {idx + 1}</p>
-                                </div>
-
-                                {/* Task Notes from SprintView logic if present */}
-                                {dayContent?.taskNotes?.[idx] && (
-                                  <div className="text-left border-l-4 border-emerald-500/20 pl-4 py-1.5 text-gray-600 font-semibold text-sm leading-relaxed">
-                                    <FormattedText text={dayContent.taskNotes[idx]} />
-                                  </div>
-                                )}
-
-                                {/* Task Prompt styled exactly like SprintView */}
-                                <div className="text-gray-950 font-black text-sm sm:text-base leading-relaxed mt-2 line-clamp-4 overflow-y-auto">
-                                  <FormattedText text={promptText} />
-                                </div>
-
-                                {/* Task Footnote if present */}
-                                {dayContent?.taskFootnotes?.[idx] && (
-                                  <div className="text-left text-emerald-600 font-bold text-xs sm:text-xs leading-relaxed">
-                                    <FormattedText text={dayContent.taskFootnotes[idx]} />
-                                  </div>
-                                )}
-
-                                {/* Render Answer value nicely with no data string */}
-                                <div className="pt-2">
-                                  {isPoll ? (
-                                    <div className="space-y-3.5">
-                                      <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">
-                                        📊 Poll Response
-                                      </p>
-                                      <div className="flex flex-wrap gap-2 w-full">
-                                        {pollOpts.map((opt, optIndex) => {
-                                          const isSel = selectedOpts.includes(opt);
-                                          return (
-                                            <span
-                                              key={optIndex}
-                                              className={`px-4 py-2.5 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-2 transition-all select-none ${
-                                                isSel 
-                                                  ? "bg-[#0E7850]/10 border-[#0E7850]/35 text-[#0E7850] shadow-sm font-black" 
-                                                  : "bg-gray-50/50 border-gray-150 text-gray-400 opacity-60 font-semibold"
-                                              }`}
-                                            >
-                                              {isSel ? (
-                                                <span className="w-1.5 h-1.5 rounded-full bg-[#0E7850] animate-pulse shrink-0"></span>
-                                              ) : (
-                                                <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0"></span>
-                                              )}
-                                              {opt}
-                                            </span>
-                                          );
-                                        })}
-                                      </div>
-                                      {selectedOpts.length === 0 && (
-                                        <p className="text-xs text-gray-400 italic pl-1">No response selected for this poll card.</p>
-                                      )}
-                                    </div>
-                                  ) : inputType === 'tags' || (answer && answer.trim().startsWith('[') && answer.trim().endsWith(']')) ? (
-                                    <div className="space-y-2">
-                                      <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">
-                                        🏷️ Tags Selection
-                                      </p>
-                                      <div className="flex flex-wrap gap-1.5 w-full">
-                                        {selectedOpts.map((tagValue, tagIdx) => (
-                                          <span key={tagIdx} className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-black bg-primary/10 text-primary border border-primary/10 uppercase tracking-widest">
-                                            {tagValue}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  ) : answer && answer.trim().startsWith("{") && answer.trim().endsWith("}") ? (
-                                    <div className="space-y-2.5 w-full text-left font-semibold">
-                                      {(() => {
-                                        try {
-                                          const parsed = JSON.parse(answer);
-                                          return Object.entries(parsed).map(([lbl, ans], pidx) => (
-                                            <div key={pidx} className="flex flex-col gap-1 border-b border-gray-50 pb-2 last:border-0 last:pb-0 text-left">
-                                              <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[9px] font-black bg-primary/10 text-primary self-start uppercase tracking-wider">
-                                                🔎 {lbl}
-                                              </span>
-                                              <p className="text-gray-800 font-bold text-sm pl-1 mt-0.5">
-                                                {ans as string}
-                                              </p>
-                                            </div>
-                                          ));
-                                        } catch (e) {
-                                          return <p className="text-sm font-bold text-gray-800">{answer}</p>;
-                                        }
-                                      })()}
-                                    </div>
-                                  ) : answer ? (
-                                    <div className="p-4 bg-gray-50/50 border border-gray-100/50 rounded-2xl max-h-36 overflow-y-auto">
-                                      <p className="text-xs font-semibold text-gray-800 leading-relaxed whitespace-pre-line">{answer}</p>
-                                    </div>
-                                  ) : (
-                                    <span className="text-xs text-gray-400 italic font-semibold">No response logged</span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Submission File attachment if existing */}
-                    {progressRecord?.submissionFileUrl && (
-                      <div className="p-5 bg-white rounded-2xl border border-gray-100 text-left flex items-center justify-between shadow-sm">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
-                            <BookOpen className="w-5 h-5 text-indigo-600" />
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-0.5">Attachment Submitted</p>
-                            <p className="text-xs font-bold text-gray-900">Uploaded Evidence Doc</p>
-                          </div>
-                        </div>
-                        <a 
-                          href={progressRecord.submissionFileUrl} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm shadow-indigo-100"
-                        >
-                          View Doc
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };

@@ -21,7 +21,16 @@ const DaySuccessPage: React.FC = () => {
 
   // Retrieve parameters from state or use sensible fallbacks
   const completedDay = location.state?.day || 1;
-  const coinsUnlocked = location.state?.coinsUnlocked !== undefined ? location.state?.coinsUnlocked : 10;
+  const passedCoins = location.state?.coinsUnlocked;
+  const unlockedMilestone = location.state?.unlockedMilestone || location.state?.milestoneUnlocked;
+
+  // Only show unlocked bonus / reward icon card if a milestone or coins are explicitly unlocked (> 0)
+  // Day 1 unlocks the "First Step" milestone (+10 coins) by default if not set to 0. Day 2+ defaults to 0.
+  const coinsUnlocked = passedCoins !== undefined 
+    ? Number(passedCoins) 
+    : (completedDay === 1 ? 10 : 0);
+
+  const isMilestoneUnlocked = Boolean(unlockedMilestone) || (coinsUnlocked > 0 && (completedDay === 1 || Boolean(passedCoins && passedCoins > 0)));
   const initialBridgeNote = location.state?.bridgeNote;
 
   // Listen for window focus / visibility returning after clicking WhatsApp link
@@ -304,8 +313,8 @@ const DaySuccessPage: React.FC = () => {
 
           {/* Simple WhatsApp Support Group CTA on Day 1 */}
           {completedDay === 1 && !user?.whatsappJoinedConfirmed && (
-            <div className="mt-5 pt-4 border-t border-gray-200/80 w-full text-left">
-              <p className="text-xs text-gray-600 font-medium leading-relaxed mb-2.5">
+            <div className="mt-5 pt-4 border-t border-gray-200/80 w-full text-left flex items-center justify-between gap-3 sm:gap-4">
+              <p className="text-sm sm:text-base text-gray-800 font-semibold leading-snug flex-1">
                 Join the WhatsApp support group to get daily reminders and stay on track.
               </p>
               <a
@@ -313,10 +322,10 @@ const DaySuccessPage: React.FC = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleWhatsAppClick}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0E7850] hover:bg-[#0b6342] text-white text-[11px] font-bold rounded-lg transition-all shadow-xs active:scale-95 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-[#0E7850] hover:bg-[#0b6342] text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer shrink-0"
               >
                 <span>Join Now</span>
-                <ArrowRight className="w-3 h-3" />
+                <ArrowRight className="w-3.5 h-3.5" />
               </a>
             </div>
           )}
@@ -325,8 +334,8 @@ const DaySuccessPage: React.FC = () => {
         {/* Compact Side-by-Side Cards (Fit on same line) */}
         <div className="w-full grid grid-cols-2 gap-3 mb-6">
 
-          {/* Unlocked Coins Card */}
-          {coinsUnlocked > 0 && (
+          {/* Unlocked Bonus / Coins Card - ONLY shown if milestone is really unlocked */}
+          {isMilestoneUnlocked && coinsUnlocked > 0 && (
             <motion.div 
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
@@ -352,7 +361,7 @@ const DaySuccessPage: React.FC = () => {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
-            className={`bg-white border border-gray-100 rounded-2xl p-3 shadow-sm flex items-center gap-2.5 relative overflow-hidden ${coinsUnlocked <= 0 ? 'col-span-2' : ''}`}
+            className={`bg-white border border-gray-100 rounded-2xl p-3 shadow-sm flex items-center gap-2.5 relative overflow-hidden ${(!isMilestoneUnlocked || coinsUnlocked <= 0) ? 'col-span-2' : ''}`}
           >
             <div className="w-8 h-8 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center text-gray-500 shrink-0">
               <Clock className="w-4 h-4 text-[#0E7850]" />
