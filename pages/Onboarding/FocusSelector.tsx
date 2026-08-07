@@ -119,14 +119,20 @@ const FocusSelector: React.FC = () => {
       let finalUsedOption: string = option;
       let allMatchedSprintIds: string[] = [];
 
+      const normalizeOpt = (str: string) => str.replace(/[’']/g, "'").trim().toLowerCase();
+
       // Prioritized lookup: Check path in reverse order (most specific first)
       for (let i = path.length - 1; i >= 0; i--) {
         const currentOption = path[i];
+        const normCurrent = normalizeOpt(currentOption);
         
         // 1. Priority check within the triggering slot
         if (activeAssignment?.sprintFocusMap) {
             const matches = Object.keys(activeAssignment.sprintFocusMap).filter(
-                sId => activeAssignment.sprintFocusMap?.[sId]?.includes(currentOption)
+                sId => {
+                    const list = activeAssignment.sprintFocusMap?.[sId] || [];
+                    return list.some(item => normalizeOpt(item) === normCurrent);
+                }
             );
             if (matches.length > 0) {
               const priorities = activeAssignment.focusOptionPriorityMap?.[currentOption] || [];
@@ -154,7 +160,10 @@ const FocusSelector: React.FC = () => {
             for (const [slotId, mapping] of slots) {
                 if (mapping.sprintFocusMap) {
                     const matches = Object.keys(mapping.sprintFocusMap).filter(
-                        sId => mapping.sprintFocusMap?.[sId]?.includes(currentOption)
+                        sId => {
+                            const list = mapping.sprintFocusMap?.[sId] || [];
+                            return list.some(item => normalizeOpt(item) === normCurrent);
+                        }
                     );
                     if (matches.length > 0) {
                         const priorities = mapping.focusOptionPriorityMap?.[currentOption] || [];
@@ -178,6 +187,55 @@ const FocusSelector: React.FC = () => {
             }
         }
         if (resolvedSprintId) break;
+      }
+
+      // 3. Fallback to Orchestrator Foundation slot
+      if (!resolvedSprintId) {
+        if (activeAssignment?.sprintId) {
+          resolvedSprintId = activeAssignment.sprintId;
+          resolvedSlotId = 'trigger_match';
+          allMatchedSprintIds = activeAssignment.sprintIds || [activeAssignment.sprintId];
+        } else if (activeAssignment?.sprintIds && activeAssignment.sprintIds.length > 0) {
+          resolvedSprintId = activeAssignment.sprintIds[0];
+          resolvedSlotId = 'trigger_match';
+          allMatchedSprintIds = activeAssignment.sprintIds;
+        } else if (orchestration['slot_found_clarity']?.sprintId) {
+          resolvedSprintId = orchestration['slot_found_clarity'].sprintId;
+          resolvedSlotId = 'slot_found_clarity';
+          allMatchedSprintIds = orchestration['slot_found_clarity'].sprintIds || [resolvedSprintId];
+        } else if (orchestration['slot_found_clarity']?.sprintIds && orchestration['slot_found_clarity'].sprintIds.length > 0) {
+          resolvedSprintId = orchestration['slot_found_clarity'].sprintIds[0];
+          resolvedSlotId = 'slot_found_clarity';
+          allMatchedSprintIds = orchestration['slot_found_clarity'].sprintIds;
+        } else {
+          // Check any foundation slot
+          const foundEntry = slots.find(([id, val]) => id.includes('slot_found') && (val.sprintId || (val.sprintIds && val.sprintIds.length > 0)));
+          if (foundEntry) {
+            resolvedSprintId = foundEntry[1].sprintId || foundEntry[1].sprintIds?.[0] || null;
+            resolvedSlotId = foundEntry[0];
+            allMatchedSprintIds = foundEntry[1].sprintIds || (resolvedSprintId ? [resolvedSprintId] : []);
+          }
+        }
+      }
+
+      // 4. Fallback to first available published sprint
+      if (!resolvedSprintId) {
+        try {
+          const published = await sprintService.getPublishedSprints();
+          if (published && published.length > 0) {
+            resolvedSprintId = published[0].id;
+            resolvedSlotId = 'system_fallback';
+            allMatchedSprintIds = [published[0].id];
+          }
+        } catch (e) {
+          console.warn("Fallback sprint query error:", e);
+        }
+      }
+
+      // 5. Ultimate fallback: system_map
+      if (!resolvedSprintId) {
+        resolvedSprintId = 'system_map';
+        resolvedSlotId = 'system_map';
       }
 
       if (resolvedSprintId) {
