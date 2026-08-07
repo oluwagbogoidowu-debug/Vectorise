@@ -82,7 +82,7 @@ const FALLBACK_ENROLLMENT: ParticipantSprint = {
   started_at: new Date().toISOString(),
   price_paid: 0,
   currency: 'USD',
-  payment_source: 'free',
+  payment_source: 'free_first_sprint',
   status: 'active',
   progress: [
     {

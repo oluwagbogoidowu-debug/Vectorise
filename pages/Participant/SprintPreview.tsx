@@ -12,7 +12,6 @@ import {
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   updateProfile as updateFbProfile, 
-  sendEmailVerification, 
   GoogleAuthProvider, 
   signInWithPopup 
 } from 'firebase/auth';
@@ -21,7 +20,7 @@ import { userService, safeJSONStringify } from '../../services/userService';
 import PagedSprintDescription from '../../components/PagedSprintDescription';
 import { triggerHaptic, hapticPatterns, getSoundSettings } from '../../utils/haptics';
 import { motion, AnimatePresence } from 'motion/react';
-import { X } from 'lucide-react';
+import { X, Eye, EyeOff } from 'lucide-react';
 
 import { toast } from 'sonner';
 
@@ -307,17 +306,17 @@ const SprintPreview: React.FC = () => {
         navigate('/participant/day-success', { state: daySuccessState });
     };
     
-    // 3-slide bottom modal bar states
-    const [bottomModalStep, setBottomModalStep] = useState(1); // 1 = locked completion, 2 = signup/login, 3 = verify email
+    // Bottom modal bar states
+    const [bottomModalStep, setBottomModalStep] = useState(1); // 1 = locked completion, 2 = signup/login
     const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
     const [authFirstName, setAuthFirstName] = useState('');
     const [authLastName, setAuthLastName] = useState('');
+    const [authPhone, setAuthPhone] = useState('');
     const [authEmail, setAuthEmail] = useState('');
     const [authPassword, setAuthPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [authError, setAuthError] = useState('');
     const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
-    const [isCheckingVerification, setIsCheckingVerification] = useState(false);
-    const [resendingVerifyEmail, setResendingVerifyEmail] = useState(false);
     const [createdEnrollmentId, setCreatedEnrollmentId] = useState<string | null>(null);
     
     const previewStepsContainerRef = useRef<HTMLDivElement>(null);
@@ -462,7 +461,7 @@ const SprintPreview: React.FC = () => {
 
     const handleSignUpSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!authFirstName || !authLastName || !authEmail || !authPassword) {
+        if (!authFirstName || !authLastName || !authPhone || !authEmail || !authPassword) {
             setAuthError("All fields are required.");
             return;
         }
@@ -481,6 +480,8 @@ const SprintPreview: React.FC = () => {
                 id: firebaseUser.uid,
                 name: `${authFirstName} ${authLastName}`,
                 email: authEmail.trim().toLowerCase(),
+                phone: authPhone.trim(),
+                phoneNumber: authPhone.trim(),
                 role: isCoachRegistration ? UserRole.COACH : UserRole.PARTICIPANT,
                 profileImageUrl: `https://ui-avatars.com/api/?name=${authFirstName}+${authLastName}&background=0E7850&color=fff`,
                 persona: isCoachRegistration ? 'Coach' : 'Seeker',
@@ -546,11 +547,6 @@ const SprintPreview: React.FC = () => {
                 enrollmentId,
                 sprintId: sprint?.id
             };
-
-            sessionStorage.setItem('post_verify_redirect', safeJSONStringify({
-                path: '/participant/day-success',
-                state: daySuccessState
-            }));
 
             toast.success("Account created successfully!");
             setShowLockModal(false);
@@ -634,61 +630,6 @@ const SprintPreview: React.FC = () => {
             }
         } finally {
             setIsSubmittingAuth(false);
-        }
-    };
-
-    const handleIHaveVerifiedClick = async () => {
-        setIsCheckingVerification(true);
-        try {
-            const isVerified = await checkVerification();
-            if (isVerified) {
-                toast.success("Email verified successfully! Welcome.");
-                setShowLockModal(false);
-                const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
-                navigate('/participant/day-success', { 
-                    state: { 
-                        day: 1, 
-                        coinsUnlocked: 10, 
-                        bridgeNote: d1Content?.bridgeNote, 
-                        enrollmentId: createdEnrollmentId,
-                        sprintId: sprint?.id
-                    },
-                    replace: true 
-                });
-            } else {
-                toast.error("Email is not verified yet. Please click the link in your inbox first!");
-            }
-        } catch (err) {
-            console.error("Verification error", err);
-            toast.error("An error occurred during verification check.");
-        } finally {
-            setIsCheckingVerification(false);
-        }
-    };
-
-    const handleResendVerificationClick = async () => {
-        if (auth.currentUser) {
-            setResendingVerifyEmail(true);
-            try {
-                await sendEmailVerification(auth.currentUser);
-                toast.success("Verification link sent to your inbox!");
-            } catch (err) {
-                toast.error("Failed to resend. Please check back in a moment.");
-            } finally {
-                setResendingVerifyEmail(false);
-            }
-        }
-    };
-
-    const handleSignOutClick = async () => {
-        try {
-            await logout();
-            setBottomModalStep(1);
-            setAuthPassword('');
-            setAuthError('');
-            setCreatedEnrollmentId(null);
-        } catch (err) {
-            console.error(err);
         }
     };
 
@@ -1971,11 +1912,7 @@ const SprintPreview: React.FC = () => {
                 <>
                     {/* Backdrop Overlay */}
                     <div 
-                        onClick={() => {
-                            if (bottomModalStep !== 3) {
-                                setShowLockModal(false);
-                            }
-                        }}
+                        onClick={() => setShowLockModal(false)}
                         className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm animate-fade-in" 
                     />
                     
@@ -2032,34 +1969,50 @@ const SprintPreview: React.FC = () => {
                             <div className="animate-fade-in text-center">
                                 <form onSubmit={authMode === 'signup' ? handleSignUpSubmit : handleLoginSubmit} className="space-y-4 text-left">
                                     {authMode === 'signup' && (
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-1">
+                                                    <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">First Name</label>
+                                                    <input 
+                                                        type="text" 
+                                                        required 
+                                                        value={authFirstName} 
+                                                        onChange={(e) => setAuthFirstName(e.target.value)} 
+                                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-sm focus:bg-white focus:border-primary/20 transition-all text-gray-900" 
+                                                        placeholder="First Name" 
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Last Name</label>
+                                                    <input 
+                                                        type="text" 
+                                                        required 
+                                                        value={authLastName} 
+                                                        onChange={(e) => setAuthLastName(e.target.value)} 
+                                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-sm focus:bg-white focus:border-primary/20 transition-all text-gray-900" 
+                                                        placeholder="Last Name" 
+                                                    />
+                                                </div>
+                                            </div>
+
                                             <div className="space-y-1">
-                                                <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">First Name</label>
+                                                <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                                                    Mobile Number (preferably WhatsApp)
+                                                </label>
                                                 <input 
-                                                    type="text" 
+                                                    type="tel" 
                                                     required 
-                                                    value={authFirstName} 
-                                                    onChange={(e) => setAuthFirstName(e.target.value)} 
+                                                    value={authPhone} 
+                                                    onChange={(e) => setAuthPhone(e.target.value)} 
                                                     className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-sm focus:bg-white focus:border-primary/20 transition-all text-gray-900" 
-                                                    placeholder="First Name" 
+                                                    placeholder="Mobile Number (preferably WhatsApp)" 
                                                 />
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">Last Name</label>
-                                                <input 
-                                                    type="text" 
-                                                    required 
-                                                    value={authLastName} 
-                                                    onChange={(e) => setAuthLastName(e.target.value)} 
-                                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-sm focus:bg-white focus:border-primary/20 transition-all text-gray-900" 
-                                                    placeholder="Last Name" 
-                                                />
-                                            </div>
-                                        </div>
+                                        </>
                                     )}
                                     
                                     <div className="space-y-1">
-                                        <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">Email Address</label>
+                                        <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
                                         <input 
                                             type="email" 
                                             required 
@@ -2071,17 +2024,27 @@ const SprintPreview: React.FC = () => {
                                     </div>
                                     
                                     <div className="space-y-1">
-                                        <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">
+                                        <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">
                                             {authMode === 'signup' ? 'Set Password' : 'Password'}
                                         </label>
-                                        <input 
-                                            type="password" 
-                                            required 
-                                            value={authPassword} 
-                                            onChange={(e) => setAuthPassword(e.target.value)} 
-                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-sm focus:bg-white focus:border-primary/20 focus:ring-4 focus:ring-primary/5 transition-all text-gray-900" 
-                                            placeholder="Password" 
-                                        />
+                                        <div className="relative">
+                                            <input 
+                                                type={showPassword ? "text" : "password"} 
+                                                required 
+                                                value={authPassword} 
+                                                onChange={(e) => setAuthPassword(e.target.value)} 
+                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-sm focus:bg-white focus:border-primary/20 focus:ring-4 focus:ring-primary/5 transition-all text-gray-900 pr-10" 
+                                                placeholder="Password" 
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+                                                title={showPassword ? "Hide password" : "Reveal password"}
+                                            >
+                                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {authError && (
@@ -2158,78 +2121,6 @@ const SprintPreview: React.FC = () => {
                                         className="text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors cursor-pointer"
                                     >
                                         Back
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {bottomModalStep === 3 && (
-                            <div className="text-center animate-fade-in relative pt-4">
-                                {/* Subtle Cancel Button */}
-                                <button 
-                                    type="button" 
-                                    onClick={() => {
-                                        setShowBottomCancelConfirm(true);
-                                    }}
-                                    className="absolute -top-4 left-0 flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200/60 rounded-full text-[9px] font-black text-gray-500 uppercase tracking-widest transition-all active:scale-95 cursor-pointer shadow-sm"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                    Cancel
-                                </button>
-
-                                <div className="w-16 h-16 bg-primary/5 text-primary rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-[#0E7850]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                    </svg>
-                                </div>
-                                
-                                <h2 className="text-xl font-black text-gray-900 mb-2 tracking-tight uppercase">
-                                    VERIFY YOUR EMAIL
-                                </h2>
-                                
-                                <p className="text-gray-500 text-xs mb-6 font-medium">
-                                    We’ve sent a portal link to:<br/>
-                                    <span className="text-primary font-black italic break-all">{authEmail}</span>
-                                </p>
-
-                                <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6 text-[10px] text-gray-400 font-bold leading-relaxed uppercase tracking-widest text-center">
-                                    CLICK THE LINK AND YOU WILL BE AUTOMATICALLY VERIFIED
-                                    <span className="block mt-2 font-black text-amber-600">
-                                        (YOU CAN ALSO CHECK YOUR SPAM FOR THE EMAIL IF IT HASN’T ARRIVED)
-                                    </span>
-                                </div>
-
-                                <button 
-                                    type="button"
-                                    disabled={isCheckingVerification}
-                                    onClick={handleIHaveVerifiedClick}
-                                    className="w-full py-4 bg-primary hover:bg-[#0b5d3e] text-white rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg transition-transform active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-                                >
-                                    {isCheckingVerification ? (
-                                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                                    ) : (
-                                        "I'VE CLICKED THE LINK"
-                                    )}
-                                </button>
-
-                                <div className="flex justify-between gap-4 pt-4 mt-6 border-t border-gray-100">
-                                    <button 
-                                        type="button"
-                                        disabled={resendingVerifyEmail}
-                                        onClick={handleResendVerificationClick}
-                                        className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline disabled:opacity-50 cursor-pointer"
-                                    >
-                                        {resendingVerifyEmail ? 'Sending Link...' : 'RESEND EMAIL'}
-                                    </button>
-
-                                    <button 
-                                        type="button"
-                                        onClick={handleSignOutClick}
-                                        className="text-[9px] font-black text-red-500 uppercase tracking-widest hover:underline cursor-pointer"
-                                    >
-                                        SIGN OUT
                                     </button>
                                 </div>
                             </div>

@@ -447,6 +447,12 @@ const TrackDescriptionPage: React.FC = () => {
                         </div>
                     </aside>
                 </div>
+
+                <div className="text-center mt-10 mb-8">
+                    <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400">
+                        GET 1% BETTER DAILY
+                    </p>
+                </div>
             </div>
         </div>
     );
